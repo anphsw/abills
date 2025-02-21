@@ -6,13 +6,7 @@
     description: Возвращает интервалы ТП
     operationId: getTpIntervalsInfo
     parameters:
-      - name: tpId
-        in: path
-        description: tpID тарифного плана
-        required: true
-        schema:
-          type: integer
-          format: int64
+      - $ref: "#/components/parameters/pathTpId"
     responses:
       200:
         description: Успешное выполнение

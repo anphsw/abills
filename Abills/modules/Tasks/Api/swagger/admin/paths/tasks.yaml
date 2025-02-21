@@ -1,0 +1,129 @@
+get:
+  tags:
+    - tasks
+  summary: Список задач
+  parameters:
+    - name: id
+      in: query
+      description: Идентификатор задачи
+      schema:
+        type: boolean
+        default: false
+    - name: taskType
+      in: query
+      description: Тип задачи
+      schema:
+        type: boolean
+        default: false
+    - name: state
+      in: query
+      description: Состояние задачи
+      schema:
+        type: boolean
+        default: false
+    - name: aid
+      in: query
+      description: Идентификатор сотрудника, создавшего задачу
+      schema:
+        type: boolean
+        default: false
+    - name: responsible
+      in: query
+      description: Ответственный за задачу
+      schema:
+        type: boolean
+        default: false
+    - name: planDate
+      in: query
+      description: Дата планирования
+      schema:
+        type: boolean
+        default: false
+    - name: closedDate
+      in: query
+      description: Дата закрытия задачи
+      schema:
+        type: boolean
+        default: false
+    - name: controlDate
+      in: query
+      description: Дата контроля
+      schema:
+        type: boolean
+        default: false
+    - name: msgId
+      in: query
+      description: Идентификатор сообщения
+      schema:
+        type: boolean
+        default: false
+    - name: stepId
+      in: query
+      description: Идентификатор шага
+      schema:
+        type: boolean
+        default: false
+    - name: leadId
+      in: query
+      description: Идентификатор лида
+      schema:
+        type: boolean
+        default: false
+    - name: dealId
+      in: query
+      description: Идентификатор сделки
+      schema:
+        type: boolean
+        default: false
+    - name: parentId
+      in: query
+      description: Идентификатор родительской задачи
+      schema:
+        type: boolean
+        default: false
+    - name: path
+      in: query
+      description: Путь
+      schema:
+        type: boolean
+        default: false
+    - name: name
+      in: query
+      description: Имя задачи
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tasksList.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - tasks
+  summary: Добавление задачи
+  operationId: addTask
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/taskAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/taskAddResponse.yaml"
+  security:
+    - KEY: [ ]

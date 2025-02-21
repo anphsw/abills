@@ -230,7 +230,11 @@ CREATE TABLE IF NOT EXISTS `crm_dialogues` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `state` TINYINT(2) UNSIGNED DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE (`lead_id`, `date`)
+  KEY `aid` (`aid`),
+  KEY `source` (`source`),
+  KEY `state` (`state`),
+  KEY `lead_id` (`lead_id`),
+  UNIQUE _lead (`lead_id`, `date`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm dialogues';
@@ -262,7 +266,9 @@ CREATE TABLE IF NOT EXISTS `crm_open_line_admins` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `open_line_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
+  KEY `open_line_id` (`open_line_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm open line admins';
@@ -273,6 +279,7 @@ CREATE TABLE IF NOT EXISTS `crm_section_fields` (
   `fields` TEXT NOT NULL,
   `section_id` INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
   UNIQUE KEY `admin_panel` (`aid`, `section_id`)
 )
   DEFAULT CHARSET = utf8
@@ -283,7 +290,8 @@ CREATE TABLE IF NOT EXISTS `crm_sections` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `title` VARCHAR(60) NOT NULL DEFAULT '',
   `deal_section` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Info sections';

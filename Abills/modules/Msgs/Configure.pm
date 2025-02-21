@@ -83,6 +83,13 @@ sub msgs_permissions {
       my $action = $section->{ACTIONS}{$action_key};
       my $action_id = $section_key . '_'. $action_key;
 
+      if ($section_key == 1 && $action_key == 21) {
+        $table->{rowcolor} = 'bg-danger';
+      }
+      else {
+        $table->{rowcolor} = '';
+      }
+
       my $checkbox = $html->form_input($action_id, 1, {
         STATE         => defined($admin_permissions->{$section_key}{$action_key}) ? 1 : undef,
         TYPE          => 'checkbox',
@@ -92,6 +99,17 @@ sub msgs_permissions {
       $table->addrow($action_key, $html->element('label', $action, { FOR => $action_id, class => 'font-weight-normal mb-0' }), $checkbox);
     }
   }
+
+  func_menu({
+    $lang{NAME} => $html->form_main({
+      CONTENT => sel_admins({ DISABLE => 0, EX_PARAMS => { 'AUTOSUBMIT' => 'form' } }),
+      HIDDEN  => {
+        index => $index,
+        show  => 1
+      },
+      class   => 'form-inline ml-auto flex-nowrap',
+    })
+  });
 
   $html->tpl_show(_include('msgs_add_permits', 'Msgs'), {
     PERMISSIONS_TABLE => $table->show({ OUTPUT2RETURN => 1 }),

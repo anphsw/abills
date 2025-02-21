@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "USER_PASSWORD_RECOVERY_RESPONSE",
+  "required": [
+    "result"
+  ],
+  "properties": {
+    "result": {
+      "type": "string"
+    }
+  }
+}

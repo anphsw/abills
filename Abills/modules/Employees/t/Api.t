@@ -46,7 +46,8 @@ if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($A
 
 test_runner({
   apiKey => $apiKey,
-  debug  => $debug
+  debug  => $debug,
+  argv   => $ARGV
 }, \@test_list);
 
 done_testing();

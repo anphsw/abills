@@ -1,0 +1,8 @@
+{
+  "name": "USER_RESET_PASSWORD",
+  "method": "POST",
+  "path": "user/password/reset/",
+  "body": {
+    "password": "thebestpasswordever"
+  }
+}

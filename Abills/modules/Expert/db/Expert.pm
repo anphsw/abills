@@ -2,13 +2,14 @@ package Expert;
 
 =head1 NAME
 
- Expert pm
+  Expert system module
 
 =cut
 
 use strict;
 use parent qw(dbcore);
 
+our $VERSION = 8.01;
 my $MODULE = 'Expert';
 
 #**********************************************************
@@ -137,7 +138,7 @@ sub answers_list {
     { COLS_NAME => 1, Bind => [ $question_id ] }
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -173,6 +174,21 @@ sub answer_change {
 
   return $self;
 }
+
+#**********************************************************
+=head2 answer_del() - delete answer
+
+=cut
+#**********************************************************
+sub answer_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('expert_answer', { ID => $id });
+
+  return $self;
+}
+
 
 #**********************************************************
 =head2 faq_add() - add info
@@ -235,16 +251,13 @@ sub faq_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @search_columns = (
-    [ 'ID',        'INT',    'ef.id',     1],
-    [ 'TITLE',     'STR',    'ef.title',  1],
-    [ 'BODY',      'STR',    'ef.body',   1],
-    [ 'TYPE',      'INT',    'ef.type',   1],
-    [ 'ICON',      'STR',    'ef.icon',   1],
+    [ 'ID',        'INT',    'ef.id',        ],
+    [ 'PRIORITY',  'INT',    'ef.priority', 1],
+    [ 'TITLE',     'STR',    'ef.title',    1],
+    [ 'BODY',      'STR',    'ef.body',     1],
+    [ 'TYPE',      'INT',    'ef.type',     1],
+    [ 'ICON',      'STR',    'ef.icon',     1],
   );
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @search_columns;
-  }
 
   my $WHERE = $self->search_former($attr, \@search_columns,
     { WHERE => 1 }
@@ -264,7 +277,7 @@ sub faq_list {
     }
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return [] if ($self->{errno} || $self->{TOTAL} < 1);
 

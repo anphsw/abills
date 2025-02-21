@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_VOIP",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "monthFee": {
+        "type": "integer"
+      },
+      "dayFee": {
+        "type": "integer"
+      },
+      "originalMonthFee": {
+        "type": "integer"
+      },
+      "originalDayFee": {
+        "type": "integer"
+      },
+      "tpFee": {
+        "type": "integer"
+      },
+      "comments": {
+        "type": "string"
+      },
+      "tpReductionFee": {
+        "type": "string"
+      },
+      "tpAge": {
+        "type": "integer"
+      },
+      "activatePrice": {
+        "type": "integer"
+      },
+      "popular": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "tpId",
+      "monthFee",
+      "dayFee",
+      "originalMonthFee",
+      "originalDayFee",
+      "tpFee",
+      "comments",
+      "tpReductionFee",
+      "tpAge",
+      "activatePrice",
+      "popular"
+    ]
+  }
+}

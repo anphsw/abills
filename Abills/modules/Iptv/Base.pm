@@ -59,7 +59,7 @@ sub iptv_payments_maked {
     SERVICE_STATUS  => '_SHOW',
     SERVICE_ID      => '_SHOW',
     TV_SERVICE_NAME => '_SHOW',
-    COLS_NAME       => 1,
+    COLS_NAME       => 1
   });
 
   return 0 if ($Iptv->{TOTAL} < 1);
@@ -75,11 +75,13 @@ sub iptv_payments_maked {
       $main::Iptv->{SERVICE_ID} = $service_user->{service_id} if ($main::Iptv);
 
       ::iptv_account_action({
+        ID         => $service_user->{id},
+        SERVICE_ID => $service_user->{service_id},
         %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
-        PASSWORD  => $form->{newpassword},
-        change    => 1,
-        USER_INFO => $user,
-        SILENT    => 1
+        PASSWORD   => $form->{newpassword},
+        change     => 1,
+        USER_INFO  => $user,
+        SILENT     => 1,
       });
 
       next;
@@ -338,7 +340,7 @@ sub _iptv_docs_monthly_fee {
     }
   }
 
-  if ($service_info->{month_fee} <= 0 && !$attr->{IPTV_SHOW_FREE_TPS}) {
+  if ($service_info->{month_fee} <= 0 && (!$attr->{IPTV_SHOW_FREE_TPS} || $service_info->{day_fee})) {
     return;
   }
 

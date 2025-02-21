@@ -288,7 +288,7 @@ sub bonus_tp {
 
   my ($add);
   foreach my $line (@{$list}) {
-    if ($permissions{4}{1}) {
+    if ($permissions{4} && $permissions{4}{1}) {
       $add = $html->button($lang{ADD}, "index=$index&TP_ID=$line->[0]&add=$line->[0]", { class => 'add' });
     }
 
@@ -1110,7 +1110,7 @@ sub bonus_service_discount {
     });
   }
 
-  if ($FORM{add_form}){
+  if ($FORM{add_form} || $FORM{chg}){
     $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
   }
 

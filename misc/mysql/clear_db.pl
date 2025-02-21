@@ -2,7 +2,7 @@
 #**********************************************************
 =head1 NAME
 
- Clear db
+ Clear and rotate db
 
 =cut
 #**********************************************************
@@ -13,19 +13,19 @@ use warnings FATAL => 'all';
 BEGIN {
   our (%conf, @MODULES);
   use FindBin '$Bin';
-  require $Bin.'/../../libexec/config.pl';
+  require $Bin . '/../../libexec/config.pl';
   unshift(@INC,
-    $Bin.'/../../',
-    $Bin.'/../../Abills/modules/',
-    $Bin.'/../../lib/',
-    $Bin."/../../Abills/$conf{dbtype}"
+    $Bin . '/../../',
+    $Bin . '/../../Abills/modules/',
+    $Bin . '/../../lib/',
+    $Bin . "/../../Abills/$conf{dbtype}"
   );
 }
 
-our ( %conf, $DATE, $TIME, @MODULES );
+our (%conf, $DATE, $TIME, @MODULES);
 
 my $debug = 1;
-my $version = 0.12;
+my $version = 0.14;
 
 use Abills::SQL;
 use Admins;
@@ -38,19 +38,19 @@ if ($argv->{DB_NAME}) {
   $conf{dbname} = $argv->{DB_NAME};
 }
 
-my $db = Abills::SQL->connect( $conf{dbtype},
+my $db = Abills::SQL->connect($conf{dbtype},
   $conf{dbhost},
   $conf{dbname},
   $conf{dbuser},
   $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} :
-      undef } );
+    undef });
 
-my $Admin = Admins->new( $db, \%conf );
+my $Admin = Admins->new($db, \%conf);
 
 if ($argv->{DEBUG}) {
   $debug = $argv->{DEBUG};
-  print  "DEBUG: $debug \n";
+  print "DEBUG: $debug \n";
 }
 
 my $action = 'SELECT * ';
@@ -66,8 +66,8 @@ if (defined($argv->{'-h'}) || defined($argv->{'help'})) {
 my $internet_module_enabled = in_array('Internet', \@MODULES);
 
 if (!$argv->{ACTIONS}) {
-  $argv->{ACTIONS} = 'payments,fees,admin_actions';
-  if ($internet_module_enabled){
+  $argv->{ACTIONS} = 'payments,fees,admin_actions,paysys_log';
+  if ($internet_module_enabled) {
     $argv->{ACTIONS} .= ',internet_log';
   }
 }
@@ -79,7 +79,7 @@ if (!$argv->{DATE}) {
 
 my $drop_exist_table = 1;
 
-$Admin->{debug} = 1 if ( $debug > 6 );
+$Admin->{debug} = 1 if ($debug > 6);
 
 $argv->{ACTIONS} =~ s/ //g;
 my @actions = split(/,/, $argv->{ACTIONS});
@@ -108,19 +108,23 @@ sub db_action {
 
   my DBI $db_ = $db->{db};
 
-  foreach my $log (@actions) {
-    my $fn = $log.'_rotate';
+  if ($argv->{DISABLE_BIN}) {
+    $Admin->query("SET sql_log_bin=0;", 'do');
+  }
 
-    my $sql_arr = &{ \&$fn }( { %$argv,
+  foreach my $log (@actions) {
+    my $fn = $log . '_rotate';
+
+    my $sql_arr = &{\&$fn}({ %$argv,
       DATE => ($argv->{DATE} !~ m/[<>]/) ? "<$argv->{DATE}" : "$argv->{DATE}"
     });
 
     if (defined($argv->{'ROTATE'})) {
       $action = 'DELETE ';
-      push @{ $sql_arr }, @{ &{ \&$fn }( {
+      push @{$sql_arr}, @{&{\&$fn}({
         DELETE => 1,
-        DATE   => "<$argv->{DATE}" } )
-      };
+        DATE   => "<$argv->{DATE}" })
+        };
       $action = 'SELECT * ';
     }
 
@@ -132,19 +136,19 @@ sub db_action {
 
     foreach my $sql (@$sql_arr) {
       if ($debug > 3 || defined($argv->{SHOW}) || defined($argv->{SHOW_SUMMARY})) {
-        if($argv->{SHOW_SUMMARY}) {
-          $Admin->query( "$sql" );
+        if ($argv->{SHOW_SUMMARY}) {
+          $Admin->query("$sql");
           print "$fn Total: $Admin->{TOTAL}\n";
           next;
         }
-        print $sql."\n";
-        if(defined($argv->{SHOW})) {
+        print $sql . "\n";
+        if (defined($argv->{SHOW})) {
           next;
         }
       }
 
       if ($debug < 5) {
-        $Admin->query( "$sql", (($action eq 'DELETE' || defined($argv->{'ROTATE'})) ? 'do' : undef) );
+        $Admin->query("$sql", (($action eq 'DELETE' || defined($argv->{'ROTATE'})) ? 'do' : undef));
 
         if ($Admin->{errno}) {
           print "SQL Error: [$Admin->{errno}] $Admin->{errstr} / $Admin->{sql_errno} $Admin->{sql_errstr}\n";
@@ -153,7 +157,7 @@ sub db_action {
             if ($Admin->{sql_errstr} =~ /\'(\S+)\'/) {
               my $table = $1;
               print "Drop table: $table\n";
-              $Admin->query( "DROP TABLE $1", 'do' );
+              $Admin->query("DROP TABLE $1", 'do');
             }
           }
           else {
@@ -182,23 +186,23 @@ sub payments_list {
   my @WHERE_RULES = ();
 
   if ($attr->{GID}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{GID}", 'INT', 'groups.gid' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("$attr->{GID}", 'INT', 'groups.gid')};
   }
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'payments.date' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("$attr->{DATE}", 'DATE', 'payments.date')};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   my $sql_expr = "(SELECT payments.id FROM payments 
     LEFT JOIN users u ON (u.uid=payments.uid)
-    LEFT JOIN groups ON (u.gid=groups.gid)
+    LEFT JOIN `groups` ON (u.gid=groups.gid)
   $WHERE
   GROUP BY payments.id)";
 
   my $sql_expr2 = " LEFT JOIN users u ON (u.uid=payments.uid)
-    LEFT JOIN groups ON (u.gid=groups.gid)
+    LEFT JOIN `groups` ON (u.gid=groups.gid)
   $WHERE";
 
   return ($sql_expr, $sql_expr2);
@@ -218,7 +222,7 @@ sub payments_rotate {
   my $action_ = $action;
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE docs_invoice2payments_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = 'CREATE TABLE docs_invoice2payments_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/docs_invoice2payments\.\*/g;
   }
 
@@ -226,7 +230,7 @@ sub payments_rotate {
     "$action_ FROM docs_invoice2payments  WHERE payment_id IN $payments_list;  ");
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE docs_invoices_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = 'CREATE TABLE docs_invoices_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/docs_invoices\.\*/g;
   }
 
@@ -234,20 +238,20 @@ sub payments_rotate {
     "$action_ FROM docs_invoices WHERE id IN (SELECT invoice_id FROM docs_invoice2payments WHERE payment_id IN $payments_list);";
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE docs_receipt_orders_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = 'CREATE TABLE docs_receipt_orders_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/docs_receipt_orders\.\*/g;
   }
   push @SQL_array,
     "$action_ FROM docs_receipt_orders WHERE receipt_id IN (SELECT id FROM docs_receipts WHERE payment_id IN $payments_list);";
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE docs_receipts_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = 'CREATE TABLE docs_receipts_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/docs_receipts\.\*/g;
   }
   push @SQL_array, "$action_ FROM docs_receipts WHERE payment_id IN $payments_list;";
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE payments_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = 'CREATE TABLE payments_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/payments\.\*/g;
   }
   elsif ($action =~ /DELETE/) {
@@ -271,42 +275,42 @@ sub fees2_rotate {
   my @WHERE_RULES = ();
 
   if ($attr->{DELETE}) {
-    return [ ];
+    return [];
   }
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "<$argv->{DATE}", 'DATE', 'f.date' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("<$argv->{DATE}", 'DATE', 'f.date')};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
   my @SQL_array = ('DROP TABLE IF EXISTS fees_new;',
     'CREATE TABLE fees_new LIKE fees;',
     'DROP TABLE IF EXISTS fees_backup;',
     'RENAME TABLE fees TO fees_backup, fees_new TO fees;',
-    'CREATE TABLE IF NOT EXISTS fees_'.$CUR_DATE.' LIKE fees;');
+    'CREATE TABLE IF NOT EXISTS fees_' . $CUR_DATE . ' LIKE fees;');
 
-  push @SQL_array, 'INSERT INTO fees_'.$CUR_DATE."
+  push @SQL_array, 'INSERT INTO fees_' . $CUR_DATE . "
   SELECT DISTINCT f.* FROM fees_backup f 
     LEFT JOIN users ON (users.uid=f.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
    GROUP BY f.id";
 
   if ($attr->{DATE}) {
-    @WHERE_RULES = @{ $Admin->search_expr( ">=$argv->{DATE}", 'DATE', 'f.date' ) };
+    @WHERE_RULES = @{$Admin->search_expr(">=$argv->{DATE}", 'DATE', 'f.date')};
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
   push @SQL_array, "INSERT INTO fees
     SELECT DISTINCT f.* FROM fees_backup f 
     LEFT JOIN users ON (users.uid=f.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
    GROUP BY f.id";
 
-  push  @SQL_array, 'DROP TABLE fees_backup;';
+  push @SQL_array, 'DROP TABLE fees_backup;';
 
   return \@SQL_array;
 }
@@ -322,15 +326,15 @@ sub fees_rotate {
   my @WHERE_RULES = ();
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'f.date' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("$attr->{DATE}", 'DATE', 'f.date')};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
   my $action_ = $action;
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE fees_'.$CUR_DATE.  " DEFAULT CHARSET=$conf{dbcharset} ".$action ;
+    $action_ = 'CREATE TABLE fees_' . $CUR_DATE . " DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/f\.\*/g;
   }
   elsif ($action_ =~ /DELETE/) {
@@ -345,7 +349,7 @@ sub fees_rotate {
 
   my @SQL_array = ("$action_ FROM fees f
     LEFT JOIN users ON (users.uid=f.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
      ");
 
@@ -360,9 +364,9 @@ sub fees_rotate {
 #**********************************************************
 sub internet_log_rotate {
   my ($attr) = @_;
-  
+
   $attr->{TABLE_NAME} = 'internet_log';
-  
+
   return _log_rotate($attr);
 }
 
@@ -373,12 +377,12 @@ sub internet_log_rotate {
 #**********************************************************
 sub internet_log_group_rotate {
   my ($attr) = @_;
-  
+
   $attr->{TABLE_NAME} = 'internet_log';
   $attr->{SUBSTITUTE_FIELDS} = {
     CID => 'cid'
   };
-  
+
   return _log_group_rotate($attr);
 }
 
@@ -393,24 +397,26 @@ sub _log_rotate {
   my @WHERE_RULES = ();
 
   my $table_name = $attr->{TABLE_NAME} || 'internet_log';
+  my $sql_field = ($attr->{SUBSTITUTE_FIELDS} && $attr->{SUBSTITUTE_FIELDS}->{DATE}) ? $attr->{SUBSTITUTE_FIELDS}->{DATE} : 'start';
+
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'l.start' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("$attr->{DATE}", 'DATE', "l.$sql_field")};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
   my $action_ = $action;
 
   if (defined($attr->{ROTATE})) {
-    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/l\.\*/g;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' l ';
   }
 
-  my @SQL_array = (  "$action_ FROM $table_name l
+  my @SQL_array = ("$action_ FROM $table_name l
     LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE");
 
   return \@SQL_array;
@@ -428,23 +434,23 @@ sub _log_group_rotate {
   my @WHERE_RULES = ();
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "<$argv->{DATE}", 'DATE', 'l.start' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("<$argv->{DATE}", 'DATE', 'l.start')};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
   my $table_name = $attr->{TABLE_NAME} || 'internet_log';
   my $cid_col_name = ($attr->{SUBSTITUTE_FIELDS} && $attr->{SUBSTITUTE_FIELDS}{CID})
     ? $attr->{SUBSTITUTE_FIELDS}{CID}
     : 'CID';
 
-  my @SQL_array = ('DROP TABLE IF EXISTS '.$table_name.'_new;',
-    'CREATE TABLE '.$table_name.'_new LIKE '.$table_name.';',
-    'DROP TABLE IF EXISTS '.$table_name.'_backup;',
-    'RENAME TABLE '.$table_name.' TO '.$table_name.'_backup, '.$table_name.'_new TO '.$table_name.';',
-    'CREATE TABLE IF NOT EXISTS '.$table_name.'_'.$CUR_DATE.' LIKE '.$table_name.';'
+  my @SQL_array = ('DROP TABLE IF EXISTS ' . $table_name . '_new;',
+    'CREATE TABLE ' . $table_name . '_new LIKE ' . $table_name . ';',
+    'DROP TABLE IF EXISTS ' . $table_name . '_backup;',
+    'RENAME TABLE ' . $table_name . ' TO ' . $table_name . '_backup, ' . $table_name . '_new TO ' . $table_name . ';',
+    'CREATE TABLE IF NOT EXISTS ' . $table_name . '_' . $CUR_DATE . ' LIKE ' . $table_name . ';'
   );
 
-  push @SQL_array, 'INSERT INTO '.$table_name."
+  push @SQL_array, 'INSERT INTO ' . $table_name . "
     (
    start,
    tp_id,
@@ -478,47 +484,26 @@ sub _log_group_rotate {
    SUM(l.acct_output_gigawords),
    SUM(l.ex_input_octets_gigawords),
    SUM(l.ex_output_octets_gigawords)
-    FROM ".$table_name."_backup l
+    FROM " . $table_name . "_backup l
     LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
    GROUP BY uid, 1";
 
   if ($attr->{DATE}) {
-    @WHERE_RULES = @{ $Admin->search_expr( ">=$argv->{DATE}", 'DATE', 'l.start' ) };
+    @WHERE_RULES = @{$Admin->search_expr(">=$argv->{DATE}", 'DATE', 'l.start')};
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
-  push @SQL_array, "INSERT INTO ".$table_name."
-    SELECT l.* FROM ".$table_name."_backup l
+  push @SQL_array, "INSERT INTO " . $table_name . "
+    SELECT l.* FROM " . $table_name . "_backup l
     LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN groups ON (users.gid=groups.gid)
+    LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE";
 
-  push  @SQL_array, 'DROP TABLE '.$table_name.'_backup;';
+  push @SQL_array, 'DROP TABLE ' . $table_name . '_backup;';
   return \@SQL_array;
-}
-
-#**********************************************************
-#
-#**********************************************************
-sub help {
-
-  print << "[END]";
-  Clear db utilite VERSION: $version
-  Clear payments, fees, internet_log
-  ACTIONS=[payments, fees, internet_log, admin_actions] - default all tables
-  GID           - Groups
-  DATE          - Date time DATE="<YYYY-MM-DD"
-  SHOW          - Show clear date (default)
-  DEL           - Clear date
-  ROTATE        - Add rows to rotate table
-  DEBUG=1..8    - Debug mode
-  DB_NAME       - DB name (default from config.pl)
-  help          - Help
-[END]
-
 }
 
 #**********************************************************
@@ -534,25 +519,60 @@ sub admin_actions_rotate {
   my $table_name = 'admin_actions';
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'aa.datetime' ) };
+    push @WHERE_RULES, @{$Admin->search_expr("$attr->{DATE}", 'DATE', 'aa.datetime')};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
   my $action_ = $action;
 
   if (defined($attr->{ROTATE})) {
-    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} " . $action;
     $action_ =~ s/\*/aa\.\*/g;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' aa ';
   }
 
-  my @SQL_array = (  "$action_ FROM $table_name aa
+  my @SQL_array = ("$action_ FROM $table_name aa
    $WHERE");
 
   return \@SQL_array;
 }
 
+#**********************************************************
+=head2 paysys_log_rotate($attr)
+
+=cut
+#**********************************************************
+sub paysys_log_rotate {
+  my ($attr) = @_;
+
+  $attr->{TABLE_NAME} = 'paysys_log';
+  $attr->{SUBSTITUTE_FIELDS} = { DATE => 'datetime' };
+
+  return _log_rotate($attr);
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub help {
+
+  print <<"[END]";
+  Clear db utilite VERSION: $version
+  Clear payments, fees, internet_log
+  ACTIONS=[payments, fees, internet_log, admin_actions, paysys_log] - default all tables
+  GID           - Groups
+  DATE          - Date time DATE="<YYYY-MM-DD"
+  SHOW          - Show clear date (default)
+  DEL           - Clear date
+  ROTATE        - Add rows to rotate table
+  DISABLE_BIN   - Disable Binlog (Prevent Statement violates GTID consistency)
+  DEBUG=1..8    - Debug mode
+  DB_NAME       - DB name (default from config.pl)
+  help          - Help
+[END]
+
+}
 
 1;

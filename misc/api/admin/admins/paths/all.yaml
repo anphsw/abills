@@ -63,18 +63,8 @@ get:
       schema:
         type: boolean
         default: false
-    - name: domainId
-      in: query
-      description: ID домена
-      schema:
-        type: boolean
-        default: false
-    - name: aid
-      in: query
-      description: ID админа
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/domainId"
+    - $ref: "#/components/parameters/aid"
     - name: sipNumber
       in: query
       description: SIP номер
@@ -201,17 +191,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

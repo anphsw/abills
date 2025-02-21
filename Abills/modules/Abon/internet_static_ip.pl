@@ -13,7 +13,6 @@
     internet_static_ip POOL_ID=3 UID=1  ACTION=ACTIVE
 
 =cut
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use strict;
 
 our $libpath;

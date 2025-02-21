@@ -6,7 +6,7 @@
     <!-- Left col -->
     <section class='col-lg-8 connectedSortable'>
         <!-- small box -->
-        <div class='small-box bg-red'>
+        <div class='small-box %BG_COLOR%'>
             <div class='inner'>
                 <h4>_{YOUR_DEPOSIT}_: %MAIN_INFO_DEPOSIT% %MONEY_UNIT_NAME%</h4>
                 <p>_{RECOMMENDED_PAYMENT}_ %RECOMENDED_PAY% %MONEY_UNIT_NAME%</p>

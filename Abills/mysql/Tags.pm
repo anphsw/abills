@@ -94,6 +94,7 @@ sub del{
   my ($id) = @_;
 
   $self->query_del('tags', { ID => $id });
+  $self->query_del('tags_users', undef, { TAG_ID => $id });
 
   $self->{admin}->system_action_add( "TAG_ID:$id", { TYPE => 10 } );
   return $self;
@@ -295,7 +296,7 @@ sub user_add {
   my ($attr) = @_;
 
   $self->query_add('tags_users', $attr);
-  $self->{admin}->system_action_add("USER TAG_ID:$self->{INSERT_ID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("USER:$attr->{UID}, TAG_ID:$attr->{TAG_ID}", { TYPE => 1 });
 
   return $self;
 }

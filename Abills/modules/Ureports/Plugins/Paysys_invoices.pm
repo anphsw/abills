@@ -47,9 +47,12 @@ sub send_invoice {
   my $self = shift;
   my ($user, $attr) = @_;
 
-  if (!$user->{EXPIRE_DAYS} || $user->{EXPIRE_DAYS} > $user->{VALUE}) {
+  $user->{EXPIRE_DAYS} //= 0;
+  $user->{VALUE} //= 0;
+
+  if (!$user->{INTERNET_STATUS} && $user->{EXPIRE_DAYS} > $user->{VALUE}) {
     if ($self->{debug}) {
-      print "Skip sending invoice expire the time has not yet come no EXPIRE_DAYS or EXPIRE_DAYS > VALUE\n";
+      print "Skip sending invoice expire the time has not yet come no EXPIRE_DAYS or EXPIRE_DAYS > VALUE\nEXPIRE DAYS - $user->{EXPIRE_DAYS}. VALUE - $user->{VALUE}\n";
     }
     return 0;
   }

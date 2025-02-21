@@ -47,12 +47,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: uid
-      in: query
-      description: UID пользователя.
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: fio
       in: query
       description: ФИО пользователя.
@@ -101,12 +96,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: aid
-      in: query
-      description: ID администратора, который провел списание.
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/aid"
     - name: adminName
       in: query
       description: Имя администратора, который провел списание.
@@ -143,18 +133,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

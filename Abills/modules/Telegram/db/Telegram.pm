@@ -1,4 +1,4 @@
-package Telegram;
+package Telegram::db::Telegram;
 
 =head1 NAME
 
@@ -17,14 +17,15 @@ my $MODULE = 'Telegram';
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($db, $admin, $conf) = @_;
+  my ($db, $admin, $conf, $attr) = @_;
 
   $admin->{MODULE} = $MODULE;
   
   my $self = {
     db    => $db,
     admin => $admin,
-    conf  => $conf
+    conf  => $conf,
+    table => $attr->{ADMIN} ? 'telegram_state_admin' : 'telegram_state_user'
   };
   
   bless($self, $class);
@@ -33,17 +34,17 @@ sub new {
 }
 
 #**********************************************************
-=head2 info($uid)
+=head2 info($user_id)
 
 =cut
 #**********************************************************
 sub info {
   my $self = shift;
-  my ($uid) = @_;
+  my ($user_id) = @_;
 
-  $self->query("SELECT * FROM telegram_tmp WHERE uid = ?;",
+  $self->query("SELECT * FROM `$self->{table}` WHERE user_id = ?;",
     undef,
-    { Bind => [ $uid ], COLS_NAME => 1, COLS_UPPER => 1}
+    { Bind => [ $user_id ], COLS_NAME => 1, COLS_UPPER => 1}
   );
   return [ ] if ($self->{errno});
 
@@ -64,8 +65,7 @@ sub list {
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',         'INT', 'tt.id',         1 ],
-    [ 'UID',        'INT', 'tt.uid',        1 ],
-    [ 'AID',        'INT', 'tt.aid',        1 ],
+    [ 'USER_ID',    'INT', 'tt.user_id',    1 ],
     [ 'FN',         'STR', 'tt.fn',         1 ],
     [ 'BUTTON',     'STR', 'tt.button',     1 ],
     [ 'ARGS',       'STR', 'tt.args',       1 ],
@@ -74,29 +74,11 @@ sub list {
   ], { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} tt.id
-     FROM telegram_tmp tt
+     FROM `$self->{table}` tt
    $WHERE
    ORDER BY $SORT $DESC;", undef, $attr);
 
   return $self->{list} || [];
-}
-
-#**********************************************************
-=head2 info_admin($aid)
-
-=cut
-#**********************************************************
-sub info_admin {
-  my $self = shift;
-  my ($aid) = @_;
-
-  $self->query("SELECT * FROM telegram_tmp WHERE aid = ?;",
-    undef,
-    { Bind => [ $aid ], COLS_NAME => 1, COLS_UPPER => 1}
-  );
-  return [ ] if ($self->{errno});
-
-  return $self->{list}->[0];
 }
 
 #**********************************************************
@@ -108,7 +90,7 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('telegram_tmp', $attr);
+  $self->query_add($self->{table}, $attr);
 
   return $self;
 }
@@ -121,10 +103,10 @@ sub add {
 sub change {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->changes({
     CHANGE_PARAM => 'ID',
-    TABLE        => 'telegram_tmp',
+    TABLE        => $self->{table},
     DATA         => $attr,
   });
 
@@ -132,29 +114,15 @@ sub change {
 }
 
 #**********************************************************
-=head2 del($uid)
+=head2 del($user_id)
 
 =cut
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($uid) = @_;
+  my ($user_id) = @_;
 
-  $self->query_del("telegram_tmp", {}, { UID => $uid });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 del_admin($aid)
-
-=cut
-#**********************************************************
-sub del_admin {
-  my $self = shift;
-  my ($aid) = @_;
-
-  $self->query_del("telegram_tmp", {}, { AID => $aid });
+  $self->query_del($self->{table}, {}, { USER_ID => $user_id });
 
   return $self;
 }
@@ -167,7 +135,7 @@ sub del_admin {
 sub truncate {
   my $self = shift;
 
-  $self->query_del("telegram_tmp", {}, {}, {CLEAR_TABLE => 1});
+  $self->query_del($self->{table}, {}, {}, {CLEAR_TABLE => 1});
 
   return 1;
 }

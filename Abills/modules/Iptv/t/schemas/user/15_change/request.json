@@ -1,0 +1,10 @@
+{
+  "name": "USER_IPTV_CHANGE",
+  "method": "PUT",
+  "path": "/user/iptv/:id/",
+  "body": {
+    "tpId": 4,
+    "date": "2024-12-12",
+    "period": 1
+  }
+}

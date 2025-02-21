@@ -1,0 +1,5 @@
+{
+  "name": "USER_VOIP_SESSIONS",
+  "method": "GET",
+  "path": "user/voip/sessions/"
+}

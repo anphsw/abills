@@ -1,0 +1,11 @@
+{
+  "name": "USER_CHANGE_REFERRAL_FRIEND",
+  "method": "POST",
+  "path": "user/referral/friend/:id/",
+  "body": {
+    "fio": "Test user",
+    "phone": 38099999999,
+    "address": "City Kyiv, Franka Str, 5 apt",
+    "comments": "My good friend"
+  }
+}

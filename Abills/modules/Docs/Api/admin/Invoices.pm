@@ -1,7 +1,7 @@
 package Docs::Api::admin::Invoices;
 =head1 NAME
 
-  Portal articles manage
+  Docs invoices manage
 
   Endpoints:
     /docs/invoices/*

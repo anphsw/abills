@@ -171,6 +171,11 @@ sub iptv_users_list {
   $LIST_PARAMS{DEPOSIT} = $FORM{DEPOSIT} || '_SHOW';
   $LIST_PARAMS{REDUCTION} = $FORM{REDUCTION} || '_SHOW';
 
+  if (defined $FORM{LOGIN_STATUS}) {
+    $pages_qs .= "&LOGIN_STATUS=$FORM{LOGIN_STATUS}" if $pages_qs !~ /&LOGIN_STATUS=/;
+    $LIST_PARAMS{LOGIN_STATUS} = $FORM{LOGIN_STATUS};
+  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Iptv,
     BASE_FIELDS     => 0,
@@ -180,7 +185,7 @@ sub iptv_users_list {
     MAP_FILTERS     => { id => 'search_link:form_users:UID' },
     DEFAULT_FIELDS  =>
       ($FORM{UID}) ? 'TP_NAME,CID,SERVICE_STATUS,IPTV_EXPIRE' : 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,IPTV_EXPIRE',
-    HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE,TAGS_COLORS,PRIORITY',
+    HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE,TAGS_COLORS,PRIORITY,ACTIVE_DAYS',
     FUNCTION_FIELDS => ($FORM{UID}) ? $function_fields : 'form_payments',
     MULTISELECT     => ($permissions{0}{7}) ? 'IDS:id:iptv_users_list' : '',
     EXT_TITLES      => {
@@ -189,6 +194,7 @@ sub iptv_users_list {
       cid             => 'CID',
       filter_id       => 'Filter ID',
       tp_name         => $lang{TARIF_PLAN},
+      active_days     => $lang{IPTV_DAYS_OF_USE},
       service_status  => "IPTV $lang{STATUS}",
       service_id      => "ID $lang{SERVICE}",
       dvcrypt_id      => 'DvCrypt',
@@ -205,7 +211,6 @@ sub iptv_users_list {
       width              => '100%',
       caption            => ($FORM{UID}) ? "$lang{SERVICES}" : "$lang{TV} - $lang{USERS}",
       qs                 => $pages_qs,
-      # header  => $status_bar,
       header             => \@status_bar,
       ID                 => 'IPTV_USERS_LIST',
       EXPORT             => 1,
@@ -484,9 +489,10 @@ sub iptv_online {
       my $user_info = $Iptv->user_info($iptv_online->[0]{id});
       $Iptv->{SERVICE_ID} = $user_info->{SERVICE_ID};
       iptv_account_action({
-        hangup => 1,
-        ID     => $user_info->{ID},
-        REBOOT => 1
+        hangup     => 1,
+        ID         => $user_info->{ID},
+        REBOOT     => 1,
+        SERVICE_ID => $Iptv->{SERVICE_ID}
       }) if $Iptv->{TOTAL};
     }
   }
@@ -864,7 +870,7 @@ sub iptv_user_channels {
         );
 
         if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
-          $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
+          # $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
           service_get_month_fee($Iptv, {
             EXT_DESCRIBE => " $lang{CHANNEL}: $line->{channel_num}",
             SERVICE_NAME => $lang{TV},
@@ -1217,7 +1223,8 @@ sub iptv_service_deactivate {
       UID          => $user_info->{UID},
       LOGIN        => $user_info->{LOGIN},
       SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
-      TP_NUM       => $tp_info->{tp_num}
+      TP_NUM       => $tp_info->{tp_num},
+      SERVICE_ID   => $user_info->{SERVICE_ID}
     });
 
     $action = 1;
@@ -1662,6 +1669,7 @@ sub iptv_user_activate {
       UID          => $Iptv_info->{UID},
       ID           => $Iptv_info->{ID},
       TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
+      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
       BUNDLE_TYPE  => 'subs_renew',
       USER_INFO    => $user,
       STATUS       => 0,
@@ -1704,6 +1712,7 @@ sub iptv_user_activate {
       TP_FILTER_ID => $service->{FILTER_ID},
       ID           => $Iptv_info->{ID},
       UID          => $Iptv_info->{UID},
+      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
       USER_INFO    => $user,
       DEBUG        => $debug
     });
@@ -1764,6 +1773,7 @@ sub iptv_user_activate {
       TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
       ID           => $Iptv_info->{ID},
       UID          => $Iptv_info->{UID},
+      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
       USER_INFO    => $user,
       DEBUG        => $debug
     });
@@ -1826,7 +1836,8 @@ sub iptv_users_screen_add {
     %$attr,
     SCREEN_ID    => $attr->{screen},
     TP_FILTER_ID => $list->[0]->{filter_id},
-    ID           => $Iptv_info->{ID}
+    ID           => $Iptv_info->{ID},
+    SERVICE_ID   => $Iptv->{SERVICE_ID}
   });
 
   return if $result;
@@ -1886,7 +1897,7 @@ sub iptv_users_screens {
     $Iptv->{NUM} = $FORM{screen} if ($FORM{screen});
 
     if ($FORM{del_screen}) {
-      iptv_account_action({ %FORM, DEL => 1, SCREEN_ID => $FORM{screen} });
+      iptv_account_action({ %FORM, DEL => 1, SCREEN_ID => $FORM{screen}, SERVICE_ID => $Iptv_info->{SERVICE_ID} });
 
       $Iptv->users_screens_del(\%FORM);
       if (!_error_show($Iptv, { SILENT_MODE => 1 })) {
@@ -1912,7 +1923,36 @@ sub iptv_users_screens {
     SHOW_ASSIGN      => 1
   });
 
-  return 0 if ($Iptv->{TOTAL} < 1 && !$next_screen->{NUM});
+  return '' if ($Iptv->{TOTAL} < 1 && !$next_screen->{NUM});
+
+  if ($FORM{screen}) {
+    $Iptv->{SHOW_ACTION_BTN} = 'show';
+    $Iptv->{SHOW_INFO_FIELDS} = 'hidden';
+
+    $Iptv->users_screens_info($FORM{chg}, { SCREEN_ID => $FORM{screen} });
+    if (!$Iptv->{TOTAL}) {
+      $Iptv->{CID} = undef;
+      $Iptv->{LNG_ACTION} = $lang{ADD};
+    }
+
+    if ($Iptv->{SCREEN_ID}) {
+      $Iptv->{SHOW_ACTION_BTN} = 'hidden';
+      $Iptv->{SHOW_INFO_FIELDS} = 'show';
+      $Iptv->{DELETE} = $html->button($lang{DEL},
+        "index=$index$pages_qs&del_screen=1&SERVICE_ID=$Iptv->{ID}&chg=$FORM{chg}&SCREEN_ID=$Iptv->{NUM}&screen=$FORM{screen}", {
+          MESSAGE => "$lang{DEL} [$Iptv->{NUM}] ?",
+          class   => 'btn btn-danger'
+        });
+    }
+
+    if ($Tv_service && $Tv_service->{SERVICE_USER_SCREEN_FORM}) {
+      my $fn = $Tv_service->{SERVICE_USER_SCREEN_FORM};
+      &{\&$fn}($attr);
+    }
+    else {
+      $html->tpl_show(_include('iptv_user_screens', 'Iptv'), { %{$Iptv}, DISABLED_INPUT => $attr->{DISABLED_INPUT} ? 'disabled' : '' });
+    }
+  }
 
   if ($attr->{SHOW_FULL}) {
     my @info_panel = ();
@@ -1952,37 +1992,7 @@ sub iptv_users_screens {
     push @screens_arr, "$lang{ADD} $lang{SCREENS}:index=$index&screen=$next_screen->{NUM}&UID=$uid" .
       "&chg=$FORM{chg}&MODULE=Iptv:class=fa fa-picture-o" if ($next_screen->{NUM});
 
-    print $html->table_header(\@screens_arr, { TABS => 1 });
-  }
-
-  if ($FORM{screen}) {
-    $Iptv->{SHOW_ACTION_BTN} = 'show';
-    $Iptv->{SHOW_INFO_FIELDS} = 'hidden';
-
-    $Iptv->users_screens_info($FORM{chg}, { SCREEN_ID => $FORM{screen} });
-    if (!$Iptv->{TOTAL}) {
-      $Iptv->{CID} = undef;
-      $Iptv->{LNG_ACTION} = $lang{ADD};
-    }
-
-    if ($Iptv->{SCREEN_ID}) {
-      $Iptv->{SHOW_ACTION_BTN} = 'hidden';
-      $Iptv->{SHOW_INFO_FIELDS} = 'show';
-      $Iptv->{DELETE} = $html->button($lang{DEL},
-        "index=$index$pages_qs&del_screen=1&SERVICE_ID=$Iptv->{ID}&chg=$FORM{chg}&SCREEN_ID=$Iptv->{NUM}&screen=$FORM{screen}", {
-          MESSAGE => "$lang{DEL} [$Iptv->{NUM}] ?",
-          class   => 'btn btn-danger'
-        });
-    }
-
-
-    if ($Tv_service && $Tv_service->{SERVICE_USER_SCREEN_FORM}) {
-      my $fn = $Tv_service->{SERVICE_USER_SCREEN_FORM};
-      &{\&$fn}($attr);
-    }
-    else {
-      $html->tpl_show(_include('iptv_user_screens', 'Iptv'), { %{$Iptv}, DISABLED_INPUT => $attr->{DISABLED_INPUT} ? 'disabled' : '' });
-    }
+    return $html->table_header(\@screens_arr, { TABS => 1 });
   }
 
   return 1;
@@ -2496,7 +2506,7 @@ sub _iptv_get_new_channel_fees {
     $Iptv->{TP_INFO} = $channel;
 
     if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
-      $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
+      # $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
       service_get_month_fee($Iptv, {
         EXT_DESCRIBE => " $lang{CHANNEL}: $channel->{INTERVAL_CHANNEL_ID}",
         SERVICE_NAME => $lang{TV},

@@ -44,11 +44,15 @@ our $admin = Admins->new($db, \%conf);
 # Just init Tokens from Config
 my $Conf = Conf->new($db, $admin, \%conf);
 
+my $is_admin = !!$ARGS->{ADMIN};
+my $desc_key = $is_admin ? 'TELEGRAM_ADMIN' : 'TELEGRAM';
+
 _start();
 sub _start {
   if ($ARGS->{help}) {
     help();
-  } else {
+  }
+  else {
     integration();
   }
 }
@@ -60,12 +64,12 @@ sub _start {
 =cut
 #*******************************************************************
 sub integration {
-  my $token = $conf{TELEGRAM_TOKEN};
+  my $token = $is_admin ? $conf{TELEGRAM_ADMIN_TOKEN} : $conf{TELEGRAM_TOKEN};
   my $billing_url = $conf{BILLING_URL};
-  my $cert_path = $conf{TELEGRAM_CERT_PATH};
+  my $cert_path = $is_admin ? $conf{TELEGRAM_ADMIN_CERT_PATH} : $conf{TELEGRAM_CERT_PATH};
 
   if (!$token) {
-    print "There is no Telegram token. Fill \$conf{TELEGRAM_TOKEN} and try again.\n";
+    print "There is no Telegram token. Fill \$conf{$desc_key\_TOKEN} and try again.\n";
     return;
   }
 
@@ -90,7 +94,7 @@ sub integration {
 
   my $bot_info = web_request("$bot_api_base/getMe", { CURL => 1, JSON_RETURN => 1 });
   if (!$bot_info || $bot_info->{error_code}) {
-    print "Bot is not exist.\nRecheck your \$conf{TELEGRAM_TOKEN} and try again.\n";
+    print "Bot is not exist.\nRecheck your \$conf{$desc_key\_TOKEN} and try again.\n";
     return;
   }
 
@@ -106,10 +110,11 @@ sub integration {
   }
 
   my $cutted_token = substr($token, 0, 10);
-  my $executable_path = $Bin . '/telegram_bot.cgi';
+  my $script_name = $is_admin ? 'telegram_admin_bot.cgi' : 'telegram_bot.cgi';
+  my $executable_path = "$Bin/$script_name";
   my $base_dir = $main::base_dir || '/usr/abills/';
   my $generated_folder = "Telegram$cutted_token";
-  my $generated_append = "$generated_folder/telegram_bot.cgi";
+  my $generated_append = "$generated_folder/$script_name";
 
   my $folder_path = $base_dir . '/cgi-bin/' . $generated_folder;
   my $symlink_end = $base_dir . '/cgi-bin/' . $generated_append;
@@ -144,7 +149,7 @@ And start this script again.
     return;
   }
   else {
-    print 'Folder and symlink successfully created.';
+    print "Folder and symlink successfully created.\n";
   }
 
   my $generated_url = $billing_url . '/' . $generated_append;
@@ -193,11 +198,12 @@ And start this script again.
       print "That means, Telegram recognized your SSL is not good.\n";
       if ($cert_path) {
         print "Regenerate your self-signed certificate with right ip and domain.\n";
-      } else {
+      }
+      else {
         print << "[END]";
   You need to have a signed certificate like Let's Encrypt
     OR
-  You can use \$conf{TELEGRAM_CERT_PATH} option - fill path of your public pem self-signed certificate.
+  You can use \$conf{$desc_key\_CERT_PATH} option - fill path of your public pem self-signed certificate.
 [END]
       }
       print "And try again.\n"
@@ -206,70 +212,16 @@ And start this script again.
 
   _load_telegram_db();
 
+  my $bot_type = $is_admin ? 'Admin' : 'User';
   print << "[END]";
   Congratulations!
-  ABillS Telegram bot successfully subscribed.
+  ABillS $bot_type Telegram bot successfully subscribed.
 
 [END]
-  print "Do you want configure Telegram modules?\n";
-  print "Apply? (y/N): ";
-  chomp(my $ok = <STDIN>);
-
-  if (lc($ok) eq 'y') {
-    _configure_telegram_modules();
-  }
 
   # Fill config variables
-  $Conf->config_add({ PARAM => 'TELEGRAM_BOT_NAME', VALUE => $bot_info->{result}->{username}, REPLACE => 1 });
-  $Conf->config_add({ PARAM => 'TELEGRAM_WEBHOOK_URL', VALUE => $generated_url, REPLACE => 1 });
-}
-
-#*******************************************************************
-=head2 _configure_telegram_modules() - modules configuration
-
-=cut
-#*******************************************************************
-sub _configure_telegram_modules {
-  my $buttons_available_folder = $Bin . '/buttons-avaiable';
-  my $buttons_enabled_folder = $Bin . '/buttons-enabled';
-  if (!-d $buttons_enabled_folder && !mkdir($buttons_enabled_folder)) {
-    print "ERROR Folder $buttons_enabled_folder not created.\nCreate it manually and try again.\n";
-    return;
-  }
-
-  my @AVAILABLE_MODULES = ();
-  my @ENABLED_MODULES = ();
-
-  my $process_modules = sub {
-    my $LINK = shift;
-    my $function = sub {
-      my $name = $File::Find::name;
-      if (-d $name) {
-        return 1;
-      }
-      if ($_ && $_ ne '.') {
-        push(@$LINK, $_);
-      }
-    };
-    return $function;
-  };
-  find($process_modules->(\@AVAILABLE_MODULES), $buttons_available_folder);
-  find($process_modules->(\@ENABLED_MODULES), $buttons_enabled_folder);
-
-  my $i = 0;
-  my $n = scalar(@AVAILABLE_MODULES);
-  for my $available_module (sort @AVAILABLE_MODULES) {
-    $i++;
-    if (grep { $_ eq $available_module } @ENABLED_MODULES) {
-      print "($i/$n) Module $available_module already enabled.\n";
-      next;
-    };
-    print "($i/$n) Enable $available_module? (y/N)\n";
-    chomp(my $ok = <STDIN>);
-    if (lc($ok) eq 'y') {
-      `ln -s $buttons_available_folder/$available_module $buttons_enabled_folder/$available_module`;
-    }
-  }
+  $Conf->config_add({ PARAM => $desc_key . '_BOT_NAME', VALUE => $bot_info->{result}->{username}, REPLACE => 1 });
+  $Conf->config_add({ PARAM => $desc_key . '_WEBHOOK_URL', VALUE => $generated_url, REPLACE => 1 });
 }
 
 #*******************************************************************
@@ -286,8 +238,17 @@ sub _load_telegram_db {
     close($fh);
   };
 
-  eval { $admin->query($content, 'do', {}) };
+  my @commands_to_execute = split('\;', $content);
+
+  foreach my $command (@commands_to_execute) {
+    $admin->query(qq{$command}, 'do');
+
+    if ($admin->{errno}) {
+      print "$admin->{errno}\n";
+    }
+  }
 }
+
 #*******************************************************************
 =head2 help() - Help
 
@@ -299,8 +260,11 @@ sub help {
 ABillS Telegram bot setup in one click
 
   Required config params:
-    \$conf{TELEGRAM_TOKEN}
-    \$conf{BILLING_URL}
+    1. \$conf{BILLING_URL}
+
+    2. \$conf{TELEGRAM_TOKEN}
+        or
+       \$conf{TELEGRAM_ADMIN_TOKEN} for ADMIN=1
 
   Params:
     help - show this message

@@ -52,8 +52,8 @@ $lang{LAST_FEES} = 'Останнє списання';
 $lang{TP_ACTIVE_IN_USERS} = "Тарифний план уже активний у користувачів\n%USERS%І активний у розкладах\n%SCHEDULES%";
 $lang{STATIC_IP} = 'Статична айпі адреса';
 $lang{MAC} = 'MAC-адреса';
+$lang{LOADING_DATA_ONTO_THE_MAP} = 'Будь ласка, зачекайте. Йде завантаження даних на карту';
 
-$lang{ERR_NO_FIELD} = 'Відсутнє поле %FIELD%';
 $lang{ERR_TARIFF_EXISTS} = 'Тариф з таким ID вже існує';
 $lang{ERR_WRONG_DATE} = 'Невірна дата';
 $lang{ERR_FAILED_SET_SCHEDULE} = 'Не вдалося встановити розклад зміни ТП';

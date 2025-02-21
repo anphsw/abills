@@ -1,11 +1,11 @@
-<nav class="abills-navbar navbar navbar-expand-lg navbar-light">
-<div class="collapse navbar-collapse">
+<nav class='abills-navbar navbar navbar-expand navbar-light'>
+<div class='collapse navbar-collapse'>
 
-  <ul class="navbar-nav nav-tabs" id='nav-tr-069'>
-  <li class="nav-item active" id='status'><a class='nav-link active' title="Status" href="#">Status</a></li>
-  <li id='wan'><a class='nav-link' title="WAN" href="#">WAN</a></li>
-  <li id='wlan'><a class='nav-link' title="WIFI" href="#">WLAN</a></li>
-  <li id='voip'><a class='nav-link' title="VoIP" href="#">VoIP</a></li>
+  <ul class='navbar-nav nav-tabs' id='nav-tr-069'>
+  <li class='nav-item active' id='status'><a class='nav-link active' title='Status' href='#'>Status</a></li>
+  <li id='wan'><a class='nav-link' title='WAN' href='#'>WAN</a></li>
+  <li id='wlan'><a class='nav-link' title='WIFI' href='#'>WLAN</a></li>
+  <li id='voip'><a class='nav-link' title='VoIP' href='#'>VoIP</a></li>
   </ul>
 </div>
 </nav>
@@ -39,7 +39,7 @@
     <script>
         jQuery(document).ready(function(){
             jQuery('#nav-tr-069 li').click(function(e){
-                var clickedID = jQuery(this).attr( "id" );
+                var clickedID = jQuery(this).attr( 'id' );
                 var em = jQuery(this);
                   jQuery.ajax({
                     type: 'POST',

@@ -20,26 +20,12 @@
         </div>
       </div>
 
+      <hr>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{ADDRESS_PARENT}_:</label>
-        <div class='col-md-8'>
-          %DISTRICT_SEL%
-        </div>
+        <label class='col-md-12 col-form-label text-center' for='NAME'>_{ADDRESS_PARENT}_</label>
       </div>
-
-<!--      <div class='form-group row'>-->
-<!--        <label class='col-md-4 col-form-label text-md-right' for='COUNTRY'>_{COUNTRY}_:</label>-->
-<!--        <div class='col-md-8'>-->
-<!--          %COUNTRY_SEL%-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--      <div class='form-group row'>-->
-<!--        <label class='col-md-4 col-form-label text-md-right' for='CITY'>_{CITY}_:</label>-->
-<!--        <div class='col-md-8'>-->
-<!--          <input id='CITY' name='CITY' value='%CITY%' placeholder='%CITY%' class='form-control' type='text'>-->
-<!--        </div>-->
-<!--      </div>-->
+          %DISTRICT_SEL%
+      <hr>
 
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='ZIP'>_{ZIP}_:</label>
@@ -48,12 +34,19 @@
         </div>
       </div>
 
-<!--      <div class='form-group row'>-->
-<!--        <label class='col-md-4 col-form-label text-md-right' for='FILE_UPLOAD'>_{MAP}_ (*.jpg, *.gif, *.png):</label>-->
-<!--        <div class='col-md-8'>-->
-<!--          <input id='FILE_UPLOAD' name='FILE_UPLOAD' type='file' value='%FILE_UPLOAD%' placeholder='%FILE_UPLOAD%'>-->
-<!--        </div>-->
-<!--      </div>-->
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='POPULATION'>_{POPULATION}_:</label>
+        <div class='col-md-8'>
+          <input id='POPULATION' name='POPULATION' value='%POPULATION%' min='0' class='form-control' type='number'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='HOUSEHOLDS'>_{HOUSEHOLDS}_:</label>
+        <div class='col-md-8'>
+          <input id='HOUSEHOLDS' name='HOUSEHOLDS' value='%HOUSEHOLDS%' min='0' class='form-control' type='number'>
+        </div>
+      </div>
 
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
@@ -68,3 +61,12 @@
     </div>
   </div>
 </form>
+
+<script>
+  jQuery('#POPULATION').on('input', function () {
+    let population = jQuery(this).val();
+    if (population < 1) return;
+
+    jQuery('#HOUSEHOLDS').val(Math.round(parseInt(population) / 3.3));
+  });
+</script>

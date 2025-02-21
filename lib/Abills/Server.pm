@@ -10,8 +10,6 @@ Abills::Server - Base server functions
 
 =cut
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
 use strict;
 our $VERSION = 2.00;
 use POSIX qw(locale_h);

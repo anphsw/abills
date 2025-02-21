@@ -11,7 +11,10 @@
       <div class='form-group row'>
         <label class='control-label col-md-3 text-right required'>_{TARIF_PLAN}_:</label>
         <div class='col-md-9'>
-          %TP_SEL%
+          <div class='input-group'>
+            %TP_SEL%
+            %TP_CHANGE_BTN%
+          </div>
         </div>
       </div>
       <div class='form-group row'>

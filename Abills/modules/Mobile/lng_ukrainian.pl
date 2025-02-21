@@ -27,3 +27,14 @@ $lang{MOBILE_CONFIRM} = 'Підтвердження';
 $lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Підтвердження активації номера телефону';
 $lang{MOBILE_WAIT_NUMBER_DEACTIVATE} = 'Зачекайте, поки номер буде деактивовано';
 $lang{MOBILE_PHONE_DEACTIVATE} = 'Деактивація номера';
+
+$lang{MOBILE_LOGS} = 'Журнал мобільного зв’язку';
+$lang{MOBILE_TRANSACTION_ID} = 'Ідентифікатор транзакції';
+$lang{MOBILE_RESPONSE} = 'Відповідь';
+$lang{MOBILE_CALLBACK} = 'Зворотний виклик';
+$lang{MOBILE_CALLBACK_DATE} = 'Дата зворотного виклику';
+
+$lang{MOBILE_ALL_ACTIVATION_ATTEMPTS_USED} = 'Витрачено всі %ATTEMPTS% спроб активації';
+$lang{MOBILE_METHOD} = 'Метод';
+$lang{MOBILE_ACTIVATION_ATTEMPTS_COUNT} = 'Кількість спроб активації';
+

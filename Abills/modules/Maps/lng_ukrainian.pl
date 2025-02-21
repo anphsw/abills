@@ -99,7 +99,6 @@ $lang{NO_COORDINATES_SPECIFIED} = 'Не вказані координати';
 
 $lang{COMPLETE_PREVIOUS_CHANGE} = 'Завершіть попередні зміни';
 
-$lang{SHOW_MSGS_MAP} = 'Відобразити повідемлення на карті';
 $lang{MAPS_SCALE} = 'Масштаб';
 
 $lang{PLOT} = 'Ділянка будинку';

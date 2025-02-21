@@ -1,0 +1,6 @@
+{
+  "name": "USER_INTERNET_ACTIVATE",
+  "method": "GET",
+  "path": "user/internet/:id/activate/",
+  "params": {}
+}

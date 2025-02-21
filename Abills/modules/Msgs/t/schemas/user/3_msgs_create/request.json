@@ -1,0 +1,19 @@
+{
+  "name": "USER_MSGS_LIST",
+  "method": "POST",
+  "path": "user/msgs/",
+  "body": {
+    "chapter": 3,
+    "message": "Some message",
+    "subject": "Message subject",
+    "priority": 2
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "msgId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

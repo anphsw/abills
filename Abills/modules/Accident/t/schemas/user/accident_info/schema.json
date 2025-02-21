@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "aid": {
+      "type": "integer"
+    },
+    "adminName": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "descr": {
+      "type": "string"
+    },
+    "endTime": {
+      "type": "string"
+    },
+    "realyTime": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "integer"
+    },
+    "nasId": {
+      "type": "integer"
+    },
+    "internetPort": {
+      "type": "string"
+    },
+    "portId": {
+      "type": "string"
+    },
+    "endDate": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "uid"
+  ]
+}

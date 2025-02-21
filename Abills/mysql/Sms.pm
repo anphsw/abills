@@ -155,7 +155,8 @@ sub list {
      LEFT JOIN users u ON (u.uid=sms.uid)
      $EXT_TABLE
      $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );

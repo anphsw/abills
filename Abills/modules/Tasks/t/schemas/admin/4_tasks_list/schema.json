@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "descr": {
+            "type": "string"
+          },
+          "state": {
+            "type": "integer"
+          },
+          "taskType": {
+            "type": "integer"
+          },
+          "aid": {
+            "type": "integer"
+          },
+          "comments": {
+            "type": "string"
+          },
+          "dealId": {
+            "type": "integer"
+          },
+          "leadId": {
+            "type": "integer"
+          },
+          "msgId": {
+            "type": "integer"
+          },
+          "parentId": {
+            "type": "integer"
+          },
+          "plugins": {
+            "type": "string"
+          },
+          "pPtPeriod": {
+            "type": "string"
+          },
+          "pPtPlanDays": {
+            "type": "integer"
+          },
+          "responsible": {
+            "type": "integer"
+          },
+          "responsibleName": {
+            "type": "string"
+          },
+          "closedDate": {
+            "type": "string"
+          },
+          "controlDate": {
+            "type": "string"
+          },
+          "planDate": {
+            "type": "string"
+          },
+          "typeName": {
+            "type": "string"
+          },
+          "path": {
+            "type": "integer"
+          }
+        },
+        "required": ["id", "name", "descr", "state", "taskType"]
+      }
+    },
+    "total": {
+      "type": "number"
+    }
+  },
+  "required": ["list", "total"]
+}

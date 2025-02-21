@@ -80,7 +80,7 @@ sub notify_admins {
   my ($attr) = @_;
 
   my $message_id = $attr->{MSG_ID} || $Msgs->{INSERT_ID} || '--';
-  my $reply_id = $Msgs->{REPLY_ID} || '--';
+  my $reply_id = $attr->{REPLY_ID} || $Msgs->{REPLY_ID} || '--';
 
   my $site = '';
   my $preview_url_without_message_id = '';
@@ -117,7 +117,22 @@ sub notify_admins {
 
   my $user_login = $message_info->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '';
   my $uid = $message_info->{UID} || $FORM{UID} || '';
-  my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
+
+  #@experimental default attachments load for notify
+  my $ATTACHMENTS = [];
+  if ($attr->{ATTACHMENTS}) {
+    $ATTACHMENTS = $attr->{ATTACHMENTS};
+  }
+  else {
+    $ATTACHMENTS = $Msgs->attachments_list({
+      REPLY_ID     => ($reply_id && $reply_id ne '--') ? $reply_id : 0,
+      MESSAGE_ID   => $message_id,
+      FILENAME     => '_SHOW',
+      CONTENT      => '_SHOW',
+      CONTENT_TYPE => '_SHOW',
+    });
+  }
+
   my $RESPONSIBLE = $message_info->{RESPONSIBLE_NAME} || $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
     ? $preview_url_without_message_id . $message_id : undef;

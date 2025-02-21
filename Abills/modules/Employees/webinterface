@@ -382,91 +382,6 @@ sub employees_main {
 }
 
 #**************************************************
-=head employees_geolocation_old() - choose geo-data for employee
-
-=cut
-#**************************************************
-sub employees_geolocation_old {
-
-  # adding employee geo-data to table
-  if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID}) && $FORM{EID} && !$FORM{CLEAR}) {
-
-    my @streets = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
-    my @builds = split(', ', $FORM{BUILD_ID}) if (defined $FORM{BUILD_ID});
-    my @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
-
-    foreach my $st (@streets) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          STREET_ID   => $st,
-        }
-      );
-    }
-
-    foreach my $bd (@builds) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          BUILD_ID    => $bd,
-        }
-      );
-    }
-
-    foreach my $ds (@districts) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          DISTRICT_ID => $ds,
-        }
-      )
-    }
-
-  }
-  # clear all geo-data for employee
-  elsif ($FORM{CLEAR}) {
-    $Employees->del_geo({ EMPLOYEE_ID => $FORM{EID} });
-    if (!$Employees->{errno}) {
-      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
-    }
-  }
-
-  my $geolist = $Employees->geo_list({ EMPLOYEE_ID => $FORM{eid}, COLS_NAME => 1 });
-  my @streets;
-  my @builds;
-  my @districts;
-  my %address = ();
-  foreach my $data (@$geolist) {
-    if ($data->{street_id}) {
-      push(@streets, $data->{street_id});
-      $address{"STREET_ID_$data->{street_id}"} = 1;
-    }
-    elsif ($data->{build_id}) {
-      push(@builds, $data->{build_id});
-      $address{"BUILD_ID_$data->{build_id}"} = 1;
-    }
-    elsif ($data->{district_id}) {
-      push(@districts, $data->{district_id});
-      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
-    }
-  }
-  my $admin_form = Admins->new($db, \%conf);
-  $admin_form->info($FORM{eid});
-  # _bp('', \%address);
-  #  my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
-
-  $html->tpl_show(_include('employees_geolocation_add', 'Employees'), {
-    GEOLOCATION_TREE => address_list_tree_menu({ CHECKED => \%address, COL_SIZE => '12', OUTPUT2RETURN => 1 }),
-    BTN_NAME         => $lang{CHANGE},
-    index            => $index,
-    EID              => $FORM{eid} || $FORM{EID},
-    A_FIO            => $admin_form->{A_FIO},
-    A_LOGIN          => $admin_form->{A_LOGIN},
-  });
-
-  return 1;
-}
-#**************************************************
 =head employees_geolocation() - shows address tree for employees
 
   Arguments:
@@ -476,112 +391,17 @@ sub employees_geolocation_old {
 =cut
 #**************************************************
 sub employees_geolocation {
-  $FORM{EID} = $FORM{EID} ? $FORM{EID} : $FORM{eid};
+
+  $FORM{EID} ||= $FORM{eid};
   my $admin_form = Admins->new($db, \%conf);
   $admin_form->info($FORM{EID});
-  my $list = $Address->build_list({
-    ID            => '_SHOW',
-    STREET_NAME   => '_SHOW',
-    DISTRICT_NAME => '_SHOW',
-    DISTRICT_ID   => '_SHOW',
-    NUMBER        => '_SHOW',
-    COLS_NAME     => 1,
-    SORT          => 'district_name,street_name,number+0',
-    PAGE_ROWS     => 999999
-  });
 
-  # adding employee geo-data to table
-  if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID}) && $FORM{EID} && !$FORM{CLEAR}) {
+  _employees_change_geolocation(\%FORM);
 
-    my @streets = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
-    my @builds = split(', ', $FORM{BUILD_ID}) if (defined $FORM{BUILD_ID});
-    my @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
-    $Employees->del_geo({ EMPLOYEE_ID => $FORM{EID} });
-
-    foreach my $st (@streets) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          STREET_ID   => $st,
-        }
-      );
-    }
-
-    foreach my $bd (@builds) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          BUILD_ID    => $bd,
-        }
-      );
-    }
-
-    foreach my $ds (@districts) {
-      $Employees->add_geo(
-        {
-          EMPLOYEE_ID => $FORM{EID},
-          DISTRICT_ID => $ds,
-        }
-      )
-    }
-
-  }
-  # clear all geo-data for employee
-  elsif ($FORM{CLEAR}) {
-    $Employees->del_geo({ EMPLOYEE_ID => $FORM{EID} });
-    if (!$Employees->{errno}) {
-      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
-    }
-  }
-  my $geolist = $Employees->geo_list({ EMPLOYEE_ID => $FORM{EID}, COLS_NAME => 1 });
-  my @streets;
-  my @builds;
-  my @districts;
-  my %address = ();
-  foreach my $data (@$geolist) {
-    if ($data->{street_id}) {
-      push(@streets, $data->{street_id});
-      $address{"STREET_ID_$data->{street_id}"} = 1;
-    }
-    elsif ($data->{build_id}) {
-      push(@builds, $data->{build_id});
-      $address{"BUILD_ID_$data->{build_id}"} = 1;
-    }
-    elsif ($data->{district_id}) {
-      push(@districts, $data->{district_id});
-      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
-    }
-  }
-
-  my $keys = "district_name_check,street_name_check,number_check";
-  foreach my $line (@$list) {
-    my $input1 = $html->form_input("BUILD_ID", $line->{id}, {
-      TYPE      => 'checkbox',
-      EX_PARAMS => $address{"BUILD_ID_$line->{id}"} ? 'checked' : ''
-    });
-    my $item1 = $html->element('label', $input1 . ' ' . $line->{number});
-    $line->{number_check} = $item1;
-    my $input2 = $html->form_input("STREET_ID", $line->{street_id}, {
-      TYPE      => 'checkbox',
-      EX_PARAMS => $address{"STREET_ID_$line->{street_id}"} ? 'checked' : ''
-    });
-
-    my $item2 = $html->element('label', $input2 . ' ' . ($line->{street_name} || q{}));
-    $line->{street_name_check} = $item2;
-
-    my $input3 = $html->form_input("DISTRICT_ID", $line->{district_id}, {
-      TYPE      => 'checkbox',
-      EX_PARAMS => $address{'DISTRICT_ID_' . ($line->{district_id} || q{}) } ? 'checked' : '',
-      ID        => $line->{district_id}
-    });
-
-    my $item3 = $html->element('label', $input3 . ' ' . ($line->{district_name} || q{}));
-    $line->{district_name_check} = $item3;
-  }
-  my $tree = $html->html_tree($list, $keys, { OUTPUT2RETURN => 1 });
+  my $geolocation_list = $Employees->employees_geolocation_list({ EMPLOYEE_ID => $FORM{EID}, COLS_NAME => 1 });
 
   $html->tpl_show(_include('employees_geolocation_add', 'Employees'), {
-    GEOLOCATION_TREE => $tree,
+    GEOLOCATION_TREE => geolocation_tree({ RETURN_TREE => 1, CITY_BRANCH => 1 }, $geolocation_list),
     BTN_NAME         => $lang{CHANGE},
     index            => $index,
     EID              => $FORM{eid} || $FORM{EID},
@@ -591,6 +411,42 @@ sub employees_geolocation {
 
   return 1;
 }
+
+#**********************************************************
+=head2 _employees_change_geolocation($attr)
+
+=cut
+#**********************************************************
+sub _employees_change_geolocation {
+  my ($attr) = @_;
+
+  return '' if !$attr->{EID};
+
+  if ($attr->{CLEAR}) {
+    $Employees->del_geo({ EMPLOYEE_ID => $attr->{EID} });
+    $html->message('info', $lang{GEO}, $lang{DELETED}) if (!_error_show($Employees));
+    return '';
+  }
+
+  return '' if !$attr->{STREET_ID} && !$attr->{BUILD_ID} && !$attr->{DISTRICT_ID};
+
+  my @streets = ();
+  my @builds = ();
+  my @districts = ();
+
+  @streets = split(',\s?', $attr->{STREET_ID}) if (defined $attr->{STREET_ID});
+  @builds = split(',\s?', $attr->{BUILD_ID}) if (defined $attr->{BUILD_ID});
+  @districts = split(',\s?', $attr->{DISTRICT_ID}) if (defined $attr->{DISTRICT_ID});
+
+  $Employees->del_geo({ EMPLOYEE_ID => $attr->{EID} });
+
+  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, BUILD_ID => $_ }), @builds;
+  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, STREET_ID => $_ }), @streets;
+  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, DISTRICT_ID => $_ }), @districts;
+
+  return 1;
+}
+
 #**************************************************
 =head employees_positions() - add, change or delete positions
 

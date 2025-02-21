@@ -52,11 +52,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

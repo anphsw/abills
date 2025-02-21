@@ -7,7 +7,7 @@
     <div class='card-header'>_{ADD}_</div>
     <div class='card-body'>
       <b>_{QUESTION_NUM}_: </b><input class='form-control' type='text' name='PARRENT_ID' value='%PARRENT_ID%'>
-      <b>_{QUESTION_ANSWER}_: </b><input class='form-control' type='text' name='ANSWER' value='%ANSWER%' autofocus>
+      <b>_{QUESTION_ANSWER}_: </b><input class='form-control' type='text' name='ANSWER' value='%ANSWER%' autofocus required>
     </div>
     <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='%BUTTON_NAME%' value='%BUTTON_VALUE%'>

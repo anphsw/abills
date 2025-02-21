@@ -1,0 +1,118 @@
+.info-table {
+	position: absolute;
+	z-index: 99;
+	top: 20px;
+	right: 20px;
+	padding: 20px;
+	display: none;
+}
+
+.info-table table {
+	margin-bottom: 0;
+	color: white;
+}
+
+#cy {
+	width: 100%;
+	min-height: 800px;
+}
+
+#cy canvas {
+	left: 0;
+}
+
+.tippy-popper {
+	transition: none !important;
+	z-index: 0 !important;
+}
+
+.counters-wrap {
+	height: 50px;
+	position: fixed;
+	bottom: 10px;
+}
+
+.node-count, .time-count {
+	display: inline-block;
+	padding: 5px;
+	height: 30px;
+	vertical-align: middle;
+	background: rgba(0, 0, 0, 0.7);
+	color: white;
+	text-align: left;
+	line-height: 20px;
+}
+
+.node-container {
+	background-color: #ffffff;
+	margin-top: -1px;
+	margin-left: -1px;
+	width: 372px;
+	border-radius: 10px;
+	border: 1px solid #E4E2E9;
+	position: relative;
+	cursor: pointer;
+}
+
+.node-sidebar {
+	position: absolute;
+	top: 0;
+	left: -1px;
+	width: 7px;
+	height: 100%;
+	border-top-left-radius: 10px;
+	border-bottom-left-radius: 10px;
+}
+
+.node-content-wrapper {
+	position: relative;
+	padding: 12px;
+}
+
+.node-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.node-title {
+	color: black;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 280px;
+}
+
+.node-status-badge {
+	background-color: #17a2b8;
+	color: white;
+	border-radius: 50px;
+	padding: 2px 8px;
+	font-size: 12px;
+	display: flex;
+	align-items: center;
+}
+
+.node-icon {
+	width: 25px;
+	height: 25px;
+}
+
+.nas-ports-table thead {
+	display: table;
+	width: 100%;
+}
+
+.nas-ports-table tbody {
+	display: block;
+	max-height: 400px;
+	overflow-y: auto;
+	width: 100%;
+}
+
+.nas-ports-table tr {
+	display: table;
+	width: 100%;
+	table-layout: fixed;
+}

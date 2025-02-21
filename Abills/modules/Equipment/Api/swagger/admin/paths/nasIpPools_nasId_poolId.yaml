@@ -4,12 +4,7 @@ delete:
   summary: Удалить IP pool привязанный к серверу доступа
   operationId: nasIpPoolsDelete
   parameters:
-    - name: nasId
-      in: path
-      description: ID сервера доступа
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathNasId"
     - name: poolId
       in: path
       description: ID пула

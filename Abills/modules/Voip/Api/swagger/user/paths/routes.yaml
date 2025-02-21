@@ -3,18 +3,10 @@ get:
     - voip
   summary: Получить список путей
   parameters:
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: number
-        default: 25
-    - name: pg
-      in: query
-      description: Рабоатет вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запите
-      schema:
-        example: 10
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

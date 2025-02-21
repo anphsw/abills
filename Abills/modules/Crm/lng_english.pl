@@ -92,6 +92,7 @@ $lang{ACTIVE_APPEALS} = 'Active appeals';
 $lang{WAITING} = 'Waiting';
 $lang{DIALOGUE_CLOSED} = 'Dialogue closed';
 $lang{THE_USER_JOINED_VIA_TELEGRAM} = 'The user joined via Telegram';
+$lang{THE_USER_JOINED_VIA_VIBER_BOT} = 'The user joined via Viber-bot';
 $lang{OPEN_LINES} = 'Open lines';
 $lang{OPEN_LINE} = 'Open line';
 $lang{LEADS_ARE_UNITED} = 'Leads are united';
@@ -161,5 +162,11 @@ $lang{CRM_FILE_TOO_LARGE} = 'File is too large. Maximum file size';
 $lang{CRM_MAX_FILES_ALLOWED} = 'Maximum number of files allowed';
 $lang{CRM_REPORT_ON_ATTRACTING_POTENTIAL_CLIENTS} = 'Report on attracting potential clients';
 $lang{CRM_RUN_PLUGIN} = 'Run the plugin';
+
+$lang{ERR_CRM_BOT_USER_ID_ERROR} = 'Bot user ID error';
+$lang{ERR_CRM_MESSAGE_SOURCE_ERROR} = 'Message source error';
+$lang{ERR_CRM_GET_LEAD_BY_BOT_ERROR} = 'Get potential client by bot error';
+$lang{ERR_CRM_LEAD_NOT_FOUND} = 'Potential client not found';
+$lang{ERR_CRM_SEND_DIALOGUE_MESSAGE_ERROR} = 'Send dialogue message error';
 
 1

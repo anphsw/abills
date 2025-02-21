@@ -2,9 +2,9 @@
   $ref: "./paths/systems.yaml"
 /user/paysys/pay:
   $ref: "./paths/pay.yaml"
-/user/paysys/transaction/status:
-  $ref: "./paths/transactionInfo.yaml"
 /user/paysys/transaction/status/{string_id}:
-  $ref: "./paths/transactionInfoNew.yaml"
+  $ref: "./paths/transactionInfo.yaml"
 /user/paysys/applePay/session:
   $ref: "./paths/appleSession.yaml"
+/user/paysys/recurrent/:
+  $ref: "./paths/paysysRecurrent.yaml"

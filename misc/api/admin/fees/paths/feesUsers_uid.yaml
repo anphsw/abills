@@ -5,13 +5,7 @@ get:
   description: Возвращает список списаний пользователя
   operationId: getUserFees
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/pathUid"
     - name: datetime
       in: query
       description: Дата проведения списания.
@@ -102,12 +96,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: aid
-      in: query
-      description: ID администратора, который провел списание.
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/aid"
     - name: adminName
       in: query
       description: Имя администратора, который провел списание.
@@ -144,18 +133,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение
@@ -171,13 +152,7 @@ post:
   summary: Добавление списания пользователю
   operationId: addUserFee
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:

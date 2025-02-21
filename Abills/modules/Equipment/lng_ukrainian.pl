@@ -147,8 +147,6 @@ $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Отримання кон�
 $lang{CABLE_TEST_FAILED} = 'не вдалось провести тест кабеля';
 $lang{LAST_CABLE_TEST_TIME} = 'Час останнього запуску кабельного тестера';
 
-$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Відображення інформації про обладнання користувача';
-
 $lang{FDB_USES_PORT_NUMBER_INDEX} = 'FDB використовує номери портів в якості індексів';
 
 $lang{MAC_FLOOD_COUNT} = 'Кількість МАС-адрес';
@@ -220,5 +218,12 @@ $lang{PORT_ERRORS} = 'Помилки на портах';
 
 $lang{INCOMING} = 'Вхідні';
 $lang{OUTCOMING} = 'Вихідні';
+$lang{LOG_ONU} = 'Журнал ONU';
+$lang{CAPABILITY} = 'Можливість';
+
+$lang{EQUIPMENT_SCALE_TO_CONTENT} = 'Масштабувати за вмістом';
+$lang{EQUIPMENT_ALIGN} = 'Вирівняти';
+$lang{EQUIPMENT_ADD_NEW_EQUIPMENT} = 'Додати нове обладнання';
+$lang{EQUIPMENT_ADD_PORT_BINDING} = "Додати прив'язку порта";
 
 1

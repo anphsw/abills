@@ -6,8 +6,6 @@ package Shedule;
 
 =cut
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
 use strict;
 use parent qw(dbcore);
 use Abills::Base qw( in_array ) ;
@@ -24,7 +22,7 @@ sub new{
   ($admin, $CONF) = @_;
   my $self = { };
 
-  $admin->{MODULE} = '';
+  $admin->{MODULE} = 'Shedule';
   bless( $self, $class );
 
   $self->{db} = $db;
@@ -233,8 +231,8 @@ sub add{
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{D} = sprintf('%02d', $attr->{D}) if $attr->{D};
-  $attr->{M} = sprintf('%02d', $attr->{M}) if $attr->{M};
+  $attr->{D} = sprintf('%02d', $attr->{D}) if ($attr->{D} && $attr->{D} ne '*');
+  $attr->{M} = sprintf('%02d', $attr->{M}) if ($attr->{M} && $attr->{M} ne '*');
 
   $self->query_add( 'shedule', {
       %{$attr},
@@ -296,6 +294,7 @@ sub del{
       $self->query("DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do');
 
       if ($self->{AFFECTED}) {
+        $admin->{MODULE} = 'Shedule';
         if ($attr->{UID}) {
           $admin->action_add($attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
             { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });

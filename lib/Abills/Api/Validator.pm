@@ -56,13 +56,14 @@ sub validate_params {
   $attr->{parent_param} //= '';
 
   foreach my $param (keys %{$attr->{query_params}}) {
-    my $parameter = $attr->{query_params}->{$param};
     my $cam_param = $attr->{parent_param} . ($attr->{param} ? $attr->{param} : camelize($param));
     my $is_pattern_property = 0;
 
     if ($attr->{params}->{_PATTERN_PROPERTIES}) {
       foreach my $key (keys %{$attr->{params}->{_PATTERN_PROPERTIES}}) {
         next if ($param !~ /$key/g);
+
+        my $parameter = $attr->{query_params}->{$param};
 
         my $validation_result = $self->validate_params({
           param        => lc($param),
@@ -79,7 +80,6 @@ sub validate_params {
         }
         else {
           $filtered_params{$param} = $parameter;
-          delete $attr->{params}->{$param};
         }
 
         $is_pattern_property = 1;
@@ -90,9 +90,10 @@ sub validate_params {
 
     next if (!exists $attr->{params}->{$param});
 
+    my $parameter = $attr->{query_params}->{$param};
+
     if (!$attr->{params}->{$param}->{type}) {
       $filtered_params{$param} = $parameter;
-      delete $attr->{params}->{$param};
       next;
     }
 
@@ -254,11 +255,12 @@ sub validate_params {
     }
 
     $filtered_params{$param} = $parameter;
-    delete $attr->{params}->{$param};
   }
 
   foreach my $param (sort keys %{$attr->{params}}) {
     my $cam_param = camelize($param);
+    next if (defined $filtered_params{$param});
+
     if ($attr->{params}->{$param}->{required}) {
       push @errors, {
         errno    => 20,

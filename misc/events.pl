@@ -304,11 +304,9 @@ sub translate_text() {
 #**********************************************************
 sub is_valid_list {
   my ($list_name) = @_;
-  
-  no warnings 'experimental::smartmatch';
-  
+
   my @correct_lists = ('events', 'state', 'privacy', 'priority');
-  return $list_name ~~ @correct_lists;
+  return in_array($list_name, \@correct_lists);
 }
 
 #**********************************************************

@@ -1,9 +1,15 @@
 our %FUNCTIONS_LIST = (
-  "01:0:$lang{MOBILE_COMMUNICATION}:null:"           => 5,
-  "02:1:$lang{MOBILE_CATEGORIES}:mobile_categories:" => 5,
-  "03:1:$lang{MOBILE_SERVICES}:mobile_services:"     => 5,
-  "04:1:$lang{TARIF_PLAN}:mobile_tariff_plans:"      => 5,
-  "05:0:$lang{MOBILE_COMMUNICATION}:mobile_user:UID" => 20,
+  "01:0:$lang{MOBILE_COMMUNICATION}:null:"              => 5,
+  "02:1:$lang{MOBILE_CATEGORIES}:mobile_categories:"    => 5,
+  "03:1:$lang{MOBILE_SERVICES}:mobile_services:"        => 5,
+  "04:1:$lang{TARIF_PLAN}:mobile_tariff_plans:"         => 5,
+  "05:0:$lang{MOBILE_COMMUNICATION}:mobile_user:UID"    => 20,
+  "06:5:$lang{TARIF_PLANS}:mobile_chg_tp:UID"           => 11,
+  "07:0:$lang{MOBILE_COMMUNICATION}:mobile_users_list:" => 11,
+  "10:0:$lang{MOBILE_COMMUNICATION}:null:"              => 4,
+  "11:10:$lang{TARIF_PLANS}:mobile_tp_report:"          => 4,
+  "12:10:$lang{MOBILE_LOGS}:mobile_log_list:"           => 4,
+  "13:5:$lang{LOG}:mobile_log_list:UID"                 => 11,
 );
 
 our %USER_FUNCTION_LIST = (

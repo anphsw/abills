@@ -4,12 +4,7 @@ get:
   summary: Информация о списаниях
   operationId: userInternetWarnings
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: number
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID услуги

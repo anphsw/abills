@@ -1,0 +1,21 @@
+get:
+  tags:
+    - crm
+  summary: Получить контент файла
+  parameters:
+    - name: id
+      in: path
+      description: ID файла
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+  security:
+    - KEY: []

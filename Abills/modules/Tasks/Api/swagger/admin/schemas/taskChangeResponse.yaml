@@ -1,0 +1,8 @@
+type: object
+properties:
+  affected:
+    type: integer
+    example: 1
+  total:
+    type: integer
+    example: 0

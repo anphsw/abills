@@ -1,0 +1,11 @@
+type: object
+properties:
+  fio:
+    type: string
+    example: "Test user"
+  phone:
+    type: string
+    example: "0507162626"
+  email:
+    type: string
+    example: "dev_api@abills.net.ua"

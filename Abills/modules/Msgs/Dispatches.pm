@@ -163,7 +163,7 @@ sub msgs_dispatches {
   foreach my $dispatch (@dispatches) {
     $dispatch->{admins} = "";
     my $dispatch_admins = $Msgs->dispatch_admins_list({ DISPATCH_ID => $dispatch->{id}, COLS_NAME => 1 });
-    if ($Msgs->{TOTAL}) {
+    if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
       for my $admin_ (@{$dispatch_admins}) {
         $dispatch->{admins} .= " " . ($admin_->{name} || q{}) . ",";
       }

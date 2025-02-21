@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "auth": {
+      "type": "object",
+      "properties": {
+        "phone": {
+          "type": "integer"
+        }
+      },
+      "required": ["phone"]
+    },
+    "login": {
+      "type": "object",
+      "properties": {
+        "maxLength": {
+          "type": "integer"
+        },
+        "regx": {
+          "type": "string"
+        }
+      },
+      "required": ["maxLength", "regx"]
+    },
+    "password": {
+      "type": "object",
+      "properties": {
+        "length": {
+          "type": "integer"
+        },
+        "symbols": {
+          "type": "string"
+        }
+      },
+      "required": ["length", "symbols"]
+    },
+    "passwordRecovery": {
+      "type": "object",
+      "properties": {
+        "canSendSms": {
+          "type": "integer"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["canSendSms", "fields"]
+    },
+    "phone": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string"
+        }
+      },
+      "required": ["pattern"]
+    },
+    "portalNews": {
+      "type": "integer"
+    },
+    "registration": {
+      "type": "object",
+      "properties": {
+        "facebook": {
+          "type": "integer"
+        },
+        "google": {
+          "type": "integer"
+        },
+        "apple": {
+          "type": "integer"
+        }
+      },
+      "required": ["facebook", "google", "apple"]
+    },
+    "socialAuth": {
+      "type": "object",
+      "properties": {
+        "facebook": {
+          "type": "integer"
+        },
+        "google": {
+          "type": "integer"
+        },
+        "apple": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "required": [
+    "login",
+    "password"
+  ]
+}

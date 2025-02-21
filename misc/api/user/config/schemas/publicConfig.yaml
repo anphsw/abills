@@ -15,6 +15,39 @@ properties:
       regx:
         type: string
         example: ^[a-z0-9:_][a-z0-9:_-]*$
+  organization:
+    type: object
+    properties:
+      organizationAddress:
+        type: string
+        example: "м. Кременчук вул. Палія 15"
+      organizationBankName:
+        type: string
+        example: "АТ КБ ПРИВАТБАНК"
+      organizationBankNum:
+        type: string
+        example: "UA173000010000032003102901026"
+      organizationMail:
+        type: string
+        example: "kpallisp@kpal.net"
+      organizationName:
+        type: string
+        example: "КНЕТ ISP"
+      organizationPhone:
+        type: string
+        example: "+380930445091"
+      organizationPrivacyPolicy1:
+        type: string
+        example: "https://kpal.net/privacy-policy"
+      organizationPrivacyPolicyDescription1:
+        type: string
+        example: "Privacy Policy ТОВ КНЕТ"
+      organizationAppLinkGooglePlay:
+        type: string
+        example: "https://play.google.com/store/apps/details?id=com.abillslite"
+      organizationAppLinkAppStore:
+        type: string
+        example: "https://apps.apple.com/ua/app/abills-lite/id1668648035"
   password:
     type: object
     properties:
@@ -25,8 +58,26 @@ properties:
         type: number
         example: 1234567890
   passwordRecovery:
-    type: number
-    example: 1
+    type: object
+    properties:
+      canSendSms:
+        type: number
+        example: 1
+        description: Можно ли отправить sms пользователю 1 - да, 0 - нет
+      fields:
+        type: array
+        items:
+          type: string
+          enum:
+            - LOGIN
+            - EMAIL
+            - PHONE
+            - UID
+            - CONTRACT_ID
+        description: Обязательные поля, которые должны быть переданы во чс восстановление пароля
+        example: [ "LOGIN", "EMAIL" ]
+    required:
+      - fields
   phone:
     type: object
     properties:

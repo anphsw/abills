@@ -142,7 +142,8 @@
       sum: sum,
       apay: paymentResponse,
       systemId: applePayConfig.paysysId,
-      returnUrl: 1
+      returnUrl: 1,
+      operationId: `A${Math.floor(Math.random() * 1000000000)}`
     };
 
     try {

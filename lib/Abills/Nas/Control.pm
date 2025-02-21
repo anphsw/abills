@@ -31,7 +31,6 @@ our @EXPORT = qw(
   telnet_cmd3
   hangup_snmp
   rsh_cmd
-  hascoa
   setspeed
 );
 
@@ -42,7 +41,6 @@ our @EXPORT_OK = qw(
   telnet_cmd3
   hangup_snmp
   rsh_cmd
-  hascoa
   setspeed
 );
 
@@ -233,7 +231,7 @@ sub hangup {
     $self->radius_request( $Nas, \%params );
   }
   elsif ($nas_type eq 'mx80') {
-    $params{RAD_PAIRS}->{'Acct-Session-Id'} = $params{SESSION_ID};
+    $params{RAD_PAIRS}->{'Acct-Session-Id'} = $params{ACCT_SESSION_ID} || $params{SESSION_ID};
     $self->radius_request($Nas, \%params);
   }
   elsif ($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ /\d+\.\d+\.\d+\.\d+:\d+:/) {
@@ -1361,26 +1359,6 @@ sub setspeed {
     return -1;
   }
 }
-
-# #***********************************************************
-# =head2  hascoa($NAS); - Check CoA support
-#
-# =cut
-# #***********************************************************
-# sub hascoa {
-#   my ($NAS) = @_;
-#
-#   my $nas_type = $NAS->{NAS_TYPE};
-#
-#   if ($nas_type eq 'pppd_coa') {
-#     return 1;
-#   }
-#   elsif ($CONF->{coa_send} && $nas_type =~ /$CONF->{coa_send}/) {
-#     return 1;
-#   }
-#
-#   return 0;
-# }
 
 #***************************************************************
 =head2 hangup_unifi($NAS, $PORT, $USER, $attr) - Hangup unifi

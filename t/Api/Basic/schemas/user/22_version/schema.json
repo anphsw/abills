@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "required": [
+    "version",
+    "apiVersion",
+    "billing"
+  ],
+  "properties": {
+    "version": {
+      "$id": "#/properties/version",
+      "type": "string"
+    },
+    "apiVersion": {
+      "$id": "#/properties/apiVersion",
+      "type": "number"
+    },
+    "billing": {
+      "$id": "#/properties/billing",
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,73 @@
+#!perl
+=head1 NAME
+
+ Telegram web functions
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+use Time::Piece;
+use JSON qw(decode_json);
+use Abills::Base qw/in_array _bp/;
+
+our (
+  %lang,
+  $html,
+  $admin,
+  $db,
+  %conf,
+  @bool_vals,
+  @MODULES,
+  $DATE
+);
+
+require Control::Qrcode;
+Control::Qrcode->import();
+
+my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+
+#**********************************************************
+=head2 telegram_qrcode()
+
+=cut
+#**********************************************************
+sub telegram_qrcode {
+
+  return '' if !$conf{TELEGRAM_TOKEN} && !$conf{TELEGRAM_ADMIN_TOKEN};
+
+  if (!$conf{TELEGRAM_BOT_NAME}) {
+    require Abills::Sender::Telegram;
+    Abills::Sender::Telegram->import();
+    my $Telegram = Abills::Sender::Telegram->new(\%conf);
+    $conf{TELEGRAM_BOT_NAME} = $Telegram->get_bot_name(\%conf, $db);
+  }
+
+  my $qrcodes = _generate_qrcode($conf{TELEGRAM_BOT_NAME}, 'Telegram Bot');
+  $qrcodes .= _generate_qrcode($conf{TELEGRAM_ADMIN_BOT_NAME}, $lang{TELEGRAM_FOR_ADMINS});
+
+  print $html->element('div', $qrcodes, { class => 'row' });
+}
+
+#**********************************************************
+=head2 _generate_qrcode($bot_name, $title)
+
+=cut
+#**********************************************************
+sub _generate_qrcode {
+  my ($bot_name, $title) = @_;
+
+  return '' if !$bot_name;
+
+  my $link_url = 'https://t.me/' . $bot_name;
+  my $qr_code_image = $QRCode->qr_make_image_from_string($link_url, { base64 => 1 });
+
+  return $html->tpl_show(_include('telegram_qrcode', 'Telegram'), {
+    TELEGRAM_QRCODE => $qr_code_image,
+    NAME            => $bot_name,
+    TITLE           => $title
+  }, { OUTPUT2RETURN => 1 });
+}
+
+1;

@@ -1,0 +1,22 @@
+type: object
+properties:
+  message:
+    type: string
+    example: "Test message"
+  attachments:
+    type: array
+    items:
+      type: object
+      properties:
+        file_name:
+          type: string
+          example: 'test.txt'
+        contents:
+          type: string
+          example: 'some content'
+        size:
+          type: integer
+          example: 0
+        contentType:
+          type: string
+          example: 'text/plain'

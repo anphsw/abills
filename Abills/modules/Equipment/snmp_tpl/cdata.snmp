@@ -1,9 +1,24 @@
 {
-  "DEVICE":"Cdata",
+  "DEVICE":"Cdata FD11",
   "FDB":"1",
   "FDB_OID": "1.3.6.1.4.1.34592.1.3.2.3.4.1.4",
   "FDB_EXPR": "(%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+)%%.(%%d+):(.+)|MAC,VLAN,PORT",
   "info" : {
+    "SYSTEM_NAME" : {
+      "NAME" : "System name",
+      "OIDS" : ".1.3.6.1.2.1.1.5.0"
+    },
+
+    "SYSTEM_DESCR" : {
+      "NAME" : "System describe",
+      "OIDS" : ".1.3.6.1.2.1.1.1.0"
+    },
+    "UPTIME" : {
+      "NAME" : "Uptime",
+      "OIDS" : ".1.3.6.1.2.1.1.3.0"
+    }
+  },
+  "status" : {
 
   },
   "epon" : {
@@ -74,6 +89,13 @@
         "OIDS"   : "1.3.6.1.4.1.34592.1.3.4.1.1.37.1",
         "PARSER" : "_cdata_convert_voltage"
       }, //voltage = voltage * 0.0001
+      "MAC_BEHIND_ONU" : {
+        "NAME"        : "MAC_BEHIND_ONU",
+        "OIDS" : ".1.3.6.1.4.1.34592.1.3.4.10.2.1.2.1",
+        "ADD_2_OID" : ".1.1",
+        "PARSER" : "_cdata_mac_behind_onu"
+        //"USE_MAC_LOG" : 1
+      },
       "DISTANCE"       : {
         "NAME"   : "DISTANCE",
         "OIDS"   : "1.3.6.1.4.1.34592.1.3.4.1.1.13.1",
@@ -81,8 +103,7 @@
       },
       "ONU_LAST_DOWN_CAUSE" : {
         "NAME"   : "ONU_LAST_DOWN_CAUSE",
-        "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.35",
-        "PARSER" : ".1.3.6.1.4.1.34592.1.3.6.0.17"
+        "OIDS"   : ".1.3.6.1.4.1.34592.1.3.6.0.17"
       }
       //        "ONU_PORTS_STATUS" : {
       //          "NAME"   : "",

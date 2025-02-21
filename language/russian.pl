@@ -272,7 +272,7 @@ $lang{UNKNOWN} = 'Неизвестный';
 $lang{LAST_UPDATE} = 'Последнее обновление';
 $lang{ARPU} = 'Средняя выручка на одного пользователя';
 $lang{CONFIRM} = 'Подтвердить';
-$lang{OPERATION_DEPOSIT} = 'Депозит операции';
+$lang{OPERATION_DEPOSIT} = 'Депозит перед операцией';
 $lang{AFTER_OPERATION_DEPOSIT} = 'Депозит после операции';
 $lang{COMPANIES} = 'Компании';
 $lang{RESTART} = 'Рестарт';
@@ -456,7 +456,7 @@ $lang{FIELDS} = 'Поля';
 $lang{SEND} = 'Отправить';
 $lang{VENDOR} = 'Производитель';
 $lang{ERR_WRONG_PASSWD} = 'Неправильный пароль';
-$lang{CONTRACT_ID} = 'Номер контракта';
+$lang{CONTRACT_ID} = 'Номер договора';
 $lang{NOT_LOGINED} = 'Время сессии истекло. Подключитесь повторно.';
 $lang{TAX_INVOICE} = 'Налоговая накладная';
 $lang{CHANGING} = 'Внести изменения';
@@ -881,6 +881,7 @@ $lang{CONSOLE} = 'Консоль';
 
 $lang{LAST_FEES} = 'Последнее снятие';
 $lang{CASHBOX} = 'Касса';
+$lang{MOVING_BETWEEN_CASHBOXES}='Перемещение между кассами';
 $lang{ENTER_DEL} = 'Введите слово';
 $lang{MATCH_USER} = 'Сопоставить пользователя';
 $lang{NEXT_POOL} = 'Следующий пул';
@@ -1108,14 +1109,43 @@ $lang{ANY_NUMBER} = 'Число';
 $lang{ANY} = 'Любой';
 $lang{ERR_REQUIRED_PARAMETER} = 'Обязательный параметр к заполнению %PARAMETER%';
 $lang{ERR_PARAMETER_NOT_VALID} = 'Параметр %PARAMETER% является невалидным. %MESSAGE%';
+$lang{ERR_NO_FIELD} = 'Отсутствует поле %FIELD%';
 
 $lang{MASS_DELETION_PAYMENT} = 'Массовое удаление оплат';
 $lang{MASS_DELETION_FEES} = 'Массовое удаление списаний';
+
+$lang{UNKNOWN_ERROR} = 'Неизвестная ошибка';
 $lang{ERR_NOT_SELECTED} = 'Не выбрано';
+$lang{ERR_CANNOT_LOAD_PLUGIN} = 'Не удалось загрузить необходимый плагин';
+$lang{ERR_NO_CONTACT} = 'Контакт не найден';
+$lang{ERR_INVALID_DATA_IN_THE_REQUEST} = 'Неверные данные в запросе';
+$lang{ERR_PROVIDED_URL_IS_NOT_VALID} = 'Предоставленный URL недействителен';
+$lang{ERR_TOKEN_EXPIRED_OR_INVALID} = 'Токен истек или недействителен';
+$lang{ERR_THE_RECIPIENT_IS_NOT_REGISTERED} = 'Получатель не зарегистрирован';
+$lang{ERR_THE_USER_HAS_BLOCKED_THE_SENDER} = 'Пользователь заблокировал отправителя';
+$lang{ERR_THE_USER_IS_NOT_SUBSCRIBED_TO_THE_SERVICE} = 'Пользователь не подписан на сервис';
+$lang{ERR_THE_USER_ACCOUNT_WAS_NOT_FOUND} = 'Аккаунт пользователя не найден';
+$lang{ERR_UNAUTHENTICATED} = 'Неверные учетные данные для аутентификации';
+
 $lang{FIXED_FEES_FREE_PERIOD}='Бесплатный период до начала месяца';
 
 $lang{MONITORING_ALL_SESSIONS} = 'Просмотр всех сессий';
 $lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Забрать диалог в администратора';
 $lang{NOT_CHANGED} = 'Изменения не внесены';
+$lang{WITHOUT} = 'Без';
+
+$lang{PAYMENT} = 'Оплата';
+$lang{AVAILABILITY_PERIOD} = 'Период доступности';
+
+$lang{PENETRATION_RATE} = 'Проникновение';
+$lang{POPULATION} = 'Население';
+$lang{HOUSEHOLDS} = 'Домохозяйства';
+$lang{ARCHIVAL} = 'Архивный';
+$lang{FINANCE} = 'Финансы';
+
+$lang{PASSWORD_CHANGE_MANDATORY} = 'Смена пароля обязательна';
+$lang{PASSWORD_EXPIRY_NOTICE} = 'По соображениям безопасности пароли должны меняться каждые %DAYS% дней. Срок действия вашего пароля истек, пожалуйста, измените его, чтобы продолжить использование системы.';
+$lang{DAYS_LEFT_FOR_PASSWORD_CHANGE} = 'Осталось %DAYS% дней до обязательной смены пароля.';
+
 
 1;

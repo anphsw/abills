@@ -1,0 +1,24 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        date:
+          type: string
+          example: '2025-01-01'
+        value:
+          type: object
+          properties:
+            closed:
+              type: integer
+              example: 0
+            messages:
+              type: integer
+              example: 4
+            replies:
+              type: integer
+              example: 5
+  total:
+    type: integer

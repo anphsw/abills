@@ -18,10 +18,10 @@
         </div>
 
         <div class="form-group row">
-          <label class='col-md-3 control-label' for='NAME'>_{NAME}_:</label>
+          <label class='col-md-3 control-label required' for='NAME'>_{NAME}_:</label>
           <div class="col-md-9">
             <div class="input-group">
-              <input type='text' class='form-control' ID='NAME' name='NAME' value='%NAME%'>
+              <input type='text' class='form-control' ID='NAME' name='NAME' value='%NAME%' required>
             </div>
           </div>
         </div>

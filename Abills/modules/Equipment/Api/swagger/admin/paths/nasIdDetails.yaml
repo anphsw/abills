@@ -1,0 +1,33 @@
+post:
+  tags:
+    - equipment
+  summary: Добавить информацию об оборудовании
+  operationId: nasAddDetails
+  parameters:
+    - name: id
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addNasDetails.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+    400:
+      description: Дубликат
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: []

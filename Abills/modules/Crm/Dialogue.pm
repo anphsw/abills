@@ -230,6 +230,11 @@ sub crm_lead_by_source {
   }
 
   $uc_source = uc('_crm_' . $self->{SOURCE}) if $self->{SOURCE} eq 'mail';
+
+  if ($sender->{PHONE}) {
+    $sender->{PHONE} = _crm_lead_number_expr($sender->{PHONE});
+  }
+
   $Crm->crm_lead_add({
     FIO          => $sender->{FIO},
     PHONE        => $sender->{PHONE} || '',
@@ -241,6 +246,30 @@ sub crm_lead_by_source {
   });
 
   return $Crm->{INSERT_ID} || 0;
+}
+
+#**********************************************************
+=head2 _crm_lead_number_expr($sender)
+
+=cut
+#**********************************************************
+sub _crm_lead_number_expr {
+  my $input_number = shift;
+
+  return $input_number if !$CONF->{CRM_NUMBER_EXPR};
+
+  my @num_expr = split(/;/, $CONF->{CRM_NUMBER_EXPR});
+
+  for my $expr (@num_expr) {
+    my ($left, $right) = split(/\//, $expr);
+    $right =~ s/\$number/$input_number/g;
+
+    if ($input_number =~ s/^$left/$right/) {
+      last;
+    }
+  }
+
+  return $input_number;
 }
 
 1;

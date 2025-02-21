@@ -66,6 +66,9 @@ if ($conf{LANGS}) {
 our $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
+# Load DB %conf;
+our $Conf = Conf->new($db, $admin, \%conf);
+
 our $users = Users->new($db, $admin, \%conf);
 
 if ($html->{language} ne 'english') {

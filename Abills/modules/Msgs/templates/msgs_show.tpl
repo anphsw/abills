@@ -1,3 +1,5 @@
+<link rel='stylesheet' href='/styles/default/css/modules/msgs/highlight.min.css'>
+
 <FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='UID' value='$FORM{UID}'/>
@@ -144,3 +146,6 @@
     })
   });
 </script>
+
+<script src='/styles/default/js/msgs/highlight.min.js'></script>
+<script>hljs.highlightAll();</script>

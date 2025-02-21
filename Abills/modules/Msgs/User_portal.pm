@@ -210,7 +210,7 @@ sub msgs_user_show {
       DATE       => $line->{datetime},
       CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
       PERSON     => ($line->{creator_fio} || $line->{creator_id}),
-      MESSAGE    => msgs_text_quoting($line->{text}),
+      MESSAGE    => msgs_text_formatting($line->{text}),
       COLOR      => (($line->{aid} > 0) ? 'fas fa-envelope bg-blue' : 'fas fa-user bg-green'),
       QUOTING    => $quoting_button,
       ATTACHMENT => $attachment_html,
@@ -231,7 +231,7 @@ sub msgs_user_show {
     $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-clock bg-gray', OUTPUT2RETURN => 1 });
   }
 
-  $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
+  # $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
   $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
 
   if ($Msgs->{FILENAME}) {
@@ -256,11 +256,12 @@ sub msgs_user_show {
   $Msgs->{TIMELINE_LAST_ITEM} = '' if !scalar @REPLIES;
   $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
 
-  while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-    my $msg_button = $html->button($1, "&index=$index&ID=$1",
-      { class => 'badge bg-blue' });
-    $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
-  }
+  # while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
+  #   my $msg_button = $html->button($1, "&index=$index&ID=$1",
+  #     { class => 'badge bg-blue' });
+  #   $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
+  # }
+  $Msgs->{MESSAGE} = msgs_text_formatting($Msgs->{MESSAGE});
 
   if (my $last_reply_index = scalar(@$replies_list)) {
     $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};

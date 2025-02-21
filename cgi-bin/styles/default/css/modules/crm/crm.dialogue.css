@@ -119,7 +119,7 @@ textarea {
 	padding-bottom: 30px !important;
 }
 
-.icon {
+.button-tolls {
 	position: absolute;
 	bottom: 10px;
 	left: 10px;
@@ -145,4 +145,66 @@ textarea {
 
 #message-textarea {
 	min-height: 150px
+}
+
+.quick-reply-container {
+	position: absolute;
+	left: 0;
+	bottom: 100%;
+	width: 100%;
+	background-color: #ffffff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	z-index: 10;
+	max-height: 350px;
+	min-height: 50px;
+	overflow-y: auto;
+	transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.quick-reply-container ul {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+}
+
+.quick-reply-container .list-group-item {
+	border: none;
+	border-bottom: 1px solid #e5e5e5;
+	padding: 15px;
+	transition: background-color 0.3s ease;
+}
+
+.dark-mode .quick-reply-container .list-group-item:hover {
+	color: black;
+}
+
+.quick-reply-container .list-group-item:hover {
+	background-color: #f0f8ff;
+}
+
+.quick-reply-container .list-group-item:last-child {
+	border-bottom: none;
+}
+
+.quick-reply-container::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+.quick-reply-container {
+	scrollbar-width: none !important;
+}
+
+.quick-reply-container::-ms-scrollbar {
+	display: none;
+}
+
+.sticky-header {
+	position: sticky;
+	top: 0;
+	background-color: #f8f9fa;
+	z-index: 1;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

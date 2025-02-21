@@ -137,6 +137,19 @@ sub docs_invoice_add {
     %invoice_create_info = %FORM;
   }
 
+  if ($invoice_create_info{CUSTOMER} && $invoice_create_info{CUSTOMER} ne '-'){
+    my $Users = Users->new($db, $admin, \%conf);
+    my $users_pi = $Users->pi({ UID => $invoice_create_info{UID} });
+    $invoice_create_info{CONTRACT_ID} = $users_pi->{CONTRACT_ID} || '';
+    $invoice_create_info{CONTRACT_DATE} = $users_pi->{CONTRACT_DATE} || '';
+    $invoice_create_info{INN} = $users_pi->{TAX_NUMBER} || '';
+    $Docs->docs_customers_add(\%invoice_create_info);
+  }
+  if ($invoice_create_info{CUSTOMERS_LIST}){
+    $Docs->docs_customers_info({ ID => $invoice_create_info{CUSTOMERS_LIST} });
+    $invoice_create_info{CUSTOMER} = $Docs->{CUSTOMER} if ($Docs->{CUSTOMER});
+  }
+
   $invoice_create_info{ORDER} .= ' ' . $invoice_create_info{ORDER2} if ($invoice_create_info{ORDER2});
 
   my $uid = $invoice_create_info{UID} || 0;
@@ -262,6 +275,19 @@ sub docs_invoices_list {
 
   if ($FORM{del_payment}) {
     docs_invoices_del();
+  }
+
+  if ($FORM{change}){
+    print "Content-Type: text/html\n\n";
+    $Docs->invoice_info($FORM{change});
+    $html->tpl_show(_include('docs_invoice_change', 'Docs'), {
+      INDEX => $index,
+      ID    => $FORM{change},
+      UID   => $FORM{UID} || '',
+      %{$Docs}
+    });
+
+    return 1;
   }
 
   if ($attr->{USER_INFO}) {
@@ -411,7 +437,12 @@ sub docs_invoices_list {
       docs_deposit   => $lang{OPERATION_DEPOSIT},
       deposit        => $lang{CURRENT_DEPOSIT},
       sum_vat        => "$lang{SUM} $lang{VAT}",
-      orders         => $lang{ORDERS}
+      orders         => $lang{ORDERS},
+      tracking_date_to     => "$lang{DOCS_SEND_INVOICE} $lang{TO} $lang{OF_CLIENT}",
+      tracking_number_to   => "$lang{DOCS_TRACKING_NUMBER} $lang{TO} $lang{OF_CLIENT}",
+      receive_date         => "$lang{DOCS_RECEIVE_INVOICE} $lang{BY_CLIENT}",
+      tracking_date_from   => "$lang{DOCS_TRACKING_DATE} $lang{FROM} $lang{OF_CLIENT}",
+      tracking_number_from => "$lang{DOCS_TRACKING_NUMBER} $lang{FROM} $lang{OF_CLIENT}",
     },
     TABLE  => {
       width       => '100%',
@@ -531,6 +562,9 @@ sub docs_invoices_list {
       elsif ( $field_name eq 'alt_sum' ){
         $val = _alt_sum_filter($invoice->{$field_name}, $invoice->{currency});
       }
+      elsif ( $field_name eq 'send_date' || $field_name eq 'receive_date' ){
+        $val = ($invoice->{$field_name} ne '0000-00-00') ? $invoice->{$field_name} : '';
+      }
       else{
         $val = $invoice->{$field_name};
       }
@@ -563,6 +597,10 @@ sub docs_invoices_list {
           , { ex_params => 'target=_new ', class => 'fas fa-print text-success', title => $lang{PRINT_TERMO_PRINTER} });
       }
 
+      my $send_invoice_class = 'text-secondary';
+      $send_invoice_class = 'text-primary' if ($invoice->{tracking_date_to} && $invoice->{tracking_date_to} ne '0000-00-00');
+      $send_invoice_class = 'text-success' if ($invoice->{receive_date} && $invoice->{receive_date} ne '0000-00-00');
+
       push @function_fields,
         $html->button( $lang{PAYMENTS}, "index=2&INVOICE_ID=$invoice->{id}&UID=$invoice->{uid}$payments_info",
           { class => 'payments' } )
@@ -574,6 +612,9 @@ sub docs_invoices_list {
         , $html->button( $lang{SEND_MAIL},
           "qindex=" . get_function_index( 'docs_invoices_list' ) . "&sendmail=$invoice->{id}&UID=$invoice->{uid}",
           { ex_params => 'target=_new', class => 'sendmail' } )
+        , $html->button( "$lang{DOCS_SEND_INVOICE}/$lang{DOCS_RECEIVE_INVOICE}",
+          "qindex=" . get_function_index( 'docs_invoices_list' ) . "&change=$invoice->{id}&UID=$invoice->{uid}",
+          { LOAD_TO_MODAL => 1, class => $send_invoice_class, ICON => 'fa fa-truck' } )
         , (($permissions{1} && $permissions{1}{2})  ? $html->button( $lang{DEL},
           "index=$index&del=$invoice->{id}&UID=$invoice->{uid}",
           { MESSAGE => "$lang{DEL} ID $invoice->{id} ?", class => 'del' } ) : '')
@@ -958,13 +999,40 @@ sub docs_invoice {
 
   $users->pi({ UID => $users->{UID} || $uid });
   $Docs->{OP_SID} = mk_unique_value(16);
-  $Docs->{CUSTOMER} = $users->{COMPANY_NAME} || $users->{FIO} || '-';
   $Docs->{CAPTION} = $lang{INVOICE};
   if (!$Docs->{MONTH}) {
     my ($year, $month, undef) = split(/-/, $DATE);
     $Docs->{MONTH} = $MONTHES[ int($month - 1) ];
     $Docs->{YEAR} = $year;
   }
+
+  my $docs_customers_list = $Docs->docs_customers_list({
+    UID       => $FORM{UID},
+    CUSTOMER  => '_SHOW',
+    IS_DOCS   => '_SHOW',
+    DESC      => 'DESC',
+    COLS_NAME => 1
+  });
+
+  my %customers_hash = ();
+  if ($Docs->{TOTAL}) {
+    foreach my $line (@$docs_customers_list) {
+      if($line->{customer}){
+        $customers_hash{$line->{id}} = (!$line->{is_docs}) ? "$line->{customer}:#f44336" : $line->{customer};
+      }
+    }
+  }
+  else {
+    $Docs->{SHOW_ADD_CUSTOMER} = 1;
+    $Docs->{CUSTOMER} = $users->{COMPANY_NAME} || $users->{FIO} || '';
+  }
+
+  $Docs->{CUSTOMERS_LIST} = $html->form_select('CUSTOMERS_LIST', {
+    SELECTED    => '',
+    SEL_HASH    => \%customers_hash,
+    NO_ID       => 1,
+    USE_COLORS  => 1,
+  });
 
   if (!$FORM{pdf}) {
     docs_invoice_period({ %FORM, %$attr, UID => $uid });
@@ -1569,6 +1637,8 @@ sub docs_invoice_print {
     }
 
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
+    $Doc{DOC_TYPE} = 1;
+
     my $docs_service_info = docs_module_info({ UID => $Docs->{UID} || $FORM{UID} });
 
     if ( $Doc{COMPANY_ID} ){
@@ -1779,11 +1849,12 @@ sub docs_invoice_list_print {
   my $i = 1;
   if($Docs->{TOTAL}) {
     foreach my $i2p (@{ $i2p_list }) {
-      $payments_list{$i2p->{invoice_id}}{'PAYMENT_DATE_'.$i} = $i2p->{date};
-      $payments_list{$i2p->{invoice_id}}{'PAYMENT_COMMENTS_'.$i} = $i2p->{dsc};
-      $payments_list{$i2p->{invoice_id}}{'PAYMENT_SUM_'.$i} = $i2p->{payment_sum};
-      $payments_list{$i2p->{invoice_id}}{'PAYMENT_ID_'.$i} = $i2p->{payment_id};
-      $payments_list{$i2p->{invoice_id}}{'PAYMENT_ALT_SUM_'.$i} = sprintf( "%.2f", $i2p->{amount} );
+      my $invoice_id = $i2p->{invoice_id} || 0;
+      $payments_list{$invoice_id}{'PAYMENT_DATE_'.$i} = $i2p->{date};
+      $payments_list{$invoice_id}{'PAYMENT_COMMENTS_'.$i} = $i2p->{dsc};
+      $payments_list{$invoice_id}{'PAYMENT_SUM_'.$i} = $i2p->{payment_sum};
+      $payments_list{$invoice_id}{'PAYMENT_ID_'.$i} = $i2p->{payment_id};
+      $payments_list{$invoice_id}{'PAYMENT_ALT_SUM_'.$i} = sprintf( "%.2f", $i2p->{amount} || 0 );
       $i++;
     }
   }

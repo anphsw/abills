@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "warnings",
+  "type": "object",
+  "properties": {
+    "messageType": {
+      "type": "string"
+    },
+    "warning": {
+      "type": "string"
+    },
+    "daysToFee": {
+      "type": "integer"
+    },
+    "sum": {
+      "type": "number"
+    },
+    "abonDate": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "messageType",
+    "warning",
+    "daysToFee",
+    "sum",
+    "abonDate"
+  ]
+}

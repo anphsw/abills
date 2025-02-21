@@ -1,0 +1,6 @@
+{
+  "name": "USER_POST_CREDIT",
+  "method": "POST",
+  "path": "user/credit/",
+  "params": {}
+}

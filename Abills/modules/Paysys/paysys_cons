@@ -219,6 +219,7 @@ sub paysys_import_form_cons {
       FIO            => '_SHOW',
       LOGIN          => '_SHOW',
       BILL_ID        => '_SHOW',
+      UID            => '_SHOW',
       $BINDING_FIELD => $ids,
       PAGE_ROWS      => 1000000,
       COLS_NAME      => 1,

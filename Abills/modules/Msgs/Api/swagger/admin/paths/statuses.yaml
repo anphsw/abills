@@ -1,0 +1,55 @@
+get:
+  tags:
+    - msgs
+  summary: Список статусов
+  operationId: msgsStatuses
+  parameters:
+    - name: color
+      in: query
+      description: цвет статуса
+      schema:
+        type: boolean
+        default: true
+    - name: icon
+      in: query
+      description: пиктограмма статуса
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID статуса
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название статуса
+      schema:
+        type: boolean
+        default: true
+    - name: readiness
+      in: query
+      description: Готовность (%)
+      schema:
+        type: boolean
+        default: true
+    - name: taskClosed
+      in: query
+      description: Задача закрыта (закрывается когда переходит в этот статус)
+      schema:
+        type: boolean
+        default: true
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/statuses.yaml"
+  security:
+    - KEY: []

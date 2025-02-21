@@ -245,7 +245,7 @@
       return;
     }
 
-    fetch('$SELF_URL?header=2&get_index=crm_competitor_tps_select&COMPETITOR_ID=' +
+    fetch('%SELF_URL%?header=2&get_index=crm_competitor_tps_select&COMPETITOR_ID=' +
       competitors_sel.val() + '&TP_ID=' + (jQuery('#TP_ID_INPUT').val() || ''))
       .then(response => {
         if (!response.ok) throw response;

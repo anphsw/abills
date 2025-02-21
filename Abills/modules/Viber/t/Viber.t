@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+  Viber integration test
+
+=cut
+
+use strict;
+use warnings;
+
+use lib '../';
+use Test::More;
+use FindBin '$Bin';
+use JSON;
+
+
+BEGIN {
+  our $libpath = $Bin . '/../../../../';
+  require $libpath . 'libexec/config.pl';
+
+  my $sql_type = 'mysql';
+  unshift(@INC, $libpath . "Abills/$sql_type/");
+  unshift(@INC, $libpath);
+  unshift(@INC, $libpath . 'lib/');
+  unshift(@INC, $libpath . 'libexec/');
+  unshift(@INC, $libpath . 'Abills/');
+  unshift(@INC, $libpath . 'Abills/modules/');
+}
+
+use Abills::Defs;
+use Abills::Base qw(parse_arguments show_hash);
+use Admins;
+use Users;
+use Conf;
+use Abills::Fetcher;
+use JSON;
+use File::Find;
+
+our (
+  %conf
+);
+
+my $ARGS = parse_arguments(\@ARGV);
+
+if ($ARGS->{help}) {
+  help();
+  exit 0;
+}
+
+my $db = Abills::SQL->connect(
+  $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+  {
+    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    dbdebug => $conf{dbdebug}
+  }
+);
+
+# Just init Tokens from Config
+my $Conf = Conf->new($db, undef, \%conf);
+
+if (!$conf{VIBER_TOKEN}) {
+  plan skip_all => 'Undefined $conf{VIBER_TOKEN}';
+}
+if (!$conf{VIBER_BOT_NAME}) {
+  plan skip_all => 'Undefined $conf{VIBER_BOT_NAME}';
+}
+
+my $webhook = $ARGS->{WEBHOOK_URL} || q{};
+
+my $debug = $ARGS->{DEBUG} || 0;
+my $api_base = 'https://chatapi.viber.com/pa/';
+my @header = ('Content-Type: application/json', 'X-Viber-Auth-Token: ' . $conf{VIBER_TOKEN});
+
+CHECK_IF_BOT_EXIST: {
+  my $get_me_url = "$api_base/get_account_info";
+
+  my $get_account_info_response = web_request($get_me_url, {
+    CURL        => 1,
+    HEADERS     => \@header,
+    JSON_RETURN => 1,
+    DEBUG       => $debug
+  });
+
+  if ($debug) {
+    show_hash($get_account_info_response, { DELIMITER => "\n" });
+  }
+
+  $webhook //= $get_account_info_response->{webhook};
+
+  if (!$get_account_info_response->{name}) {
+    plan skip_all => 'FAILED: Bot is not exist, recheck your token';
+  }
+  ok(1, 'Bot exist in Viber');
+
+  if (!$webhook) {
+    plan skip_all => 'Undefined WEBHOOK_URL'
+  }
+
+
+  if ($@) {
+    plan skip_all => 'FAILED: Error with response or SSL-ca'
+  }
+}
+
+CHECK_ENDPOINT: {
+  my $response = web_request($webhook, {
+    MORE_INFO => 1,
+    CURL      => 1,
+    DEBUG     => $debug
+  });
+
+  ok(defined($response->{ssl_verify_result}) && $response->{ssl_verify_result} == 0, 'SSL Verify');
+  ok($response->{http_code} && $response->{http_code} == 200, 'WEBHOOK_URL check '. $webhook);
+}
+
+done_testing();
+
+#*******************************************************************
+=head2 help() - Help
+
+=cut
+#*******************************************************************
+sub help {
+
+  print <<"[END]";
+  Viber integration test
+
+  Params:
+    WEBHOOK_URL=https://HOST:PORT/VIBER_PATH/viber_bot.cgi  - required
+    VIBER_TOKEN=5ccea26459e7df08-a55b3aaa0a371b15-...       - optional
+    DEBUG=
+
+[END]
+}
+1;

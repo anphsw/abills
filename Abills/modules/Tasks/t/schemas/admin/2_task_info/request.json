@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_TASK_INFO",
+  "method": "GET",
+  "path": "tasks/:id/"
+}

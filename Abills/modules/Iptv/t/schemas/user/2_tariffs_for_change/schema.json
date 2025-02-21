@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "comments": {
+        "type": "string"
+      },
+      "dayFee": {
+        "type": "integer"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "monthFee": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "reductionFee": {
+        "type": "integer"
+      },
+      "originalMonthFee": {
+        "type": "integer"
+      },
+      "originalDayFee": {
+        "type": "integer"
+      },
+      "tpComments": {
+        "type": "string"
+      },
+      "tpFee": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "serviceId": {
+        "type": "integer"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "tpAge": {
+        "type": "integer"
+      },
+      "activatePrice": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "comments",
+      "dayFee",
+      "id",
+      "monthFee",
+      "name",
+      "tpComments",
+      "tpFee",
+      "tpName",
+      "serviceId",
+      "tpId",
+      "tpAge",
+      "activatePrice"
+    ]
+  }
+}

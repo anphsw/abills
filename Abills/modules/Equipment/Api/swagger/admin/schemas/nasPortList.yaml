@@ -1,0 +1,13 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: number
+      example: 1
+    port:
+      type: string
+      example: 199
+    nasId:
+      type: number
+      example: 2

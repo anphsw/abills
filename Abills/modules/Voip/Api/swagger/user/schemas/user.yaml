@@ -1,0 +1,50 @@
+allOf:
+  - $ref: '#/components/schemas/UserBaseService'
+  - type: object
+    properties:
+      abonDistribution:
+        type: integer
+        description: Разделение оплаты.
+      allowAnswer:
+        type: integer
+        description: Разрешение принимать ответы.
+      allowCalls:
+        type: integer
+        description: Разрешение начинать звонки.
+      canChangeTp:
+        type: boolean
+        description: Ли можно менять тарифный план.
+      cid:
+        type: string
+      dayFee:
+        type: number
+        format: float
+      extraNumber:
+        type: string
+      extraNumbersDayFee:
+        type: number
+      extraNumbersMonthFee:
+        type: number
+        format: float
+      ip:
+        type: string
+        format: ipv4
+      monthFee:
+        type: number
+        format: float
+      number:
+        type: string
+      phoneAliases:
+        type: array
+        items:
+          type: string
+      statusName:
+        type: string
+        example: enable
+      voipExpire:
+        type: string
+        format: date
+        description: Дата конца действия сервиса.
+      voipStatus:
+        type: integer
+        description: Статус сервиса .

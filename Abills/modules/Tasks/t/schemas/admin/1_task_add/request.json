@@ -1,0 +1,17 @@
+{
+  "name": "ADMIN_TASKS_ADD",
+  "method": "POST",
+  "path": "tasks/",
+  "body": {
+    "name": "Task name",
+    "status": 1
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "taskId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

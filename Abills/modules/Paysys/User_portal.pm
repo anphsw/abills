@@ -62,7 +62,7 @@ sub paysys_payment {
 
   if ($user && defined &recomended_pay) {
     $recommended_pay = recomended_pay($user) || 0;
-    $FORM{SUM} = $recommended_pay if ($FORM{SUM} && $FORM{SUM} == 0);
+    $FORM{SUM} = $recommended_pay if (!$FORM{SUM});
   }
 
   my $paysys_id = $FORM{PAYMENT_SYSTEM};
@@ -168,6 +168,7 @@ sub paysys_payment {
     STATUS       => 1,
     COLS_NAME    => 1,
     SORT         => 'priority',
+    PAGE_ROWS    => 50,
   });
 
   my $list = $Paysys->paysys_merchant_to_groups_info({
@@ -262,9 +263,11 @@ sub paysys_payment {
   return $html->tpl_show(_include('paysys_main', 'Paysys'),
     {
       %TEMPLATES_ARGS,
-      SUM        => $FORM{SUM},
+      SUM               => $FORM{SUM},
       # payment from paysys_check.cgi
-      IDENTIFIER => ($index == 0) ? $FORM{IDENTIFIER} : '',
+      IDENTIFIER        => ($index == 0) ? $FORM{IDENTIFIER} : '',
+      IDENTIFIER_LANG   => $lang{$conf{PAYSYS_GATEWAY_IDENTIFIER} || q{}} || 'UID',
+      IDENTIFIER_HIDDEN => ($index == 0) ? '' : 'hidden',
     },
     {
       OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
@@ -294,7 +297,7 @@ sub _paysys_fast_pay {
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
-  if ($Paysys_plugin->can('subscribe_pay') && !$FORM{RECURRENT_FORM}) {
+  if (($Paysys_plugin->can('subscribe_pay') || $Paysys_plugin->can('subscribe_pay_settings')) && !$FORM{RECURRENT_FORM}) {
     my $paysys_subscribe = $Paysys->user_info({
       UID => $user->{UID},
     });
@@ -647,7 +650,7 @@ sub paysys_subscribe {
     my $Pasysy_plugin = _configure_load_payment_module($payment_system_info->{module}, 0, \%conf);
     if ($Pasysy_plugin->can('recurrent_cancel')) {
       my $paysys_object = $Pasysy_plugin->new($db, $admin, \%conf);
-      my $result = $paysys_object->recurrent_cancel({ %FORM });
+      my $result = $paysys_object->recurrent_cancel({ %FORM, UID => $user->{UID} });
 
       if (!$result->{errno}) {
         $html->message('info', $lang{INFO}, $lang{SUCCESS_UNSUBSCRIBE});

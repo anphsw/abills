@@ -1,0 +1,5 @@
+name: onuSnmpId
+in: query
+description: ONU SNMP ID
+schema:
+  type: string

@@ -20,11 +20,12 @@ CREATE TABLE IF NOT EXISTS `expert_answer`
 
 CREATE TABLE IF NOT EXISTS `expert_faq`
 (
-  `id`    INT(8) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `title` VARCHAR(128)        NOT NULL DEFAULT '',
-  `body`  TEXT,
-  `type`  TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
-  `icon`  VARCHAR(60) NOT NULL DEFAULT ''
+  `id`       INT(8) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `title`    VARCHAR(128)          NOT NULL DEFAULT '' COMMENT 'Title of faq',
+  `body`     TEXT                                      COMMENT 'Description of faq',
+  `type`     TINYINT(2) UNSIGNED   NOT NULL DEFAULT 0  COMMENT 'RESERVED. This field used before for displaying modal, web or separate page in mobile app now not using.',
+  `icon`     VARCHAR(60)           NOT NULL DEFAULT '' COMMENT 'RESERVED. This field used before for displaying icon in mobile app now not using.',
+  `priority` TINYINT UNSIGNED      NOT NULL DEFAULT 0  COMMENT 'Priority of showing for user'
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Expert faqs';

@@ -1,0 +1,10 @@
+{
+  "name": "USER_MSGS_MSG_REPLY_ADD",
+  "method": "POST",
+  "path": "user/msgs/:id/reply/",
+  "body": {
+    "replyText": "Some reply text",
+    "replySubject": "Subject",
+    "state": 0
+  }
+}

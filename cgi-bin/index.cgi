@@ -289,12 +289,12 @@ sub quick_functions {
       });
     }
     else {
-      $OUTPUT{MENU} = $html->menu2(
+      $OUTPUT{MENU} = $html->menu(
         \%menu_items,
         \%menu_args, #XXX always empty
         undef,
         {
-          EX_ARGS         => "&sid=$sid",
+          #EX_ARGS         => "&sid=$sid",
           ALL_PERMISSIONS => 1,
           FUNCTION_LIST   => \%functions,
           SKIP_HREF       => 1
@@ -311,7 +311,7 @@ sub quick_functions {
     $OUTPUT{TIME} = $TIME;
     $OUTPUT{LOGIN} = $login;
     $OUTPUT{IP} = $ENV{REMOTE_ADDR};
-    $pages_qs = "&UID=$user->{UID}&sid=$sid";
+    $pages_qs = "&UID=$user->{UID}"; #&sid=$sid";
     $OUTPUT{STATE} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
     $OUTPUT{STATE_CODE} = $user->{DISABLE};
     $OUTPUT{SID} = $sid || '';
@@ -369,7 +369,7 @@ sub quick_functions {
     $OUTPUT{SELECT_LANGUAGE} = language_select('language');
     $OUTPUT{SELECT_LANGUAGE_MOBILE} = language_select('language_mobile');
 
-    $OUTPUT{PUSH_SCRIPT} = (($conf{PUSH_ENABLED} && $conf{PUSH_USER_PORTAL})
+    $OUTPUT{PUSH_SCRIPT} = (($conf{PUSH_ENABLED} && $conf{PUSH_USER_PORTAL} && $conf{FIREBASE_CONFIG} && $conf{FIREBASE_VAPID_KEY})
       ? "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'></script>"
       . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js'></script>"
       . "<script>window['FIREBASE_CONFIG']='" . (json_former($conf{FIREBASE_CONFIG}) // '') . "'</script>"
@@ -594,15 +594,23 @@ sub form_info {
     Contacts->import();
 
     my $Contacts = Contacts->new($db, $admin, \%conf);
+    my $type_id = $Contacts->contact_type_id_for_name(uc($FORM{REMOVE_SUBSCRIBE}));
     $Contacts->contacts_del({
       UID     => $user->{UID},
-      TYPE_ID => $Contacts->contact_type_id_for_name(uc($FORM{REMOVE_SUBSCRIBE}))
+      TYPE_ID => $type_id
     });
 
+    # Clean states for Telegram, Viber.
+    my $to_remove = $Contacts->{OLD_INFO}{$type_id};
     if ($FORM{REMOVE_SUBSCRIBE} eq 'Telegram') {
-      use Telegram::db::Telegram;
-      my $Telegram_db = Telegram->new($db, $admin, \%conf);
-      $Telegram_db->del($uid);
+      require Telegram::db::Telegram;
+      my $Telegram_db = Telegram::db::Telegram->new($db, $admin, \%conf);
+      $Telegram_db->del($to_remove);
+    }
+    elsif ($FORM{REMOVE_SUBSCRIBE} eq 'Viber') {
+      require Viber::db::Viber;
+      my $Viber_db = Viber::db::Viber->new($db, $admin, \%conf);
+      $Viber_db->del($to_remove);
     }
 
     $html->redirect('/index.cgi');
@@ -644,7 +652,7 @@ sub form_info {
     $sum = recomended_pay($user) || 0;
   }
 
-  $pages_qs = "&SUM=$sum&sid=$sid";
+  $pages_qs = "&SUM=$sum"; #&sid=$sid";
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
     if (!$user->{GID} || $user->{DOCUMENTS_ACCESS}) {
@@ -825,15 +833,18 @@ sub form_holdup {
   });
 
   if ($holdup_info->{error}) {
-    my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
-    $html->message('err', "$lang{HOLD_UP} : $lang{ERROR}", $error_message, { ID => $holdup_info->{error} })
+    if ($holdup_info->{error} && !in_array($holdup_info->{error}, [ 4404 ])) {
+      my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
+      $html->message('err', "$lang{HOLD_UP} : $lang{ERROR}", $error_message, { ID => $holdup_info->{error} });
+    }
   }
 
   if (!$holdup_info->{DEL}) {
     return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
+
     if (($user->{STATUS} && $user->{STATUS} == 3) || $user->{DISABLE}) {
-      my $del_btn = ($Service_control->{CAN_ACTIVATE})
-        ? $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
+      my $del_btn = ($Service_control->{CAN_ACTIVATE} && $Service_control->{DEL_IDS})
+        ? $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}), # ."&sid=$sid",
           { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" })
         : q{};
 
@@ -1169,11 +1180,14 @@ sub _mobile_app_links {
 =cut
 #**********************************************************
 sub form_login_clients {
-  my %first_page = ();
 
-  $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
-  $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
-  $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
+  my %first_page = (
+    LOGIN_ERROR_MESSAGE => $OUTPUT{LOGIN_ERROR_MESSAGE} || '',
+    PASSWORD_RECOVERY => $conf{PASSWORD_RECOVERY},
+    FORGOT_PASSWD_LINK => '/registration.cgi&FORGOT_PASSWD=1',
+    CLIENT_LOGIN_GEOLOCATION => $conf{CLIENT_LOGIN_GEOLOCATION},
+    CLIENT_LOGIN_NIGHTMODE => $conf{CLIENT_LOGIN_NIGHTMODE},
+  );
 
   _mobile_app_links(\%first_page);
 
@@ -1223,6 +1237,15 @@ sub form_login_clients {
   }
 
   $OUTPUT{S_MENU} = 'style="display: none;"';
+
+  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ /^(\d+)$/) {
+    $first_page{DOMAIN_ID}=$FORM{DOMAIN_ID};
+  }
+  if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/) {
+    $FORM{REFERER} =~ s/>/&gt;/g;
+    $FORM{REFERER} =~ s/</&lt;/g;
+    $first_page{REFERER} = $FORM{REFERER};
+  }
 
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'), \%first_page, {
     MAIN => 1,
@@ -1551,7 +1574,7 @@ sub form_fees {
       $lang{DATE},
       $lang{DESCRIBE},
       $lang{SUM},
-      $lang{DEPOSIT},
+      $lang{OPERATION_DEPOSIT},
       $lang{TYPE}
     ],
     LITE_HEADER => 1,
@@ -1633,7 +1656,7 @@ sub form_payments_list {
       $lang{DATE},
       $lang{DESCRIBE},
       $lang{SUM},
-      $lang{DEPOSIT}
+      $lang{OPERATION_DEPOSIT}
     ],
     LITE_HEADER => 1,
     FIELDS_IDS  => $Payments->{COL_NAMES_ARR},
@@ -1899,7 +1922,7 @@ sub form_neg_deposit {
   }
 
   $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET});
-  $pages_qs = "&SUM=$user_->{TOTAL_DEBET}&sid=$sid";
+  $pages_qs = "&SUM=$user_->{TOTAL_DEBET}"; #&sid=$sid";
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
     my $fn_index = get_function_index('docs_invoices_list');
@@ -2207,6 +2230,8 @@ sub form_custom {
   if (defined($user->{_CONFIRM_PI})) {
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_confirm_pi_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
+
+  $info{BG_COLOR} = ($info{RECOMENDED_PAY} && $info{RECOMENDED_PAY} > 0 ) ? 'bg-red' : 'bg-green';
 
   $html->tpl_show(templates('form_client_custom'), { %info, $Payments->{TOTAL} ? %{$payment->[0]} : {} }, { ID => 'form_client_custom' });
 
@@ -2703,31 +2728,29 @@ sub change_pi_popup {
   $user->{ACTION} = 'change';
   $user->{LNG_ACTION} = $lang{CHANGE};
 
-  if ($conf{info_fields_new}) {
-    require Info_fields;
-    require Control::Users_mng;
-    my $Info_fields = Info_fields->new($db, $admin, \%conf);
-    my $info_fields_list = $Info_fields->fields_list({
-      COMPANY     => 0,
-      USER_CHG    => 1,
-      ABON_PORTAL => 1
-    });
+  require Info_fields;
+  require Control::Users_mng;
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+  my $info_fields_list = $Info_fields->fields_list({
+    COMPANY     => 0,
+    USER_CHG    => 1,
+    ABON_PORTAL => 1
+  });
 
-    foreach my $info_field (@$info_fields_list) {
-      if (($user->{uc($info_field->{SQL_FIELD})} eq ''
-        || $user->{uc($info_field->{SQL_FIELD})} eq '0000-00-00'
-        || $user->{uc($info_field->{SQL_FIELD})} eq 0)
-        && in_array(uc($info_field->{SQL_FIELD}), \@check_fields)) {
+  foreach my $info_field (@$info_fields_list) {
+    if (($user->{uc($info_field->{SQL_FIELD})} eq ''
+      || $user->{uc($info_field->{SQL_FIELD})} eq '0000-00-00'
+      || $user->{uc($info_field->{SQL_FIELD})} eq 0)
+      && in_array(uc($info_field->{SQL_FIELD}), \@check_fields)) {
 
-        $user->{INFO_FIELDS_POPUP} .= form_info_field_tpl({
-          VALUES                => $user,
-          CALLED_FROM_CLIENT_UI => 1,
-          COLS_LEFT             => 'col-md-3',
-          COLS_RIGHT            => 'col-md-12',
-          POPUP                 => { $info_field->{SQL_FIELD} => 1 }
-        });
-        $user->{PINFO} = 1;
-      }
+      $user->{INFO_FIELDS_POPUP} .= form_info_field_tpl({
+        VALUES                => $user,
+        CALLED_FROM_CLIENT_UI => 1,
+        COLS_LEFT             => 'col-md-3',
+        COLS_RIGHT            => 'col-md-12',
+        POPUP                 => { $info_field->{SQL_FIELD} => 1 }
+      });
+      $user->{PINFO} = 1;
     }
   }
 
@@ -2738,7 +2761,7 @@ sub change_pi_popup {
       next;
     }
 
-    $user->{PHONE} = '' if $field eq 'PHONE' && $user->{PHONE} && $user->{PHONE} eq $user->{CELL_PHONE};
+    $user->{PHONE} = '' if ($field eq 'PHONE' && $user->{PHONE} && $user->{CELL_PHONE} && $user->{PHONE} eq $user->{CELL_PHONE});
     if (!$user->{$field} && in_array($field, \@check_fields)) {
       $user->{ $field . "_HAS_ERROR" } = 'has-error';
       $user->{PINFO} = 1;

@@ -1,0 +1,18 @@
+type: object
+properties:
+  positions:
+    type: array
+    items:
+      type: object
+      properties:
+        coordx:
+          type: number
+          format: double
+          example: 12.3456789
+        coordy:
+          type: number
+          format: double
+          example: 98.7654321
+        nadId:
+          type: number
+          example: 1

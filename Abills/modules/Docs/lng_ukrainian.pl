@@ -89,11 +89,22 @@ $lang{DOCUMENT_SIGNING} = 'Документ очікує на підписанн
 $lang{DOCUMENT_SEND_USER_FOR_SIGN} = 'Документ успішно відправлено користувачеві на підписання';
 $lang{DOCUMENT_SIGNED} = 'Документ підписаний';
 $lang{SIGNED_DOCUMENTS} = 'Підписані документи';
+$lang{UREPORTS_ERROR_CODE} = 'Код помилки';
 
 $lang{ERR_NO_NEW_INVOICES_FOR_THIS_PERIOD} = 'Немає нових рахунків-фактур за даний період.';
 $lang{ERR_INVOICE_ID_AND_CREATE_INVOICE} = 'Некоректні дані, повинен бути параметр id або ids. Передано обидва.';
 $lang{ERR_NO_ID_OR_IDS} = 'Некоректні дані, повинен бути параметр id або ids. Відсутні обидва.';
 $lang{ERR_NO_INVOICE_ID_AND_CREATE_INVOICE} = 'Некоректні дані, повинен бути параметр invoiceCreate або invoiceId.';
 $lang{ERR_ADD_INVOICE} = 'Не вдалося додати рахунок-фактуру';
+$lang{ALL_PERIOD} = 'Весь період';
+$lang{DOCUMENT_CUSTOMERS_LOG} = 'Журнал клієнтів';
+$lang{DOCS_FOP} = 'ФОП';
+
+$lang{DOCS_SEND_INVOICE} = 'Дата відправки';
+$lang{DOCS_RECEIVE_INVOICE} = 'Дата отримання';
+$lang{DOCS_TRACKING_NUMBER} = 'Номер трекінгу';
+$lang{DOCS_TRACKING_DATE} = 'Дата трекінгу';
+$lang{OF_CLIENT} = 'клієнта';
+$lang{BY_CLIENT} = 'клієнтом';
 
 1;

@@ -15,12 +15,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: customer
       in: query
       description: UID пользователя

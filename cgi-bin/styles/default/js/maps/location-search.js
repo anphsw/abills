@@ -9,25 +9,39 @@ function feelAllCoords() {
   });
 }
 
-function findLocation(district, street, street_alternative, number, location_id) {
-  const spanElementId = 'number_' + location_id;
-  Spinner.on(spanElementId);
-  let streetUrl = 'street=' + number + '+' + street;
-  let cityUrl = '&city=' + district;
+function findLocation(build_id) {
+  sendRequest(`/api.cgi/builds/?ID=${build_id}&STREET_SECOND_NAME`, {}, 'GET')
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) return;
 
-  let url = 'https://nominatim.openstreetmap.org/search?' + streetUrl + cityUrl + '&format=json&polygon_geojson=1';
+      const { id, number, streetName, street_name, districtName,
+        district_name, streetSecondName, street_second_name } = data[0];
+      if (!id) return;
+
+      const streetUrl = `street=${number}+${streetName || street_name}`;
+      const streetSecondNameUrl = streetSecondName || street_second_name ? `street=${number}+${streetSecondName || street_second_name}` : undefined;
+      const cityUrl = `&city=${districtName || district_name}`;
+
+      searchBuildLocation(build_id, number, streetUrl, cityUrl, streetSecondNameUrl);
+    });
+}
+
+function searchBuildLocation(buildId, number, streetUrl, cityUrl,  streetSecondNameUrl = undefined) {
+  let url = `https://nominatim.openstreetmap.org/search?${streetUrl}${cityUrl}&format=json&polygon_geojson=1`;
+  const spanElementId = `number_${buildId}`;
+  Spinner.on(spanElementId);
 
   sendFetch(url, function () {
     Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
   }, function (data) {
-    let result = resultProcessing(data, spanElementId, location_id, number);
-    if (result === -1 && street_alternative) {
-      findLocation(district, street_alternative, undefined, number, location_id);
+    let result = resultProcessing(data, spanElementId, buildId, number);
+    if (result === -1 && streetSecondNameUrl !== undefined) {
+      searchBuildLocation(buildId, number, streetSecondNameUrl, cityUrl);
     }
   });
 }
 
-function resultProcessing(data, spanElementId, location_id, number) {
+function resultProcessing(data, spanElementId, buildId, number) {
   if (data.length === 0) {
     Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
     return -1;
@@ -71,7 +85,7 @@ function resultProcessing(data, spanElementId, location_id, number) {
   }
 
   Spinner.off(spanElementId, SUCCESS, 'btn-success');
-  updateBuildCoords(buildings[0], location_id);
+  updateBuildCoords(buildings[0], buildId);
 }
 
 let Spinner = {
@@ -126,8 +140,8 @@ function sendFetch(url, err_callback, success_callback) {
     });
 }
 
-function updateBuildCoords(coords, location_id) {
-  let url = registerBuildPolygon(location_id);
+function updateBuildCoords(coords, buildId) {
+  let url = registerBuildPolygon(buildId);
   let latLngArray = [];
   coords.forEach(function (element) {
     latLngArray.push(element[1] + ":" + element[0]);
@@ -137,10 +151,10 @@ function updateBuildCoords(coords, location_id) {
   addBuildAjax(url, JSON.stringify(coords));
 }
 
-let registerBuildPolygon = function (location_id) {
+let registerBuildPolygon = function (buildId) {
   return 'get_index=maps_main&header=2&add=1&LAYER_ID=12'
     + '&update_build=1'
-    + '&LOCATION_ID=' + location_id
+    + '&LOCATION_ID=' + buildId
     + '&change=1';
 };
 

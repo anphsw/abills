@@ -1,0 +1,2 @@
+/user/accident:
+  $ref: "./paths/accident.yaml"

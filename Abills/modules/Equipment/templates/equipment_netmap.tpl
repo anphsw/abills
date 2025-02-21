@@ -1,276 +1,116 @@
-<script src="/styles/default/js/cytoscape.min.js"></script>
+<script src='/styles/default/js/cytoscape.min.js'></script>
 <!-- FIXME: popper should have loaded from bootstrap bundle,
             but cytoscape-popper ignores this. -->
-<script src="/styles/default/js/popper.min.js"></script>
-<script src="/styles/default/js/cytoscape-popper.js"></script>
+<script src='/styles/default/js/popper.min.js'></script>
+<script src='/styles/default/js/cytoscape-popper.js'></script>
 
-<script src="/styles/default/js/tippy.all.min.js"></script>
-<link rel="stylesheet" href="/styles/default/css/tippy.css"/>
+<script src='/styles/default/js/layout-base.js'></script>
+<script src='/styles/default/js/cose-base.min.js'></script>
+<script src='/styles/default/js/cytoscape-cola.min.js'></script>
 
-<div id="cy">
-  <div class="info-table">
-    <table class="table">
+<script src='/styles/default/js/tippy.all.min.js'></script>
+<link rel='stylesheet' href='/styles/default/css/tippy.css'/>
+<link rel='stylesheet' href='/styles/default/css/modules/equipment/equipment.netmap.css'/>
+
+<div class='row text-left'>
+  <div id='scheme_controls' class='card bg-light p-2 m-2 mt-0 w-100'>
+
+    <div class='d-flex bd-highlight'>
+      <div class='bd-highlight'>
+        <div class='btn-group' role='toolbar'>
+
+          <div class='btn-group'>
+            <button type='button' class='btn btn-default dropdown-toggle' data-toggle='dropdown' aria-haspopup='true'
+                    aria-expanded='false'>
+              <span class='text-success'><i class='fa fa-plus'></i></span>
+              <span class='caret'></span>
+            </button>
+            <ul class='dropdown-menu plus-options' aria-labelledby='dLabel'></ul>
+          </div>
+          <div class='btn-group'>
+            <button id='fit' onclick='cy.fit()' type='button' role='button' class='btn btn-default'>
+              _{EQUIPMENT_SCALE_TO_CONTENT}_
+            </button>
+          </div>
+          <div class='btn-group'>
+            <button id='layout' type='button' role='button' class='btn btn-default'>
+              _{EQUIPMENT_ALIGN}_
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id='cy' class='border'>
+  <div class='info-table'>
+    <table class='table'>
     </table>
   </div>
 
 </div>
-<div class="counters-wrap">
-  <div class="node-count">_{COUNT}_:</div>
-  <div class="time-count">_{TIME}_:</div>
+<div class='counters-wrap'>
+  <div class='node-count'>_{COUNT}_:</div>
+  <div class='time-count'>_{TIME}_:</div>
 </div>
-<style>
-  .info-table {
-    position: absolute;
-    z-index: 99;
-    width: 400px;
-    top: 20px;
-    right: 20px;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-  }
 
-  .info-table table {
-    margin-bottom: 0;
-    color: white;
-  }
-
-  #cy {
-
-    width: 100%;
-    min-height: 800px;
-
-  }
-
-  #cy canvas {
-    left: 0;
-  }
-
-  .tippy-popper {
-    transition: none !important;
-    z-index: 0 !important;
-  }
-
-  .counters-wrap {
-    height: 50px;
-    position: fixed;
-    bottom: 10px;
-  }
-
-  .node-count, .time-count {
-    display: inline-block;
-    padding: 5px;
-    height: 30px;
-    vertical-align: middle;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-align: left;
-    line-height: 20px;
-  }
-</style>
+<div class='d-none' id='EQUIPMENT_ADD_FORM'>
+  %EQUIPMENT_ADD_FORM%
+</div>
 
 <script>
-  var data = JSON.parse('%DATA%');
+  var nasList = JSON.parse('%DATA%');
+  var types = JSON.parse('%TYPES%');
   var nodes = [];
   var edges = [];
   var nodes_count = 0;
-  var tippys = [];
-  jQuery.each(data.nodes, function (k, v) {
+  var tooltipInstances = [];
+
+  var _NO = '_{NO}_' || 'No';
+  var _TIME = '_{TIME}_' || 'Time';
+  var _MODEL = '_{MODEL}_' || 'Model';
+  var _TYPE = '_{TYPE}_' || 'Type';
+  var _EQUIPMENT = '_{EQUIPMENT}_' || 'Equipment';
+  var _GO = '_{GO}_' || 'Go';
+  var _PORT = '_{PORT}_' || 'Port';
+  var _COMMENTS = '_{COMMENTS}_' || 'Comments';
+  var _CHANGE = '_{CHANGE}_' || 'Change';
+  var _EQUIPMENT_ADD_NEW_EQUIPMENT = '_{EQUIPMENT_ADD_NEW_EQUIPMENT}_' || 'Add new equipment';
+  var _EQUIPMENT_ADD_PORT_BINDING = '_{EQUIPMENT_ADD_PORT_BINDING}_' || 'Add port binding';
+
+  const EQUIPMENT_ADD_FORM = document.getElementById('EQUIPMENT_ADD_FORM');
+  EQUIPMENT_ADD_FORM.remove();
+  EQUIPMENT_ADD_FORM.classList.remove('d-none')
+
+  jQuery.each(nasList.nodes, function (k, v) {
     nodes.push({
       data: {
         id: 'n' + k,
-        name: v.name,
-        ip: v.ip,
-        state: v.state,
-        type: v.type_id,
-        model: v.model,
-        vendor: v.vendor,
-        online: v.online || 0
-      }
+        label: v.data.label,
+        ip: v.data.ip,
+        state: v.data.state,
+        type: v.data.type_id,
+        model: v.data.model,
+        vendor: v.data.vendor,
+        port: v.data.port,
+        online: v.data.online || 0,
+        nasId: v.data?.nas_id
+      },
+      position: v.data.position
     });
     nodes_count += 1;
   });
   jQuery('.node-count').text('_{COUNT}_: ' + nodes_count);
-  jQuery.each(data.edges, function (k, v) {
+  jQuery.each(nasList.edges, function (k, v) {
     edges.push({
       data: {
         id: v.source + ' -> ' + v.target,
         source: 'n' + v.source,
         target: 'n' + v.target,
-        name: v.name
+        label: v.name
       }
     });
   });
-  document.addEventListener('DOMContentLoaded', function () {
-
-    var cy = window.cy = cytoscape({
-      container: document.getElementById('cy'),
-
-      style: [
-        {
-          selector: 'node',
-          style: {
-            'content': 'data(name)',
-            'shape': 'roundrectangle',
-            'background-image': function (e) {
-              switch (parseInt(e.data().type)) {
-                case 2:
-                  return '/img/netmap/wifi.svg';
-                case 3:
-                  return '/img/netmap/router.svg';
-                case 4:
-                  return '/img/netmap/pon.svg';
-                case 0:
-                  return '/img/netmap/user.svg';
-                default:
-                  return '/img/netmap/switch.svg';
-              }
-            },
-            'background-color': function (e) {
-              switch (parseInt(e.data().state)) {
-                case 0:
-                  return 'rgb(0,175,0)';
-                case 1:
-                  return 'rgb(200,0,0)';
-                case 2:
-                  return 'rgba(100, 100, 100, 0.5)';
-                case 3:
-                  return 'rgb(0,0,200)';
-                case 4:
-                  return 'rgb(255, 162, 40)';
-              }
-            },
-            'background-width': '70%',
-            'background-height': '70%',
-            'width': '70',
-            'height': '70'
-          }
-        },
-
-        {
-          selector: 'edge',
-          style: {
-            'content': 'data(name)',
-            'curve-style': 'bezier',
-            'target-arrow-shape': 'triangle'
-          }
-        }
-      ],
-
-      elements: {
-        nodes: nodes,
-        edges: edges
-      },
-
-      layout: {
-        name: 'concentric',
-        fit: true,
-        avoidOverlap: false,
-        animate: false,
-        padding: 100,
-        spacingFactor: 10,
-        nodeDimensionsIncludeLabels: true,
-        startAngle: 0
-      }
-    });
-
-
-
-    var makeTippy = function (node, text) {
-      return tippy(node.popperRef(), {
-        content: function () {
-          var div = document.createElement('div');
-          div.className = "tippy";
-          div.innerHTML = text;
-
-          return div;
-        },
-        arrow: true,
-        placement: 'bottom',
-        hideOnClick: false,
-        sticky: true,
-        flip: false
-      });
-    };
-
-    if(nodes.length <= 50) {
-      jQuery.each(nodes, function (k, v) {
-        var n = cy.getElementById(v.data.id);
-        var tippy = makeTippy(n, v.data.ip);
-        tippy.show();
-      });
-    }
-
-    cy.on('zoom', function (evt) {
-      jQuery(".tippy").css("width", cy.nodes()[0].width()*cy.zoom());
-      jQuery(".tippy").css("font-size", cy.zoom()+"vh");
-    });
-    cy.on('tap', function (evt) {
-      jQuery('.info-table').css('display', 'none');
-      jQuery.each(tippys, function (k, v) {
-        if(v !== undefined) {
-          v.destroy();
-          v = undefined;
-        }
-      });
-    });
-
-
-    cy.on('tap', 'node', function (evt) {
-      var node = evt.target;
-      var html = '<tr>' +
-        '<td>_{NAME}_</td>' +
-        '<td>' + node.data().name + '</td>' +
-        '</tr>' +
-        '<tr>' +
-        '<td>IP</td>' +
-        '<td>' + node.data().ip + '</td>' +
-        '</tr>' +
-        '<tr>' +
-        '<td>_{MODEL}_</td>' +
-        '<td>' + node.data().model + '</td>' +
-        '</tr>' +
-        '</tr>' +
-        '<tr>' +
-        '<td>_{VENDOR}_</td>' +
-        '<td>' + node.data().vendor + '</td>' +
-        '</tr>'+
-        '<tr>' +
-        '<td>_{ONLINE}_</td>' +
-        '<td>' + node.data().online + '</td>' +
-        '</tr>';
-      jQuery('.info-table').css('display', 'block');
-      jQuery('.info-table table').html(html);
-      if(nodes.length > 50) {
-        jQuery.each(tippys, function (k, v) {
-          if(v !== undefined) {
-            v.destroy();
-            var index = tippys.indexOf(v);
-            if (index !== -1) {
-              tippys.splice(v, 1);
-            }
-          }
-        });
-        showChildTippy(node, makeTippy);
-        jQuery(".tippy").css("width", node.width()*cy.zoom());
-        jQuery(".tippy").css("font-size", cy.zoom()+"vh");
-      }
-    });
-
-    var time = (window.performance.timing.domContentLoadedEventStart - window.performance.timing.connectEnd) / 1000;
-    jQuery('.time-count').text('_{TIME}_: ' + time);
-  });
-
-  function showChildTippy(node, makeTippy) {
-    var n = cy.getElementById(node.id());
-    var tippy = makeTippy(n, node.data().ip);
-    tippys.push(tippy);
-    tippy.show();
-
-    edges = cy.edges('[source = "'+node.id()+'"]:visible"');
-    jQuery.each(edges, function (k, v) {
-      showChildTippy(v.target(), makeTippy);
-    });
-  }
-
 </script>
+<script src='/styles/default/js/modules/equipment/netmap.js'></script>

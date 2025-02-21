@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "referralLink": {
+      "type": "string",
+      "format": "uri"
+    },
+    "referrals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "disable": {
+            "type": "integer"
+          },
+          "fio": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "isUser": {
+            "type": "boolean"
+          },
+          "paymentBonus": {
+            "type": "integer"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "spendingBonus": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "statusName": {
+            "type": "string"
+          }
+        },
+        "required": ["address", "disable", "fio", "id", "isUser", "paymentBonus", "phone", "spendingBonus", "status", "statusName"]
+      }
+    },
+    "referralsTotal": {
+      "type": "integer"
+    },
+    "result": {
+      "type": "string"
+    },
+    "totalBonus": {
+      "type": "integer"
+    }
+  },
+  "required": ["referralLink", "referrals", "referralsTotal", "result", "totalBonus"]
+}

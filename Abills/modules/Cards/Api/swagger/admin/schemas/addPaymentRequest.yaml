@@ -1,0 +1,10 @@
+type: object
+properties:
+  pin:
+    description: Пин карточки
+    type: string
+    example: 12345678
+  serial:
+    description: Серийный номер карты, необходимо передавать если не включена опция CARDS_PIN_ONLY
+    type: string
+    example: 12345678

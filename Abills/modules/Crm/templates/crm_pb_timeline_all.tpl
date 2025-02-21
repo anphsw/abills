@@ -1,5 +1,5 @@
 <div id='s%ID%' class='tab-pane fade %ACTIVE%'>
-  <form action='$SELF_URL' method='POST' id='FORM%ID%' class='comment-form'>
+  <form action='%SELF_URL%' method='POST' id='FORM%ID%' class='comment-form'>
     <input type='hidden' name='index'   value='%INDEX%'>
     <input type='hidden' name='LEAD_ID' value='%LEAD_ID%' id='LEAD_ID'>
     <input type='hidden' name='STEP_ID' value='%ID%'>

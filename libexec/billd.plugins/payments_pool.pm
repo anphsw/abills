@@ -32,7 +32,10 @@ our (
 
 our Admins $Admin;
 our $admin = $Admin;
+
 require Abills::Misc;
+# loading for different targets, like send message via ureports
+require Abills::Templates;
 
 our $users = Users->new($db, $Admin, \%conf);
 
@@ -82,7 +85,7 @@ sub payments_pool {
   });
 
   foreach my $payments_pool (@$list_payments) {
-    my $user = $users->info($payments_pool->{uid});
+    my $user = $users->info($payments_pool->{uid}, { USERS_AUTH => 1 });
 
     if ($debug > 1) {
       print "UID: $payments_pool->{uid} EXT_ID: $payments_pool->{ext_id}";

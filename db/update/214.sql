@@ -1,0 +1,31 @@
+DROP TABLE IF EXISTS `telegram_tmp`;
+
+CREATE TABLE IF NOT EXISTS `telegram_state_user` (
+  `id`               INT(11) UNSIGNED     NOT NULL  AUTO_INCREMENT,
+  `user_id`          BIGINT(20) UNSIGNED  NOT NULL  DEFAULT '0',
+  `button`           VARCHAR(50)          NOT NULL  DEFAULT '',
+  `fn`               VARCHAR(50)          NOT NULL  DEFAULT '',
+  `args`             TEXT                 CHARACTER SET utf8mb4,
+  `ping_count`       INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+  `created`          DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Telegram state USER';
+
+CREATE TABLE IF NOT EXISTS `telegram_state_admin` (
+  `id`               INT(11) UNSIGNED     NOT NULL  AUTO_INCREMENT,
+  `user_id`          BIGINT(20) UNSIGNED  NOT NULL  DEFAULT '0',
+  `button`           VARCHAR(50)          NOT NULL  DEFAULT '',
+  `fn`               VARCHAR(50)          NOT NULL  DEFAULT '',
+  `args`             TEXT                 CHARACTER SET utf8mb4,
+  `ping_count`       INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+  `created`          DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Telegram state ADMIN';
+
+ALTER TABLE `admins` ADD COLUMN `availability_period` TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0';
+ALTER TABLE `docs_invoices` ADD COLUMN `tracking_number` VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE `docs_invoices` ADD COLUMN `tracking_date`   DATE NOT NULL;

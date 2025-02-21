@@ -1,0 +1,6 @@
+{
+  "name": "USER_INTERNET_TARIFF_LIST",
+  "method": "GET",
+  "path": "user/internet/tariffs/",
+  "params": {}
+}

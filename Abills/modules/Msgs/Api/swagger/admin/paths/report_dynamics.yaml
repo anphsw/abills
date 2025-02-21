@@ -1,0 +1,14 @@
+get:
+  tags:
+    - msgs
+  summary: Получить отчет о динамике сообщений и ответов на них
+  operationId: msgsDynamicsList
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/reportDynamics.yaml"
+  security:
+    - KEY: []

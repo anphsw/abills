@@ -1,14 +1,19 @@
-#!/usr/bin/perl
+package Telegram::API::Botapi;
 
-package Botapi;
 use strict;
 use warnings FATAL => 'all';
-use JSON;
 
 use Abills::Fetcher qw/web_request/;
 
 my $debug = 0;
-my $curl = '';
+
+my $JSON_FORMER_PRESET = {
+  CONTROL_CHARACTERS => 1,
+  FORCE_STRING       => 1,
+  BOOL_VALUES        => 1,
+};
+
+my @headers = ( 'Content-Type: application/json' );
 
 #**********************************************************
 =head2 new($token)
@@ -16,16 +21,16 @@ my $curl = '';
 =cut
 #**********************************************************
 sub new {
-  my ($class, $token, $chat_id, $curl_path, $SELF_URL) = @_;
+  my $class = shift;
+  my ($token, $chat_id, $parse_mode) = @_;
 
   $chat_id //= "";
-  $curl = $curl_path;
 
   my $self = {
-    api_url  => "https://api.telegram.org/bot$token/",
-    file_url => "https://api.telegram.org/file/bot$token/",
-    chat_id  => $chat_id,
-    SELF_URL => $SELF_URL
+    api_url    => "https://api.telegram.org/bot$token/",
+    file_url   => "https://api.telegram.org/file/bot$token/",
+    chat_id    => $chat_id,
+    parse_mode => $parse_mode || 'HTML'
   };
   
   bless($self, $class);
@@ -35,7 +40,7 @@ sub new {
 
 #**********************************************************
 =head2 send_message()
-  
+
 =cut
 #**********************************************************
 sub send_message {
@@ -43,25 +48,21 @@ sub send_message {
   my ($attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
+  $attr->{parse_mode} ||= $self->{parse_mode};
 
-  my $json_str = $self->perl2json($attr);
   my $url      = $self->{api_url} . 'sendMessage';
 
-  my @header = ( 'Content-Type: application/json' );
-  $json_str =~ s/\"/\\\"/g;
-
   my $result = web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+    HEADERS     => \@headers,
+    JSON_BODY   => $attr,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    METHOD      => 'POST',
   });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
-  
+
   return 1;
 }
 
@@ -75,22 +76,18 @@ sub edit_message_text {
   my ($attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
+  $attr->{parse_mode} ||= $self->{parse_mode};
 
-  my $json_str = $self->perl2json($attr);
   my $url      = $self->{api_url} . 'editMessageText';
 
-  my @header = ( 'Content-Type: application/json' );
-  $json_str =~ s/\"/\\\"/g;
-
   my $result = web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+    HEADERS     => \@headers,
+    JSON_BODY   => $attr,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    METHOD      => 'POST',
   });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
 
@@ -108,21 +105,16 @@ sub send_contact {
 
   $attr->{chat_id} ||= $self->{chat_id};
 
-  my $json_str = $self->perl2json($attr);
   my $url      = $self->{api_url} . 'sendContact';
 
-  my @header = ( 'Content-Type: application/json' );
-  $json_str =~ s/\"/\\\"/g;
-  
   my $result = web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+    HEADERS     => \@headers,
+    JSON_BODY   => $attr,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    METHOD      => 'POST',
   });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
   
@@ -138,27 +130,24 @@ sub get_file {
   my $self = shift;
   my ($file_id) = @_;
 
-  my $json_str = '{\"file_id\":\"'.$file_id.'\"}';
+  my $body = { file_id => $file_id };
   my $url      = $self->{api_url} . 'getFile';
 
-  my @header = ( 'Content-Type: application/json' );
-
-  my $result = web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+  my $file_res = web_request($url, {
+    HEADERS     => \@headers,
+    JSON_BODY   => $body,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    JSON_RETURN => 1,
+    METHOD      => 'POST',
   });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+    `echo 'RESULT: $file_res' >> /tmp/telegram.log`;
   }
 
-  my $hash_result = from_json($result);
-  return '' unless ($hash_result && ref $hash_result eq 'HASH' && $hash_result->{result});
-  my $file_path = $hash_result->{result}->{file_path};
-  my $file_size = $hash_result->{result}->{file_size};
+  return '' unless ($file_res && ref $file_res eq 'HASH' && $file_res->{result});
+  my $file_path = $file_res->{result}{file_path};
+  my $file_size = $file_res->{result}{file_size};
   my $file_url = $self->{file_url} . $file_path;
 
   my $file_content = web_request($file_url, {
@@ -170,35 +159,57 @@ sub get_file {
 }
 
 #**********************************************************
-=head2 perl2json()
+=head2 send_photo($attr)
 
 =cut
 #**********************************************************
-sub perl2json {
+sub send_photo {
   my $self = shift;
-  my ($data) = @_;
-  my @json_arr = ();
+  my ($attr) = @_;
 
-  if (ref $data eq 'ARRAY') {
-    foreach my $key (@{$data}) {
-      push @json_arr, $self->perl2json($key);
-    }
-    return '[' . join(',', @json_arr) . "]";
+  $attr->{chat_id} ||= $self->{chat_id};
+  $attr->{parse_mode} ||= $self->{parse_mode};
+
+  my $url      = $self->{api_url} . 'sendPhoto';
+
+  my $result = web_request($url, {
+    HEADERS     => \@headers,
+    JSON_BODY   => $attr,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    METHOD      => 'POST',
+  });
+
+  if ($debug > 0) {
+    `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
-  elsif (ref $data eq 'HASH') {
-    foreach my $key (sort keys %$data) {
-      my $val = $self->perl2json($data->{$key});
-      push @json_arr, qq{\"$key\":$val};
-    }
-    return '{' . join(',', @json_arr) . "}";
-  }
-  else {
-    $data //='';
-    return "true" if ($data eq "true");
-    return qq{\"$data\"};
-  }
+
+  return 1;
 }
 
+#**********************************************************
+=head2 answer_callback_query($attr)
+
+=cut
+#**********************************************************
+sub answer_callback_query {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url      = $self->{api_url} . 'answerCallbackQuery';
+
+  my $result = web_request($url, {
+    HEADERS     => \@headers,
+    JSON_BODY   => $attr,
+    JSON_FORMER => $JSON_FORMER_PRESET,
+    METHOD      => 'POST',
+  });
+
+  if ($debug > 0) {
+    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+  }
+
+  return 1;
+}
 
 1;
 

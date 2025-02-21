@@ -34,7 +34,7 @@ use Address;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.81,
+  REQUIRE_VERSION => 7.83,
 });
 
 require Maps;

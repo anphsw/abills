@@ -1,0 +1,28 @@
+post:
+  tags:
+    - crm
+  summary: Отправка сообщения в диалог с бота
+  operationId: botAddMessageToDialogue
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/botDialogueMessage.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: OK
+              id:
+                type: integer
+                example: 1
+  security:
+    - KEY: [ ]

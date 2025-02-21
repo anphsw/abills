@@ -1,0 +1,65 @@
+#!perl
+=head1 NAME
+
+ Viber web functions
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+use Time::Piece;
+use JSON qw(decode_json);
+use Abills::Base qw/in_array _bp/;
+
+our (
+  %lang,
+  $html,
+  $admin,
+  $db,
+  %conf,
+  @bool_vals,
+  @MODULES,
+  $DATE
+);
+
+require Control::Qrcode;
+Control::Qrcode->import();
+
+my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+
+#**********************************************************
+=head2 viber_qrcode()
+
+=cut
+#**********************************************************
+sub viber_qrcode {
+
+  return '' if !$conf{VIBER_TOKEN};
+
+  my $qrcodes = _viber_generate_qrcode($conf{VIBER_BOT_NAME}, 'Viber Bot');
+
+  print $html->element('div', $qrcodes, { class => 'row' });
+}
+
+#**********************************************************
+=head2 _generate_qrcode($bot_name, $title)
+
+=cut
+#**********************************************************
+sub _viber_generate_qrcode {
+  my ($bot_name, $title) = @_;
+
+  return '' if !$bot_name;
+
+  my $link_url = 'viber://pa?chatURI=' . $bot_name;
+  my $qr_code_image = $QRCode->qr_make_image_from_string($link_url, { base64 => 1 });
+
+  return $html->tpl_show(_include('viber_qrcode', 'Viber'), {
+    VIBER_QRCODE => $qr_code_image,
+    NAME         => $bot_name,
+    TITLE        => $title
+  }, { OUTPUT2RETURN => 1 });
+}
+
+1;

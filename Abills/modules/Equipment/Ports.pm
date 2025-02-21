@@ -480,6 +480,7 @@ sub equipment_ports_full {
 
   Arguments:
     $attr
+      SNMP_COMMUNITY
 
 
 =cut
@@ -490,6 +491,8 @@ sub equipment_ports {
   my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || q{};
   $Equipment->{ACTION} = 'add';
   $Equipment->{ACTION_LNG} = $lang{ADD};
+
+  $Equipment->{DEVICE_STATUS} = $Equipment->{STATUS};
 
   if ( $FORM{add} ){
     $Equipment->port_add( { %FORM } );
@@ -705,63 +708,65 @@ sub equipment_port_manage {
 
   my $port_info_fields = 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,PORT_IN_DISCARDS,PORT_OUT_DISCARDS,PORT_UPTIME';
 
-  #Get snmp info
-  my $ports_snmp_info = equipment_test({
-    PORT_ID         => $Equipment_->{PORT} || $FORM{PORT},
-    PORT_INFO       => $port_info_fields,
-    VERSION         => $Equipment_->{SNMP_VERSION},
-    SNMP_TPL        => $Equipment_->{SNMP_TPL},
-    SNMP_COMMUNITY  => $SNMP_COMMUNITY,
-    RUN_CABLE_TEST  => 1,
-    AUTO_PORT_SHIFT => $Equipment_->{AUTO_PORT_SHIFT},
-    %{$attr}
-  });
+  if (! $Equipment_->{DEVICE_STATUS}) {
+    #Get snmp info
+    my $ports_snmp_info = equipment_test({
+      PORT_ID         => $Equipment_->{PORT} || $FORM{PORT},
+      PORT_INFO       => $port_info_fields,
+      VERSION         => $Equipment_->{SNMP_VERSION},
+      SNMP_TPL        => $Equipment_->{SNMP_TPL},
+      SNMP_COMMUNITY  => $SNMP_COMMUNITY,
+      RUN_CABLE_TEST  => 1,
+      AUTO_PORT_SHIFT => $Equipment_->{AUTO_PORT_SHIFT},
+      %{$attr}
+    });
 
-  my $port_data = $ports_snmp_info->{$Equipment_->{PORT} || $FORM{PORT}};
-  my ($port_in, $port_out) = (0, 0);
+    my $port_data = $ports_snmp_info->{$Equipment_->{PORT} || $FORM{PORT}};
+    my ($port_in, $port_out) = (0, 0);
 
-  $Equipment_->{PORT_NAME} = $port_data->{PORT_NAME} || '';
-  $Equipment_->{PORT_DESCR} = $port_data->{PORT_DESCR} || '';
-  $Equipment_->{PORT_UPTIME} = $port_data->{PORT_UPTIME} || '';
-  $Equipment_->{PORT_STATUS} = $port_data->{PORT_STATUS} ? ($html->color_mark($ports_state[$port_data->{PORT_STATUS}], $ports_state_color[$port_data->{PORT_STATUS}])) : '';
-  $Equipment_->{PORT_TYPE} = $port_types[$port_data->{PORT_TYPE}] if $port_data->{PORT_TYPE};
-  $Equipment_->{PORT_ERRORS} = ($port_data->{PORT_IN_ERR} || 0) .'/'.($port_data->{PORT_OUT_ERR} || 0);
-  $Equipment_->{PORT_DISCARDS} = ($port_data->{PORT_IN_DISCARDS} || 0) .'/'.($port_data->{PORT_OUT_DISCARDS} || 0);
+    $Equipment_->{PORT_NAME} = $port_data->{PORT_NAME} || '';
+    $Equipment_->{PORT_DESCR} = $port_data->{PORT_DESCR} || '';
+    $Equipment_->{PORT_UPTIME} = $port_data->{PORT_UPTIME} || '';
+    $Equipment_->{PORT_STATUS} = $port_data->{PORT_STATUS} ? ($html->color_mark($ports_state[$port_data->{PORT_STATUS}], $ports_state_color[$port_data->{PORT_STATUS}])) : '';
+    $Equipment_->{PORT_TYPE} = $port_types[$port_data->{PORT_TYPE}] if $port_data->{PORT_TYPE};
+    $Equipment_->{PORT_ERRORS} = ($port_data->{PORT_IN_ERR} || 0) . '/' . ($port_data->{PORT_OUT_ERR} || 0);
+    $Equipment_->{PORT_DISCARDS} = ($port_data->{PORT_IN_DISCARDS} || 0) . '/' . ($port_data->{PORT_OUT_DISCARDS} || 0);
 
-  if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED}=~ /^-?\d+\.?\d*$/){
-    if ($port_data->{PORT_SPEED} > 1000000000) {
-      $Equipment_->{PORT_SPEED} = '10+ Gbps';
-    }
-    elsif ($port_data->{PORT_SPEED} == 1000000000 || $port_data->{PORT_SPEED} eq '1 Gbps') {
-      $Equipment_->{PORT_SPEED} = '1 Gbps';
-    }
-    elsif ($port_data->{PORT_SPEED} == 100000000) {
-      $Equipment_->{PORT_SPEED} = '100 Mbps';
+    if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} =~ /^-?\d+\.?\d*$/) {
+      if ($port_data->{PORT_SPEED} > 1000000000) {
+        $Equipment_->{PORT_SPEED} = '10+ Gbps';
+      }
+      elsif ($port_data->{PORT_SPEED} == 1000000000 || $port_data->{PORT_SPEED} eq '1 Gbps') {
+        $Equipment_->{PORT_SPEED} = '1 Gbps';
+      }
+      elsif ($port_data->{PORT_SPEED} == 100000000) {
+        $Equipment_->{PORT_SPEED} = '100 Mbps';
+      }
+      else {
+        $Equipment_->{PORT_SPEED} = int2byte($port_data->{PORT_SPEED}) if $port_data->{PORT_SPEED};
+      }
     }
     else {
-      $Equipment_->{PORT_SPEED} = int2byte($port_data->{PORT_SPEED}) if $port_data->{PORT_SPEED};
+      $Equipment_->{PORT_SPEED} = $port_data->{PORT_SPEED};
     }
-  }
-  else {
-    $Equipment_->{PORT_SPEED} = $port_data->{PORT_SPEED};
-  }
 
-  if (ref $port_data->{PORT_IN} eq 'HASH' ){
-    $port_in = ($port_data->{PORT_IN}{value}[1] || '').($port_data->{PORT_IN}{value}[0] || '')
-  }
-  else {
-    $port_in = $port_data->{PORT_IN};
-  }
-  if (ref $port_data->{PORT_IN} eq 'HASH' ){
-    $port_out = ($port_data->{PORT_OUT}{value}[1] || '').($port_data->{PORT_OUT}{value}[0] || '')
-  }
-  else {
-    $port_out = $port_data->{PORT_OUT};
-  }
+    if (ref $port_data->{PORT_IN} eq 'HASH') {
+      $port_in = ($port_data->{PORT_IN}{value}[1] || '') . ($port_data->{PORT_IN}{value}[0] || '')
+    }
+    else {
+      $port_in = $port_data->{PORT_IN};
+    }
+    if (ref $port_data->{PORT_IN} eq 'HASH') {
+      $port_out = ($port_data->{PORT_OUT}{value}[1] || '') . ($port_data->{PORT_OUT}{value}[0] || '')
+    }
+    else {
+      $port_out = $port_data->{PORT_OUT};
+    }
 
-  $Equipment_->{TRAFFIC} =  $lang{RECV} .': '.int2byte($port_in)
-    . $html->br()
-    . $lang{SENDED} .': '. int2byte($port_out);
+    $Equipment_->{TRAFFIC} = $lang{RECV} . ': ' . int2byte($port_in)
+      . $html->br()
+      . $lang{SENDED} . ': ' . int2byte($port_out);
+  }
 
   $html->tpl_show( _include( 'equipment_port', 'Equipment' ), { %FORM, %{$Equipment_} } );
 
@@ -1447,7 +1452,7 @@ sub port_result_former {
         $value .= 'ONU_TX_POWER: ' . pon_tx_alerts($port_info->{$port_id}->{ONU_TX_POWER});
       }
       if($port_info->{$port_id}->{OLT_RX_POWER}) {
-        $value .= 'OLT_RX_POWER: ' . pon_tx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
+        $value .= 'OLT_RX_POWER: ' . pon_olt_rx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
       }
       if(defined $port_info->{$port_id}->{VIDEO_RX_POWER}) {
         $value .= 'VIDEO_RX_POWER: ' . pon_tx_alerts_video( $port_info->{$port_id}->{VIDEO_RX_POWER} );
@@ -1484,12 +1489,15 @@ sub port_result_former {
           my $disable_or_enable_url_param = ($admin_state eq 'Enable') ? 'disable_eth_port' : 'enable_eth_port';
           my $badge_type = ($admin_state eq 'Enable') ? 'up' : 'down';
           $color = ($admin_state eq 'Enable') ? $color : 'text-red';
+          $attr->{PORT} //= '';
+          $attr->{DHCP_PORT} ||= '';
+          $attr->{PON_TYPE} //= '';
           my $badge = $html->element('span',
             $html->button("",
               "NAS_ID=$nas_id" .
               "&index=" . get_function_index('equipment_info') .
               "&visual=4&$disable_or_enable_url_param=$port" .
-              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&PON_TYPE=$FORM{PON_TYPE}",
+              "&ONU=$attr->{PORT}&info_pon_onu=$attr->{DHCP_PORT}&PON_TYPE=$attr->{PON_TYPE}",
               { ADD_ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
             { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
           );
@@ -1738,10 +1746,14 @@ sub port_result_former {
          });
          </script>";
 
-      $value = $html->element('span', ($FORM{COMMENTS} || $value), { id => 'ONU_DESC' });
+      $value = $html->element('span', ($value || $FORM{COMMENTS} || $value), { id => 'ONU_DESC' });
+    }
+    elsif($key eq 'PICTURE') {
+      $key = $lang{$key};
+      $value = $html->img("/images/equipment_onu/$value.png", $value, { class => 'img-fluid mb-3' }) if ($value);
     }
 
-    $key = ($lang{$key}) ? $lang{$key} : $key;
+    $key = ($lang{$key}) ? $html->b($lang{$key}) : $key;
     push @info, [ $key, $value ];
   }
 

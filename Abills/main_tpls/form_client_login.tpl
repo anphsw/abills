@@ -74,7 +74,10 @@
 <!-- Login Form -->
 <div class='login-box card card-outline card-primary' style='margin: 7% auto 4%;'>
   <div class='mb-0 login-logo card-header text-center'>
-    <b><a href='/?login_page=1' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
+    <a href='/?login_page=1' class='h1'>
+      <!-- Your logo <img src='' alt='ABillS'> -->
+      <b><span style='color: red;'>A</span>BillS</b>
+    </a>
   </div>
   <div class='card-body'>
     <p class='login-box-msg h5 text-muted'>%TITLE%</p>
@@ -93,9 +96,9 @@
     </div>
 
     <div id='MAIN_CONTAINER'>
-      <form action='$SELF_URL' METHOD='post' name='form_login' id='form_login'>
-        <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
-        <input type='hidden' ID='REFERER' name='REFERER' value='$FORM{REFERER}'>
+      <form action='%SELF_URL%' METHOD='post' name='form_login' id='form_login'>
+        <input type='hidden' ID='DOMAIN_ID' name='DOMAIN_ID' value='%DOMAIN_ID%'>
+        <input type='hidden' ID='REFERER' name='REFERER' value='%REFERER%'>
         <input type='hidden' id='HIDDEN_COOKIE' name='HIDDEN_COOKIE' value='%COOKIE_POLICY_VISIBLE%'>
         <input type='hidden' id='location_x' name='coord_x'>
         <input type='hidden' id='location_y' name='coord_y'>
@@ -123,9 +126,9 @@
           </div>
         </div>
 
-        <div class='row p-0 m-0  %G2FA_hidden%'>
+        <div class='row p-0 m-0 %G2FA_hidden%'>
           <div class='input-group'>
-            <input type='password' id='g2fa' name='g2fa' value='%g2fa%' class='form-control'
+            <input id='g2fa' name='g2fa' value='%g2fa%' class='form-control'
                    placeholder='_{CODE}_' autocomplete='off'>
           </div>
         </div>

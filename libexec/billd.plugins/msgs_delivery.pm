@@ -140,9 +140,10 @@ sub msgs_delivery {
   my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
   my $SEND_DATE = $argv->{DATE} || $DATE;
   my $SEND_TIME = $TIME;
+
   $LIST_PARAMS{STATUS} = 0;
   $LIST_PARAMS{SEND_DATE} = "<=$SEND_DATE";
-  $LIST_PARAMS{SEND_TIME} = "<=$SEND_TIME";
+  $LIST_PARAMS{SEND_TIME} = "<=$SEND_TIME" if (! $argv->{DATE});
 
   $Msgs_delivery->{debug} = 1 if $debug > 6;
 

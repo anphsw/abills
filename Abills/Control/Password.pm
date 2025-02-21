@@ -39,7 +39,7 @@ sub form_passwd {
 
   if ($attr->{ADMIN}->{AID}) {
     $password_form->{HIDDDEN_INPUT} = $html->form_input('AID', $attr->{ADMIN}->{AID},{ TYPE => 'hidden', OUTPUT2RETURN => 1 });
-    $index = 50;
+    $index = $attr->{index} || 50;
     $is_g2fa = 1 if ($conf{AUTH_G2FA} && $attr->{ADMIN} && $attr->{ADMIN}->{G2FA});
   }
   elsif ($attr->{USER_INFO}->{UID}) {
@@ -84,7 +84,7 @@ sub form_passwd {
 
   if ($check_passwd && $check_passwd == 1){
     if ($attr->{USER_INFO}->{SID}){
-      save_user_passwd( {NEW_PASSWORD => $FORM{newpassword}, USER_INFO => $attr->{USER_INFO}} );
+      save_user_passwd({ NEW_PASSWORD => $FORM{newpassword}, USER_INFO => $attr->{USER_INFO} });
     }
     return 1;
   }
@@ -186,6 +186,7 @@ sub save_user_passwd {
 
   if (!_error_show($user_)) {
     $html->message('info', $lang{INFO}, $lang{CHANGED});
+    # strange fix for IPTV module when changing the password
     cross_modules('payments_maked', { USER_INFO => $user_ });
   }
 

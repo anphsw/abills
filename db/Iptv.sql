@@ -197,6 +197,7 @@ CREATE TABLE IF NOT EXISTS `iptv_extra_params` (
   `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `max_device` smallint(6) unsigned NOT NULL DEFAULT '0',
   `pin` VARCHAR(10) NOT NULL DEFAULT '',
+  `email_domain` VARCHAR(120) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV extra_params';

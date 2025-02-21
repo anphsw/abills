@@ -1,0 +1,6 @@
+{
+  "name": "USER_PORTAL_NEWS_LIST",
+  "method": "GET",
+  "path": "user/portal/news/",
+  "TODO": "pass articleId in user/portal/news/:id/ by post-response in first item of array"
+}

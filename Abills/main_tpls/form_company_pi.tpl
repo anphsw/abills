@@ -8,7 +8,7 @@
   </div>
   <div id='form_2' class='card for_sort card-primary card-outline %FORM_ATTR%'>
     <div class='card-header with-border'>
-      <h3 class='card-title'>_{INFO}_</h3>
+      <h4 class='card-title'>_{INFO}_</h4>
       <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
         </button>
@@ -88,3 +88,42 @@
     </div>
   </div>
 </div>
+
+<script>
+
+  let edrpouInput = document.getElementById('EDRPOU');
+
+  edrpouInput.addEventListener('input', function(event) {
+    event.preventDefault();
+
+    let edrpouValue = event.target.value.trim();
+    if( edrpouValue && edrpouValue.length == 8 ){
+      getCompanyData(edrpouValue);
+    }
+  });
+
+  function getCompanyData(edrpou) {
+    sendRequest(`/api.cgi/companies/public-records/${edrpou}`, {}, 'GET').then(result => {
+      if (result.company) {
+        edrpouInput.dataset.tooltip = result.company.nameShort;
+        let comments = result.company.kvedNumber + ' - ' + result.company.kved + '\n' + result.company.address
+
+        let arrDate = result.company.innDate.split('.');
+        let day = arrDate[0];
+        let month = arrDate[1];
+        let year = arrDate[2];
+        let newDate = year + '-' + month + '-' + day;
+
+        jQuery('#NAME').val(result.company.nameShort);
+        jQuery('#TAX_NUMBER').val(result.company.inn);
+        jQuery('#REPRESENTATIVE').val(result.company.director);
+        jQuery('#REGISTRATION').val(newDate);
+        jQuery('#COMMENTS').val(comments);
+      } else {
+        console.log(result);
+      }
+    }).catch(err => {
+      console.log(err);
+    });
+  }
+</script>

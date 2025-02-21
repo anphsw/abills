@@ -163,6 +163,17 @@
                 type='text' />
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-sm-4 col-md-4 control-label' for='TAX_NUMBER'>_{TAX_NUMBER}_</label>
+        <div class='col-sm-8 col-md-8'>
+          <div class='input-group'>
+            <input id='TAX_NUMBER' name='TAX_NUMBER' value='%TAX_NUMBER%'
+                   placeholder='%TAX_NUMBER%' class='form-control' type='text'>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

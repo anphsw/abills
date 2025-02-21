@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_VOIP",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "allowAnswer": {
+        "type": "integer"
+      },
+      "allowCalls": {
+        "type": "integer"
+      },
+      "cid": {
+        "type": "string"
+      },
+      "dayFee": {
+        "type": "number"
+      },
+      "extraNumbersDayFee": {
+        "type": "number"
+      },
+      "extraNumbersMonthFee": {
+        "type": "number"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "ip": {
+        "type": "string",
+        "format": "ipv4"
+      },
+      "logins": {
+        "type": "integer"
+      },
+      "monthFee": {
+        "type": "number"
+      },
+      "number": {
+        "type": "string"
+      },
+      "phoneAliases": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "disable": {
+              "type": "integer"
+            },
+            "id": {
+              "type": "integer"
+            },
+            "number": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "disable",
+            "id",
+            "number"
+          ]
+        }
+      },
+      "scheduleTpChange": {
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "string",
+            "format": "date"
+          },
+          "addedBy": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "tpId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added",
+          "addedBy",
+          "date",
+          "id",
+          "tpId"
+        ]
+      },
+      "serviceStatus": {
+        "type": "integer"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "uid": {
+        "type": "integer"
+      },
+      "voipExpire": {
+        "type": "string",
+        "format": "date"
+      },
+      "voipStatus": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "allowAnswer",
+      "allowCalls",
+      "cid",
+      "dayFee",
+      "extraNumbersDayFee",
+      "extraNumbersMonthFee",
+      "id",
+      "ip",
+      "logins",
+      "monthFee",
+      "number",
+      "phoneAliases",
+      "scheduleTpChange",
+      "serviceStatus",
+      "tpId",
+      "tpName",
+      "uid",
+      "voipExpire",
+      "voipStatus"
+    ]
+  }
+}

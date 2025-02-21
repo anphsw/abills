@@ -1,17 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
   "title": "The Root Schema",
-  "required": [
-    "id",
-    "name"
-  ],
-  "properties": {
-    "id": {
-      "type": "number"
+  "type": "array",
+  "items": {
+    "properties": {
+      "id": {
+        "type": "number"
+      },
+      "name": {
+        "type": "string"
+      }
     },
-    "name": {
-      "type": "string"
-    }
+    "required": ["id", "name"]
   }
 }

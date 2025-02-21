@@ -1,0 +1,3 @@
+show  onu running config epon-onu_%BRANCH%:%ONU_ID%
+show running-config interface epon-onu_%BRANCH%:%ONU_ID%
+show mac epon onu epon-onu_%BRANCH%:%ONU_ID%

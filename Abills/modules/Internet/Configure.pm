@@ -124,16 +124,22 @@ sub internet_tp {
       delete $FORM{subf};
     }
 
+    my @tp_menu = (
+      $lang{INFO}     . "::TP_ID=$FORM{TP_ID}",
+      $lang{INTERVALS}. ':'. get_function_index('form_intervals').":TP_ID=$FORM{TP_ID}",
+      $lang{NAS}      . ':'. get_function_index('internet_nas_access').":TP_ID=$FORM{TP_ID}",
+      $lang{USERS}    . ':'. get_function_index('internet_users_list').":TP_ID=$FORM{TP_ID}",
+    );
+
+    if ($permissions{4}{5}){
+      push @tp_menu, "$lang{LOG}:" . get_function_index('form_system_changes') . ":TP_ID=$FORM{TP_ID}&MODULE=Internet&HIDE_SEARCH=1";
+    }
+
     func_menu(
       {
         $lang{NAME} => $Tariffs->{NAME_SEL}
       },
-      [
-        $lang{INFO}     . "::TP_ID=$FORM{TP_ID}",
-        $lang{INTERVALS}. ':'. get_function_index('form_intervals').":TP_ID=$FORM{TP_ID}",
-        $lang{NAS}      . ':'. get_function_index('form_nas_allow').":TP_ID=$FORM{TP_ID}",
-        $lang{USERS}    . ':'. get_function_index('internet_users_list').":TP_ID=$FORM{TP_ID}"
-      ],
+      \@tp_menu,
       { f_args => \%F_ARGS }
     );
 
@@ -218,6 +224,8 @@ sub internet_tp {
   $LIST_PARAMS{MODULE}='Dv;Internet';
   delete $Tariffs->{COL_NAMES_ARR};
   delete $LIST_PARAMS{TP_ID};
+
+  $LIST_PARAMS{TP_ID} = $FORM{TP_IDS} if($FORM{TP_IDS});
 
   my $tp_list = sel_tp();
 

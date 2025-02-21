@@ -100,7 +100,7 @@ sub paysys_payments_maked {
 
   require Conf;
   Conf->import();
-  my $Config = Conf->new($db, $admin, $CONF);
+  my $Config = Conf->new($db, $admin, $CONF, { SKIP_CONF => 1 });
 
   $Config->config_info({ PARAM => 'PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND' });
 

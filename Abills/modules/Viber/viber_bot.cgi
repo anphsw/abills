@@ -1,4 +1,12 @@
 #!/usr/bin/perl
+
+=head1 NAME
+
+  ABillS Viber User Bot
+  abills.net.ua
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
 
@@ -11,82 +19,102 @@ our (
   $TIME,
   $base_dir,
   %lang,
-  %FORM
+  %FORM,
+  @MODULES
 );
 
 BEGIN {
-  use FindBin '$Bin';
-  require $Bin . '/../../libexec/config.pl';
+  $ENV{REQUEST_METHOD} =~ tr/a-z/A-Z/ if ($ENV{REQUEST_METHOD});
+  if (!$ENV{REQUEST_METHOD} || $ENV{REQUEST_METHOD} ne 'POST') {
+    print "Content-Type: text/html\n\n";
+    print "GO AWAY";
+    exit 1;
+  }
 
-  $conf{VIBER_LANG} = 'russian' unless ($conf{VIBER_LANG});
+  our $libpath = '../../';
 
-  do $Bin . "/../../language/$conf{VIBER_LANG}.pl";
-  do $Bin . "/../../Abills/modules/Viber/lng_$conf{VIBER_LANG}.pl";
+  require $libpath . 'libexec/config.pl';
+
+  $conf{VIBER_LANG} = $conf{default_language} if (!$conf{VIBER_LANG});
+
+  require $libpath . "language/$conf{VIBER_LANG}.pl";
+  require $libpath . "Abills/modules/Msgs/lng_$conf{VIBER_LANG}.pl";
+  require $libpath . "Abills/modules/Viber/lng_$conf{VIBER_LANG}.pl";
+
+  my $sql_type = $conf{dbtype} || 'mysql';
 
   unshift(@INC,
-    $Bin . '/../../',
-    $Bin . '/../../lib/',
-    $Bin . '/../../Abills',
-    $Bin . '/../../Abills/mysql',
-    $Bin . '/../../Abills/modules',
-    $Bin . '/../../Abills/modules/Viber',
+    $libpath . 'Abills/modules/',
+    $libpath . "Abills/$sql_type/",
+    $libpath . '/lib/',
+    $libpath . 'Abills/',
+    $libpath
   );
+
+  eval { require Time::HiRes; };
+  our $begin_time = 0;
+  if (!$@) {
+    Time::HiRes->import(qw(gettimeofday));
+    $begin_time = Time::HiRes::gettimeofday();
+  }
 }
 
 use Abills::SQL;
 use Admins;
-use Users;
-use Contacts;
-use Vauth;
-use Buttons;
-use API::Botapi;
-use db::Viber;
+
+use Viber::db::Viber;
+use Viber::API::Botapi;
+use Viber::API::APILayer;
+
+use Viber::Buttons;
+
 require Abills::Misc;
 use Abills::Templates;
-use Abills::Fetcher qw/web_request/;
+use Abills::Base qw/in_array/;
+use Abills::HTML;
+
+require Control::Auth;
 
 our $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
 
 our $admin = Admins->new($db, \%conf);
-$admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : 3, {
+$admin->info($conf{USERS_WEB_ADMIN_ID} || 3, {
   IP        => $ENV{REMOTE_ADDR},
   SHORT     => 1
 });
 
-our $Users = Users->new($db, $admin, \%conf);
-our $Contacts = Contacts->new($db, $admin, \%conf);
-our $Bot_db = Viber->new($db, $admin, \%conf);
+our $Conf = Conf->new($db, $admin, \%conf);
 
-my $Dialogue;
-eval {
-  require Crm::Dialogue;
-  $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'viber_bot' });
-};
+our $Bot_db = Viber::db::Viber->new($db, $admin, \%conf);
 
 my $hash = ();
-our $Bot = ();
 
-print "Content-type:text/html\n\n";
+print "Content-Type: text/html\n\n";
+my $buffer = '';
+read(STDIN, $buffer, $ENV{CONTENT_LENGTH});
 
-$ENV{REQUEST_METHOD} =~ tr/a-z/A-Z/ if ($ENV{REQUEST_METHOD});
-if ($ENV{REQUEST_METHOD} && $ENV{REQUEST_METHOD} eq 'POST') {
-  my $buffer = '';
-  read(STDIN, $buffer, $ENV{CONTENT_LENGTH});
+$hash = decode_json($buffer);
 
-  $hash = decode_json($buffer);
+return 0 unless ($hash && ref($hash) eq 'HASH' && $hash->{event});
 
-  return 0 unless ($hash && ref($hash) eq 'HASH' && $hash->{event});
+my $id = $hash->{user}{id} || $hash->{sender}{id} || '';
 
-  my $id = $hash->{user}{id} || $hash->{sender}{id} || '';
+my $Bot = Viber::API::Botapi->new($conf{VIBER_TOKEN}, $id);
 
-  my $bot_addr = "https://" . ($ENV{SERVER_NAME} || $ENV{SERVER_ADDR}) . ":$ENV{SERVER_PORT}";
-  $Bot = Botapi->new($conf{VIBER_TOKEN}, $id, $bot_addr);
-}
+our $html = Abills::HTML->new({
+  IMG_PATH   => 'img/',
+  NO_PRINT   => 1,
+  CONF       => \%conf,
+  CHARSET    => $conf{default_charset},
+  HTML_STYLE => $conf{UP_HTML_STYLE},
+  language   => $conf{VIBER_LANG}
+});
 
 $Bot->{lang} = \%lang;
-my %buttons_list = %{buttons_list({ bot => $Bot })};
-my %commands_list = reverse %buttons_list;
+$Bot->{html} = $html;
+
+my $APILayer = Viber::API::APILayer->new($db, $admin, \%conf, $Bot);
 
 message_process();
 
@@ -96,78 +124,103 @@ message_process();
 =cut
 #**********************************************************
 sub message_process {
-  my $uid = get_uid($hash->{user}{id} || $hash->{sender}{id});
-  my $aid = get_aid($hash->{user}{id} || $hash->{sender}{id});
+  my ($user_config) = $APILayer->fetch_api({ PATH => '/user/config' });
 
-  if (!$uid && !$aid) {
-    if ($hash->{event} && $hash->{event} =~ m/^conversation_started/) {
-      subscribe($hash);
-    }
-    elsif ($hash->{event} && $hash->{event} =~ m/^message/) {
+  if ($user_config->{errno}) {
+    require Viber::Vauth;
+    my $Vauth = Viber::Vauth->new($Bot, $APILayer);
+
+    if ($hash->{event} && $hash->{event} =~ m/^message/) {
       crm_add_dialogue_message($hash);
     }
-    return 1;
+
+    my $success = 0;
+    my $try_to_auth = 0;
+
+    if ($hash->{message} && $hash->{message}{contact} && $hash->{message}{contact}{phone_number}) {
+      $try_to_auth = 1;
+      $success = $Vauth->subscribe_phone($hash);
+    }
+    elsif ($hash->{event} && $hash->{event} =~ m/^conversation_started/) {
+      $try_to_auth = 1;
+      $success = $Vauth->subscribe($hash);
+    }
+
+    if ($success) {
+      ($user_config) = $APILayer->fetch_api({ PATH => '/user/config' });
+      $Vauth->auth_success();
+    }
+    else {
+      $Vauth->auth_fail() if ($try_to_auth);
+      $Vauth->subscribe_info();
+
+      return 1;
+    }
   }
 
-  $Bot->{uid} = $uid;
   my $text = $hash->{message}{text} ? encode_utf8($hash->{message}{text}) : '';
 
-  my $info = $Bot_db->info($uid);
+  my $info = $Bot_db->info($Bot->{receiver});
+
+  my $Buttons = Viber::Buttons->new(\%conf, $Bot, $Bot_db, $APILayer, $user_config);
+
+  my ($buttons_list, $err) = $Buttons->buttons_list();
+  my %commands_list = reverse %$buttons_list;
+
+  if ($err) {
+    my $err_text = "*$lang{ERROR}*\n";
+    if ($conf{VIBER_DEBUG}) {
+      $err_text .= "\n";
+      $err_text .= $err;
+    }
+    $Bot->send_message({ text => $err_text });
+    return 0;
+  }
 
   if ($commands_list{$text}) {
-    my $ret = viber_button_fn({
+    my $ret = $Buttons->viber_button_fn({
       button => $commands_list{$text},
       fn     => 'click',
-      bot    => $Bot,
     });
-    main_menu({ NO_MSG => 1 }) if ($ret ne 'NO_MENU');
+    main_menu(\%commands_list) if (!$ret);
   }
   else {
     if ($hash->{event} && $hash->{event} =~ m/^message/) {
       if ($text =~ /fn:([A-z 0-9 _-]*)&(.*)/) {
         my @args = split /&/, $2;
         my $fn = shift @args;
-        my $ret = viber_button_fn({
+        my $ret = $Buttons->viber_button_fn({
           button    => $1,
           fn        => $fn,
           argv      => \@args,
-          bot       => $Bot,
           step_info => $info,
         });
 
-        if ($ret ne 'MAIN_MENU') {
-          main_menu({ NO_MSG => 1 });
-          return 1;
-        }
-
-        viber_button_fn({
-          button => $1,
-          fn     => 'click',
-          NO_MSG => 1,
-          bot    => $Bot,
-        }) if ($ret ne 'NO_MENU');
+        main_menu(\%commands_list) if (!$ret);
       }
       elsif ($Bot_db->{TOTAL} > 0 && $info->{fn}
         && $info->{fn} =~ /fn:([A-z 0-9 _-]*)&(.*)/) {
 
         my @args = split /&/, $2;
-        viber_button_fn({
+        my $fn = shift @args;
+
+        my $ret = $Buttons->viber_button_fn({
           button    => $1,
-          fn        => $2,
-          bot       => $Bot,
+          fn        => $fn,
           text      => $text,
           argv      => \@args,
           message   => $hash->{message},
-          bot_db    => $Bot_db,
           step_info => $info,
         });
-      }
-      elsif ($text eq 'MENU') {
-        main_menu({ NO_MSG => 1 });
+
+        main_menu(\%commands_list) if (!$ret);
       }
       else {
-        main_menu();
+        main_menu(\%commands_list);
       }
+    }
+    elsif ($hash->{event} =~ m/^conversation_started/) {
+      main_menu(\%commands_list);
     }
   }
 
@@ -180,36 +233,31 @@ sub message_process {
 =cut
 #**********************************************************
 sub main_menu {
-  my ($attr) = @_;
-  my @line = ();
-  my $i = 0;
+  my ($commands_list) = @_;
+  my @buttons = sort keys %$commands_list;
+
   my $text = $lang{USE_BUTTON};
-
-  foreach my $button (sort keys %commands_list) {
-    push(@{$line[$i % 4]}, $button);
-    $i++;
-  }
-
   my @keyboard = ();
 
-  for my $buttons (@line) {
-    for my $button (@$buttons) {
-      push @keyboard, { ActionType => 'reply', ActionBody => $button, 'Text' => $button, TextSize => 'regular', };
-    }
+  for my $button (@buttons) {
+    push @keyboard, {
+      Columns    => 3,
+      Rows       => 1,
+      ActionType => 'reply',
+      ActionBody => $button,
+      Text       => $button,
+      TextSize   => 'regular'
+    };
   }
 
-  my $message = {
+  $Bot->send_message({
+    text     => $text,
     keyboard => {
       Type          => 'keyboard',
       DefaultHeight => 'false',
       Buttons       => \@keyboard,
     },
-  };
-
-  $message->{text} = $text if (!$attr->{NO_MSG});
-  $message->{type} = 'text' if (!$attr->{NO_MSG});
-
-  $Bot->send_message($message);
+  });
 
   return 1;
 }
@@ -222,59 +270,58 @@ sub main_menu {
 sub crm_add_dialogue_message {
   my $message = shift;
 
-  return if !$Dialogue || !$Dialogue->can('crm_lead_by_source') || !$message;
+  return if !in_array('Crm', \@MODULES);
 
-  my $lead_id = $Dialogue->crm_lead_by_source({
-    USER_ID => $message->{sender}{id},
-    FIO     => 'Viber ' . $message->{sender}{id},
-    AVATAR  => $message->{sender}{avatar} || '',
+  my $params = {
+    MESSAGE => $message->{message}{text}
+  };
+
+  if ($message->{message}{media}) {
+    my $file_id = $message->{message}{media}.'|'.$message->{message}{file_name}.'|'.$message->{message}{size};
+    my ($file, $file_size, $file_content) = $Bot->get_file($file_id);
+    my ($file_extension) = $file =~ /\.([^.]+)$/;
+
+    $params->{ATTACHMENTS} = [{
+      FILE_NAME    => $message->{message}{file_name},
+      CONTENT_TYPE => file_content_type($file_extension),
+      SIZE         => $file_size,
+      CONTENTS     => $file_content
+    }];
+  }
+
+  my ($res) = $APILayer->fetch_api({
+    METHOD => 'POST',
+    PATH   => '/crm/leads/dialogue/message',
+    PARAMS => $params,
   });
-  return if !$lead_id;
 
-  my $attachments = _crm_dialogue_attachment($message);
-
-  my $message_id = $Dialogue->crm_send_message($message->{message}{text}, {
-    LEAD_ID     => $lead_id,
-    ATTACHMENTS => $attachments
-  });
-  return if !$message_id;
+  if ($res->{errno}) {
+    return 0;
+  }
 
   exit 1;
 }
 
 #**********************************************************
-=head2 _crm_dialogue_attachment($message)
+=head2 file_content_type()
 
 =cut
 #**********************************************************
-sub _crm_dialogue_attachment {
-  my $message = shift;
+sub file_content_type {
+  my ($file_extension) = @_;
 
-  return if !$message || !$message->{message} || !$message->{message}{media};
+  my @IMAGES_FILE_EXTENSIONS = ('png', 'jpg', 'gif', 'jpeg', 'tiff');
 
-  my $file_name = $message->{message}{file_name};
-  return if !$file_name;
+  my $file_content_type = "application/octet-stream";
 
-  my ($file_extension) = $file_name =~ /\.([^.]+)$/;
-  my $mime_type = ($file_extension && $file_extension =~ /^(jpg|jpeg|png|gif|bmp)$/i) ? 'image/jpeg' : '';
+  if (in_array($file_extension, \@IMAGES_FILE_EXTENSIONS)) {
+    $file_content_type = "image/$file_extension";
+  }
+  elsif ( $file_extension && $file_extension eq "zip" ) {
+    $file_content_type = "application/x-zip-compressed";
+  }
 
-  my @attachments = ();
-  my $file_content = web_request($message->{message}{media}, { CURL => 1, CURL_OPTIONS => '-s', });
-
-  require Crm::Attachments;
-  my $Attachments = Crm::Attachments->new($db, $admin, \%conf);
-
-  my $result = $Attachments->attachment_add({
-    filename       => $file_name,
-    Size           => $message->{message}{size},
-    Contents       => $file_content,
-    'Content-Type' => $mime_type
-  });
-
-  return \@attachments if $result->{errno} || !$result->{INSERT_ID};
-
-  push @attachments, $result->{INSERT_ID};
-  return \@attachments;
+  return $file_content_type;
 }
 
 1;

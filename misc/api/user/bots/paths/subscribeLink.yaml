@@ -30,9 +30,9 @@ get:
             properties:
               errno:
                 type: integer
-                example: 10044
+                example: 1070002
               errstr:
                 type: string
-                example: "Unknown telegram bot"
+                example: 'ERR_UNKNOWN_TELEGRAM_BOT'
   security:
     - USERSID: [ ]

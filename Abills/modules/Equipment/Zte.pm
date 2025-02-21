@@ -1628,7 +1628,7 @@ sub _zte_unregister_form {
 
   my %vlans = ();
   foreach my $vlan_id (keys %{$vlan_hash}) {
-    $vlans{ $vlan_id } = "Vlan$vlan_id ($vlan_hash->{ $vlan_id }->{NAME})";
+    $vlans{ $vlan_id } = "Vlan$vlan_id (". ($vlan_hash->{ $vlan_id }->{NAME} || '_NO_NAME') .")";
   }
 
   $attr->{VLAN_SEL} = $html->form_select('VLAN_ID', {

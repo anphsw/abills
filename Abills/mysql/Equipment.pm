@@ -1769,8 +1769,12 @@ sub graph_info {
 =head2 mac_log_list($attr)
 
   Arguments:
-    ONLY_CURRENT - return only MAC's that are currently on Equipment, i. e. datetime > rem_time
-    ...
+    $attr
+      ONLY_CURRENT - return only MAC's that are currently on Equipment, i. e. datetime > rem_time
+      SKIP_ORDER - Skip order in SQL
+
+  Returns:
+    $mac_list
 
 =cut
 #**********************************************************
@@ -1826,13 +1830,18 @@ sub mac_log_list {
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
   }
 
+  my $ORDER = "ORDER BY $SORT $DESC";
+  if ($attr->{SKIP_ORDER}) {
+    $ORDER = '';
+  }
+
   $self->query("SELECT
     $self->{SEARCH_FIELDS} ml.id AS id
     FROM equipment_mac_log ml
     $EXT_TABLES
     $WHERE
     $GROUP_BY
-    ORDER BY $SORT $DESC
+    $ORDER
     LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -2064,6 +2073,7 @@ sub onu_list {
     [ 'DELETED',          'INT', 'onu.deleted',                   1 ],
     [ 'SERVER_VLAN',      'STR', 'i.server_vlan',                 1 ],
     [ 'TARIFF_PLAN',      'STR', 'tp.name AS tariff_plan',        1 ],
+    [ 'ONU_TYPE',         'STR', 'onu.onu_type',                  1 ],
   ], {
     WHERE             => 1,
     USERS_FIELDS      => ($attr->{SKIP_USER_INFO}) ? undef : 1,
@@ -2285,8 +2295,9 @@ sub onu_add {
       onu_snmp_id,
       line_profile,
       srv_profile,
-      datetime
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());",
+      datetime,
+      onu_type
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?);",
       undef,
       { MULTI_QUERY => $attr->{MULTI_QUERY} });
   }
@@ -2426,11 +2437,15 @@ sub pon_port_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'NAS_ID',    'STR', 'p.nas_id', 1 ],
-    [ 'ONU_COUNT', 'STR', '', 'COUNT(onu.id) AS onu_count' ],
-    [ 'BRANCH',    'STR', 'p.branch', 1 ],
-    [ 'SNMP_ID',   'STR', 'p.snmp_id', 1 ],
-    [ 'STATUS',    'INT', 'i.status', 1 ]
+    [ 'NAS_ID',      'STR', 'p.nas_id',                    1 ],
+    [ 'ONU_COUNT',   'STR', '', 'COUNT(onu.id) AS onu_count' ],
+    [ 'BRANCH',      'STR', 'p.branch',                    1 ],
+    [ 'BRANCH_DESC', 'STR', 'p.branch_desc',               1 ],
+    [ 'SNMP_ID',     'STR', 'p.snmp_id',                   1 ],
+    [ 'STATUS',      'INT', 'i.status',                    1 ],
+    [ 'PON_TYPE',    'STR', 'p.pon_type',                  1 ],
+    [ 'ID',          'INT', 'p.id',                        1 ],
+    [ 'VLAN_ID',     'INT', 'p.vlan_id',                   1 ],
   ],
     { WHERE => 1 }
   );
@@ -2465,7 +2480,7 @@ sub pon_port_list {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total
     FROM equipment_pon_ports p
@@ -2829,6 +2844,11 @@ sub onu_and_internet_cpe_list {
     $WHERE .= 'AND onu.deleted = ' . int($attr->{DELETED});
   }
 
+  my $EXT_TABLE = qq{ INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'') };
+  if ($attr->{CPE_UNIFY}) {
+    $EXT_TABLE = qq{ INNER JOIN internet_main i ON (REPLACE(REPLACE(onu.onu_mac_serial, ':', ''),'.','')=REPLACE(REPLACE(i.cpe_mac, ':', ''),'.','') AND i.cpe_mac<>'') };
+  }
+
   $self->query("SELECT
     onu.id,
     onu.onu_dhcp_port AS onu_port,
@@ -2843,11 +2863,12 @@ sub onu_and_internet_cpe_list {
     i.vlan AS user_vlan,
     i.server_vlan AS user_server_vlan,
     i.uid,
-    p.vlan_id AS pon_port_vlan
+    p.vlan_id AS pon_port_vlan,
+    REPLACE(REPLACE(onu.onu_mac_serial, ':', ''),'.','') AS cpe_unify
     FROM equipment_pon_onu onu
     LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
     LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
-    INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'')
+    $EXT_TABLE
     $WHERE
     LIMIT $PG, $PAGE_ROWS
     ;",
@@ -3085,7 +3106,8 @@ sub port_errors_list {
     [ 'OUT_ERRORS',      'INT', 'epe.out_errors',                 1 ],
     ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(epe.date, '%Y-%m-%d')" ],
   ],
-    { WHERE => 1, });
+    { WHERE => 1 }
+  );
 
   $self->query("SELECT $self->{SEARCH_FIELDS} id
     FROM equipment_ports_errors epe
@@ -3098,6 +3120,187 @@ sub port_errors_list {
   );
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 onu_log_add($attr)
+
+=cut
+#**********************************************************
+sub onu_model_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('equipment_onu_models', $attr);
+
+  return [ ] if ($self->{errno});
+  return $self;
+}
+
+#**********************************************************
+=head2 onu_model_info (ID)
+
+  Arguments:
+    ID
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub onu_model_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT *
+   FROM equipment_onu_models
+   WHERE id = ?;",
+    undef,
+    { INFO => 1,
+      Bind => [ $attr->{ID} ]
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 onu_model_change($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub onu_model_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_onu_models',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 onu_model_del($attr)
+
+  Arguments:
+    ID
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub onu_model_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('equipment_onu_models', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 onu_model_list($attr) - onu log list
+
+=cut
+#**********************************************************
+sub onu_model_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',                  'INT', 'eom.id',                           1 ],
+    [ 'PON_TYPE',            'INT', 'eom.pon_type',                     1 ],
+    [ 'ONU_TYPE',            'STR', 'eom.onu_type',                     1 ],
+    [ 'WIFI_SSIDS',          'STR', 'eom.wifi_ssids',                   1 ],
+    [ 'ETHERNET_PORTS',      'INT', 'eom.ethernet_ports',               1 ],
+    [ 'VOIP_PORTS',          'INT', 'eom.voip_ports',                   1 ],
+    [ 'CATV',                'INT', 'eom.catv',                         1 ],
+    [ 'CUSTOM_PROFILES',     'STR', 'eom.custom_profiles',              1 ],
+    [ 'CAPABILITY',          'INT', 'eom.capability',                   1 ],
+    [ 'IMAGE',               'INT', 'eom.image',                        1 ],
+  ],
+    { WHERE => 1 }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM equipment_onu_models eom
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+
+}
+
+#**********************************************************
+=head2 equipment_netmap_position_add($attr)
+
+=cut
+#**********************************************************
+sub equipment_netmap_position_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{POSITIONS} || ref $attr->{POSITIONS} ne 'ARRAY';
+
+  my @MULTI_QUERY = ();
+  foreach my $position (@{$attr->{POSITIONS}}) {
+    next if !$position->{NAS_ID};
+    push @MULTI_QUERY, [ $position->{NAS_ID}, $position->{COORDX}, $position->{COORDY} ];
+  }
+
+  $self->query("REPLACE INTO equipment_netmap_positions (nas_id, coordx, coordy) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 equipment_netmap_positions_list($attr)
+
+=cut
+#**********************************************************
+sub equipment_netmap_positions_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'NAS_ID', 'INT', 'enp.nas_id', 1 ],
+    [ 'COORDX', 'INT', 'enp.coordx', 1 ],
+    [ 'COORDY', 'STR', 'enp.coordy', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} enp.nas_id
+    FROM equipment_netmap_positions enp
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+
 }
 
 1;

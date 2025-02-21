@@ -108,8 +108,8 @@ sub _huawei_onu_list {
       }
 
       if ($debug > 2) {
-        print "OID: $oid_name -- " . ($snmp->{$oid_name}->{NAME} || '') . " -- " . ($snmp->{$oid_name}->{OIDS} || '')
-          . 'SNMP_ID:' . $snmp_id;
+        print "OID ID: $oid_name NAME: " . ($snmp->{$oid_name}->{NAME} || '') . " NUM: " . ($snmp->{$oid_name}->{OIDS} || '')
+          . ' SNMP_ID: ' . $snmp_id;
       }
 
       my $values = snmp_get({
@@ -407,8 +407,8 @@ sub _huawei_unregister_form {
   foreach my $profile (keys %profile_vlans) {
     my $vlan_num=0;
     $attr->{MULTI_VLANS} .= "{ profile: '$profile', "
-      .  join(', ', map{ $vlan_num++; $_ = "vlan$vlan_num: '$_'"; } @{ $profile_vlans{$profile} } )
-      . "},";
+      .  join(', ', map{ $vlan_num++; $_ = "vlan$vlan_num: '$_'"; } sort @{ $profile_vlans{$profile} } )
+      . "},\n";
   }
 
   if ($debug > 0) {
@@ -1178,7 +1178,7 @@ sub huawei_parse_profile_name {
   my ($name) = @_;
 
   $name = pack('(C)*', split(/\./, $name || q{}));
-
+  $name =~ s/[\r\n]+//;
   return $name;
 }
 

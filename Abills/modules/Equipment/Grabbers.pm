@@ -87,7 +87,7 @@ sub equipment_test {
     if ($attr->{AUTO_PORT_SHIFT} && $attr->{PORT_ID} && in_array('PORT_INDEX', \@port_info_list) && $snmp_ports_info{PORT_INDEX}{OIDS}) {
       my $oid = $snmp_ports_info{PORT_INDEX}{OIDS};
       my $function = $snmp_ports_info{PORT_INDEX}{PARSER};
-
+      
       my $new_port_id = snmp_get({
         %{$attr},
         OID     => $oid . ".$attr->{PORT_ID}",
@@ -128,6 +128,7 @@ sub equipment_test {
         $function = $snmp_ports_info{$type}{PARSER};
       }
       else {
+        $ports_info{$attr->{PORT_ID}}{$type} = 1 if ($attr->{PORT_ID} && $type eq 'CABLE_TESTER' && ! $attr->{RUN_CABLE_TEST});
         next;
       }
 
@@ -356,7 +357,7 @@ sub equipment_test {
 
             my $oid = $snmp_ports_info{$type}{OIDS};
             my $function = $snmp_ports_info{$type}{PARSER};
-            my $ports_info = snmp_get({
+            my $ports_info_ = snmp_get({
                 %{$attr},
                 OID     => $oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
                 WALK    => ($attr->{PORT_ID}) ? 0 : 1,
@@ -364,20 +365,21 @@ sub equipment_test {
               });
 
             if ($attr->{PORT_ID}) {
-              if (defined($ports_info)) {
-                if ($pair_status_in_progress && $type =~ /STATUS_PAIR/ && $ports_info == $pair_status_in_progress) {
+              if (defined($ports_info_)) {
+                if ($pair_status_in_progress && $type =~ /STATUS_PAIR/ && $ports_info_ == $pair_status_in_progress) {
                   $is_cable_test_in_progress = 1;
                   last;
                 }
                 if ($function && defined( &{$function} ) ) {
-                  ($ports_info) = &{ \&$function }($ports_info);
+                  ($ports_info_) = &{ \&$function }($ports_info_);
                 }
               }
-              $ports_info{$attr->{PORT_ID}}{CABLE_TESTER}{$type} = $ports_info;
+
+              $ports_info{$attr->{PORT_ID}}{CABLE_TESTER}{$type} = $ports_info_;
               next;
             }
 
-            foreach my $port_info (@$ports_info) {
+            foreach my $port_info (@$ports_info_) {
               my ($port, $value) = split(/:/, $port_info, 2);
               if (!$cable_test_results{$port}) {
                 next;
@@ -714,40 +716,6 @@ sub get_port_vlans {
 #********************************************************
 sub get_fdb {
   my ($attr) = @_;
-
-  #$Nas->info({
-  #  NAS_ID    => $nas_id,
-  #  COLS_NAME => 1,
-  #  COLS_UPPER=> 1
-  #});
-
-  #=comments
-  ## Get fdb from default table
-  #  my $oid = $perl_scalar->{FDB_OID} || '.1.3.6.1.2.1.17.4.3.1';    #|| '1.3.6.1.4.1.3320.152.1.1.3';
-  #  my $value = snmp_get(
-  #    {
-  #      %$attr,
-  #      OID  => $oid,
-  #      WALK => 1
-  #    }
-  #  );
-  #  my %fdb_hash = ();
-  #
-  #  foreach my $line (@$value) {
-  #    my ($oid, $value) = split(/:/, $line, 2);
-  #    $oid =~ /(\d+)\.(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})/;
-  #    my $type    = $1;
-  #    my $mac_dec = $2;
-  #    my $mac = _mac_former($mac_dec);
-  #
-  #    $fdb_hash{$mac_dec}{$type} = ($type == 1) ? $mac : $value;
-  #  }
-  #=cut
-
-  #dlink version
-  # '1.3.6.1.2.1.17.7.1.2.2.1.2';
-  #$Equipment->vendor_info( $Equipment->{VENDOR_ID} || $attr->{VENDOR_ID} );
-  #For old version
 
   if ($attr->{NAS_INFO}) {
     $attr->{VERSION}  //= $attr->{NAS_INFO}->{SNMP_VERSION};

@@ -88,6 +88,8 @@
     phone = jQuery('#PHONE').val().replace(/\D/g, '');
     sendRequest(`/api.cgi/user/login/`, { phone, pinAlreadyExists: 1 }, 'POST').then(result => {
       if (!result?.errno) {
+        uid = result?.authCode;
+        authCode = result?.authCode;
         jQuery('#PIN_BLOCK').removeClass('d-none');
         jQuery('#CONFIRM_PIN').removeClass('d-none');
         jQuery('#EXIST_PIN').addClass('d-none');

@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_TASK_UPDATE",
+  "method": "PUT",
+  "path": "tasks/:id/",
+  "body": {
+    "name": "New task name",
+    "state": 1
+  }
+}

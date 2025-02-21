@@ -1,0 +1,6 @@
+{
+  "name": "PUBLIC_CONFIG",
+  "method": "GET",
+  "path": "config/",
+  "params": {}
+}

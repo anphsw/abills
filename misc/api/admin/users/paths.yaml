@@ -18,3 +18,5 @@
   $ref: "./paths/usersContracts_id.yaml"
 /users/contracts/types:
   $ref: "./paths/usersContractsTypes.yaml"
+/users/{uid}/history:
+  $ref: "./paths/usersHistory.yaml"

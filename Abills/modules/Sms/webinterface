@@ -201,7 +201,7 @@ sub sms_send {
     EXT_STATUS   => $Sms_service->{status} || '',
   });
 
-  return $Sms_service->{id} || 1;
+  return $Sms_service->{id} || $Sms_service->{INSERT_ID} || 1;
 }
 
 #**********************************************************
@@ -500,13 +500,13 @@ sub send_user_memo {
     }
 
     my $sms_id = sms_send(
-    {
-      NUMBER  => $attr->{PHONE} || $attr->{CALL_PHONE},
-      MESSAGE => $message,
-      UID     => $attr->{UID},
-    });
+      {
+        NUMBER  => $attr->{PHONE} || $attr->{CALL_PHONE},
+        MESSAGE => $message,
+        UID     => $attr->{UID},
+      });
 
-    if ($sms_id) {
+    if ($sms_id && $sms_id > 1) {
       return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
     }
     else {

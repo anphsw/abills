@@ -3,12 +3,7 @@ get:
     - tags
   summary: Список меток назначенных пользователям
   parameters:
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: name
       in: query
       description: Название метки
@@ -51,11 +46,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

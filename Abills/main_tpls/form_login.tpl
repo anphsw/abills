@@ -1,6 +1,6 @@
 <script type='text/javascript'>
   function set_referrer() {
-    document.getElementById('REFERER').value = location.href;
+    document.getElementById('REFERER').value = '%REFERER%' || location.href;
   }
 
   function selectLanguage(){
@@ -71,8 +71,8 @@
     <div class='col-xs-12 col-sm-6 col-md-6 col-lg-4 col-11'>
       <form action='%SELF_URL%' METHOD='post' name='frm' id='form_login'>
 
-        <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
-        <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
+        <input type=hidden ID=DOMAIN_ID name=DOMAIN_ID value='%DOMAIN_ID%'>
+        <input type=hidden ID=REFERER name=REFERER value='%REFERER%'>
 
         <div class='form-group row has-feedback'>
           <div class='input-group'>
@@ -101,7 +101,7 @@
               </div>
             </div>
             <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
-                   placeholder='_{PASSWD}_'>
+                   placeholder='_{PASSWD}_' autocomplete='off' autocapitalize='none'>
             <div class='input-group-append'>
               <div id='togglePasswd' class='input-group-text cursor-pointer'>
                 <span class='input-group-addon passwd-toggle-icon fa fa-eye-slash'></span>
@@ -117,8 +117,7 @@
                 <span class='fa fa-asterisk'></span>
               </div>
             </div>
-            <input type='password' id='g2fa' name='g2fa' class='form-control'
-                   placeholder='_{CODE}_'>
+            <input id='g2fa' name='g2fa' class='form-control' placeholder='_{CODE}_' autocomplete='off'>
           </div>
         </div>
 

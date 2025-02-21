@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_DELETE_HOLDUP",
+  "method": "DELETE",
+  "path": "/user/iptv/:id/holdup/"
+}

@@ -128,8 +128,6 @@ sub _portal_menu {
   my @news = ();
   my $uid = $attr->{UID} || '';
   my $domain_id = $attr->{DOMAIN_ID} || '';
-  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
 
   $article_params{ID} = $attr->{ARTICLE_ID} if ($attr->{ARTICLE_ID});
   $article_params{PORTAL_MENU_ID} = $attr->{PORTAL_MENU_ID} if ($attr->{PORTAL_MENU_ID});
@@ -205,7 +203,7 @@ sub _portal_menu {
   }
 
   foreach my $news (@{$news_list}) {
-    my @gids = split(/,\s+/, $news->{gid} || '');
+    my @gids = split(/,\s*/, $news->{gid} || '');
 
     my $time_check = !$news->{etimestamp} || ($news->{utimestamp} && $news->{etimestamp} >= time && $news->{utimestamp} < time);
     my $gid_check = !$news->{gid} || $news->{gid} eq '0' || $news->{gid} eq '*' || grep { $_ eq "$Users->{GID}"} @gids;
@@ -227,6 +225,8 @@ sub _portal_menu {
     if ($time_check && $gid_check && $domain_check && $address_check && $tag_check) {
       next if (!$menu{$news->{portal_menu_id}});
       my $article_sublink = $news->{permalink} || $news->{id};
+      my $article_url = $self->_portal_link() . "/?article=$article_sublink";
+      my $picture_link = $news->{picture} ? $self->_portal_link() . "/images/attach/portal/$news->{picture}" : '';
 
       my %news = (
         id                => $news->{id},
@@ -234,12 +234,12 @@ sub _portal_menu {
         title             => $news->{title},
         content           => $news->{content},
         short_description => $news->{short_description},
-        picture           => $news->{picture} ? "$base_attach_link/$news->{picture}" : '',
+        picture           => $picture_link,
         on_main_page      => $news->{on_main_page},
         date              => $news->{date},
         topic_id          => $news->{portal_menu_id},
         permalink         => $news->{permalink},
-        url               => $self->_portal_news_link($article_sublink)
+        url               => $article_url
       );
 
       if ($attr->{MENU}) {
@@ -264,24 +264,21 @@ sub _portal_menu {
 }
 
 #**********************************************************
-=head2 _portal_news_link($filename)
-
-  Arguments:
-    $permalink - string
+=head2 _portal_link()
 
   Returns:
-    $src - link to news from web
+    $src - main url
+
 =cut
 #**********************************************************
-sub _portal_news_link {
+sub _portal_link {
   my $self = shift;
-  my ($filename) = @_;
 
   my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   my $maybe_base = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}" : '';
-  my $base_attach_link = ($self->{conf}{BILLING_URL} || $maybe_base) . '/?article=';
+  my $base_attach_link = ($self->{conf}{BILLING_URL} || $maybe_base);
 
-  return $base_attach_link . ($filename || '');
+  return $base_attach_link;
 }
 
 1;

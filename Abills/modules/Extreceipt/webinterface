@@ -114,14 +114,8 @@ sub extreceipt_api {
       SELECTED => $Receipt->{AID} || $FORM{AID}
     });
 
-    my $plugins = _extreceipt_plugins();
-
-    $FORM{API_NAME} = $html->form_select('API_NAME', {
-      SELECTED    => $FORM{API_NAME} || '',
-      SEL_ARRAY   => $plugins,
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    });
+    require Control::Services;
+    $FORM{API_NAME} = sel_plugins('Extreceipt', { SELECT => 'API_NAME', SELECTED => $FORM{API_NAME} });
 
     $html->tpl_show(_include('extreceipt_api', 'Extreceipt'), { %$Receipt, %FORM });
   }
@@ -638,13 +632,23 @@ sub _extreceipt_send_receipt {
       if ($info->[0]->{cancel_id}) {
         $info->[0]->{command_id} = $info->[0]->{cancel_id};
       }
+
       if ($conf{EXTRECEIPTS_SEND_USER} eq 'Viber' || $conf{EXTRECEIPTS_SEND_USER} eq 'Sms') {
-        my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+        my $Users = Users->new($db, $admin, \%conf);
+        my $users_pi = $Users->pi({ UID => $info->[0]->{uid} });
+        $users_pi->info($info->[0]->{uid});
+
         my $check = $Receipt->{API}->{$info->[0]->{api_id}}->get_receipt($info->[0]);
 
+        my $message = $html->tpl_show(_include('extreceipt_receipt_notify_message', 'Extreceipt'), {
+          RECEIPT_ID => $check,
+          %$Users,
+        }, { OUTPUT2RETURN => 1 });
+
+        my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
         my $status = $Sender->send_message({
           TO_ADDRESS  => $info->[0]->{phone},
-          MESSAGE     => $check,
+          MESSAGE     => $message,
           SENDER_TYPE => $conf{EXTRECEIPTS_SEND_USER},
           UID         => $info->[0]->{uid},
         });
@@ -901,33 +905,6 @@ sub extreceipt_start_page {
   );
 
   return \%START_PAGE_F;
-}
-
-#**********************************************************
-=head2 _extreceipt_plugins()
-
-  Arguments:
-     -
-
-  Returns:
-    \@plugins - present modules in folder
-
-=cut
-#**********************************************************
-sub _extreceipt_plugins {
-  my $paysys_folder = $base_dir . 'Abills/modules/Extreceipt/API/';
-
-  my @plugins = ();
-  opendir(my $folder, $paysys_folder);
-  while (my $filename = readdir $folder) {
-    if ($filename =~ /pm$/) {
-      $filename =~ s/\.pm//;
-      push(@plugins, $filename);
-    }
-  }
-  closedir $folder;
-
-  return \@plugins;
 }
 
 1;

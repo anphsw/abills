@@ -11,6 +11,7 @@
   <meta HTTP-EQUIV='Pragma' CONTENT='no-cache'/>
   <meta HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=%CHARSET%'/>
   <meta HTTP-EQUIV='Content-Language' content='%CONTENT_LANGUAGE%'/>
+  <meta name='google' content='nopagereadaloud'>
   <meta name='Author' content='~AsmodeuS~'/>
 
   <title>%TITLE%</title>

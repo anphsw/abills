@@ -34,7 +34,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='DSC'>_{COMMENTS}_:</label>
         <div class='col-md-8'>
-          <textarea name='COMMENTS' id='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+          <textarea rows='5' name='COMMENTS' id='COMMENTS' class='form-control'>%COMMENTS%</textarea>
         </div>
       </div>
 

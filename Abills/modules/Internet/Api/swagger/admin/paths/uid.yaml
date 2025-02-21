@@ -4,13 +4,7 @@ put:
   summary: Изменение тарифного плана Internet пользователю
   operationId: changeUserInternetInfo
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:

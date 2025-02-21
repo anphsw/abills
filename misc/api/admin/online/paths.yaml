@@ -7,12 +7,7 @@
     operationId: getUserSessions
     deprecated: true
     parameters:
-      - name: uid
-        in: path
-        description: UID пользователя в биллинге
-        required: true
-        schema:
-          type: integer
+    - $ref: "#/components/parameters/pathUid"
     responses:
       200:
         description: Успешное выполнение

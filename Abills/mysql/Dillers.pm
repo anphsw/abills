@@ -153,7 +153,7 @@ sub diller_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -236,7 +236,7 @@ sub diller_del {
   $admin->{MODULE}=$MODULE;
   $admin->action_add($attr->{UID}, $attr->{UID}, { TYPE => 10 });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -275,7 +275,7 @@ sub dillers_tp_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -290,7 +290,7 @@ sub dillers_tp_del {
   $self->query_del('dillers_tps',$attr);
 
   $admin->system_action_add("DILLERS_TP:$self->{TP_ID}", { TYPE => 10 });
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************

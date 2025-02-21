@@ -7,7 +7,6 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(ip2int int2ip);
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 our(
   $admin,

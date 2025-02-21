@@ -602,6 +602,7 @@ sub crm_dialogue {
     AVATAR_LINK => '_SHOW',
     INNER_MSG   => '_SHOW',
     ATTACHMENTS => '_SHOW',
+    ADMIN_NAME  => '_SHOW',
     SORT        => 'cdm.date',
     PAGE_ROWS   => 99999,
     COLS_NAME   => 1
@@ -618,6 +619,7 @@ sub crm_dialogue {
     my $message_type = $message->{aid} ? 'justify-content-end' : 'justify-content-start';
     my $avatar = $message->{avatar_link} ? "/images/$message->{avatar_link}" : ($lead->{_AVATAR_URL} || '/styles/default/img/admin/avatar0.png');
     my $time = $html->element('span', $message->{time}, { class => 'text-muted float-right ml-1' });
+    my $admin_name = $html->element('div', $message->{admin_name} || $message->{aid}, { class => 'text-danger text-bold position-static' });
     my $image = defined $last_message_aid && $last_message_aid == $message->{aid} ? $html->element('div', '', { class => 'img_cont_msg' }) :
       $html->element('div', $html->element('img', '', { src => $avatar, class => 'rounded-circle user_img_msg' }), { class => 'img_cont_msg' });
 
@@ -635,6 +637,9 @@ sub crm_dialogue {
 
     $message->{message} =~ s/\n$//;
     $message->{message} = Abills::Base::convert($message->{message}, { text2html => 1, SHOW_URL => 1 });
+    if ($message->{aid}) {
+      $message->{message} = $admin_name . $message->{message};
+    }
 
     if ($message->{attachments}) {
       my $attachments = $Crm->crm_attachment_list({
@@ -824,7 +829,7 @@ sub crm_dialogues {
         $STATES{$state} || $lang{CRM_STATUS_IS_UNKNOWN}
       }
     },
-    MULTISELECT     => 'del:id:CRM_LEAD_DIALOGUES',
+    MULTISELECT     => $permissions{0}{5} ? 'del:id:CRM_LEAD_DIALOGUES' : '',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       id       => '#',

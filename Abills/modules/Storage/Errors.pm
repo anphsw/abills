@@ -17,7 +17,8 @@ use warnings FATAL => 'all';
 #**********************************************************
 sub errors {
   return {
-    1180001 => 'ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT'
+    1180001 => 'ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT',
+    1180002 => 'ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE',
   };
 }
 

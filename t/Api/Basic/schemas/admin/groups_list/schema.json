@@ -2,40 +2,34 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
   "title": "The Root Schema",
-  "required": [
-    "domainId",
-    "name",
-    "usersCount",
-    "descr",
-    "allowCredit",
-    "gid",
-    "disableChgTp",
-    "disablePaysys"
-  ],
-  "properties": {
-    "domainId": {
-      "type": "number"
+  "items": {
+    "type": "object",
+    "properties": {
+      "domainId": {
+        "type": "number"
+      },
+      "name": {
+        "type": "string"
+      },
+      "usersCount": {
+        "type": "number"
+      },
+      "descr": {
+        "type": "string"
+      },
+      "allowCredit": {
+        "type": "number"
+      },
+      "gid": {
+        "type": "number"
+      },
+      "disableChgTp": {
+        "type": "number"
+      },
+      "disablePaysys": {
+        "type": "number"
+      }
     },
-    "name": {
-      "type": "string"
-    },
-    "usersCount": {
-      "type": "number"
-    },
-    "descr": {
-      "type": "string"
-    },
-    "allowCredit": {
-      "type": "number"
-    },
-    "gid": {
-      "type": "number"
-    },
-    "disableChgTp": {
-      "type": "number"
-    },
-    "disablePaysys": {
-      "type": "number"
-    }
+    "required": ["domainId", "name", "usersCount", "descr", "allowCredit", "gid", "disableChgTp", "disablePaysys"]
   }
 }

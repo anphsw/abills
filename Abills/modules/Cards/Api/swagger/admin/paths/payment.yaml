@@ -1,0 +1,27 @@
+post:
+  tags:
+    - cards
+  summary: Пополнения скретч картой
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addPaymentRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addPaymentResponse200.yaml"
+    400:
+      description: Нет параметра pin в теле запроса
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addPaymentResponse400.yaml"
+  security:
+    - KEY: [ ]

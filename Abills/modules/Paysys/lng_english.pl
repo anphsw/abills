@@ -94,7 +94,7 @@ $lang{MERCHANT_BUTTON}='Go to merchant settings';
 $lang{SUBSCRIBE_ACTION}='subscribe payment of services';
 $lang{TOKEN_PAYMENTS}='Automatic payment of services';
 $lang{SUBSCRIBE_PAYMENTS}='Subscribe payments';
-$lang{SUCCESS_UNSUBSCRIBE}='Unsubscribe success';
+$lang{SUCCESS_UNSUBSCRIBE}='Successfully unsubscribed';
 $lang{ERROR_UNSUBSCRIBE}='An error occurred while canceling your subscription, contact your administrator';
 $lang{COMMISSION_LIQPAY}='Commission for improved service';
 $lang{EXTERNAL_COMMAND}='External command';
@@ -146,8 +146,13 @@ $lang{PAYSYS_V3_DEPRECATED} = 'The V3 schema will be removed from the next relea
 $lang{PAYMENTS_DISABLED} = 'Payments disabled';
 
 $lang{ERR_PAYSYS_DOMAIN} = 'Please enter through the domain URL or set the %OPTION% option';
-$lang{ERR_NO_FAST_PAY_LINK} = 'No fast pay link';
+$lang{ERR_NO_FAST_PAY_LINK} = 'No fast payment link';
 $lang{ERR_WRONG_CONFIGURATIONS} = 'Wrong configuration';
+$lang{ERR_IMPORT_REGULAR_EXPRESSION} = 'The regular expression did not find a match. Check the file or regular expression in the PAYSYS_IMPORT_EXPRESSION option';
+$lang{ERR_PAYMENT_OR_FEE_NOT_SELECTED} = 'You have not selected any payment or fee, repeat the process by selecting payment/fee again';
+$lang{ERR_TRANSACTION_NOT_EXISTS} = 'Transaction not exists';
+$lang{ERR_PAYMENT_SYSTEM_NOT_EXISTS} = 'Payment system not exists';
+$lang{ERR_PERCENT_VALUE} = 'Not allowed value Percent. Total value should be 100.';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys merchant changed';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Configure for merchant changed with id - %MERCHANT_ID% and name - %MERCHANT_NAME%';

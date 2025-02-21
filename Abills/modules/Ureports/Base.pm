@@ -283,7 +283,13 @@ sub ureports_send_reports {
   my $self = shift;
   my ($type, $destination, $message, $attr) = @_;
 
-  return 0 if (!$type);
+  if (!$type) {
+    return 0;
+  }
+  elsif (! $destination) {
+    print "ERROR: No destination... UID: " . ($attr->{UID} || q{}) ."\n";
+    return 0;
+  }
 
   my @types = split(',\s?', $type);
   my @destinations = split(',\s?', $destination);
@@ -293,6 +299,7 @@ sub ureports_send_reports {
   my $type_index = 0;
   my $status = 0;
   my %sended_distination = ();
+  my @status_list = ();
 
   foreach my $send_type (@types) {
     # Fix old EMAIL type 0 -> 9
@@ -355,14 +362,39 @@ sub ureports_send_reports {
     else {
       $message = convert($message, { txt2translit => 1 }) if $CONF->{SMS_TRANSLIT};
 
-      $status = $Sender->send_message({
-        UID         => $attr->{UID},
-        TO_ADDRESS  => $destinations[$type_index],
-        SENDER_TYPE => $send_type,
-        MESSAGE     => $message,
-        SUBJECT     => $subject,
-        DEBUG       => ($debug > 2) ? $debug - 2 : undef
-      }) || $status;
+      my $result = $Sender->send_message({
+        UID           => $attr->{UID},
+        TO_ADDRESS    => $destinations[$type_index],
+        SENDER_TYPE   => $send_type,
+        MESSAGE       => $message,
+        SUBJECT       => $subject,
+        DEBUG         => ($debug > 2) ? $debug - 2 : undef,
+        RETURN_RESULT => 1
+      });
+
+      if ($result) {
+        if (ref $result eq 'HASH' && defined $result->{errno}) {
+          $Ureports->user_send_type_change({
+            UID         => $attr->{UID},
+            DESTINATION => $destinations[$type_index],
+            ERROR_CODE  => $result->{errno},
+            ERROR_MSG   => $result->{errstr}
+          });
+
+          $status = $result->{errno} || 0;
+        }
+        else {
+          $status = 1;
+        }
+      }
+      else {
+        $status = 0;
+        $Ureports->user_send_type_change({
+          UID         => $attr->{UID},
+          DESTINATION => $destinations[$type_index],
+          ERROR_CODE  => $status
+        });
+      }
     }
 
     $Ureports->log_add({
@@ -374,10 +406,12 @@ sub ureports_send_reports {
       STATUS      => $status || 0
     }) if $debug < 5;
 
+    push @status_list, $status;
+
     $type_index++;
   }
 
-  return $debug > 6 ? 1 : $status;
+  return ($debug > 6) ? 1 : (in_array(1, \@status_list)) ? 1 : 0;
 }
 
 #**********************************************************

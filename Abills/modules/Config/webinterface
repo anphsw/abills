@@ -67,7 +67,7 @@ sub config_main {
     return 0;
   }
 
-  if ($FORM{change} && !$conf{PUBLIC_MODE}) {
+  if ($FORM{change}) {
     my %pre_conf  = ();
     my %post_conf = ();
     $to_change_list      = $Config->list({ PARAM => $FORM{PARAM}, COLS_NAME => 1 });

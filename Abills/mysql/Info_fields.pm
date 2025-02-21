@@ -81,6 +81,8 @@ sub fields_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',          'INT', 'id',          1 ],
@@ -101,7 +103,7 @@ sub fields_list {
     $self->query("SELECT $self->{SEARCH_FIELDS} id
       FROM info_fields
     $WHERE
-    ORDER BY $SORT $DESC",
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
     );
@@ -111,13 +113,17 @@ sub fields_list {
       "SELECT *
      FROM info_fields
      $WHERE
-     ORDER BY $SORT $DESC;",
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
       undef,
       { COLS_NAME => 1, COLS_UPPER => 1 }
     );
   }
 
-  return $self->{list} || [];
+  my $list = $self->{list};
+
+  $self->query("SELECT COUNT(*) AS total FROM info_fields $WHERE;", undef, { INFO => 1 });
+
+  return $list || [];
 }
 
 
@@ -143,7 +149,6 @@ sub fields_change {
   return $self->{result};
 }
 
-
 #**********************************************************
 =head2 info_field_attach_add($attr) - Info fields attach add
 
@@ -158,69 +163,122 @@ sub fields_change {
 sub info_field_attach_add {
   my $self = shift;
   my ($attr) = @_;
-  my $insert_id = 0;
 
+  my $insert_id = 0;
   my $prefix = ($attr->{COMPANY_PREFIX}) ? 'ifc' : 'ifu';
 
   require Attach;
   Attach->import();
-  my $Conf   = Conf->new($self->{db}, $self->{admin}, $self->{conf});
+  my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
   my $Attach = Attach->new($self->{db}, $self->{admin}, $self->{conf});
-  my $list   = $Conf->config_list({ PARAM => $prefix .'*' });
+  my $list = $Conf->config_list({ PARAM => $prefix . '*', COLS_NAME => 1 });
+  return $attr if !$Conf->{TOTAL} || $Conf->{TOTAL} < 1;
 
-  if ($Conf->{TOTAL} && $Conf->{TOTAL} > 0) {
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /$prefix(\S+)/) {
-        my $field_name = $1;
-        my (undef, $type, undef) = split(/:/, $line->[1]);
-        if ($type == 13) {
-          #attach
-          if (ref $attr->{uc($field_name)} eq 'HASH' && $attr->{uc($field_name)}{filename}) {
-            if($self->{conf}->{ATTACH2FILE}) {
-              if($self->{UID}) {
-                $self->pi({ UID => $self->{UID} });
-                if($self->{uc($field_name)}) {
-                  $Attach->attachment_del({
-                    ID         => $self->{uc($field_name)},
-                    TABLE      => $field_name.'_file',
-                    UID        => $self->{UID},
-                    SKIP_ERROR => 1
-                  })
-                }
-              }
-            }
+  if ($attr->{UID}) {
+    require Users;
+    Users->import();
+    my $users = Users->new($self->{db}, $self->{admin}, $self->{conf});
 
-            $Attach->attachment_add(
-              {
-                TABLE        => $field_name . '_file',
-                CONTENT      => $attr->{uc($field_name)}{Contents},
-                FILESIZE     => $attr->{uc($field_name)}{Size},
-                FILENAME     => $attr->{uc($field_name)}{filename},
-                CONTENT_TYPE => $attr->{uc($field_name)}{'Content-Type'},
-                UID          => $attr->{UID},
-                FIELD_NAME   => $field_name
-              }
-            );
+    $self->{USER_INFO} = $users->pi({ UID => $attr->{UID} });
+  }
 
-            if($Attach->{errno}) {
-              $self->{errno} = $Attach->{errno};
-              $self->{errstr} = $Attach->{errstr};
-            }
-            else {
-              $attr->{uc($field_name)} = $Attach->{INSERT_ID};
-              $insert_id = $Attach->{INSERT_ID};
-            }
-          }
-          else {
-            delete $attr->{uc($field_name)};
-          }
+  
+  foreach my $line (@{$list}) {
+    next if $line->{param} !~ /$prefix(\S+)/;
+
+    my $field_name = $1;
+    my (undef, $type, undef) = split(/:/, $line->{value});
+    next if $type != 13;
+
+    if (ref $attr->{uc($field_name)} eq 'HASH' && $attr->{uc($field_name)}{filename}) {
+      if ($self->{conf}->{ATTACH2FILE}) {
+        if ($self->{USER_INFO} && $self->{USER_INFO}{uc($field_name)}) {
+          $Attach->attachment_del({
+            ID         => $self->{USER_INFO}{uc($field_name)},
+            TABLE      => $field_name . '_file',
+            DEL_BY_FILEPATH => 1,
+            UID        => $self->{USER_INFO}{UID},
+            SKIP_ERROR => 1
+          })
         }
       }
+
+      my $filename = $self->_get_field_filename({
+        %{$attr},
+        TYPE       => $type,
+        FILE_NAME  => $attr->{uc($field_name)}{filename},
+        FIELD_NAME => $field_name,
+        USER_INFO  => $self->{USER_INFO}
+      });
+
+      $Attach->attachment_add({
+        TABLE             => $field_name . '_file',
+        CONTENT           => $attr->{uc($field_name)}{Contents},
+        FILESIZE          => $attr->{uc($field_name)}{Size},
+        FILENAME          => $filename,
+        CONTENT_TYPE      => $attr->{uc($field_name)}{'Content-Type'},
+        UID               => $attr->{UID},
+        DIRECTORY_TO_SAVE => $attr->{UID} ? "/info_fields/$attr->{UID}/$field_name/" : "/info_fields/$field_name/",
+        FIELD_NAME        => $field_name
+      });
+
+      if ($Attach->{errno}) {
+        $self->{errno} = $Attach->{errno};
+        $self->{errstr} = $Attach->{errstr};
+      }
+      else {
+        $attr->{uc($field_name)} = $Attach->{INSERT_ID};
+        $insert_id = $Attach->{INSERT_ID};
+      }
+    }
+    else {
+      delete $attr->{uc($field_name)};
     }
   }
 
   return $attr;
 }
+
+#**********************************************************
+=head2 _get_field_filename($attr)
+
+=cut
+#**********************************************************
+sub _get_field_filename {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $fill_constants = [ 'UID', 'CONTRACT_ID', 'FIELD_NAME', 'LOGIN' ];
+
+  my $filename = $attr->{FILE_NAME};
+  my $field_info = $self->fields_list({
+    SQL_FIELD => $attr->{FIELD_NAME},
+    TYPE      => $attr->{TYPE},
+    COMPANY   => $attr->{COMPANY_PREFIX} ? 1 : 0,
+    COLS_NAME => 1
+  });
+  return $filename if !$self->{TOTAL} || $self->{TOTAL} < 1;
+
+  my $pattern = $field_info && $field_info->[0] ? $field_info->[0]{PATTERN} : '';
+  return $filename if !$pattern;
+
+  if ($attr->{USER_INFO}) {
+    for my $key (@$fill_constants) {
+      next if !defined($attr->{USER_INFO}{$key});
+      my $placeholder = '%' . $key . '%';
+      my $value = $attr->{USER_INFO}{$key};
+      $pattern =~ s/\Q$placeholder\E/$value/g;
+    }
+  }
+
+  $pattern =~ s/%([A-Z_]+)%/$1/g;
+
+  my ($extension) = $filename =~ /(\.[^\.]+)$/;
+  $extension = '' if !$extension;
+
+  return $pattern . $extension;
+}
+
 
 #**********************************************************
 =head2 info_field_add($attr) - Infofields add

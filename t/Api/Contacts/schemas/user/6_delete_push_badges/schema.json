@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "USER_DELETE_PUSH_BADGES",
+  "required": [
+    "result"
+  ],
+  "properties": {
+    "result": {
+      "type": "string"
+    }
+  }
+}

@@ -198,7 +198,7 @@ sub events_list {
   # DELETE ME IN 2019 (when all events will have aid)
   my @WHERE_RULES = ();
   if ($attr->{AID} && $attr->{AID} ne '_SHOW'){
-    push @WHERE_RULES, "e.aid=$attr->{AID} OR e.aid=0";
+    push @WHERE_RULES, "e.aid='$attr->{AID}' OR e.aid=0";
     delete $attr->{AID};
   }
   

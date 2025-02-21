@@ -1,3 +1,8 @@
-type: array
-items:
-  $ref: "../schemas/msgs.yaml"
+type: object
+properties:
+  list:
+    type: array
+    items:
+      $ref: "../schemas/msgs.yaml"
+  total:
+    type: integer

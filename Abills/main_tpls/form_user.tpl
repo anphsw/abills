@@ -60,16 +60,29 @@
     if (jQuery('#CUSTOM_DISABLE_FORM').length) {
       jQuery('#DISABLE_FORM').remove();
     }
+    // if (
+    //   document.user_form.DISABLE.checked ||
+    //   (document.user_form.DISABLE.checked === undefined &&
+    //     document.user_form.DISABLE.value != 0)
+    // ) {
+    //   document.user_form.ACTION_COMMENTS.style.display = 'block';
+    //   document.user_form.ACTION_COMMENTS.disabled = true;
+    // } else {
+    //   document.user_form.ACTION_COMMENTS.style.display = 'none';
+    // }
+    const userForm = document.forms.user_form;
+    if (userForm) {
+      const disableCheckbox = userForm.DISABLE;
+      const actionComments = userForm.ACTION_COMMENTS;
 
-    if (
-      document.user_form.DISABLE.checked ||
-      (document.user_form.DISABLE.checked === undefined &&
-        document.user_form.DISABLE.value != 0)
-    ) {
-      document.user_form.ACTION_COMMENTS.style.display = 'block';
-      document.user_form.ACTION_COMMENTS.disabled = true;
-    } else {
-      document.user_form.ACTION_COMMENTS.style.display = 'none';
+      if (disableCheckbox && actionComments) {
+        const isDisabled = disableCheckbox.checked || disableCheckbox.value != 0;
+
+        actionComments.style.display = isDisabled ? "block" : "none";
+        if (isDisabled) {
+          actionComments.disabled = true;
+        }
+      }
     }
 
     jQuery('input#DISABLE').on('click', add_comments);  //XXX fix input#DISABLE in form_user_lite, add h-0-18 to it.
@@ -101,6 +114,25 @@
       );
     }
 
+    /// TODO: delete it when will be deleted select of tooltip statuses
+    jQuery(document).ready(function() {
+      document.getElementById('user_form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+          if (checkbox.name === 'DISABLE' && !checkbox.checked) {
+            const hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = checkbox.name;
+            hiddenField.value = '0';
+            this.appendChild(hiddenField);
+          }
+        });
+
+        this.submit();
+      });
+    });
+
     jQuery('#LOGIN').on('input', function () {
       var value = jQuery('#LOGIN').val();
       doDelayedSearch(value)
@@ -124,7 +156,7 @@
       jQuery('#LOGIN').removeClass('is-valid').addClass('is-invalid');
       return 1;
     }
-    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
       if (data === 'success') {
         jQuery('#LOGIN').removeClass('is-invalid').addClass('is-valid');
         jQuery('input[name=next]').removeAttr('disabled', 'disabled');
@@ -140,21 +172,22 @@
 
 </script>
 
-<form action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
-  <input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' method='post' id='user_form' name='user_form' role='form'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='COMPANY_ID' value='%COMPANY_ID%'>
-  <input type=hidden name='step' value='$FORM{step}'>
+  <input type=hidden name='step' value='%step%'>
   <input type=hidden name='NOTIFY_FN' value='%NOTIFY_FN%'>
   <input type=hidden name='NOTIFY_ID' value='%NOTIFY_ID%'>
   <input type=hidden name='TP_ID' value='%TP_ID%'>
   <input type=hidden name='REFERRAL_REQUEST' value='%REFERRAL_REQUEST%'>
-  <input type=hidden name='create_company_id' id='create_company_id' value='$FORM{company}'>
-  <input type=hidden name='company_name' id='company_name' value='$FORM{company_name}'>
+  <input type=hidden name='create_company_id' id='create_company_id' value='%company%'>
+  <input type=hidden name='company_name' id='company_name' value='%company_name%'>
 
   <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
     <div class='card-header with-border'>
       <h4 class='card-title'>_{USER_ACCOUNT}_</h4>
       <div class='card-tools float-right'>
+        %BTN_COMPANY%
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
           <i class='fa fa-minus'></i>
         </button>
@@ -185,7 +218,7 @@
         <div class='col-8 col-md-4 mb-3 mb-md-0'>
           <input id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
                  class='form-control r-0-11'
-                 type='number ' min='0' max='100' step='0.01'>
+                 type='number' min='0' max='100' step='0.01'>
         </div>
 
         <label class='col-4 col-md-2 col-form-label text-right' for='REDUCTION_DATE'>_{TO}_:</label>
@@ -194,7 +227,7 @@
                  class='datepicker form-control d-0-11'>
         </div>
       </div>
-
+<!---
       <div id='DISABLE_FORM' class='form-group row h-0-18 %DISABLE_COLOR%' %HIDE_DISABLE_FORM%>
         <label class='col-form-label text-right col-4 col-md-2' for='DISABLE'>_{DISABLE}_:</label>
         <div class='col-1 col-md-1'>
@@ -213,7 +246,7 @@
                  style='display: none;'>
         </div>
       </div>
-
+-->
       <div %HIDE_PASSWORD% class='text-center'>%PASSWORD%</div>
     </div>
 
@@ -234,10 +267,10 @@
             <div class='input-group'>
               <input type='text' name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control' readonly>
               <div class='input-group-append'>
-                <a class='btn input-group-button' href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'>
+                <a class='btn input-group-button' href='%SELF_URL%?index=13&amp;COMPANY_ID=%COMPANY_ID%'>
                   <i class='fa fa-arrow-left'></i>
                 </a>
-                <a class='btn input-group-button' href='$SELF_URL?index=21&amp;UID=$FORM{UID}'>
+                <a class='btn input-group-button' href='%SELF_URL%?index=21&amp;UID=%UID%'>
                   <i class='fa fa-pencil-alt'></i>
                 </a>
               </div>

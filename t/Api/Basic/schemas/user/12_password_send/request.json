@@ -1,0 +1,6 @@
+{
+  "name": "USER_PASSWORD_SEND",
+  "method": "POST",
+  "path": "user/password/send/",
+  "params": {}
+}

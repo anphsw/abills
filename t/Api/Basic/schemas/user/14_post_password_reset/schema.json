@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "After password reset",
+  "properties": {
+    "result": {
+      "type": "string"
+    }
+  },
+  "required": ["result"]
+}

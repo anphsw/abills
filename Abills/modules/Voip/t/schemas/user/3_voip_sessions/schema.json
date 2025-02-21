@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_VOIP_SESSIONS",
+  "type": "object",
+  "properties": {
+    "periods": {
+      "type": "object",
+      "properties": {
+        "allSessions": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        },
+        "month": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        },
+        "today": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        },
+        "week": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        },
+        "yesterday": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "avg": {
+              "type": "object",
+              "properties": {
+                "duration": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+                },
+                "sum": {
+                  "type": "number"
+                }
+              },
+              "required": ["duration", "sum"]
+            },
+            "max": {
+              "type": "object",
+              "properties": {
+                "duration": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+                },
+                "sum": {
+                  "type": "integer"
+                }
+              },
+              "required": ["duration", "sum"]
+            },
+            "min": {
+              "type": "object",
+              "properties": {
+                "duration": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+                },
+                "sum": {
+                  "type": "integer"
+                }
+              },
+              "required": ["duration", "sum"]
+            }
+          },
+          "required": ["avg", "max", "min"]
+        }
+      },
+      "required": ["allSessions", "month", "today", "week", "yesterday", "stats"]
+    },
+    "sessions": {
+      "type": "object",
+      "properties": {
+        "list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calledStationId": {
+                "type": "integer"
+              },
+              "callingStationId": {
+                "type": "integer"
+              },
+              "dayBegin": {
+                "type": "integer"
+              },
+              "dayOfWeek": {
+                "type": "integer"
+              },
+              "dayOfYear": {
+                "type": "integer"
+              },
+              "duration": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              },
+              "routeId": {
+                "type": "integer"
+              },
+              "sum": {
+                "type": "integer"
+              },
+              "tpId": {
+                "type": "integer"
+              },
+              "uid": {
+                "type": "integer"
+              }
+            },
+            "required": ["calledStationId", "callingStationId", "dayBegin", "dayOfWeek", "dayOfYear", "duration", "routeId", "sum", "tpId", "uid"]
+          }
+        },
+        "total": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+            },
+            "sum": {
+              "type": "integer"
+            }
+          },
+          "required": ["duration", "sum"]
+        }
+      },
+      "required": ["list", "total"]
+    }
+  },
+  "required": ["periods", "sessions"]
+}

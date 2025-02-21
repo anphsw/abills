@@ -473,6 +473,11 @@ sub suppliers_main {
 #**********************************************************
 sub storage_storages {
 
+  if ($FORM{access}) {
+    storage_admin_access();
+    return;
+  }
+
   $html->message('info', $lang{INFO}, $FORM{message}) if $FORM{message};
 
   $Storage->{ACTION} = 'add';
@@ -516,17 +521,19 @@ sub storage_storages {
     $html->message('info', $lang{INFO}, $lang{CHANGING}) if !$Storage->{errno};
   }
 
-  if (!$FORM{add} and !$FORM{change}) {
+  if (!$FORM{add} && !$FORM{change}) {
     $html->tpl_show(_include('storage_storages', 'Storage'), $Storage);
   }
 
   $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
+  $LIST_PARAMS{ALL_STORAGES} = 1;
   result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storages_list',
     BASE_FIELDS     => 3,
-    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_FIELDS => 'storage_storages:$lang{ADMINS}:id:&access=1,change,del',
     SKIP_USER_TITLE => 1,
+    FILTER_COLS     => { name => '_translate' },
     EXT_TITLES      => {
       id       => '#',
       name     => $lang{NAME},
@@ -545,6 +552,83 @@ sub storage_storages {
   });
 
   return 1;
+}
+
+#***********************************************************
+=head2 storage_admin_access()
+
+=cut
+#***********************************************************
+sub storage_admin_access {
+
+  my $admins = $admin->list({
+    GID           => $admin->{GID},
+    DOMAIN_ID     => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    DISABLE       => 0,
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 10000
+  });
+
+  if ($FORM{change} && $FORM{access}) {
+    my %admins_access_hash = ();
+    foreach my $admin_info (@{$admins}) {
+      my $access_full = $FORM{'ACCESS_FULL_' . $admin_info->{aid}};
+      my $access_view = $FORM{'ACCESS_VIEW_' . $admin_info->{aid}};
+      next if !$access_full && !$access_view;
+
+      $admins_access_hash{$admin_info->{aid}} = $access_full ? 1 : 0;
+    }
+    $Storage->storage_admin_access_change({
+      STORAGE_ID         => $FORM{ID},
+      ADMINS_ACCESS_HASH => \%admins_access_hash
+    });
+    $html->message('info', $lang{CHANGED}) if !_error_show($Storage);
+  }
+
+  my %storage_admin_access_hash = ();
+  my $storage_admin_access = $Storage->storage_admin_access_list({
+    STORAGE_ID => $FORM{ID},
+    AID        => '_SHOW',
+    ACCESS     => '_SHOW',
+    COLS_NAME  => 1
+  });
+  map $storage_admin_access_hash{$_->{aid}} = $_->{access}, @{$storage_admin_access};
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{STORAGE_ACCESS_LEVEL}. $lang{STORAGE}: $FORM{ID}",
+    title_plain => [ $lang{ADMIN}, $lang{STORAGE_VIEW_ONLY}, $lang{STORAGE_MANAGEMENT} ],
+    ID          => 'STORAGE_ADMINS_ACCESS',
+    DATA_TABLE  => 1
+  });
+
+  foreach my $admin_info (@{$admins}) {
+    my $admin_access = $storage_admin_access_hash{$admin_info->{aid}};
+    my $view_access_checkbox = $html->form_input("ACCESS_VIEW_$admin_info->{aid}", '1', {
+      TYPE => 'checkbox',
+      STATE => (defined($admin_access) && !$admin_access ? 'checked' : ''),
+    });
+
+    my $full_access_checkbox = $html->form_input("ACCESS_FULL_$admin_info->{aid}", '1', {
+      TYPE => 'checkbox',
+      STATE => ($admin_access ? 'checked' : ''),
+    });
+    $table->addrow(join(' : ', ($admin_info->{login} || '', $admin_info->{name} || '')), $view_access_checkbox, $full_access_checkbox);
+  }
+
+  print $html->form_main({
+    CONTENT => $table->show(),
+    HIDDEN  => {
+      index  => $index,
+      ID     => $FORM{ID},
+      access => 1
+    },
+    SUBMIT  => {
+      change => $lang{SAVE}
+    },
+    METHOD  => 'POST',
+    NAME    => 'storage_access_admin_form'
+  });
 }
 
 #**********************************************************

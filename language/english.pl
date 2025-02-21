@@ -30,7 +30,7 @@ $lang{MESSAGE} = 'Message';
 $lang{MESSAGES} = 'Help Desk';
 $lang{SUBJECT} = 'Subject';
 $lang{DEPOSIT} = 'Deposit';
-$lang{OPERATION_DEPOSIT} = 'Operation Deposit';
+$lang{OPERATION_DEPOSIT} = 'Deposit before operation';
 $lang{AFTER_OPERATION_DEPOSIT} = 'Deposit after operation';
 $lang{CURRENT_DEPOSIT} = 'Current Deposit';
 $lang{ACTIVATE} = 'Activation';
@@ -388,6 +388,7 @@ $lang{MULTIUSER_OP} = 'Multiuser operation';
 $lang{RETURNED} = 'Returned';
 $lang{SOLD} = 'Sold';
 $lang{CASH} = 'Cash';
+$lang{MOVING_BETWEEN_CASHBOXES} = 'Moving between cashboxes';
 $lang{RECALCULATE} = 'Recalculate';
 $lang{CONFIG} = 'Configuration';
 $lang{PROCESSES} = 'Processes';
@@ -966,6 +967,7 @@ $lang{G2FA_WRONG_CODE} = 'Wrong code!';
 
 $lang{NOT_ALLOWED_TO_CHANGE_TP} = 'Not allowed to change the tariff plan';
 $lang{CHANGE_TP} = 'Change of tariff plan';
+$lang{NEXT_TP}='Next TP';
 
 $lang{ADDITIONAL_INFORMATION} = 'Extended info';
 $lang{PORT_CONTROL} = 'Port control';
@@ -1140,15 +1142,42 @@ $lang{ANY_NUMBER} = 'Number';
 $lang{ANY} = 'Any';
 $lang{ERR_REQUIRED_PARAMETER} = 'Required parameter to be filled %PARAMETER%';
 $lang{ERR_PARAMETER_NOT_VALID} = 'Parameter %PARAMETER% is not valid. %MESSAGE%';
+$lang{ERR_NO_FIELD} = 'No field %FIELD%';
 
 $lang{MASS_DELETION_PAYMENT} = 'Mass deletion of payments';
 $lang{MASS_DELETION_FEES} = 'Mass deletion of fees';
+
+$lang{UNKNOWN_ERROR} = 'Unknown error';
 $lang{ERR_NOT_SELECTED} = 'Not selected';
+$lang{ERR_CANNOT_LOAD_PLUGIN} = 'Failed to load a required plugin';
+$lang{ERR_NO_CONTACT} = 'The contact was not found';
+$lang{ERR_INVALID_DATA_IN_THE_REQUEST} = 'Invalid data in the request';
+$lang{ERR_PROVIDED_URL_IS_NOT_VALID} = 'The provided URL is not valid';
+$lang{ERR_TOKEN_EXPIRED_OR_INVALID} = 'Token expired or invalid';
+$lang{ERR_THE_RECIPIENT_IS_NOT_REGISTERED} = 'The recipient is not registered';
+$lang{ERR_THE_USER_HAS_BLOCKED_THE_SENDER} = 'The user has blocked the sender';
+$lang{ERR_THE_USER_IS_NOT_SUBSCRIBED_TO_THE_SERVICE} = 'The user is not subscribed to the service';
+$lang{ERR_THE_USER_ACCOUNT_WAS_NOT_FOUND} = 'The user account was not found';
+$lang{ERR_UNAUTHENTICATED} = 'Incorrect authentication credentials';
 
 $lang{FIXED_FEES_FREE_PERIOD} = 'Free period to next month';
 
 $lang{MONITORING_ALL_SESSIONS} = 'Monitoring all sessions';
 $lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Take over the dialog from the administrator to yourself';
 $lang{NOT_CHANGED} = 'Not changed';
+$lang{WITHOUT} = 'Without';
+
+$lang{PAYMENT} = 'Payment';
+$lang{AVAILABILITY_PERIOD} = 'Availability period';
+
+$lang{PENETRATION_RATE} = 'Penetration rate';
+$lang{POPULATION} = 'Population';
+$lang{HOUSEHOLDS} = 'Households';
+$lang{ARCHIVAL} = 'Archival';
+$lang{FINANCE} = 'Finance';
+
+$lang{PASSWORD_CHANGE_MANDATORY} = 'Password change is mandatory';
+$lang{PASSWORD_EXPIRY_NOTICE} = 'For security reasons, passwords must be changed every %DAYS% days. Your password has expired, please change it to continue using the system.';
+$lang{DAYS_LEFT_FOR_PASSWORD_CHANGE} = '%DAYS% days left for mandatory password change.';
 
 1;

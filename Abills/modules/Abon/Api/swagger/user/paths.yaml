@@ -1,2 +1,4 @@
 /user/abon:
   $ref: "./paths/abon.yaml"
+/user/abon/{id}:
+  $ref: "./paths/abon_id.yaml"

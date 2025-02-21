@@ -1,0 +1,13 @@
+{
+  "name": "USER_PASSWORD_RECOVERY",
+  "method": "POST",
+  "path": "user/password/recovery/",
+  "body": {
+    "uid": 49,
+    "login": "testuser",
+    "contractId": "11112345",
+    "phone": "380959212921",
+    "email": "test@gmail.com",
+    "sendSms": 1
+  }
+}

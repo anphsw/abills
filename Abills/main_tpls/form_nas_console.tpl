@@ -1,10 +1,10 @@
-<div class="btn-group">
+<div class='btn-group'>
     %QUICK_CMD%
 </div>
 
 
-<form action=$SELF_URL METHOD=post name=FORM_NAS class='form-horizontal'>
-    <input type=hidden name='index' value='$index'>
+<form action=%SELF_URL% METHOD=post name=FORM_NAS>
+    <input type=hidden name='index' value='%index%'>
     <input type=hidden name='NAS_ID' value='%NAS_ID%'>
     <input type=hidden name='console' value='1'>
     <input type=hidden name='change'  value='%change%'>
@@ -46,14 +46,14 @@
         </div>
 
         <div class='form-group row'>
-          <label  class='col-sm-2 col-form-label'>_{COMMENTS}_</label>
+          <label  class='col-sm-2 col-form-label' for='COMMENTS'>_{COMMENTS}_</label>
           <div class='col-sm-10'>
             <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
           </div>
         </div>
 
         <div class='form-group row'>
-          <label  class='col-sm-2 col-form-label'>CMD</label>
+          <label  class='col-sm-2 col-form-label' for='CMD'>CMD</label>
           <div class='col-sm-10'>
             <textarea class='form-control' id='CMD' name='CMD' rows='3' placeholder='CMD'>%CMD%</textarea>
           </div>

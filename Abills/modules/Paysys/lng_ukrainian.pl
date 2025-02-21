@@ -154,6 +154,11 @@ $lang{PAYMENTS_DISABLED} = 'Платежі вимкнено';
 $lang{ERR_PAYSYS_DOMAIN} = 'Будь ласка, зайдіть через доменний URL або встановіть опцію %OPTION%';
 $lang{ERR_NO_FAST_PAY_LINK} = 'Немає посилання на швидку оплату';
 $lang{ERR_WRONG_CONFIGURATIONS} = 'Неправильна конфігурація';
+$lang{ERR_IMPORT_REGULAR_EXPRESSION} = 'Регулярний вираз не знайшов збігів. Перевірте правильність файлу або регулярного виразу в опції PAYSYS_IMPORT_EXPRATION';
+$lang{ERR_PAYMENT_OR_FEE_NOT_SELECTED} = 'Не вибраного жодної оплати чи списання, повторіть ще раз вибравши оплату/списання';
+$lang{ERR_TRANSACTION_NOT_EXISTS} = 'Транзакція не існує';
+$lang{ERR_PAYMENT_SYSTEM_NOT_EXISTS} = 'Платіжна система не існує';
+$lang{ERR_PERCENT_VALUE} = 'Недопустиме значення Відсоток. Сума значень повинна дорівнювати 100.';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys контрагента змінено';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Налаштування контрагента змінено id - %MERCHANT_ID% з назвою - %MERCHANT_NAME%';

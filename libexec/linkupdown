@@ -850,7 +850,7 @@ sub user_info {
 
   if ($Internet->{errno}) {
     print "Error: User not exist '$USER' IP: $CLIENT_IP ([$Internet->{errno}] $Internet->{errstr})\n";
-    undef = `echo "$DATE $TIME / $USER - $Internet->{errno}" >> /tmp/linkupdown`;
+    `echo "$DATE $TIME / $USER ERROR: $Internet->{errno} $Internet->{errno}" >> /tmp/linkupdown`;
     exit 1;
   }
   elsif ($Internet->{TOTAL} < 1) {

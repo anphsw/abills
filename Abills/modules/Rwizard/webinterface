@@ -95,7 +95,13 @@ sub rwizard_config {
   elsif ($FORM{export}) {
     $Reports->info({ ID => $FORM{export} });
     # Second '\n' is in $export_date
-    print "Content-Type: text/plain; charset=utf8\n";
+    my $filename = 'Rwizard_'.$FORM{export};
+    print "Content-Type: text/plain; charset=utf8\n"
+      ."Content-Disposition: attachment; filename=\"$filename.txt\""
+      ."\n\n";
+    $Reports->{QUERY_TOTAL} //= q{};
+    $Reports->{FIELDS} //= q{};
+
     my $export_date = qq{
 $Reports->{NAME}
 =============================
@@ -881,6 +887,9 @@ sub quick_report {
   foreach my $line (@$list) {
     my @tr_arr = ();
     foreach (@col_names) {
+      if ($_ eq 'login' && $line->{uid}) {
+        $line->{$_} = $html->button($line->{$_}, "index=15&UID=" . $line->{uid});
+      }
       $line->{$_} = _translate($line->{$_}) if ($line->{$_} =~ /^\$/);
       push @tr_arr, $line->{$_};
     }
@@ -1323,7 +1332,7 @@ sub _make_report_menu {
 
   my $ext_fields = '';
   if ($Reports->{QUERY} =~ /%ADDRESS%/) {
-    $ext_fields .= form_address({ SHOW => 1, EXT_SEL_STYLE => 'min-width: 65%' });
+    $ext_fields .= form_address({ %FORM, SHOW => 1, EXT_SEL_STYLE => 'min-width: 65%' });
   }
 
   if ($Reports->{QUERY} =~ /%BUILDS_LIST%/g) {

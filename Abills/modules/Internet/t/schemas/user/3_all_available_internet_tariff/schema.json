@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "outSpeed": {
+        "type": "number"
+      },
+      "inSpeed": {
+        "type": "number"
+      },
+      "tpId": {
+        "type": "number"
+      },
+      "tpComments": {
+        "type": "string"
+      },
+      "monthFee": {
+        "type": "number"
+      },
+      "serviceId": {
+        "type": "number"
+      },
+      "id": {
+        "type": "number"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "dayFee": {
+        "type": "number"
+      }
+    },
+    "required": ["id", "inSpeed", "outSpeed", "tpId", "dayFee", "monthFee", "tpComments", "serviceId", "tpName"]
+  }
+}

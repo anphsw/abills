@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_PROMO_TARIFFS",
+  "method": "GET",
+  "path": "user/iptv/promotion/tariffs/"
+}

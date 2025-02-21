@@ -1,4 +1,5 @@
 <script src='/styles/default/js/modules/crm/crm.fileUploader.js'></script>
+<script src='/styles/default/js/modules/crm/crm.quickReplies.js'></script>
 <link rel='stylesheet' href='/styles/default/css/modules/crm/crm.dialogue.css'>
 
 <input type='hidden' id='ADMIN_AVATAR_LINK' name='ADMIN_AVATAR_LINK' value='%ADMIN_AVATAR_LINK%'>
@@ -27,9 +28,13 @@
               <div class='row'>
                 <div class='col-md-9'>
                   <div class='dialogue-files-container'>
+                    <div id='quickReplyContainer'></div>
                     <textarea class='form-control type_msg' placeholder='_{CRM_ENTER_YOUR_MESSAGE}_'
                               id='message-textarea' %DISABLE_TEXTAREA%></textarea>
-                    <span class='icon' id='fileInput'><i class='cursor-pointer fas fa-paperclip'></i></span>
+                    <div class='button-tolls'>
+                      <span id='fileInput'><i class='cursor-pointer fas fa-paperclip'></i></span>
+                      <span id='quickReplyBtn'><i class='cursor-pointer fas fa-comment-dots'></i></span>
+                    </div>
                   </div>
                 </div>
                 <div class='col-md-3'>

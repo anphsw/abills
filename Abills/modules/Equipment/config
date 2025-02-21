@@ -22,6 +22,7 @@
   "17:0:$lang{USER_ROUTE}:user_route:UID"                                         => 15,
   "12:1:$lang{EQUIPMENT}:equipment_graph_info:AJAX"                               => 5,
   "20:1:$lang{JSON_CONF}:json_conf_main"                                          => 5,
+  "22:1:$lang{LOG_ONU}:equipment_onu_models"                                      => 5,
   "21:0:$lang{EQUIPMENT}:null"                                                    => 4,
   "22:21:PON:equipment_onu_report"                                                => 4,
   "23:21:$lang{PORT_ERRORS}:equipment_errors_report"                              => 4,

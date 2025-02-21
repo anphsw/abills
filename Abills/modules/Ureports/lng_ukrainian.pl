@@ -41,5 +41,7 @@ $lang{ERR_REPORTS_NOT_ARRAY} = 'Поле reports не є масивом';
 $lang{ERR_NO_REPORTS_ADDED} = 'Звіти не додані';
 $lang{ERR_NO_REPORTS_FOR_USER} = 'Користувач з UID %UID% не має звітів';
 $lang{ERR_NO_REPORT_WITH_ID} = 'Користувач з UID %UID% не має звіту з ID %ID%';
+$lang{ERR_QUOTA_EXCEEDED} = 'Ця помилка може бути спричинена перевищенням квоти на кількість повідомлень';
+$lang{ERR_SERVICE_ERROR} = 'Сервер зіткнувся з помилкою при спробі обробити запит';
 
 1;

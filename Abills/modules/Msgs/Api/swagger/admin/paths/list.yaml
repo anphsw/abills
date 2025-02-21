@@ -2,7 +2,7 @@ post:
   tags:
     - msgs
   summary: Получить список сообщений
-  operationId: msgsList
+  deprecated: true
   requestBody:
     description: Параметры, по которым можно фильтровать сообщения
     content:
@@ -17,5 +17,365 @@ post:
         application/json:
           schema:
             $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []
+get:
+  tags:
+    - msgs
+  summary: Получить список сообщений
+  operationId: msgsList
+  parameters:
+    - name: msgId
+      in: query
+      schema:
+        type: integer
+      description: ID сообщения.
+    - name: clientId
+      in: query
+      schema:
+        type: string
+      description: ID клиента или имя группы.
+    - name: subject
+      in: query
+      schema:
+        type: string
+      description: Тема сообщения.
+    - name: chapterName
+      in: query
+      schema:
+        type: string
+      description: Название главы сообщения.
+    - name: chapterColor
+      in: query
+      schema:
+        type: string
+      description: Цвет главы сообщения.
+    - name: chapter
+      in: query
+      schema:
+        type: integer
+      description: ID главы.
+    - name: datetime
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Дата и время сообщения.
+    - name: date
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Дата сообщения.
+    - name: state
+      in: query
+      schema:
+        type: integer
+      description: Статус сообщения.
+    - name: replyStatus
+      in: query
+      schema:
+        type: integer
+      description: Статус ответа.
+    - name: responsibleAdminLogin
+      in: query
+      schema:
+        type: string
+      description: Логин ответственного администратора.
+    - name: lastReplyDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Дата последнего ответа.
+    - name: planDateTime
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Планируемая дата и время.
+    - name: disable
+      in: query
+      schema:
+        type: integer
+      description: Флаг отключения.
+    - name: innerMsg
+      in: query
+      schema:
+        type: integer
+      description: Флаг внутреннего сообщения.
+    - name: message
+      in: query
+      schema:
+        type: string
+      description: Содержимое сообщения.
+    - name: reply
+      in: query
+      schema:
+        type: string
+      description: Содержимое ответа.
+    - name: msgPhone
+      in: query
+      schema:
+        type: string
+      description: Номер телефона, связанный с сообщением.
+    - name: userRead
+      in: query
+      schema:
+        type: integer
+      description: Флаг прочтения пользователем.
+    - name: closedDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Дата закрытия сообщения.
+    - name: monthClosed
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Месяц закрытия сообщения.
+    - name: runTime
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Общее время выполнения.
+    - name: doneDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Дата завершения задачи.
+    - name: uid
+      in: query
+      schema:
+        type: integer
+      description: ID пользователя.
+    - name: delegation
+      in: query
+      schema:
+        type: integer
+      description: Флаг делегирования.
+    - name: responsible
+      in: query
+      schema:
+        type: integer
+      description: ID ответственного администратора.
+    - name: planDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Планируемая дата.
+    - name: softDeadline
+      in: query
+      schema:
+        type: integer
+      description: Мягкий дедлайн (в днях).
+    - name: hardDeadline
+      in: query
+      schema:
+        type: integer
+      description: Жёсткий дедлайн (в днях).
+    - name: adminRead
+      in: query
+      schema:
+        type: integer
+      description: Флаг прочтения администратором.
+    - name: planTime
+      in: query
+      schema:
+        type: string
+        format: time
+      description: Планируемое время.
+    - name: dispatchId
+      in: query
+      schema:
+        type: integer
+      description: ID рассылки.
+    - name: ip
+      in: query
+      schema:
+        type: string
+        format: ipv4
+      description: IP-адрес.
+    - name: fromDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Начальная дата диапазона.
+    - name: toDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Конечная дата диапазона.
+    - name: closedFromDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Начальная дата закрытия.
+    - name: closedToDate
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Конечная дата закрытия.
+    - name: adminLogin
+      in: query
+      schema:
+        type: integer
+      description: Логин администратора.
+    - name: msgsAid
+      in: query
+      schema:
+        type: integer
+      description: AID сообщений.
+    - name: adminName
+      in: query
+      schema:
+        type: integer
+      description: Имя администратора.
+    - name: repliesCounts
+      in: query
+      schema:
+        type: integer
+      description: Количество ответов.
+    - name: rating
+      in: query
+      schema:
+        type: integer
+      description: Рейтинг сообщения.
+    - name: locationId
+      in: query
+      schema:
+        type: integer
+      description: ID местоположения.
+    - name: locationIdMsg
+      in: query
+      schema:
+        type: integer
+      description: ID местоположения для сообщения.
+    - name: ratingComment
+      in: query
+      schema:
+        type: string
+      description: Комментарий к рейтингу.
+    - name: stateId
+      in: query
+      schema:
+        type: integer
+      description: ID статуса.
+    - name: priorityId
+      in: query
+      schema:
+        type: integer
+      description: ID приоритета.
+    - name: chgMsgs
+      in: query
+      schema:
+        type: integer
+      description: Флаг изменения сообщений.
+    - name: delMsgs
+      in: query
+      schema:
+        type: integer
+      description: Флаг удаления сообщений.
+    - name: par
+      in: query
+      schema:
+        type: integer
+      description: Значение параметра.
+    - name: msgsTags
+      in: query
+      schema:
+        type: integer
+      description: ID тегов сообщения.
+    - name: downtime
+      in: query
+      schema:
+        type: string
+      description: Продолжительность простоя.
+    - name: replyText
+      in: query
+      schema:
+        type: string
+      description: Текст ответов.
+    - name: month
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Месяц сообщения.
+    - name: userName
+      in: query
+      schema:
+        type: string
+      description: Имя пользователя.
+    - name: adminDisable
+      in: query
+      schema:
+        type: integer
+      description: Флаг отключения администратора.
+    - name: doneSum
+      in: query
+      schema:
+        type: integer
+      description: Сумма завершённых задач.
+    - name: planInterval
+      in: query
+      schema:
+        type: integer
+      description: Интервал планирования.
+    - name: planPosition
+      in: query
+      schema:
+        type: integer
+      description: Позиция в плане.
+    - name: addressFull
+      in: query
+      schema:
+        type: string
+      description: Полный адрес.
+    - name: sendType
+      in: query
+      schema:
+        type: integer
+      description: Тип метода отправки.
+    - name: msgsTagsIds
+      in: query
+      schema:
+        type: string
+      description: ID тегов сообщения.
+    - name: closedAdmin
+      in: query
+      schema:
+        type: string
+      description: Имя администратора, который закрыл сообщение.
+    - name: watchers
+      in: query
+      schema:
+        type: string
+      description: Список имён наблюдателей.
+    - name: performers
+      in: query
+      schema:
+        type: integer
+      description: ID исполнителей (если модуль Employees активен).
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/msgsList.yaml"
   security:
     - KEY: []

@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "body": {
+        "type": "string"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "title": {
+        "type": "string"
+      },
+      "type": {
+        "type": "integer",
+        "enum": [1, 2]
+      }
+    }
+  }
+}

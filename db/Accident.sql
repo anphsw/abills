@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS `accident_log` (
     COMMENT = 'Accident log';
 
 CREATE TABLE IF NOT EXISTS `accident_address` (
-  `id`         SMALLINT(3) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `id`         INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `ac_id`      INT(11) UNSIGNED NOT NULL DEFAULT 0,
-  `type_id`    INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type_id`    TINYINT(3) UNSIGNED NOT NULL DEFAULT 0,
   `address_id` VARCHAR (255)    NOT NULL DEFAULT 0,
   KEY `address_id` (`address_id`),
   KEY `type_id` (`type_id`),
@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS `accident_address` (
   COMMENT = 'Accident address';
 
 CREATE TABLE IF NOT EXISTS `accident_equipments` (
-  `id`           SMALLINT(3) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `id_equipment` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+  `id`           SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `id_equipment` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `date`         DATE                 NOT NULL DEFAULT '0000-00-00',
   `end_date`     DATE                 NOT NULL DEFAULT '0000-00-00',
   `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
@@ -41,7 +41,9 @@ CREATE TABLE IF NOT EXISTS `accident_equipments` (
   `sent_open`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `sent_close`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `port_id`      VARCHAR(32)          NOT NULL DEFAULT '',
-  `type`         TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0
+  `type`         TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+  KEY `status` (`status`),
+  KEY `aid` (`aid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Accident equipments';
@@ -62,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `accident_types` (
   `name`         VARCHAR(50)          NOT NULL DEFAULT '',
   `priority`     TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
   `color`        VARCHAR(7)           NOT NULL DEFAULT '',
-  `comments`     VARCHAR(120)         NOT NULL DEFAULT '',
+  `comments`     TEXT,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
@@ -72,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `accident_types` (
 CREATE TABLE IF NOT EXISTS `accident_admins` (
   `accident_type`  TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0,
   `aid`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  KEY `aid` (`aid`),
   UNIQUE KEY `accident_type` (accident_type,aid)
 )
   DEFAULT CHARSET = utf8

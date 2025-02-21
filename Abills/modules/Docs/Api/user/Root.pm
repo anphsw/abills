@@ -42,6 +42,13 @@ sub new {
   return $self;
 }
 
+#**********************************************************
+=head2 get_user_docs($path_params, $query_params)
+
+  Endpoint GET /user/docs
+
+=cut
+#**********************************************************
 sub get_user_docs {
   my $self = shift;
   my ($path_params, $query_params) = @_;

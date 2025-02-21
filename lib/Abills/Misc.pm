@@ -610,9 +610,6 @@ sub cross_modules {
   my $debug = $attr->{DEBUG} || 0;
 
   $html = $attr->{HTML} if $attr->{HTML};
-  # if ($function_index && $function_index eq 'payments_maked') {
-  #   require Control::Services;
-  # }
 
   if ($attr->{SUM} && ! $attr->{USER_INFO}{PAYMENTS_ADDED}) {
     $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
@@ -622,9 +619,27 @@ sub cross_modules {
   my @users_uids = ();
   if ($attr->{USER_INFO}{COMPANY_ID} && !$attr->{SKIP_COMPANY_USERS} && $users) {
     if ($users->can('list')) {
+
+      # make first executable user as company admin
+      require Companies;
+      Companies->import();
+      my $Companies = Companies->new($db, $admin, \%conf);
+
+      my $company = $Companies->admins_list({
+        COMPANY_ID => $attr->{USER_INFO}{COMPANY_ID},
+        GET_ADMINS => 1,
+        COLS_NAME  => 1,
+      });
+
       my $users_list = $users->list({ COMPANY_ID => $attr->{USER_INFO}{COMPANY_ID}, COLS_NAME => 1 });
       foreach my $user_info (@{$users_list}) {
-        push @users_uids, $user_info->{uid};
+        if (!$Companies->{errno} && scalar @{$company} && $company->[0]->{uid} == $user_info->{uid}) {
+          unshift @users_uids, $user_info->{uid};
+          $attr->{USER_INFO}{_COMPANY_ADMIN} = $user_info->{uid};
+        }
+        else {
+          push @users_uids, $user_info->{uid};
+        }
       }
     }
   }
@@ -644,7 +659,7 @@ sub cross_modules {
     @skip_modules = split(/,/, $attr->{SKIP_MODULES});
   }
 
-  my $user_count = 0;               #FIXME: Problem 1 Part 1
+  my $user_count = 0;
   foreach my $uid (@users_uids) {
     $user_count++;
     $attr->{USER_INFO}{UID} = $uid;
@@ -668,8 +683,9 @@ sub cross_modules {
         open STDERR, '>>', $output_redirect;
       }
 
-      if ($user_count > 1) {              # problem: multiple sending checks to server
-        push @skip_modules, 'Extreceipt'; #FIXME: Problem 1 Part 3
+      # problem: multiple sending checks to server and adding multiple times bonuses
+      if ($user_count > 1) {
+        $attr->{_EXECUTION_COUNT} = $user_count;
       }
 
       if ($silent) {
@@ -942,7 +958,7 @@ sub service_recalculate {
       SUM      => sprintf("%.2f", abs($return_sum)),
       METHOD   => 8,
       DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} (".
-        ($Service->{TP_INFO_OLD}->{TP_ID} || $Service->{TP_INFO_OLD}->{ID} || q{-}) .") ($lang{DAYS}: $rest_days)",
+        ($Service->{TP_INFO_OLD}->{TP_ID} || q{-}) .") ($lang{DAYS}: $rest_days)",
     });
 
     if ($Payments->{errno}) {
@@ -1040,8 +1056,9 @@ sub service_get_month_fee {
         $Users,
         $tp->{ACTIV_PRICE},
         {
-          DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}',
-          DATE     => "$date $time"
+          DESCRIBE => $service_name .': $lang{ACTIVATE_TARIF_PLAN}',
+          DATE     => "$date $time",
+          METHOD   => $tp->{FEES_METHOD} #TP fees method
         }
       );
       $total_sum{ACTIVATE} = $tp->{ACTIV_PRICE};
@@ -2612,6 +2629,11 @@ sub recomended_pay {
   #   require Control::Services;
   # }
 
+  if ($conf{PAYSYS_RECOMMENDED_SUM_AS_DEPOSIT}) {
+    return 0 if (!defined($user_->{DEPOSIT}));
+    return ($user_->{DEPOSIT} < 0) ? $user_->{DEPOSIT} : 0;
+  }
+
   do 'Control/Services.pm';
   my $service_info = get_services($user_, { SKIP_MODULES => 'Sqlcmd' });
 
@@ -2626,7 +2648,8 @@ sub recomended_pay {
   }
 
   if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
-    $user_->{TOTAL_DEBET} = sprintf('%.2f', int($user_->{TOTAL_DEBET}) + 1);
+    $user_->{TOTAL_DEBET} = sprintf('%.2f', int($user_->{TOTAL_DEBET}));
+    $user_->{TOTAL_DEBET} += (($conf{PAYSYS_DEBET_RECOMMENDED_SUM} || $attr->{SKIP_ADD_SUM}) && !$user_->{TOTAL_DEBET}) ? 0 : 1;
   }
 
   $user_->{TOTAL_DEBET} += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);

@@ -1,5 +1,5 @@
-<form action='$SELF_URL' name='company_profile' METHOD='POST' ENCTYPE='multipart/form-data'>
-  <input type='hidden' name='ID' value='$FORM{COMPANY_ID}'/>
+<form action='%SELF_URL%' name='company_profile' METHOD='POST' ENCTYPE='multipart/form-data'>
+ <!-- <input type='hidden' name='ID' value='%COMPANY_ID%'/> -->
 
   %DASHBOARD%
   <div class='row'>

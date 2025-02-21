@@ -489,7 +489,8 @@ sub crm_leads {
     holdup_date       => $lang{HOLDUP_TO},
     floor             => $lang{FLOOR},
     entrance          => $lang{ENTRANCE},
-    source            => $lang{SOURCE}
+    source            => $lang{SOURCE},
+    comments          => $lang{COMMENTS}
   );
 
   my $fields = $Crm->fields_list({ TP_INFO_FIELDS => 1 });
@@ -515,7 +516,7 @@ sub crm_leads {
     FUNCTION        => 'crm_lead_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => "LEAD_ID,FIO,PHONE,EMAIL,COMPANY,ADMIN_NAME,DATE,CURRENT_STEP_NAME,LAST_ACTION,PRIORITY,UID,USER_LOGIN,TAG_IDS,",
-    HIDDEN_FIELDS   => 'FLOOR,ENTRANCE,STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE,HOLDUP_DATE,WATCHER',
+    HIDDEN_FIELDS   => 'FLOOR,ENTRANCE,STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE,HOLDUP_DATE,WATCHER,COMMENTS',
     MULTISELECT     => 'ID:lead_id:' . ($FORM{delivery} ? 'CRM_LEADS' : 'crm_lead_multiselect'),
     FUNCTION_FIELDS => ':del:id:&del=1',
     FUNCTION_INDEX  => $index,
@@ -560,11 +561,11 @@ sub crm_leads {
       MENU        => "$lang{ADD}:index=$index&add_form=1:add;$lang{DELIVERY}:delivery=1&index=$index:",
       # TODO: remove data_table
       DATA_TABLE  => { "order" => [ [ 1, "desc" ] ] },
-      title_plain => 1,
       header      => $header,
       SELECT_ALL  => "CRM_LEADS:ID:$lang{SELECT_ALL}",
       ID          => 'CRM_LEAD_LIST',
-      IMPORT      => 1
+      IMPORT      => 1,
+      EXPORT      => 1
     },
     SELECT_VALUE    => {
       priority => {
@@ -928,6 +929,7 @@ sub crm_progressbar_steps {
       caption => $lang{STEP},
       qs      => $pages_qs,
       ID      => 'CRM_PROGRESSBAR_STEPS',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
     },
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
@@ -994,6 +996,7 @@ sub crm_deals_progressbar_steps {
       caption => $lang{STEPS_FOR_DEALS},
       qs      => $pages_qs,
       ID      => 'CRM_PROGRESSBAR_STEPS',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
     },
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
@@ -1688,7 +1691,7 @@ sub crm_actions_main {
   }
 
   my $leads_table_info = $Crm->table_info('crm_leads', { FULL_INFO => 1 });
-  my $skip_vars = join(',', map { uc $_->{column_name} } @{$leads_table_info});
+  my $skip_vars = join(',', map { uc($_->{column_name} || $_->{COLUMN_NAME}) } @{$leads_table_info});
 
   $html->tpl_show($Templates->_include('crm_actions_add', 'Crm'), { %CRM_ACTIONS_TEMPLATE }, { SKIP_VARS => $skip_vars });
 

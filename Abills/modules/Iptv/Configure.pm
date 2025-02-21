@@ -88,7 +88,7 @@ sub iptv_tp{
       [
         $lang{INFO} . "::TP_ID=$FORM{TP_ID}",
         $lang{INTERVALS} . ':' . get_function_index( 'iptv_intervals' ) . ":TP_ID=$FORM{TP_ID}",
-        $lang{NAS} . ':' . get_function_index( 'form_nas_allow' ) . ":TP_ID=$FORM{TP_ID}",
+        $lang{NAS} . ':' . get_function_index( 'internet_nas_access' ) . ":TP_ID=$FORM{TP_ID}",
         $lang{USERS} . ':' . get_function_index( 'iptv_users_list' ) . ":TP_ID=$FORM{TP_ID}",
         $lang{SCREENS} . ':' . get_function_index( 'iptv_screens' ) . ":TP_ID=$FORM{TP_ID}",
       ],
@@ -226,6 +226,7 @@ sub iptv_tp{
 
   $LIST_PARAMS{NEW_MODEL_TP} = 1;
   $LIST_PARAMS{MODULE} = 'Iptv';
+  $LIST_PARAMS{TP_ID} = $FORM{TP_IDS} if ($FORM{TP_IDS});
   my Abills::HTML $table;
   my $list;
 

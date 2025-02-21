@@ -10,7 +10,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-rightcol-md-10 col-sm-12 control-label' for='DESTINATION'>_{DESTINATION}_:</label>
         <div class='col-md-8'>
-          <input type='text' name='DESTINATION_ID' ID='DESTINATION' value='%DESTINATION%' class='form-control'>
+          <input type='text' name='DESTINATION' ID='DESTINATION' value='%DESTINATION%' class='form-control'>
         </div>
       </div>
       <div class='form-group row'>
@@ -31,6 +31,20 @@
         <label class='col-md-4 col-form-label text-md-right'>_{GROUP}_:</label>
         <div class='col-md-8'>
           %GROUP_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' FOR='ERROR_CODE'>_{UREPORTS_ERROR_CODE}_:</label>
+        <div class='col-md-8'>
+          <input type='number' name='ERROR_CODE' ID='ERROR_CODE' value='%ERROR_CODE%' class='form-control'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' FOR='ERROR_MSG'>_{ERROR}_:</label>
+        <div class='col-md-8'>
+          <input type='text' name='ERROR_MSG' ID='ERROR_MSG' value='%ERROR_MSG%' class='form-control'>
         </div>
       </div>
 

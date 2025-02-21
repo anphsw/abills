@@ -62,7 +62,11 @@ sub auth_admin {
       if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=10/) {
         $html->set_cookies('admin_sid', $admin->{SID}, '', '');
         $COOKIES{admin_sid} = $admin->{SID};
-        $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
+        $admin->online({
+          SID      => $admin->{SID},
+          TIMEOUT  => $conf{web_session_timeout},
+          EXT_INFO => $ENV{HTTP_USER_AGENT}
+        });
         print "Location: $FORM{REFERER}\n\n";
       }
     }
@@ -310,7 +314,7 @@ sub form_login {
       } );
   }
 
-  if ($conf{TECH_WORKS}){
+  if ($conf{TECH_WORKS}) {
     $first_page{TECH_WORKS_BLOCK_VISIBLE} = 1;
     $first_page{TECH_WORKS_MESSAGE} = $conf{TECH_WORKS};
   }
@@ -323,6 +327,15 @@ sub form_login {
   if($FORM{G2FA}){
     $first_page{G2FA_hidden} = '';
     $first_page{password} = $FORM{password};
+  }
+
+  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ /^(\d+)$/) {
+    $first_page{DOMAIN_ID}=$FORM{DOMAIN_ID};
+  }
+  if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/) {
+    $FORM{REFERER} =~ s/>/&gt;/g;
+    $FORM{REFERER} =~ s/</&lt;/g;
+    $first_page{REFERER} = $FORM{REFERER};
   }
 
   $html->tpl_show(templates('form_login'), \%first_page, $attr);
@@ -359,6 +372,11 @@ sub check_permissions {
 
   $login    = '' if (!defined($login));
   $password = '' if (!defined($password));
+  my $REMOTE_ADDR = $ENV{REMOTE_ADDR} || '0.0.0.0';
+
+  if ($conf{AUTH_X_FORWARDED} && $conf{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST}, [ split(',\s?', $conf{AUTH_X_DOMAIN}) ])) {
+    $REMOTE_ADDR = $ENV{$conf{AUTH_X_FORWARDED}} if ($ENV{$conf{AUTH_X_FORWARDED}});
+  }
 
   if ($conf{ADMINS_ALLOW_IP}) {
     $conf{ADMINS_ALLOW_IP} =~ s/ //g;
@@ -367,18 +385,18 @@ sub check_permissions {
     foreach my $ip (@allow_ips_arr) {
       $allow_ips_hash{$ip} = 1;
     }
-    if (!$allow_ips_hash{ $ENV{REMOTE_ADDR} }) {
+    if (!$allow_ips_hash{ $REMOTE_ADDR }) {
       if($conf{HIDE_WRONG_PASSWORD}) {
         $password = '****';
       }
-      $admin->system_action_add("$login:$password DENY IP: $ENV{REMOTE_ADDR}", { TYPE => 11 });
+      $admin->system_action_add("$login:$password DENY IP: $REMOTE_ADDR", { TYPE => 11 });
       $admin->{errno} = 3;
       return 3;
     }
   }
 
   my %PARAMS = (
-    IP    => $ENV{REMOTE_ADDR} || '0.0.0.0',
+    IP    => $REMOTE_ADDR || '0.0.0.0',
     SHORT => $attr->{FULL_INFO} ? 0 : 1
   );
 
@@ -393,7 +411,10 @@ sub check_permissions {
 
   if ($session_sid && ! $login && (! $attr->{API_KEY} && ! $attr->{key})) {
     $admin->online_info({ SID => $session_sid });
-    if ($admin->{TOTAL} > 0 && $ENV{REMOTE_ADDR} eq $admin->{IP}) {
+    if ($admin->{TOTAL} > 0
+      && ((! $conf{ADMIN_MULTI_IP_ACCESS} && $REMOTE_ADDR eq $admin->{IP})
+         || ($conf{ADMIN_MULTI_IP_ACCESS} && $ENV{HTTP_USER_AGENT} eq $admin->{EXT_INFO}))
+    ) {
       $admin->{SID} = $session_sid;
     }
     else {
@@ -548,11 +569,11 @@ sub check_permissions {
 
       if ((! $line->{day} || $wday+1 == $line->{day})
         && $time > $line->{begin} && $time < $line->{end}) {
-        if ($line->{bit_mask} && check_ip($ENV{REMOTE_ADDR}, "$line->{ip}/$line->{bit_mask}")) {
+        if ($line->{bit_mask} && check_ip($REMOTE_ADDR, "$line->{ip}/$line->{bit_mask}")) {
           $deny = 0;
           last;
         }
-        elsif ($line->{ip} eq '0.0.0.0' || !$line->{bit_mask} && check_ip($ENV{REMOTE_ADDR}, $line->{ip})) {
+        elsif ($line->{ip} eq '0.0.0.0' || !$line->{bit_mask} && check_ip($REMOTE_ADDR, $line->{ip})) {
           $deny = 0;
           last;
         }
@@ -561,14 +582,14 @@ sub check_permissions {
 
     if ($deny) {
       $admin->{MODULE}='';
-      $admin->system_action_add("DENY IP: $ENV{REMOTE_ADDR}", { TYPE => 50 });
+      $admin->system_action_add("DENY IP: $REMOTE_ADDR", { TYPE => 50 });
       return 6;
     }
   }
 
   %permissions = %{ $admin->get_permissions() };
 
-  if($permissions{0} && $permissions{0}{17}) {
+  if(defined($permissions{0}) && $permissions{0}{17}) {
     $html->{EXPORT_LIST}=1;
   }
   if (defined($permissions{4}) && $permissions{4}{7}) {
@@ -576,7 +597,11 @@ sub check_permissions {
   }
 
   if ($attr->{API}) {
-    $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
+    $admin->online({
+      SID     => $admin->{SID},
+      EXT_INFO=> $ENV{HTTP_USER_AGENT} || q{},
+      TIMEOUT => $conf{web_session_timeout}
+    });
   }
 
   if ($password && $login) {
@@ -587,7 +612,7 @@ sub check_permissions {
       AID            => $admin->{AID},
       FUNCTION_NAME  => 'ADMIN_AUTH',
       DATETIME       => 'NOW()',
-      IP             => $ENV{REMOTE_ADDR},
+      IP             => $REMOTE_ADDR,
       SID            => $admin->{SID},
       PARAMS         => $params
     });
@@ -813,7 +838,7 @@ sub auth_user {
         my $total = $user->{TOTAL} // 'N/D';
         $session_id =~ s/\W+//g;
         my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-        `echo " IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+        `echo "NOT_FOUND_SESSION IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
       }
       #$html->message('err', "$lang->{ERROR}", "$lang->{NOT_LOGINED}");
       #return 0;
@@ -1078,6 +1103,10 @@ sub passwordless_access {
       $user->info($auth_uid);
       $user->{REMOTE_ADDR} = $remote_addr;
     }
+  }
+
+  if ($conf{PASSWORDLESS_ACCESS_DEBUG}) {
+    `echo "IP: $remote_addr UID: $auth_uid TOTAL: $Sessions->{TOTAL}" >> /tmp/passwordles.log`;
   }
 
   $session_id= mk_unique_value(14) if ($auth_uid);

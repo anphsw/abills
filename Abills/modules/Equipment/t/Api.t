@@ -71,7 +71,8 @@ foreach my $test (@test_list) {
 
 test_runner({
   apiKey => $apiKey,
-  debug  => $debug
+  debug  => $debug,
+  argv   => $ARGS
 }, \@test_list);
 
 done_testing();

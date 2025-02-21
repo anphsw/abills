@@ -1,20 +1,212 @@
 type: object
 properties:
-  uid:
+  id:
     type: integer
-    example: 11135
+    example: 123
+  clientId:
+    type: string
+    example: "456"
+  subject:
+    type: string
+    example: "Subject of the message"
+  chapterName:
+    type: string
+    example: "General"
+  chapterColor:
+    type: string
+    example: "#FF5733"
   chapter:
     type: integer
     example: 2
-  message:
+  datetime:
     type: string
-    example: Test message
+    format: date-time
+    example: "2023-11-22T10:00:00Z"
+  date:
+    type: string
+    format: date
+    example: "2023-11-22"
   state:
     type: integer
-    example: 0
-  subject:
-    type: string
-    example: Message subject
-  priority:
+    example: 1
+  replyStatus:
     type: integer
     example: 2
+  responsibleAdminLogin:
+    type: string
+    example: "admin123"
+  lastReplyDate:
+    type: string
+    format: date
+    example: "2023-11-21"
+  planDateTime:
+    type: string
+    format: date-time
+    example: "2023-11-23T14:30:00Z"
+  disable:
+    type: integer
+    example: 0
+  innerMsg:
+    type: integer
+    example: 1
+  message:
+    type: string
+    example: "This is the content of the message."
+  reply:
+    type: string
+    example: "This is a reply."
+  msgPhone:
+    type: string
+    example: "+1234567890"
+  userRead:
+    type: integer
+    example: 1
+  closedDate:
+    type: string
+    format: date
+    example: "2023-11-24"
+  monthClosed:
+    type: string
+    format: date
+    example: "2023-11"
+  runTime:
+    type: string
+    example: "01:30:00"
+  doneDate:
+    type: string
+    format: date
+    example: "2023-11-23"
+  uid:
+    type: integer
+    example: 11135
+  delegation:
+    type: integer
+    example: 1
+  responsible:
+    type: integer
+    example: 234
+  planDate:
+    type: string
+    format: date
+    example: "2023-11-25"
+  softDeadline:
+    type: integer
+    example: 5
+  hardDeadline:
+    type: integer
+    example: 10
+  adminRead:
+    type: integer
+    example: 1
+  planTime:
+    type: string
+    format: time
+    example: "14:30:00"
+  dispatchId:
+    type: integer
+    example: 678
+  ip:
+    type: string
+    format: ipv4
+    example: "192.168.1.1"
+  fromDate:
+    type: string
+    format: date
+    example: "2023-11-01"
+  toDate:
+    type: string
+    format: date
+    example: "2023-11-30"
+  closedFromDate:
+    type: string
+    format: date
+    example: "2023-11-20"
+  closedToDate:
+    type: string
+    format: date
+    example: "2023-11-30"
+  adminLogin:
+    type: integer
+    example: 111
+  msgsAid:
+    type: integer
+    example: 222
+  adminName:
+    type: integer
+    example: "Admin Name"
+  repliesCounts:
+    type: integer
+    example: 3
+  rating:
+    type: integer
+    example: 5
+  locationId:
+    type: integer
+    example: 456
+  locationIdMsg:
+    type: integer
+    example: 789
+  ratingComment:
+    type: string
+    example: "Good service."
+  stateId:
+    type: integer
+    example: 1
+  priorityId:
+    type: integer
+    example: 2
+  chgMsgs:
+    type: integer
+    example: 0
+  delMsgs:
+    type: integer
+    example: 0
+  par:
+    type: integer
+    example: 1
+  msgsTags:
+    type: integer
+    example: 123
+  downtime:
+    type: string
+    example: "00:15:00"
+  replyText:
+    type: string
+    example: "This is the reply text."
+  month:
+    type: string
+    format: date
+    example: "2023-11"
+  userName:
+    type: string
+    example: "JohnDoe"
+  adminDisable:
+    type: integer
+    example: 0
+  doneSum:
+    type: integer
+    example: 10
+  planInterval:
+    type: integer
+    example: 30
+  planPosition:
+    type: integer
+    example: 1
+  addressFull:
+    type: string
+    example: "123 Main St, Apt 4B"
+  sendType:
+    type: integer
+    example: 2
+  msgsTagsIds:
+    type: string
+    example: "1,2,3"
+  closedAdmin:
+    type: string
+    example: "Admin A"
+  watchers:
+    type: string
+    example: "Admin B, Admin C"
+  performers:
+    type: integer
+    example: 333

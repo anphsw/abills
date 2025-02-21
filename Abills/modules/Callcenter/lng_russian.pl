@@ -194,6 +194,6 @@ $lang{INCOMING} = 'Входящие';
 $lang{OUTCOMING} = 'Исходящие';
 $lang{INCOMING_DURATION} = 'Продолжительность входящих';
 $lang{OUTCOMING_DURATION} = 'Продолжительность исходящих';
-
+$lang{NOT_DEFINED} = 'Не встановлено';
 
 1;

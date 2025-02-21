@@ -1,4 +1,4 @@
-<form action=$SELF_URL METHOD=POST enctype=multipart/form-data>
+<form action=%SELF_URL% METHOD=POST enctype=multipart/form-data>
 
 <input type='hidden' name='index' value=%INDEX%>
 

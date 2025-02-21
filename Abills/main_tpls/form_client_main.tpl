@@ -42,6 +42,7 @@
     </a>
     <div class='sidebar'>
       %MENU%
+      <!-- BRANDING: here you can add content under sidebar buttons. -->
     </div>
   </aside>
   <div id='content-wrapper' class='content-wrapper'>

@@ -44,10 +44,85 @@ sub triplay_user_info {
     }
   }
 
+  $Triplay->{STATUS} = $user_info->{DISABLE} || 0;
+
+  if ($FORM{activate}) {
+    return 0 if (! in_array($Triplay->{STATUS}, [2, 5]));
+    $Triplay->user_change({
+      UID      => $uid,
+      #ID       => $service_id,
+      STATUS   => 0,
+    });
+
+    if (!$Triplay->{errno}) {
+      $Triplay->{STATUS} = 0;
+      if (!$Triplay->{STATUS}) {
+        require Triplay::Base;
+        Triplay::Base->import();
+        my $Triplay_base = Triplay::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+        $user_info = $Triplay->user_info({ UID => $uid });
+
+        my $service_list = $Triplay->service_list({
+          UID        => $uid,
+          MODULE     => '_SHOW',
+          SERVICE_ID => '_SHOW',
+          COLS_NAME  => 1
+        });
+
+        my %sub_services = ();
+        foreach my $service (@$service_list) {
+          $sub_services{uc($service->{module}) . '_SERVICE_ID'} = $service->{service_id} if ($service->{service_id});
+        }
+
+        $Triplay_base->triplay_service_activate_web({
+          %sub_services,
+          USER_INFO => $user,
+          TP_INFO   => $Triplay->{TP_INFO},
+          TP_ID     => $Triplay->{TP_ID}
+        });
+
+        $html->message('info', $lang{SUCCESS}, $lang{CHANGED});
+      }
+    }
+    else {
+      $html->message('err', $lang{ACTIVATE}, $lang{ERROR}, { ID => 102 });
+    }
+  }
+
   my $service_status = sel_status({ HASH_RESULT => 1 });
   my ($status, $color) = split(/:/, $service_status->{ $user_info->{DISABLE} });
   $user_info->{STATUS_FIELD} = $color;
   $user_info->{STATUS_VALUE} = $status;
+
+  if ($Triplay->{STATUS} == 2) {
+    #$Triplay->{STATUS_VALUE} = $status;
+    $Triplay->{STATUS_FIELD} = 'text-warning';
+    $user_info->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
+      : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success float-right' });
+  }
+  elsif ($Triplay->{STATUS} == 5) {
+    # $Triplay->{STATUS_VALUE} = $status;
+    $Triplay->{STATUS_FIELD} = 'text-danger';
+
+    if ($Triplay->{MONTH_ABON} && $user->{DEPOSIT} && $Triplay->{MONTH_ABON} <= $user->{DEPOSIT}) {
+      $user_info->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
+        : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success float-right' });
+    }
+    else {
+      if ($functions{$index} && $functions{$index} eq 'internet_user_info') {
+        form_neg_deposit($user);
+      }
+    }
+  }
+  elsif ($Triplay->{STATUS} == 1) {
+    #$Triplay->{STATUS_VALUE} = $status;
+    $Triplay->{STATUS_FIELD} = 'text-danger';
+  }
+  else {
+    #$Triplay->{STATUS_VALUE} = $status;
+    $Triplay->{STATUS_FIELD} = 'text-success';
+  }
 
   if ($user_info->{TOTAL} && $user_info->{TOTAL} > 0) {
     $Triplay->{ACTION_LNG} = $lang{CHANGE};

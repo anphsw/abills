@@ -234,41 +234,40 @@ sub _msgs_get_plugins {
   my $position = $attr->{POSITION} || '';
   my $action = $attr->{ACTION} || ();
 
-  foreach my $module (@MODULES) {
-    my $plugin_dir = $modules_dir . $module . '/Plugins';
-    next unless (-d $plugin_dir);
+  my $module = 'Msgs';
+  my $plugin_dir = $modules_dir . $module . '/Plugins';
+  next unless (-d $plugin_dir);
 
-    my $plugin_files = _get_files_in($plugin_dir, { FILTER => '\.pm' });
+  my $plugin_files = _get_files_in($plugin_dir, { FILTER => '\.pm' });
 
-    foreach my $plugin (sort @{$plugin_files}) {
-      $plugin =~ s/\.pm//g;
-      my $plugin_name = $module . '::Plugins::' . $plugin;
+  foreach my $plugin (sort @{$plugin_files}) {
+    $plugin =~ s/\.pm//g;
+    my $plugin_name = $module . '::Plugins::' . $plugin;
 
-      my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
-      if (!$success) {
-        $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
-        next;
-      }
-
-      next unless ($plugin_name->can('new'));
-      next unless ($plugin_name->can('plugin_info'));
-
-      my $plugin_api = $plugin_name->new($db, $admin, \%conf, {
-        HTML             => $html,
-        LANG             => \%lang,
-        MSGS_PERMISSIONS => \%msgs_permissions
-      });
-      my $info = $plugin_api->plugin_info();
-
-      next if ref $info ne 'HASH';
-      next if ($action && !$info->{$action});
-      next if ($position && !$info->{POSITION} || ($info->{POSITION} && $position ne $info->{POSITION}));
-
-      $info->{MODULE} = $module;
-      $info->{PLUGIN} = $plugin_name;
-
-      push(@plugins, $info);
+    my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+    if (!$success) {
+      $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
+      next;
     }
+
+    next unless ($plugin_name->can('new'));
+    next unless ($plugin_name->can('plugin_info'));
+
+    my $plugin_api = $plugin_name->new($db, $admin, \%conf, {
+      HTML             => $html,
+      LANG             => \%lang,
+      MSGS_PERMISSIONS => \%msgs_permissions
+    });
+    my $info = $plugin_api->plugin_info();
+
+    next if ref $info ne 'HASH';
+    next if ($action && !$info->{$action});
+    next if ($position && !$info->{POSITION} || ($info->{POSITION} && $position ne $info->{POSITION}));
+
+    $info->{MODULE} = $module;
+    $info->{PLUGIN} = $plugin_name;
+
+    push(@plugins, $info);
   }
 
   return \@plugins;
@@ -482,27 +481,26 @@ sub msgs_get_plugin_by_name {
 
   return 0 unless $plugin;
 
-  foreach my $module (@MODULES) {
-    my $plugin_dir = $modules_dir . $module . '/Plugins';
-    next unless (-d $plugin_dir);
-    next unless (-e $plugin_dir . '/' . $plugin . '.pm');
+  my $module = 'Msgs';
+  my $plugin_dir = $modules_dir . $module . '/Plugins';
+  next unless (-d $plugin_dir);
+  next unless (-e $plugin_dir . '/' . $plugin . '.pm');
 
-    my $plugin_name = $module . '::Plugins::' . $plugin;
-    my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+  my $plugin_name = $module . '::Plugins::' . $plugin;
+  my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
 
-    if (!$success) {
-      $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
-      return 0;
-    }
-
-    return 0 if (!$plugin_name->can('new'));
-
-    return $plugin_name->new($db, $admin, \%conf, {
-      HTML             => $html,
-      LANG             => \%lang,
-      MSGS_PERMISSIONS => \%msgs_permissions
-    });
+  if (!$success) {
+    $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
+    return 0;
   }
+
+  return 0 if (!$plugin_name->can('new'));
+
+  return $plugin_name->new($db, $admin, \%conf, {
+    HTML             => $html,
+    LANG             => \%lang,
+    MSGS_PERMISSIONS => \%msgs_permissions
+  });
 
   return 0;
 }
@@ -523,7 +521,7 @@ sub _plugin_enabled {
 
   foreach my $plugin (@{$plugins_list}) {
     my $name = $plugin->{PLUGIN};
-    $name =~ s/$plugin->{MODULE}::Plugins:://g;
+    $name =~ s/Msgs::Plugins:://g;
 
     next if !$attr->{$name};
     $Msgs->msgs_plugin_add({

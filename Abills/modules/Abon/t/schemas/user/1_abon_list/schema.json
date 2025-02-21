@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER Abon list of services",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": { "type": "integer" },
+      "tpName": { "type": "string" },
+      "tpId": { "type": "integer" },
+      "uid": { "type": "integer" },
+      "nextAbon": {
+        "type": "object",
+        "properties": {
+          "abonDate": { "type": "string", "format": "date" },
+          "activateDate": { "type": "string", "format": "date" },
+          "daysToFee": { "type": "integer" },
+          "sum": { "type": "integer" }
+        },
+        "required": ["abonDate", "activateDate", "daysToFee", "sum"]
+      },
+      "holdup": {
+        "type": "object",
+        "properties": {
+          "canCancel": { "type": "boolean" },
+          "dateFrom": { "type": "string", "format": "date" },
+          "dateTo": { "type": "string", "format": "date" },
+          "del": { "type": "integer" },
+          "delIds": { "type": "string" }
+        },
+        "required": ["canCancel", "dateFrom", "dateTo", "del", "delIds"]
+      },
+      "schedule": {
+        "type": "object",
+        "properties": {
+          "canCancel": { "type": "boolean" },
+          "date": { "type": "string", "format": "date" },
+          "dateFrom": { "type": "string", "format": "date" },
+          "dayFee": { "type": "integer" },
+          "monthFee": { "type": "integer" },
+          "tpAge": { "type": "integer" },
+          "sheduleId": { "type": "integer" },
+          "tpId": { "type": "integer" },
+          "tpName": { "type": "string" }
+        },
+        "required": ["canCancel", "date", "dateFrom", "dayFee", "monthFee", "tpAge", "sheduleId", "tpId", "tpName"]
+      },
+      "activate": { "type": "boolean" },
+      "active": { "type": "boolean" },
+      "description": { "type": "string" },
+      "endDate": { "type": "string", "format": "date" },
+      "period": { "type": "string" },
+      "personalDescription": { "type": "string" },
+      "price": { "type": "integer" },
+      "serviceImg": { "type": "string" },
+      "serviceLink": { "type": "string" },
+      "startDate": { "type": "string", "format": "date" },
+      "tpReductionFee": { "type": "integer" },
+      "monthFee": { "type": "integer" },
+      "statusName": { "type": "string" },
+      "originalPrice": { "type": "integer" }
+    },
+    "required": [
+      "id", "tpName", "tpId", "uid",
+      "activate", "active", "description", "endDate", "period",
+      "personalDescription", "price", "serviceImg", "serviceLink",
+      "startDate", "tpReductionFee", "monthFee", "statusName", "originalPrice"
+    ]
+  }
+}

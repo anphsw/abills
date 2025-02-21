@@ -59,8 +59,16 @@ sub fields_for_task_add {
   my $self = shift;
   my ($attr) = @_;
 
-  my $json = qq/[{"LABEL":"Периодичность (d m w)","NAME":"P_PT_PERIOD","VALUE":"%P_PT_PERIOD%"}, {"LABEL":"Предупреждать за ... (дней)","NAME":"P_PT_PLAN_DAYS","VALUE":"%P_PT_PLAN_DAYS%"}]/;
-  return $json;
+  return [
+    {
+      LABEL => 'Периодичность (d m w)',
+      NAME  => 'P_PT_PERIOD'
+    },
+    {
+      LABEL => 'Предупреждать за ... (дней)',
+      NAME  => 'P_PT_PLAN_DAYS'
+    },
+  ];
 }
 
 #**********************************************************

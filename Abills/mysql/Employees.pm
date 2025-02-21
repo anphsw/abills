@@ -316,6 +316,44 @@ sub geo_list {
   return $self->{list};
 }
 
+#**********************************************************
+=head2 employees_geolocation_list()
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+
+=cut
+#**********************************************************
+sub employees_geolocation_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'EMPLOYEE_ID',   'INT', 'eg.employee_id',   1 ],
+    [ 'STREET_ID',     'INT', 'eg.street_id',     1 ],
+    [ 'BUILD_ID',      'INT', 'eg.build_id',      1 ],
+    [ 'DISTRICT_ID',   'INT', 'eg.district_id',   1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT eg.employee_id, eg.street_id, eg.build_id, eg.district_id,
+      SUBSTRING_INDEX(d.path, CONCAT('/', eg.district_id), 1) AS district_path, IF(eg.build_id, s.id, null) AS build_street
+    FROM employees_geolocation eg
+    LEFT JOIN builds b ON eg.build_id = b.id
+    LEFT JOIN streets s ON b.street_id = s.id OR eg.street_id = s.id
+    LEFT JOIN districts d ON d.id = s.district_id OR eg.district_id = d.id
+    $WHERE
+    ORDER BY $SORT $DESC;", undef, $attr
+  );
+
+  return $self->{list} || [];
+}
 
 #**********************************************************
 # time_sheet_list()
@@ -998,13 +1036,12 @@ sub daily_note_info {
   if ($attr->{DAY}) {
     $self->query(
       "SELECT * FROM employees_daily_notes
-      WHERE day = ? and aid = $attr->{AID};", undef, { INFO => 1, Bind => [ $attr->{DAY} ] }
+      WHERE day = ? and aid = ?;", undef, { INFO => 1, Bind => [ $attr->{DAY}, $attr->{AID} ] }
     );
   }
 
   return $self;
 }
-
 
 #**********************************************************
 =head2 daily_note_change() -
@@ -1021,14 +1058,12 @@ sub daily_note_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'DAY',
-      SECOND_PARAM => 'AID',
-      TABLE        => 'employees_daily_notes',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'DAY',
+    SECOND_PARAM => 'AID',
+    TABLE        => 'employees_daily_notes',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1631,7 +1666,7 @@ sub employees_ext_params_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1744,7 +1779,7 @@ sub employees_mobile_report_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1890,9 +1925,10 @@ sub employees_list_cashbox {
   my $WHERE = $self->search_former($attr, [
     [ 'ID',             'INT',  'emc.id',                          1 ],
     [ 'NAME',           'STR',  'emc.name',                        1 ],
-    [ 'ADMIN_DEFAULT',  'STR',  'a.name as admin_default',         1 ] ,
+    [ 'ADMIN_DEFAULT',  'STR',  'a.name as admin_default',         1 ],
     [ 'COMMENTS',       'STR',  'emc.comments',                    1 ],
-    [ 'ADMINS',         'STR',  'admins',                          1 ]
+    [ 'ADMINS',         'STR',  'admins',                          1 ],
+    [ 'AID',            'INT',  'eca.aid',                         1 ],
   ],
     { WHERE => 1, }
   );
@@ -2402,7 +2438,7 @@ sub employees_list_spending {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 50;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "cashbox_id = $attr->{CASHBOX_ID}";
+    push @WHERE_RULES, "cashbox_id = '$attr->{CASHBOX_ID}'";
   }
 
   if ($attr->{FROM_DATE}) {
@@ -2608,7 +2644,7 @@ sub employees_list_coming {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "cashbox_id = $attr->{CASHBOX_ID}";
+    push @WHERE_RULES, "cashbox_id = '$attr->{CASHBOX_ID}'";
   }
 
   if ($attr->{FROM_DATE}) {
@@ -2624,7 +2660,7 @@ sub employees_list_coming {
   }
 
   if ($attr->{PAYMENT_ID}) {
-    push @WHERE_RULES, "cac.payment_id = $attr->{PAYMENT_ID}";
+    push @WHERE_RULES, "cac.payment_id = '$attr->{PAYMENT_ID}'";
   }
 
   my $WHERE = $self->search_former(
@@ -2809,7 +2845,8 @@ sub employees_info_bet {
 
   $self->query(
     "SELECT * FROM employees_bet
-      WHERE aid = $attr->{AID};", undef, {COLS_NAME => 1, COLS_UPPER => 1}
+      WHERE aid = ?;", undef,
+      { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{AID} ] }
   );
 
   return $self->{list}[0];
@@ -2839,7 +2876,7 @@ sub employees_del_bet {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('employees_bet', undef, {aid => $attr->{AID}});
+  $self->query_del('employees_bet', undef, { aid => $attr->{AID} });
 
   return $self;
 }
@@ -2891,7 +2928,7 @@ sub employees_info_payed_salary {
       csp.spending_id,
       csp.id
       FROM employees_salaries_payed as csp
-      WHERE csp.id = $attr->{ID};", undef, { COLS_NAME => 1 }
+      WHERE csp.id = ?;", undef, { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
     );
   }
   else{
@@ -2905,15 +2942,14 @@ sub employees_info_payed_salary {
       csp.spending_id,
       csp.id
       FROM employees_salaries_payed as csp
-      WHERE aid = $attr->{AID} and month = $attr->{MONTH} and year = $attr->{YEAR};", undef, { COLS_NAME => 1 }
+      WHERE aid = ? and month = ? and year = ?;", undef, {
+        COLS_NAME => 1,
+        Bind      => [ $attr->{AID}, $attr->{MONTH}, $attr->{YEAR} ]
+      }
     );
   }
 
-  if($self->{list} && ref $self->{list} eq 'ARRAY' && scalar @{$self->{list}} > 0){
-    return $self->{list};
-  }
-
-  return ;
+  return $self->{list} || [];
 }
 
 #**********************************************************

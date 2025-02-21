@@ -1,4 +1,5 @@
-package Botapi;
+package Viber::API::Botapi;
+
 =head NAME
 
   Viber Bot API
@@ -31,14 +32,14 @@ use Abills::Fetcher qw(web_request);
 =cut
 #**********************************************************
 sub new {
-  my ($class, $token, $receiver, $SELF_URL) = @_;
+  my $class = shift;
+  my ($token, $receiver) = @_;
 
   $receiver //= "";
 
   my $self = {
     token    => $token,
     receiver => $receiver,
-    SELF_URL => $SELF_URL,
     api_url  => 'https://chatapi.viber.com/pa/'
   };
 
@@ -58,6 +59,12 @@ sub send_message {
 
   $attr->{receiver} ||= $self->{receiver};
   $attr->{min_api_version} = 7;
+  $attr->{sender} = { name => 'ABillS User Bot' };
+  $attr->{type} ||= 'text';
+
+  if ($attr->{keyboard}) {
+    $attr->{keyboard} = $self->_workaround_buttons($attr->{keyboard});
+  }
 
   my $url = $self->{api_url} . 'send_message';
   my @headers = ('Content-Type: application/json', "X-Viber-Auth-Token: $self->{token}");
@@ -65,6 +72,9 @@ sub send_message {
   web_request($url, {
     HEADERS   => \@headers,
     JSON_BODY => $attr,
+    JSON_FORMER => {
+      CONTROL_CHARACTERS => 1,
+    },
     METHOD    => 'POST',
   });
 
@@ -90,30 +100,22 @@ sub get_file {
 }
 
 #**********************************************************
-=head2 fetch_api($attr)
+=head2 _workaround_buttons($keyboard)
+
+  In Viber dark mode only on IOS buttons may bad usability.
+  This function will set white background color for all buttons.
 
 =cut
 #**********************************************************
-sub fetch_api {
+sub _workaround_buttons {
   my $self = shift;
-  my ($attr) = @_;
+  my ($keyboard) = @_;
 
-  my @req_headers = ('Content-Type: application/json', 'USERBOT: VIBER', "USERID: $self->{receiver}");
-  my $req_body = q{};
-
-  if ($attr->{method} ne 'GET') {
-    $req_body = $attr->{body};
+  for my $i (0..$#{$keyboard->{Buttons}}) {
+    $keyboard->{Buttons}->[$i]->{BgColor} //= "#FFFFFF";
   }
 
-  my $result = web_request($attr->{url}, {
-    HEADERS     => \@req_headers,
-    JSON_BODY   => $req_body,
-    JSON_RETURN => 1,
-    INSECURE    => 1,
-    METHOD      => $attr->{method}
-  });
-
-  return $result;
+  return $keyboard;
 }
 
 1;

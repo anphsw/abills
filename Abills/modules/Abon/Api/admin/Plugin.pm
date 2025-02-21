@@ -14,6 +14,7 @@ use warnings FATAL => 'all';
 
 use Abills::Base qw(convert);
 use Control::Errors;
+use Abills::Loader qw/load_plugin/;
 
 use Abon;
 use Abon::Base;
@@ -64,7 +65,18 @@ sub get_abon_plugin_plugin_id_info {
   my ($path_params, $query_params) = @_;
 
   my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
-  my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+  if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1) {
+    return $Errors->throw_error(1020002);
+  }
+
+  return {} if !$Plugin_info->{PLUGIN};
+
+  my $api = load_plugin('Abon::Plugins::' . $Plugin_info->{PLUGIN}, {
+    SERVICE      => $Plugin_info,
+    LANG         => $self->{lang},
+    RETURN_ERROR => 1
+  });
+
   return $api->info($query_params) if ($api->can('info'));
   return {};
 }
@@ -81,9 +93,19 @@ sub get_abon_plugin_plugin_id_print {
   my ($path_params, $query_params) = @_;
 
   my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
-  my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+  if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1) {
+    return $Errors->throw_error(1020002);
+  }
+
+  return '' if !$Plugin_info->{PLUGIN};
+  my $api = load_plugin('Abon::Plugins::' . $Plugin_info->{PLUGIN}, {
+    SERVICE      => $Plugin_info,
+    LANG         => $self->{lang},
+    RETURN_ERROR => 1
+  });
 
   return $api->print($query_params) if ($api->can('print'));
+  return '';
 }
 
 1;

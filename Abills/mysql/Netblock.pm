@@ -271,7 +271,7 @@ sub change_blocklist {
     DATA         => $attr
   });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -290,7 +290,7 @@ sub change {
     DATA         => $attr
   });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -325,7 +325,7 @@ sub del {
 
   $self->query_del($table, { ID => $attr->{ID} });
   
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -338,7 +338,7 @@ sub init {
  # $self->query_del('netblock_main');
   $self->query( "DELETE FROM `netblock_main`",'do');
   
-  return $self->{result};
+  return $self;
 }
 
-1
+1;

@@ -33,8 +33,10 @@ use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
 use Abills::Base qw(in_array mk_unique_value);
+use Contacts;
 
 my Contacts $Contacts;
+my $Errors;
 
 our ($base_dir);
 
@@ -126,6 +128,10 @@ sub new {
     $Contacts = Contacts->new($db, $admin, $CONF);
   }
 
+  require Control::Errors;
+  Control::Errors->import();
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => {} });
+
   return $self;
 }
 
@@ -203,6 +209,9 @@ sub send_message {
   my $send_type = $attr->{SENDER_TYPE} || $self->{SENDER_TYPE} || '';
   $attr->{MESSAGE_ID} = $attr->{MESSAGE_ID} || mk_unique_value(8, { SYMBOLS => '0123456789' });
 
+  delete $self->{errstr};
+  $self->{errno} = 0;
+
   if ( $send_type =~ /\d+/ ) {
     $send_type = $PLUGIN_NAME_FOR_TYPE_ID{$send_type};
   }
@@ -211,8 +220,11 @@ sub send_message {
     $self->sender_load($send_type, $attr);
     if ( !$self->{$send_type} ) {
       $self->{errstr} = "Can't load plugin: $send_type \n";
-      $self->{errno} = 1;
+      $self->{errno} = 1000005;
       print $self->{errstr} if ( $self->{debug} );
+
+      return $Errors->throw_error(1000005, { errstr => 'ERR_CANNOT_LOAD_PLUGIN' }) if $attr->{RETURN_RESULT};
+
       return 0;
     }
   }
@@ -227,13 +239,18 @@ sub send_message {
     } split (',\s?', $attr->{TO_ADDRESS});
   }
   else {
-    @contacts = $self->get_contacts_for({ %{$attr}, SENDER_TYPE => $send_type, ALL => 1 });
+    my $_contacts = $self->get_contacts_for({ %{$attr}, SENDER_TYPE => $send_type, ALL => 1 });
+    if ($_contacts) {
+      @contacts = @{ $_contacts };
+    }
   }
 
   if (!@contacts || !$contacts[0]) {
-    $self->{errstr} = "NO_CONTACT";
-    $self->{errno} = 2;
+    $self->{errstr} = 'NO_CONTACT';
+    $self->{errno} = 1000006;
     print $self->{errstr} if ($self->{debug});
+
+    return $Errors->throw_error(1000006, { errstr => 'ERR_NO_CONTACT' }) if $attr->{RETURN_RESULT};
     return 0;
   }
 
@@ -307,11 +324,15 @@ sub send_message_auto {
 
   my $contacts_list;
   if ($attr->{UID}) {
-    $contacts_list = $Contacts->contacts_list({ UID => $attr->{UID}, SHOW_ALL_COLUMNS => 1, TYPE => $attr->{SEND_TYPE} || '_SHOW' });
+    $contacts_list = $Contacts->contacts_list({
+      UID               => $attr->{UID},
+      _SHOW_ALL_COLUMNS => 1,
+      TYPE              => $attr->{SEND_TYPE} || '_SHOW'
+    });
     push(@{$contacts_list}, { type_id => 9, value => $attr->{USER_EMAIL} }) if $attr->{USER_EMAIL};
   }
   elsif ($attr->{AID}) {
-    $contacts_list = $self->{admin}->admins_contacts_list({ AID => $attr->{AID}, SHOW_ALL_COLUMNS => 1 });
+    $contacts_list = $self->{admin}->admins_contacts_list({ AID => $attr->{AID}, _SHOW_ALL_COLUMNS => 1 });
   }
   else {
     return '';

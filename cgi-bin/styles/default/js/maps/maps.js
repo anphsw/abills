@@ -676,11 +676,16 @@ var ObjectsConfiguration = (function () {
     let add_class_icons = {};
 
     map._layersMaxZoom ||= 18;
-    let markers = FORM['OBJECT_TO_SHOW'].length > MAPS_MIN_CLUSTER_GROUP ? L.markerClusterGroup({
+    let markers = FORM['OBJECT_TO_SHOW'].length > MAPS_MIN_CLUSTER_GROUP || Object.keys(FORM['OBJECT_TO_SHOW']).length > MAPS_MIN_CLUSTER_GROUP ? L.markerClusterGroup({
       spiderfyOnMaxZoom: 0,
       disableClusteringAtZoom: map._layersMaxZoom
     }) : new L.layerGroup();
-    FORM['CUSTOM_MARKERS'] = markers;
+
+    let polygons = new L.FeatureGroup();
+    FORM['CUSTOM_ELEMENTS'] = {
+      MARKER: markers,
+      POLYGON: polygons
+    };
 
     jQuery.each(FORM['OBJECT_TO_SHOW'], function (index, value) {
       if (value['MARKER']) {
@@ -699,13 +704,14 @@ var ObjectsConfiguration = (function () {
         if (!value['POLYGON']['POINTS'] || value['POLYGON']['POINTS'].length < 1)
           return 0;
 
-        Polygons.createPolygon(value['POLYGON']).addTo(map);
+        polygons.addLayer(Polygons.createPolygon(value['POLYGON']));
         if (FORM['OBJECT_TO_SHOW'].length === 1)
           Configuration.fitByObject(value['POLYGON']);
       }
     });
 
     if (markers) markers.addTo(map);
+    if (polygons) polygons.addTo(map);
 
     if (add_class_icons){
       for (var key in add_class_icons) {

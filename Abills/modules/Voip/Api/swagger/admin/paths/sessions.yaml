@@ -18,24 +18,14 @@ get:
       schema:
         type: boolean
         default: true
-    - name: nasId
-      in: query
-      description: ID сервера доступа.
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/nasId"
     - name: routeId
       in: query
       description: Идентификатор пути. Можно получить подробную информацию о пути из /voip/routes.
       schema:
         type: boolean
         default: true
-    - name: uid
-      in: query
-      description: UID пользователя.
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: start
       in: query
       description: Время звонка.
@@ -78,12 +68,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: tpId
-      in: query
-      description: Тарифный план, по которому тарифицируется звонок
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/tpId"
     - name: sum
       in: query
       description: Стоимость звонка для пользователя
@@ -120,23 +105,10 @@ get:
       schema:
         type: string
         default: true
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

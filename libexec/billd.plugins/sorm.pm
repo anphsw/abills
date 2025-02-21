@@ -38,7 +38,7 @@ use strict;
 use warnings FATAL => 'all';
 
 BEGIN {
-  unshift(@INC, '/usr/abills/Abills/modules/Sorm');
+  unshift(@INC, '/usr/abills/Abills/modules/Sorm/Plugins');
 }
 
 
@@ -72,10 +72,10 @@ my $type = "Yahon";
 $type = $argv->{TYPE} if($argv->{TYPE});
 
 if (eval {
-  require "$base_dir/Abills/modules/Sorm/$type.pm";
+  require "$base_dir/Abills/modules/Sorm/Plugins/$type.pm";
   1;
 }) {
-  $type = "Sorm::".$type;
+  $type = "Sorm::Plugins::".$type;
   $type->new(\%conf, $db, $Admin, $argv);
 }
 else {
@@ -119,7 +119,7 @@ sub _ftp_upload {
     if($attr->{DIR}) {
       $ftp->cwd($attr->{DIR}) or die "Cannot change working directory ", $ftp->message;
     }
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    $ftp->put($file) or die "FTP: $file put failed ", $ftp->message;
     print $ftp->message if ($debug > 2);
   $ftp->quit;
 

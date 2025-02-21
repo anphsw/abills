@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "abonDistribution": {
+        "type": "number"
+      },
+      "activatePrice": {
+        "type": "number"
+      },
+      "canChangeTp": {
+        "type": "boolean"
+      },
+      "cid": {
+        "type": "string"
+      },
+      "dayFee": {
+        "type": "number"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "iptvExpire": {
+        "type": "string",
+        "format": "date"
+      },
+      "monthFee": {
+        "type": "number"
+      },
+      "nextAbon": {
+        "type": "object",
+        "properties": {
+          "abonDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "activateDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysToFee": {
+            "type": "integer"
+          },
+          "sum": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "abonDate",
+          "activateDate",
+          "daysToFee",
+          "sum"
+        ]
+      },
+      "serviceHoldup": {
+        "type": "boolean"
+      },
+      "serviceId": {
+        "type": "integer"
+      },
+      "serviceStatus": {
+        "type": "integer"
+      },
+      "statusName": {
+        "type": "string"
+      },
+      "tpAge": {
+        "type": "number"
+      },
+      "tpComments": {
+        "type": "string"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "tpReductionFee": {
+        "type": "number"
+      },
+      "tvServiceName": {
+        "type": "string"
+      },
+      "tvUserPortal": {
+        "type": "integer"
+      },
+      "uid": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "abonDistribution",
+      "activatePrice",
+      "canChangeTp",
+      "dayFee",
+      "id",
+      "iptvExpire",
+      "monthFee",
+      "serviceHoldup",
+      "serviceId",
+      "serviceStatus",
+      "statusName",
+      "tpAge",
+      "tpId",
+      "tpName",
+      "tpReductionFee",
+      "tvServiceName",
+      "tvUserPortal",
+      "uid"
+    ]
+  }
+}

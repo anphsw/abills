@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "USER_RESEND_VERIFICATION",
+  "properties": {
+    "result": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "sendPin": {
+      "type": "integer"
+    }
+  },
+  "required": ["result", "destination", "sendPin"]
+}

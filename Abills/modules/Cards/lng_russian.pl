@@ -26,4 +26,15 @@ $lang{PAY_USER}='Переказано пользователю';
 $lang{NUMBER_AND_SERIA}='Серия и номер';
 $lang{CARD_DUBLICATE} = 'Дубликат';
 
+$lang{ERR_OPERATION_NOT_ALLOWED} = 'Операция не разрешена';
+$lang{ERR_PIN_BRUTE_LIMIT} = 'Брутфорс пин, %COUNT% >= %LIMIT%';
+$lang{ERR_UNKNOWN_CARD} = 'Неизвестная карта';
+$lang{ERR_UNKNOWN_ERROR} = 'Произошла неизвестная ошибка - %ERROR%';
+$lang{ERR_CARD_EXPIRE} = 'Срок действия карты истек. Дата истечения - %EXPIRE%';
+$lang{ERR_CARD_SUM} = 'Неверная сумма на карте, обратитесь к администратору';
+$lang{ERR_CARD_USED_BEFORE} = 'Вы уже использовали эту карту';
+$lang{ERR_CARD_USED} = 'Карта используется другим пользователем';
+$lang{ERR_CARD_STATUS} = 'Статус карты - %STATUS%';
+$lang{ERR_CARD_PAYMENT} = 'Ошибка оплаты %ERROR%';
+
 1;

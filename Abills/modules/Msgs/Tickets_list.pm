@@ -128,6 +128,7 @@ sub msgs_list {
   $pages_qs .= "&STATE=0" if (defined($FORM{STATE}) && !$FORM{STATE});
   $pages_qs .= "&ALL_MSGS=$FORM{ALL_MSGS}" if ($FORM{ALL_MSGS});
   $pages_qs .= "&ALL_OPENED=$FORM{ALL_OPENED}" if ($FORM{ALL_OPENED});
+  $pages_qs .= "&TEAM_ID=$FORM{TEAM_ID}" if ($FORM{TEAM_ID});
 
   $attr->{MODULE} = 'Msgs';
   my Abills::HTML $table;
@@ -178,6 +179,7 @@ sub msgs_list {
   push @function_fields, "msgs_admin:del:del_msgs;" . ($FORM{UID} ? "uid;" : "") . "state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
 
   $LIST_PARAMS{RESPOSIBLE} = $admin->{AID} if $msgs_permissions{1}{21};
+  $LIST_PARAMS{TEAM_ID} = $FORM{TEAM_ID} if $FORM{TEAM_ID};
   if (!$FORM{sort}) {
     $FORM{sort} = '1';
     $FORM{desc} = 'DESC';
@@ -187,7 +189,7 @@ sub msgs_list {
     BASE_FIELDS       => 0,
     DEFAULT_FIELDS    => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
     HIDDEN_FIELDS     => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS',
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS,TEAM_ID',
     APPEND_FIELDS     => 'UID',
     FUNCTION          => 'messages_list',
     FUNCTION_FIELDS   => join(',', @function_fields),
@@ -646,6 +648,7 @@ sub _msgs_message_tags_name {
   return '' if !$tags;
 
   $tags =~ s/,/;/;
+  my $old_list = $Msgs->{list};
   my $tags_info = $Msgs->messages_quick_replys_list({
     ID        => $tags,
     REPLY     => '_SHOW',
@@ -653,6 +656,7 @@ sub _msgs_message_tags_name {
     COMMENT   => '_SHOW',
     COLS_NAME => 1
   });
+  $Msgs->{list} = $old_list;
   return '' if $Msgs->{TOTAL} < 1;
   
   my $tags_name = '';

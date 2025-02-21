@@ -423,9 +423,9 @@ sub internet_pools_report {
 
   # Get pools
   my $pools_list = $Nas->nas_ip_pools_list({
-    COLS_NAME        => 1,
-    SHOW_ALL_COLUMNS => 1,
-    PG               => $FORM{pg}
+    COLS_NAME         => 1,
+    _SHOW_ALL_COLUMNS => 1,
+    PG                => $FORM{pg}
   });
   _error_show($Nas);
 

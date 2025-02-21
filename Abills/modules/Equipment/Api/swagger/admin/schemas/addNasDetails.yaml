@@ -1,0 +1,60 @@
+type: object
+properties:
+  modelId:
+    type: integer
+    example: 1
+  systemId:
+    type: string
+    maxLength: 30
+    example: "SYS-12345"
+  ports:
+    type: integer
+    example: 24
+  firmware:
+    type: string
+    maxLength: 20
+    example: "1.0.5"
+  firmware2:
+    type: string
+    maxLength: 20
+    example: "1.0.6"
+  status:
+    type: integer
+    example: 1
+  startUpDate:
+    type: string
+    format: date
+    example: "2023-01-15"
+  comments:
+    type: string
+    example: "Main switch in server room"
+  serial:
+    type: string
+    maxLength: 100
+    example: "SN1234567890"
+  revision:
+    type: string
+    maxLength: 10
+    example: "Rev A"
+  snmpVersion:
+    type: integer
+    example: 2
+  serverVlan:
+    type: integer
+    example: 100
+  lastActivity:
+    type: string
+    format: date-time
+    example: "2024-02-07 12:34:56"
+  internetVlan:
+    type: integer
+    example: 200
+  tr069Vlan:
+    type: integer
+    example: 300
+  iptvVlan:
+    type: integer
+    example: 400
+  snmpTimeout:
+    type: integer
+    example: 5

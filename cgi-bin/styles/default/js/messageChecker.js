@@ -213,6 +213,15 @@ var AMessageChecker = (function () {
     }
   }
 
+  function escapeHTML(unsafeText) {
+    return unsafeText.toString()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   return {
     start      : start,
     stop       : stop,
@@ -221,7 +230,8 @@ var AMessageChecker = (function () {
     processData: processData,
     unsubscribe: unsubscribe,
     seenMessage: seenMessage,
-    showMessage: showMessage
+    showMessage: showMessage,
+    escapeHTML : escapeHTML
   }
 })();
 
@@ -468,13 +478,8 @@ var MessagesMenu = function (id, options) {
           },
           format  : function (rawData) {
             var result = [];
-            if (rawData['DATA_1'] && $.isArray(rawData['DATA_1'])) {
-              $.each(rawData['DATA_1'], function (i, message) {
-                if (self.filter(message))
-                  result.push(self.parseMessage(message));
-              });
-            } else if (rawData && rawData.constructor === Array) {
-              rawData.map(message => {
+            if (rawData && rawData.list) {
+              rawData.list.map(message => {
                 if (self.filter(message)) {
                   result.push(self.parseMessage(message));
                 }
@@ -593,7 +598,7 @@ var MessagesMenu = function (id, options) {
               <span class="float-right text-sm ${priority_class}">
               <i class="fa fa-star"></i></span>
             </h3>
-            <p class="text-sm">${subject}</p>
+            <p class="text-sm">${AMessageChecker.escapeHTML(subject)}</p>
             <p class="text-sm text-muted">
               <i class="far fa-clock mr-1"></i>
               ${created_data}
@@ -807,7 +812,7 @@ var EventsMenu = function (id, options) {
             <h3 class="dropdown-item-title ${priority_class_this}">
               ${sender_text}
             </h3>
-            <p class='text-sm'>${subject}</p>
+            <p class='text-sm'>${AMessageChecker.escapeHTML(subject)}</p>
             <p class="text-sm text-muted">
               <i class="far fa-clock mr-1"></i>
               ${created_data}

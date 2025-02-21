@@ -91,9 +91,10 @@ sub show_map {
       MAPS_DEFAULT_TYPE      => $CONF->{MAPS_DEFAULT_TYPE} || 'OSM',
       MAPS_DEFAULT_LATLNG    => $CONF->{MAPS_DEFAULT_LATLNG} || '',
       MAPS_MIN_CLUSTER_GROUP => $CONF->{MAPS_MIN_CLUSTER_GROUP} || 1000,
-      MAP_ONLINE_UPDATE      => $CONF->{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 30,
+      MAP_ONLINE_UPDATE      => $CONF->{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 300,
       MAPS_WATERMARK_URL     => $watermark_url,
-      MAPS_WATERMARK_ICON    => $icon
+      MAPS_WATERMARK_ICON    => $icon,
+      HIDE_EDIT_BUTTONS      => $admin->{permissions}{4} && $admin->{permissions}{4}{2} && $admin->{permissions}{4}{3} ? 0 : 1
     }), { OUTPUT2RETURN => 1 }
   );
 

@@ -3,12 +3,7 @@ get:
     - voip
   summary: Информация о тарифе Voip
   parameters:
-    - name: tpId
-      in: path
-      description: tpId Voip тарифа
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathTpId"
   responses:
     200:
       description: Успешное выполнение
@@ -23,12 +18,7 @@ put:
     - voip
   summary: Изменить тариф Voip
   parameters:
-    - name: tpId
-      in: path
-      description: TP_ID Voip тарифа
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathTpId"
   requestBody:
     content:
       application/json:
@@ -49,12 +39,7 @@ delete:
     - voip
   summary: Удалить тариф Voip
   parameters:
-    - name: tpId
-      in: path
-      description: tpId Voip тарифа
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathTpId"
   responses:
     200:
       description: Успешное выполнение

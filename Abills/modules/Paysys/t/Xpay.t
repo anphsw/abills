@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Xpay;
 
 our (
   %conf,
@@ -19,7 +18,15 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Xpay->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Xpay;
+  $Payment_plugin = Paysys::systems::Xpay->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Xpay;
+  $Payment_plugin = Paysys::Plugins::Xpay->new($db, $admin, \%conf);
+}
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $transaction_id = int(rand(10000));
 my $transaction_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());

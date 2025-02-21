@@ -1,0 +1,53 @@
+type: object
+properties:
+  name:
+    type: string
+    example: "Task Name"
+  taskType:
+    type: integer
+    example: 2
+  descr:
+    type: string
+    example: "This is a detailed description of the task."
+  state:
+    type: integer
+    example: 1
+  aid:
+    type: integer
+    example: 45
+  responsible:
+    type: integer
+    example: 30
+  planDate:
+    type: string
+    example: "2024-11-01"
+  closedDate:
+    type: string
+    example: "2024-11-15"
+  controlDate:
+    type: string
+    example: "2024-10-31"
+  additionalValues:
+    type: string
+    example: ""
+  comments:
+    type: string
+    example: "Some internal comments on the task."
+  msgId:
+    type: integer
+    example: 5678
+  stepId:
+    type: integer
+    example: 3
+  leadId:
+    type: integer
+    example: 125
+  dealId:
+    type: integer
+    example: 6789
+  parentId:
+    type: integer
+    example: 100
+  path:
+    type: string
+    example: "/100/123"

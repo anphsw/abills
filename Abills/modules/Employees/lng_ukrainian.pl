@@ -95,7 +95,7 @@ $lang{REFERENCE_WORKS}='Довідник робіт';
 $lang{RATIO}='Коефіцієнт';
 $lang{WORK}='Роботи';
 $lang{MINUTES}='Хвилини';
-$lang{CHOOSE}='Виберіть';
+$lang{CHOOSE}='Вибрати';
 $lang{TYPE_IN_CASHBOX_NAME}='Введіть назву каси';
 $lang{TYPE_IN_SPENDING_TYPE}='Введіть тип розходу по касі';
 $lang{TYPE_IN_COMING_TYPE}='Введіть тип приходу по касі';
@@ -107,9 +107,6 @@ $lang{MOVING_BETWEEN_CASHBOXES}='Переміщення між касами';
 $lang{MOVING}='Переміщення';
 $lang{TYPE_IN_MOVING_TYPE} = 'Тип переміщення між касами';
 $lang{ALL_SALARY} = 'Виплатити';
-
-$lang{TICKET_WORKS} = 'Роботи по заявці';
-$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Перевірка робіт перед закриттям заявки';
 
 $lang{ADMIN_DEFAULT} = 'Адміністратор за замовчуванням';
 

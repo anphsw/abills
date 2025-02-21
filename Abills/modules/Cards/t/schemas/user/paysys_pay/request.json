@@ -1,0 +1,5 @@
+{
+  "name": "USER_CARD_PAY",
+  "method": "POST",
+  "path": "user/cards/payment/"
+}

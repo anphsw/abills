@@ -1,0 +1,60 @@
+allOf:
+  - $ref: '#/components/schemas/UserBaseService'
+  - type: object
+    properties:
+      activate:
+        type: boolean
+        description: Indicates if the service is activated.
+      active:
+        type: boolean
+        description: Indicates if the service is currently active.
+      description:
+        type: string
+        description: Description of the service.
+      endDate:
+        type: string
+        format: date
+        description: End date of the service.
+      period:
+        type: string
+        description: Billing period (e.g., day, month).
+      personalDescription:
+        type: string
+        description: Personal description for the service.
+      price:
+        type: number
+        format: double
+        description: Price of the service.
+      serviceImg:
+        type: string
+        format: uri
+        description: URL to the service image.
+      serviceLink:
+        type: string
+        format: uri
+        description: Link to the service page.
+      startDate:
+        type: string
+        format: date
+        description: Start date of the service.
+      tpReductionFee:
+        type: number
+        format: double
+        description: Reduction fee for the tariff plan.
+      monthFee:
+        type: number
+        format: double
+        description: Monthly fee for the service.
+      statusName:
+        type: string
+        description: Current status of the service.
+      originalPrice:
+        type: number
+        format: double
+        description: Original price before any discounts.
+    required:
+      - activate
+      - active
+      - description
+      - period
+      - price

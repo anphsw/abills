@@ -1,0 +1,6 @@
+{
+  "name": "USER_GET_RECOMMENDEDPAY",
+  "method": "GET",
+  "path": "user/recommendedPay/",
+  "params": {}
+}

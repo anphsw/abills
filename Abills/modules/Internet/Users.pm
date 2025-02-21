@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
-  mk_unique_value clearquotes json_former);
+  mk_unique_value clearquotes json_former convert);
 use Log;
 require Abills::Result_former;
 require Internet::Stats;
@@ -45,7 +45,6 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 my $Log = Log->new($db, \%conf);
 my $Shedule = Shedule->new( $db, $admin, \%conf );
-my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 require Internet::Ipoe_mng;
 require Internet::User_ips;
@@ -154,13 +153,15 @@ sub internet_user {
   }
   else {
     if ($conf{INTERNET_PASSWORD}) {
-      $Internet->{PASSWORD_BTN} = ($Internet->{PASSWORD}) ? $html->button("",
-        "index=" . get_function_index('internet_user') . "&UID=$uid&PASSWORD=1&ID=$Internet->{ID}",
-        { ICON => 'fa fa-key', ex_params =>
-          "data-tooltip='$lang{CHANGE} $lang{PASSWD}' data-tooltip-position='top'" }) :
-        $html->button("", "index=" . get_function_index('internet_user') . "&UID=$uid&PASSWORD=1&ID=$Internet->{ID}",
-          { ICON => 'fa fa-plus', ex_params =>
-            "data-tooltip='$lang{ADD} $lang{PASSWD}' data-tooltip-position='top'" });
+      my $user_index = get_function_index('internet_user');
+
+      $Internet->{PASSWORD_BTN} = ($Internet->{PASSWORD})
+        ? $html->button("", "index=$user_index&UID=$uid&PASSWORD=1&ID=$Internet->{ID}",
+            { ICON => 'fa fa-key', ex_params =>
+              "data-tooltip='$lang{CHANGE} $lang{PASSWD}' data-tooltip-position='top'" })
+        : $html->button("", "index=$user_index&UID=$uid&PASSWORD=1&ID=$Internet->{ID}",
+            { ICON => 'fa fa-plus', ex_params =>
+              "data-tooltip='$lang{ADD} $lang{PASSWD}' data-tooltip-position='top'" });
 
       $Internet->{PASSWORD_FORM} = $html->tpl_show(templates('form_row'), {
         ID    => "PASSWORD",
@@ -169,10 +170,10 @@ sub internet_user {
         { OUTPUT2RETURN => 1, ID => 'form_password' });
     }
 
-    if ($FORM{pay_to}) {
-      internet_pay_to({ Internet => $Internet });
-      return 0;
-    }
+    # if ($FORM{pay_to}) {
+    #   internet_pay_to({ Internet => $Internet });
+    #   return 0;
+    # }
 
     if ($attr->{ACTION}) {
       $Internet->{ACTION} = 'change';
@@ -186,12 +187,16 @@ sub internet_user {
     # Show tooltip COMMENTS for user and admin
     my $tarif_plan_tooltip = '';
     if ($Internet->{TP_ID}) {
+      my $escaped_comments = convert($Internet->{COMMENTS} || '', { text2html => 1 });
+      my $escaped_aid_describe = convert($Internet->{DESCRIBE_AID} || '', { text2html => 1 });
       $tarif_plan_tooltip =
-        $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ': ' . ($Internet->{COMMENTS} || '') . $html->br()
-          .$html->b($lang{DESCRIBE_FOR_ADMIN})    . ': ' . ($Internet->{DESCRIBE_AID} || '') . $html->br();
+        $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ": $escaped_comments" . $html->br()
+          .$html->b($lang{DESCRIBE_FOR_ADMIN})    . ": $escaped_aid_describe" . $html->br();
     }
 
-    $Internet->{DESCRIBE_AID} = ($Internet->{DESCRIBE_AID}) ? ('['.$Internet->{DESCRIBE_AID}.']') : '';
+    $Internet->{DESCRIBE_AID} = ($Internet->{DESCRIBE_AID})
+      ? ('[' . convert($Internet->{DESCRIBE_AID}, { text2html => 1 }) . ']')
+      : '';
 
     if ($admin->{permissions}{0}{10}) {
       $Internet->{CHANGE_TP_BUTTON} = $html->button('',
@@ -200,6 +205,8 @@ sub internet_user {
       $Internet->{TARIF_PLAN_TOOLTIP} = "data-tooltip='$tarif_plan_tooltip' data-tooltip-position='top'";
     }
 
+    require Control::Service_control;
+    my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
     my $warning_info = $Service_control->service_warning({
       UID          => $uid,
       ID           => $Internet->{ID},
@@ -237,7 +244,7 @@ sub internet_user {
     my $list = $admin->action_list({
       TYPE      => '4;8;9;14',
       UID       => $uid,
-      MODULE    => 'Internet;Dv',
+      MODULE    => 'Internet',
       DATETIME  => '_SHOW',
       PAGE_ROWS => 1,
       COLS_NAME => 1,
@@ -766,6 +773,7 @@ sub internet_ipoe_activate_manual {
   Arguments:
     UID
     ID
+    QUITE
 
   Results:
     TRUE or FALSE
@@ -777,8 +785,9 @@ sub internet_user_change {
 
   my $uid = $attr->{UID} || $LIST_PARAMS{UID} || 0;
   my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
+  my $system_aid = $conf{SYSTEM_ADMIN_ID} || 2;
 
-  if ($web_admin_id != $admin->{AID} && !$admin->{permissions}{0}{4}) {
+  if (! in_array($admin->{AID}, [$web_admin_id, $system_aid]) && !$admin->{permissions}{0}{4}) {
     return {
       errno => 950,
       errstr => 'ACCESS DENIED',
@@ -899,7 +908,7 @@ sub internet_user_change {
       }
     }
     else {
-      $html->message('info', $lang{INTERNET}, $lang{CHANGED});
+      $html->message('info', $lang{INTERNET}, $lang{CHANGED}) if (! $attr->{QUITE});
     }
     return 0 if ($attr->{REGISTRATION});
   }
@@ -1071,7 +1080,9 @@ sub internet_user_preproccess {
   my ($uid, $attr) = @_;
 
   my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
-  if ($web_admin_id != $admin->{AID} && $admin->{permissions}{0}) {
+  my $system_aid = $conf{SYSTEM_ADMIN_ID} || 2;
+
+  if (! in_array($admin->{AID}, [$web_admin_id, $system_aid]) && $admin->{permissions}{0}) {
     my $permits = $admin->{permissions}{0};
     delete($attr->{TP_ID}) if (! $permits->{10} && !$attr->{REGISTRATION});
     delete($attr->{STATUS}) if (! $permits->{18} && !$attr->{REGISTRATION});
@@ -1793,7 +1804,7 @@ sub internet_test {
     CONTENT => $html->form_select(
       'NAS_ID',
       {
-        SELECTED    => $FORM{NAS_ID} || '',
+        SELECTED    => $FORM{NAS_ID} || $conf{RADIUS_TEST_DEFAULT_NAS} ||  1,
         SEL_LIST    => $Nas->list({ %LIST_PARAMS, NAS_IP=>'_SHOW', NAS_NAME=> '_SHOW',
           COLS_NAME => 1, PAGE_ROWS => 10000, SHORT => 1 }),
         SEL_KEY     => 'id',
@@ -1809,7 +1820,7 @@ sub internet_test {
     },
     ID      => 'INTERNET_TEST',
     SUBMIT  => { test => $lang{TEST} },
-    class   => 'form-inline'
+    class   => 'form-inline ml-auto flex-nowrap',
   });
 
   return 1;
@@ -2501,6 +2512,7 @@ sub internet_cards {
     return 0;
   }
 
+  require Control::Users_reg;
   load_module('Cards', $html);
 
   $FORM{CARDS_FORM} = 1;
@@ -2519,7 +2531,6 @@ sub internet_cards {
         }
       }
     );
-    # Adding extra col-lg-6
     $internet_tpl = $html->element('div', $internet_tpl, { class => 'col-md-12 col-lg-6' });
   }
 
@@ -2585,7 +2596,6 @@ sub internet_cards {
 sub internet_user_wizard {
   my ($attr) = @_;
 
-  my $Finance = Finance->new($db, $admin, \%conf);
   $FORM{INTERNET_WIZARD} = 1;
 
   if ($FORM{print}) {
@@ -2600,6 +2610,7 @@ sub internet_user_wizard {
   }
 
   if ($FORM{add}) {
+    require Control::Users_reg;
     my $uid = internet_wizard_add({ %FORM, %{($attr) ? $attr : {}} });
     return $uid if ($attr->{SHORT_REPORT});
   }
@@ -2694,6 +2705,7 @@ sub internet_user_wizard {
 
   #Payments
   if ($admin->{permissions}{1} && $admin->{permissions}{1}{1}) {
+    my $Finance = Finance->new($db, $admin, \%conf);
     $Payments->{SEL_METHOD} = $html->form_select(
       'METHOD',
       {
@@ -2791,17 +2803,14 @@ sub internet_user_wizard {
     return $template;
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $template,
-      HIDDEN  => { index => $index },
-      SUBMIT  => { add => $lang{ADD} },
-      NAME    => 'user_form',
-      ENCTYPE => 'multipart/form-data',
-      class   => 'form-horizontal',
-      ID      => 'INTERNET_USER_WIZARD'
-    }
-  );
+  print $html->form_main({
+    CONTENT => $template,
+    HIDDEN  => { index => $index },
+    SUBMIT  => { add => $lang{ADD} },
+    NAME    => 'user_form',
+    ENCTYPE => 'multipart/form-data',
+    ID      => 'INTERNET_USER_WIZARD'
+  });
 
   return 1;
 }
@@ -2821,8 +2830,6 @@ sub internet_wizard_add {
   my ($attr) = @_;
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
-  my $Fees = Finance->fees($db, $admin, \%conf);
-  my $Finance = Finance->new($db, $admin, \%conf);
   my %add_values = ();
   my $uid = 0;
 
@@ -2834,7 +2841,6 @@ sub internet_wizard_add {
     }
   }
 
-  # Password
   $add_values{1}{GID} = $admin->{GID} if ($admin->{GID});
 
   if (!$admin->{permissions}{0}{13} && $admin->{AID} != 2 && !$admin->{DOMAIN_ID}) {
@@ -2847,77 +2853,11 @@ sub internet_wizard_add {
     $add_values{1}{COMMENTS} =~ s/\\n/\n/g;
   }
 
-  if ($add_values{1}{GID_NAME}) {
-    my $gid_list = $users->groups_list({
-      SORT      => 'g.gid',
-      DESC      => 'desc',
-      NAME      => $add_values{1}{GID_NAME},
-      PAGE_ROWS => 1,
-      COLS_NAME => 1
-    });
+  $add_values{1}{GID} = _group_add(\%add_values);
+  $add_values{1}{COMPANY_ID} = _company_add(\%add_values);
 
-    if ($users->{TOTAL} > 0) {
-      $add_values{1}{GID} = $gid_list->[0]->{id};
-    }
-    else {
-      $gid_list = $users->groups_list({
-        SORT      => 'g.gid',
-        DESC      => 'desc',
-        PAGE_ROWS => 1,
-        COLS_NAME => 1
-      });
-
-      my $gid = ($gid_list && $gid_list->[0]) ? ($gid_list->[0]->{id} || 0) + 1 : 1;
-      $users->group_add({
-        GID  => $gid,
-        NAME => $add_values{1}{GID_NAME}
-      });
-
-      if (! $users->{errno}) {
-        $add_values{1}{GID} = $gid;
-      }
-    }
-  }
-
-  if ($add_values{1}{COMPANY_NAME}) {
-    require Companies;
-    Companies->import();
-    my $Company = Companies->new($db, $admin, \%conf);
-
-    my $companies_list = $Company->list({
-      COMPANY_NAME  => $add_values{1}{COMPANY_NAME},
-      PAGE_ROWS     => 1,
-      COLS_NAME     => 1
-    });
-
-    if ($Company->{TOTAL} > 0) {
-      $add_values{1}{COMPANY_ID} = $companies_list->[0]->{id};
-      delete $add_values{5};
-    }
-    else {
-      if ($add_values{1}{COMPANY_ADDRESS_BUILD}) {
-        require Control::Address_mng;
-        $add_values{1}{LOCATION_ID} = address_create({
-          DISTRICT => $add_values{1}{COMPANY_CITY},
-          STREET   => $add_values{1}{COMPANY_ADDRESS_STREET},
-          BUILD    => $add_values{1}{COMPANY_ADDRESS_BUILD},
-          ZIP      => $add_values{1}{COMPANY_ZIP},
-          CITY     => $add_values{1}{COMPANY_CITY},
-        });
-      }
-
-      $Company->add({
-        NAME          => $add_values{1}{COMPANY_NAME},
-        ADDRESS_FLAT  => $add_values{1}{COMPANY_ADDRESS_FLAT},
-        LOCATION_ID   => $add_values{1}{LOCATION_ID},
-        COMMENTS      => $add_values{1}{COMPANY_COMMENTS},
-        CREATE_BILL   => 1
-      });
-
-      if (! $Company->{errno}) {
-        $add_values{1}{COMPANY_ID} = $Company->{COMPANY_ID};
-      }
-    }
+  if ($add_values{1}{LOGIN} && $add_values{1}{LOGIN} =~ /^autocreate/) {
+    delete $add_values{1}{LOGIN};
   }
 
   my Users $user = $users->add({
@@ -2939,6 +2879,7 @@ sub internet_wizard_add {
     else {
       my $user_list = $user->list({ %params, COLS_NAME => 1 });
       $uid = $user_list->[0]->{uid};
+      $add_values{1}{UID} = $uid;
       delete $add_values{5};
     }
 
@@ -2951,12 +2892,12 @@ sub internet_wizard_add {
   }
   else {
     $uid = $user->{UID};
+    $add_values{1}{UID} = $uid;
   }
 
   if (!$error_id) {
     $user = $user->info($uid);
 
-    #2
     if (defined($attr->{'2.newpassword'}) && $attr->{'2.newpassword'} ne '' && !$add_values{2}) {
       if (length($attr->{'2.newpassword'}) < $conf{PASSWD_LENGTH}) {
         $html->message('err', "$lang{PASSWD} : $lang{ERROR}", $lang{ERR_SHORT_PASSWORD}, { ID => 920 });
@@ -3015,63 +2956,7 @@ sub internet_wizard_add {
 
     # Ext bill add
     if ($FORM{'5.EXT_BILL_DEPOSIT'}) {
-      $add_values{5}{SUM} = $FORM{'5.EXT_BILL_DEPOSIT'};
-      # if Bonus $conf{BONUS_EXT_FUNCTIONS}
-      if (in_array('Bonus', \@MODULES) && $conf{BONUS_EXT_FUNCTIONS}) {
-        load_module('Bonus', $html);
-        my $sum = $FORM{'5.EXT_BILL_DEPOSIT'};
-        %FORM = %{$add_values{8}};
-        $FORM{UID} = $uid;
-        $FORM{SUM} = $sum;
-        $FORM{add} = $uid;
-        if ($FORM{SUM} < 0) {
-          $FORM{ACTION_TYPE} = 1;
-          $FORM{SUM} = abs($FORM{SUM});
-        }
-
-        $FORM{SHORT_REPORT} = 1;
-        bonus_user_log({ USER_INFO => $user });
-      }
-      else {
-        if ($FORM{'5.EXT_BILL_DEPOSIT'} + 0 > 0) {
-          my $er = ($FORM{'5.ER'}) ? $Finance->exchange_info($FORM{'5.ER'}) : { ER_RATE => 1 };
-          $Payments->add(
-            $user,
-            {
-              %{$add_values{5}},
-              BILL_ID => $user->{EXT_BILL_ID},
-              ER      => $er->{ER_RATE}
-            }
-          );
-
-          if (_error_show($Payments, { MODULE_NAME => $lang{PAYMENTS} })) {
-            return 0;
-          }
-          else {
-            $message = "$lang{SUM}: $add_values{5}{SUM} "
-              . (($er->{ER_SHORT_NAME}) ? $er->{ER_SHORT_NAME} : q{}) . "\n";
-          }
-        }
-        elsif ($FORM{'5.EXT_BILL_DEPOSIT'} + 0 < 0) {
-          my $er = ($FORM{'5.ER'}) ? $Finance->exchange_info($FORM{'5.ER'}) : { ER_RATE => 1 };
-          $Fees->take(
-            $user,
-            abs($FORM{'5.EXT_BILL_DEPOSIT'}),
-            {
-              BILL_ID  => $user->{EXT_BILL_ID},
-              DESCRIBE => 'MIGRATION',
-              ER       => $er->{ER_RATE}
-            }
-          );
-
-          if (_error_show($Fees, { MODULE_NAME => $lang{FEES} })) {
-            return 0;
-          }
-          else {
-            $message = "$lang{SUM}: $FORM{'5.EXT_BILL_DEPOSIT'} $er->{ER_SHORT_NAME}\n";
-          }
-        }
-      }
+      _extbill_add(\%add_values);
     }
 
     #4 Internet - Make Internet service only with TP
@@ -3230,6 +3115,19 @@ sub internet_wizard_add {
 
       if (defined(&tags_user_add)) {
         tags_user_add(\%FORM);
+      }
+    }
+
+    #Rwizard
+    if (scalar keys %{$add_values{14}} > 0) {
+      load_module('Triplay', $html);
+      %FORM = %{$add_values{14}};
+      $FORM{UID} = $uid;
+      $FORM{add} = $uid;
+
+      if (defined(&triplay_user_add)) {
+        $FORM{TP_ID} = _check_tp({ %{ $add_values{14} }, MODULE => 'Triplay' });
+        triplay_user_add(\%FORM);
       }
     }
 

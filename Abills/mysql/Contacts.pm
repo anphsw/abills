@@ -12,10 +12,6 @@ use v5.16;
 use Conf;
 my $admin;
 my $CONF;
-# my $SORT = 1;
-# my $DESC = '';
-# my $PG   = 1;
-# my $PAGE_ROWS = 25;
 
 our %TYPES = (
   'CELL_PHONE'  => 1,
@@ -97,9 +93,9 @@ sub contacts_list {
     [ 'DATE',        'DATE',    'uc.date',      ,1 ]
   );
 
-  if ( $attr->{SHOW_ALL_COLUMNS} ) {
-    map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @search_columns;
-  }
+  # if ( $attr->{SHOW_ALL_COLUMNS} ) {
+  #   map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @search_columns;
+  # }
 
   my $WHERE = $self->search_former($attr, \@search_columns,{ WHERE => 1 });
 
@@ -150,7 +146,7 @@ sub contacts_info{
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->contacts_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  my $list = $self->contacts_list( { COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
 
   return $list->[0] || {};
 }
@@ -318,21 +314,21 @@ sub contact_types_list{
   my $WHERE = '';
 
   $WHERE = $self->search_former( $attr, [
-    [ 'ID',         'INT', 'id',         1 ],
+    [ 'ID',         'INT', 'id',           ],
     [ 'NAME',       'STR', 'name',       1 ],
     [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
-    [ 'HIDDEN',     'INT', 'hidden'        ]
+    [ 'HIDDEN',     'INT', 'hidden',     1 ]
   ],
     {
       WHERE => 1
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*,'
-  }
-
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM users_contact_types $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
+  FROM users_contact_types
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;",
     undef, $attr );
 
   return [] if ($self->{errno});
@@ -355,7 +351,7 @@ sub contact_types_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->contact_types_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
+  my $list = $self->contact_types_list({ COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }
@@ -593,7 +589,7 @@ sub push_contacts_list {
   my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
@@ -607,9 +603,10 @@ sub push_contacts_list {
     [ 'DATE',           'DATE', 'pc.date',                    1],
   ];
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
-  }
+  # if ($attr->{SHOW_ALL_COLUMNS}){
+  #   map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  # }
+
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   $self->query( "SELECT $self->{SEARCH_FIELDS} id
@@ -639,7 +636,7 @@ sub push_contacts_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->push_contacts_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
+  my $list = $self->push_contacts_list({ COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }
@@ -726,7 +723,7 @@ sub push_messages_list {
   my ($attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
@@ -746,14 +743,18 @@ sub push_messages_list {
     ['DATE_START|DATE_END', 'STR', 'created' ],
   ];
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
-  }
+  # if ($attr->{SHOW_ALL_COLUMNS}){
+  #   map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  # }
+
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
-   $WHERE GROUP BY $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+   $WHERE
+   GROUP BY $GROUP_BY
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     %{$attr || {}} }
   );
@@ -787,7 +788,7 @@ sub push_messages_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->push_messages_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  my $list = $self->push_messages_list( { COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
 
   return $list->[0] || {};
 }

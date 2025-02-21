@@ -61,6 +61,11 @@ our $user_id = $argv->{user_id} || $argv->{user} || $conf{PAYSYS_TEST_USER} || 1
 our $payment_sum = $argv->{payment_sum} || $conf{PAYSYS_TEST_SUM} || 1;
 our $payment_id = $argv->{payment_id} || mk_unique_value(6, { SYMBOLS => '0123456789' });
 
+our $program_name = $0;
+if ($program_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
+  $program_name = $1;
+}
+
 our $html;
 if (!defined($ENV{'REQUEST_METHOD'})) {
   $html = Abills::HTML->new({ CONF => \%conf });
@@ -101,7 +106,7 @@ if ($argv->{methods}) {
 sub test_runner {
   my ($Payment_plugin, $requests, $attr) = @_;
 
-  if ($0 !~ /.+\.t$/) {
+  if ($program_name !~ /.+\.t$/) {
     return 0;
   }
 

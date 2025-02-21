@@ -43,13 +43,31 @@ CREATE TABLE IF NOT EXISTS `mobile_main` (
   `activate` DATE NOT NULL DEFAULT '0000-00-00',
   `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
   `description` VARCHAR(255) NOT NULL DEFAULT '',
+  `comments` VARCHAR(255) NOT NULL DEFAULT '',
   `transaction_id` VARCHAR(64) NOT NULL DEFAULT '',
   `tp_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `tp_disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
   `tp_activate` DATE NOT NULL DEFAULT '0000-00-00',
   `external_method` VARCHAR(64) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY (`phone`)
+  UNIQUE KEY (`phone`),
+  KEY `uid` (`uid`),
+  KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Mobile user services';
+
+CREATE TABLE IF NOT EXISTS `mobile_log` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `uid` INT(11) NOT NULL DEFAULT 0,
+  `transaction_id` VARCHAR(64) NOT NULL DEFAULT '',
+  `external_method` VARCHAR(64) NOT NULL DEFAULT '',
+  `user_subscribe_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `response` TEXT NOT NULL,
+  `callback_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `callback` TEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_subscribe_id` (`user_subscribe_id`)
+)
+  COMMENT = 'Mobile log';

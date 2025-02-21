@@ -28,4 +28,20 @@ $(function () {
 
   initAddBuildMenu();
 
+
+  jQuery('#SELL_PRICE,#COUNT').on('input', function () {
+    if (jQuery('#SUM').attr('readonly') || jQuery('#COUNT').attr('readonly')) return;
+
+    let count = parseInt(jQuery('#COUNT').val(), 10);
+    let sellPrice = parseFloat(jQuery('#SELL_PRICE').val().replace(',', '.'));
+
+    if (!isNaN(count) && count > 0 && !isNaN(sellPrice) && sellPrice > 0) {
+      jQuery('#SUM').val((count * sellPrice));
+    } else {
+      jQuery('#SUM').val('');
+    }
+  });
+
+
+
 });

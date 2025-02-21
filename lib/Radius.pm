@@ -330,6 +330,9 @@ sub recv_packet {
   foreach my $a ($self->get_attributes()) {
     if ($a->{Code} == $RFC3579_MSG_AUTH_ATTR_ID) {
       $rfc3579_msg_auth = $a->{Value};
+      if ($rfc3579_msg_auth =~ /^0x(.+)/) {
+        $rfc3579_msg_auth = pack("H*", $1);
+      }
       last;
     }
   }
@@ -340,6 +343,7 @@ sub recv_packet {
       . $self->{'authenticator'}
       . $self->{'attributes'};
     my $calc_hmac = $self->hmac_md5($hmac_data, $self->{'secret'});
+    #if ($calc_hmac ne $rfc3579_msg_auth) {
     if ($calc_hmac ne $rfc3579_msg_auth) {
       if ($debug) {
         print STDERR "Received response with INVALID RFC3579 Message-Authenticator.\n";

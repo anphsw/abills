@@ -1,0 +1,77 @@
+type: object
+properties:
+  activeService:
+    type: integer
+    example: 1
+  comments:
+    type: string
+    example: ""
+  createDocs:
+    type: integer
+    example: 0
+  date:
+    type: string
+    example: "2025-01-14"
+  description:
+    type: string
+    example: ""
+  discount:
+    type: integer
+    example: 0
+  feesPeriod:
+    type: integer
+    example: 0
+  id:
+    type: integer
+    example: 14
+  manualActivate:
+    type: integer
+    example: 1
+  manualFee:
+    type: integer
+    example: 0
+  missing:
+    type: integer
+    example: 0
+  nextAbon:
+    type: string
+    example: "2025-02-01"
+  notification1:
+    type: string
+    example: "0000-00-00"
+  notification1AccountId:
+    type: integer
+    example: 0
+  notification2:
+    type: string
+    example: "0000-00-00"
+  period:
+    type: integer
+    example: 1
+  personalDescription:
+    type: string
+    example: ""
+  plugin:
+    type: string
+    example: ""
+  price:
+    type: integer
+    example: 200
+  promoPeriod:
+    type: integer
+    example: 5
+  reductionFee:
+    type: integer
+    example: 0
+  sendDocs:
+    type: integer
+    example: 0
+  serviceCount:
+    type: integer
+    example: 1
+  tpName:
+    type: string
+    example: "Статический IP"
+  userDescription:
+    type: string
+    example: ""

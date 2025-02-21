@@ -1,5 +1,5 @@
 <form name='form_crm_info_fields' id='form_crm_info_fields' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
   <input type='hidden' name='ID' value='%ID%'/>
 

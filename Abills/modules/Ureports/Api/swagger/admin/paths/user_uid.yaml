@@ -3,12 +3,7 @@ get:
     - ureports
   summary: Получить пользователя
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: успешное выполнение
@@ -23,12 +18,7 @@ post:
     - ureports
   summary: Добавить оповещения пользователю
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:
@@ -55,12 +45,7 @@ put:
     - ureports
   summary: Изменить оповещения пользователю
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:
@@ -82,12 +67,7 @@ delete:
   summary: Удалить оповещения пользователю
   operationId: ureportsDeleteUser
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение

@@ -157,7 +157,6 @@ $lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'Цей серійний номер у�
 $lang{STORAGE_MONTHS_LEFT} = 'Залишилось місяців';
 $lang{STORAGE_COMPLETED} = 'Завершено';
 
-$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Можливість прикріпити обладнання до тікету';
 $lang{ITEM_ADDED_TO} = 'Товар доданий до';
 
 $lang{MOVED} = 'Переміщено';
@@ -197,7 +196,11 @@ $lang{STORAGE_SOLD} = 'Продано';
 $lang{STORAGE_PURCHASED_ITEM} = 'Куплено товар';
 $lang{STORAGE_SHIPPING_STATUS} = 'Статус відправки';
 $lang{STORAGE_PURCHASE_REPORT} = 'Звіт про покупки';
+$lang{STORAGE_ACCESS_LEVEL} = 'Рівень доступу';
+$lang{STORAGE_VIEW_ONLY} = 'Тільки перегляд';
+$lang{STORAGE_MANAGEMENT} = 'Керування';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'Кількість товару вказана невірно';
+$lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'Немає прав на керування складом';
 
 1;

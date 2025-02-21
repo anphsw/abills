@@ -1,0 +1,4 @@
+#!/bin/sh
+# External operation example
+
+echo "1:INFO=Operation complite. Arguments: '$@'";

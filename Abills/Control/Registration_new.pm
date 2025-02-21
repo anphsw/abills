@@ -101,7 +101,7 @@ sub password_recovery {
 
   my ($message, $redirect);
 
-  if ($attr->{SEND_SMS}) {
+  if ($attr->{PASSWD_RECOVERY}) {
     my $result = $self->password_recovery_process($attr);
     $message = $result->{element} if ($result->{element});
     $redirect = $result->{redirect} if ($result->{redirect});

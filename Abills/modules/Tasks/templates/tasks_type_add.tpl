@@ -1,5 +1,5 @@
 <form class='form-horizontal' method='POST' id='type_add_form'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='ADDITIONAL_FIELDS' id='additional_fields' value='%ADDITIONAL_FIELDS%'>
   <div class='card card-primary card-outline'>
@@ -31,12 +31,12 @@
           </div>
           <hr>
           <div class='form-group row' id='partcipiants'>
-            <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
+            <input type='hidden' id='PARTICIPANTS_LIST' name='PARTICIPANTS_LIST' value='%PARTICIPANTS_LIST%'>
             <label class='control-label col-md-4'>_{PARTCIPIANTS}_:</label>
             <div class='col-md-8'>
               <button type='button' class='btn btn-default float-left' data-toggle='modal'
                       data-target='#partcipiantsModal'
-                      onClick='return openModal()'>_{SELECTED}_: <span class='partcipiants_count'></span></button>
+                      onClick='return openModal()'>_{SELECTED}_: <span class='participants_count'></span></button>
             </div>
           </div>
           <hr>
@@ -81,7 +81,7 @@
           </div>
         </div>
       </div>
-      <!-- Partcipiants Modal -->
+      <!-- Participants Modal -->
       <div class='modal fade' id='partcipiantsModal' role='dialog'>
         <div class='modal-dialog'>
           <div class='modal-content'>
@@ -213,7 +213,7 @@
     });
     jQuery('.admin_count').text(count);
 
-    var partcipiantsList = document.getElementById("PARTCIPIANTS_LIST").value;
+    var partcipiantsList = document.getElementById("PARTICIPANTS_LIST").value;
     var partcipiantsArr = partcipiantsList.split(',');
     count = 0;
     jQuery('#partcipiantsModal .admin_checkbox').each(function () {
@@ -222,13 +222,12 @@
         count++;
       }
     });
-    jQuery('.partcipiants_count').text(count);
+    jQuery('.participants_count').text(count);
 
-    var pluginsList = document.getElementById("PLUGINS").value;
+    var pluginsList = document.getElementById('PLUGINS').value;
     var pluginsArr = pluginsList.split(',');
     count = 0;
     jQuery('.plugin_checkbox').each(function () {
-      console.log(this);
       if (pluginsArr.indexOf(jQuery(this).attr("name")) >= 0) {
         jQuery(this).prop("checked", true);
         count++;
@@ -251,14 +250,14 @@
   }
 
   function closePartcipiantsModal() {
-    var partcipiantsArr = [];
+    var participantsArr = [];
     jQuery('#partcipiantsModal .admin_checkbox').each(function () {
       if (this.checked) {
-        partcipiantsArr.push(jQuery(this).attr("aid"));
+        participantsArr.push(jQuery(this).attr("aid"));
       }
     });
-    jQuery('.partcipiants_count').text(partcipiantsArr.length);
-    document.getElementById("PARTCIPIANTS_LIST").value = partcipiantsArr.join();
+    jQuery('.participants_count').text(participantsArr.length);
+    document.getElementById("PARTICIPANTS_LIST").value = participantsArr.join();
   }
 
   function closePluginsModal() {

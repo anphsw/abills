@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS `viber_tmp` (
   `id`               INT(11) UNSIGNED     NOT NULL  AUTO_INCREMENT,
-  `uid`              INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
+  `sender_id`        VARCHAR(32)          NOT NULL  DEFAULT '',
   `fn`               VARCHAR(50)          NOT NULL  DEFAULT '',
   `args`             TEXT                 CHARACTER SET utf8mb4,
   PRIMARY KEY (`id`)

@@ -1,0 +1,5 @@
+{
+  "name": "USER_REFERRAL_BONUS",
+  "method": "GET",
+  "path": "user/referral/bonus/"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "USER_MSGS_CHAPTERS_LIST",
+  "method": "GET",
+  "path": "user/msgs/chapters/",
+  "params": {},
+  "TODO": "pass chapterId by post-response in first item of array, after delete Api.t"
+}

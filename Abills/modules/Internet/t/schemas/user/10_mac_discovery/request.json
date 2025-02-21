@@ -1,0 +1,9 @@
+{
+  "name": "USER_INTERNET_MAC_DISCOVERY",
+  "method": "POST",
+  "path": "user/internet/mac/discovery",
+  "body": {
+    "id": "10",
+    "cid": "10:fe:ed:43:8f:36"
+  }
+}

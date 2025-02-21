@@ -10,6 +10,9 @@ my Triplay $Triplay;
 
 use Abills::Base qw/days_in_month in_array next_month/;
 
+use Control::Errors;
+my Control::Errors $Errors;
+
 #**********************************************************
 =head2 new($html, $lang)
 
@@ -30,6 +33,8 @@ sub new {
   require Triplay;
   Triplay->import();
   $Triplay = Triplay->new($db, $admin, $CONF);
+
+  $Errors = Control::Errors->new($db, $admin, $CONF, { lang => \%lang || {}, module => 'Triplay' });
 
   bless($self, $class);
 
@@ -96,6 +101,7 @@ sub triplay_docs {
     TP_NUM            => '_SHOW',
     TP_FIXED_FEES_DAY => '_SHOW',
     TP_REDUCTION_FEE  => '_SHOW',
+    PERSONAL_TP       => '_SHOW',
     COLS_NAME         => 1
   });
 
@@ -181,17 +187,20 @@ sub triplay_docs {
       USER_INFO
       SUM
 
+  Returns:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub triplay_payments_maked {
   my $self = shift;
   my ($attr) = @_;
 
-  my $user = $attr->{USER_INFO} if $attr->{USER_INFO};
+  my $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
 
   $Triplay->user_info({ UID => $user->{UID}, });
 
-  return 1 if !$Triplay->{UID};
+  return 1 if (!$Triplay->{UID});
 
   $Triplay->{MONTH_ABON} //= 0;
   $Triplay->{DAY_ABON} //= 0;
@@ -200,24 +209,46 @@ sub triplay_payments_maked {
   my $abon_fees = (!$user->{REDUCTION}) ? $Triplay->{MONTH_ABON} + $Triplay->{DAY_ABON} :
     ($Triplay->{MONTH_ABON} + $Triplay->{DAY_ABON}) * (100 - $user->{REDUCTION}) / 100;
 
-  if (in_array($Triplay->{DISABLE}, [ 4, 5 ]) && $deposit > $abon_fees) {
-    my %params = ();
+  if ($attr->{FORM} && $attr->{FORM}{DISABLE} && !$Triplay->{DISABLE}) {
     $Triplay->user_change({
-      %params,
       UID     => $user->{UID},
       ID      => $Triplay->{ID},
-      DISABLE => 0,
+      DISABLE => 1
     });
 
-    if ($CONF->{TRIPLAY_FULL_MONTH}) {
-      $attr->{FULL_MONTH_FEE} = 1;
+    $attr->{STATUS} = 1;
+    $attr->{DISABLE} = 1;
+    $self->triplay_service_activate_web($attr);
+    return 1;
+  }
+
+  if (in_array($Triplay->{DISABLE}, [ 2, 4, 5 ])) {
+    if (in_array($Triplay->{DISABLE}, [ 2 ])) {
+      if ($Triplay->{TP_PERIOD_ALIGNMENT}) {
+        my $days_in_month = days_in_month({ DATE => $attr->{DATE} });
+        my (undef, undef, $d)=split(/\-/, $main::DATE);
+        $abon_fees = ($abon_fees / $days_in_month) * ($days_in_month - $d + 1);
+      }
     }
 
-    #::service_get_month_fee($Triplay, { %$attr, SERVICE_NAME => 'Triplay', MODULE => 'Triplay' });
-    $attr->{STATUS} = 0;
-    $attr->{DISABLE} = 0;
-    $attr->{ACTIVATE_SERVICE} = 1;
-    $self->triplay_service_activate_web($attr);
+    if ($deposit > $abon_fees) {
+      my %params = ();
+      $Triplay->user_change({
+        %params,
+        UID     => $user->{UID},
+        ID      => $Triplay->{ID},
+        DISABLE => 0,
+      });
+
+      if ($CONF->{TRIPLAY_FULL_MONTH} && $Triplay->{DISABLE} != 2) {
+        $attr->{FULL_MONTH_FEE} = 1;
+      }
+
+      $attr->{STATUS} = 0;
+      $attr->{DISABLE} = 0;
+      $attr->{ACTIVATE_SERVICE} = 1;
+      $self->triplay_service_activate_web($attr);
+    }
   }
 
   return 1;
@@ -256,9 +287,10 @@ sub triplay_user_del {
   Arguments:
     $attr
       UID
-      TP_ID
+      TP_ID  - Triplay TP_ID
       STATUS - Default: 0
       USER_INFO
+      TP_INFO
       ACTIVATE_SERVICE - ACtivite service after payments
 
       INTERNET_TP
@@ -288,7 +320,7 @@ sub triplay_service_activate_web {
   $attr->{INTERNET_TP_ID} = $triplay_tp_info->{INTERNET_TP};
   $attr->{IPTV_TP_ID} = $triplay_tp_info->{IPTV_TP};
   $attr->{ABON_TP_ID} = $triplay_tp_info->{ABON_TP};
-  my $status = $attr->{STATUS} || 0;
+  my $status = (defined $attr->{STATUS}) ? $attr->{STATUS} : (defined $attr->{DISABLE}) ? $attr->{DISABLE} : 0;
   my $get_services = $attr->{ACTIVATE_SERVICE} || $self->{conf}->{TRIPLAY_REWRITE_SERVICE} || 0;
 
   if ($get_services) {
@@ -300,13 +332,18 @@ sub triplay_service_activate_web {
 
     if ($services && $services->{list}) {
       foreach my $service (sort @{$services->{list}}) {
-        if ($service->{ID}) {
-          my $name = uc($service->{MODULE}) . '_SERVICE_ID';
-          $attr->{$name} = $service->{ID};
-          my $tp_name = uc($service->{MODULE}) . '_TP_ID';
-          if (!$attr->{$tp_name}) {
-            $attr->{$tp_name} = $service->{TP_ID};
-          }
+        next if !$service->{ID};
+
+        my $name = uc($service->{MODULE}) . '_SERVICE_ID';
+        my $tp_name = uc($service->{MODULE}) . '_TP_ID';
+
+        if ($attr->{TP_INFO_OLD}) {
+          next if !$attr->{$tp_name} && $attr->{TP_INFO_OLD}{uc($service->{MODULE}) . '_TP'};
+        }
+
+        $attr->{$name} = $service->{ID};
+        if (!$attr->{$tp_name}) {
+          $attr->{$tp_name} = $service->{TP_ID};
         }
       }
     }
@@ -314,13 +351,7 @@ sub triplay_service_activate_web {
 
   if ($attr->{INTERNET_TP_ID}) {
     my $service_id = $attr->{INTERNET_SERVICE_ID} || 0;
-    # For multi import
-    # if ($attr->{ASSIGN_CUR} && ! $attr->{INTERNET_SERVICE_ID}) {
-    #   $service_id = triplay_get_services({
-    #     MODULE => 'Internet',
-    #     UID    => $uid,
-    #   });
-    # }
+
     if (!$service_id) {
       ::load_module("Internet::Users", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Internet::Users"}));
       $service_id = ::internet_user_add({
@@ -328,7 +359,9 @@ sub triplay_service_activate_web {
         SERVICE_ADD => 1,
         USER_INFO   => $user_info,
         UID         => $uid,
+        STATUS      => $status,
         TP_ID       => $attr->{INTERNET_TP_ID},
+        PERSONAL_TP => 0.00
       });
     }
     elsif ($service_id) {
@@ -338,9 +371,11 @@ sub triplay_service_activate_web {
         %$attr,
         USER_INFO => $user_info,
         UID       => $uid,
-        STATUS    => $status,
+        STATUS    => (in_array($status, [0, 2])) ? $status : 1,
         ID        => $service_id,
         TP_ID     => $attr->{INTERNET_TP_ID},
+        PERSONAL_TP => 0.00,
+        QUITE     => 1
       });
     }
 
@@ -355,13 +390,7 @@ sub triplay_service_activate_web {
 
   if ($attr->{IPTV_TP_ID}) {
     my $service_id = $attr->{IPTV_SERVICE_ID} || 0;
-    # For multi import
-    # if ($FORM{ASSIGN_CUR} && ! $FORM{IPTV_SERVICE_ID}) {
-    #   $service_id = triplay_get_services({
-    #     MODULE => 'Internet',
-    #     UID    => $uid,
-    #   });
-    # }
+
     if (!$service_id) {
       ::load_module("Iptv") if (!exists($INC{"Iptv"}));
       # do not adding if not enough money $Iptv->{user_add} will return errno 15
@@ -371,37 +400,47 @@ sub triplay_service_activate_web {
         USER_INFO   => $user_info,
         UID         => $uid,
         TP_ID       => $attr->{IPTV_TP_ID},
+        STATUS      => $status
       });
     }
     elsif ($service_id) {
       ::load_module("Iptv") if (!exists($INC{"Iptv"}));
-
       ::iptv_user_change({
         %$attr,
         USER_INFO => $user_info,
         UID       => $uid,
-        STATUS    => $status,
+        #STATUS    => $attr->{DISABLE} && !in_array($attr->{DISABLE}, [ 5 ]) ? $attr->{DISABLE} : $status,
+        STATUS    => (in_array($status, [0, 2])) ? $status : 1,
         ID        => $service_id,
         TP_ID     => $attr->{IPTV_TP_ID},
+        QUITE     => 1
       });
     }
 
-    $Triplay->service_add({
-      UID        => $uid,
-      SERVICE_ID => $service_id,
-      MODULE     => 'Iptv',
+    if ($service_id) {
+      $Triplay->service_add({
+        UID        => $uid,
+        SERVICE_ID => $service_id,
+        MODULE     => 'Iptv',
+      });
+    }
+  }
+  elsif ($attr->{TP_INFO_OLD} && $attr->{TP_INFO_OLD}{IPTV_TP}) {
+    #TODO: Added using packages
+    ::load_module("Iptv") if (!exists($INC{"Iptv"}));
+    ::iptv_user_del({
+      %$attr,
+      USER_INFO => $user_info,
+      UID       => $uid,
+      # ID        => $service_id,
+      TP_ID     => $attr->{TP_INFO_OLD}{IPTV_TP},
+      QUITE     => 1
     });
   }
 
   if ($attr->{ABON_TP_ID}) {
     my $service_id = $attr->{ABON_SERVICE_ID} || 0;
-    # For multi import
-    # if ($FORM{ASSIGN_CUR} && ! $FORM{IPTV_SERVICE_ID}) {
-    #   $service_id = triplay_get_services({
-    #     MODULE => 'Internet',
-    #     UID    => $uid,
-    #   });
-    # }
+
     if (!$service_id) {
       ::load_module('Abon');
       $service_id = ::abon_user_add({
@@ -413,17 +452,6 @@ sub triplay_service_activate_web {
         EXPIRE      => $attr->{EXPIRE}
       });
     }
-    # elsif ($FORM{ABON_SERVICE_ID}) {
-    #   load_module('Abon');
-    #   iptv_user_change({
-    #     %$attr,
-    #     USER_INFO => $users,
-    #     UID       => $uid,
-    #     STATUS    => 0,
-    #     ID        => $service_id,
-    #     TP_ID     => $iptv_tp_id,
-    #   });
-    #}
 
     $Triplay->service_add({
       UID        => $uid,
@@ -431,7 +459,6 @@ sub triplay_service_activate_web {
       MODULE     => 'Abon',
     });
   }
-
   #TODO: auto add voip tariff like internet/iptv/abon
   #TODO: make unification of function names on activation and call dynamically from modules
   #TODO: right now cringe static activation and its bad
@@ -439,15 +466,65 @@ sub triplay_service_activate_web {
   #Make month fee
   $Triplay->user_info({ UID => $uid });
   if (!$attr->{DISABLE} && !$attr->{SKIP_MONTH_FEE}) {
-    $Triplay->{TP_INFO} = $attr->{TP_INFO} if (! $Triplay->{TP_INFO} && $attr->{TP_INFO});
+    if (!$Triplay->{TP_INFO} && $attr->{TP_INFO}) {
+      $Triplay->{TP_INFO} = $attr->{TP_INFO};
+    }
+
+    if ($attr->{TP_INFO_OLD}) {
+      $Triplay->{TP_INFO_OLD}=$attr->{TP_INFO_OLD};
+    }
+
     ::service_get_month_fee($Triplay, {
-      REGISTRATION => 1,
-      SERVICE_NAME => 'Triplay',
-      MODULE       => 'Triplay'
+      %$attr,
+      REGISTRATION   => 1,
+      SERVICE_NAME   => 'Triplay',
+      MODULE         => 'Triplay',
+      FULL_MONTH_FEE => $attr->{FULL_MONTH_FEE}
     });
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 triplay_service_del($attr)
+
+=cut
+#**********************************************************
+sub triplay_service_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  delete $INC{'Control/Services.pm'};
+  eval {
+    do 'Control/Services.pm';
+  };
+
+  my $user_info = $attr->{USER_INFO} || {};
+  my $uid = $attr->{UID} || $user_info->{UID} || 0;
+  my $triplay_info = $Triplay->user_info({ UID => $uid, ID => $attr->{ID} });
+  return $Errors->throw_error(1130002) if !$Triplay->{TOTAL} || $Triplay->{TOTAL} < 1 || !$Triplay->{TP_ID};
+
+  my $triplay_tp_info = $Triplay->tp_info({ TP_ID => $Triplay->{TP_ID} });
+
+  if ($triplay_tp_info->{IPTV_TP}) {
+    ::load_module("Iptv") if (!exists($INC{"Iptv"}));
+    ::iptv_user_del({
+      %$attr,
+      USER_INFO => $user_info,
+      UID       => $uid,
+      TP_ID     => $triplay_tp_info->{IPTV_TP},
+      QUITE     => 1
+    });
+  }
+
+  $Triplay->user_del({ UID => $uid });
+  if ($Triplay->{errno}) {
+    $self->{errno} = $Triplay->{errno};
+    $self->{errstr} = $Triplay->{errstr};
+  }
+
+  return $self;
 }
 
 #**********************************************************
@@ -468,9 +545,9 @@ sub triplay_user_services {
   my $Service_control = Control::Service_control->new($db, $admin, $CONF);
 
   my $tariffs = $Service_control->services_info({
-    UID             => $user->{UID},
-    MODULE          => 'Triplay',
-    FUNCTION_PARAMS => {
+    UID                 => $user->{UID},
+    MODULE              => 'Triplay',
+    FUNCTION_PARAMS     => {
       SERVICE_STATUS   => '_SHOW',
       INTERNET_TP_NAME => '_SHOW',
       IPTV_TP_NAME     => '_SHOW',

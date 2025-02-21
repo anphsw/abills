@@ -1,39 +1,33 @@
 <script src='/styles/default/js/modules/config/password_generator.js'></script>
-<form action='$SELF_URL' method='post' class='form form-horizontal' id='PASSWORD_GENERATOR_FORM'>
-  <input type='hidden' name='index' value='$index'>
+
+<form action='%SELF_URL%' method='post' class='form form-horizontal' id='PASSWORD_GENERATOR_FORM'>
+  <input type='hidden' name='index' value='%index%'>
 
   <div class='card card-primary card-outline container col-md-6'>
     <div class='card-header with-border'>
-      <h3>_{PASSWORD_GENERATOR}_</h3>
+      <h4 class='card-title'>_{PASSWORD_GENERATOR}_</h4>
     </div>
     <div class='card-body'>
-      <div class="form-group">
-        <div class="row">
-          <div class="col-sm-12 col-md-12">
-            <label for='SYMBOLS_COUNT' class='col-md-10 control-label'>_{SYMBOLS_COUNT}_</label>
-            <div class="input-group">
-              <input type='number' class='form-control'
-                min='%MIN_LENGTH%' max='%MAX_LENGTH%'
-                id='SYMBOLS_COUNT' name='SYMBOLS_COUNT'
-                value='%SYMBOLS_COUNT%'/>
-            </div>
-          </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='SYMBOLS_COUNT'>_{SYMBOLS_COUNT}_:</label>
+        <div class='col-md-8'>
+          <input type='number' class='form-control' min='%MIN_LENGTH%' max='%MAX_LENGTH%' id='SYMBOLS_COUNT' name='SYMBOLS_COUNT' value='%SYMBOLS_COUNT%'/>
         </div>
       </div>
 
-      <div class='form-group' id='CASE_RADIO'>
-        <label for='CASEUPPER' class='col-md-5 control-label'>_{LETTERS}_</label>
-        <div class='col-md-7 text-left'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='CASEUPPER'>_{LETTERS}_:</label>
+        <div class='col-md-8'>
           <div class='radio'>
             <label>
               <input type='radio' name='CASE' id='CASEUPPER' %CASE_0_CHECKED% value='0'>
-              _{LOWERCASE}_ (abc)
+              _{UPPERCASE}_ (abc)
             </label>
           </div>
           <div class='radio'>
             <label>
               <input type='radio' name='CASE' id='CASELOWER' %CASE_1_CHECKED% value='1'>
-              _{UPPERCASE}_ (ABC)
+              _{LOWERCASE}_ (ABC)
             </label>
           </div>
           <div class='radio'>
@@ -53,10 +47,9 @@
 
       <hr/>
 
-      <div class='form-group' id='CHARS_RADIO'>
-        <label for='CHARSUPPER' class='col-md-5 control-label'>_{NON_ALPHABET_SYMBOLS}_</label>
-        <div class='col-md-7 text-left'>
-
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='CHARSUPPER'>_{NON_ALPHABET_SYMBOLS}_:</label>
+        <div class='col-md-8'>
           <div class='radio'>
             <label>
               <input type='radio' name='CHARS' id='CHARSUPPER' %CHARS_0_CHECKED% value='0'>
@@ -65,7 +58,7 @@
           </div>
           <div class='radio'>
             <label>
-              <input type='radio' name='CHARS' id='CHARSLOWER' %CHARS_1_CHECKED% value='1'>_{SPECIAL_CHARS}_
+              <input type='radio' name='CHARS' id='CHARSLOWER' %CHARS_1_CHECKED% value='1'> _{SPECIAL_CHARS}_
             </label>
           </div>
           <div class='radio'>
@@ -85,12 +78,12 @@
 
       <hr/>
 
-      <div class="form-group">
-        <div class="row">
-          <div class="col-sm-12 col-12">
-            <div class="input-group">
+      <div class='form-group'>
+        <div class='row'>
+          <div class='col-sm-12 col-12'>
+            <div class='input-group'>
               <input type='text' class='form-control' aria-describedby='GENERATE_PASSWORD' readonly='readonly' id='PREVIEW_INPUT'/>
-              <div class="input-group-append">
+              <div class='input-group-append'>
                 <button role='button' class='btn btn-success' id='GENERATE_PASSWORD'>_{PREVIEW}_</button>
               </div>
             </div>
@@ -131,7 +124,7 @@
     var _chars = getRadioValue('CHARS');
 
     var generated_password = generatePassword({LENGTH: length, CASE: _case, CHARS: _chars});
-console.log(generated_password);
+
     _preview_input.val(generated_password);
   });
 

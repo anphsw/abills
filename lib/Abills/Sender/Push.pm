@@ -14,6 +14,33 @@ use Contacts;
 use Abills::Fetcher qw(web_request);
 use Abills::Base qw(json_former);
 
+my %status_compare = (
+  #TODO: DELETE IT
+  # legacy codes, can not find why it was added, because it already deleted https://firebase.google.com/docs/cloud-messaging/http-server-ref
+  # MismatchSenderId       => 1000008,
+  # MissingRegistration    => 1000008,
+  # InvalidRegistration    => 1000008,
+  # NotRegistered          => 1000008,
+  # InvalidPackageName     => 1000014,
+  # InvalidParameters      => 1000014,
+  # MessageTooBig          => 1000014,
+  # InvalidDataKey         => 1000014,
+  #TODO: DELETE IT
+
+  # new error codes https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
+  UNAUTHENTICATED        => 1000013,
+  INVALID_ARGUMENT       => 1000014,
+  PERMISSION_DENIED      => 1000013,
+  NOT_FOUND              => 1000008,
+  UNREGISTERED           => 1000008,
+  UNSPECIFIED_ERROR      => 1000015,
+  SENDER_ID_MISMATCH     => 1000008,
+  QUOTA_EXCEEDED         => 1000016,
+  UNAVAILABLE            => 1000017,
+  THIRD_PARTY_AUTH_ERROR => 1000018,
+  INTERNAL               => 1000018,
+);
+
 #**********************************************************
 =head2 new($conf) - constructor for FCM_PUSH
 
@@ -74,6 +101,11 @@ sub send_message {
 
   my $result = $Google->access_token();
 
+  if ($attr->{RETURN_RESULT}) {
+    return $result if $result && $result->{errno};
+    return { errno => 1000008, errstr => 'ERR_TOKEN_EXPIRED_OR_INVALID' } if $result && !$result->{access_token};
+  }
+
   return $result->{errno} || 1 if ($result->{errno} || !$result->{access_token});
 
   my $receiver_type = ($attr->{AID})
@@ -109,8 +141,8 @@ sub send_message {
     });
 
     $req_params{message}{notification} = {
-      body         => $attr->{MESSAGE},
-      title        => $title,
+      body  => $attr->{MESSAGE},
+      title => $title,
     };
 
     $req_params{message}{apns} = {
@@ -159,6 +191,23 @@ sub send_message {
     }
   });
 
+  if ($send_result->{error}) {
+    if (ref $send_result->{error} eq 'HASH') {
+      if ($send_result->{error}{status} && ($send_result->{error}{status} eq 'NOT_FOUND' || $send_result->{error}{status} eq 'UNREGISTERED')) {
+        $self->{Contacts}->push_contacts_del({
+          ID => $attr->{CONTACT}->{id} || '--',
+        });
+      }
+
+      $send_result->{errno} = $send_result->{error}{status} ? ($status_compare{$send_result->{error}{status}} || 0) : 0;
+      $send_result->{errstr} = $send_result->{error}{message} if $send_result->{error}{message};
+    }
+    else {
+      $send_result->{errno} = $status_compare{$send_result->{error}} || 0;
+      $send_result->{errstr} = $send_result->{error};
+    }
+  }
+
   $self->{Contacts}->push_messages_add({
     AID        => ($receiver_type eq 'AID') ? $attr->{AID} : 0,
     UID        => ($receiver_type eq 'UID') ? $attr->{UID} : 0,
@@ -171,7 +220,9 @@ sub send_message {
     MESSAGE_ID => $attr->{MESSAGE_ID} || 0
   });
 
-  return $send_result->{error} ? 1 : 0;
+  return $send_result if $attr->{RETURN_RESULT};
+
+  return $send_result->{error} ? 0 : 1;
 }
 
 #**********************************************************

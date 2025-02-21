@@ -1,0 +1,10 @@
+{
+  "name": "USER_INTERNET_CHANGE",
+  "method": "PUT",
+  "path": "user/internet/:id/",
+  "body": {
+    "tpId": "4",
+    "date": "2024-12-12",
+    "period": 1
+  }
+}

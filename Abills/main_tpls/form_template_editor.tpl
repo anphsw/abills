@@ -1,6 +1,7 @@
 <link rel='stylesheet' href='/styles/codemirror/lib/codemirror.css'>
 <link rel='stylesheet' href='/styles/codemirror/theme/darcula.css'>
 <link rel='stylesheet' href='/styles/codemirror/addon/hint/show-hint.css'>
+<link rel='stylesheet' href='/styles/codemirror/addon/merge/merge.css'>
 
 <script src='/styles/codemirror/lib/codemirror.js'></script>
 <script src='/styles/codemirror/mode/xml/xml.js'></script>
@@ -10,6 +11,8 @@
 <script src='/styles/codemirror/addon/hint/show-hint.js'></script>
 <script src='/styles/codemirror/addon/hint/xml-hint.js'></script>
 <script src='/styles/codemirror/addon/hint/html-hint.js'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+<script src='/styles/codemirror/addon/merge/merge.js'></script>
 
 <form id='template_form' action='$SELF_URL' method='post'>
 
@@ -20,17 +23,27 @@
 
   <input type='hidden' id='template_result' name='template'/>
 
-  <div style='border: 1px solid silver'>
-    <textarea id='a_code_editor'>__TEMPLATE__</textarea>
+  <div class='card card-primary card-outline'>
+    <div class='card-header'>
+      <h2 class='card-title'>%ACTION_LNG%: %TPL_NAME%</h2>
+    </div>
+    <div class='card-body p-0'>
+      <div class='row m-0 justify-content-around'>
+        %CARDS%
+      </div>
+      <textarea id='a_code_editor'>__TEMPLATE__</textarea>
+    </div>
+    <div class='card-footer'>
+      <button role='button' id='preview_template_btn' class='btn btn-secondary'>_{PREVIEW}_</button>
+      <input type='submit' value='%ACTION_LNG%' class='btn btn-primary'/>
+    </div>
   </div>
 
   <iframe id='preview' style='width: 100%; height: 0'></iframe>
-  <div class='abills-form-main-buttons pb-3'>
-    <button role='button' id='preview_template_btn' class='btn btn-secondary'>_{PREVIEW}_</button>
-    <input type='submit' value='_{SAVE}_' class='btn btn-primary'/>
-  </div>
 </form>
 
+<textarea style='display: none' id='prev_template' name='orig_template'>__TEMPLATE__</textarea>
+<textarea style='display: none' id='orig_template' name='orig_template'>__ORIG_TEMPLATE__</textarea>
 <script>
 
   var ACodeEditor = document.getElementById('a_code_editor');
@@ -50,16 +63,20 @@
     autofocus: true,
     extraKeys: {"Ctrl-Space": "autocomplete"},
     hint: CodeMirror.hint.html,
+    highlightDifferences: true,
+    origLeft: jQuery('#prev_template').val(),
+    origRight: jQuery('#orig_template').val() || undefined
   };
 
   if (myDarkMode) {
     CODEMIRROR_PARAMS.theme = 'darcula';
   }
 
-  var myCodeMirror = CodeMirror(
-    function (elt) {
-      ACodeEditor.parentNode.replaceChild(elt, ACodeEditor);
-    },
+  const parentOfEditor = ACodeEditor.parentNode;
+  ACodeEditor.remove();
+
+  var myCodeMirror = CodeMirror.MergeView(
+    parentOfEditor,
     CODEMIRROR_PARAMS,
   );
 
@@ -68,8 +85,8 @@
   jQuery(function () {
     var _form = jQuery('#template_form');
 
-    _form.on('submit', function () {
-      jQuery('#template_result').val(myCodeMirror.getValue());
+    _form.on('submit', function (e) {
+      jQuery('#template_result').val(myCodeMirror.edit.getValue());
     });
 
     jQuery('#preview_template_btn').on('click', fillPreview);
@@ -110,7 +127,7 @@
 
       preview.addEventListener('DOMContentLoaded', function (event) {
 
-        preview.getElementById('preview_container').innerHTML = myCodeMirror.getValue();
+        preview.getElementById('preview_container').innerHTML = myCodeMirror.edit.getValue();
 
       });
 

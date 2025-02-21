@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_TARIFFS_SERVICE",
+  "method": "GET",
+  "path": "user/iptv/tariffs/:service_id/"
+}

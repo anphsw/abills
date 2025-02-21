@@ -96,7 +96,8 @@ foreach my $test (@test_list) {
 
 test_runner({
   apiKey => $apiKey,
-  debug  => $debug
+  debug  => $debug,
+  argv   => $ARGV
 }, \@tests);
 
 done_testing();

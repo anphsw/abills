@@ -9,12 +9,7 @@ get:
       description: уникальное ID ONU
       schema:
         type: integer
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: branch
       in: query
       description: Ветка
@@ -39,12 +34,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: onuId
-      in: query
-      description: ID ONU
-      schema:
-        type: boolean
-        default: true
+    - $ref: "../parameters/onuId.yaml"
     - name: vlan
       in: query
       description: Vlan
@@ -93,18 +83,8 @@ get:
       schema:
         type: boolean
         default: false
-    - name: nasId
-      in: query
-      description: ID сервера доступа
-      schema:
-        type: boolean
-        default: true
-    - name: onuSnmpId
-      in: query
-      description: ONU SNMP ID
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/nasId"
+    - $ref: "../parameters/onuSnmpId.yaml"
     - name: datetime
       in: query
       description: Дата последнего опроса ONU
@@ -177,18 +157,10 @@ get:
       schema:
         type: boolean
         default: true
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

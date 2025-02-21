@@ -40,5 +40,7 @@ $lang{ERR_REPORTS_NOT_ARRAY} = 'Field reports is not an array';
 $lang{ERR_NO_REPORTS_ADDED} = 'No reports added';
 $lang{ERR_NO_REPORTS_FOR_USER} = 'User with UID %UID% has no reports';
 $lang{ERR_NO_REPORT_WITH_ID} = 'User with UID %UID% has no report with ID %ID%';
+$lang{ERR_QUOTA_EXCEEDED} = 'This error can be caused by exceeded message rate quota';
+$lang{ERR_SERVICE_ERROR} = 'The server encountered an error while trying to process the request';
 
 1;

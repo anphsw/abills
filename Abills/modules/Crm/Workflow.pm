@@ -140,7 +140,7 @@ sub crm_triggers {
   if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
     use Tasks::db::Tasks;
     my $Tasks = Tasks->new($db, $admin, \%conf);
-    my $tasks_list = $Tasks->types_list({ COLS_NAME => 1 });
+    my $tasks_list = $Tasks->types_list({ NAME => '_SHOW', COLS_NAME => 1 });
     map $tasks_hash->{$_->{id}} = _translate($_->{name}), @{$tasks_list};
   }
 
@@ -315,7 +315,7 @@ sub crm_actions {
   if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
     use Tasks::db::Tasks;
     my $Tasks = Tasks->new($db, $admin, \%conf);
-    my $tasks_list = $Tasks->types_list({ COLS_NAME => 1 });
+    my $tasks_list = $Tasks->types_list({ NAME => '_SHOW', COLS_NAME => 1 });
     map $tasks_hash->{$_->{id}} = _translate($_->{name}), @{$tasks_list};
   }
 

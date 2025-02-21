@@ -3,12 +3,10 @@ get:
     - voip
   summary: Получить информацию о сессиях
   parameters:
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: number
-        default: 25
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
     - name: fromDate
       in: query
       description: С даты

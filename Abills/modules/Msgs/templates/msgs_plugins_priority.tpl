@@ -1,11 +1,4 @@
 <style>
-  #plugin_submit {
-    margin-left: 25px;
-  }
-
-  .draggable-handler {
-    cursor: move;
-  }
 
   .plugin {
     background-color: #f0f0f0;
@@ -59,14 +52,11 @@
 
 <script id='plugin_template' type='x-tmpl-mustache'>
 
-  <div class='form-group plugin' data-id='{{id}}' data-priority='{{priority}}' data-position='{{position}}'>
-    <div class='col-xs-1 draggable-handler'>
-      <span class='fa fa-ellipsis-v form-control-static'></span>
+  <div class='form-group plugin d-flex align-items-center p-2 mb-3 border rounded' data-id='{{id}}' data-priority='{{priority}}' data-position='{{position}}'>
+    <div class='mr-3 ml-1 text-center cursor-pointer'>
+      <span class='fa fa-ellipsis-v fa-lg'></span>
     </div>
-    <label class='control-label col-xs-3'>
-      <div>{{name}}</div>
-    </label>
-    <div class='col-xs-7'>
+    <div class='flex-grow-1'>
       <input class='form-control' readonly type='text' {{#form}}form='{{form}}'{{/form}} name='{{type_id}}' {{#value}}value='{{value}}'{{/value}}/>
     </div>
   </div>

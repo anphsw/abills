@@ -2,7 +2,9 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(date_inc convert);
+use Abills::Base qw(date_inc convert urldecode urlencode in_array);
+use Paysys::Core;
+use Payments;
 
 our (
   %lang,
@@ -17,6 +19,7 @@ our (
 
 our Abills::HTML $html;
 our Paysys $Paysys;
+my $Paysys_Core = Paysys::Core->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 paysys_log() - Show paysys operations
@@ -27,7 +30,7 @@ sub paysys_log {
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Paysys',
-    REQUIRE_VERSION => 9.36
+    REQUIRE_VERSION => 9.47
   })) {
     return 0;
   }
@@ -56,10 +59,20 @@ sub paysys_log {
     $Paysys->info({ ID => $FORM{info} });
     my @info_arr = split(/\n/, $Paysys->{INFO} || q{});
     my $table = $html->table({ width => '100%' });
+    my $i = 0;
     foreach my $line (@info_arr) {
       my ($k, $v) = split(/,/, $line, 2);
-      my $value = convert($v, { text2html => 1 });
-      $table->addrow($k, $value);
+      # json/xml value
+      if (!$i && $k && $k eq 'DATA') {
+        my $value = convert($Paysys->{INFO}, { text2html => 1 });
+        $table->addrow($k, $value);
+        last;
+      }
+      else {
+        my $value = convert($v, { text2html => 1 });
+        $table->addrow($k, $value);
+      }
+      $i++;
     }
 
     $Paysys->{INFO} = $table->show();
@@ -125,10 +138,11 @@ sub paysys_log {
     });
 
     form_search({
-      SEARCH_FORM  => $html->tpl_show(_include('paysys_search', 'Paysys'),
-        { %info, %FORM },
-        { OUTPUT2RETURN => 1 }),
-      ADDRESS_FORM => 1
+      SEARCH_FORM   => $html->tpl_show(_include('paysys_search', 'Paysys'),
+        { %info, %FORM }, { OUTPUT2RETURN => 1
+      }),
+      ADDRESS_FORM  => 1,
+      ARCHIVE_TABLE => 'paysys_log'
     });
   }
 
@@ -149,6 +163,10 @@ sub paysys_log {
       transaction_id => $lang{TRANSACTION},
       info           => $lang{INFO},
       sum            => $lang{SUM},
+      contract_id    => $lang{CONTRACT_ID},
+      fio            => $lang{FIO},
+      uid            => 'UID',
+      bill_id        => $lang{BILL_ID},
       ip             => "$lang{USER} IP",
       status         => $lang{STATUS},
       date           => $lang{DATE},
@@ -166,24 +184,29 @@ sub paysys_log {
       qs      => $pages_qs,
       pages   => $Paysys->{TOTAL},
       ID      => 'PAYSYS_LOG',
-      EXPORT  => "$lang{EXPORT} XML:&xml=1",
+      EXPORT  => 1,
       MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
     },
   });
 
   foreach my $line (@$list) {
-    $line->{transaction_id} = convert($line->{transaction_id}, { text2html => 1 });
+    $line->{transaction_id} = convert($line->{transaction_id} || q{}, { text2html => 1 });
+    my $status = $line->{status} || 0;
+    my $system_id = $line->{system_id} || 0;
     my @fields_array = ($line->{id},
-      $html->button($line->{login}, "index=15&UID=$line->{uid}"),
+      $html->button($line->{login}, "index=15&UID=". ($line->{uid} || q{})),
       $line->{datetime},
       $line->{sum},
-      (($PAY_SYSTEMS{$line->{system_id}}) ? $PAY_SYSTEMS{$line->{system_id}} : "Unknown: " . $line->{system_id}),
-      $html->button("$line->{transaction_id}", "index=2&EXT_ID=$line->{transaction_id}&search=1"),
-      "$line->{status}:" . $html->color_mark($status[$line->{status}], $status_color[$line->{status}]),
+      (($PAY_SYSTEMS{$system_id}) ? $PAY_SYSTEMS{$system_id} : "UNKNOWN: " . $system_id),
+      $html->button($line->{transaction_id}, "index=2&EXT_ID=$line->{transaction_id}&search=1"),
+      "$status:" . $html->color_mark($status[$status], $status_color[$status]),
     );
 
-    for (my $i = 7; $i < 7 + $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
-      push @fields_array, $line->{$Paysys->{COL_NAMES_ARR}->[$i]};
+    if($Paysys->{SEARCH_FIELDS_COUNT}) {
+      for (my $i = 7; $i < 7 + $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
+        my $field = $Paysys->{COL_NAMES_ARR}->[$i] || q{};
+        push @fields_array, $line->{$field};
+      }
     }
 
     $table->addrow(
@@ -220,16 +243,7 @@ sub paysys_reports {
   my $selection_group = $html->element('div', $select, { class => 'input-group' });
 
   if ($permissions{4}) {
-    my %debug_list = (
-      1 => 1,
-      2 => 2,
-      3 => 3,
-      4 => 4,
-      5 => 5,
-      6 => 6,
-      7 => 7,
-      8 => 8,
-      9 => 9);
+    my %debug_list = map { $_ => $_ } 1..9;
 
     my $debug_select = $html->form_select('DEBUG', {
       SELECTED => $FORM{DEBUG} || '',
@@ -275,9 +289,10 @@ sub paysys_reports {
       }
 
       my $reg_payments = get_reg_payments({
-        DATE_FROM => $FORM{DATE_FROM},
-        DATE_TO   => $FORM{DATE_TO},
-        EXT_ID    => $Pay_plugin->{SHORT_NAME}
+        DATE_FROM            => $FORM{DATE_FROM},
+        DATE_TO              => $FORM{DATE_TO},
+        TRANSACTION_PREFIXES => ($Pay_plugin->{TRANSACTION_PREFIXES}) ? join(':*,', @{$Pay_plugin->{TRANSACTION_PREFIXES}}) . ':*' : '',
+        EXT_ID               => $Pay_plugin->{SHORT_NAME}
       });
 
       my $report_data = $Pay_plugin->report({
@@ -296,11 +311,17 @@ sub paysys_reports {
       });
 
       if ($report_data && ref $report_data eq 'HASH') {
-        if ($report_data->{PAYMENTS}) {
+        if ($report_data->{ERROR}) {
+          $html->message('err', $lang{ERROR}, $report_data->{ERROR});
+        }
+        elsif ($report_data->{PAYMENTS}) {
           _paysys_report($report_data, $reg_payments, $Pay_plugin, \%FORM);
         }
         elsif ($report_data->{MESSAGE}) {
           $html->message('info', $lang{INFO}, $report_data->{MESSAGE});
+        }
+        else {
+          $html->message('warn', $lang{INFO}, $lang{UNKNOWN_ERROR});
         }
       }
     }
@@ -328,24 +349,32 @@ sub _paysys_import_payments {
   my $result = q{};
   my $result_err = q{};
   foreach my $transaction_id (@ids) {
-    $FORM{"DESC_$transaction_id"} =~ s/\\\"/\"/gm if ($FORM{"DESC_$transaction_id"});
+    my $urlencoded_transaction_id = urlencode($transaction_id);
+    if (!$FORM{"USER_$urlencoded_transaction_id"}) {
+      $html->message('err', $lang{ERR}, "TRANSACTION: $transaction_id ERROR: $lang{UNKNOWN_UID}");
+      next;
+    }
+
+    $FORM{"DESC_$urlencoded_transaction_id"} =~ s/\\\"/\"/gm if ($FORM{"DESC_$urlencoded_transaction_id"});
     my ($status) = $Pay_plugin->report_import({
-      ID           => $transaction_id,
-      UID          => $attr->{"USER_$transaction_id"} || '',
-      SUM          => $attr->{"SUM_$transaction_id"} || '',
-      DESC         => $attr->{"DESC_$transaction_id"} || '',
-      DATE         => $attr->{"DATE_$transaction_id"} || '',
-      MERCHANT_ID  => $attr->{"MERCHANT_$transaction_id"} || '0',
-      FORCE_IMPORT => $attr->{FORCE_IMPORT} ? 1 : 0,
+      ID              => $transaction_id,
+      UID             => $attr->{"USER_$urlencoded_transaction_id"} || '',
+      SUM             => $attr->{"SUM_$urlencoded_transaction_id"} || '',
+      DESC            => $attr->{"DESC_$urlencoded_transaction_id"} || '',
+      DATE            => $attr->{"DATE_$urlencoded_transaction_id"} || '',
+      MERCHANT_ID     => $attr->{"MERCHANT_$urlencoded_transaction_id"} || '0',
+      FORCE_IMPORT    => $attr->{FORCE_IMPORT} ? 1 : 0,
+      CURRENCY_ISO    => $attr->{CURRENCY_ISO} || 0,
+      DATE_IMPORT_SEL => $attr->{DATE_IMPORT_SEL} || 0
     });
 
     if ($status == 0) {
       $success_payments++;
-      $result .= $FORM{"USER_$transaction_id"} . " TRANSACTION: $transaction_id ID:  STATUS: Ok\n"
+      $result .= $FORM{"USER_$urlencoded_transaction_id"} . " TRANSACTION: $transaction_id ID:  STATUS: Ok\n"
     }
     else {
       my $err_msg = "STATUS_$status";
-      $result_err .= $FORM{"USER_$transaction_id"} . " TRANSACTION: $transaction_id ERROR STATUS: $status MESSAGE " . ($lang{$err_msg} || $lang{UNKNOWN}) . "\n";
+      $result_err .= $FORM{"USER_$urlencoded_transaction_id"} . " TRANSACTION: $transaction_id ERROR STATUS: $status MESSAGE " . ($lang{$err_msg} || $lang{UNKNOWN}) . "\n";
     }
   }
   if ($result) {
@@ -369,7 +398,14 @@ sub _paysys_import_payments {
 
     FIELDS?: array            - list of fields which need to be displayed
     COLUMN_FILTERS?: obj      - extra process filters on columns
-    TRANSACTION_FORMAT?: obj  - extra process filters on columns
+    TRANSACTION_FORMAT?: obj  - custom transaction format
+    FIELDS?: array            - sequence of fields for display
+    SKIP_SYSTEM_PREFIX?: bool - skip payment system prefix during payment import and search
+    TITLE2LANG?: bool         - convert column names to lang
+    SKIP_UTF8_OFF?: bool      - skip utf-8 off for fields
+    EDRPOU_CHECK?: str        - field in cvs which response for search company by EDRPOU
+    MERCHANTS?: array         - custom merchants sel
+
 
   $reg_payments
   $Pay_plugin
@@ -382,11 +418,28 @@ sub _paysys_report {
 
   my %settings = $Pay_plugin->get_settings();
 
-  my $PAYSYSTEM_SHORT_NAME = $settings{SHORT_NAME} || $attr->{PAYSYSTEM_SHORT_NAME} || '--';
+  my $PAYSYSTEM_SHORT_NAME = $settings{SHORT_NAME} || $attr->{PAYSYSTEM_SHORT_NAME} || $Pay_plugin->{PAYSYSTEM_SHORT_NAME} || '--';
   my $PAYSYSTEM_NAME = $settings{NAME} || $attr->{PAYSYSTEM_NAME} || '--';
   my $PAYSYSTEM_ID = $settings{ID} || $attr->{PAYSYSTEM_ID} || '--';
 
   my $table = '';
+  my $preview_list;
+  my $credit = 0;
+  my $debit = 0;
+
+  if ($attr->{IMPORT_PREVIEW} && $attr->{IDS}) {
+    $preview_list = _paysys_report_preview_list($report_data, $attr);
+  }
+
+  if ($report_data->{TITLE2LANG}) {
+    my $title_lang = [];
+
+    foreach my $col_name (@{$report_data->{TITLE}}) {
+      push @{$title_lang}, ($lang{$col_name || ''} || $col_name);
+    }
+
+    $report_data->{TITLE} = $title_lang;
+  }
 
   if ($report_data->{PAYMENTS}) {
     $table = $html->table({
@@ -406,53 +459,120 @@ sub _paysys_report {
       @fields = sort keys %{$report_data->{PAYMENTS}->[0]};
     }
 
+    my @ids = split(', ', $attr->{IDS}) if ($attr->{IDS});
+
     foreach my $payment (@{$report_data->{PAYMENTS}}) {
+
+      next if ($attr->{IDS} && !in_array($payment->{$report_data->{IMPORT_FIELD}}, \@ids));
 
       my @result_rows = ();
       foreach my $field (@fields) {
         next if (!$field);
         my $value = $payment->{$field};
-        Encode::_utf8_off($value);
+        Encode::_utf8_off($value) if (!$report_data->{SKIP_UTF8_OFF});
 
         if ($field eq $report_data->{IMPORT_FIELD}) {
-          my $transaction = '';
-          if ($report_data->{TRANSACTION_FORMAT}) {
-            foreach my $format (@{$report_data->{TRANSACTION_FORMAT}}) {
-              if ($format->{type} eq 'field') {
-                Encode::_utf8_off($payment->{$format->{value}});
-                $transaction .=  $payment->{$format->{value}} || '';
-              }
-              else {
-                $transaction .=  $format->{value} || '';
-              }
-            }
-          }
-          else {
-            $transaction = $value || '';
+          if ($payment->{_DEPOSIT_PAYMENT}) {
+            $debit += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+            unshift @result_rows, '', '';
+            $table->{rowcolor} = 'table-info';
+            push @result_rows, $value;
+            next;
           }
 
-          my $ext_id = "$PAYSYSTEM_SHORT_NAME:$transaction";
+          $credit += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+          my $ext_id = '';
+          my $transaction = '';
+
+          # check is already present payment from other payment system
+          if ($report_data->{TRANSACTION_PREFIX_CHECK}) {
+            $transaction = _paysys_report_transaction_prefix_check($payment, $report_data, $reg_payments);
+            $ext_id = $transaction;
+          }
+
+          # create transaction with custom format if it present
+          if (!$transaction) {
+            if ($report_data->{TRANSACTION_FORMAT}) {
+              foreach my $format (@{$report_data->{TRANSACTION_FORMAT}}) {
+                if ($format->{type} eq 'field') {
+                  Encode::_utf8_off($payment->{$format->{value}});
+                  $transaction .=  $payment->{$format->{value}} || '';
+                }
+                else {
+                  $transaction .=  $format->{value} || '';
+                }
+              }
+            }
+            else {
+              $transaction = $value || '';
+            }
+          }
+
+          if (!$ext_id) {
+            $ext_id = $report_data->{SKIP_SYSTEM_PREFIX} ? $transaction : "$PAYSYSTEM_SHORT_NAME:$transaction";
+          }
+
           my $btn_class = 'btn btn-success';
           $table->{rowcolor} = 'table-success';
           my $input_filed = q{};
-          if (exists($reg_payments->{$ext_id})) {
+          my $ext_id_field = q{};
+
+          if ($payment->{_SKIP_PAYMENT}) {
+            $ext_id_field = $payment->{_SKIP_PAYMENT};
+          }
+          elsif (exists($reg_payments->{$ext_id})) {
             $value = $value . ' LOGIN:' . ($reg_payments->{$ext_id}->{login} || q{});
           }
           else {
-            my $uid = $Pay_plugin->_search_user($payment);
+            my $checkbox_status = 0;
+            my $user_id = '';
+            my $user_info = '';
+            my $urlencoded_ext_id = urlencode($transaction);
+
+            if ($attr->{IMPORT_PREVIEW} && $preview_list->{$urlencoded_ext_id}) {
+              my $CHECK_FIELD = $report_data->{CHECK_FIELD} || 'UID';
+              $checkbox_status = 1;
+              if ($preview_list->{$urlencoded_ext_id}->{status}) {
+                $ext_id_field = $html->button("$lang{USER_NOT_FOUND}: " . ($preview_list->{$urlencoded_ext_id}->{status} || q{}),
+                  '',
+                  { class => 'btn btn-xs btn-danger' });
+                $table->{rowcolor} = 'table-warning';
+                $user_id = $preview_list->{$urlencoded_ext_id}->{user_id};
+              }
+              else {
+                $ext_id_field = $html->button("$lang{LOGIN}: " . ($preview_list->{$urlencoded_ext_id}->{login} || q{}),
+                  "index=15&UID=$preview_list->{$urlencoded_ext_id}->{uid}",
+                  { class => 'btn btn-xs btn-info' });
+                $table->{rowcolor} = 'table-warning';
+                $user_id = $preview_list->{$urlencoded_ext_id}->{$CHECK_FIELD};
+                $user_info = "$lang{FIO}: " . ($preview_list->{$urlencoded_ext_id}->{fio} || q{}) . " LOGIN: " . ($preview_list->{$urlencoded_ext_id}->{login} || q{});
+              }
+            }
+
             $payment->{$report_data->{IMPORT_FIELDS}->{DESC}} =~ s/\"/\\\"/gm;
+
+            if (!$user_id) {
+              if ($report_data->{EDRPOU_CHECK}) {
+                $user_id = _paysys_report_edrpou_check($payment->{EDRPOU}, $report_data);
+              }
+
+              if (!$user_id && $Pay_plugin->can('_search_user')) {
+                $user_id = $Pay_plugin->_search_user($payment);
+              }
+            }
 
             my $inputs = '';
             foreach my $import_field (keys %{$report_data->{IMPORT_FIELDS}}) {
               $inputs .= $html->form_input("$import_field\_$transaction", $payment->{$report_data->{IMPORT_FIELDS}->{$import_field}}, { TYPE => 'hidden' });
             }
 
-            $input_filed = $html->form_input('IDS', $transaction, { TYPE => 'checkbox' })
-              . $html->form_input("USER_$transaction", $uid, { TYPE => 'text', EX_PARAMS => "style='width:100%; min-width:120px'" })
+            $input_filed = $html->form_input('IDS', $transaction, { TYPE => 'checkbox', STATE => $checkbox_status })
+              . $user_info
+              . $html->form_input("USER_$transaction", $user_id, { TYPE => 'text', EX_PARAMS => "style='width:100%; min-width:120px'" })
               . $inputs;
 
             $btn_class = 'btn btn-danger';
-            if ($uid) {
+            if ($user_id) {
               $table->{rowcolor} = 'table-warning';
             }
             else {
@@ -460,9 +580,14 @@ sub _paysys_report {
             }
           }
 
-          unshift(@result_rows, $html->button($transaction, 'index=2&search=1&EXT_ID=' . $ext_id, { class => $btn_class, ex_params => "style='width:100%; min-height:50px; margin-top:12px;'" }));
+          if (!$ext_id_field) {
+            $ext_id_field = $html->button($transaction, 'index=2&search=1&EXT_ID=' . $ext_id, { class => $btn_class, ex_params => "style='width:100%; min-height:50px; margin-top:12px;'" })
+          }
+
+          unshift(@result_rows, $ext_id_field);
           unshift(@result_rows, $input_filed);
         }
+
         push @result_rows, $value;
       }
       $table->addrow(@result_rows);
@@ -470,12 +595,16 @@ sub _paysys_report {
   }
 
   my $system_info = $Paysys->paysys_connect_system_info({ PAYSYS_ID => $PAYSYSTEM_ID, COLS_NAME => 1 });
-  my $merchants = $Paysys->merchant_settings_list({
-    ID            => '_SHOW',
-    MERCHANT_NAME => '_SHOW',
-    SYSTEM_ID     => $system_info->{id},
-    COLS_NAME     => 1,
-  });
+  my $merchants = $report_data->{MERCHANTS};
+
+  if (!$merchants) {
+    $merchants = $Paysys->merchant_settings_list({
+      ID            => '_SHOW',
+      MERCHANT_NAME => '_SHOW',
+      SYSTEM_ID     => $system_info->{id},
+      COLS_NAME     => 1,
+    });
+  }
 
   my $merchant_select = $html->form_select('MERCHANT_ID', {
     SELECTED    => $attr->{MERCHANT_ID} || q{0},
@@ -486,6 +615,26 @@ sub _paysys_report {
     SEL_OPTIONS => { '0' => $lang{ALL} },
   });
 
+  my $date_import_sel = $html->form_select('DATE_IMPORT_SEL', {
+    SELECTED => '0',
+    SEL_HASH => { '0' => $lang{PAYED_IMPORT_DATE}, '1' => $lang{CURRENT_IMPORT_DATE} },
+    NO_ID    => 1,
+  });
+
+  my $Payments = Payments->new($db, $admin, \%conf);
+  my $exchange_list = $Payments->exchange_list({ COLS_NAME => 1 });
+  my $currency_sel = '';
+  if ($exchange_list) {
+    $currency_sel = $html->form_select('CURRENCY_ISO', {
+      SELECTED    => $attr->{CURRENCY_ISO} || '',
+      SEL_LIST    => $exchange_list,
+      SEL_KEY     => 'iso',
+      SEL_VALUE   => 'money,rate',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '0' => $lang{NO_CURRENCY_SELECTED} },
+    });
+  }
+
   my $show_input = $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', OUTPUT2RETURN => 1 });
 
   my $header = $html->tpl_show(_include('paysys_reports_header', 'Paysys'), {
@@ -495,20 +644,150 @@ sub _paysys_report {
 
   my $submit_buttons = { IMPORT => $lang{IMPORT} };
   $submit_buttons->{FORCE_IMPORT} = $lang{FORCE_IMPORT} if ($conf{PAYSYS_REPORTS_FORCE_IMPORT});
+  $submit_buttons->{IMPORT_PREVIEW} = $lang{PREVIEW};
+
+  my @params = ();
+  push @params, $lang{DEPOSIT}, $debit if ($debit);
+  push @params, $lang{CREDIT}, $credit if ($credit);
+
+  $table->addfooter(@params);
 
   print $html->form_main({
-    CONTENT => $header . ($table ? $table->show() : ''),
+    CONTENT => $header . ($table ? $table->show() : '') . $date_import_sel . $currency_sel,
     HIDDEN  => {
-      index       => $index,
-      SYSTEM_ID   => $attr->{SYSTEM_ID},
-      IMPORT_TYPE => $attr->{IMPORT_TYPE} || '',
-      DATE_FROM   => $attr->{DATE_FROM},
-      DATE_TO     => $attr->{DATE_TO},
+      index             => $index,
+      SYSTEM_ID         => $attr->{SYSTEM_ID},
+      IMPORT_TYPE       => $attr->{IMPORT_TYPE} || '',
+      DATE_FROM         => $attr->{DATE_FROM},
+      DATE_TO           => $attr->{DATE_TO},
+      DATE_FROM_DATE_TO => $attr->{DATE_FROM_DATE_TO}
     },
     SUBMIT  => $submit_buttons,
     NAME    => 'FORM_PAYSYS_REPORT_FILTER',
     ID      => 'FORM_PAYSYS_REPORT_FILTER'
   });
+}
+
+#**********************************************************
+=head2 _paysys_report_preview_list()
+
+  $report_data
+    PAYMENTS: array           - all payments in this period
+    TITLE: array              - column names
+    NAME: string              - name of system
+    IMPORT_FIELD: str         - name of field on which based import
+    IMPORT_FIELDS: obj        - fields which need to use during import SUM/DESC/MERCHANT/etc...
+
+    FIELDS?: array            - list of fields which need to be displayed
+    COLUMN_FILTERS?: obj      - extra process filters on columns
+    TRANSACTION_FORMAT?: obj  - extra process filters on columns
+
+  $attr
+
+=cut
+#**********************************************************
+sub _paysys_report_preview_list {
+  my ($report_data, $attr) = @_;
+  my %preview_list = ();
+
+  my @ids = split(', ', $attr->{IDS});
+  foreach my $transaction_id (@ids) {
+    my $urlencoded_transaction_id = urlencode($transaction_id);
+    my $user_id = $attr->{"USER_$urlencoded_transaction_id"};
+    my ($result_code, $user) = $Paysys_Core->paysys_check_user({
+      CHECK_FIELD => $report_data->{CHECK_FIELD} || 'UID',
+      USER_ID     => $attr->{"USER_$urlencoded_transaction_id"}
+    });
+
+    my $result;
+    if ($result_code) {
+      $result = {
+        status  => "$lang{RESULT} $lang{CODE} $result_code $lang{USER}: $user_id",
+        user_id => $user_id
+      };
+    }
+    else {
+      $result = $user;
+    }
+    $preview_list{$urlencoded_transaction_id} = $result;
+  }
+
+  return \%preview_list;
+}
+
+#**********************************************************
+=head2 _paysys_report_edrpou_check($edrpou)
+
+  Arguments:
+    $merchant
+    $attr
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _paysys_report_edrpou_check {
+  my ($edrpou, $report_data) = @_;
+
+  require Companies;
+  Companies->import();
+  my $Companies = Companies->new($db, $admin, \%conf);
+
+  my $CHECK_FIELD = $report_data->{CHECK_FIELD} || 'UID';
+  my $check_field = (length($edrpou) == 8) ? 'EDRPOU' : 'TAX_NUMBER';
+  my $company = $Companies->list({
+    COMPANY_ADMIN => '_SHOW',
+    COLS_NAME     => 1,
+    $check_field  => $edrpou,
+  });
+
+  my $uid = (!$Companies->{errno} && scalar @{$company}) ? ($company->[0]->{company_admin} || $company->[0]->{uid}) : '';
+
+  return $uid if (($uid || length($edrpou) == 8) && $CHECK_FIELD eq 'UID');
+
+  my $Users = Users->new($db, $admin, \%conf);
+  my $users = $Users->list({
+    $CHECK_FIELD => '_SHOW',
+    TAX_NUMBER   => $uid ? '_SHOW' : $edrpou,
+    FIO          => '_SHOW',
+    LOGIN        => '_SHOW',
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1,
+    PAGE_ROWS    => 2
+  });
+
+  if (!$uid && !$Users->{errno} && scalar(@$users) && scalar(@$users) == 1) {
+    return $users->[0]->{$CHECK_FIELD} || '';
+  }
+
+  return $uid;
+}
+
+#**********************************************************
+=head2 _paysys_report_transaction_prefix_check($payment, $report_data, $reg_payments)
+
+=cut
+#**********************************************************
+sub _paysys_report_transaction_prefix_check {
+  my ($payment, $report_data, $reg_payments) = @_;
+
+  foreach my $tran_check (@{$report_data->{TRANSACTION_PREFIX_CHECK}}) {
+    if ($tran_check->{REGEX}) {
+      my ($transaction) = $payment->{$tran_check->{FIELD}} =~ /$tran_check->{REGEX}/gm;
+
+      next if (!$transaction);
+
+      if (!$tran_check->{TRAN_PREFIX} && $reg_payments->{$transaction}) {
+        return $transaction;
+      }
+
+      foreach my $pref (@{$tran_check->{TRAN_PREFIX}}) {
+        return "$pref:$transaction" if ($reg_payments->{"$pref:$transaction"});
+      }
+    }
+  }
+
+  return '';
 }
 
 #**********************************************************
@@ -810,24 +1089,23 @@ sub paysys_request_log {
       }
     );
 
-    $info{REQUEST_TYPE_SEL} = $html->form_select(
-      'REQUEST_TYPE',
-      {
-        SELECTED     => $FORM{REQUEST_TYPE} || '',
-        SEL_ARRAY    => [ 'Unknown', 'Presearch', 'Search', 'Check', 'Pay', 'Confirm', 'Cancel', 'Status' ],
-        ARRAY_NUM_ID => 1,
-        SEL_OPTIONS  => { '' => $lang{ALL} }
-      }
-    );
+    $info{REQUEST_TYPE_SEL} = $html->form_select('REQUEST_TYPE', {
+      SELECTED     => $FORM{REQUEST_TYPE} || '',
+      SEL_ARRAY    => [ 'Unknown', 'Presearch', 'Search', 'Check', 'Pay', 'Confirm', 'Cancel', 'Status' ],
+      ARRAY_NUM_ID => 1,
+      SEL_OPTIONS  => { '' => $lang{ALL} }
+    });
 
     $info{DATERANGE_PICKER} = $html->form_daterangepicker({
       NAME  => 'FROM_DATE/TO_DATE',
       VALUE => $FORM{'FROM_DATE_TO_DATE'},
     });
 
-    form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search_log', 'Paysys'),
-      { %info, %FORM },
-      { OUTPUT2RETURN => 1 })
+    form_search({
+      SEARCH_FORM => $html->tpl_show(_include('paysys_search_log', 'Paysys'),
+        { %info, %FORM }, { OUTPUT2RETURN => 1
+      }),
+      ARCHIVE_TABLE => 'paysys_requests'
     });
   }
 

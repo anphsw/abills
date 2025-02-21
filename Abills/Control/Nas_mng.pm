@@ -560,14 +560,16 @@ sub form_nas_console {
     form_nas_console_command($Nas_, \%FORM);
   }
 
+  my $nas_type = $Nas_->{NAS_TYPE} || q{};
+
   my @quick_cmd = ();
-  if ($Nas_->{NAS_TYPE} eq 'mpd5') {
+  if ($nas_type eq 'mpd5') {
     @quick_cmd = ('show radsrv', 'show sessions');
   }
-  elsif ($Nas_->{NAS_TYPE} =~ /accel/) {
+  elsif ($nas_type =~ /accel/) {
     @quick_cmd = ('show sessions', 'show stat', 'reload');
   }
-  elsif ($Nas_->{NAS_TYPE} =~ /mikrotik/) {
+  elsif ($nas_type =~ /mikrotik/) {
     @quick_cmd = ('export compact',
       '/ip firewall filter print',
       '/ip firewall nat print',
@@ -580,10 +582,10 @@ sub form_nas_console {
       '/interface pppoe-server print'
     );
   }
-  elsif ($Nas_->{NAS_TYPE} =~ /cisco/) {
+  elsif ($nas_type =~ /cisco/) {
     @quick_cmd = ('rsh:show run', 'rsh:sh sss session', 'rsh:show log', 'rsh:show interf', 'rsh:show arp', 'rsh:show radius statistics', 'show radius server-group all', 'rsh:sh ver');
   }
-  elsif ($Nas_->{NAS_TYPE} =~ /mx80/) {
+  elsif ($nas_type =~ /mx80/) {
     @quick_cmd = ('ssh:show system uptime',
       'ssh:show bgp summary',
       'ssh:show subscribers summary',
@@ -596,6 +598,23 @@ sub form_nas_console {
       'ssh:show network-access aaa radius-servers',
       '',
     );
+  }
+  else {
+    my $nas_module = "Internet::Nas::". ucfirst($nas_type);
+
+    eval " require $nas_module; ";
+
+    if (! $!) {
+      $nas_module->import();
+      my $Nas_console = $nas_module->new();
+      $Nas_console->test();
+      my $method_list = $Nas_console->methods();
+      #print @!;
+    }
+    else {
+      print $!;
+    }
+
   }
 
   foreach my $cmd (@quick_cmd) {
@@ -617,27 +636,25 @@ sub form_nas_console {
 
   $html->tpl_show(templates('form_nas_console'), { %$Nas_, %FORM }, { ID => 'form_nas_console' });
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "NAS $lang{COMMAND}",
-      title   => [ "ID", "NAS", $lang{COMMAND}, $lang{TYPE}, $lang{COMMENTS} ],
-      qs      => $pages_qs,
-      ID      => 'NAS_CMD',
-      export  => 1
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "NAS $lang{COMMAND}",
+    title   => [ "ID", "NAS", $lang{COMMAND}, $lang{TYPE}, $lang{COMMENTS} ],
+    qs      => $pages_qs,
+    ID      => 'NAS_CMD',
+    export  => 1
+  });
 
   my $cmd_list = $Nas_->nas_cmd_list({ COLS_NAME => 1 });
 
   foreach my $saved_cmd (@$cmd_list) {
     my $del_button = $html->button($lang{DEL}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&del=$saved_cmd->{id}", { DEL => 1 });
     my $chg_button = $html->button($lang{CHANGE}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&info=$saved_cmd->{id}", { CHANGE => 1 });
-
     $table->addrow($saved_cmd->{id}, $Nas_->{NAS_NAME}, $saved_cmd->{cmd}, $saved_cmd->{type}, $saved_cmd->{comments}, "$chg_button $del_button");
   }
 
   print $table->show();
+
   return 1;
 }
 #**********************************************************
@@ -1114,6 +1131,7 @@ sub form_mrtg_cfg {
  
   return 1;
 }
+
 #**********************************************************
 =head2 form_nas_test($Nas, $attr)
 
@@ -1122,8 +1140,10 @@ sub form_mrtg_cfg {
     $attr
       USER_TEST
       RAD_REQUEST
+      DEBUG
 
   Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1131,9 +1151,11 @@ sub form_nas_test {
   my Nas $Nas_ = shift;
   my ($attr) = @_;
 
+  my $nas_id = $attr->{NAS_ID} || $FORM{NAS_ID} || q{};
+
   if (!$Nas_) {
     $Nas_ = Nas->new($db, \%conf, $admin);
-    $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($attr->{NAS_ID});
+    $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($nas_id);
   }
 
   my $comments;
@@ -1188,16 +1210,14 @@ sub form_nas_test {
       $secret       = $Nas_->{NAS_MNG_PASSWORD};
     }
 
-    my $table = $html->table(
-      {
-        width   => '100%',
-        caption => "RAD_REPLY $ip:$mng_port " . ((!$attr->{USER_TEST}) ? " Secret: " . ($Nas_->{NAS_MNG_PASSWORD} || q{}) : ''),
-        title  => [ "KEY", "$lang{VALUE}" ],
-        ID     => 'RAD_TEST_REPLY',
-        class  => 'table',
-        EXPORT => 1,
-      }
-    );
+    my $table = $html->table({
+      width   => '100%',
+      caption => "RAD_REPLY $ip:$mng_port " . ((!$attr->{USER_TEST}) ? " Secret: " . ($Nas_->{NAS_MNG_PASSWORD} || q{}) : ''),
+      title  => [ "KEY", $lang{VALUE} ],
+      ID     => 'RAD_TEST_REPLY',
+      class  => 'table',
+      EXPORT => 1,
+    });
 
     require Radius;
     Radius->import();
@@ -1205,7 +1225,7 @@ sub form_nas_test {
     my $r = Radius->new(
       Host   => "$ip:$mng_port",
       Secret => $secret,
-      Debug  => $attr->{DEBUG} || 0
+      Debug  => $attr->{DEBUG} || 0,
     ) or print $html->message('err', $lang{ERROR}, "Can't connect '$ip:$mng_port' $!");
 
     $conf{'dictionary'} = $base_dir . '/lib/dictionary' if (!$conf{'dictionary'});
@@ -1216,7 +1236,6 @@ sub form_nas_test {
 
     # if query_type equel simple radius auth
     if ($FORM{query_type} < 4 || $FORM{query_info}) {
-      my $type;
       if ($FORM{query_info}) {
         my $q_info = $Nas_->query_info({ ID => $FORM{query_info} });
         $FORM{RAD_REQUEST} = $q_info->{RAD_QUERY};
@@ -1252,7 +1271,7 @@ sub form_nas_test {
         }
         $table->addrow('NAS-IP-Address', $Nas_->{NAS_IP});
       }
-
+      my $type;
       #    my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
       #    if ($attr->{COA}) {
       #      $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
@@ -1361,24 +1380,21 @@ sub form_nas_test {
       RAD_PAIRS  => $FORM{RAD_REQUEST},
       COMMENTS   => $comments,
       QUERY_TYPE => $query_type_select,
+      NAS_ID     => $nas_id
     }
   );
 
   # saving query to database
   if ($FORM{SAVE} && $FORM{query_type} == 1) {
-    $Nas_->add_radtest_query(
-      {
-        COMMENTS  => $FORM{COMMENTS},
-        RAD_QUERY => $FORM{RAD_REQUEST},
-        DATETIME  => 'NOW()'
-      }
-    );
+    $Nas_->add_radtest_query({
+      COMMENTS  => $FORM{COMMENTS},
+      RAD_QUERY => $FORM{RAD_REQUEST},
+      DATETIME  => 'NOW()'
+    });
 
     _error_show($Nas_) || $html->message('info', $lang{ADDED}, "$lang{ADDED}");
   }
-
-  # delete query from database
-  if ($FORM{query_del}) {
+  elsif ($FORM{query_del}) {
     $Nas_->del_query({ ID => $FORM{query_del} });
     if (!_error_show($Nas_)) {
       $html->message('info', "$lang{DELETED}", "$lang{DELETED}");
@@ -1388,21 +1404,19 @@ sub form_nas_test {
   my $query_list = $Nas_->query_list({ COLS_NAME => 1 });
 
   # table with query list
-  my $query_table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{QUERY},
-      title   => [ $lang{DATE}, $lang{COMMENTS}, $lang{QUERY} ],
-      ID      => 'QUERY',
-    }
-  );
+  my $query_table = $html->table({
+    width   => '100%',
+    caption => $lang{QUERY},
+    title   => [ $lang{DATE}, $lang{COMMENTS}, $lang{QUERY} ],
+    ID      => 'QUERY',
+  });
 
   # make query table rows
   foreach my $qr (@$query_list) {
     $query_table->addrow(
       $qr->{datetime}, $qr->{comments},
-      $html->button("$lang{QUERY} . $qr->{id}", "index=$index&NAS_ID=$FORM{NAS_ID}&radtest=1&query_info=$qr->{id}&runtest=1"),
-      $html->button($lang{DEL}, "index=$index&NAS_ID=$FORM{NAS_ID}&radtest=1&query_del=$qr->{id}", { MESSAGE => "$lang{DEL} $qr->{id}?", class => 'del' })
+      $html->button("$lang{QUERY} . $qr->{id}", "index=$index&NAS_ID=$nas_id&radtest=1&query_info=$qr->{id}&runtest=1"),
+      $html->button($lang{DEL}, "index=$index&NAS_ID=$nas_id&radtest=1&query_del=$qr->{id}", { MESSAGE => "$lang{DEL} $qr->{id}?", class => 'del' })
     );
   }
 
@@ -2226,6 +2240,7 @@ sub nas_types_list {
     'ipn'           => 'IPoE static nas',
     'zte_m6000'     => 'ZTE M6000',
     'huawei_me60'   => 'Huawei ME60 router',
+    'huawei_unc'    => 'Huawei mobil 5G',
     'wifipoint'     => 'Wifi Access point',
     'strongswan'    => 'strongSwan',
     'squid'         => 'SQUID proxy server'

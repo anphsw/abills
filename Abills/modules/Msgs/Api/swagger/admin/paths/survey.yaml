@@ -1,0 +1,47 @@
+get:
+  tags:
+    - msgs
+  summary: Список шаблонов, опросов
+  operationId: msgsSurvey
+  parameters:
+    - name: name
+      in: query
+      description: Название
+      schema:
+        type: boolean
+        default: true
+    - name: tpl
+      in: query
+      description: Текст шаблона
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID статуса
+      schema:
+        type: boolean
+        default: true
+    - name: status
+      in: query
+      description: статус
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Описание
+      schema:
+        type: boolean
+        default: true
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/survey.yaml"
+  security:
+    - KEY: []

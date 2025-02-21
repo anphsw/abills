@@ -1,0 +1,6 @@
+{
+  "name": "USER_CREDIT",
+  "method": "GET",
+  "path": "user/credit/",
+  "params": {}
+}

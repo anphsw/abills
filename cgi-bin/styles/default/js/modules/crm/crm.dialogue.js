@@ -10,6 +10,10 @@ jQuery(document).ready(function () {
     fileUploader.downloadFile(jQuery(this).data('id'), jQuery(this).text());
   });
 
+  const quickReplies = new QuickReplies('/api.cgi/msgs/survey?TPL', 'quickReplyBtn', 'quickReplyContainer', 'message-textarea')
+  quickReplies.replyTextField = 'tpl';
+  quickReplies.replyTitleField = 'name';
+
   scrollToBottom();
 
   jQuery('#accept-dialogue').on('click', function () {

@@ -1,11 +1,11 @@
-<form action='$SELF_URL' method='post' ID='user' name=user role='form' onsubmit=\"postthread('submitbutton');\">
+<form class='double_enter_check' action='%SELF_URL%' method='post' ID='user' name=user role='form' onsubmit=\"postthread('submitbutton');\">
   <input type=hidden name=UID value='%UID%'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=subf value='$FORM{subf}'>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
-      <h4 class='card-title'>_{FEES}_</h4>
+      <h4 class='card-title'>_{FEES}_ -</h4>
     </div>
     <div class='card-body'>
       <div class='form-group row'>
@@ -62,14 +62,11 @@
     </div>
 
     %SHEDULE_FORM%
-
-  </div>
-  %DOCS_FEES_ELEMENT%
+    %DOCS_FEES_ELEMENT%
 
   <div class='card-footer'>
     <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary double_click_check' id='submitbutton'>
   </div>
-
 
   </div>
 </form>

@@ -32,11 +32,28 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='CUSTOMER'>_{CUSTOMER}_:</label>
-        <div class='col-md-8'>
-          <div class='input-group'>
-            <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
-                   class='form-control'>
+        <label class='col-sm-4 col-md-4 col-form-label text-md-right LABEL-BUILD'>_{CUSTOMER}_:</label>
+        <div class='col-sm-9 col-md-8'>
+          <div class='addCustomerMenu'>
+            <div class='d-flex'>
+              %CUSTOMERS_LIST%
+              <div class='input-group-append'>
+                <a class='BUTTON-ENABLE-ADD btn input-group-button rounded-left-0'>
+                  <span class='fa fa-plus p-1'></span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class='input-group changeCustomerMenu' style='display:none;'>
+            <input type='text'  id='CUSTOMER' name='CUSTOMER' class='ADD_CUSTOMER form-control INPUT-ADD-CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'/>
+            <div class='input-group-append'>
+              <div class='input-group-text'>
+                <a class='BUTTON-ENABLE-SEL cursor-pointer'>
+                  <span class='fa fa-list p-1'></span>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -151,5 +168,34 @@
       }));
     }
   });
+
+  function activateCustomersButtons() {
+
+    //Changing select to input
+    jQuery('.BUTTON-ENABLE-ADD').on('click', function () {
+      let customerDiv = jQuery('.addCustomerMenu');
+      customerDiv.removeClass('d-block');
+      customerDiv.addClass('d-none');
+      customerDiv.find('select').attr('disabled', 'disabled');
+      jQuery('.ADD_CUSTOMER').removeAttr('disabled');
+      jQuery('.changeCustomerMenu').show();
+    });
+
+    //Changing input to select
+    jQuery('.BUTTON-ENABLE-SEL').on('click', function () {
+      let customerDiv = jQuery('.addCustomerMenu');
+      customerDiv.removeClass('d-none');
+      customerDiv.addClass('d-block');
+      customerDiv.find('select').removeAttr('disabled');
+      jQuery('.ADD_CUSTOMER').attr('disabled', 'disabled');
+      jQuery('.changeCustomerMenu').hide();
+    })
+
+    if ('%SHOW_ADD_CUSTOMER%'){
+      jQuery('.BUTTON-ENABLE-ADD').trigger("click");
+    }
+  }
+
+  activateCustomersButtons();
 
 </script>

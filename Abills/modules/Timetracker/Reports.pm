@@ -383,7 +383,7 @@ sub report_sprint {
       }
 
       # todo: review this option
-      my $url_sprint_redmine = "$conf{MSGS_REDMINE_APIURL}issues?&set_filter=1&fixed_version_id=$sprint->{id}&status_id=*&per_page=50 target=\'_blank\'";
+      my $url_sprint_redmine = "$conf{MSGS_REDMINE_APIURL}issues?&set_filter=1&fixed_version_id=$sprint->{id}&status_id=*&per_page=50&group_by=assigned_to target=\'_blank\'";
       my ($total_issues, $total_issues_completed, $total_estimated_hours, $total_spent_hours, $total_points_plan, $total_points_completed) = 0;
       my (@assigned_to, @time_task_plan, @time_task_fact, @point_avarage_plan, @point_avarage_fact, @success_plan, @success_fact) = ();
 

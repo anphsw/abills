@@ -123,9 +123,20 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='MESSAGE'>_{MESSAGE}_:</label>
+        <label class='control-label col-md-3 required' for='MESSAGE'>_{MESSAGE}_:</label>
         <div class='col-md-9'>
-            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE'
+          <div class='text-format mb-1'>
+            <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-bold' title='_{MSGS_BOLD}_'>
+              <span class='text-bold'>B</span>
+            </button>
+            <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-spoiler' title='_{MSGS_SPOILER}_'>
+              <span class='text-bold'>S</span>
+            </button>
+            <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-code' title='_{CODE}_'>
+              <span class='text-bold'><i class='fa fa-code'></i></span>
+            </button>
+          </div>
+            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE' required
                       rows='3'>%TPL_MESSAGE%</textarea>
         </div>
       </div>
@@ -358,6 +369,7 @@
 
 </FORM>
 
+<script src='/styles/default/js/msgs/msgs.reply.js'></script>
 <script src='/styles/default/js/draganddropfile.js'></script>
 
 <script>

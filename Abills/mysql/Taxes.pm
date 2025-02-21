@@ -53,7 +53,7 @@ sub del_tax {
 
   $self->query_del('taxes', undef, $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -107,5 +107,5 @@ sub change_tax {
     }
   );
 
-  return $self->{result};
+  return $self;
 }

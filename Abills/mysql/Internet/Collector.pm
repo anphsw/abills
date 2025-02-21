@@ -8,7 +8,6 @@ package Internet::Collector v7.6.1;
 
 use strict;
 our (@EXPORT_OK, %EXPORT_TAGS);
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use parent qw( dbcore Exporter );
 
 our @EXPORT = qw(
@@ -641,7 +640,7 @@ sub ip_in_zone ($$$$){
     my $adr_hash = \%{ $zone_data->{$zoneid}[$i] };
     # compare zone with ip
     if ( (($adr_hash->{'IP'} & $adr_hash->{'Mask'}) == ($ip_num & $adr_hash->{'Mask'}))
-      && ($#{$$adr_hash{'Ports'}} == -1 || $port ~~ @{ $adr_hash->{'Ports'} } )
+      && ($#{$$adr_hash{'Ports'}} == -1 || in_array($port, $adr_hash->{'Ports'}) )
     ){
       if ( $adr_hash->{'Neg'} ){
         $res = 0;
@@ -831,7 +830,7 @@ sub traffic_user_get2{
 #  }
 
   if ( $attr->{DATE_TIME} ){
-    $WHERE .= "start>=$attr->{DATE_TIME}";
+    $WHERE .= "start>='$attr->{DATE_TIME}'";
   }
   elsif ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL} );
@@ -937,7 +936,7 @@ sub traffic_user_get{
   #}
 
   if ( $attr->{DATE_TIME} ){
-    $WHERE .= "start>=$attr->{DATE_TIME}";
+    $WHERE .= "start>='$attr->{DATE_TIME}'";
   }
   elsif ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL} );

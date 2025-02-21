@@ -191,7 +191,7 @@ sub abon_user {
 
       if ($result_activate && $result_activate->{MESSAGES} && ref $result_activate->{MESSAGES} eq 'ARRAY') {
         my $message = join("\n", @{$result_activate->{MESSAGES}});
-        $html->message('info', $lang{ABON}, $message) if $message;
+        $html->message('info', $lang{ABON}, $message) if ($message);
       }
 
       # TODO: Move docs_invoice to package
@@ -374,7 +374,7 @@ sub abon_user_list {
       "TP_ID",
       {
         SELECTED    => $Abon->{TP_ID} || $FORM{TP_ID},
-        SEL_LIST    => $Abon->tariff_list({ COLS_NAME => 1, %LIST_PARAMS }),
+        SEL_LIST    => $Abon->tariff_list({ TP_ID => '_SHOW', TP_NAME => '_SHOW', COLS_NAME => 1, %LIST_PARAMS }),
         SEL_OPTIONS => { '' => '--' },
         SEL_KEY     => 'tp_id',
         SEL_VALUE   => 'tp_name',
@@ -560,7 +560,7 @@ sub abon_periodic {
           if ($Fees->{errno}) {
             my $message = "ERROR: ABon not defined bill account UID: $info->{UID}  $Fees->{errstr}\n";
             if ($Fees->{errno} == 12)  {
-              $message = "ERROR: Service without sum UID: $info->{UID}  $Fees->{errstr}\n";
+              $message = "ERROR: Abon Service without sum UID: $info->{UID}  $Fees->{errstr}\n";
             }
             print $message;
             next;
@@ -1012,7 +1012,7 @@ sub abon_check_tps {
   my @tps = split(/,\s?/, $attr->{TP_NAMES});
 
   foreach my $tp_name (@tps) {
-    my $tp_list = $Abon->tariff_list({ NAME => $tp_name, COLS_NAME => 1 });
+    my $tp_list = $Abon->tariff_list({ TP_ID => '_SHOW', NAME => $tp_name, COLS_NAME => 1 });
     if ($Abon->{TOTAL}) {
       $ids{$tp_list->[0]->{tp_id}} = $tp_name;
     }

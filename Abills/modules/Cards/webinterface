@@ -43,10 +43,7 @@ require Cards::Dillers;
 our Abills::HTML $html;
 my $Cards     = Cards->new($db, $admin, \%conf);
 
-if(in_array('Internet', \@MODULES)) {
-  $Cards->{INTERNET}=1;
-}
-
+# TODO: make status from Constants.pm after Cards API migration
 my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED}, $lang{PROCESSING}, $lang{TRANSFERRED_TO_PRODUCTION});
 my @status_colors = ($_COLORS[9], 'text-danger', '#0000FF', '#808080', '#FF8000', '#008040', '#008999');
 

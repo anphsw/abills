@@ -74,21 +74,13 @@ sub get_info_fields_read_only_view {
   my @name_view_arr = ();
 
   my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $list = [];
+  my $list;
 
-  if (!$self->{conf}->{info_fields_new}) {
-    $list = $Conf->config_list({
-      PARAM => $prefix,
-      SORT  => 2
-    });
-  }
-  else {
-    $list = $self->new_info_fields($list, {
-      POPUP   => $attr->{POPUP},
-      COMPANY => $attr->{COMPANY},
-      USERS   => $users
-    });
-  }
+  $list = $self->new_info_fields($list, {
+    POPUP   => $attr->{POPUP},
+    COMPANY => $attr->{COMPANY},
+    USERS   => $users
+  });
 
   my $uid = $attr->{UID} || q{};
 

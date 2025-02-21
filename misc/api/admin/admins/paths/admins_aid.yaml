@@ -4,13 +4,7 @@ get:
   summary: Информация администратора
   operationId: adminInfo
   parameters:
-    - name: aid
-      in: path
-      required: true
-      description: ID администратора
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathAid"
   responses:
     200:
       description: успешное выполнение
@@ -26,13 +20,7 @@ put:
   summary: Изменить администратора
   operationId: adminChange
   parameters:
-    - name: aid
-      in: path
-      required: true
-      description: ID администратора
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathAid"
   requestBody:
     content:
       application/json:

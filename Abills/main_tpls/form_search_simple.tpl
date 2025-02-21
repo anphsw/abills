@@ -8,8 +8,8 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-sm-3 control-label' for='PAGE_ROWS'>_{ROWS}_:</label>
-        <div class='col-sm-9'>
+        <label class='col-sm-4 control-label' for='PAGE_ROWS'>_{ROWS}_:</label>
+        <div class='col-sm-8'>
           <input id='PAGE_ROWS' name='PAGE_ROWS' value='$PAGE_ROWS' class='form-control' type='text'>
         </div>
       </div>

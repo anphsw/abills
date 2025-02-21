@@ -103,6 +103,13 @@ sub _start {
 
   $user_info = $user_info->[0];
 
+  $Mobile->log_change({
+    TRANSACTION_ID           => $params->{transactionId},
+    CALLBACK                 => json_former($params),
+    CALLBACK_DATE            => "$DATE $TIME",
+    CHANGE_BY_TRANSACTION_ID => 1
+  });
+
   if ($user_info->{external_method} eq 'partnerP2CConfirm' || $user_info->{external_method} eq 'partnerActivationStandart') {
     if (defined $params->{resultCode} && (!$params->{resultCode} || $params->{resultCode} eq '000000')) {
       $Mobile->user_change({ DISABLE => 0, ID => $user_info->{id}, TRANSACTION_ID => '', EXTERNAL_METHOD => '', ACTIVATE => $DATE });

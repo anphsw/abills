@@ -2,6 +2,10 @@ get:
   tags:
     - config
   summary: Публичная конфигурация
+  description: |
+    `1.30.01` Reworked field `passwordRecovery` number -> object. Added `fields` field inside it with required params for password recovery
+
+    `1.30.01` Added field `canSendSms`. Returns can send sms to user instead email.
   responses:
     200:
       description: Успешное выполнение

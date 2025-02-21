@@ -91,8 +91,11 @@ sub save_file_to_disk {
   
   # Can be changed later
   my $filename_to_save = $attr->{DISK_FILENAME} || $original_filename;
-
-  if ($attr->{UID}) {
+  
+  if ($attr->{DIRECTORY_TO_SAVE}) {
+    $directory_to_save .= $attr->{DIRECTORY_TO_SAVE};
+  }
+  elsif ($attr->{UID}) {
     # Add additional directory level
     $directory_to_save .= '/' . $attr->{UID} . '/';
     if (!$attr->{DISK_FILENAME}) {
@@ -101,9 +104,6 @@ sub save_file_to_disk {
       my $field_name = ($attr->{FIELD_NAME}) ? "_$attr->{FIELD_NAME}" : '';
       $filename_to_save = $file_date . $field_name . '_' . $attr->{FILENAME};
     }
-  }
-  elsif ($attr->{DIRECTORY_TO_SAVE}) {
-    $directory_to_save .= $attr->{DIRECTORY_TO_SAVE};
   }
   
   # Now check if directory we want to write is not a file
@@ -181,7 +181,10 @@ sub attachment_file_del {
   my $filename = $attr->{FILENAME};
   $self->{NEW_FILENAME} = $filename;
 
-  if($attr->{UID}) {
+  if ($attr->{DEL_BY_FILEPATH} && $attr->{FILEPATH} && $attr->{FILENAME}) {
+    $filename = $attr->{FILEPATH} . '/' . $attr->{FILENAME};
+  }
+  elsif($attr->{UID}) {
     $filename = $self->{ATTACH2FILE} . '/' . $attr->{UID} .'/'. $self->{NEW_FILENAME};
   }
   else {
@@ -234,7 +237,7 @@ sub attachment_add{
   if($self->{conf}{ATTACH2FILE}) {
     
     my $saved_filename = $self->save_file_to_disk($attr);
-    
+
     if($self->{errno}) {
       return $self;
     }
@@ -291,14 +294,15 @@ sub attachment_del {
   $self->attachment_info($attr);
   $self->query_del($attr->{TABLE}, $attr);
 
-  if($self->{conf}{ATTACH2FILE} && $self->{FILENAME}) {
-    if ( $self->{CONTENT} =~ /FILE(?:NAME)?: .+\/\/?([a-zA-Z0-9_\-.]+)/ ) {
-      $attr->{FILENAME} = $1;
+  if ($self->{conf}{ATTACH2FILE} && $self->{FILENAME}) {
+    if ($self->{CONTENT} =~ /FILE(?:NAME)?: (.+\/\/?)([a-zA-Z0-9_\-.]+)/) {
+      $attr->{FILEPATH} = $1;
+      $attr->{FILENAME} = $2;
       $self->attachment_file_del($attr);
     }
   }
-  elsif($attr->{FULL_DELETE} && $self->{conf}{ATTACH2FILE}) {
-    if($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
+  elsif ($attr->{FULL_DELETE} && $self->{conf}{ATTACH2FILE}) {
+    if ($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
       `rm -R $self->{ATTACH2FILE}/$attr->{UID}`;
     }
   }

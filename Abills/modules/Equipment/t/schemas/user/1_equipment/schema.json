@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "patternProperties": {
+    "^\\d+\\.\\d+$": {
+      "type": "object",
+      "properties": {
+        "describe": {
+          "type": "string"
+        },
+        "distance": {
+          "type": "string"
+        },
+        "macSerial": {
+          "type": "string"
+        },
+        "onuInByte": {
+          "type": "integer"
+        },
+        "onuOutByte": {
+          "type": "integer"
+        },
+        "onuRxPower": {
+          "type": "number"
+        },
+        "status": {
+          "type": "integer"
+        },
+        "temperature": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "describe",
+        "distance",
+        "macSerial",
+        "onuInByte",
+        "onuOutByte",
+        "onuRxPower",
+        "status",
+        "temperature"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

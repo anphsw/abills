@@ -40,20 +40,58 @@ use constant {
       min_length => 5,
       max_length => 255
     },
-    DATE              => {
-      required => 1,
-      type     => 'date'
-    },
-    PORTAL_MENU_ID    => {
-      required => 1,
-      type     => 'string'
-    },
     SHORT_DESCRIPTION => {
       type       => 'string',
       max_length => 600
     },
     CONTENT           => {
-      type => 'string',
+      type       => 'string',
+    },
+    STATUS            => {},
+    ON_MAIN_PAGE      => {},
+    DATE              => {
+      required   => 1,
+      type       => 'date'
+    },
+    PORTAL_MENU_ID    => {
+      required   => 1,
+      type       => 'string'
+    },
+    END_DATE          => {
+      # type       => 'date'
+    },
+    ARCHIVE           => {},
+    IMPORTANCE        => {},
+    GID               => {
+      # type       => 'string'
+    },
+    TAGS              => {
+      # type       => 'unsigned_integer'
+    },
+    DOMAIN_ID         => {
+      # type       => 'unsigned_integer'
+    },
+    DISTRICT_ID       => {
+      # type       => 'unsigned_integer'
+    },
+    STREET_ID         => {
+      # type       => 'unsigned_integer'
+    },
+    BUILD_ID          => {
+      # type       => 'unsigned_integer'
+    },
+    ADDRESS_FLAT      => {
+      # type       => 'string'
+    },
+    PICTURE           => {},
+    PERMALINK         => {
+      # type        => 'string'
+    },
+    DEEPLINK          => {},
+    _PATTERN_PROPERTIES        => {
+      '^.+_START_DATETIME' => {
+        # type => 'datetime',
+      },
     }
   },
   POST_PORTAL_MENUS      => {

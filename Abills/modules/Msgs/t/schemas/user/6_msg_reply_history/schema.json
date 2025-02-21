@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "uid": {
+        "type": "number"
+      },
+      "datetime": {
+        "type": "string"
+      },
+      "id": {
+        "type": "number"
+      },
+      "admin": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "uid",
+      "text",
+      "id",
+      "datetime",
+      "admin"
+    ]
+  }
+}

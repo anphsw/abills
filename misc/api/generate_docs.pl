@@ -46,16 +46,23 @@ sub generate_swagger {
     modules => {}
   };
 
+  my $parameters = {
+    core    => {},
+    modules => {}
+  };
+
   my $swagger = _parse_swagger({
-    swagger  => $base_swagger,
-    spaces   => '',
-    root_dir => '',
-    schemas  => $schemas,
+    swagger    => $base_swagger,
+    spaces     => '',
+    root_dir   => '',
+    schemas    => $schemas,
+    parameters => $parameters
   });
 
   $swagger = _fill_schemas({
-    swagger => $swagger,
-    schemas => $schemas
+    swagger    => $swagger,
+    schemas    => $schemas,
+    parameters => $parameters
   });
 
   _write_swagger("misc/api/bundle_$type.yaml", $swagger);
@@ -81,6 +88,7 @@ sub _parse_swagger {
 
   my $swagger = $attr->{swagger};
   my $schemas = $attr->{schemas};
+  my $parameters = $attr->{parameters};
 
   my @matches = $swagger =~ /^\s+\-?\s?\$ref: "\.\.?.+/gm;
 
@@ -93,6 +101,8 @@ sub _parse_swagger {
     my $swagger_path = "misc/api/$root_dir/$path";
     $swagger_path =~ s{(?<=\w)(\.)(?=/)}{};
     my ($component) = $swagger_path =~ /schemas.*\/([^\/]+)\.yaml/gm;
+    my ($parameter) = $swagger_path =~ /parameters.*\/([^\/]+)\.yaml/gm;
+
     print "[Path]      $swagger_path\n";
 
     my $new_swagger = _read_swagger("misc/api/$root_dir/$path");
@@ -102,10 +112,11 @@ sub _parse_swagger {
     $root_dir =~ s{(?<=\w)(\.)(?=/)}{};
 
     my $parsed_swagger = _parse_swagger({
-      spaces   => $component ? "      " : $_spaces,
-      swagger  => $new_swagger,
-      root_dir => $root_dir,
-      schemas  => $schemas
+      spaces     => ($component || $parameter) ? "      " : $_spaces,
+      swagger    => $new_swagger,
+      root_dir   => $root_dir,
+      schemas    => $schemas,
+      parameters => $parameters
     });
 
     $match = quotemeta($match);
@@ -120,13 +131,30 @@ sub _parse_swagger {
         $prefix = ucfirst($prefix);
       }
       $prefix //= "";
-      my $capitalized_component_file_name = uc(substr($component, 0, 1)) . substr($component, 1);
+      my $capitalized_component_file_name = ucfirst($component);
       my $key = $prefix . $capitalized_component_file_name;
       $parsed_swagger =~ s/\n\z//gm;
       $schemas->{$is_module ? "modules" : "core"}->{$key} = $parsed_swagger;
       $swagger =~ s{$path}{#/components/schemas/$key}gm;
       print "[Component] $key\n";
-    } else {
+    }
+    elsif ($parameter) {
+      my ($prefix) = $swagger_path =~ /modules\/(.*?)\//gm;
+      my $is_module = !!$prefix;
+      if (!$prefix) {
+        # Try to get core-based prefix
+        ($prefix) = $swagger_path =~ /misc\/api\/\.?\/?.*?\/(.*?)\//gm;
+        $prefix = ucfirst($prefix);
+      }
+      $prefix //= "";
+      my $capitalized_component_file_name = ucfirst($parameter);
+      my $key = $prefix . $capitalized_component_file_name;
+      $parsed_swagger =~ s/\n\z//gm;
+      $parameters->{$is_module ? "modules" : "core"}->{$key} = $parsed_swagger;
+      $swagger =~ s{$path}{#/components/parameters/$key}gm;
+      print "[Parameter] $key\n";
+    }
+    else {
       $swagger =~ s/(?:(?<=\n)|(?<=\r\n))\s+$match/$parsed_swagger/gm;
     }
   }
@@ -151,14 +179,17 @@ sub _fill_schemas {
 
   my $schemas = $attr->{schemas};
   my $swagger = $attr->{swagger};
-
-  if ($swagger !~ /components:\r?\n  schemas:/gm) {
-    $swagger =~ s/components:/components:\r\n  schemas:/gm;
-  }
+  my $parameters = $attr->{parameters};
 
   for my $core_key (sort keys %{$schemas}) {
     for my $key (sort keys %{$schemas->{$core_key}}) {
       $swagger =~ s/  securitySchemes/    $key\:\n$schemas->{$core_key}->{$key}\n  securitySchemes/gm;
+    }
+  }
+
+  for my $core_key (sort keys %{$parameters}) {
+    for my $key (sort keys %{$parameters->{$core_key}}) {
+      $swagger =~ s/  schemas/    $key\:\n$parameters->{$core_key}->{$key}\n  schemas/gm;
     }
   }
 

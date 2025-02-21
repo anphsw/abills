@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_TASKS_LIST",
+  "method": "GET",
+  "path": "tasks/"
+}

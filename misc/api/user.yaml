@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS USER API
-  version: 1.2.9
+  version: 1.38.05
   description: |
-    Last modified 2024-08-14 <br>
+    Last modified 2025-01-09 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_user.yaml
     Copy it and upload it to your favorite OPEN API viewer.
@@ -83,6 +83,188 @@ paths:
   $ref: "../../Abills/modules/Triplay/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Voip/Api/swagger/user/paths.yaml"
 components:
+  parameters:
+    desc:
+      name: desc
+      in: query
+      description: "Specify sorting order: 'ASC' for ascending, 'DESC' for descending"
+      schema:
+        type: string
+        enum: [ ASC, DESC ]
+        default: ASC
+    pageRows:
+      name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    pg:
+      name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+    sort:
+      name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+        default: 0
+  schemas:
+    UserBaseService:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier of the service.
+        tpName:
+          type: string
+          description: Name of the tariff plan.
+        tpId:
+          type: integer
+          format: int64
+          description: Tariff plan ID.
+        uid:
+          type: integer
+          format: int64
+          description: User ID.
+        nextAbon:
+          $ref: '#/components/schemas/UserServiceNextAbon'
+        holdup:
+          $ref: "#/components/schemas/UserServiceHoldup"
+        schedule:
+          $ref: "#/components/schemas/UserServiceBaseSchedule"
+      required:
+        - id
+        - tpName
+        - tpId
+        - uid
+    UserServiceNextAbon:
+      type: object
+      properties:
+        abonDate:
+          type: string
+          format: date
+          description: Дата следующей оплаты.
+        activateDate:
+          type: string
+          format: date
+          description: Дата активации.
+        daysToFee:
+          type: integer
+          description: Дней до следующего снятия.
+        sum:
+          type: number
+          format: double
+          description: Сумма следующего снятия.
+      required:
+        - abonDate
+        - activateDate
+        - daysToFee
+        - sum
+    UserServiceHoldup:
+      type: object
+      properties:
+        canCancel:
+          type: boolean
+          description: Ли можно удалить расписание приостановки.
+        dateFrom:
+          type: string
+          format: date
+          description: Дата начала приостановки.
+        dateTo:
+          type: string
+          format: date
+          description: Дата конца приостановки.
+        del:
+          type: integer
+        delIds:
+          type: string
+      required:
+        - canCancel
+        - dateFrom
+        - dateTo
+        - del
+        - delIds
+    UserServiceBaseSchedule:
+      type: object
+      properties:
+        canCancel:
+          type: boolean
+          example: false
+          description: Ли можно удалить расписание.
+        date:
+          type: string
+          example: '2023-01-13'
+        dateFrom:
+          type: string
+          example: '2023-01-25'
+        dayFee:
+          type: number
+          example: 0
+        monthFee:
+          type: number
+          example: 0
+        tpAge:
+          type: number
+          example: 1
+        sheduleId:
+          type: number
+          example: 248
+        tpId:
+          type: number
+          example: 1
+        tpName:
+          type: string
+          example: "Future SuperMegaTariff"
+    CamsUser:
+      allOf:
+        - $ref: '#/components/schemas/UserBaseService'
+        - type: object
+          properties:
+            canChangeTp:
+              type: boolean
+              example: true
+              description: Ли можно менять данный тарифный план.
+            monthFee:
+              type: number
+              example: 300
+              description: Месячное снятие
+            serviceId:
+              type: integer
+              description: ID привязаного сервиса Cams
+            serviceStatus:
+              type: integer
+              example: 0
+              description: Статус сервиса
+            statusName:
+              type: string
+              example: enable
+          required:
+            - canChangeTp
+            - serviceId
+            - serviceStatus
+    MobileUser:
+      allOf:
+        - $ref: '#/components/schemas/UserBaseService'
+        - type: object
+          properties:
+            canChangeTp:
+              type: boolean
+              example: true
+            monthFee:
+              type: number
+              example: 300
+            serviceStatus:
+              type: integer
+              example: 0
+            statusName:
+              type: string
+              example: enable
   securitySchemes:
     USERSID:
       type: apiKey

@@ -44,6 +44,7 @@ our @requests = (
 <Transfer action="Search" interface="Debt" xmlns="http://debt.privatbank.ua/Transfer">
     <Data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Payer">
         <Unit name="billIdentifier" value="$user_id"/>
+        <Unit name="summ" value="$payment_sum"/>
     </Data>
 </Transfer>},
     result  => qq{

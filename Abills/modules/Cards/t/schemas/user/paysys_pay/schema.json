@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "amount": {
+      "type": "number"
+    },
+    "commission": {
+      "type": "number"
+    },
+    "paymentId": {
+      "type": "integer"
+    },
+    "result": {
+      "type": "string"
+    }
+  },
+  "required": ["amount", "commission", "paymentId", "result"]
+}

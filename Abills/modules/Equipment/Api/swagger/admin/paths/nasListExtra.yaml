@@ -172,12 +172,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: nasId
-      in: query
-      description: ID сервера доступа
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/nasId"
     - name: nasGid
       in: query
       description: Группа серверов доступа
@@ -208,12 +203,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: domainId
-      in: query
-      description: ID домена
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/domainId"
     - name: domainName
       in: query
       description: Название домена (не работает если не включен Multidoms)
@@ -310,18 +300,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

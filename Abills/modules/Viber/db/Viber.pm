@@ -1,4 +1,4 @@
-package Viber;
+package Viber::db::Viber;
 
 =head1 NAME
 
@@ -33,17 +33,17 @@ sub new {
 }
 
 #**********************************************************
-=head2 info($uid)
+=head2 info($sender_id)
 
 =cut
 #**********************************************************
 sub info {
   my $self = shift;
-  my ($uid) = @_;
+  my ($sender_id) = @_;
 
-  $self->query("SELECT * FROM viber_tmp WHERE uid = ?;",
+  $self->query("SELECT * FROM viber_tmp WHERE sender_id = ?;",
     undef,
-    { Bind => [ $uid ], COLS_NAME => 1, COLS_UPPER => 1}
+    { Bind => [ $sender_id ], COLS_NAME => 1, COLS_UPPER => 1}
   );
 
   return [] if ($self->{errno});
@@ -84,15 +84,15 @@ sub change {
 }
 
 #**********************************************************
-=head2 del($uid)
+=head2 del($sender_id)
 
 =cut
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($uid) = @_;
+  my ($sender_id) = @_;
 
-  $self->query_del("viber_tmp", {}, { UID => $uid });
+  $self->query_del("viber_tmp", {}, { SENDER_ID => $sender_id });
 
   return $self;
 }

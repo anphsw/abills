@@ -1,0 +1,73 @@
+get:
+  tags:
+    - equipment
+  summary: Список портов оборудования
+  operationId: getNasPorts
+  parameters:
+    - name: nas_id
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: query
+      description: ID порта
+      schema:
+        type: boolean
+        default: true
+    - name: port
+      in: query
+      description: Порт
+      schema:
+        type: boolean
+        default: true
+    - name: adminPortStatus
+      in: query
+      description: Статус порта
+      schema:
+        type: boolean
+        default: false
+    - name: uplink
+      in: query
+      description: UPLINK
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус
+      schema:
+        type: boolean
+        default: false
+    - name: portComments
+      in: query
+      description: Комментарии к порту
+      schema:
+        type: boolean
+        default: false
+    - name: vlan
+      in: query
+      description: VLAN
+      schema:
+        type: boolean
+        default: false
+    - name: datetime
+      in: query
+      description: Дата и время
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/nasPortList.yaml"
+  security:
+    - KEY: []

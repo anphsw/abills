@@ -716,6 +716,10 @@ sub referral_requests {
     return 1;
   }
 
+  $Referral->get_default_tp();
+  my $default_tp_id = $Referral->{ID} || '';
+  my $default_tp_name = $Referral->{NAME} || '';
+
   if ($FORM{del}) {
     $info = $Referral->request_list({
       ID           => $FORM{del},
@@ -773,7 +777,7 @@ sub referral_requests {
     });
 
     if (!@$tarifs) {
-      $html->message('warn', $lang{WARNING}, $lang{WARN_CREATE_TP}) unless ($Referral->{TOTAL} && $Referral->{TOTAL} > 0);
+      $html->message('warn', $lang{WARNING}, $lang{WARN_CREATE_TP}) unless ($Referral->{TOTAL} && $Referral->{TOTAL} < 0);
       return 0;
     }
 
@@ -782,7 +786,7 @@ sub referral_requests {
       SEL_KEY   => 'id',
       SEL_VALUE => 'name',
       NO_ID     => 1,
-      SELECTED  => ($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0]->{referral_tp} : '',
+      SELECTED  => (ref $info->[0] eq 'HASH' && $info->[0]->{referral_tp}) ? $info->[0]->{referral_tp} : $default_tp_id,
     });
 
     my $address_select = form_address({
@@ -962,6 +966,13 @@ sub referral_requests {
         3 => $lang{CANCELED}
       }
     },
+    FILTER_VALUES => {
+      tp_name => sub {
+        my ($line) = @_;
+        $line = $default_tp_name if (!$line);
+        return $line;
+      }
+    },
     TABLE           => {
       width   => '100%',
       ID      => 'REFERRAL_REQUEST',
@@ -978,9 +989,12 @@ sub referral_requests {
 }
 
 #**********************************************************
-=head2 referral_pay()
+=head2 referral_pay() - daily periodic
 
     Arguments:
+     $attr
+       UID
+       DEBUG
 
     Returns:
       1
@@ -988,8 +1002,12 @@ sub referral_requests {
 =cut
 #**********************************************************
 sub referral_pay {
+  my ($attr) = @_;
+
   $Referral_users->referral_bonus_add({
     REFERRAL_UID => '>0',
+    UID          => $attr->{UID} ? $attr->{UID} : '',
+    DEBUG        => $attr->{DEBUG} || 0
   });
 
   return 1;

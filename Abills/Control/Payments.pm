@@ -273,7 +273,7 @@ sub form_payment_add {
       }
 
       my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
-        FORM_ID => 'user_form',
+        FORM_ID => 'form_payments_add',
         FORMAT  => 'YYYY-MM-DD HH:mm:ss'
       });
 
@@ -534,12 +534,6 @@ sub payment_add {
         $FORM{SUM} = $Payments->{SUM};
         $html->message( 'info', $lang{PAYMENTS}, "$lang{ADDED} $lang{SUM}: $FORM{SUM} ". ($er->{ER_SHORT_NAME} || q{}) );
 
-        if ($conf{external_payments}) {
-          if (!_external($conf{external_payments}, { %FORM  })) {
-            return 0;
-          }
-        }
-
         #Make cross modules Functions
         $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
 
@@ -572,6 +566,13 @@ sub payment_add {
   if (! $attr->{REGISTRATION} && ! $db->{db}->{AutoCommit}) {
     $db_->commit();
     $db_->{AutoCommit}=1;
+  }
+
+
+  if ($conf{external_payments}) {
+    if (!_external($conf{external_payments}, \%FORM)) {
+      return 0;
+    }
   }
 
   return 1;
@@ -626,11 +627,12 @@ sub form_payments_list {
     $Docs = Docs->new($db, $admin, \%conf);
   }
 
+  $index = 2;
   ($table, $payments_list) = result_former({
     INPUT_DATA      => $Payments,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
-    HIDDEN_FIELDS   => 'ADMIN_DISABLE',
+    HIDDEN_FIELDS   => 'ADMIN_DISABLE,PRIORITY,TAGS_COLORS',
     DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
     FUNCTION_FIELDS => $permissions{1}{2} ? 'del' : '',
     FUNCTION_INDEX  => $index,
@@ -743,6 +745,7 @@ sub form_payments_list {
       reg_date        => "$lang{PAYMENTS} $lang{REGISTRATION}",
       ip              => 'IP',
       admin_name      => $lang{ADMIN},
+      a_login         => "$lang{ADMIN} $lang{LOGIN}",
       invoice_num     => $lang{INVOICE},
       amount          => "$lang{ALT} $lang{SUM}",
       currency        => $lang{CURRENCY},
@@ -775,11 +778,20 @@ sub form_payments_list {
   });
 
   if (!$admin->{MAX_ROWS}) {
+    $Payments->{TOTAL_RECALCULATION_COUNT} //= 0;
+    $Payments->{TOTAL_RECALCULATION_SUM} //= 0;
+    my $total_recalculation = "$lang{RECALCULATE} $lang{TOTAL}: " .  $Payments->{TOTAL_RECALCULATION_COUNT} . $html->br()
+      . "$lang{RECALCULATE} $lang{SUM}: " . format_sum($Payments->{TOTAL_RECALCULATION_SUM});
+    my $total_without_recalculation = "$lang{TOTAL}: " . ($Payments->{TOTAL} - $Payments->{TOTAL_RECALCULATION_COUNT}) . $html->br()
+      . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
+      . "$lang{SUM}: " . format_sum($Payments->{SUM} - $Payments->{TOTAL_RECALCULATION_SUM});
     $table->addfooter(
       $FORM{UID} ? ('', '') : '',
-      "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
-        . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
-        . "$lang{SUM}: " . format_sum($Payments->{SUM})
+      # "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
+      #   . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
+      #   . "$lang{SUM}: " . format_sum($Payments->{SUM}),
+      $total_without_recalculation,
+      $total_recalculation
     );
   }
 

@@ -110,5 +110,12 @@
       .then(result => {
         jQuery('#unreg_btn').replaceWith(result);
       });
+
+    jQuery('#ONU_STATUS').change(function(){
+      var onu_status = jQuery('#ONU_STATUS').val();
+      var nas_id = jQuery('#NAS_ID').val();
+      var link = 'index.cgi?index=%index%&visual=4&NAS_ID=' + nas_id + '&ONU_STATUS=' + onu_status;
+      window.location.assign(link);
+    });
   })
 </script>

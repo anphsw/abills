@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `paysys_log`
   `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00' COMMENT 'sum of payment if not successful transaction can be changed',
   `commission`     DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `uid`            INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'users.uid',
-  `transaction_id` VARCHAR(36)            NOT NULL DEFAULT '' COMMENT 'ID which received from payment system',
+  `transaction_id` VARCHAR(50)            NOT NULL DEFAULT '' COMMENT 'ID which received from payment system',
   `info`           TEXT                   NOT NULL COMMENT 'Request body hash',
   `ip`             INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'User ip if did in user portal',
   `code`           BLOB                   NOT NULL,
@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS `paysys_log`
   KEY `uid` (`uid`),
   KEY `system_id` (`system_id`),
   KEY `merchant_id` (`merchant_id`),
+  KEY `transaction_id` (`transaction_id`),
+  KEY `status` (status),
   UNIQUE KEY `ps_transaction_id` (`domain_id`, `transaction_id`)
 )
   CHARSET = 'utf8'

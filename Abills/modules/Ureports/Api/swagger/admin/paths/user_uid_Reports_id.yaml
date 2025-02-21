@@ -3,12 +3,7 @@ delete:
     - ureports
   summary: Удалить отчет пользователя
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID отчета

@@ -2,32 +2,27 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
   "title": "The Root Schema",
-  "required": [
-    "id",
-    "streetId",
-    "streetName",
-    "districtId",
-    "buildCount",
-    "type"
-  ],
-  "properties": {
-    "id": {
-      "type": "number"
+  "items": {
+    "properties": {
+      "id": {
+        "type": "number"
+      },
+      "streetId": {
+        "type": "number"
+      },
+      "streetName": {
+        "type": "string"
+      },
+      "districtId": {
+        "type": "number"
+      },
+      "buildCount": {
+        "type": "number"
+      },
+      "type": {
+        "type": "number"
+      }
     },
-    "streetId": {
-      "type": "number"
-    },
-    "streetName": {
-      "type": "string"
-    },
-    "districtId": {
-      "type": "number"
-    },
-    "buildCount": {
-      "type": "number"
-    },
-    "type": {
-      "type": "number"
-    }
+    "required": ["id", "streetId", "streetName", "districtId", "buildCount", "type"]
   }
 }

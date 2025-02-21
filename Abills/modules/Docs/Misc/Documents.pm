@@ -13,6 +13,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Base qw(cmd encode_base64);
+use Docs::Constants qw(DOC_TYPES);
 
 my Abills::HTML $html;
 
@@ -325,10 +326,14 @@ sub _get_filepath {
   my $self = shift;
   my ($attr) = @_;
 
+  my %docs_types = reverse %{ Docs::Constants->DOC_TYPES };
+
   #legacy document naming
   my $filename = $attr->{FILE_NAME} || $attr->{EMAIL_ATTACH_FILENAME} || $attr->{TEMPLATE};
+  $filename .= lc($docs_types{$attr->{DOC_TYPE}}) if ($attr->{DOC_TYPE});
   $filename .= '_' . ($attr->{UID} || q{});
   $filename .= '_' . ($attr->{DOC_ID} || q{});
+  $filename .= '_' . ($attr->{YEAR} || q{});
 
   my $base_dir = $self->{conf}->{DOCS_STORE_DIR} || '/usr/abills/Abills/templates/Docs/';
 

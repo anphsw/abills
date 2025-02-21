@@ -188,5 +188,6 @@ $lang{INCOMING} = 'Incoming';
 $lang{OUTCOMING} = 'Outcoming';
 $lang{INCOMING_DURATION} = 'Incoming duration';
 $lang{OUTCOMING_DURATION} = 'Outcoming duration';
+$lang{NOT_DEFINED} = 'Not defined';
 
 1;

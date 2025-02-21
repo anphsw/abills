@@ -14,3 +14,9 @@
   $ref: "./paths/workflow.yaml"
 /msgs/workflow/{id}:
   $ref: "./paths/workflow_id.yaml"
+/msgs/statuses/:
+  $ref: "./paths/statuses.yaml"
+/msgs/survey/:
+  $ref: "./paths/survey.yaml"
+/msgs/report/dynamics/:
+  $ref: "./paths/report_dynamics.yaml"

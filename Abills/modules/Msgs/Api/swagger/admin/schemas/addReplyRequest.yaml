@@ -1,8 +1,18 @@
 type: object
 properties:
-  aid:
-    type: integer
-    example: 2
   replyText:
     type: string
     example: Reply text
+    description: "Текст ответа"
+  runTime:
+    type: string
+    example: "00:30:15"
+    description: "Время потраченное на обращение"
+  replyInnerMsg:
+    type: integer
+    example: 1
+    description: "Внутреннее сообщение, только администраторам"
+  state:
+    type: integer
+    example: 3
+    description: "Статус обращения. Статусы можно получить c помощью пути /msgs/statuses"

@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_ACTIVATE",
+  "method": "POST",
+  "path": "/user/iptv/:id/activate/"
+}

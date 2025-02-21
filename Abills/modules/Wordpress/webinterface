@@ -605,10 +605,10 @@ sub wordpress_export_abon {
     my $Abon = Abon->new( $db, $admin, \%conf );
 
     my $services_list = $Abon->tariff_list( {
-        ID          => $FORM{IDS} || '_SHOW',
-        COLS_UPPER  => 1,
-        COLS_NAME   => 1
-      } );
+      TP_ID          => $FORM{IDS} || '_SHOW',
+      COLS_UPPER  => 1,
+      COLS_NAME   => 1
+    });
 
     my @services_list = map { my $service = $_; $service->{ID} = $_->{TP_ID}; $service } @$services_list;
 
@@ -619,10 +619,13 @@ sub wordpress_export_abon {
   else {
     my $Abon = Abon->new( $db, $admin, \%conf );
 
-    my $services_list = $Abon->tariff_list( {
-        ID          => $FORM{IDS} || '_SHOW',
-        COLS_NAME   => 1
-      } );
+    my $services_list = $Abon->tariff_list({
+      PERIOD      => '_SHOW',
+      TP_NAME     => '_SHOW',
+      PRICE       => '_SHOW',
+      TP_ID       => $FORM{IDS} || '_SHOW',
+      COLS_NAME   => 1
+    });
 
     my $table = $html->table( {
         width      => '100%',

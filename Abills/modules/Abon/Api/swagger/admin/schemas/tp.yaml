@@ -63,9 +63,6 @@ properties:
   manualActivate:
     type: integer
     example: 0
-  module:
-    type: string
-    example: "PolisUA"
   name:
     type: integer
     example: 10
@@ -95,7 +92,7 @@ properties:
     example: 0
   plugin:
     type: string
-    example: ""
+    example: "PolisUA"
   popular:
     type: integer
     example: 0

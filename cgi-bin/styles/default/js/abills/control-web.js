@@ -10,6 +10,7 @@
     6 Result former field search
     7 Add dark-mode style for themed iframe
     8 Listen left menu closing and set cookie
+    9 Form double enter check
 */
 
 var mybody = document.body;
@@ -227,6 +228,12 @@ function resultFormerCheckboxSearch() {
       checkboxParents.removeAttr('style');
     }
   });
+
+  $('.extra-fields-btn').on('click', function() {
+    jQuery(this).toggleClass(['btn-primary', 'btn-outline-primary']);
+    let extraFieldsBlockId = jQuery(this).data('id');
+    jQuery(`#${extraFieldsBlockId}`).toggle('d-none');
+  })
 }
 
 /* 7 */
@@ -253,9 +260,22 @@ function listenLeftSidebarAndSetCookie()  {
   });
 }
 
+/* 9 */
+function formDoubleEnterCheck()  {
+  const forms = jQuery('form.double_enter_check');
+
+  forms.on('submit', function () {
+    jQuery(this).submit(function() {
+        return false;
+    });
+    return true;
+  });
+}
+
 sidebarSearch();
 sidebarButton();
 resultFormerFillCheckboxes();
 resultFormerCheckboxSearch();
 themedIframe();
 listenLeftSidebarAndSetCookie();
+formDoubleEnterCheck();

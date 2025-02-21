@@ -541,6 +541,7 @@ sub docs_acts_print {
     $Docs->{MONTH_LAST_DAY}="$y-$m-".  days_in_month({ DATE => "$y-$m" });
     $Docs->{TOTAL_SUM}     = sprintf( "%.2f", $Docs->{TOTAL_SUM} );
     $Docs->{TOTAL_ORDERS}  = $Docs->{TOTAL} || 0;
+    $Docs->{DOC_TYPE} = 2;
 
     return docs_print( 'act', {
       %{($attr) ? $attr : {}},

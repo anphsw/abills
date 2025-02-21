@@ -998,6 +998,10 @@ sub session_splitter {
         print "  INT/TIME: $division_time_arr[$#division_time_arr]\n" if ($debug == 1);
         next;
       }
+      elsif($start > 86400) {
+        $self->{NO_TPINTERVALS} = 1;
+        last;
+      }
       elsif ($i == $#intervals) {
         print "\n!! LAST___ $i == $#intervals\n" if ($debug == 1);
 
@@ -1015,6 +1019,7 @@ sub session_splitter {
           goto TIME_INTERVALS;
         }
       }
+      #For time change period
 
       print "\n" if ($debug == 1);
     }

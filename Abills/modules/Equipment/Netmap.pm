@@ -1,6 +1,6 @@
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp load_pmodule int2ip);
+use Abills::Base qw(_bp load_pmodule int2ip json_former);
 use Internet;
 use Users;
 
@@ -25,7 +25,7 @@ my $Users = Users->new($db, $admin, \%conf);
 sub network_map {
 
   my %nodes = ();
-  my %edges = ();
+  my @edges = ();
 
   my $nas_list = $Equipment->_list({
     NAS_IP      => '_SHOW',
@@ -49,14 +49,17 @@ sub network_map {
     });
 
     $nodes{$line->{nas_id}} = {
-      'name'    => ($line->{nas_name} || '') . " ($line->{nas_id})",
-      'ip'      => $line->{nas_ip},
-      'state'   => $line->{status},
-      'ports'   => $line->{ports},
-      'type_id' => $line->{type_id},
-      'vendor'  => $line->{vendor_name},
-      'model'   => $line->{model_name},
-      'online'  => $online->[0]->{online},
+      data => {
+        label   => ($line->{nas_name} || '') . " ($line->{nas_id})",
+        ip      => $line->{nas_ip},
+        state   => $line->{status},
+        ports   => $line->{ports},
+        type_id => $line->{type_id},
+        vendor  => $line->{vendor_name},
+        model   => $line->{model_name},
+        online  => $online->[0]->{online},
+        nas_id  => $line->{nas_id}
+      },
     };
 
     my $uplink_ports = $Equipment->port_list({
@@ -73,18 +76,44 @@ sub network_map {
         if (!$Equipment->{TOTAL}) {
           next;
         }
-        $edges{$line->{nas_id}} = { source => $_->{uplink}, target => $line->{nas_id}, name => $_->{port} };
+
+        push @edges, { source => $_->{uplink}, target => $line->{nas_id}, name => $_->{port} };
       }
     }
   }
 
-  my %rec_hash = ('nodes' => \%nodes, 'edges' => \%edges);
+  my $positions = $Equipment->equipment_netmap_positions_list({
+    COORDX    => '_SHOW',
+    COORDY    => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 65000
+  });
+  foreach my $position (@{$positions}) {
+    my $nas_id = $position->{nas_id};
+    next if !$nas_id || !$nodes{$nas_id};
 
-  load_pmodule('JSON');
-  JSON->import();
-  my $json_string = JSON::to_json(\%rec_hash);
+    $nodes{$nas_id}{data}{position} = { 'x' => $position->{coordx}, 'y' => $position->{coordy} };
+  }
 
-  my $status_hash = JSON::to_json({
+  my %rec_hash = (nodes => \%nodes, edges => \@edges);
+
+  my $types_hash = {};
+  my $types = $Equipment->type_list({ COLS_NAME => 1 });
+  map $types_hash->{$_->{id}} = { NAME => $_->{name}, MODELS => [] }, @{$types};
+
+  my $models = $Equipment->model_list({ TYPE_ID => '_SHOW', COLS_NAME => 1, PAGE_ROWS => 10000 });
+  foreach my $model (@{$models}) {
+    next if !$model->{type_id} || !$types_hash->{$model->{type_id}};
+
+    push @{$types_hash->{$model->{type_id}}{MODELS}}, {
+      ID   => $model->{id},
+      NAME => join(' : ', ($model->{vendor_name} || '', $model->{model_name} || ''))
+    };
+  }
+
+  my $json_string = json_former(\%rec_hash);
+
+  my $status_hash = json_former({
     0 => $lang{ENABLE},
     1 => $lang{DISABLE},
     2 => $lang{NOT_ACTIVE},
@@ -93,10 +122,11 @@ sub network_map {
   });
 
   $html->tpl_show(_include('equipment_netmap', 'Equipment'), {
+    TYPES            => json_former($types_hash),
+    EQUIPMENT_ADD_FORM => equipment_add_form({ RETURN_ADD_FORM => 1 }),
     DATA             => $json_string,
     STATUS_LANG_HASH => $status_hash
-  },
-  );
+  });
 
   return 1;
 }

@@ -62,9 +62,9 @@ sub controlled_files_list {
   my $WHERE = '';
 
   $WHERE = $self->search_former($attr, [
-    [ 'ID', 'INT', 'id', 1 ],
-    [ 'NAME', 'STR', 'name', 1 ],
-    [ 'PATH', 'STR', 'path', 1 ],
+    [ 'ID',       'INT', 'id',         ],
+    [ 'NAME',     'STR', 'name',     1 ],
+    [ 'PATH',     'STR', 'path',     1 ],
     [ 'COMMENTS', 'STR', 'comments', 1 ],
 
   ],
@@ -73,11 +73,11 @@ sub controlled_files_list {
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}) {
-    $self->{SEARCH_FIELDS} = '*,'
-  }
-
-  $self->query("SELECT $self->{SEARCH_FIELDS} id FROM $files_table_name $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr);
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM $files_table_name
+    $WHERE ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+  undef, $attr);
 
   return $self->{list} || [];
 }
@@ -108,10 +108,6 @@ sub controlled_files_count {
       WHERE => 1
     }
   );
-
-  if ($attr->{SHOW_ALL_COLUMNS}) {
-    $self->{SEARCH_FIELDS} = '*,'
-  }
 
   $self->query("SELECT COUNT(*) id FROM $files_table_name $WHERE", undef, $attr);
 
@@ -234,9 +230,7 @@ sub stats_list {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = '';
-
-  $WHERE = $self->search_former($attr, [
+  my $WHERE = $self->search_former($attr, [
     [ 'ID', 'INT', 'ccf.id', 1 ],
     [ 'NAME', 'STR', 'ccf.name', 1 ],
     [ 'PATH', 'STR', 'ccf.path', 1 ],
@@ -248,14 +242,12 @@ sub stats_list {
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}) {
-    $self->{SEARCH_FIELDS} = '*,'
-  }
-
   $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM $stats_table_name ccs
-      LEFT JOIN $files_table_name ccf ON (ccf.id=ccs.file_id)
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr);
+   LEFT JOIN $files_table_name ccf ON (ccf.id=ccs.file_id)
+   $WHERE
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;", undef, $attr);
 
   return $self->{list} || [];
 }
@@ -316,7 +308,7 @@ sub stats_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->stats_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
+  my $list = $self->stats_list({ COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }

@@ -248,7 +248,9 @@ sub tp_group_list {
   my $SORT = ($attr->{SORT} && $attr->{SORT} =~ /^\d$/ && $attr->{SORT} < 5) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp, COUNT(tp.id) AS tarif_plans_count
+  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp,
+    COUNT(tp.id) AS tarif_plans_count,
+    GROUP_CONCAT(DISTINCT tp.id SEPARATOR ';') AS tarif_plans_ids
    FROM tp_groups tg
    LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
    GROUP BY tg.id
@@ -609,7 +611,7 @@ sub info {
   $self->query("SELECT *,
       postpaid_daily_fee AS postpaid_day_fee,
       postpaid_monthly_fee AS postpaid_month_fee,
-      logins AS SIMULTANEOUSLY,
+      logins AS simultaneously,
       activate_price AS activ_price,
       uplimit AS alert,
       gid AS tp_gid,
@@ -1153,7 +1155,7 @@ sub traffic_class_del {
   $self->query_del('traffic_classes', $attr);
 
   $self->{admin}->action_add($self->{UID}, $self->{UID}, { TYPE => 10 });
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1231,6 +1233,14 @@ sub add_tp_geo {
 
   $self->query_add('tp_geolocation', { %$attr });
 
+  $self->{admin}->{MODULE}='Internet';
+  my $data_log = "TP_GID:$attr->{TP_GID}";
+  $data_log .= " DISTRICT_ID:$attr->{DISTRICT_ID}" if $attr->{DISTRICT_ID};
+  $data_log .= " STREET_ID:$attr->{STREET_ID}" if $attr->{STREET_ID};
+  $data_log .= " BUILD_ID:$attr->{BUILD_ID}" if $attr->{BUILD_ID};
+
+  $self->{admin}->system_action_add("Added geolocation $data_log", { TYPE => 1 });
+
   return $self;
 }
 
@@ -1290,7 +1300,7 @@ sub tp_geo_list {
   }
 
   if ($attr->{DISTRICT_ID} && $attr->{DISTRICT_ID} ne '_SHOW') {
-    push @WHERE_RULES, "FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(dc.path, '/', ','))))";
+    push @WHERE_RULES, "FIND_IN_SET('$attr->{DISTRICT_ID}', (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(dc.path, '/', ','))))";
     delete $attr->{DISTRICT_ID};
   }
 
@@ -1333,6 +1343,9 @@ sub add_tp_group_users_groups {
   my ($attr) = @_;
 
   $self->query_add('tp_groups_users_groups', { %$attr });
+
+  $self->{admin}->{MODULE}='Internet';
+  $self->{admin}->system_action_add("Added GID:$attr->{GID}, TP_GID:$attr->{TP_GID}", { TYPE => 1 });
 
   return $self;
 }

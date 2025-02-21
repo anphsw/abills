@@ -4,12 +4,7 @@ post:
   summary: Изменить права администратора
   operationId: adminSetPermissions
   parameters:
-    - name: aid
-      in: path
-      description: ID администратора
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathAid"
   requestBody:
     content:
       application/json:

@@ -1,0 +1,15 @@
+get:
+  tags:
+    - admins
+  summary: Информация администратора о себе
+  operationId: adminSelfInfo
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            # "../schemas/adminInfo.yaml"
+            $ref: "#/components/schemas/AdminsAdminInfo"
+  security:
+    - KEY: []

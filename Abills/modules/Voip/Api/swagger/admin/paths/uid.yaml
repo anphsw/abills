@@ -3,12 +3,7 @@ get:
     - voip
   summary: Информация о услуге Voip пользователя
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение
@@ -23,12 +18,7 @@ post:
     - voip
   summary: Добавить услугу Voip пользователю
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:
@@ -55,12 +45,7 @@ put:
     - voip
   summary: Изменить услугу Voip пользователю
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:
@@ -87,12 +72,7 @@ delete:
     - voip
   summary: Удалить пользователя Voip
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение

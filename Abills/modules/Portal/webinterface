@@ -285,7 +285,7 @@ sub portal_articles {
     my ($res) = $Api->api_call({
       METHOD => 'POST',
       PATH   => '/portal/articles',
-      PARAMS => \%FORM
+      PARAMS => { %FORM }
     });
 
     if (!$res->{errno}) {

@@ -34,11 +34,15 @@ post:
         type: integer
         format: int64
   requestBody:
-    description: Параметры, которые нужно указать
     content:
       application/json:
         schema:
           $ref: "../schemas/addReplyRequest.yaml"
+      multipart/form-data:
+        schema:
+          allOf:
+            - $ref: "../schemas/addReplyRequest.yaml"
+            - $ref: "../../user/schemas/msgsFiles.yaml"
     required: true
   responses:
     200:
@@ -46,6 +50,6 @@ post:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiAddResponse200"
+            $ref: "../schemas/addReplyResponse200.yaml"
   security:
     - KEY: []

@@ -46,6 +46,9 @@ sub _paysys_select_systems {
       my %settings = $Module->get_settings();
       $HASH_TO_JSON{$system} = \%settings;
     }
+    else {
+      $html->message('err', $lang{ERROR}, "$Module no sub get_settings");
+    }
   }
 
   my $json_list = JSON->new->utf8(0)->encode(\%HASH_TO_JSON);
@@ -399,7 +402,7 @@ sub paysys_configure_main {
     paysysV2_toV3();
   }
 
-  if (!$conf{PAYSYS_NEW_SETTINGS} && !$FORM{migrate_v3_to_v2}) {
+  if (!$conf{PAYSYS_NEW_SETTINGS} && !$conf{PAYSYS_V4} && !$FORM{migrate_v3_to_v2}) {
     $html->message('error', $lang{PAYSYS_V3},
       $html->button($lang{CHANGE}, "index=$index&migrate_v3_to_v2=1", {ex_params => "style='font-weight: bold;font-size:20px;'"}));
     return 1;
@@ -833,6 +836,8 @@ sub paysys_add_configure_groups {
       SELECTED => ' '
     });
 
+    my $account_keys = _paysys_account_keys({ JSON => 1 });
+
     $payment_methods_sel =~ s/[\n\r]//gm;
     $html->tpl_show(_include('paysys_merchant_config_add', 'Paysys'), {
       BTN_VALUE             => $btn_value,
@@ -842,6 +847,7 @@ sub paysys_add_configure_groups {
       ACCOUNT_KEYS_SELECT   => $acc_keys,
       PAYMENT_METHOD_SELECT => $payment_methods_sel,
       PAYSYSTEM_ID          => $FORM{paysystem_id} || '',
+      ACCOUNT_KEYS          => $account_keys,
       %params
     });
 
@@ -1873,6 +1879,44 @@ sub _paysys_system_name_change {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 _paysys_account_keys() - list of account keys
+
+=cut
+#**********************************************************
+sub _paysys_account_keys {
+  my ($attr) = @_;
+
+  my @account_keys = (
+    'CONTRACT_ID',
+    'UID',
+    'LOGIN',
+    'EMAIL',
+    'PHONE',
+    'CELL_PHONE',
+    'BILL_ID',
+  );
+
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+  my $fields_list = $Info_fields->fields_list({
+    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : '_SHOW',
+    SQL_FIELD => '_SHOW',
+    COLS_NAME => 1,
+  });
+
+  foreach my $field (@{$fields_list}) {
+    push @account_keys, uc($field->{sql_field});
+  }
+
+  if ($attr->{JSON}) {
+    return json_former(\@account_keys);
+  }
+
+  return \@account_keys;
 }
 
 1;

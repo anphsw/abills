@@ -86,8 +86,7 @@ sub maps_auto_coords {
     my $find_button = $html->button($lang{SEARCH}, '', {
       class     => 'btn btn-sm btn-primary search-btn',
       SKIP_HREF => 1,
-      ex_params => "onClick='findLocation(\"$district\", \"$_->{street_name}\", \"$_->{street_second_name}\", \"$_->{number}\", \"$_->{location_id}\")' " .
-        "id='button_number_$_->{location_id}'"
+      ex_params => "onClick='findLocation($_->{location_id})'"
     });
     $table->addrow($_->{district_name}, $_->{street_name}, $_->{street_second_name}, $_->{number}, $status, $find_button);
   }

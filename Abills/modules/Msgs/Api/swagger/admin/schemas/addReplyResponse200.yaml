@@ -1,0 +1,167 @@
+type: object
+properties:
+  adminRead:
+    type: string
+    example: "2024-12-26 23:45:50"
+  aid:
+    type: number
+    example: 1
+  aName:
+    type: string
+    example:
+  caption:
+    type: string
+    example:
+  chapter:
+    type: number
+    example: 1
+  chapterName:
+    type: string
+    example: "Cool tickets"
+  closedAid:
+    type: number
+    example: 0
+  closedDate:
+    type: string
+    example: "0000-00-00 00:00:00"
+  color:
+    type: string
+    example: "#0000FF"
+  date:
+    type: string
+    example: "2024-12-26 15:10:05"
+  datetime:
+    type: string
+    example: "2024-12-26 23:45:50"
+  deligation:
+    type: number
+    example: 0
+  deligationLevel:
+    type: number
+    example: 0
+  dispatchId:
+    type: number
+    example: 0
+  domainId:
+    type: number
+    example: 0
+  doneDate:
+    type: string
+    example: "0000-00-00"
+  fgName:
+    type: string
+    example:
+  gid:
+    type: number
+    example: 0
+  icon:
+    type: string
+    example: fa fa-envelope-open text-aqua
+  id:
+    type: number
+    example: 493
+  innerMsg:
+    type: number
+    example: 0
+  insertId:
+    type: number
+    example: 493
+  ip:
+    type: number
+    example: 2887274497
+  lastReplieDate:
+    type: string
+    example: "2024-12-26 23:45:50"
+  locationId:
+    type: number
+    example: 0
+  lockMsg:
+    type: number
+    example: 0
+  login:
+    type: string
+    example: diller
+  mainMsg:
+    type: number
+    example: 98
+  message:
+    type: string
+    example: TEST
+  name:
+    type: string
+    example: $langOPEN
+  par:
+    type: number
+    example: 0
+  phone:
+    type: string
+    example:
+  planDate:
+    type: string
+    example: "0000-00-00"
+  planInterval:
+    type: number
+    example: 0
+  planPosition:
+    type: number
+    example: 0
+  planTime:
+    type: string
+    example: "00:00:00"
+  priority:
+    type: number
+    example: 2
+  rating:
+    type: number
+    example: 0
+  ratingComment:
+    type: string
+    example:
+  readiness:
+    type: number
+    example: 0
+  reply:
+    type: string
+    example:
+  replyId:
+    type: number
+    example: 493
+  responsibleName:
+    type: string
+    example: abills
+  resposible:
+    type: number
+    example: 1
+  runTime:
+    type: number
+    example: 0
+  state:
+    type: number
+    example: 6
+  status:
+    type: number
+    example: 0
+  subject:
+    type: string
+    example: "так хто Вам казав що буде просто?"
+  surveyId:
+    type: number
+    example: 0
+  taskClosed:
+    type: number
+    example: 0
+  text:
+    type: string
+    example: "Знову ніхто нічого не читає..."
+  ticketRunTime:
+    type: string
+    example: "00:00:00"
+  total:
+    type: number
+    example: 1
+  uid:
+    type: number
+    example: 0
+  userRead:
+    type: string
+    example: "0000-00-00 00:00:00"

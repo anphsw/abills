@@ -1,0 +1,21 @@
+post:
+  tags:
+    - crm
+  summary: Добавление рабочего процесса
+  operationId: addCrmWorkflow
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/workflow.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: [ ]

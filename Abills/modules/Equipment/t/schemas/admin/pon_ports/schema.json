@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "branchDesc": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "nasId": {
+            "type": "integer"
+          },
+          "ponType": {
+            "type": "string"
+          },
+          "snmpId": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "vlanId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "branch",
+          "branchDesc",
+          "id",
+          "nasId",
+          "ponType",
+          "snmpId",
+          "status",
+          "vlanId"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

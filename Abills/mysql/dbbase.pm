@@ -205,7 +205,7 @@ sub query{
         # Fact, that is only done during debugging is also not scary for performance.
         unless ($Time::HiRes::VERSION) {
           require Time::HiRes;
-          Time::Hires->import();
+          Time::HiRes->import();
         }
 
         my $caller = qq{\n\n};

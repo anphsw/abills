@@ -86,8 +86,9 @@ $conf{LANGS}="english:English;
  armenian:Armenian;
  azeri:Azeri;
  belarussian:Беларускi;
- spanish:Spain;
- uzbek:Uzbek;";
+ spanish:Spanish;
+ uzbek:Uzbek;
+ kazakh:Қазақша;";
 
 #Web interface
 $conf{PASSWD_LENGTH}=6;

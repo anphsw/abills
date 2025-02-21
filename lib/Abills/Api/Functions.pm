@@ -81,6 +81,29 @@ sub _user_functions_list {
     Cards      => sub {
       return { 'cards_user_payment' => {}, }
     },
+    Docs       => sub {
+      if ($self->{conf}->{DOCS_SKIP_USER_MENU}) {
+        return {};
+      }
+
+      my %functions = (docs_invoices_list => 1);
+
+      if ($self->{conf}{DOCS_USERPORTAL_INVOICE}) {
+        $functions{docs_receipt_list} = 1;
+      }
+
+      if ($self->{conf}{DOCS_USERPORTAL_ACT}) {
+        $functions{docs_acts_list} = 1;
+
+      }
+      return \%functions;
+    },
+    Equipment  => sub {
+      return { equipment_user => 1 };
+    },
+    Expert     => sub {
+      return { expert_faq => 1 }
+    },
     Extreceipt => sub {
       $self->{conf}->{EXTRECEIPT_USER_PORTAL} ?
         return { extreceipts_list => 1 } : {};

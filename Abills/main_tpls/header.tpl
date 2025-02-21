@@ -100,12 +100,7 @@
       </div>
     </li>
 
-    <li data-hidden="%EVENTS_DISABLED%" class='nav-item dropdown' id='events-menu' style='display: none' data-meta='{
-          "HEADER": "_{EVENTS}_",
-          "UPDATE": "?get_index=events_notice&header=2&AJAX=1",
-          "AFTER": 30,"REFRESH": 30, "ENABLED": "%EVENTS_ENABLED%"
-          }'>
-
+    <li data-visible="%EVENTS_ENABLED%" class='nav-item dropdown' id='events-menu' style='display: none' data-meta='%ADMIN_EVENTS_NOTICE%'>
       <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{EVENTS}_'>
         <i class='far fa-bell'></i>
         <span id='badge_events-menu' class='icon-label label label-danger hidden'></span>
@@ -224,19 +219,10 @@
       portal: 'admin',
       link: '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
       soundsDisabled: ('$admin->{SETTINGS}{NO_EVENT_SOUND}' == '1'),
-      // disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1') || ('%EVENTS_DISABLED%' == '1'),
       disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
       interval: parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
     };
     AMessageChecker.start(EVENT_PARAMS);
-
-    // var urlWiki = jQuery('#wiki_url').attr('href');
-    // var pattern = /doc.cgi/
-    // if (pattern.test(urlWiki)) {
-    //   jQuery('#wiki_url').attr('href', urlWiki);
-    // } else {
-    //   jQuery('#wiki_url').attr('href', '$ENV{DOC_URL}');
-    // }
   });
 </script>
 
@@ -273,7 +259,7 @@
   </div>
 </aside>
 <div class='content-wrapper' id='content-wrapper' style='min-height: calc(100vh - %CONTENT_OFFSET%)'>
-  %ISP_EXPRESSION%
+  %QUICK_LINKS%
 
   %BREADCRUMB%
   <section class='content' id='main-content'>

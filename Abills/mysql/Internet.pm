@@ -13,6 +13,7 @@ use Users;
 use Conf;
 use Fees;
 use POSIX qw(strftime mktime);
+use Abills::Base qw(expire_date);
 
 our $VERSION = 1.00;
 my $MODULE = 'Internet';
@@ -218,10 +219,12 @@ sub user_add {
         return $self;
       }
 
-      my $fees = Fees->new($self->{db}, $admin, $self->{conf});
-      $fees->take($user, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}' });
+      my $Fees = Fees->new($self->{db}, $admin, $self->{conf});
+      $Fees->take($user, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}' });
       $Tariffs->{ACTIV_PRICE} = 0;
     }
+
+    expire_date($attr, $Tariffs);
   }
 
   if (!$attr->{UID}) {
@@ -243,13 +246,13 @@ sub user_add {
 
   return [ ] if ($self->{errno});
 
-  $attr->{ID}=$self->{INSERT_ID};
+  $attr->{ID}=$self->{INSERT_ID} || 0;
   $self->{ID}=$attr->{ID};
 
   $admin->{MODULE} = $MODULE;
   $admin->action_add($attr->{UID}, '', {
     TYPE    => 1,
-    INFO    => ['TP_ID', 'INTERNET_LOGIN', 'STATUS', 'EXPIRE', 'IP', 'CID', 'PERSONAL_TP', 'ID'],
+    INFO    => ['TP_ID', 'INTERNET_LOGIN', 'STATUS', 'ACTIVATE', 'EXPIRE', 'IP', 'CID', 'PERSONAL_TP', 'ID'],
     REQUEST => $attr
   });
 
@@ -344,11 +347,8 @@ sub user_change {
     }
 
     if ($Tariffs->{AGE} > 0) {
-      $self->expire_date($attr, $Tariffs);
+      expire_date($attr, $Tariffs);
     }
-#    else {
-#      $attr->{EXPIRE} = "0000-00-00";
-#    }
   }
   elsif (($old_info->{STATUS} && $old_info->{STATUS} == 3)
     && (defined($attr->{STATUS}) && $attr->{STATUS} == 0)
@@ -414,38 +414,6 @@ sub user_change {
 }
 
 #**********************************************************
-=head2 expire_date(attr); - Get expire date
-
-  Arguments:
-    $attr,
-    $Tariffs
-
-  Result:
-    $self
-
-=cut
-#**********************************************************
-sub expire_date {
-  my $self = shift;
-  my ($attr, $Tariffs) = @_;
-
-  $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
-
-  eval { require Date::Calc };
-  if (!$@) {
-    Date::Calc->import( qw/Add_Delta_Days/ );
-
-    my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
-    $year += 1900;
-    $mon++;
-    ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
-    $attr->{EXPIRE} ="$year-$mon-$mday";
-  }
-
-  return $self;
-}
-
-#**********************************************************
 =head2 user_del(attr); Delete user service
 
   Arguments:
@@ -480,7 +448,7 @@ sub user_del {
 
   $admin->action_add($uid, join(' ', @del_descr), { TYPE => 10 });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1073,7 +1041,7 @@ sub filters_del {
 
   $self->query_del('internet_filters', undef, $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1148,7 +1116,7 @@ sub filters_change{
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1312,14 +1280,14 @@ sub users_outflow_report {
   push @WHERE_RULES, "b.deposit < 1";
 
   if ($attr->{BUILD_ID}) {
-    push @WHERE_RULES, "pi.location_id = $attr->{BUILD_ID}";
+    push @WHERE_RULES, "pi.location_id = '$attr->{BUILD_ID}'";
   }
   elsif ($attr->{STREET_ID}) {
-    push @WHERE_RULES, "builds.street_id = $attr->{STREET_ID}";
+    push @WHERE_RULES, "builds.street_id = '$attr->{STREET_ID}'";
     $EXT_TABLE = 'LEFT JOIN builds ON (builds.id=pi.location_id)';
   }
   elsif ($attr->{DISTRICT_ID}) {
-    push @WHERE_RULES, "streets.district_id = $attr->{DISTRICT_ID}";
+    push @WHERE_RULES, "streets.district_id = '$attr->{DISTRICT_ID}'";
     $EXT_TABLE = 'LEFT JOIN builds ON (builds.id=pi.location_id)';
     $EXT_TABLE .= 'LEFT JOIN streets ON (streets.id=builds.street_id)';
   }

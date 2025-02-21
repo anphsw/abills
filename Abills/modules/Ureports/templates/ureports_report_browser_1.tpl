@@ -1,0 +1,7 @@
+%MESSAGE_SUBJECT%
+
+_{DEAR}_, %FIO%
+
+_{DEPOSIT}_: %DEPOSIT%
+_{DATE}_: %DATE%
+

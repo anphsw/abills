@@ -30,6 +30,7 @@
   let uid = '%UID%';
   let id = '%ID%';
   let errors_reset = '%ERRORS_RESET%' ? '&ERRORS_RESET=%ERRORS_RESET%' : '';
+  let nasType = '%NAS_TYPE%' || '';
 
   let equipment_get_info_url = '$SELF_URL?header=2&get_index=equipment_user_info_ajax' + '&NAS_ID=' + nasId + '&PORT=' + port + '&VLAN=' +
     vlan + '&UID=' + uid + '&ID=' + id + errors_reset;
@@ -74,7 +75,9 @@
         jQuery('#equipment_info').show();
         jQuery('#status-loading-content').hide();
         jQuery('#reload_equipment_info_button').prop('disabled', false);
-
+        let typeElement = jQuery('#equipment_info').find('td')[0];
+        let equipmentType = typeElement ? typeElement.textContent.slice(4) : '';
+        nasType = equipmentType.replace(' ', '_');
         let cardBody = jQuery('#equipment_info').children();
         cardBody.removeClass('card-primary');
         cardBody.css('margin-bottom', '0');
@@ -130,8 +133,9 @@
   }
 
   async function _get_fields() {
+    let url_with_type = equipment_get_fields_url + '&NAS_TYPE=' + nasType;
     return await (
-      await fetch(equipment_get_fields_url)
+      await fetch(url_with_type)
     ).json();
   }
 
@@ -207,7 +211,9 @@
 
   function onEquipmentUserInfoSubmit() {
     let form_value = jQuery('#equipment_user_info_chg').serialize();
-    fetch(equipment_change_fields_url + '&' + form_value).then(() => {
+    let url_with_type = equipment_change_fields_url + '&NAS_TYPE=' + nasType;
+
+    fetch(url_with_type + '&' + form_value).then(() => {
       displayJSONTooltip({
         MESSAGE: {
           caption: '_{SUCCESS}_!',
@@ -225,7 +231,9 @@
   }
 
   function onEquipmentUserInfoToDefault() {
-    fetch(equipment_default_fields_url).then(() => {
+    let url_with_type = equipment_default_fields_url + '&NAS_TYPE=' + nasType;
+
+    fetch(url_with_type).then(() => {
       displayJSONTooltip({
         MESSAGE: {
           caption: '_{SUCCESS}_! _{DEFAULT}_.',

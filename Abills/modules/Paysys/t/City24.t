@@ -52,6 +52,7 @@ our @requests = (
     <payElementID>1</payElementID>
     <account>$user_id</account>
     <payID>$payment_id</payID>
+    <userEnterAmount>$payment_sum</userEnterAmount>
 </commandCall>
     },
     result  => qq{
@@ -87,6 +88,18 @@ our @requests = (
 	<payElementID>1</payElementID>
 	<account>120487</account>
 	<amount>100</amount>
+</commandCall>},
+    result  => q{}
+  },
+  {
+    name    => 'CHECK',
+    request => qq{<?xml version="1.0" encoding="UTF-8"?>
+<commandCall>
+  <login>$login</login>
+  <password>$password</password>
+  <command>check_status</command>
+  <transactionID>1111</transactionID>
+  <PayID>$payment_id</PayID>
 </commandCall>},
     result  => q{}
   },

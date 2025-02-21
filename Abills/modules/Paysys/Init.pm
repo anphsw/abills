@@ -66,7 +66,8 @@ sub _configure_load_payment_module {
     if ($return_error) {
       return {
         errno  => 600,
-        errstr => 'Can\'t load module'
+        errstr => 'Can\'t load module',
+        errmsg => $@
       }
     }
     else {

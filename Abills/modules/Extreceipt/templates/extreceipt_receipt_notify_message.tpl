@@ -1,0 +1,4 @@
+_{DEAR}_, %FIO%
+
+_{YOUR_RECEIPT}_:
+%RECEIPT_ID%

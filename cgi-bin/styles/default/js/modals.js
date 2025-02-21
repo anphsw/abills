@@ -293,7 +293,7 @@ function AModal() {
   };
 
   this.addButton = function (text, btnId, class_, type) {
-    this.footer += '<button id="' + btnId + '" class="btn btn-' + class_ + ' type="' + type + '">' + text + '</button>';
+    this.footer += '<button id="' + btnId + '" class="btn btn-' + class_ + '" type=' + type + '">' + text + '</button>';
     return this;
   };
 

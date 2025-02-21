@@ -47,6 +47,32 @@
 </form>
 
 <script>
+  // add props to form
+  document.getElementById('ipay_pay').addEventListener('click', function() {
+    const browserData = {
+      BROWSER_COLOR_DEPTH: screen.colorDepth,
+      BROWSER_LANGUAGE: navigator.language || navigator.userLanguage,
+      BROWSER_SCREEN_HEIGHT: screen.height,
+      BROWSER_SCREEN_WIDTH: screen.width,
+      BROWSER_TZ: new Date().getTimezoneOffset(),
+      BROWSER_ACCEPT_HEADER: '*/*',
+      BROWSER_USER_AGENT: navigator.userAgent
+    };
+
+    const form = document.getElementById('ipay_pay');
+    for (const key in browserData) {
+      if (browserData.hasOwnProperty(key)) {
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = key;
+        hiddenInput.value = browserData[key];
+        form.appendChild(hiddenInput);
+      }
+    }
+
+    form.submit();
+  });
+
   function changeActiveCard(name) {
     Array.from(document.getElementsByClassName('ipay-btn')).map(e => {
       e.classList.remove('table-info');

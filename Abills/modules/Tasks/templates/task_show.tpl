@@ -21,7 +21,7 @@
           <button type='button' class='btn btn-default btn-xs' data-toggle='modal' data-target='#myModal1'
                   onClick='return openModal()'>_{PARTCIPIANTS}_: <span class='admin_count'></span></button>
         </p>
-        <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
+        <input type='hidden' id='PARTICIPANTS_LIST' name='PARTICIPANTS_LIST' value='%PARTICIPANTS_LIST%'>
       </div>
       <div class='col-md-3'>
         %PLUGINS_HTML%
@@ -94,11 +94,11 @@
       }
     });
     jQuery('.admin_count').text(responsibleArr.length);
-    document.getElementById('PARTCIPIANTS_LIST').value = responsibleArr.join();
+    document.getElementById('PARTICIPANTS_LIST').value = responsibleArr.join();
   }
 
   function setCheckboxes() {
-    var responsibleList = document.getElementById('PARTCIPIANTS_LIST').value;
+    var responsibleList = document.getElementById('PARTICIPANTS_LIST').value;
     var responsibleArr = responsibleList.split(',');
     var count = 0;
     jQuery('.admin_checkbox').each(function () {

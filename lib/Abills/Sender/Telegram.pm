@@ -15,6 +15,10 @@ our %lang = ();
 
 my $api_url = 'api.telegram.org';
 
+my %status_compare = (
+  403 => 1000010
+);
+
 #**********************************************************
 =head2 new($db, $admin, $CONF, $attr) - Create new Telegram object
 
@@ -49,7 +53,7 @@ sub new {
   
   die 'No Telegram token ($conf{TELEGRAM_TOKEN})' if ( !$self->{token} );
 
-  $conf{TELEGRAM_LANG} = 'russian' unless($conf{TELEGRAM_LANG});
+  $conf{TELEGRAM_LANG} = $conf{default_language} unless($conf{TELEGRAM_LANG});
   my $base_dir = $main::base_dir || '/usr/abills/';
   require "$base_dir/Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
 
@@ -112,10 +116,14 @@ sub send_message {
   }
 
   my $result = $self->{api}->sendMessage({
-      chat_id => $attr->{TO_ADDRESS},
-      text    => $text,
-      %{ $attr->{TELEGRAM_ATTR} // {} }
-    });
+    chat_id => $attr->{TO_ADDRESS},
+    text    => $text,
+    %{$attr->{TELEGRAM_ATTR} // {}}
+  });
+  if ($result->{error_code}) {
+    $result->{errno} = $status_compare{$result->{error_code}} || $result->{error_code};
+    $result->{errstr} = $result->{description};
+  }
 
   if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
     _bp("Result", $result, { TO_CONSOLE => 1 });
@@ -226,7 +234,7 @@ sub make_reply {
 
   my $reply_button = 0;
 
-  my @buttons_files = glob "$conf{base_dir}/Abills/modules/Telegram/buttons-enabled/*.pm";
+  my @buttons_files = glob "$conf{base_dir}/Abills/modules/Telegram/buttons/*.pm";
   foreach my $file (@buttons_files) {
     my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
     if($button eq 'Msgs_reply'){

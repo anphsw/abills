@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "PAYSYS_SYSTEMS",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "module": {
+        "type": "string"
+      },
+      "status": {
+        "type": "number"
+      },
+      "id": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "name",
+      "module",
+      "status",
+      "id"
+    ]
+  }
+}

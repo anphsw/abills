@@ -3,12 +3,7 @@ get:
     - equipment
   summary: Список оборудования в пользование
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   operationId: equipmentUserDevices
   responses:
     200:

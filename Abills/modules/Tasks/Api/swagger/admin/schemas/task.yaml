@@ -1,0 +1,47 @@
+type: object
+properties:
+  additionalValues:
+    type: string
+    example: ""
+  adminName:
+    type: string
+    example: "abills"
+  aid:
+    type: integer
+    example: 1
+  comments:
+    type: string
+    example: "Some comment"
+  controlDate:
+    type: string
+    example: "2024-10-31"
+  descr:
+    type: string
+    example: "Send some message."
+  id:
+    type: integer
+    example: 70
+  name:
+    type: string
+    example: "Send message"
+  planDate:
+    type: string
+    example: "2024-10-25"
+  plugins:
+    type: string
+    example: ""
+  responsible:
+    type: integer
+    example: 1
+  responsibleName:
+    type: string
+    example: "Admin Abills"
+  state:
+    type: integer
+    example: 0
+  taskType:
+    type: integer
+    example: 7
+  typeName:
+    type: string
+    example: "First type"

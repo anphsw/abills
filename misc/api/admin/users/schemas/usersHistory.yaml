@@ -1,0 +1,55 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        actionType:
+          type: integer
+          description: Type of action taken
+          example: 2
+        actions:
+          type: string
+          description: Action details
+          example: "MSG_ID:3821 ADMIN_READ 0000-00-00 00:00:00->2023-01-23 21:46:47"
+        adminDisable:
+          type: integer
+          description: Indicates if admin is disabled (0 for no, 1+ for yes)
+          example: 0
+        adminLogin:
+          type: string
+          description: Admin login username
+          example: "abills"
+        aid:
+          type: integer
+          description: Admin ID
+          example: 1
+        datetime:
+          type: string
+          description: Date of action
+          example: "2023-01-23 21:46:47"
+        id:
+          type: integer
+          description: Unique log entry ID
+          example: 285
+        ip:
+          type: string
+          description: IP address of the admin or user
+          example: "192.168.99.1"
+        login:
+          type: string
+          description: User login identifier
+          example: "00000"
+        module:
+          type: string
+          description: Module in which the action took place
+          example: "Msgs"
+        uid:
+          type: integer
+          description: User ID
+          example: 102167
+  total:
+    type: integer
+    description: Total number of logs
+    example: 9861

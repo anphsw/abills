@@ -1027,7 +1027,7 @@ sub change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1042,7 +1042,7 @@ sub del {
   $self->query("DELETE from sharing_main WHERE uid='$attr->{UID}';", 'do');
 
   $admin->action_add($attr->{UID}, "$attr->{UID}", { TYPE => 10 });
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1556,7 +1556,7 @@ sub additions_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1571,7 +1571,7 @@ sub additions_del {
   $self->query_del('sharing_additions', $attr);
 
   #$admin->action_add($uid, "DELETE");
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1686,7 +1686,7 @@ sub priority_change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1700,7 +1700,7 @@ sub priority_del {
 
   $self->query_del('sharing_priority', $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************

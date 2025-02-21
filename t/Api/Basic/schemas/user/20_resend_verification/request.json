@@ -1,0 +1,8 @@
+{
+  "name": "USER_RESEND_VERIFICATION",
+  "method": "POST",
+  "path": "user/resend/verification/",
+  "body": {
+    "email": "test@gmail.com"
+  }
+}

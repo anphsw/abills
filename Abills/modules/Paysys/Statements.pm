@@ -111,6 +111,7 @@ sub paysys_statement_processing {
     if ($type) {
       my $company = $Companies->list({
         COMPANY_ADMIN => '_SHOW',
+        UID           => '_SHOW',
         COLS_NAME     => 1,
         $field_name   => $search_str || '--',
       });
@@ -126,7 +127,7 @@ sub paysys_statement_processing {
 
       # set user info of company admin
       $CHECK_FIELD = 'UID';
-      $search_str = $company->[0]->{uid};
+      $search_str = $company->[0]->{company_admin} || $company->[0]->{uid} || '--';
     }
 
     next if (!$search_str);

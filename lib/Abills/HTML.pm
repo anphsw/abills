@@ -24,8 +24,6 @@ package Abills::HTML;
 use strict;
 use warnings;
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
 our (@_COLORS, %LIST_PARAMS, %COOKIES, $index, $SORT, $DESC, $PG, $PAGE_ROWS, $SELF_URL);
 
 our $VERSION = 9.00;
@@ -55,7 +53,7 @@ my $CONF;
 my $row_number = 0;
 my $lang;
 
-#http://www.mcanerin.com/en/articles/meta-language.asp
+#https://www.loc.gov/standards/iso639-2/php/code_list.php
 my %ISO_LANGUAGE_CODE = (
   english     => 'en',
   russian     => 'ru',
@@ -68,6 +66,7 @@ my %ISO_LANGUAGE_CODE = (
   spanish     => 'es',
   uzbek       => 'uz',
   polish      => 'pl',
+  kazakh      => 'kk',
 );
 
 my %button_class_icons = (
@@ -1675,10 +1674,10 @@ sub menu_right {
 
 =cut
 #**********************************************************
-sub menu2 {
-  my $self = shift;
-  return $self->menu(@_);
-}
+# sub menu2 {
+#   my $self = shift;
+#   return $self->menu(@_);
+# }
 
 #**********************************************************
 =head2 header() - header of main page
@@ -1914,106 +1913,7 @@ sub table {
 
   if ($attr->{caption} || $attr->{caption1}) {
     if ($attr->{SHOW_COLS} && scalar %{$attr->{SHOW_COLS}}) {
-      my $col_count = scalar keys(%{$attr->{SHOW_COLS}});
-      my $col_size = $col_count >= 16 ? 3 : 6;
-      my $col_divider_count = int($col_count / (12 / $col_size) + 0.5);
-      my $modal_size = ($col_divider_count >= 3) ? 'xl' : 'sm';
-      my $ext_cols_form_name = $attr->{EXT_COLS_FORM_NAME} || 'form_show_cols';
-
-      $show_cols .= "<div class='modal fade' id='" . ($attr->{ID} || q{}) . "_cols_modal' tabindex='-1' role='dialog' aria-hidden='true'>
-  <div class='modal-dialog modal-$modal_size'>
-    <div class='modal-content'>
-      <div class='modal-header'>
-      <h4 class='modal-title'>$lang->{EXTRA_FIELDS}</h4>
-        <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
-      </div>
-      <div class='modal-body text-left' id='abillsResultFormerBody'>\n";
-      $show_cols .= "<div class='abills-result-former-bar'>";
-      $show_cols .= "<div class='input-group col-12 col-md-6'>";
-      $show_cols .= "<input class='form-control' placeholder='$lang->{SEARCH}...' id='resultFormSearch'>";
-      $show_cols .= "<div class='input-group-append'>";
-      $show_cols .= "<a class='btn input-group-button'><i class='fa fa-search fa-fw'></i></a>";
-      $show_cols .= "</div>";
-      $show_cols .= "</div>";
-      $show_cols .= "</div>";
-      $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='$ext_cols_form_name' id='$ext_cols_form_name'>\n" if (!$attr->{SKIP_FORM});
-
-      my @global_params = ('get_index', 'index', 'subf', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
-      if (!$FORM{index} && $FORM{get_index}) {
-        push @global_params, 'full';
-        $FORM{full} = 1;
-      }
-
-      foreach my $param_name (@global_params) {
-        if ($FORM{$param_name}) {
-          $show_cols .= "<input type=hidden form='$ext_cols_form_name' name=$param_name value='$FORM{$param_name}'>\n";
-        }
-      }
-
-      if ($attr->{SHOW_COLS_HIDDEN}) {
-        foreach my $key (keys %{$attr->{SHOW_COLS_HIDDEN}}) {
-          $show_cols .= "<input type='hidden' name='$key' value='" . ($attr->{SHOW_COLS_HIDDEN}->{$key} || '') . "'>";
-        }
-      }
-
-      my @checkboxes = ();
-      foreach my $k (sort keys %{$attr->{SHOW_COLS}}) {
-        if ($k eq 'uid' && ($FORM{UID} && $FORM{UID} ne '_SHOW')) {
-          $show_cols .= "<input type=hidden name=UID value=$FORM{UID}>";
-          next;
-        }
-
-        my $upper_key = uc($k);
-        my $label = $self->element('label', $attr->{SHOW_COLS}{$k} || '', { FOR => uc($k) });
-        my $checkbox = $self->element('input', '', {
-          type  => 'checkbox',
-          name  => 'show_columns',
-          value => $upper_key,
-          id    => $upper_key,
-          class => 'mr-1',
-          $attr->{ACTIVE_COLS}->{$k} ? (checked => 'checked') : ()
-        });
-        my $checkbox_parent = $self->element('div', $checkbox . $label, { class => 'abills-checkbox-parent' });
-
-        push @checkboxes, $checkbox_parent;
-      }
-
-      my $cols = '';
-      my $count_checkboxes = @checkboxes;
-      my $fields_in_col = POSIX::ceil($count_checkboxes / int(12 / $col_size));
-      my $rows = (POSIX::ceil($count_checkboxes / $fields_in_col) - 1);
-
-      foreach my $row (0..$rows) {
-        my $start_index = $row * $fields_in_col;
-        my $end_index = $start_index + ($fields_in_col - 1);
-        $end_index = $count_checkboxes - 1 if ($count_checkboxes - 1) < $end_index;
-
-        $cols .= $self->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size" });
-      }
-      $show_cols .= $self->element('div', $cols, { class => 'row' });
-
-      if (!$attr->{SKIP_FORM}) {
-
-        my $footer_btns = "<hr/>
-          <div class='abills-form-main-buttons justify-content-between'>
-            <input type='submit' id='del_cols' name=del_cols class='btn btn-default' value="."\"$lang->{DEFAULT}\"". ">
-            <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value="."\"$lang->{SAVE}\"". ">
-          </div>
-          <script>
-            let modal = jQuery('#$attr->{ID}_cols_modal');
-            if (modal.parent().hasClass('modal-content')) {
-              modal.detach().appendTo(jQuery('body'));
-              resultFormerFillCheckboxes();
-              resultFormerCheckboxSearch();
-            }
-          </script>
-        ";
-
-        $show_cols .= "$footer_btns";
-        $show_cols .= "</FORM>\n";
-      }
-
-      $show_cols .= "</div></div></div></div>\n";
+      $show_cols = $self->_form_table_ext_cols($attr);
 
       $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-tool' data-toggle='modal' data-target='#"
         . ($attr->{ID} || 'no_id_element')
@@ -2063,6 +1963,9 @@ sub table {
     my @export_formats = ('xml', 'csv', 'json');
     my $export_obj = '';
 
+    my $idx = $FORM{index} || $FORM{qindex} || $index || '';
+    my $op = $idx ? "qindex=$idx" : '';
+
     eval {require Spreadsheet::WriteExcel;};
     if (!$@) {
       push @export_formats, 'xls';
@@ -2088,7 +1991,7 @@ sub table {
         $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
       }
 
-      $export_obj .= $self->button($export_name, "qindex=$index$attr->{qs}"
+      $export_obj .= $self->button($export_name, "$op$attr->{qs}"
         . (($PG) ? "&pg=$PG" : q{})
         . (($SORT) ? "&sort=$SORT" : q{})
         . (($DESC) ? "&desc=$DESC" : q{})
@@ -2338,6 +2241,195 @@ sub table {
     $self->{summary} = $self->table_summary($attr->{summary})
   }
   return $self;
+}
+
+#**********************************************************
+=head2 _form_table_ext_cols($attr) - Form extra table columns
+
+  Arguments:
+    $attr
+       SHOW_COLS           - Hash containing information about displayed columns
+       SHOW_COLS_HIDDEN    - Hash containing hidden columns
+       ACTIVE_COLS         - Hash containing active columns
+       EXT_COLS_FORM_NAME  - Name of the columns form
+       ID                  - ID for the modal window
+       SKIP_FORM           - If provided, the form will not be created
+
+  Returns:
+    HTML element containing a form for configuring table columns, in the form of a modal window
+
+=cut
+#**********************************************************
+sub _form_table_ext_cols {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $col_count = 0;
+  for my $key (keys %{$attr->{SHOW_COLS}}) {
+    my $cols = $attr->{SHOW_COLS}{$key};
+    next if ref $cols ne 'HASH';
+
+    my $num_cols = scalar keys %$cols;
+    $col_count = $num_cols if $num_cols > $col_count;
+  }
+
+  my $col_size = $col_count >= 16 ? 3 : 6;
+  my $col_divider_count = int($col_count / (12 / $col_size) + 0.5);
+  my $modal_size = ($col_divider_count >= 3) ? 'xl' : 'sm';
+  my $ext_cols_form_name = $attr->{EXT_COLS_FORM_NAME} || 'form_show_cols';
+
+  my @global_params = ('get_index', 'index', 'subf', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
+  if (!$FORM{index} && $FORM{get_index}) {
+    push @global_params, 'full';
+    $FORM{full} = 1;
+  }
+
+  my $hidden_inputs = '';
+  foreach my $param_name (@global_params) {
+    next if !$FORM{$param_name};
+
+    $hidden_inputs .= $self->form_input($param_name, $FORM{$param_name}, {
+      TYPE    => 'hidden',
+      FORM_ID => $ext_cols_form_name,
+    });
+  }
+
+  if ($attr->{SHOW_COLS_HIDDEN}) {
+    foreach my $key (keys %{$attr->{SHOW_COLS_HIDDEN}}) {
+      $hidden_inputs .= $self->form_input($key, $attr->{SHOW_COLS_HIDDEN}->{$key} || '', {
+        TYPE => 'hidden',
+      });
+    }
+  }
+
+  my @fields_row = ();
+  my @fields_groups = ();
+  my $field_index = 0;
+  foreach my $fields_key (reverse sort keys %{$attr->{SHOW_COLS}}) {
+    my $fields = $attr->{SHOW_COLS}{$fields_key};
+    next if ref $fields ne 'HASH';
+    next if scalar(keys(%{$fields})) < 1;
+    $field_index++;
+
+    push @fields_groups, $self->button($lang->{uc $fields_key} || $fields_key, '', {
+      class          => 'btn btn-primary m-1 extra-fields-btn',
+      JAVASCRIPT     => '',
+      SKIP_HREF      => 1,
+      NO_LINK_FORMER => 1,
+      ex_params      => "data-id='extra-fields-$field_index'"
+    });
+    my $label_group = $self->element('div', $self->element('h5', $lang->{uc $fields_key} || $fields_key) .
+      $self->element('hr', '', { class => 'mt-0' }), { class => 'col-12' });
+
+    my @checkboxes = ();
+
+    foreach my $key (keys(%{$fields})) {
+      if ($key eq 'uid' && ($FORM{UID} && $FORM{UID} ne '_SHOW')) {
+        $hidden_inputs .= $self->form_input('UID', $FORM{UID}, { TYPE => 'hidden' });
+        next;
+      }
+
+      my $upper_key = uc($key);
+      my $label = $self->element('label', $fields->{$key} || '', { FOR => uc($key) });
+      my $checkbox = $self->element('input', '', {
+        type  => 'checkbox',
+        name  => 'show_columns',
+        value => $upper_key,
+        id    => $upper_key,
+        class => 'mr-1',
+        $attr->{ACTIVE_COLS}->{$key} ? (checked => 'checked') : ()
+      });
+      my $checkbox_parent = $self->element('div', $checkbox . $label, { class => 'abills-checkbox-parent' });
+
+      push @checkboxes, $checkbox_parent;
+    }
+
+    my @cols = ();
+    my $count_checkboxes = @checkboxes;
+    next if !$count_checkboxes;
+
+    my $fields_in_col = POSIX::ceil($count_checkboxes / int(12 / $col_size));
+    my $rows = (POSIX::ceil($count_checkboxes / $fields_in_col) - 1);
+
+    foreach my $row (0..$rows) {
+      my $start_index = $row * $fields_in_col;
+      my $end_index = $start_index + ($fields_in_col - 1);
+      $end_index = $count_checkboxes - 1 if ($count_checkboxes - 1) < $end_index;
+
+      push @cols, $self->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size" });
+    }
+
+    push @fields_row, $self->element('div', $label_group . join('', @cols), { class => 'row mb-4', id => "extra-fields-$field_index" });
+  }
+
+  my $fields = $hidden_inputs . join('', @fields_row);
+  my $search_btn = $self->element('a', $self->element('i', '', { class => 'fa fa-search fa-fw' }), { class => 'btn input-group-button' });
+  my $search_btn_input_group = $self->element('div', $search_btn, { class => 'input-group-append' });
+  my $input_search = $self->form_input('', '', {
+    class       => 'form-control',
+    ID          => 'resultFormSearch',
+    EX_PARAMS   => "placeholder='$lang->{SEARCH}...'"
+  });
+  my $search_input_group = $self->element('div', $input_search . $search_btn_input_group, { class => 'input-group col-12 col-md-6' });
+  my $search_block = $self->element('div', $search_input_group, { class => 'abills-result-former-bar' });
+  my $field_group_block = $self->element('div', join('', @fields_groups), { class => 'd-flex flex-wrap justify-content-center mb-2' });
+
+  if (!$attr->{SKIP_FORM}) {
+    my $show_cols_btn = $self->form_input('show_cols', $lang->{SAVE}, {
+      TYPE        => 'submit',
+      class       => 'btn btn-primary',
+      ID          => 'show_cols',
+    });
+    my $del_cols_btn = $self->form_input('del_cols', $lang->{DEFAULT}, {
+      TYPE        => 'submit',
+      class       => 'btn btn-default',
+      ID          => 'del_cols',
+    });
+    my $form_buttons = $self->element('div', $del_cols_btn . $show_cols_btn,
+      { class => 'abills-form-main-buttons justify-content-between' });
+
+    $form_buttons .= qq{
+      <script>
+        let modal = jQuery('#$attr->{ID}_cols_modal');
+        if (modal.parent().hasClass('modal-content')) {
+          modal.detach().appendTo(jQuery('body'));
+          resultFormerFillCheckboxes();
+          resultFormerCheckboxSearch();
+        }
+      </script>
+    };
+
+    $fields = $self->form_main({
+      NAME    => $ext_cols_form_name,
+      ID      => $ext_cols_form_name,
+      CONTENT => $fields . $self->element('hr',) . $form_buttons
+    })
+  }
+
+  my $modal_title = $self->element('h4', $lang->{EXTRA_FIELDS}, { class => 'modal-title' });
+  my $close_button = $self->element('button', '&times;', {
+    class          => 'close',
+    'data-dismiss' => 'modal',
+    'aria-hidden'  => 'true'
+  });
+
+  my $modal_header = $self->element('div', $modal_title . $close_button, { class => 'modal-header' });
+
+  my $modal_body = $self->element('div', $search_block . $field_group_block . $fields, {
+    class => 'modal-body text-left',
+    ID    => 'abillsResultFormerBody'
+  });
+
+  my $modal_content = $self->element('div', $modal_header . $modal_body, { class => 'modal-content' });
+  my $modal_dialog = $self->element('div', $modal_content, { class => "modal-dialog modal-$modal_size" });
+
+  return $self->element('div', $modal_dialog, {
+    class         => 'modal fade',
+    ID            => ($attr->{ID} || q{}) . '_cols_modal',
+    tabindex      => '-1',
+    role          => 'dialog',
+    'aria-hidden' => 'true'
+  });
 }
 
 #**********************************************************
@@ -3771,7 +3863,7 @@ sub tpl_show {
     return $tpl;
   }
   else {
-    if ($self->{CHANGE_TPLS} && $attr->{ID}) {
+    if ($CONF->{WEB_ENABLE_TEMPLATES_CHANGE_MESSAGE} && $self->{CHANGE_TPLS} && $attr->{ID}) {
       $tpl .= "<div class='bg-warning'>[<a href='$SELF_URL?index=91&ID=$attr->{ID}&create=:$attr->{ID}'>change templates</a>]</div>\n";
     }
 
@@ -5771,7 +5863,7 @@ sub _make_perm_clases {
   }
   for (my $i=1; $i <= 9; $i++) {
     for (my $j=0; $j <= 15; $j++) {
-      $class_list .= ".h-$i-$j, " if (!$perm->{$i}->{$j});
+      $class_list .= ".h-$i-$j, " if (!$perm->{$i} || ! $perm->{$i}->{$j});
     }
   }
   return '' if (!$class_list);
@@ -5793,7 +5885,7 @@ sub _make_perm_clases {
 }
 
 #**********************************************************
-=head2 button_isp_express()
+=head2 button_quick_link()
 
   Arguments:
     $attr:
@@ -5805,56 +5897,39 @@ sub _make_perm_clases {
 
 =cut
 #**********************************************************
-sub button_isp_express {
+sub button_quick_link {
   my $self = shift;
   my ($attr) = @_;
 
-  my @titles = ();
+  my $lg_to_sm_limit = 5;
   my $block_button_info = '';
 
-  if ($attr->{DROPDOWN}) {
-    foreach my $title (@{ $attr->{INFO} }) {
-      my $informations = '';
-      while ( my ($key, $value) = each(%$title) ) {
-        $informations .= "<li><a href='$value'>$key</a></li>";
-      }
+  foreach my $title (@{ $attr->{INFO} }) {
+    my ($key, $value) = each(%$title);
+    $block_button_info .= "<li class='nav-item'><a href='$value' class='nav-link'>$key</a></li>";
+  }
+  $block_button_info .= $attr->{ADD_BTN};
 
-      push @titles,
-      "<a href='#' class='dropdown-toggle' data-toggle='dropdown'>$title<b class='caret'></b></a>
-        <ul class='dropdown-menu multi-column columns-3'>
-          <div class='row'>
-            <div class='col-sm-4'>
-              <ul class='multi-column-dropdown'>
-                <h5 class='title'>Центр</h5>
-                  $informations
-              </ul>
-            </div>
-          </div>
-        </ul>";
-    }
-
-    foreach my $information (@titles) {
-      $block_button_info .= "
-      <li class='dropdown'>
-        $information
-      </li>";
-    }
-  } else {
-    foreach my $title (@{ $attr->{INFO} }) {
-      my ($key, $value) = each(%$title);
-      $block_button_info .= "<li class='nav-item'><a href='$value' class='nav-link'>$key</a></li>";
-    }
+  my $navbar_expand = 'navbar-expand-lg';
+  my $brand_display = 'd-lg-none';
+  if ($#{$attr->{INFO}} < $lg_to_sm_limit) {
+    $navbar_expand = 'navbar-expand-sm';
+    $brand_display = 'd-sm-none';
   }
 
   my $result = qq{
     <section class='content-header'>
-        <nav class='navbar navbar-expand-lg' role='navigation'>
-          <div class='collapse navbar-collapse' id='bs-example-navbar-collapse-1'>
-            <ul class='navbar-nav mr-auto'>
-              $block_button_info
-            </ul>
-          </div>
-        </nav>
+      <nav class='navbar $navbar_expand navbar-light abills-navbar' role='navigation'>
+        <a class='navbar-brand $brand_display pl-3'>$lang->{QUICK_MENU}</a>
+        <button class='navbar-toggler' type='button' data-toggle='collapse' data-target='#quickLinksNavbarContent' aria-controls='quickLinksNavbarContent' aria-expanded='false' aria-label='Toggle navigation'>
+          <span class='navbar-toggler-icon'></span>
+        </button>
+        <div class='collapse navbar-collapse' id='quickLinksNavbarContent'>
+          <ul class='nav-tabs navbar-nav'>
+            $block_button_info
+          </ul>
+        </div>
+      </nav>
     </section>
   };
 

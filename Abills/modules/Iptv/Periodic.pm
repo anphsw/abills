@@ -271,6 +271,7 @@ sub iptv_monthly_next_tp {
       CREDIT         => '_SHOW',
       COMPANY_ID     => '_SHOW',
       IPTV_EXPIRE    => '_SHOW',
+      SERVICE_ID     => '_SHOW',
       BILL_ID        => '_SHOW',
       SORT           => 1,
       PAGE_ROWS      => 1000000,
@@ -290,6 +291,7 @@ sub iptv_monthly_next_tp {
         COMPANY_ID     => $u->{company_id},
         SERVICE_STATUS => $u->{service_status},
         EXPIRE         => $u->{iptv_expire},
+        SERVICE_ID     => $u->{service_id},
         EXT_DEPOSIT    => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
         BILL_ID        => $u->{bill_id}
       );
@@ -361,11 +363,12 @@ sub iptv_monthly_next_tp {
           my $result = iptv_account_action({
             %FORM,
             %user,
-            STATUS    => $status,
-            TP_ID     => $tp_info->{next_tp_id},
-            ID        => $FORM{ID} || $Iptv->{ID},
-            SCREEN_ID => undef,
-            change    => 1
+            STATUS     => $status,
+            TP_ID      => $tp_info->{next_tp_id},
+            ID         => $FORM{ID} || $Iptv->{ID},
+            SCREEN_ID  => undef,
+            SERVICE_ID => $Iptv->{SERVICE_ID},
+            change     => 1
           });
 
           if ($result) {
@@ -402,13 +405,14 @@ sub iptv_monthly_next_tp {
 
       if (!$Iptv->{errno}) {
         iptv_account_action({
-          change    => 1,
-          UID       => $user{UID},
-          ID        => $user{ID},
-          TP_ID     => $tp_info->{next_tp_id},
-          TP_NUM    => $tp_info->{id},
-          EXPIRE    => $expire,
-          CHANGE_TP => 1
+          change     => 1,
+          UID        => $user{UID},
+          ID         => $user{ID},
+          TP_ID      => $tp_info->{next_tp_id},
+          TP_NUM     => $tp_info->{id},
+          EXPIRE     => $expire,
+          SERVICE_ID => $user{SERVICE_ID},
+          CHANGE_TP  => 1
         });
       }
     }
@@ -528,7 +532,7 @@ sub iptv_monthly_fees {
     });
 
     #Monthfee & min use
-    $month_fee = $month_fee / $days_in_month if $tp->{abon_distribution};
+    $month_fee = $month_fee / $days_in_month if ($tp->{abon_distribution});
 
     if($tp->{EXT_BILL_ACCOUNT}) {
       $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
@@ -556,6 +560,10 @@ sub iptv_monthly_fees {
     });
 
     foreach my $u (@{$ulist_main}) {
+      if($month_fee == 0) {
+        next;
+      }
+
       if ($u->{iptv_expire} && $u->{iptv_expire} eq '0000-00-00') {
         if ($d != $START_PERIOD_DAY && !$tp->{abon_distribution} && (!$u->{iptv_activate} || $u->{iptv_activate} eq '0000-00-00')) {
           $debug_output .= "Next period\n" if ($debug > 2);
@@ -564,7 +572,7 @@ sub iptv_monthly_fees {
         }
       }
       else {
-        if (_date2timestamp($ADMIN_REPORT{DATE}) > _date2timestamp($u->{iptv_expire})) {
+        if (_date2timestamp($ADMIN_REPORT{DATE}) >= _date2timestamp($u->{iptv_expire})) {
           $debug_output .= "SERVICE_ENDED. LOGIN: $u->{login} ($u->{id})\n";
           $Iptv->{SERVICE_ID} = $u->{service_id} if !$Iptv->{SERVICE_ID};
           my $result = iptv_account_action({
@@ -574,7 +582,8 @@ sub iptv_monthly_fees {
             ID           => $u->{id},
             UID          => $u->{uid},
             LOGIN        => $u->{login},
-            SUBSCRIBE_ID => $u->{subscribe_id}
+            SUBSCRIBE_ID => $u->{subscribe_id},
+            SERVICE_ID   => $u->{service_id},
           });
 
           if (!$result) {
@@ -611,7 +620,8 @@ sub iptv_monthly_fees {
         CREDIT       => ($u->{credit} > 0) ? $u->{credit} : $tp->{credit},
         IPTV_STATUS  => $u->{service_status},
         SUBSCRIBE_ID => $u->{subscribe_id},
-        EXT_BILL_ID  => $u->{ext_bill_id}
+        EXT_BILL_ID  => $u->{ext_bill_id},
+        SERVICE_ID   => $u->{service_id},
       );
       
       my %FEES_DSC = (
@@ -689,7 +699,8 @@ sub iptv_monthly_fees {
             ID           => $user{ID},
             UID          => $user{UID},
             LOGIN        => $user{LOGIN},
-            SUBSCRIBE_ID => $user{SUBSCRIBE_ID}
+            SUBSCRIBE_ID => $user{SUBSCRIBE_ID},
+            SERVICE_ID   => $u->{service_id},
           });
           next;
         }
@@ -702,6 +713,14 @@ sub iptv_monthly_fees {
           $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
           next;
         }
+      }
+
+      if ($user{IPTV_STATUS}) {
+        iptv_service_activate({
+          TP_INFO   => $tp,
+          USER_INFO => \%user,
+          STATUS    => 0
+        });
       }
 
       #Get fees
@@ -788,6 +807,9 @@ sub iptv_sheduler {
   my ($service_id, $action_) = split(/:/, $action);
   $Iptv->user_info($service_id);
 
+  $info{UID} = $uid;
+  $info{ID} = $service_id;
+
   if ($type eq 'tp') {
     my $service_list;
     $service_list = iptv_transfer_service($Iptv) if ($conf{IPTV_TRANSFER_SERVICE});
@@ -799,11 +821,9 @@ sub iptv_sheduler {
     });
 
     $info{change} = 1;
-    $info{UID} = $uid;
     $info{TP_ID} = $action_;
-    $info{ID} = $service_id;
     $Iptv->{TP_ID} = $action_;
-    if (iptv_account_action({ %info, CHANGE_TP => 1 })) {
+    if (iptv_account_action({ %info, CHANGE_TP => 1, SERVICE_ID => $Iptv->{SERVICE_ID} })) {
       _error_show($Iptv);
     }
 
@@ -866,8 +886,9 @@ sub iptv_sheduler {
     iptv_account_action({
       %info,
       #CHANGE_TP => 1,
-      STATUS => $action_,
-      change => 1
+      STATUS     => $action_,
+      change     => 1,
+      SERVICE_ID => $Iptv->{SERVICE_ID}
     });
   }
 

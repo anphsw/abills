@@ -3,13 +3,7 @@ get:
     - tags
   summary: Список меток назначенных пользователю
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
     - name: name
       in: query
       description: Название метки
@@ -52,11 +46,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение
@@ -74,12 +64,7 @@ post:
   summary: Добавление меток пользователю
   operationId: addTagsUser
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     description: Параметры, которые нужно указать
     content:
@@ -113,12 +98,7 @@ put:
   summary: Замена меток пользователю
   operationId: replaceTagsUser
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     description: Параметры, которые нужно указать
     content:
@@ -152,12 +132,7 @@ patch:
   summary: Обновление меток пользователю
   operationId: updateTagsUser
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     description: Параметры, которые нужно указать
     content:

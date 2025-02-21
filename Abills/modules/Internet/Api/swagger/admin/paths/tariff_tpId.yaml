@@ -3,12 +3,7 @@ put:
     - internet
   summary: Изменить тарифный план
   parameters:
-    - name: tpId
-      in: path
-      description: id тарифного плана
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathTpId"
   requestBody:
     content:
       application/json:
@@ -29,12 +24,7 @@ delete:
     - internet
   summary: Удалить тарифный план
   parameters:
-    - name: tpId
-      in: path
-      description: id тарифного плана
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathTpId"
   responses:
     200:
       description: Успешное выполнение

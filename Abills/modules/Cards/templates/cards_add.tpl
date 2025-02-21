@@ -10,21 +10,24 @@
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right required' for='SERIAL'>_{SERIAL}_:</label>
             <div class='col-md-8'>
-              <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='_{SERIAL}_' class='form-control' type='text' required>
+              <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='_{SERIAL}_' class='form-control'
+                     type='text' required>
             </div>
           </div>
 
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right required' for='BEGIN'>_{BEGIN}_:</label>
             <div class='col-md-8'>
-              <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='_{BEGIN}_' class='form-control' type='text' required>
+              <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='_{BEGIN}_' class='form-control' type='text'
+                     required>
             </div>
           </div>
 
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right required' for='COUNT'>_{COUNT}_:</label>
             <div class='col-md-8'>
-              <input id='COUNT' name='COUNT' value='%COUNT%' placeholder='_{COUNT}_' class='form-control' type='text' required>
+              <input id='COUNT' name='COUNT' value='%COUNT%' placeholder='_{COUNT}_' class='form-control' type='text'
+                     required>
             </div>
           </div>
 
@@ -47,10 +50,14 @@
                      class='form-control' type='text'>
             </div>
           </div>
-
         </div>
-        <!-- Card type payment or service -->
-        %CARDS_TYPE%
+        <div class='card card-outline border-top card-big-form mb-0'>
+          <!-- Card type payment or service -->
+          %CARDS_TYPE%
+        </div>
+      </div>
+      <div class='card card-primary card-outline container-md'>
+
       </div>
 
       <div class='card card-primary card-outline container-md'>

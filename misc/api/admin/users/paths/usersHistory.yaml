@@ -1,0 +1,23 @@
+get:
+  tags:
+    - users
+  summary: Получить историю пользователя по UID
+  description: Возвращает пользователя
+  operationId: getUsersHistory
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/usersHistory.yaml"
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorUserNotExists"
+  security:
+    - KEY: []

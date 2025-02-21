@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='post' name='FORM_NAS' ID='FORM_NAS' class='form-horizontal' role='form'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='post' name='FORM_NAS' ID='FORM_NAS' class='form-horizontal' role='form'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='add_form' value='1'>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
 

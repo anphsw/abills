@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `outgoing` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
-  KEY `aid` (`aid`)
+  KEY `aid` (`aid`),
+  KEY `operator_phone` (`operator_phone`),
+  KEY `date` (`date`)
 ) DEFAULT CHARSET = utf8
   COMMENT = 'Callcenter calls handler';
 

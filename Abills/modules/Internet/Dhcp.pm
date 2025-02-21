@@ -7,23 +7,15 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd);
-use Dhcphosts;
 
 our (
   $db,
   %conf,
   $admin,
-  $html,
-  #  %AUTH,
   %lang,
-  #  $var_dir,
-  #  @bool_vals,
-  #  @status,
-  #  %permissions,
 );
 
-my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 dhcp_config($attr) - Generate ISC host config
@@ -40,6 +32,10 @@ sub dhcp_config {
     }
     return '';
   }
+
+  require Dhcphosts;
+  Dhcphosts->import();
+  my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
 
   my %INFO = ();
   my %NAS_MACS = ();

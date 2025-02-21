@@ -439,8 +439,14 @@ sub addrow {
       next if !$self->{skip_empty_col};
     }
 
-    if($val =~ /\[(.+)\|(.{0,100})\]/) {
-      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $SELF_URL .'?'. $1, decode_utf8($2));
+    if ($val =~ /\[(.+)\|(.{0,100})\]/) {
+      my $text_to_check = $2;
+
+      if ($text_to_check =~ /^=/) {
+        $text_to_check =~ s/^=//;
+      }
+
+      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $SELF_URL .'?'. $1, decode_utf8($text_to_check));
     }
     elsif($val =~ /_COLOR:(.+):(.+)/) {
       my $color  = $1;
@@ -757,14 +763,23 @@ sub button {
   if ($attr->{ONLY_IN_HTML}) {
     return '';
   }
+  elsif (! $name && ! $params) {
+    return '';
+  }
 
   return "[$params|$name]";
 }
 
 #**********************************************************
-# Show message box
-# message($self, $type, $caption, $message)
-# $type - info, err
+=head2 message($self, $type, $caption, $message)
+
+  Arguments:
+    $type - info, err
+
+  Returns:
+    $message
+
+=cut
 #**********************************************************
 sub message {
 

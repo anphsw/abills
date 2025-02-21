@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "news": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            },
+            "id": {
+              "type": "integer"
+            },
+            "importance": {
+              "type": "integer"
+            },
+            "onMainPage": {
+              "type": "integer"
+            },
+            "permalink": {
+              "type": "string"
+            },
+            "picture": {
+              "type": "string"
+            },
+            "shortDescription": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "topicId": {
+              "type": "integer"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "content",
+            "date",
+            "id",
+            "importance",
+            "onMainPage",
+            "permalink",
+            "picture",
+            "shortDescription",
+            "title",
+            "topicId",
+            "url"
+          ]
+        }
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "name"
+    ]
+  }
+}

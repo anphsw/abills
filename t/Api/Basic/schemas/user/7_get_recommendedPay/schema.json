@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "allServicesSum": {
+      "type": "integer"
+    },
+    "maxSum": {
+      "type": "integer"
+    },
+    "minSum": {
+      "type": "integer"
+    },
+    "sum": {
+      "type": "integer"
+    }
+  },
+  "required": ["allServicesSum", "maxSum", "minSum", "sum"]
+}

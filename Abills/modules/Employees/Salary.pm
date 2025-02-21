@@ -157,6 +157,11 @@ sub employees_cashbox_main {
 #**********************************************************
 sub employees_cashbox_balance {
 
+  if (!$permissions{7}{11}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my $action = 'choose';
   my $action_lang = "$lang{CHOOSE}";
   my %CASHBOX;
@@ -673,7 +678,7 @@ sub employees_cashbox_spending_add {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $CASHBOX{SPENDING_TYPE_ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -1126,16 +1131,18 @@ sub employees_spending_reports {
 #**********************************************************
 sub employees_cashbox_select {
   my ($attr) = @_;
+  my $aid = $Employees->{admin}->{AID} || '';
 
   my $employees_cashbox_select = $html->form_select(
     $attr->{NAME} || 'CASHBOX_ID',
     {
       SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{ID}, # add defalt value
-      SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1, AID => $aid }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
       SEL_OPTIONS => { "" => "" },
+      REQUIRED    => 1,
       MAIN_MENU   => get_function_index('employees_cashbox_main')
     }
   );
@@ -1159,7 +1166,7 @@ sub employees_cashbox_select {
 sub employees_spending_select {
   my ($attr) = @_;
 
-  my $list = $Employees->employees_list_spending_type({ COLS_NAME => 1 });
+  my $list = $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 });
 
   push(@$list, { 'id' => '!0', name => "$lang{NO_TYPE}" });
 
@@ -2017,7 +2024,7 @@ sub employees_pay_salary {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2495,7 +2502,7 @@ sub employees_cashbox_moving_type {
     'SPENDING_TYPE',
     {
       SELECTED    => $FORM{SPENDING_TYPE} || $CASHBOX{SPENDING_TYPE},
-      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2570,6 +2577,11 @@ sub employees_cashbox_moving_type {
 
 #**********************************************************
 sub employees_moving_between_cashboxes {
+
+  if (!$permissions{7}{12}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
 
   my $action = 'moving';
   my $action_lang = "$lang{MOVING}";
@@ -2683,7 +2695,7 @@ sub employees_moving_between_cashboxes {
       INPUT_DATA      => $Employees,
       FUNCTION        => 'employees_list_moving',
       BASE_FIELDS     => 1,
-      DEFAULT_FIELDS  => "id, amount, name_spending, name_coming, moving_type_name, date, comments, admin",
+      DEFAULT_FIELDS  => 'ID,AMOUNT,NAME_SPENDING,NAME_COMING,MOVING_TYPE_NAME,DATE,COMMENTS,ADMIN',
       FUNCTION_FIELDS => 'employees_coming_document:$lang{DOCS}:id,change, del',
       EXT_TITLES      => {
         'amount'           => "$lang{SUM}",
@@ -2698,7 +2710,7 @@ sub employees_moving_between_cashboxes {
       FUNCTION_INDEX  => $index,
       TABLE           => {
         width   => '100%',
-        caption => "$lang{MOVING_BETWEEN_CASHBOXES}",
+        caption => $lang{MOVING_BETWEEN_CASHBOXES},
         qs      => $pages_qs,
         ID      => 'EMPLOYEES',
         header  => '',
@@ -2782,7 +2794,7 @@ sub employees_pay_salary_all {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,

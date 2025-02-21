@@ -71,7 +71,7 @@ sub change {
     DATA         => $attr
   });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -84,7 +84,7 @@ sub del {
   my ($attr) = @_;
 
   $self->query_del('help', undef, $attr);
-  return $self->{result};
+  return $self;
 }
 
 1

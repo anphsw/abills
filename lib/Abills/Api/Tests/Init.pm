@@ -108,7 +108,13 @@ sub test_runner {
   $ENV{HTTP_KEY} = $api_key if ($api_key);
 
   my $url = $conf{API_TEST_URL} ? $conf{API_TEST_URL} : 'https://localhost:9443';
+
+  if ($attr->{argv} && $attr->{argv}->{URL}) {
+    $url = $attr->{argv}->{URL};
+  }
+
   my $debug = $attr->{debug} || $attr->{argv}->{DEBUG} || 0;
+
   my ($uid, $sid) = _user_login($url, $debug);
 
   if ($attr->{argv} && !$attr->{argv}->{USER} && !$api_key) {
@@ -215,7 +221,7 @@ sub run_tests {
       ($result, $info) = _run_test_directly($test, $test_number);
     }
 
-    $http_status = $info->{status} || $info->{response_code} || $info->{http_code};
+    $http_status = $info->{status} || $info->{response_code} || $info->{http_code} || 0;
     $execution_time = $info->{time} || $info->{time_total} || 0;
 
     if ($http_status == 200) {
@@ -398,8 +404,11 @@ sub _user_login {
     ($result) = _run_test_directly($test);
   }
 
-  if (ref $result ne 'HASH') {
+  if (!$result || ref $result ne 'HASH') {
     print "FATAL ERROR. Received invalid response test process ending\n";
+    print "\n----------------------\n". ( $result || q{}) ."\n";
+    exit;
+    #return 0, '';
   }
 
   if ($result->{error} || $result->{errno}) {

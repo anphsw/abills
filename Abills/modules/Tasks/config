@@ -2,7 +2,7 @@ our %FUNCTIONS_LIST = ();
 
 if ($permissions{4} && $permissions{4}{4}) {
   $FUNCTIONS_LIST{"20:0:$lang{TASKS}:null"} = 5;
-  $FUNCTIONS_LIST{"21:20:$lang{ADMINS}:tasks_admins"} = 5;
+  $FUNCTIONS_LIST{"21:20:$lang{ADMINS}:tasks_permissions"} = 5;
   $FUNCTIONS_LIST{"22:20:$lang{PLUGINS}:plugins_conig"} = 5;
 }
 
@@ -18,6 +18,7 @@ if (defined( $admin->{AID} )) {
     $FUNCTIONS_LIST{"10:0:$lang{TASKS}:null"} = 8;
     $FUNCTIONS_LIST{"12:10:$lang{TASKS}:tasks_list"} = 8;
     $FUNCTIONS_LIST{"13:10:$lang{ADD_TASK}:task_web_add"} = 8;
+    $FUNCTIONS_LIST{"14:10:$lang{TASKS_GENERAL_REPORT}:tasks_hierarchical_view_report"} = 8;
   }
   if ( $info->[0]->{sysadmin} ) {
     $FUNCTIONS_LIST{"20:0:$lang{TASKS}:null"} = 5;

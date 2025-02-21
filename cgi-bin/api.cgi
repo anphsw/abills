@@ -1,21 +1,37 @@
 #!/usr/bin/perl
 
+=head1 NAME
+
+  ABillS RESTful API
+  abills.net.ua
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
 
 BEGIN {
   our $libpath = '../';
-  my $sql_type = 'mysql';
+  eval { do "$libpath/libexec/config.pl" };
+  our %conf;
+
+  if (!%conf) {
+    print "Content-Type: text/plain\n\n";
+    print "Error: Can't load config file 'config.pl'\n";
+    print "Create ABillS config file /usr/abills/libexec/config.pl\n";
+    exit;
+  }
+
+  my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
+    $libpath . "Abills/modules/",
     $libpath . "Abills/$sql_type/",
-    $libpath . 'Abills/modules/',
     $libpath . '/lib/',
-    $libpath . '/Abills/',
-    $libpath . '/Abills/Api/',
+    $libpath . 'Abills/',
     $libpath
   );
 
-  eval {require Time::HiRes;};
+  eval { require Time::HiRes; };
   our $begin_time = 0;
   if (!$@) {
     Time::HiRes->import(qw(gettimeofday));
@@ -35,7 +51,6 @@ require Control::Auth;
 our (
   %LANG,
   %lang,
-  %conf,
   @MONTHES,
   @WEEKDAYS,
   $base_dir,
@@ -50,13 +65,11 @@ our (
   %LIST_PARAMS
 );
 
-do 'Abills/Misc.pm';
-do '../libexec/config.pl';
 do $libpath . '/language/english.pl';
 
-if ($conf{API_NGINX} && $ENV{REQUEST_URI}) {
-  $ENV{REQUEST_URI} =~ s/\/api.cgi//;
+if ($ENV{REQUEST_URI} && !$ENV{PATH_INFO}) {
   $ENV{PATH_INFO} = $ENV{REQUEST_URI};
+  $ENV{PATH_INFO} =~ s/\/api.cgi//;
 }
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -68,6 +81,8 @@ our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $con
 our $admin      = Admins->new($db, \%conf);
 our Users $user = Users->new($db, $admin, \%conf);
 our $Conf       = Conf->new($db, $admin, \%conf);
+
+require Abills::Misc;
 
 our $html = Abills::HTML->new({
   IMG_PATH   => 'img/',

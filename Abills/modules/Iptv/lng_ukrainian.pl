@@ -69,8 +69,7 @@ $lang{DISABLE_SERVICE_DATE} = 'Дата відключення';
 
 $lang{MAX_DEVICES} = 'Максимально девайсів';
 
-#TODO: fix $lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} its sound bad
-$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = 'Ви перевищили кількість підписок на цю службу';
+$lang{IPTV_MAX_SUBSCRIPTIONS_REACHED} = 'Ви вже досягли максимальної кількості підписок на цю послугу';
 $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = 'Цей тарифний план уже підлючений';
 
 $lang{PLAYLISTS} = 'Плейлисти';
@@ -115,6 +114,7 @@ $lang{IPTV_PROMOTIONAL_TP} = 'Акційний ТП';
 $lang{SUGGEST_ACTIVATE_TP} = 'Пропонуємо активувати тарифний план';
 $lang{IPTV_ERROR_DEVICES_COUNT} = 'Перевищено дозволену кількість пристроїв';
 $lang{IPTV_MONTHLY_REPORT} = 'Місячний звіт';
+$lang{IPTV_DAYS_OF_USE} = 'Днів використання';
 
 $lang{ERR_IPTV_DEL_ACTIVATED} = 'Перш ніж видалити послугу, її потрібно відключити';
 

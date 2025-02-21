@@ -44,6 +44,8 @@ sub new {
     $attr
       SKIP_PRIORITY
       BILL_ID
+      DESCRIBE
+      INNER_DESCRIBE
 
   Resturn:
     $self
@@ -230,7 +232,7 @@ sub del {
   my $self = shift;
   my ($user, $id, $attr) = @_;
 
-  $self->query("SELECT sum, bill_id from fees WHERE id= ? ;", undef, { Bind => [ $id ] });
+  $self->query("SELECT sum, bill_id, reg_date from fees WHERE id= ? ;", undef, { Bind => [ $id ] });
 
   if ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
@@ -241,7 +243,7 @@ sub del {
     return $self;
   }
 
-  my ($sum, $bill_id) = @{ $self->{list}->[0] };
+  my ($sum, $bill_id, $date) = @{ $self->{list}->[0] };
 
   $Bill->action('add', $bill_id, $sum);
 
@@ -249,7 +251,7 @@ sub del {
 
    my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
 
-  $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 17 });
+  $admin->action_add($user->{UID}, "ID:$id, AMOUNT:$sum, FEE DATE:$date / $comments", { TYPE => 17 });
 
   return $self;
 }
@@ -263,20 +265,39 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  my $GROUP_BY  = $attr->{GROUP_BY} || 'f.id';
+  my $GROUP_BY = $attr->{_GROUP_BY} || $attr->{GROUP_BY} || 'f.id';
 
   my $table_name = 'fees';
-  if($attr->{TABLE_SUFIX}) {
+  if ($attr->{TABLE_SUFIX}) {
     $table_name .= '_' . $attr->{TABLE_SUFIX};
   }
 
   my @WHERE_RULES = ();
-  if($attr->{FEES_MONTHES}){
+  if ($attr->{FEES_MONTHES}) {
     push @WHERE_RULES, "f.date >= CURDATE() - INTERVAL $attr->{FEES_MONTHES} MONTH";
+  }
+
+  if ($attr->{_GROUP_BY}) {
+    $attr->{_GROUP_SUM} = '_SHOW';
+    $attr->{_GROUP_COUNT} = '_SHOW';
+  }
+
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 1) {
+    my $tags_count = scalar(split /,\s?/, $attr->{TAGS});
+    push @WHERE_RULES, "u.uid IN (SELECT tu.uid
+      FROM tags_users tu
+      GROUP BY tu.uid
+      HAVING COUNT(DISTINCT CASE WHEN tu.tag_id IN ($attr->{TAGS}) THEN tu.tag_id END) = $tags_count
+    )";
+    $attr->{TAGS} = '_SHOW';
+  }
+  elsif ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
   }
 
   my $WHERE =  $self->search_former($attr, [
@@ -288,6 +309,8 @@ sub list {
       ['DESCRIBE',       'STR', 'f.dsc',                           1 ],
       ['DSC',            'STR', 'f.dsc',                           1 ],
       ['SUM',            'INT', 'f.sum',                           1 ],
+      ['_GROUP_SUM',     'INT', 'f.sum',   'SUM(f.sum) AS _group_sum'],
+      ['_GROUP_COUNT',   'INT', '',        'COUNt(*) AS _group_count'],
       ['LAST_DEPOSIT',   'INT', 'f.last_deposit',                  1 ],
       ['METHOD',         'INT', 'f.method',                        1 ],
       ['METHOD_ID',      'INT', 'f.method', 'f.method AS method_id'  ],
@@ -416,7 +439,7 @@ sub reports {
     $attr->{TAX_SUM}='_SHOW';
   }
   elsif ($report_type eq 'ADMINS') {
-    $date = "a.id AS admin_name";
+    $date = "a.id AS a_login, a.name AS a_name";
     $EXT_TABLE_JOINS_HASH{admins} = 1;
   }
   elsif ($report_type eq 'PER_MONTH') {

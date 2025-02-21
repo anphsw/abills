@@ -4,13 +4,7 @@ post:
   summary: Создать контакт администратора
   operationId: addAdminContact
   parameters:
-    - name: aid
-      in: path
-      required: true
-      description: ID администратора
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathAid"
   requestBody:
     content:
       application/json:
@@ -29,13 +23,7 @@ put:
   summary: Изменить контакт администратора
   operationId: changeAdminContact
   parameters:
-    - name: aid
-      in: path
-      required: true
-      description: ID администратора
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathAid"
   requestBody:
     content:
       application/json:

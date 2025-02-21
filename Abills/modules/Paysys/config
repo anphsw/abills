@@ -16,7 +16,7 @@ if ($conf{PAYSYS_LOG}) {
   $FUNCTIONS_LIST{"24:21:$lang{LOG_REQUESTS}:paysys_request_log"} = 4;
 }
 
-if ($conf{PAYSYS_NEW_SETTINGS}) {
+if ($conf{PAYSYS_NEW_SETTINGS} || $conf{PAYSYS_V4}) {
   $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"}                            = 5;
   $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_MERCHANTS}:paysys_add_configure_groups:"} = 5;
   $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups:AJAX"}           = 5;

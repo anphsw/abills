@@ -226,6 +226,10 @@ use constant {
     STATUS_DAYS      => {
       type => 'string',
     },
+    TP_ID            => {
+      type     => 'custom',
+      function => \&check_tp,
+    }
   }
 };
 
@@ -347,10 +351,10 @@ sub check_tp {
 
   $Tariffs->list({
     NEW_MODEL_TP => 1,
-    MODULE       => 'INTERNET',
+    MODULE       => 'Internet',
     COLS_NAME    => 1,
     STATUS       => '0',
-    TP_ID        => $value || '--',
+    INNER_TP_ID  => $value || '--',
   });
 
   if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0) {

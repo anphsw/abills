@@ -19,30 +19,271 @@ our ($db,
 our Abills::HTML $html;
 
 #**********************************************************
-=head2 add_company() - Add company
+=head2 form_company_info($attr) - Add company
+
+  Arguments:
+    $attr - Input %FORM
+
+  Return
+    TRUE or FALSE
 
 =cut
 #**********************************************************
-sub _add_company {
+sub form_company_info {
+  my ($attr)=@_;
 
-  my $Company;
-  $Company->{ACTION}         = 'add';
-  $Company->{LNG_ACTION}     = $lang{ADD};
-  $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
-  $Company->{ADDRESS_TPL} = form_address({ %FORM, ADDRESS_HIDE => 1 });
+  my $Customer = Customers->new($db, $admin, \%conf);
+  my $Company = $Customer->company();
+  my $company_id = $attr->{COMPANY_ID} || 0;
+  $Company->info($company_id);
 
-  $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
+  if (_error_show($Company)) {
+    return 1;
+  }
+
+  my $company_index = get_function_index('form_companies');
+  $Company->{COMPANY_NAME} = $Company->{NAME};
+
+  if ($FORM{PRINT_CONTRACT}) {
+    load_module('Docs', $html);
+    docs_contract({
+      COMPANY_CONTRACT => 1,
+      %$Company,
+      SEND_EMAIL       => $attr->{SEND_EMAIL}
+    });
+    return 0;
+  }
+
+  $LIST_PARAMS{COMPANY_ID} = $company_id ;
+  #$FORM{COMPANY_ID} = $company_id ;
+  $LIST_PARAMS{BILL_ID} = $Company->{BILL_ID} if (defined($Company->{DEPOSIT}));
+  $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
+  $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf} && $pages_qs !~ /subf/);
 
   if (in_array('Docs', \@MODULES)) {
     $Company->{PRINT_CONTRACT} = $html->button('',
-      "qindex=15&UID=". ($Company->{UID} || '') ."&PRINT_CONTRACT=". ($Company->{UID} || '')  . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
-      { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
+      "qindex=$index$pages_qs&PRINT_CONTRACT=$company_id" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
+      , { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' });
+
+    # TODO: When will normal logic for managing contracts in the user portal for the company be added?
+    # if ($conf{DOCS_ESIGN} && $Company->{CONTRACT_ID}) {
+    #   $Company->{SIGN_CONTRACT} = $html->button($lang{SIGN},
+    #     "get_index=docs_esign&mk_sign=1&DOC_ID=$Company->{CONTRACT_ID}&COMPANY_ID=$Company->{ID}&DOC_TYPE=4&header=2",
+    #     { LOAD_TO_MODAL => 1, ICON => 'fas fa-signature', class => 'btn input-group-button', ex_params => "style='cursor:pointer'" });
+    # }
+  }
+
+  my @menu_functions = (
+    $lang{INFO} . "::COMPANY_ID=$Company->{ID}",
+    $lang{USERS} . ":11:COMPANY_ID=$Company->{ID}",
+    $lang{PAYMENTS} . ":2:COMPANY_ID=$Company->{ID}",
+    $lang{FEES} . ":3:COMPANY_ID=$Company->{ID}",
+    $lang{ADD_USER} . ":24:COMPANY_ID=$Company->{ID}",
+    $lang{BILL} . ":19:COMPANY_ID=$Company->{ID}",
+    $lang{ADMIN} . ":16:COMPANY_ID=$Company->{ID}"
+  );
+
+  if (in_array('Docs', \@MODULES)) {
+    load_module('Docs', $html);
+    push @menu_functions, "$lang{DOCS}:" . get_function_index('docs_acts') . ":COMPANY_ID=$company_id";
+  }
+
+  push @menu_functions, "$lang{SERVICES}:" . get_function_index('form_company_services') . ":COMPANY_ID=$company_id";
+
+  my $company_sel = '';
+  $html->form_main({
+    CONTENT       => $html->form_select(
+      'COMPANY_ID',
+      {
+        SELECTED  => $company_id,
+        SEL_LIST  => $Company->list({ COLS_NAME => 1, PAGE_ROWS => 100000 }),
+        SEL_KEY   => 'id',
+        SEL_VALUE => 'name',
+      },
+    ),
+    HIDDEN        => {
+      index => $index,
+    },
+    SUBMIT        => { show => $lang{SHOW} },
+    class         => 'form-inline ml-auto flex-nowrap',
+    OUTPUT2RETURN => 1
+  });
+
+  my $add_args = ();
+
+  if ($FORM{subf} && $FORM{subf} == 11) {
+    require Control::Companies_users;
+    my $res = company_users_total_info($company_id);
+    $add_args->{TOTAL} = $res->{TOTAL};
+    $add_args->{SUM} = $res->{SUM};
+    $add_args->{COMPANY_DEPOSIT} = $Company->{DEPOSIT};
+  }
+
+  func_menu(
+    {
+      $lang{NAME} => $company_sel
+    },
+    \@menu_functions,
+    { f_args     => { COMPANY => $Company, ADD_ARGS => $add_args },
+      MAIN_INDEX => get_function_index('form_companies'),
+      SILENT     => $attr->{print}
+    }
+  );
+
+  if (!$FORM{subf}) {
+    if ($permissions{0}{38}) {
+      $Company->{ACTION} = 'change';
+      $Company->{LNG_ACTION} = $lang{CHANGE};
+    }
+    else {
+      $Company->{LNG_ACTION} = "$lang{LIST} $lang{COMPANIES}";
+      $html->message('secondary', $lang{INFO}, $lang{NO_CHANGES});
+    }
+
+    if ($Company->{DISABLE} > 0) {
+      $Company->{DISABLE} = ' checked';
+      $Company->{DISABLE_LABEL} = $lang{DISABLE};
+    }
+    else {
+      $Company->{DISABLE} = '';
+      $Company->{DISABLE_LABEL} = $lang{ACTIV};
+    }
+
+    $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES => $Company, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
+    $Company->{ADDRESS_FULL} = $Company->{ADDRESS};
+    $Company->{ADDRESS_TPL} = form_address({ %$attr, %$Company, ADDRESS_HIDE => 1 });
+
+    if (in_array('Docs', \@MODULES)) {
+      if ($conf{DOCS_CONTRACT_TYPES}) {
+        $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
+        my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
+
+        my %CONTRACTS_LIST_HASH = ();
+        $attr->{CONTRACT_SUFIX} = "|$Company->{CONTRACT_SUFIX}";
+        foreach my $line (@contract_types_list) {
+          my ($prefix, $sufix, $name) = split(/:/, $line);
+          $prefix =~ s/ //g;
+          $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
+        }
+
+        $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), {
+          ID      => 'CONTRACT_TYPE',
+          NAME    => $lang{TYPE},
+          VALUE   => $html->form_select('CONTRACT_TYPE',
+            {
+              SELECTED => $attr->{CONTRACT_SUFIX},
+              SEL_HASH => { '' => '--', %CONTRACTS_LIST_HASH },
+              NO_ID    => 1
+            }),
+          SIZE_MD => 12
+        }, { OUTPUT2RETURN => 1 });
+      }
+    }
+
+    my $company_deposit = $Company->{DEPOSIT} // $lang{NOT_EXIST};
+    if ($company_deposit =~ /\d+/ && $company_deposit > 0) {
+      $Company->{DEPOSIT_MARK} = 'badge badge-success';
+    }
+    elsif ($company_deposit =~ /\d+/ && $company_deposit < 0) {
+      $Company->{DEPOSIT_MARK} = 'badge badge-danger';
+    }
+    else {
+      $Company->{DEPOSIT_MARK} = 'badge badge-warning';
+    }
+
+    if ($company_deposit =~ /\d+/) {
+      if ($conf{DEPOSIT_FORMAT}) {
+        $Company->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $company_deposit);
+      }
+      else {
+        $Company->{SHOW_DEPOSIT} = sprintf("%.2f", $company_deposit);
+      }
+
+    }
+    else {
+      $Company->{SHOW_DEPOSIT} = $company_deposit;
+    }
+
+    $Company->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
+  <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
+
+    if ($permissions{1}) {
+      $Company->{PAYMENTS_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=2",
+        { class     => 'btn btn-sm btn-secondary',
+          ICON      => 'fa fa-plus',
+          ex_params => "data-tooltip='$lang{PAYMENTS}' data-tooltip-position='top'"
+        });
+    }
+
+    if ($permissions{2}) {
+      $Company->{FEES_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=3",
+        { class     => 'btn btn-sm btn-secondary',
+          ICON      => 'fa fa-minus',
+          ex_params => "data-tooltip='$lang{FEES}' data-tooltip-position='top'" });
+    }
+    $Company->{EXDATA} .= $html->tpl_show(templates('form_company_exdata'), $Company, { OUTPUT2RETURN => 1 });
+
+    if ($conf{EXT_BILL_ACCOUNT} && $Company->{EXT_BILL_ID}) {
+      $Company->{EXDATA} .= $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
+    }
+
+    $Company->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract_company'), { %{$Company} }, { OUTPUT2RETURN => 1 });
+
+    my %web_params = ();
+
+    $web_params{PHONE_PATTERN} = qq{pattern='$conf{PHONE_FORMAT}'} if $conf{PHONE_FORMAT};
+
+    my $company_main = $html->tpl_show(templates('form_company'), $Company, { OUTPUT2RETURN => 1 });
+    my $company_pi = $html->tpl_show(templates('form_company_pi'),
+      { %$Company, %web_params },
+      { OUTPUT2RETURN => 1 }
+    );
+
+    my $company_profile = $html->tpl_show(
+      templates('form_company_profile'),
+      {
+        ID          => $company_id,
+        LEFT_PANEL  => $company_main,
+        RIGHT_PANEL => $company_pi,
+        ACTION      => $Company->{ACTION},
+        LNG_ACTION  => $Company->{LNG_ACTION},
+      },
+      {
+        OUTPUT2RETURN => 1
+      }
+    );
+
+    print $company_profile;
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_company_add() - Add company
+
+=cut
+#**********************************************************
+sub form_company_add {
+
+  my $Company;
+  $Company->{ACTION} = 'add';
+  $Company->{LNG_ACTION} = $lang{ADD};
+  $Company->{BILL_ID} = $html->form_input('CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 }) . ' ' . $lang{CREATE};
+  $Company->{ADDRESS_TPL} = form_address({ %FORM, ADDRESS_HIDE => 1 });
+
+  $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES => $Company, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
+
+  if (in_array('Docs', \@MODULES)) {
+    $Company->{PRINT_CONTRACT} = $html->button('',
+      "qindex=15&UID=" . ($Company->{UID} || '') . "&PRINT_CONTRACT=" . ($Company->{UID} || '') . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
+      { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' });
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
       $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
       my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
       my %CONTRACTS_LIST_HASH = ();
-      $FORM{CONTRACT_SUFIX} = '|'.($Company->{CONTRACT_SUFIX} || '');
+      $FORM{CONTRACT_SUFIX} = '|' . ($Company->{CONTRACT_SUFIX} || '');
       foreach my $line (@contract_types_list) {
         my ($prefix, $sufix, $name) = split(/:/, $line);
         $prefix =~ s/ //g;
@@ -50,9 +291,9 @@ sub _add_company {
       }
 
       $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), {
-        ID      => "",
-        NAME    => $lang{TYPE},
-        VALUE   => $html->form_select(
+        ID    => "",
+        NAME  => $lang{TYPE},
+        VALUE => $html->form_select(
           'CONTRACT_TYPE', {
           SELECTED => $FORM{CONTRACT_SUFIX},
           SEL_HASH => { '' => '', %CONTRACTS_LIST_HASH },
@@ -62,7 +303,7 @@ sub _add_company {
     }
   }
 
-  $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
+  $Company->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract_company'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(templates('form_company_add'), $Company);
 
@@ -79,18 +320,17 @@ sub form_companies {
   require Customers;
   Customers->import();
   my $Customer = Customers->new($db, $admin, \%conf);
-  my $Company  = $Customer->company();
-  my $company_index = get_function_index('form_companies');
+  my $Company = $Customer->company();
 
-  if ($FORM{add_form} ) {
-    if( $permissions{0}{37} ) {
-      _add_company();
+  if ($FORM{add_form}) {
+    if ($permissions{0}{37}) {
+      form_company_add();
       return 0;
     }
   }
   elsif ($FORM{add} && !$FORM{import}) {
     if (!$permissions{0}{37}) {
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
     }
     if ($FORM{STREET_ID} && $FORM{ADD_ADDRESS_BUILD} && !$FORM{LOCATION_ID}) {
@@ -101,21 +341,30 @@ sub form_companies {
       $FORM{LOCATION_ID} = $Address->{LOCATION_ID};
     }
 
-    if($FORM{LOCATION_ID}){
+    if ($FORM{LOCATION_ID}) {
       require Control::Address_mng;
-      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}). ($FORM{ADDRESS_FLAT} ? ', '. $FORM{ADDRESS_FLAT} : '');
+      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}) . ($FORM{ADDRESS_FLAT} ? ', ' . $FORM{ADDRESS_FLAT} : '');
     }
 
-    $Company->add({%FORM});
+    if ($FORM{EDRPOU}){
+      my $company_exist = 0;
+      $company_exist = _company_check_edrpou($Company);
+      if ($company_exist){
+        form_company_add();
+        return 0;
+      }
+    }
+
+    $Company->add({ %FORM });
 
     if (!$Company->{errno}) {
-      $html->message( 'info', $lang{ADDED},
-        "$lang{ADDED} " . $html->button( "$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID}, { BUTTON => 2 } ) );
+      $html->message('info', $lang{ADDED},
+        "$lang{ADDED} " . $html->button("$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID}, { BUTTON => 2 }));
     }
   }
   elsif ($FORM{import}) {
     if (!$permissions{0}{37}) {
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
     }
 
@@ -124,8 +373,16 @@ sub form_companies {
   }
   elsif ($FORM{change}) {
     if (!$permissions{0}{38}) {
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
+    }
+
+    if ($FORM{EDRPOU}){
+      my $company_exist = 0;
+      $company_exist = _company_check_edrpou($Company);
+      if ($company_exist){
+        return 0;
+      }
     }
 
     # TODO: rewrite company phone check to API use by validator
@@ -138,25 +395,23 @@ sub form_companies {
       require Address;
       Address->import();
       my $Address = Address->new($db, $admin, \%conf);
-      $Address->build_add({STREET_ID => $FORM{STREET_ID}, NUMBER => $FORM{ADD_ADDRESS_BUILD}});
+      $Address->build_add({ STREET_ID => $FORM{STREET_ID}, NUMBER => $FORM{ADD_ADDRESS_BUILD} });
       $FORM{LOCATION_ID} = $Address->{LOCATION_ID};
     }
 
-    if($FORM{LOCATION_ID}){
-      #require Address;
-      #Address->import();
+    if ($FORM{LOCATION_ID}) {
       require Control::Address_mng;
-      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}). ($FORM{ADDRESS_FLAT} ? ', '. $FORM{ADDRESS_FLAT} : '');
+      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}) . ($FORM{ADDRESS_FLAT} ? ', ' . $FORM{ADDRESS_FLAT} : '');
     }
 
-    if(! $FORM{ID} && $FORM{COMPANY_ID}) {
+    if (!$FORM{ID} && $FORM{COMPANY_ID}) {
       $FORM{ID} = $FORM{COMPANY_ID};
     }
 
-    $Company->change({%FORM});
+    $Company->change({ %FORM });
 
     if (!$Company->{errno}) {
-      $html->message( 'info', $lang{INFO}, $lang{CHANGED} . " # $Company->{NAME}" );
+      $html->message('info', $lang{INFO}, $lang{CHANGED} . " # $Company->{NAME}");
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{39} && !$FORM{subf}) {
@@ -176,283 +431,10 @@ sub form_companies {
   _error_show($Company);
 
   if ($FORM{COMPANY_ID}) {
-    $Company->info($FORM{COMPANY_ID} || $FORM{ID});
-
-    if(_error_show($Company)) {
-      return 1;
-    }
-
-    $Company->{COMPANY_NAME}   = $Company->{NAME};
-
-    if ($FORM{PRINT_CONTRACT}) {
-      load_module('Docs', $html);
-      docs_contract({
-        COMPANY_CONTRACT => 1,
-        %$Company,
-        SEND_EMAIL       => $FORM{SEND_EMAIL}
-      });
-      return 0;
-    }
-
-    $LIST_PARAMS{COMPANY_ID} = $Company->{ID};
-    $FORM{COMPANY_ID}        = $Company->{ID};
-    $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID} if (defined($Company->{DEPOSIT}));
-    $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
-    $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf} && $pages_qs !~ /subf/);
-
-    if (in_array('Docs', \@MODULES)) {
-      $Company->{PRINT_CONTRACT} = $html->button( '',
-        "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
-        , { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
-
-      # TODO: When will normal logic for managing contracts in the user portal for the company be added?
-      # if ($conf{DOCS_ESIGN} && $Company->{CONTRACT_ID}) {
-      #   $Company->{SIGN_CONTRACT} = $html->button($lang{SIGN},
-      #     "get_index=docs_esign&mk_sign=1&DOC_ID=$Company->{CONTRACT_ID}&COMPANY_ID=$Company->{ID}&DOC_TYPE=4&header=2",
-      #     { LOAD_TO_MODAL => 1, ICON => 'fas fa-signature', class => 'btn input-group-button', ex_params => "style='cursor:pointer'" });
-      # }
-    }
-
-    my @menu_functions = (
-      $lang{INFO}     ."::COMPANY_ID=$Company->{ID}",
-      $lang{USERS}    .":11:COMPANY_ID=$Company->{ID}",
-      $lang{PAYMENTS} .":2:COMPANY_ID=$Company->{ID}",
-      $lang{FEES}     .":3:COMPANY_ID=$Company->{ID}",
-      $lang{ADD_USER} .":24:COMPANY_ID=$Company->{ID}",
-      $lang{BILL}     .":19:COMPANY_ID=$Company->{ID}",
-      $lang{ADMIN}    .":16:COMPANY_ID=$Company->{ID}"
-    );
-
-    if (in_array('Docs', \@MODULES)) {
-      load_module('Docs', $html);
-      push @menu_functions, "$lang{DOCS}:" . get_function_index( 'docs_acts' ) . ":COMPANY_ID=$Company->{ID}";
-    }
-
-    push @menu_functions, "$lang{SERVICES}:" . get_function_index( 'form_company_services' ) . ":COMPANY_ID=$Company->{ID}";
-
-    # TODO: #3944 rereview
-    my $company_sel = '';
-    $html->form_main({
-      CONTENT       => $html->form_select(
-        'COMPANY_ID',
-        {
-          SELECTED  => $FORM{COMPANY_ID},
-          SEL_LIST  => $Company->list({ COLS_NAME => 1, PAGE_ROWS => 100000 }),
-          SEL_KEY   => 'id',
-          SEL_VALUE => 'name',
-        },
-      ),
-      HIDDEN        => {
-        index => $index,
-      },
-      SUBMIT        => { show => $lang{SHOW} },
-      class         => 'form-inline ml-auto flex-nowrap',
-      OUTPUT2RETURN => 1
-    });
-
-
-    my $add_args = ();
-
-    if ($FORM{subf} && $FORM{subf} == 11) {
-      require Control::Companies_users;
-      my $res = company_users_total_info($FORM{COMPANY_ID});
-      $add_args->{TOTAL} = $res->{TOTAL};
-      $add_args->{SUM} = $res->{SUM};
-      $add_args->{COMPANY_DEPOSIT} = $Company->{DEPOSIT};
-    }
-
-    func_menu(
-      {
-        $lang{NAME} => $company_sel
-      },
-      \@menu_functions,
-      { f_args     => { COMPANY => $Company, ADD_ARGS => $add_args },
-        MAIN_INDEX => get_function_index('form_companies'),
-        SILENT     => $FORM{print}
-      }
-    );
-
-    if (!$FORM{subf}) {
-      if ($permissions{0}{38}) {
-        $Company->{ACTION}     = 'change';
-        $Company->{LNG_ACTION} = $lang{CHANGE};
-      } else {
-        $Company->{LNG_ACTION} = "$lang{LIST} $lang{COMPANIES}";
-        $html->message( 'secondary', $lang{INFO}, $lang{NO_CHANGES} );
-      }
-
-      if ($Company->{DISABLE} > 0) {
-        $Company->{DISABLE} = ' checked';
-        $Company->{DISABLE_LABEL} = $lang{DISABLE};
-      } else {
-        $Company->{DISABLE} = '';
-        $Company->{DISABLE_LABEL} = $lang{ACTIV};
-      }
-
-      $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
-      $Company->{ADDRESS_FULL} = $Company->{ADDRESS};
-      $Company->{ADDRESS_TPL} = form_address({ %FORM, %$Company, ADDRESS_HIDE => 1 });
-
-      if (in_array('Docs', \@MODULES)) {
-        if ($conf{DOCS_CONTRACT_TYPES}) {
-          $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
-          my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
-
-          my %CONTRACTS_LIST_HASH = ();
-          $FORM{CONTRACT_SUFIX} = "|$Company->{CONTRACT_SUFIX}";
-          foreach my $line (@contract_types_list) {
-            my ($prefix, $sufix, $name) = split(/:/, $line);
-            $prefix =~ s/ //g;
-            $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
-          }
-
-          $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), {
-            ID    => 'CONTRACT_TYPE',
-            NAME  => $lang{TYPE},
-            VALUE => $html->form_select('CONTRACT_TYPE',
-              {
-                SELECTED => $FORM{CONTRACT_SUFIX},
-                SEL_HASH => { '' => '--', %CONTRACTS_LIST_HASH },
-                NO_ID    => 1
-              }),
-            SIZE_MD => 12
-          }, { OUTPUT2RETURN => 1 });
-        }
-      }
-
-      my $company_deposit = $Company->{DEPOSIT} // $lang{NOT_EXIST};
-      if ($company_deposit =~ /\d+/ && $company_deposit > 0) {
-        $Company->{DEPOSIT_MARK} = 'badge badge-success';
-      }
-      elsif ($company_deposit =~ /\d+/ && $company_deposit < 0) {
-        $Company->{DEPOSIT_MARK} = 'badge badge-danger';
-      }
-      else {
-        $Company->{DEPOSIT_MARK} = 'badge badge-warning';
-      }
-
-      if ($company_deposit =~ /\d+/) {
-        if ($conf{DEPOSIT_FORMAT}) {
-          $Company->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $company_deposit);
-        }
-        else {
-          $Company->{SHOW_DEPOSIT} = sprintf("%.2f", $company_deposit);
-        }
-
-      } else {
-        $Company->{SHOW_DEPOSIT} = $company_deposit;
-      }
-
-      $Company->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
-  <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
-
-      my $company_id = $Company->{ID};
-      if ($permissions{1}) {
-        $Company->{PAYMENTS_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=2",
-          { class     => 'btn btn-sm btn-secondary',
-            ICON      => 'fa fa-plus',
-            ex_params => "data-tooltip='$lang{PAYMENTS}' data-tooltip-position='top'"
-          });
-      }
-
-      if ($permissions{2}) {
-        $Company->{FEES_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=3",
-          { class     => 'btn btn-sm btn-secondary',
-            ICON      => 'fa fa-minus',
-            ex_params => "data-tooltip='$lang{FEES}' data-tooltip-position='top'" });
-      }
-      $Company->{EXDATA} .= $html->tpl_show(templates('form_company_exdata'), $Company, { OUTPUT2RETURN => 1});
-
-      if ($conf{EXT_BILL_ACCOUNT} && $Company->{EXT_BILL_ID}) {
-        $Company->{EXDATA} .= $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
-      }
-
-      $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
-
-      my %web_params = ();
-
-      $web_params{PHONE_PATTERN} = qq{pattern='$conf{PHONE_FORMAT}'} if $conf{PHONE_FORMAT};
-
-      my $company_main = $html->tpl_show(templates('form_company'), $Company, { OUTPUT2RETURN => 1 });
-      my $company_pi = $html->tpl_show(templates('form_company_pi'),
-        { %$Company, %web_params  },
-        { OUTPUT2RETURN => 1 }
-      );
-
-      my $company_profile = $html->tpl_show(
-        templates('form_company_profile'),
-        {
-          LEFT_PANEL  => $company_main,
-          RIGHT_PANEL => $company_pi,
-          ACTION      => $Company->{ACTION},
-          LNG_ACTION  => $Company->{LNG_ACTION},
-        },
-        {
-          OUTPUT2RETURN => 1
-        }
-      );
-      print $company_profile;
-    }
+    form_company_info(\%FORM);
   }
   else {
-    if ($FORM{letter}) {
-      $LIST_PARAMS{COMPANY_NAME} = "$FORM{letter}*";
-      $pages_qs .= "&letter=$FORM{letter}";
-    }
-
-    $LIST_PARAMS{SKIP_GID} = 1;
-
-    my $add_form_button = ($permissions{0}{37}) ? ("$lang{ADD}:index=$company_index&add_form=1".':add') : '';
-
-    result_former({
-      INPUT_DATA      => $Company,
-      FUNCTION        => 'list',
-      DEFAULT_FIELDS  => 'NAME,DEPOSIT,CREDIT,USERS_COUNT,DISABLE',
-      BASE_FIELDS     => 1,
-      FUNCTION_INDEX  => $company_index,
-      FUNCTION_FIELDS => defined( $permissions{0}{39} ) ? 'company_id,del' : 'company_id',
-      EXT_TITLES      => {
-        'name'          => $lang{NAME},
-        'users_count'   => $lang{USERS},
-        'status'        => $lang{STATUS},
-        'tax_number'    => $lang{TAX_NUMBER},
-        'deposit'       => $lang{DEPOSIT},
-        'credit'        => $lang{CREDIT},
-        'contract_id'   => $lang{CONTRACT},
-        'contract_date' => "$lang{CONTRACT} $lang{DATE}",
-        'registration'  => $lang{REGISTRATION},
-        'district_name' => $lang{DISTRICTS},
-        'address_full'  => "$lang{FULL} $lang{ADDRESS}",
-        'address_street'=> $lang{ADDRESS_STREET},
-        'address_build' => $lang{ADDRESS_BUILD},
-        'address_flat'  => $lang{ADDRESS_FLAT},
-        'address_street2'=> $lang{SECOND_NAME},
-        'city'          => $lang{CITY},
-        'zip'           => $lang{ZIP},
-        'phone'         => $lang{PHONE},
-        'edrpou'        => $lang{EDRPOU},
-        'comments'      => $lang{COMMENTS},
-      },
-      SKIP_USER_TITLE => 1,
-      FILTER_COLS   => {
-        users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => $lang{COMPANIES},
-        qs      => $pages_qs,
-        ID      => 'COMPANY_ID',
-        EXPORT  => 1,
-        IMPORT  => "$SELF_URL?get_index=form_companies&import=1&header=2",
-        MENU    => $add_form_button. ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search",
-        SHOW_COLS_HIDDEN => {
-          TYPE_PAGE => $FORM{type}
-        }
-      },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    });
-
+    form_company_list($Company);
   }
 
   _error_show($Company);
@@ -460,16 +442,117 @@ sub form_companies {
   return 1;
 }
 
-
 #**********************************************************
-=head2 _company_user_link()
+=head2 form_company_list()
+
+  Arguments:
+    $Company
+
+  Results:
 
 =cut
 #**********************************************************
-sub _company_user_link{
+sub form_company_list {
+  my ($Company) = @_;
+
+  if ($FORM{letter}) {
+    $LIST_PARAMS{COMPANY_NAME} = "$FORM{letter}*";
+    $pages_qs .= "&letter=$FORM{letter}";
+  }
+
+  my %companies_ext_fields = (
+    'name'            => $lang{NAME},
+    'users_count'     => $lang{USERS},
+    'status'          => $lang{STATUS},
+    'tax_number'      => $lang{TAX_NUMBER},
+    'deposit'         => $lang{DEPOSIT},
+    'credit'          => $lang{CREDIT},
+    'contract_id'     => $lang{CONTRACT},
+    'contract_date'   => "$lang{CONTRACT} $lang{DATE}",
+    'registration'    => $lang{REGISTRATION},
+    'district_name'   => $lang{DISTRICTS},
+    'address_full'    => "$lang{FULL} $lang{ADDRESS}",
+    'address_street'  => $lang{ADDRESS_STREET},
+    'address_build'   => $lang{ADDRESS_BUILD},
+    'address_flat'    => $lang{ADDRESS_FLAT},
+    'address_street2' => $lang{SECOND_NAME},
+    'city'            => $lang{CITY},
+    'zip'             => $lang{ZIP},
+    'phone'           => $lang{PHONE},
+    'edrpou'          => $lang{EDRPOU},
+    'comments'        => $lang{COMMENTS},
+    'company_admin'   => "$lang{COMPANY} $lang{ADMIN}"
+  );
+
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+  my $fields_list = $Info_fields->fields_list({
+    COMPANY   => 1,
+    NAME      => '_SHOW',
+    SQL_FIELD => '_SHOW',
+    DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
+    #SORT      => 5,
+    NOT_ALL_FIELDS => 1,
+    COLS_NAME => 1
+  });
+
+  foreach my $if (@$fields_list) {
+    $companies_ext_fields{$if->{sql_field}}=$if->{name};
+  }
+
+  $LIST_PARAMS{SKIP_GID} = 1;
+
+  my $company_index = get_function_index('form_companies');
+  my $add_form_button = ($permissions{0}{37}) ? ("$lang{ADD}:index=$company_index&add_form=1" . ':add') : '';
+
+  result_former({
+    INPUT_DATA      => $Company,
+    FUNCTION        => 'list',
+    DEFAULT_FIELDS  => 'NAME,DEPOSIT,CREDIT,USERS_COUNT,DISABLE',
+    BASE_FIELDS     => 1,
+    FUNCTION_INDEX  => $company_index,
+    FUNCTION_FIELDS => defined($permissions{0}{39}) ? 'company_id,del' : 'company_id',
+    EXT_TITLES      => \%companies_ext_fields,
+    SKIP_USER_TITLE => 1,
+    FILTER_COLS     => {
+      users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
+    },
+    TABLE           => {
+      width            => '100%',
+      caption          => $lang{COMPANIES},
+      qs               => $pages_qs,
+      ID               => 'COMPANY_ID',
+      EXPORT           => 1,
+      IMPORT           => "$SELF_URL?get_index=form_companies&import=1&header=2",
+      MENU             => $add_form_button . ";$lang{SEARCH}:index=" . get_function_index('form_search') . "&type=13:search",
+      SHOW_COLS_HIDDEN => {
+        TYPE_PAGE => $FORM{type}
+      }
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _company_user_link($params, $attr)
+
+  Arguments:
+    $params
+    $attr
+
+  Results:
+
+=cut
+#**********************************************************
+sub _company_user_link {
   my ($params, $attr) = @_;
 
-  return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}" );
+  return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}");
 }
 
 # #**********************************************************
@@ -495,14 +578,11 @@ sub form_companie_admins {
   my $Company = $Customer->company();
 
   $Company->info($FORM{COMPANY_ID} || $FORM{ID});
-  $Company->{COMPANY_NAME}   = $Company->{NAME};
+  $Company->{COMPANY_NAME} = $Company->{NAME};
 
   if ($FORM{change}) {
     #ADD_ADMIN:
-    $Company->admins_change({%FORM});
-    if (!$Company->{errno}) {
-      $html->message( 'info', $lang{INFO}, $lang{CHANGED} );
-    }
+    $Company->admins_change({ %FORM });
     if ($attr->{REGISTRATION}) {
       return 0;
     }
@@ -510,17 +590,15 @@ sub form_companie_admins {
 
   _error_show($Company);
 
-  my $name_caption = "$lang{ADMINS}  "  .  "$lang{COMPANY} - " . ($Company->{COMPANY_NAME} || '');
+  my $name_caption = "$lang{ADMINS}  " . "$lang{COMPANY} - " . ($Company->{COMPANY_NAME} || '');
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $name_caption,
-      title      => [ $lang{ALLOW}, $lang{LOGIN}, $lang{FIO}, 'E-mail' ],
-      qs         => $pages_qs,
-      ID         => 'COMPANY_ADMINS'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $name_caption,
+    title   => [ $lang{ALLOW}, $lang{LOGIN}, $lang{FIO}, 'E-mail' ],
+    qs      => $pages_qs,
+    ID      => 'COMPANY_ADMINS'
+  });
 
   if (!defined($FORM{sort})) {
     $LIST_PARAMS{SORT} = 2;
@@ -555,16 +633,15 @@ sub form_companie_admins {
     );
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index      => $index,
-        COMPANY_ID => $FORM{COMPANY_ID}
-      },
-      SUBMIT  => { change => "$lang{CHANGE}" }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index      => $index,
+      subf       => $FORM{subf} || 0,
+      COMPANY_ID => $FORM{COMPANY_ID}
+    },
+    SUBMIT  => { change => "$lang{CHANGE}" }
+  });
 
   return 1;
 }
@@ -579,11 +656,11 @@ sub companies_import {
   require Customers;
   Customers->import();
   my $Customer = Customers->new($db, $admin, \%conf);
-  my $Company  = $Customer->company();
+  my $Company = $Customer->company();
 
   if (defined($FORM{UPLOAD_FILE})) {
-    my $import_info = import_former( \%FORM );
-    my $imported      = 0;
+    my $import_info = import_former(\%FORM);
+    my $imported = 0;
     my $imported_name = '';
 
     foreach my $_company (@$import_info) {
@@ -596,15 +673,15 @@ sub companies_import {
       $Company->add({ %$_company });
 
       if ($Company->{errno}) {
-        _error_show($Company, { MESSAGE =>  "Line:$imported_name\n F$lang{COMPANY}: '$_company->{NAME}'" });
+        _error_show($Company, { MESSAGE => "Line:$imported_name\n F$lang{COMPANY}: '$_company->{NAME}'" });
         return 0;
       }
       $imported++;
     }
 
-    if($imported != 0){
+    if ($imported != 0) {
       my $message = "$lang{FILE}:  $FORM{UPLOAD_FILE}{filename}\n" . "$lang{TOTAL}:  $imported\n" . "$lang{SIZE}: $FORM{UPLOAD_FILE}{Size} b\n\n" . "$imported_name\n";
-      $html->message( 'info', $lang{INFO}, "$message" );
+      $html->message('info', $lang{INFO}, "$message");
       return 1;
     }
 
@@ -673,8 +750,8 @@ sub form_company_services {
     COLS_NAME  => 1,
   });
 
-  if (!$users->{TOTAL}){
-    $html->message('err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST}" );
+  if (!$users->{TOTAL}) {
+    $html->message('err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST}");
     return;
   }
 
@@ -690,18 +767,18 @@ sub form_company_services {
   foreach my $user_ (@$users_list) {
 
     my $service_info = get_services({ UID => $user_->{uid}, REDUCTION => $user_->{reduction} });
-    $service_info->{total_sum} = ($service_info->{total_sum} && $service_info->{total_sum} > 0) ? sprintf("%.2f",$service_info->{total_sum}) : 0;
+    $service_info->{total_sum} = ($service_info->{total_sum} && $service_info->{total_sum} > 0) ? sprintf("%.2f", $service_info->{total_sum}) : 0;
     $user_->{fio} =~ s/^\s+//g;
 
     $table->addrow(
-      $html->b($html->button(($user_->{fio} || $user_->{login}), "index=11&UID=$user_->{uid}")) .', '. "$lang{SUM}: $service_info->{total_sum}", '', '', '',''
+      $html->b($html->button(($user_->{fio} || $user_->{login}), "index=11&UID=$user_->{uid}")) . ', ' . "$lang{SUM}: $service_info->{total_sum}", '', '', '', ''
     );
 
-    foreach my $service ( @{ $service_info->{list} } ) {
+    foreach my $service (@{$service_info->{list}}) {
       $sum_total += $service->{SUM} if $service->{SUM};
       my $sum_for_pay = 0;
 
-      if ($service->{STATUS} && $service->{STATUS} eq '5'){
+      if ($service->{STATUS} && $service->{STATUS} eq '5') {
         $sum_for_pay = $service->{SUM};
         if (defined($user_->{deposit}) && $user_->{deposit} != 0) {
           $sum_for_pay = $sum_for_pay - int($user_->{deposit});
@@ -711,17 +788,45 @@ sub form_company_services {
 
       $table->addrow('',
         $service->{SERVICE_NAME},
-        sprintf("%.2f",$service->{SUM}),
-        sprintf("%.2f",$sum_for_pay),
+        sprintf("%.2f", $service->{SUM}),
+        sprintf("%.2f", $sum_for_pay),
         $service->{MODULE_NAME},
       );
     }
   }
 
-  $table->addfooter("$lang{NUMBER_OF_USERS}: $users->{TOTAL}", '', sprintf("%.2f",$sum_total), sprintf("%.2f",$sum_for_pay_total), '');
+  $table->addfooter("$lang{NUMBER_OF_USERS}: $users->{TOTAL}", '', sprintf("%.2f", $sum_total), sprintf("%.2f", $sum_for_pay_total), '');
   print $table->show();
 
   return;
 }
+
+#**********************************************************
+=head2 _company_check_edrpou ($Company)
+
+  Arguments:
+    $Company
+
+=cut
+#**********************************************************
+sub _company_check_edrpou {
+  my ($Company) = @_;
+
+  my $msg_title = $lang{NOT_ADDED};
+  $msg_title = $lang{NOT_CHANGED} if ($FORM{change});
+
+  my $company_info = $Company->list({ EDRPOU => $FORM{EDRPOU}, COLS_NAME => 1 });
+
+  if($company_info->[0]->{id} && $FORM{ID} ne $company_info->[0]->{id}){
+    $html->message('err', $msg_title,
+      "$lang{EXIST} $lang{EDRPOU}: $company_info->[0]->{edrpou} " .
+        $html->button(($company_info->[0]->{name} || ''), 'index=13&COMPANY_ID=' . $company_info->[0]->{id}, { BUTTON => 2 }));
+
+    return 1;
+  }
+
+  return 0;
+}
+
 
 1;

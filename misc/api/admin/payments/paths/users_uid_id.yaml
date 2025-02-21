@@ -3,12 +3,7 @@ delete:
     - payments
   summary: Удалить платеж
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID платежа

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_PAYMENTS",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "datetime": {
+        "type": "string",
+        "format": "datetime"
+      },
+      "dsc": {
+        "type": "string"
+      },
+      "id": {
+        "type": "number"
+      },
+      "uid": {
+        "type": "number"
+      },
+      "sum": {
+        "type": "number"
+      },
+      "extId": {
+        "type": "string"
+      }
+    },
+    "required": ["datetime", "dsc", "id", "uid", "sum", "extId"]
+  }
+}

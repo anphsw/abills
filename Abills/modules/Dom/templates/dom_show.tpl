@@ -40,7 +40,9 @@
           <p><b>_{FLORS}_:</b> %BUILD_FLORS%</p>
           <p><b>_{MAP}_ _{FLATS}_:</b> %CLIENTS_FLATS_SUM%/%BUILD_FLATS% </p>
         </div>
-
+        <div class='col-md-12 text-right'>
+          %BTN_COMMENT%
+        </div>
         <div class='col-md-12'>
           <div class='progress '>
             <div class='progress-bar'>
@@ -67,11 +69,8 @@
         </div>
         <div>
           <p class='text-center'>
-            <strong><i class='fa fa-list margin-r-5'></i>_{DESCRIBE}_</strong>
-            <span class='badge badge-success'>_{ENABLE}_</span>
-            <span class='badge badge-danger'>_{NEGATIVE}_ _{DEPOSIT}_</span>
-            <span class='badge badge-warning'>_{CREDIT}_</span>
-            <span class='badge badge-secondary'>_{DISABLED}_</span>
+            <strong><i class='fa fa-list margin-r-5'></i>_{DESCRIBE}_:</strong>
+            %USER_STATUS%
           </p>
         </div>
         %TABLE_NAS%

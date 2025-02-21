@@ -187,6 +187,7 @@ sub get_services {
 
           my $day_fee = ($service_info->{day} && $service_info->{day} > 0) ? $service_info->{day} * $days_in_month : 0;
           my $sum = $day_fee + ($service_info->{month} || 0);
+
           my $original_sum = $sum;
           if ($service_info->{tp_reduction_fee} && $user_info->{REDUCTION}) {
             if ($user_info->{REDUCTION} < 100) {
@@ -214,7 +215,10 @@ sub get_services {
             ACTIVATE         => $service_info->{service_activate},
             MODULE_NAME      => $service_info->{module_name},
             ID               => $service_info->{id},
-            TP_ID            => $service_info->{tp_id} || 0
+            TP_ID            => $service_info->{tp_id} || 0,
+            MONTH            => $service_info->{month} || 0,
+            ABON_DISTRIBUTION=> $service_info->{abon_distribution} || 0,
+            DAY              => $service_info->{day} || 0,
           };
 
           $result{total_sum} += $sum;
@@ -231,20 +235,7 @@ sub get_services {
           if ($service_info->{day}) {
             $result{distribution_fee} += $service_info->{day};
           }
-
-          #}
         }
-        # else {
-        #   my ($service_name, $service_desc, $sum, undef, undef, undef, undef, $status) = split(/\|/, $service_info);
-        #   push @{$result{list}}, {
-        #      MODULE       => $module,
-        #      SERVICE_NAME => $service_name,
-        #      SERVICE_DESC => $service_desc,
-        #      SUM          => $sum,
-        #      STATUS       => $status || 0,
-        #    };
-        #    $result{total_sum} += $sum;
-        # }
       }
     }
   }

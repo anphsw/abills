@@ -1,8 +1,4 @@
-<li class='nav-item dropdown' id='dialogues-menu' data-meta='{
-          "HEADER": "_{DIALOGUES}_",
-          "UPDATE": "%UPDATE%",
-          "AFTER": 3,"REFRESH": 30, "BADGE": "%BADGE%"
-          }'>
+<li class='nav-item dropdown' id='dialogues-menu' data-meta='%ADMIN_CRM_DIALOGUES%'>
 
   <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{DIALOGUES}_'>
     <i class='far fa-comments'></i>

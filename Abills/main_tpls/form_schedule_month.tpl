@@ -35,11 +35,15 @@
   table_tds.find('span.disabled').parent().addClass('active');
 
   table_tds.find('a.mday').parent().addClass('dayCell');
-
-  let TASKS = JSON.parse('%TASKS%');
   var NO_RESPONSIBLE = '_{NO_RESPONSIBLE}_' || 'no responsible';
   let scheduleMonthTable = new ScheduleMonthTable();
 
-  console.log(TASKS)
-  TASKS.forEach(task => scheduleMonthTable.addTask(task));
+  let TASKS = {};
+  try {
+    TASKS = JSON.parse('%TASKS%');
+    TASKS.forEach(task => scheduleMonthTable.addTask(task));
+  }
+  catch (Error) {
+    console.log(Error);
+  }
 </script>

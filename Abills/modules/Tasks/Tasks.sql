@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS `tasks_main` (
   `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `deal_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `path` VARCHAR(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`)
 )
@@ -26,15 +28,50 @@ CREATE TABLE IF NOT EXISTS `tasks_main` (
 CREATE TABLE IF NOT EXISTS `tasks_type` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(60) NOT NULL DEFAULT '',
-  `additional_fields` TEXT NOT NULL,
-  `plugins` TEXT NOT NULL,
-  `admins` TEXT NOT NULL,
-  `partcipiants` TEXT NOT NULL,
   `hidden` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Tasks type';
+
+CREATE TABLE IF NOT EXISTS `tasks_type_fields` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `task_type_id` INT(10) UNSIGNED NOT NULL,
+  `label` VARCHAR(60) NOT NULL,
+  `name` VARCHAR(60) NOT NULL,
+  `type` VARCHAR(20) NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Tasks type fields';
+
+CREATE TABLE IF NOT EXISTS `tasks_type_plugins` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `task_type_id` INT(10) UNSIGNED NOT NULL,
+  `plugin_name` VARCHAR(60) NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Tasks type plugins';
+
+CREATE TABLE IF NOT EXISTS `tasks_type_admins` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `task_type_id` INT(10) UNSIGNED NOT NULL,
+  `aid` INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Tasks type admins';
+
+CREATE TABLE IF NOT EXISTS `tasks_type_participants` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `task_type_id` INT(10) UNSIGNED NOT NULL,
+  `aid` INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Tasks type participants';
+
 
 CREATE TABLE IF NOT EXISTS `tasks_admins` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',

@@ -4,13 +4,7 @@ get:
   summary: Информация об Iptv услуге пользователя по ID услуги
   operationId: iptvInfoUser
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID услуги

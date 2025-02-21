@@ -12,7 +12,11 @@ use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule);
 
 my $no_module = 0;
-$no_module = 1 if (load_pmodule('Authen::OATH', { SHOW_RETURN => 1 }));
+if (my $res = load_pmodule('Authen::OATH', { SHOW_RETURN => 1 })) {
+  print "Content-Type: text/html\n\n";
+  print $res;
+  $no_module = 1;
+}
 
 #**********************************************************
 =head2 check_access($attr)

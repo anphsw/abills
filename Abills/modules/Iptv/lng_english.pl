@@ -71,7 +71,7 @@ $lang{DISABLE_SERVICE_DATE} = 'Disable date';
 $lang{ADDED_TP} = 'Added tariff plan';
 
 $lang{MAX_DEVICES} = 'Max devices';
-$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = 'You have exceeded the number of subscriptions for this service';
+$lang{IPTV_MAX_SUBSCRIPTIONS_REACHED} = 'You have reached the maximum number of subscriptions for this service';
 $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = 'This tariff plan is already connected';
 
 $lang{PLAYLISTS} = 'Playlists';
@@ -116,6 +116,7 @@ $lang{IPTV_PROMOTIONAL_TP} = 'Promotional tariff plan';
 $lang{SUGGEST_ACTIVATE_TP} = 'We suggest you activate the tariff plan';
 $lang{IPTV_ERROR_DEVICES_COUNT} = 'Allowed number of devices exceeded';
 $lang{IPTV_MONTHLY_REPORT} = 'Monthly report';
+$lang{IPTV_DAYS_OF_USE} = 'Days of use';
 
 $lang{ERR_IPTV_DEL_ACTIVATED} = 'Before deleting a service, you need to disable it';
 

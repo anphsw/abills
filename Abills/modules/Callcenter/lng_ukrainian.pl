@@ -198,4 +198,6 @@ $lang{OUTCOMING} = 'Вихідні';
 $lang{INCOMING_DURATION} = 'Тривалість вхідних';
 $lang{OUTCOMING_DURATION} = 'Тривалість вихідних';
 
+$lang{NOT_DEFINED} = 'Не встановлено';
+
 1;

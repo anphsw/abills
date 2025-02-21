@@ -129,6 +129,7 @@ sub internet_stats {
         };
 
         $html->message( 'info', $lang{DELETED}, $info);
+        require Control::Payments;
         form_back_money( 'log', $session_info->{sum}, { UID => $uid } );    #
         return 0;
       }

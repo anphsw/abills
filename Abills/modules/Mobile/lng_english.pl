@@ -28,5 +28,12 @@ $lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Activation confirmation of phone number
 $lang{MOBILE_WAIT_NUMBER_DEACTIVATE} = 'Wait for the number to be deactivated';
 $lang{MOBILE_PHONE_DEACTIVATE} = 'Phone number deactivation';
 
+$lang{MOBILE_LOGS} = 'Mobile logs';
+$lang{MOBILE_TRANSACTION_ID} = 'Transaction ID';
+$lang{MOBILE_RESPONSE} = 'Response';
+$lang{MOBILE_CALLBACK} = 'Callback';
+$lang{MOBILE_CALLBACK_DATE} = 'Callback date';
 
-
+$lang{MOBILE_ALL_ACTIVATION_ATTEMPTS_USED} = 'All %ATTEMPTS% activation attempts used';
+$lang{MOBILE_METHOD} = 'Method';
+$lang{MOBILE_ACTIVATION_ATTEMPTS_COUNT} = 'Activation attempts count';

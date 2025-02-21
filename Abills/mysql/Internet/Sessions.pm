@@ -120,7 +120,7 @@ sub online_update {
   }
 
   if ($attr->{FRAMED_IP_ADDRESS}) {
-    push @SET_RULES, "framed_ip_address=$attr->{FRAMED_IP_ADDRESS}";
+    push @SET_RULES, "framed_ip_address='$attr->{FRAMED_IP_ADDRESS}'";
   }
 
   if ($attr->{ACCT_INPUT_OCTETS}) {

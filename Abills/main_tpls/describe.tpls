@@ -39,9 +39,10 @@ form_fees.tpl:english:Fees form
 form_password.tpl:english:Change password form
 countries.tpl:english:Countries list
 
-form_company.tpl:english:Company add/change template
-form_company.tpl:russian:Шаблон компании
-
+form_company_add.tpl:english:Company add template
+form_company_add.tpl:english:Шаблон добавление компании
+form_company.tpl:english:Company info/change template
+form_company.tpl:russian:Шаблон посмотра/редактирование компании
 
 form_client_info.tpl:russian:форма информации по абоненту
 form_client_login.tpl:russian:Форма входа в систему абонентом
@@ -65,6 +66,11 @@ form_client_main.tpl:english:Main user portal template
 form_start_page.tpl:english:Admin interface start page
 form_start_page.tpl:russian:Стартовая страница административного интерфейса
 form_start_page.tpl:ukrainian:Стартова сторінка адмін інтерфейсу
+
+form_box_contract.tpl:english:User box with contract data
+form_box_contract.tpl:russian:Блок пользователя с данными по договору
+form_box_contract_company.tpl:english:Company box with contract data
+form_box_contract_company.tpl:russian:Блок компании с данными по договору
 
 email_password_recovery.tpl:english:Email with user password
 email_password_recovery.tpl:russian:Email с паролем пользователя

@@ -1,5 +1,5 @@
 {
-  "name": "ADMIN_GROUPS_INFO",
+  "name": "ADMIN_GROUPS_LIST",
   "method": "GET",
   "path": "groups/",
   "params": {}

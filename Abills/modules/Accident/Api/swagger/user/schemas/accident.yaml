@@ -1,0 +1,53 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: integer
+      example: 9
+    name:
+      type: string
+      example: 'Авария на линии'
+    aid:
+      type: integer
+      example: 1
+    adminName:
+      type: string
+      example: 'Администратор'
+    date:
+      type: string
+      example: '2024-01-01 12:00:00'
+    descr:
+      type: string
+      example: 'Описании аварии'
+    endTime:
+      type: string
+      example: '2024-01-01 14:00:00'
+    realyTime:
+      type: string
+      example: '2024-01-01 16:00:00'
+    priority:
+      type: integer
+      example: 2
+    status:
+      type: integer
+      example: 0
+    type:
+      type: integer
+      example: 0
+    uid:
+      type: integer
+      example: 1
+    nasId:
+      type: integer
+      example: 32
+    internetPort:
+      type: string
+      example: '0e09'
+    portId:
+      type: string
+      example: '0e07'
+    endDate:
+      type: string
+      format: date
+      example: 2024-01-02

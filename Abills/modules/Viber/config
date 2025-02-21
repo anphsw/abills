@@ -1,0 +1,3 @@
+our %FUNCTIONS_LIST = (
+  "01:0:Viber $lang{QR_CODE}:viber_qrcode:" => 5
+);

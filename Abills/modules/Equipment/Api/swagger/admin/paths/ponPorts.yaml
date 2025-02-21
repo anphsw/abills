@@ -1,0 +1,73 @@
+get:
+  tags:
+    - equipment
+  summary: Список пон портов
+  operationId: getPonPorts
+  parameters:
+    - name: id
+      in: query
+      description: ID порта
+      schema:
+        type: boolean
+        default: true
+    - name: branch
+      in: query
+      description: branch
+      schema:
+        type: boolean
+        default: false
+    - name: branchDesc
+      in: query
+      description: описание Branch
+      schema:
+        type: boolean
+        default: false
+    - name: idVlan
+      in: query
+      description: ID Vlan
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: snmpId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: onuCount
+      in: query
+      description: Количество онушок
+      schema:
+        type: boolean
+        default: false
+    - name: ponType
+      in: query
+      description: тип пона
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: status
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/ponPorts.yaml"
+  security:
+    - KEY: []

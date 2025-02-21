@@ -26,4 +26,15 @@ $lang{PAY_USER}='Refused to user';
 $lang{NUMBER_AND_SERIA}='Serial and number';
 $lang{CARD_DUBLICATE} = 'Dublicate';
 
+$lang{ERR_OPERATION_NOT_ALLOWED} = 'Operation not allowed';
+$lang{ERR_PIN_BRUTE_LIMIT} = 'Bruteforce pin, %COUNT% >= %LIMIT%';
+$lang{ERR_UNKNOWN_CARD} = 'Unknown card';
+$lang{ERR_UNKNOWN_ERROR} = 'Unknown error happened - %ERROR%';
+$lang{ERR_CARD_EXPIRE} = 'Card expired. Expire date - %EXPIRE%';
+$lang{ERR_CARD_SUM} = 'Card has wrong sum, please contact with administrator';
+$lang{ERR_CARD_USED_BEFORE} = 'You already used this card';
+$lang{ERR_CARD_USED} = 'Card is used by other user';
+$lang{ERR_CARD_STATUS} = 'Card status is %STATUS%';
+$lang{ERR_CARD_PAYMENT} = 'Payment error %ERROR%';
+
 1;

@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_ID_WARNINGS",
+  "method": "GET",
+  "path": "user/iptv/:id/warnings/"
+}

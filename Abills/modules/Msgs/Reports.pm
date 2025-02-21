@@ -1134,7 +1134,15 @@ sub msgs_templates_report {
 
   my $q_hash = $Msgs->{list_hash};
 
-  my $list = $Msgs->survey_answer_list({ SURVEY_ID => $survey_id });
+  my $list = $Msgs->survey_answer_list({
+    COMMENTS  => '_SHOW',
+    ANSWER    => '_SHOW',
+    PARAMS    => '_SHOW',
+    DATE_TIME => '_SHOW',
+    LOGIN     => '_SHOW',
+    SURVEY_ID => $survey_id,
+    COLS_NAME => 1
+  });
 
   my $table = $html->table({ 
     width       => '100%',
@@ -1560,6 +1568,128 @@ sub msgs_messages_coefficients {
     ]
   });
   print $coefficient_table->show() . $total_table->show();
+}
+
+#**********************************************************
+=head2 msgs_survey_report()
+
+=cut
+#**********************************************************
+sub msgs_survey_report {
+
+  if ($FORM{ID}) {
+    $Msgs->survey_subject_info($FORM{ID});
+
+    if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
+      _msgs_survey_answers_report($FORM{ID}, $Msgs->{NAME} || '');
+      return;
+    }
+  }
+
+  my $survey_list = $Msgs->survey_subjects_list({ USED_SURVEY => '_SHOW', COLS_NAME => 1 });
+
+  my $table = $html->table({
+    title   => [ '#', $lang{NAME}, $lang{MSGS_NUMBER_OF_USES} ],
+    caption => $lang{SURVEY}
+  });
+
+  foreach my $survey (@{$survey_list}) {
+    my $name = $html->button($survey->{name}, "index=$index&ID=$survey->{id}");
+    $table->addrow($survey->{id}, $name, $survey->{used_survey});
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+=head2 _msgs_survey_answers_report($survey_id, $survey_name)
+
+=cut
+#**********************************************************
+sub _msgs_survey_answers_report {
+  my $survey_id = shift;
+  my $survey_name = shift;
+  
+  my $questions = $Msgs->survey_questions_list({ SURVEY_ID => $survey_id, COLS_NAME => 1 });
+
+  my $table = $html->table({
+    title   => [ '#', $lang{QUESTION}, $lang{MSGS_ANSWERS}, $lang{MSGS_NUMBER_OF_ANSWERS} ],
+    caption => "$lang{SURVEY}: $survey_name"
+  });
+
+  foreach my $question (@{$questions}) {
+    my @available_answers = split(';\s?', $question->{params});
+    my ($total_answers, $answers) = _msgs_survey_answers_table({ QUESTION_ID => $question->{id}, AVAILABLE_ANSWERS => \@available_answers });
+
+    $table->addrow($question->{num}, $question->{question}, $answers, $total_answers || 0);
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+=head2 _msgs_survey_answers_table($attr)
+
+=cut
+#**********************************************************
+sub _msgs_survey_answers_table {
+  my ($attr) = @_;
+
+  my $question_id = $attr->{QUESTION_ID};
+  my $available_answers = $attr->{AVAILABLE_ANSWERS};
+  return (0, '') if !$question_id || !$available_answers || ref $available_answers ne 'ARRAY';
+
+  my $answers = $Msgs->survey_answer_list({
+    COUNT_ANSWERS => '_SHOW',
+    ANSWER        => '_SHOW',
+    QUESTION_ID   => $question_id,
+    GROUP_BY      => 'ma.question_id, ma.answer',
+    COLS_NAME     => 1
+  });
+
+  my $answers_hash = {};
+  my $total_answers = 0;
+
+  foreach my $answer (@{$answers}) {
+    $answer->{count_answers} ||= 0;
+    
+    $answers_hash->{$answer->{answer}} = $answer->{count_answers};
+    $total_answers += $answer->{count_answers};
+  }
+
+  return ($total_answers, '') if scalar(@{$available_answers}) < 1;
+
+  my $table = $html->table({
+    title_plain   => [ '#', $lang{ANSWER}, $lang{MSGS_NUMBER_OF_ANSWERS} ],
+  });
+
+  my $answer_id = 0;
+  foreach my $answer (@{$available_answers}) {
+    my $answer_rate = 0;
+    my $color = 'bg-danger';
+    if ($answers_hash->{$answer_id} && $total_answers) {
+      $answer_rate = int(($answers_hash->{$answer_id} / $total_answers) * 100);
+    }
+
+    if ($answer_rate >= 70) {
+      $color = 'bg-success';
+    }
+    elsif ($answer_rate >= 25) {
+      $color = 'bg-warning';
+    }
+
+    my $span = $html->element('span', $answer_rate . '%', { class => 'sr-only' });
+    my $progress_bar = $html->element('div', $span, { class => 'progress-bar ' . $color, style => "width: $answer_rate%" });
+    my $progress = $html->element('div', $progress_bar, { class => 'progress rounded border' });
+    my $progress_text = $html->element('div', ($answers_hash->{$answer_id} || 0) . " ($answer_rate%)", { class => 'progress-bar-text' });
+
+
+    $table->addrow($answer_id + 1, $answer, $progress . $progress_text);
+
+    $answer_id++;
+  }
+
+  return ($total_answers, $table->show());
 }
 
 1;

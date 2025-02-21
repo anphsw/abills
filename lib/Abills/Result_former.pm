@@ -214,7 +214,8 @@ sub result_former {
   #Make maps
   return -1, -1 if _result_former_map($attr, $data);
 
-  my %SEARCH_TITLES = _get_search_titles($attr, $data);
+  my %SEARCH_TITLE_GROUPS = _get_search_titles($attr, $data);
+  my %SEARCH_TITLES = (map { ref $SEARCH_TITLE_GROUPS{$_} eq 'HASH' ? %{$SEARCH_TITLE_GROUPS{$_}} : () } keys %SEARCH_TITLE_GROUPS);
 
   my $base_fields = $attr->{BASE_FIELDS} || 0;
 
@@ -325,7 +326,7 @@ sub result_former {
   }
 
   my Abills::HTML $table = $html->table({
-    SHOW_COLS           => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLES,
+    SHOW_COLS           => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLE_GROUPS,
     %{$attr->{TABLE}},
     $title_type         => \@title,
     border              => 1,
@@ -933,20 +934,20 @@ sub _result_former_data_extra_fields {
 
   return $SEARCH_TITLES if (! $data->{EXTRA_FIELDS});
 
-  foreach my $line (@{$data->{EXTRA_FIELDS}}) {
-    next if (in_array('Multidoms', \@MODULES) && $admin->{DOMAIN_ID} && $line && ref $line eq 'HASH' && $admin->{DOMAIN_ID} ne $line->{domain_id});
-    if (ref $line eq 'ARRAY' && $line->[0] =~ /ifu(\S+)/) {
-      my $field_id = $1;
-      my (undef, undef, $name, undef) = split(/:/, $line->[1]);
+  foreach my $field (@{$data->{EXTRA_FIELDS}}) {
+    next if (in_array('Multidoms', \@MODULES) && $admin->{DOMAIN_ID} && $field && ref $field eq 'HASH' && $admin->{DOMAIN_ID} ne $field->{domain_id});
 
-      $SEARCH_TITLES->{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
-    }
-    elsif ($line->{id}) {
-      my $field_id = $line->{sql_field};
-      my $name = $line->{name};
-
+    if ($field->{id}) {
+      my $field_id = $field->{sql_field};
+      my $name = $field->{name};
       next if (!defined $field_id);
-      $SEARCH_TITLES->{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
+
+      if ($field->{company}) {
+        $SEARCH_TITLES->{company}{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
+      }
+      else {
+        $SEARCH_TITLES->{info_fields}{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
+      }
     }
   }
 
@@ -969,85 +970,90 @@ sub _get_search_titles {
   my ($attr, $data) = @_;
 
   my %SEARCH_TITLES = (
-    login_status   => "$lang{LOGIN} $lang{STATUS}",
-    deposit        => $lang{DEPOSIT},
-    credit         => $lang{CREDIT},
-    login          => $lang{LOGIN},
-    fio            => $lang{FIO},
-    last_payment   => $lang{LAST_PAYMENT},
-    last_fees      => $lang{LAST_FEES},
-    email          => 'E-Mail',
-    pasport_date   => "$lang{PASPORT} $lang{DATE}",
-    pasport_num    => "$lang{PASPORT} $lang{NUM}",
-    pasport_grant  => "$lang{PASPORT} $lang{GRANT}",
-    contract_id    => $lang{CONTRACT_ID},
-    contract_date  => "$lang{CONTRACT} $lang{DATE}",
-    registration   => $lang{REGISTRATION},
-    comments       => $lang{COMMENTS},
-    company_id     => "$lang{COMPANY} ID",
-    company_name   => $lang{COMPANY},
-    bill_id        => $lang{BILLS},
-    activate       => $lang{ACTIVATE},
-    expire         => $lang{EXPIRE},
-    credit_date    => "$lang{CREDIT} $lang{DATE}",
-    reduction      => $lang{REDUCTION},
-    reduction_date => "$lang{REDUCTION} $lang{DATE}",
+    personal_info => {
+      login_status  => "$lang{LOGIN} $lang{STATUS}",
+      login         => $lang{LOGIN},
+      fio           => $lang{FIO},
+      email         => 'E-Mail',
+      pasport_date  => "$lang{PASPORT} $lang{DATE}",
+      pasport_num   => "$lang{PASPORT} $lang{NUM}",
+      pasport_grant => "$lang{PASPORT} $lang{GRANT}",
+      contract_id   => $lang{CONTRACT_ID},
+      contract_date => "$lang{CONTRACT} $lang{DATE}",
+      registration  => $lang{REGISTRATION},
+      comments      => $lang{COMMENTS},
+      company_id    => "$lang{COMPANY} ID",
+      company_name  => $lang{COMPANY},
+      bill_id       => $lang{BILLS},
+      activate      => $lang{ACTIVATE},
+      expire        => $lang{EXPIRE},
+      deleted       => $lang{DELETED},
+      uid           => 'UID',
+      birth_date    => $lang{BIRTH_DATE},
 
-    deleted        => $lang{DELETED},
-    uid            => 'UID',
-    birth_date     => $lang{BIRTH_DATE},
+      latitude      => $lang{LATITUDE},
+      longitude     => $lang{LONGITUDE},
 
-    latitude       => $lang{LATITUDE},
-    longitude      => $lang{LONGITUDE},
-
-    telegram       => 'Telegram',
-    viber          => 'Viber',
+      telegram      => 'Telegram',
+      viber         => 'Viber',
+    },
+    address       => {},
+    finance       => {
+      deposit        => $lang{DEPOSIT},
+      credit         => $lang{CREDIT},
+      last_payment   => $lang{LAST_PAYMENT},
+      last_fees      => $lang{LAST_FEES},
+      credit_date    => "$lang{CREDIT} $lang{DATE}",
+      reduction      => $lang{REDUCTION},
+      reduction_date => "$lang{REDUCTION} $lang{DATE}",
+    },
+    info_fields   => {}
   );
 
   if ($permissions{0} && $permissions{0}{26}) {
-    $SEARCH_TITLES{district_name} = $lang{DISTRICTS};
-    $SEARCH_TITLES{address_full} = "$lang{FULL} $lang{ADDRESS}";
-    $SEARCH_TITLES{address_street} = $lang{ADDRESS_STREET};
-    $SEARCH_TITLES{address_build} = $lang{ADDRESS_BUILD};
-    $SEARCH_TITLES{address_flat} = $lang{ADDRESS_FLAT};
-    $SEARCH_TITLES{address_street2} = $lang{SECOND_NAME};
-    # $SEARCH_TITLES{city} = $lang{CITY};
-    $SEARCH_TITLES{zip} = $lang{ZIP};
-    $SEARCH_TITLES{phone} = $lang{PHONE};
-    $SEARCH_TITLES{floor} = $lang{FLOOR};
-    $SEARCH_TITLES{entrance} = $lang{ENTRANCE};
+    $SEARCH_TITLES{address}{district_name} = $lang{DISTRICTS};
+    $SEARCH_TITLES{address}{address_full} = "$lang{FULL} $lang{ADDRESS}";
+    $SEARCH_TITLES{address}{address_street} = $lang{ADDRESS_STREET};
+    $SEARCH_TITLES{address}{address_build} = $lang{ADDRESS_BUILD};
+    $SEARCH_TITLES{address}{address_flat} = $lang{ADDRESS_FLAT};
+    $SEARCH_TITLES{address}{address_street2} = $lang{SECOND_NAME};
+    $SEARCH_TITLES{address}{zip} = $lang{ZIP};
+    $SEARCH_TITLES{personal_info}{phone} = $lang{PHONE};
+    $SEARCH_TITLES{address}{floor} = $lang{FLOOR};
+    $SEARCH_TITLES{address}{entrance} = $lang{ENTRANCE};
   }
 
   if ($permissions{0} && $permissions{0}{28}) {
-    $SEARCH_TITLES{group_name} = "$lang{GROUP} $lang{NAME}";
-    $SEARCH_TITLES{gid} = $lang{GROUP};
+    $SEARCH_TITLES{personal_info}{group_name} = "$lang{GROUP} $lang{NAME}";
+    $SEARCH_TITLES{personal_info}{gid} = $lang{GROUP};
   }
 
   if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tags})) {
-    $SEARCH_TITLES{tags} = $lang{TAGS} if (!$admin->{MODULES} || $admin->{MODULES}{Tags});
+    $SEARCH_TITLES{personal_info}{tags} = $lang{TAGS} if (!$admin->{MODULES} || $admin->{MODULES}{Tags});
   }
 
   if (in_array('Maps', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Maps})) {
-    $SEARCH_TITLES{build_id} = $lang{LOCATION};
+    $SEARCH_TITLES{address}{build_id} = $lang{LOCATION};
   }
 
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
-    $SEARCH_TITLES{domain_id} = 'DOMAIN ID';
-    $SEARCH_TITLES{domain_name} = $lang{DOMAIN};
+    $SEARCH_TITLES{personal_info}{domain_id} = 'DOMAIN ID';
+    $SEARCH_TITLES{personal_info}{domain_name} = $lang{DOMAIN};
   }
 
-  $SEARCH_TITLES{accept_rules} = $lang{ACCEPT_RULES} if ($conf{ACCEPT_RULES});
-  $SEARCH_TITLES{ext_deposit} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
-  $SEARCH_TITLES{cell_phone} = $lang{CELL_PHONE} if (!$attr->{SKIP_USERS_FIELDS});
-  $SEARCH_TITLES{created_admin} = "$lang{CREATED} $lang{ADMIN}" if (!$attr->{SKIP_USERS_FIELDS});
+  $SEARCH_TITLES{personal_info}{accept_rules} = $lang{ACCEPT_RULES} if ($conf{ACCEPT_RULES});
+  $SEARCH_TITLES{finance}{ext_deposit} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
+  $SEARCH_TITLES{personal_info}{cell_phone} = $lang{CELL_PHONE} if (!$attr->{SKIP_USERS_FIELDS});
+  $SEARCH_TITLES{personal_info}{created_admin} = "$lang{CREATED} $lang{ADMIN}" if (!$attr->{SKIP_USERS_FIELDS});
 
   _result_former_data_extra_fields($data, \%SEARCH_TITLES);
 
+  my $ext_titles_key = $attr->{TABLE}{EXT_TITLES_LABEL} || $attr->{TABLE}{caption} || 'service';
   if ($attr->{SKIP_USER_TITLE}) {
-    %SEARCH_TITLES = %{$attr->{EXT_TITLES}} if ($attr->{EXT_TITLES});
+    %SEARCH_TITLES = ($ext_titles_key => $attr->{EXT_TITLES}) if ($attr->{EXT_TITLES});
   }
   elsif ($attr->{EXT_TITLES}) {
-    %SEARCH_TITLES = (%SEARCH_TITLES, %{$attr->{EXT_TITLES}});
+    $SEARCH_TITLES{$ext_titles_key} = $attr->{EXT_TITLES};
   }
 
   return %SEARCH_TITLES;
@@ -1230,19 +1236,19 @@ sub _get_status_value {
   my ($attr, $line, $col_name, $service_status, $service_status_colors) = @_;
 
   my $val = '';
-
+  my $status = $line->{$col_name};
   if ($attr->{STATUS_VALS} && ref($attr->{STATUS_VALS}) eq "HASH") {
-    return $val if (!$attr->{STATUS_VALS}{$line->{$col_name} // q{}});
+    return $val if (!$attr->{STATUS_VALS}{$status // q{}});
 
-    my ($status_value, $status_color) = split(':', $attr->{STATUS_VALS}{$line->{$col_name}});
-    $val = (defined $line->{$col_name} && $line->{$col_name} >= 0) ? $html->color_mark($status_value, $status_color) :
+    my ($status_value, $status_color) = split(':', $attr->{STATUS_VALS}{$status});
+    $val = (defined $status && $status =~ /^\d+$/ && $status >= 0) ? $html->color_mark($status_value, $status_color) :
       (defined $status_value ? $status_value : '');
   }
   else {
     if (!$attr->{SKIP_STATUS_CHECK}) {
-      $val = ($line->{$col_name} && $line->{$col_name} > 0) ? $html->color_mark($service_status->[ $line->{$col_name} ],
-        $service_status_colors->[ $line->{$col_name} ]) :
-        (defined $line->{$col_name} ? $service_status->[$line->{$col_name}] : '');
+      $val = ($status && $status =~ /^\d+$/ && $status > 0) ? $html->color_mark($service_status->[ $status ],
+        $service_status_colors->[ $status ]) :
+        ((defined ($status) && $status =~ /^\d+$/) ? $service_status->[$status] : $status);
     }
   }
 

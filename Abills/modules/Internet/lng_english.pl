@@ -52,8 +52,8 @@ $lang{LAST_FEES} = 'Last fees';
 $lang{TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%And active in schedules\n%SCHEDULES%";
 $lang{STATIC_IP} = 'Static IP address';
 $lang{MAC} = 'MAC address';
+$lang{LOADING_DATA_ONTO_THE_MAP} = 'Please wait. Loading data onto the map.';
 
-$lang{ERR_NO_FIELD} = 'No field %FIELD%';
 $lang{ERR_TARIFF_EXISTS} = 'Tariff with such id already exists';
 $lang{ERR_WRONG_DATE} = 'Date is not valid';
 $lang{ERR_FAILED_SET_SCHEDULE} = 'Failed to set schedule of change tp';

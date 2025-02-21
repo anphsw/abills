@@ -59,6 +59,9 @@ sub new {
       DATE
       SERVICE_RECOVERY
 
+  Returns:
+    $service_inf_hash_ref
+
 =cut
 #**********************************************************
 sub abon_user_tariff_activate {
@@ -329,7 +332,7 @@ sub abon_user_tariff_deactivate {
     return { errno => $plugin->{errno}, errstr => $plugin->{errstr} } if ($plugin && $plugin->{errno});
 
     if ($plugin->can('deactivate')) {
-      $plugin->deactivate({ %{$attr}, USER_INFO => $user_info });
+      $plugin->deactivate({ %{$attr}, USER_INFO => $user_info, PERSONAL_DESCRIPTION => $Abon->{PERSONAL_DESCRIPTION} });
       return { errno => $plugin->{errno}, errstr => $plugin->{errstr} } if $plugin->{errno};
 
       if ($plugin->{INFO}) {
@@ -474,7 +477,7 @@ sub abon_get_month_fee {
   my $TIME = "00:00:00";
 
   my @messages = ();
-  my $message = '';
+  #my $message = '';
   my $users = $attr->{USER_INFO};
   my $user = $users->info($Service->{UID});
   my $DATE = strftime('%Y-%m-%d', localtime(time));
@@ -496,6 +499,7 @@ sub abon_get_month_fee {
       DESCRIBE => 'ACTIVATE_TARIF_PLAN',
       DATE     => "$cur_date $TIME"
     });
+
     push @messages, abon_fees_dsc_former({ %FEES_DSC, EXTRA => "$lang{ACTIVATE_TARIF_PLAN}: $Service->{TP_INFO}{ACTIVATE_PRICE}" })
   }
 
@@ -504,6 +508,10 @@ sub abon_get_month_fee {
 
   #Get month fee
   my $sum = $Service->{TP_INFO}{PRICE};
+
+  if ($Service->{SERVICE_COUNT} && $Service->{SERVICE_COUNT} > 1) {
+    $sum = $sum * $Service->{SERVICE_COUNT};
+  }
 
   if ($Service->{TP_INFO}{EXT_BILL_ACCOUNT}) {
     $user->{BILL_ID} = $user->{EXT_BILL_ID};

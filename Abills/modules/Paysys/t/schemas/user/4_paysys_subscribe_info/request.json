@@ -1,0 +1,6 @@
+{
+  "name": "USER_PAYSYS_SUBSCRIBE_INFO",
+  "method": "GET",
+  "path": "user/paysys/recurrent/",
+  "body": {}
+}

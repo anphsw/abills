@@ -1,0 +1,31 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        color:
+          type: string
+          example: '#0000FF'
+        icon:
+          type: string
+          example: fa fa-envelope-open text-aqua
+        id:
+          type: number
+          example: 0
+        localeName:
+          type: string
+          example: open
+        name:
+          type: string
+          example: "$lang{OPEN}"
+        readiness:
+          type: number
+          example: 0
+        taskClosed:
+          type: number
+          example: 0
+  total:
+    type: number
+    example: 1

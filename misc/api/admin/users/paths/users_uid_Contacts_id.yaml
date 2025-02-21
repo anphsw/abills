@@ -4,13 +4,7 @@ put:
   summary: Обновить контакт пользователю
   operationId: updateUserConctact
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID контакта
@@ -33,13 +27,7 @@ delete:
   summary: Удалить контакт пользователя
   operationId: deleteUserContact
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
     - name: id
       in: path
       description: ID контакта

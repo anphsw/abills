@@ -23,12 +23,12 @@ BEGIN {
     $Bin . '/../Abills/modules'
   );
 
-  our $begin_time = 0;
-  eval { require Time::HiRes; };
-  if ( !$@ ){
-    Time::HiRes->import( qw(gettimeofday) );
-    $begin_time = Time::HiRes::gettimeofday();
-  }
+  # our $begin_time = 0;
+  # eval { require Time::HiRes; };
+  # if ( !$@ ){
+  #   Time::HiRes->import( qw(gettimeofday) );
+  #   $begin_time = Time::HiRes::gettimeofday();
+  # }
 }
 
 my $version = 0.81;
@@ -70,8 +70,7 @@ our $html = Abills::HTML->new({
   csv      => 1
 });
 
-
-#my $begin_time = check_time();
+my $begin_time = check_time();
 $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
@@ -123,12 +122,7 @@ if ($argv->{DEBUG}) {
 
 $DATE = $argv->{DATE} if ($argv->{DATE});
 
-my $debug_output = ureports_periodic_reports($argv);
-print $debug_output;
-
-if ( $debug > 1 ){
-  print gen_time( $begin_time ) . "\n";
-}
+ureports_periodic_reports($argv);
 
 #**********************************************************
 =head2 ureports_periodic_reports($attr)
@@ -142,9 +136,9 @@ sub ureports_periodic_reports {
   my ($attr) = @_;
 
   $debug = $attr->{DEBUG} || 0;
-  $debug_output = '';
 
-  $debug_output .= "Ureports: Daily spool former\n" if ($debug > 1);
+  _log('LOG_NOTICE', "Ureports: Daily spool former");
+
   $LIST_PARAMS{MODULE} = 'Ureports';
   $LIST_PARAMS{TP_ID} = $argv->{TP_IDS} if ($argv->{TP_IDS});
 
@@ -171,10 +165,11 @@ sub ureports_periodic_reports {
   $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
   my ($Y, $M, $D) = split(/-/, $ADMIN_REPORT{DATE}, 3);
   #my $reports_type = 0;
-  my $i = 0;
+  my $sended_messages = 0;
 
   foreach my $tp (@{$list}) {
-    $debug_output .= "TP ID: $tp->{tp_id} DF: $tp->{day_fee} MF: $tp->{month_fee} POSTPAID: $tp->{payment_type} REDUCTION: $tp->{reduction_fee} EXT_BILL: $tp->{ext_bill_account} CREDIT: $tp->{credit}\n" if ($debug > 1);
+    _log('LOG_INFO', "TP ID: $tp->{tp_id} DF: $tp->{day_fee} MF: $tp->{month_fee} POSTPAID: $tp->{payment_type} "
+      . "REDUCTION: $tp->{reduction_fee} EXT_BILL: $tp->{ext_bill_account} CREDIT: $tp->{credit}");
 
     #Get users
     $Ureports->{debug} = 1 if ($debug > 5);
@@ -190,6 +185,7 @@ sub ureports_periodic_reports {
       REDUCTION      => '_SHOW',
       PASSWORD       => '_SHOW',
       GID            => '_SHOW',
+      ERROR_CODE     => '0;1',
       %SERVICE_LIST_PARAMS,
       MODULE         => '_SHOW',
       COLS_NAME      => 1,
@@ -212,372 +208,394 @@ sub ureports_periodic_reports {
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
       $user->{VALUE} =~ s/,/\./s;
 
-      if (! $user->{DESTINATION_ID}) {
-        print "ERROR! LOGIN: $user->{LOGIN} Not defined destination id. \n Check sending information\n";
+      if (!$user->{DESTINATION_ID}) {
+        _log('LOG_ERR', "LOGIN: $user->{LOGIN} Not defined destination id. Check sending information");
         next;
       }
 
-      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} INTERNET STATUS: $internet_status $user->{DESTINATION_ID}\n" if ($debug > 3);
+      _log('LOG_INFO', "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: " . ($user->{DEPOSIT} || 'N/D') . " CREDIT: $user->{CREDIT} Report id: $user->{REPORT_ID}"
+        . " INTERNET STATUS: $internet_status " . ($user->{DESTINATION_ID} || 'N/D'));
 
-      if ($user->{BILL_ID} && defined($user->{DEPOSIT})) {
-        #Skip action for pay opearation
-        if ($user->{MSG_PRICE} > 0 && $user->{DEPOSIT} + $user->{CREDIT} < 0 && $tp->{payment_type} == 0) {
-          $debug_output .= "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DEPOSIT: $user->{DEPOSIT}/$user->{CREDIT} Skip action Small Deposit for sending\n" if ($debug > 0);
+      if (!$user->{BILL_ID} || !defined($user->{DEPOSIT})) {
+        _log('LOG_EMERG', "[ $user->{UID} ] $user->{LOGIN} - Don't have money account");
+        next;
+      }
+
+      #Skip action for pay opearation
+      if ($user->{MSG_PRICE} > 0 && $user->{DEPOSIT} + $user->{CREDIT} < 0 && $tp->{payment_type} == 0) {
+        _log('LOG_WARNING', "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DEPOSIT: $user->{DEPOSIT}/$user->{CREDIT} Skip action Small Deposit for sending");
+        next;
+      }
+
+      my $reduction_division = ($user->{REDUCTION} >= 100) ? 1 : ((100 - $user->{REDUCTION}) / 100);
+
+      # Recomended payments
+      my $total_daily_fee = 0;
+      $user->{RECOMMENDED_PAYMENT} = 0;
+
+      my $service_info = get_services({
+        UID           => $user->{UID},
+        REDUCTION     => $user->{REDUCTION},
+        SKIP_DISABLED => 1,
+        PAYMENT_TYPE  => 0
+      },
+        { SKIP_MODULES => 'Ureports,Sqlcmd' }
+      );
+
+      $user->{TP_MONTH_FEE}=0;
+      foreach my $service (@{$service_info->{list}}) {
+        $user->{RECOMMENDED_PAYMENT} += $service->{SUM};
+        $user->{TP_MONTH_FEE} += $service->{MONTH};
+      }
+
+      if ($service_info->{distribution_fee}) {
+        $total_daily_fee = $service_info->{distribution_fee};
+      }
+
+      $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
+
+      if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
+        $user->{RECOMMENDED_PAYMENT} = sprintf("%.2f",
+          ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} > 0) ? ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} + 0.01) : 0);
+      }
+      else {
+        $user->{RECOMMENDED_PAYMENT} += sprintf("%.2f", abs($user->{DEPOSIT} + $user->{CREDIT}));
+      }
+
+      if ($conf{UREPORTS_ROUNDING} && $user->{RECOMMENDED_PAYMENT} > 0) {
+        if (int($user->{RECOMMENDED_PAYMENT}) < $user->{RECOMMENDED_PAYMENT}) {
+          $user->{RECOMMENDED_PAYMENT} = int($user->{RECOMMENDED_PAYMENT} + 1);
+        }
+      }
+
+      $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
+      $user->{EXPIRE_DAYS} = 0;
+      if ($total_daily_fee > 0) {
+        $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $reduction_division / $total_daily_fee);
+      }
+      else {
+        require Control::Service_control;
+        Control::Service_control->import();
+
+        my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+        my $warnings = $Service_control->service_warning({
+          UID    => $user->{UID},
+          ID     => $user->{SERVICE_ID},
+          MODULE => 'Internet'
+        });
+
+        #Internet expire
+        $user->{EXPIRE_DAYS} = $warnings->{DAYS_TO_FEE} || 0;
+        $user->{TP_EXPIRE} = $user->{EXPIRE_DAYS};
+      }
+
+      $user->{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
+
+      #Report 1 Deposit below and internet status active
+      if ($user->{REPORT_ID} == 1) {
+        if ($user->{VALUE} > $user->{DEPOSIT} && !$internet_status) {
+          %PARAMS = (
+            DESCRIBE        => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE         => "$lang{DEPOSIT}: $user->{DEPOSIT}",
+            MESSAGE_SUBJECT => $lang{DEPOSIT_BELOW}
+            # SUBJECT  => "$lang{DEPOSIT_BELOW}"
+          );
+        }
+        else {
+          next;
+        }
+      }
+
+      #Report 2 Deposit + credit below
+      elsif ($user->{REPORT_ID} == 2) {
+        if ($user->{VALUE} > $user->{DEPOSIT} + $user->{CREDIT}) {
+          %PARAMS = (
+            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE  => "$lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}",
+            SUBJECT  => "$lang{DEPOSIT_CREDIT_BELOW}"
+          );
+        }
+        else {
+          next;
+        }
+      }
+
+      #Report 3 Prepaid traffic rest
+      elsif ($user->{REPORT_ID} == 3) {
+        if ($Sessions->prepaid_rest({ UID => $user->{UID}, })) {
+          %PARAMS = (
+            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            SUBJECT  => "$lang{PREPAID_TRAFFIC_BELOW}"
+          );
+
+          $list = $Sessions->{INFO_LIST};
+          #my $rest_traffic = '';
+          my $rest = 0;
+          foreach my $line (@{$list}) {
+            $rest = ($conf{INTERNET_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} } : $Sessions->{REST}->{ $line->{traffic_class} };
+
+            #REST MB
+            $PARAMS{REST} = $rest;
+            #REST GB
+            $PARAMS{REST_GB} = sprintf("%.2f", ($rest / 1024));
+            $PARAMS{REST_DIMENSION} = int2byte($rest);
+            $PARAMS{PREPAID} = $line->{prepaid};
+
+            $PARAMS{'REST_' . ($line->{traffic_class} || 0)} = $rest;
+            $PARAMS{'REST_DIMENSION_' . ($line->{traffic_class} || 0)} = int2byte($rest);
+            $PARAMS{'PREPAID_' . ($line->{traffic_class} || 0)} = $line->{prepaid} || 0;
+
+            if ($rest < $user->{VALUE}) {
+              $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n"
+                . "$lang{END}: $line->{interval_end}\n"
+                . "$lang{TOTAL}: $line->{prepaid}\n"
+                . "\n $lang{REST}: "
+                . $rest . "\n================";
+            }
+          }
+
+          if (!$PARAMS{MESSAGE}) {
+            next;
+          }
+        }
+      }
+      elsif ($user->{REPORT_ID} == 5 && $D == 1) {
+        $Sessions->list({
+          UID    => $user->{UID},
+          PERIOD => 6
+        });
+
+        my $traffic_in = ($Sessions->{TRAFFIC_IN}) ? $Sessions->{TRAFFIC_IN} : 0;
+        my $traffic_out = ($Sessions->{TRAFFIC_OUT}) ? $Sessions->{TRAFFIC_IN} : 0;
+        my $traffic_sum = $traffic_in + $traffic_out;
+
+        %PARAMS = (
+          DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+          MESSAGE  =>
+            "$lang{MONTH}:\n $lang{DEPOSIT}: $user->{DEPOSIT}\n $lang{CREDIT}: $user->{CREDIT}\n $lang{TRAFFIC}: $lang{RECV}: " . int2byte($traffic_in) . " $lang{SEND}: " . int2byte($traffic_out) . " \n  $lang{SUM}: " . int2byte($traffic_sum) . " \n"
+            ,
+          SUBJECT  => "$lang{MONTH}: $lang{DEPOSIT} / $lang{CREDIT} / $lang{TRAFFIC}",
+        );
+      }
+
+      # 7 - credit expired
+      elsif ($user->{REPORT_ID} == 7) {
+        if (defined($user->{CREDIT_EXPIRE}) && $user->{CREDIT_EXPIRE} <= $user->{VALUE}) {
+          %PARAMS = (
+            DESCRIBE           => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE            => "$lang{CREDIT} $lang{EXPIRE}",
+            SUBJECT            => "$lang{CREDIT} $lang{EXPIRE}",
+            CREDIT_EXPIRE_DAYS => $user->{CREDIT_EXPIRE}
+          );
+        }
+        else {
+          next;
+        }
+      }
+
+      # 8 - login disable
+      elsif ($user->{REPORT_ID} == 8) {
+        if ($user->{DISABLE}) {
+          %PARAMS = (
+            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE  => "$lang{LOGIN} $lang{DISABLE}",
+            SUBJECT  => "$lang{LOGIN} $lang{DISABLE}"
+          );
+        }
+        else {
+          next;
+        }
+      }
+
+      # 9 - X days for expire
+      elsif ($user->{REPORT_ID} == 9) {
+        #if ( $user->{TP_EXPIRE} == $user->{VALUE} ){
+        if ($user->{EXPIRE_DAYS} == $user->{VALUE}) {
+          %PARAMS = (
+            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE  => "$lang{DAYS_TO_EXPIRE}: " . ($user->{EXPIRE_DAYS} || q{}),
+            SUBJECT  => "$lang{TARIF_PLAN} $lang{EXPIRE}"
+          );
+        }
+        else {
+          next;
+        }
+      }
+
+      # 10 - TOO SMALL DEPOSIT FOR NEXT MONTH WORK
+      elsif ($user->{REPORT_ID} == 10) {
+        if ($user->{RECOMMENDED_PAYMENT} * $reduction_division > 0) {
+          %PARAMS = (
+            DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE             =>
+              "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN}: $user->{TP_MONTH_FEE} $lang{RECOMMENDED_PAYMENT}: $user->{RECOMMENDED_PAYMENT}"
+              ,
+            SUBJECT             => $lang{ERR_SMALL_DEPOSIT},
+            RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
+          );
+        }
+        else {
+          next;
+        }
+      }
+      #Report 11 - Small deposit for next month activation with predays XX trigger
+      elsif ($user->{REPORT_ID} == 11 && $user->{EXPIRE_DAYS} <= $user->{VALUE} && !$internet_status) {
+        if ($user->{TP_MONTH_FEE} && $user->{TP_MONTH_FEE} > $user->{DEPOSIT}) {
+          my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0);
+          %PARAMS = (
+            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE  => '', #"$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
+            SUBJECT  => $lang{DEPOSIT_BELOW}
+          );
+        }
+        else {
+          next;
+        }
+      }
+      #Report 13 All service expired throught
+      elsif ($user->{REPORT_ID} == 13 && !$internet_status) {
+        my $expire_days = $user->{EXPIRE_DAYS} || 0;
+        _log('LOG_DEBUG', "(Day fee: $total_daily_fee / $expire_days -> $user->{VALUE}");
+
+        if ($expire_days <= $user->{VALUE} && $expire_days >= 0 && $user->{RECOMMENDED_PAYMENT} > 0) {
+          $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $expire_days /;
+          %PARAMS = (
+            DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+            MESSAGE             => "",
+            SUBJECT             => $lang{ALL_SERVICE_EXPIRE},
+            RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
+          );
+        }
+        else {
+          next;
+        }
+      }
+      #Report 14. Notify before abon
+      elsif ($user->{REPORT_ID} == 14) {
+        if ($user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{REDUCTION} < 100) {
+          %PARAMS = (
+            DESCRIBE => $lang{REPORTS},
+            MESSAGE  => "",
+            SUBJECT  => $lang{CURRENT_DEPOSIT},
+            TP_NAME  => $user->{TP_NAME}
+          );
+        }
+        else {
+          next;
+        }
+      }
+      #Report 15: Internet change status
+      elsif ($user->{REPORT_ID} == 15) {
+        if ($internet_status && $internet_status != 3) {
+          my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+            "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}",
+            "$lang{VIRUS_ALERT}");
+
+          my $message = "Internet: $service_status[$internet_status]";
+          if ($internet_status == 5) {
+            $message .= "\n $lang{RECOMMENDED_PAYMENT}:  $user->{RECOMMENDED_PAYMENT}\n";
+          }
+
+          %PARAMS = (
+            DESCRIBE => $lang{REPORTS},
+            MESSAGE  => $message,
+            SUBJECT  => "Internet: $service_status[$internet_status]",
+            TP_NAME  => $user->{TP_NAME}
+          );
+        }
+      }
+      # Reports 16 Next period TP
+      elsif ($user->{REPORT_ID} == 16) {
+        # TODO: delete next row if something broken fix for XX report if no needed
+        next if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE});
+        $Shedule->list({
+          UID        => $user->{UID},
+          Y          => '',
+          M          => '',
+          NEXT_MONTH => 1
+        });
+
+        my $recomended_payment = $user->{RECOMMENDED_PAYMENT};
+        my $message .= "\n $lang{RECOMMENDED_PAYMENT}: $recomended_payment\n";
+
+        %PARAMS = (
+          DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+          MESSAGE  => "$message",
+          SUBJECT  => "$lang{ALL_SERVICE_EXPIRE}",
+        );
+      }
+      #Custom reports
+      elsif ($user->{module}) {
+        my $load_mod = "Ureports::Plugins::$user->{module}";
+
+        my $Report = load_plugin($load_mod, {
+          SERVICE      => $Ureports,
+          RETURN_ERROR => 1,
+          DEBUG        => $debug > 2 ? 1 : 0,
+        });
+
+        if ($Report->{errno}) {
+          my $mess = ($Report->{errno} || 0) . ' ' . ($Report->{errstr} || '');
+          print "\n$mess\n";
           next;
         }
 
-        my $reduction_division = ($user->{REDUCTION} >= 100) ? 1 : ((100 - $user->{REDUCTION}) / 100);
-
-        # Recomended payments
-        my $total_daily_fee = 0;
-        $user->{RECOMMENDED_PAYMENT} = 0;
-
-        my $service_info = get_services({
-          UID           => $user->{UID},
-          REDUCTION     => $user->{REDUCTION},
-          SKIP_DISABLED => 1,
-          PAYMENT_TYPE  => 0
-        },
-          { SKIP_MODULES => 'Ureports,Sqlcmd' }
-        );
-
-        foreach my $service (@{$service_info->{list}}) {
-          $user->{RECOMMENDED_PAYMENT} += $service->{SUM};
+        if ($debug > 2) {
+          $Report->{debug} = 1;
+        }
+        my $report_function = $Report->{SYS_CONF}{REPORT_FUNCTION};
+        if ($debug > 1) {
+          print "Function: $report_function Name: $Report->{SYS_CONF}{REPORT_NAME} Tpl: $Report->{SYS_CONF}{TEMPLATE}\n";
         }
 
-        if ($service_info->{distribution_fee}) {
-          $total_daily_fee = $service_info->{distribution_fee};
+        $Report->$report_function($user, { %$argv, DATE => $DATE });
+        if ($Report->{errno}) {
+          print "ERROR: [$Report->{errno}] $Report->{errstr}\n";
         }
 
-        $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
-
-        if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
-          $user->{RECOMMENDED_PAYMENT} = sprintf("%.2f",
-            ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} > 0) ? ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} + 0.01) : 0);
-        }
-        else {
-          $user->{RECOMMENDED_PAYMENT} += sprintf("%.2f", abs($user->{DEPOSIT} + $user->{CREDIT}));
-        }
-
-        if ($conf{UREPORTS_ROUNDING} && $user->{RECOMMENDED_PAYMENT} > 0) {
-          if (int($user->{RECOMMENDED_PAYMENT}) < $user->{RECOMMENDED_PAYMENT}) {
-            $user->{RECOMMENDED_PAYMENT} = int($user->{RECOMMENDED_PAYMENT} + 1);
-          }
-        }
-
-        $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
-        $user->{EXPIRE_DAYS} = 0;
-        if ($total_daily_fee > 0) {
-          $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $reduction_division / $total_daily_fee);
-        }
-        else {
-          require Control::Service_control;
-          Control::Service_control->import();
-
-          my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
-          my $warnings = $Service_control->service_warning({
-            UID    => $user->{UID},
-            ID     => $user->{SERVICE_ID},
-            MODULE => 'Internet'
-          });
-
-          #Internet expire
-          $user->{EXPIRE_DAYS} = $warnings->{DAYS_TO_FEE} || 0;
-          $user->{TP_EXPIRE} = $user->{EXPIRE_DAYS};
-        }
-
-        $user->{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
-
-        #Report 1 Deposit below and internet status active
-        if ($user->{REPORT_ID} == 1) {
-          if ($user->{VALUE} > $user->{DEPOSIT} && !$internet_status) {
-            %PARAMS = (
-              DESCRIBE        => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE         => "$lang{DEPOSIT}: $user->{DEPOSIT}",
-              MESSAGE_SUBJECT => $lang{DEPOSIT_BELOW}
-              # SUBJECT  => "$lang{DEPOSIT_BELOW}"
-            );
-          }
-          else {
-            next;
-          }
-        }
-
-        #Report 2 Deposit + credit below
-        elsif ($user->{REPORT_ID} == 2) {
-          if ($user->{VALUE} > $user->{DEPOSIT} + $user->{CREDIT}) {
-            %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}",
-              SUBJECT  => "$lang{DEPOSIT_CREDIT_BELOW}"
-            );
-          }
-          else {
-            next;
-          }
-        }
-
-        #Report 3 Prepaid traffic rest
-        elsif ($user->{REPORT_ID} == 3) {
-          if ($Sessions->prepaid_rest({ UID => $user->{UID}, })) {
-            %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              SUBJECT  => "$lang{PREPAID_TRAFFIC_BELOW}"
-            );
-
-            $list = $Sessions->{INFO_LIST};
-            #my $rest_traffic = '';
-            my $rest = 0;
-            foreach my $line (@{$list}) {
-              $rest = ($conf{INTERNET_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} } : $Sessions->{REST}->{ $line->{traffic_class} };
-
-              #REST MB
-              $PARAMS{REST} = $rest;
-              #REST GB
-              $PARAMS{REST_GB} = sprintf("%.2f", ($rest / 1024));
-              $PARAMS{REST_DIMENSION} = int2byte($rest);
-              $PARAMS{PREPAID} = $line->{prepaid};
-
-              $PARAMS{'REST_' . ($line->{traffic_class} || 0)} = $rest;
-              $PARAMS{'REST_DIMENSION_' . ($line->{traffic_class} || 0)} = int2byte($rest);
-              $PARAMS{'PREPAID_' . ($line->{traffic_class} || 0)} = $line->{prepaid} || 0;
-
-              if ($rest < $user->{VALUE}) {
-                $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n"
-                  . "$lang{END}: $line->{interval_end}\n"
-                  . "$lang{TOTAL}: $line->{prepaid}\n"
-                  . "\n $lang{REST}: "
-                  . $rest . "\n================";
-              }
-            }
-
-            if (!$PARAMS{MESSAGE}) {
-              next;
-            }
-          }
-        }
-        elsif ($user->{REPORT_ID} == 5 && $D == 1) {
-          $Sessions->list({
-            UID    => $user->{UID},
-            PERIOD => 6
-          });
-
-          my $traffic_in = ($Sessions->{TRAFFIC_IN}) ? $Sessions->{TRAFFIC_IN} : 0;
-          my $traffic_out = ($Sessions->{TRAFFIC_OUT}) ? $Sessions->{TRAFFIC_IN} : 0;
-          my $traffic_sum = $traffic_in + $traffic_out;
-
-          %PARAMS = (
-            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-            MESSAGE  =>
-              "$lang{MONTH}:\n $lang{DEPOSIT}: $user->{DEPOSIT}\n $lang{CREDIT}: $user->{CREDIT}\n $lang{TRAFFIC}: $lang{RECV}: " . int2byte($traffic_in) . " $lang{SEND}: " . int2byte($traffic_out) . " \n  $lang{SUM}: " . int2byte($traffic_sum) . " \n"
-              ,
-            SUBJECT  => "$lang{MONTH}: $lang{DEPOSIT} / $lang{CREDIT} / $lang{TRAFFIC}",
-          );
-        }
-
-        # 7 - credit expired
-        elsif ($user->{REPORT_ID} == 7) {
-          if (defined($user->{CREDIT_EXPIRE}) && $user->{CREDIT_EXPIRE} <= $user->{VALUE}) {
-            %PARAMS = (
-              DESCRIBE           => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE            => "$lang{CREDIT} $lang{EXPIRE}",
-              SUBJECT            => "$lang{CREDIT} $lang{EXPIRE}",
-              CREDIT_EXPIRE_DAYS => $user->{CREDIT_EXPIRE}
-            );
-          }
-          else {
-            next;
-          }
-        }
-
-        # 8 - login disable
-        elsif ($user->{REPORT_ID} == 8) {
-          if ($user->{DISABLE}) {
-            %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{LOGIN} $lang{DISABLE}",
-              SUBJECT  => "$lang{LOGIN} $lang{DISABLE}"
-            );
-          }
-          else {
-            next;
-          }
-        }
-
-        # 9 - X days for expire
-        elsif ($user->{REPORT_ID} == 9) {
-          #if ( $user->{TP_EXPIRE} == $user->{VALUE} ){
-          if ($user->{EXPIRE_DAYS} == $user->{VALUE}) {
-            %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{DAYS_TO_EXPIRE}: " . ($user->{EXPIRE_DAYS} || q{}),
-              SUBJECT  => "$lang{TARIF_PLAN} $lang{EXPIRE}"
-            );
-          }
-          else {
-            next;
-          }
-        }
-
-        # 10 - TOO SMALL DEPOSIT FOR NEXT MONTH WORK
-        elsif ($user->{REPORT_ID} == 10) {
-          if ($user->{RECOMMENDED_PAYMENT} > 0 && $user->{RECOMMENDED_PAYMENT} * $reduction_division > $user->{DEPOSIT} + $user->{CREDIT}) {
-            %PARAMS = (
-              DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE             =>
-                "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN} $user->{TP_MONTH_FEE} $lang{RECOMMENDED_PAYMENT}: $user->{RECOMMENDED_PAYMENT}"
-                ,
-              SUBJECT             => $lang{ERR_SMALL_DEPOSIT},
-              RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
-            );
-          }
-          else {
-            next;
-          }
-        }
-        #Report 11 - Small deposit for next month activation with predays XX trigger
-        elsif ($user->{REPORT_ID} == 11 && $user->{EXPIRE_DAYS} <= $user->{VALUE} && !$internet_status) {
-          if ($user->{TP_MONTH_FEE} && $user->{TP_MONTH_FEE} > $user->{DEPOSIT}) {
-            my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0);
-            %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => '', #"$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
-              SUBJECT  => $lang{DEPOSIT_BELOW}
-            );
-          }
-          else {
-            next;
-          }
-        }
-        #Report 13 All service expired throught
-        elsif ($user->{REPORT_ID} == 13 && !$internet_status) {
-          if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE}) {
-            $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
-
-            if ($user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{EXPIRE_DAYS} >= 0 && $user->{RECOMMENDED_PAYMENT} > 0) {
-              $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $user->{EXPIRE_DAYS} /;
-              %PARAMS = (
-                DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-                MESSAGE             => "",
-                SUBJECT             => $lang{ALL_SERVICE_EXPIRE},
-                RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
-              );
-            }
-            else {
-              next;
-            }
-          }
-        }
-        #Report 14. Notify before abon
-        elsif ($user->{REPORT_ID} == 14) {
-          if ($user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{REDUCTION} < 100) {
-            %PARAMS = (
-              DESCRIBE => $lang{REPORTS},
-              MESSAGE  => "",
-              SUBJECT  => $lang{CURRENT_DEPOSIT},
-              TP_NAME  => $user->{TP_NAME}
-            );
-          }
-          else {
-            next;
-          }
-        }
-        #Report 15: Internet change status
-        elsif ($user->{REPORT_ID} == 15) {
-          if ($internet_status && $internet_status != 3) {
-            my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
-              "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}",
-              "$lang{VIRUS_ALERT}");
-
-            my $message = "Internet: $service_status[$internet_status]";
-            if ($internet_status == 5) {
-              $message .= "\n $lang{RECOMMENDED_PAYMENT}:  $user->{RECOMMENDED_PAYMENT}\n";
-            }
-
-            %PARAMS = (
-              DESCRIBE => $lang{REPORTS},
-              MESSAGE  => $message,
-              SUBJECT  => "Internet: $service_status[$internet_status]",
-              TP_NAME  => $user->{TP_NAME}
-            );
-          }
-        }
-        # Reports 16 Next period TP
-        elsif ($user->{REPORT_ID} == 16) {
-          # TODO: delete next row if something broken fix for XX report if no needed
-          next if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE});
-          $Shedule->list({
-            UID        => $user->{UID},
-            Y          => '',
-            M          => '',
-            NEXT_MONTH => 1
-          });
-
-          my $recomended_payment = $user->{RECOMMENDED_PAYMENT};
-          my $message .= "\n $lang{RECOMMENDED_PAYMENT}: $recomended_payment\n";
-
-          %PARAMS = (
-            DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-            MESSAGE  => "$message",
-            SUBJECT  => "$lang{ALL_SERVICE_EXPIRE}",
-          );
-        }
-        #Custom reports
-        elsif ($user->{module}) {
-          my $load_mod = "Ureports::Plugins::$user->{module}";
-
-          my $Report = load_plugin($load_mod, {
-            SERVICE      => $Ureports,
-            RETURN_ERROR => 1,
-            DEBUG        => $debug > 2 ? 1 : 0,
-          });
-
-          if ($Report->{errno}) {
-            my $mess = ($Report->{errno} || 0) . ' ' . ($Report->{errstr} || '');
-            print "\n$mess\n";
-            next;
-          }
-
-          if ($debug > 2) {
-            $Report->{debug} = 1;
-          }
-          my $report_function = $Report->{SYS_CONF}{REPORT_FUNCTION};
+        if ($Report->{PARAMS}) {
+          %PARAMS = %{$Report->{PARAMS}};
           if ($debug > 1) {
-            print "Function: $report_function Name: $Report->{SYS_CONF}{REPORT_NAME} Tpl: $Report->{SYS_CONF}{TEMPLATE}\n";
-          }
-
-          $Report->$report_function($user, { %$argv, DATE => $DATE });
-          if ($Report->{errno}) {
-            print "ERROR: [$Report->{errno}] $Report->{errstr}\n";
-          }
-
-          if ($Report->{PARAMS}) {
-            %PARAMS = %{$Report->{PARAMS}};
-            if ($debug > 1) {
-              print "ADD PARAMS\n";
-              foreach my $key (sort keys %PARAMS) {
-                print " $key -> $PARAMS{$key}\n";
-              }
-              print "Template: " . ($Report->{SYS_CONF}{TEMPLATE} || q{}) . "\n";
+            print "ADD PARAMS\n";
+            foreach my $key (sort keys %PARAMS) {
+              print " $key -> $PARAMS{$key}\n";
             }
+            print "Template: " . ($Report->{SYS_CONF}{TEMPLATE} || q{}) . "\n";
           }
-          else {
-            if ($debug > 1 && ($Report->{SYS_CONF} && !$Report->{SYS_CONF}->{LOCAL_SEND})) {
-              print "NO PARAMS\n";
-            }
-            next;
-          }
-
-          $PARAMS{MESSAGE_TEPLATE} = $Report->{SYS_CONF}{TEMPLATE};
         }
-      }
-      else {
-        print "[ $user->{UID} ] $user->{LOGIN} - Don't have money account\n";
-        next;
+        else {
+          if ($debug > 1 && ($Report->{SYS_CONF} && !$Report->{SYS_CONF}->{LOCAL_SEND})) {
+            print "NO PARAMS\n";
+          }
+          next;
+        }
+
+        $PARAMS{MESSAGE_TEPLATE} = $Report->{SYS_CONF}{TEMPLATE};
       }
 
       next if (scalar keys %PARAMS <= 0);
+
+      if ($attr->{SEND_TYPE}) {
+        if ($user->{DESTINATION_TYPE} =~ /$attr->{SEND_TYPE},?|$attr->{SEND_TYPE}$/) {
+          my @types = split(',\s?', $user->{DESTINATION_TYPE});
+          my @destinations = split(',\s?', $user->{DESTINATION_ID});
+
+          for(my $i=0; $i<=$#types; $i++) {
+            if ($attr->{SEND_TYPE} == $types[$i]) {
+              $user->{DESTINATION_TYPE} = $types[$i];
+              $user->{DESTINATION_ID} = $destinations[$i];
+              last;
+            }
+          }
+        }
+        else {
+          next;
+        }
+      }
+
+      $user->{DESTINATION_TYPE} //= q{};
+      $user->{DESTINATION_ID} //= q{};
 
       #Send reports section
       my $send_status = $Ureports_base->ureports_send_reports(
@@ -603,7 +621,7 @@ sub ureports_periodic_reports {
         }
       );
 
-      $i++ if ($send_status);
+      $sended_messages++ if ($send_status);
 
       if ($debug < 5 && !$PARAMS{SKIP_UPDATE_REPORT} && $send_status) {
         $Ureports->tp_user_reports_update({
@@ -616,7 +634,7 @@ sub ureports_periodic_reports {
         my $sum = $user->{MSG_PRICE};
 
         if ($debug > 4) {
-          $debug_output .= " UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}\n";
+          _log('LOG_DEBUG', " UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}");
         }
         else {
           $Fees->take($user, $sum, { %PARAMS });
@@ -628,18 +646,80 @@ sub ureports_periodic_reports {
             print "\n";
           }
           elsif ($debug > 0) {
-            $debug_output .= " $user->{LOGIN}  UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}\n" if ($debug > 0);
+            _log('LOG_NOTICE', " $user->{LOGIN}  UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}");
           }
         }
       }
 
-      $debug_output .= "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DESTINATION_TYPE: $user->{DESTINATION_TYPE} DESTINATION: $user->{DESTINATION_ID}\n" if ($debug > 0);
+      _log('LOG_DEBUG', "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DESTINATION_TYPE: $user->{DESTINATION_TYPE} DESTINATION: $user->{DESTINATION_ID}");
     }
   }
 
-  print "Total sent: $i\n" if ($debug > 1);
+  my $gt = q{};
+  if ($debug > 1) {
+    $gt = 'GT: ' . gen_time($begin_time);
+  }
 
-  return $debug_output;
+  _log('LOG_NOTICE', "Total sent: $sended_messages $gt");
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _log($type, $message, $attr) - inner log function for billd
+
+    Arguments:
+      $type
+        Error levels
+
+        LOG_EMERG   => 0
+        LOG_ALERT   => 1
+        LOG_CRIT    => 2
+        LOG_ERR     => 3
+        LOG_WARNING => 4
+        LOG_NOTICE  => 5
+        LOG_INFO    => 6
+        LOG_DEBUG   => 7
+        LOG_SQL     => 8
+
+      $message,
+      $attr
+        EVENT_TITLE
+
+    Results:
+
+=cut
+#**********************************************************
+sub _log {
+  my ($type, $message, $attr) = @_;
+
+  my %ERRORS = (
+    LOG_EMERG   => 0,
+    LOG_ALERT   => 1,
+    LOG_CRIT    => 2,
+    LOG_ERR     => 3,
+    LOG_WARNING => 4,
+    LOG_NOTICE  => 5,
+    LOG_INFO    => 6,
+    LOG_DEBUG   => 7,
+    LOG_SQL     => 8,
+  );
+
+  if ($debug < 3 && $type eq 'LOG_DEBUG') {
+    return 1;
+  }
+  elsif ($ERRORS{$type} > ($debug || 0) + 3) {
+    return 1;
+  }
+
+  my $log_message = "$type: $message\n";
+  print $log_message;
+
+  if ($attr->{EVENT_TITLE}) {
+    _generate_event($message, $attr);
+  }
+
+  return $log_message;
 }
 
 
@@ -654,8 +734,15 @@ Ureports sender ($version).
   DEBUG=0..6           - Debug mode
   DATE="YYYY-MM-DD"    - Send date
   REPORT_IDS=[1,2,4..] - reports ids
+  SEND_TYPE=[1,9]      - Select Send type (
+      1 - sms,
+      9 - email,
+      6 - Telegram,
+      14- Viber
+      check sender)
   LOGIN=[...,]         - make reports for some logins
   TP_IDS=[...,]        - make reports for some tarif plans
+  LIMIT=[...]          - Send Limit messages
   help                 - this help
 [END]
 

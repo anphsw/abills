@@ -2,6 +2,8 @@
   $ref: "./paths/login.yaml"
 /admins/{aid}:
   $ref: "./paths/admins_aid.yaml"
+/admins/self:
+  $ref: "./paths/self.yaml"
 /admins:
   $ref: "./paths/admins.yaml"
 /admins/{aid}/permissions:

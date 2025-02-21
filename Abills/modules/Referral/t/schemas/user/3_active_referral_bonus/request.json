@@ -1,0 +1,5 @@
+{
+  "name": "USER_ACTIVE_REFERRAL",
+  "method": "POST",
+  "path": "user/referral/bonus"
+}

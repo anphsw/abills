@@ -1,0 +1,20 @@
+post:
+  tags:
+    - crm
+  summary: Добавление добавление лида извне
+  description: На данный момент поддерживается добавление лидов только через ботов
+  operationId: crmAddLeadsSocial
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/leadsSocial.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addLeadsSocialResponse200.yaml"

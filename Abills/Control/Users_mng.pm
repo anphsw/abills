@@ -15,7 +15,6 @@ require Abills::Misc;
 our (
   $db,
   %lang,
-  $admin,
   %conf,
   %permissions,
   @MONTHES,
@@ -32,6 +31,8 @@ our (
 
 our Abills::HTML $html;
 our Users $users;
+our Admins $admin;
+
 my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
 
 
@@ -100,34 +101,12 @@ sub form_user_profile {
     require Userside::Userside_web;
     Userside::Userside_web::userside_page($user_info->{UID});
   }
+  elsif($FORM{pay_to}) {
+    form_pay_to($user_info);
+  }
   else {
     delete($FORM{add});
-    require Control::Services;
-    my $service_info = get_services($user_info, {});
-    my $pre_info = '';
-
-    foreach my $service (@{$service_info->{list}}) {
-      my $calculated_discount = $service->{ORIGINAL_SUM} - $service->{SUM};
-      my $formatted_sum = sprintf("%.2f", $service->{SUM} || 0);
-      my $formatted_discount = sprintf("%.2f", $calculated_discount || 0);
-      my $labeled_service = "$service->{SERVICE_NAME} $service->{SERVICE_DESC}: ";
-      my $labeled_discount = $calculated_discount ? " ($lang{REDUCTION}: $formatted_discount)" : '';
-
-      $pre_info .= $labeled_service
-        . $formatted_sum
-        . $labeled_discount . "\n";
-    }
-
-    $pre_info .= "$lang{TOTAL}: " . sprintf("%.2f", $service_info->{total_sum} || 0);
-
-    if ($service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $user_info->{REDUCTION} < 100 && defined($user_info->{DEPOSIT})) {
-      my $days_to_end = int(($user_info->{DEPOSIT} || 0) / $service_info->{distribution_fee});
-      $pre_info .= " $lang{DAYS}: " . sprintf("%d", $days_to_end);
-      if ($days_to_end > 0) {
-        my ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
-        $pre_info .= " / $Y-$M-$D ";
-      }
-    }
+    my $pre_info = form_user_banner($user_info);
 
     my ($service_info0, $service_info1, $service_info2, $service_info3) = user_services({ USER_INFO => $user_info, PROFILE_MODE => 1 });
 
@@ -187,7 +166,7 @@ sub form_user_profile {
     }
 
     $html->tpl_show(templates('form_user_profile'), {
-      DASHBOARD      => (defined $service_info->{total_sum}) ? $html->message('info', '', $pre_info, { OUTPUT2RETURN => 1 }) : q{},
+      DASHBOARD      => $pre_info,
       LEFT_PANEL     => $left_panel,
       RIGHT_PANEL    => $right_panel,
       SERVICE_INFO_3 => $service_info3,
@@ -196,6 +175,172 @@ sub form_user_profile {
         ID => 'form_user_profile'
       });
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_user_info($user_info) - User info banner
+
+  Arguments:
+    $user_info
+
+  Return:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_user_banner {
+  my ($user_info)=@_;
+
+  require Control::Services;
+  my $service_info = get_services($user_info, {});
+  my $pre_info = '';
+
+  foreach my $service (@{$service_info->{list}}) {
+    my $calculated_discount = $service->{ORIGINAL_SUM} - $service->{SUM};
+    my $formatted_sum = sprintf("%.2f", $service->{SUM} || 0);
+    my $formatted_discount = sprintf("%.2f", $calculated_discount || 0);
+    my $labeled_service = "$service->{SERVICE_NAME} $service->{SERVICE_DESC}: ";
+    my $labeled_discount = $calculated_discount ? " ($lang{REDUCTION}: $formatted_discount)" : '';
+
+    $pre_info .= $labeled_service
+      . $formatted_sum
+      . $labeled_discount . "\n";
+  }
+
+  $pre_info .= "$lang{TOTAL}: " . sprintf("%.2f", $service_info->{total_sum} || 0);
+  $pre_info .= ' '. $html->button($lang{PAY_TO}, "index=$index&pay_to=1&UID=$user_info->{UID}", { class => 'payments' }) . $html->br();
+
+  if ($service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $user_info->{REDUCTION} < 100 && defined($user_info->{DEPOSIT})) {
+    my $days_to_end = int(($user_info->{DEPOSIT} || 0) / $service_info->{distribution_fee});
+    $pre_info .= " $lang{DAYS}: " . sprintf("%d", $days_to_end);
+    if ($days_to_end > 0) {
+      my ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
+      $pre_info .= " / $Y-$M-$D ";
+    }
+  }
+
+  return (defined $service_info->{total_sum}) ? $html->message('info', '', $pre_info, { OUTPUT2RETURN => 1 }) : q{};
+}
+
+#**********************************************************
+=head2 form_pay_to($user_info) - User info banner
+
+  Arguments:
+    $user_info
+
+  Return:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_pay_to {
+  my ($user_info)=@_;
+
+  my %info = (
+    UID              => $user_info->{UID},
+    DATE             => $FORM{DATE},
+    DEBUG            => $FORM{DEBUG},
+    DISCOUNT_DAYS    => 0,
+    DISCOUNT_MONTHES => 0,
+    DAYS             => 0,
+    MONTHES          => 0
+  );
+
+  my $start_date = $DATE;
+  my ($Y,$M, $D);
+
+  if ($FORM{DATE}) {
+
+    my $reduction_days = 0;
+    if ($user_info->{REDUCTION_DATE} && $user_info->{REDUCTION_DATE} ne '0000-00-00') {
+      $reduction_days = date_diff($FORM{DATE}, $user_info->{REDUCTION_DATE});
+      if ($FORM{DEBUG}) {
+        print "FINAL: $FORM{DATE}  REDUCTION: $user_info->{REDUCTION_DATE} / $reduction_days";
+        print $html->br();
+      }
+
+      if ($reduction_days < 0) {
+        ($Y,$M, $D)=split(/\-/, $start_date);
+        $info{DISCOUNT_DAYS} = date_diff($start_date, $user_info->{REDUCTION_DATE});
+        my $days_in_month = days_in_month({ DATE => $start_date });
+        $info{DISCOUNT_MONTHES}= ($info{DISCOUNT_DAYS}+$D > $days_in_month) ? int(($info{DISCOUNT_DAYS} - ($days_in_month-$D)) / 30 + 1) : 0;
+        $start_date = $user_info->{REDUCTION_DATE};
+      }
+    }
+
+    ($Y, $M, $D) = split(/\-/, $start_date);
+    $info{DAYS} = date_diff($start_date, $FORM{DATE});
+    my $days_in_month = days_in_month({ DATE => $start_date });
+    $info{MONTHES} = ($info{DAYS} + $D > $days_in_month) ? int(($info{DAYS} - ($days_in_month - $D)) / 30 + 1) : 0;
+
+    if ($reduction_days > 0) {
+      $info{DISCOUNT_DAYS}=$info{DAYS};
+      $info{DISCOUNT_MONTHES}=$info{MONTHES};
+      $info{DAYS}=0;
+      $info{MONTHES}=0;
+    }
+
+    require Control::Services;
+    my $service_info = get_services($user_info, {});
+
+    my $sum = 0;
+    foreach my $service (@{$service_info->{list}}) {
+      my $to_pay = 0;
+      if ($service->{MONTH}) {
+        if ($service->{ABON_DISTRIBUTION}) {
+          $to_pay += sprintf("%.2f", $service->{ORIGINAL_SUM}/30 * $info{DAYS});
+        }
+        else {
+          $to_pay += sprintf("%.2f", $service->{ORIGINAL_SUM} * $info{MONTHES});
+        }
+
+        if ($info{DISCOUNT_MONTHES}) {
+          if ($service->{ABON_DISTRIBUTION}) {
+            $to_pay += sprintf("%.2f", $service->{SUM}/30 * $info{DISCOUNT_MONTHES});
+          }
+          else {
+            $to_pay += sprintf("%.2f", $service->{SUM} * $info{DISCOUNT_MONTHES});
+          }
+        }
+      }
+      else {
+        $to_pay += sprintf("%.2f", $service->{DAY} * $info{DAYS});
+        if ($info{DISCOUNT_DAYS}) {
+          $to_pay += sprintf("%.2f", $service->{DAY} * $info{DISCOUNT_DAYS});
+        }
+      }
+
+      if ($FORM{DEBUG}) {
+        print "SERVICE: $service->{SERVICE_NAME} $service->{SERVICE_DESC} SUM: $service->{SUM} TYPE: "
+          . ($service->{MONTH} ? ' month ' : ' day ')
+          . "DISTRIBUTION: $service->{ABON_DISTRIBUTION} TO_PAY: $to_pay<br>";
+      }
+
+      $sum += $to_pay;
+    }
+
+    if ($FORM{DEBUG}) {
+      print "DEPOSIT: $user_info->{DEPOSIT}<br>";
+    }
+
+    if ($user_info->{DEPOSIT}) {
+      if ($user_info->{DEPOSIT} > 0) {
+        $sum -= $user_info->{DEPOSIT};
+      }
+      else {
+        $sum += abs($user_info->{DEPOSIT});
+      }
+    }
+
+    $info{SUM}=sprintf("%.2f", ($sum && $sum > 0) ? $sum : 0);
+    $info{PAY_LINK} = $html->button("$lang{PAYMENT}: $info{SUM}", "index=2&UID=$user_info->{UID}&SUM=$info{SUM}", { class => 'btn btn-lg btn-success' });
+  }
+
+  $info{ACTION_LNG} = $lang{RECALCULATE};
+
+  $html->tpl_show(templates('form_pay_to'), \%info);
 
   return 1;
 }
@@ -395,36 +540,35 @@ sub form_user_info {
     VALUE => $user_info->{REGISTRATION} },
     { OUTPUT2RETURN => 1 });
 
-  if ($conf{HOLDUP_ALL}) {
+  #if ($conf{HOLDUP_ALL}) {
+  my $user_status_list = $user_info->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
+  my %user_status_hash = ();
+  my @user_status_style = ();
+  foreach my $line (@$user_status_list) {
+    my $color = $line->{color} || '';
+    $user_status_hash{$line->{id}} = ((exists $line->{name}) ? _translate($line->{name}) : '');
 
-    my $user_status_list = $user_info->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
-    my %user_status_hash = ();
-    my @user_status_style = ();
-    foreach my $line (@$user_status_list) {
-      my $color = $line->{color} || '';
-      $user_status_hash{$line->{id}} = ((exists $line->{name}) ? _translate($line->{name}) : '');
-
-      if (!$attr->{SKIP_COLORS}) {
-        $user_status_hash{$line->{id}} .= ":$color" if $attr->{HASH_RESULT};
-        $user_status_style[$line->{id}] = '#' . $color;
-      }
+    if (!$attr->{SKIP_COLORS}) {
+      $user_status_hash{$line->{id}} .= ":$color" if ($attr->{HASH_RESULT});
+      $user_status_style[$line->{id}] = '#' . $color;
     }
-    $user_info->{FORM_DISABLE} = $html->form_select('DISABLE', {
-      SELECTED     => $user_info->{DISABLE},
-      SEL_HASH     => \%user_status_hash,
-      STYLE        => \@user_status_style,
-      SORT_KEY_NUM => 1,
-      NO_ID        => 1,
-      EXT_BUTTON   => $html->button('', "UID=$uid&Shedule=status&index=$index", {
-        class    => 'btn-sm hidden-print text-blue',
-        ADD_ICON => 'fa fa-calendar',
-      })
-    });
   }
-  else {
-    $user_info->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
-  <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
-  }
+  $user_info->{FORM_DISABLE} = $html->form_select('DISABLE', {
+    SELECTED     => $user_info->{DISABLE},
+    SEL_HASH     => \%user_status_hash,
+    STYLE        => \@user_status_style,
+    SORT_KEY_NUM => 1,
+    NO_ID        => 1,
+    EXT_BUTTON   => $html->button('', "UID=$uid&Shedule=status&index=$index", {
+      class    => 'btn-sm hidden-print text-blue',
+      ADD_ICON => 'fa fa-calendar',
+    })
+  });
+  #}
+  #else {
+  #  $user_info->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
+  #<label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
+  #}
 
   if ($user_info->{DISABLE} && $user_info->{DISABLE} =~ /\d+/) {
     if ($conf{HOLDUP_ALL} || $user_info->{DISABLE} == 1) {
@@ -439,6 +583,7 @@ sub form_user_info {
         SORT       => 1,
         DESC       => 'DESC',
         SKIP_TOTAL => 1,
+        MODULE     => '_EMPTY_',
         COLS_NAME  => 1
       });
 
@@ -484,6 +629,11 @@ sub form_user_info {
   if ($permissions{5}) {
     my $info_field_index = get_function_index('form_info_fields');
     $user_info->{ADD_INFO_FIELD} = $html->button("$lang{ADD} $lang{INFO_FIELDS}", "index=$info_field_index", { class => 'add', ex_params => ' target=_info_fields' });
+  }
+
+  if ($permissions{0}{36} && $user_info->{COMPANY_ID}) {
+    $user_info->{BTN_COMPANY} = $html->button(($user_info->{COMPANY_NAME} || ''),
+      "index=13&COMPANY_ID=$user_info->{COMPANY_ID}", { target => '_blank', BUTTON => 1, class => 'text-right' });
   }
 
   $user_info->{AID} = $admin->{AID};
@@ -589,11 +739,11 @@ sub form_user_change {
     my $max_credit = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $admin->{CREDIT_DAYS}));
     if ($form->{CREDIT_DATE} && $form->{CREDIT_DATE} ne '0000-00-00' && date_diff($DATE, $form->{CREDIT_DATE}) > $admin->{CREDIT_DAYS}) {
       $form->{CREDIT_DATE} = $max_credit;
-      $html->message('warn', $lang{ERROR}, "Maximum date $max_credit ($admin->{CREDIT_DAYS})");
+      $html->message('warn', $lang{ERROR}, "MAXIMUM_DATE $max_credit ($admin->{CREDIT_DAYS})");
     }
     elsif ($form->{CREDIT_DATE} && $form->{CREDIT_DATE} eq '0000-00-00') {
       $form->{CREDIT_DATE} = $max_credit;
-      $html->message('warn', $lang{ERROR}, "Maximum date $max_credit ($admin->{CREDIT_DAYS})");
+      $html->message('warn', $lang{ERROR}, "MAXIMUM_DATE $max_credit ($admin->{CREDIT_DAYS})");
     }
   }
 
@@ -632,38 +782,14 @@ sub form_user_change {
     }
   }
 
-  $FORM{DISABLE_DATE} = ($user_info->{DISABLE} || $FORM{DISABLE}) ? $DATE : '0000-00-00';
+  # define disable property if not defined for correct user change
+  $form->{DISABLE} //= $user_info->{DISABLE};
+  $form->{DISABLE_DATE} = ($user_info->{DISABLE} || $form->{DISABLE}) ? $DATE : '0000-00-00';
 
-  $user_info->change($user_info->{UID}, { %FORM });
+  $user_info->change($user_info->{UID}, $form);
 
-  if (defined $form->{COMPANY_ID}) {
-    require Customers;
-    Customers->import();
-    my $Customer = Customers->new($db, $admin, \%conf);
-    my $Company = $Customer->company();
-
-    if (!$form->{COMPANY_ID}) {
-      $Company->admins_del({
-        UID => $user_info->{UID},
-      });
-    }
-    else {
-      $Company->admins_list({
-        COMPANY_ID => $form->{COMPANY_ID},
-        GET_ADMINS => 1,
-        COLS_NAME  => 1,
-      });
-
-      if (defined $Company->{TOTAL} && $Company->{TOTAL} == 0) {
-        $Company->admins_change({
-          COMPANY_ID => $form->{COMPANY_ID},
-          IDS        => $user_info->{UID},
-        });
-        if (!$Company->{errno}) {
-          $html->message('info', $lang{INFO}, "$lang{NEW} $lang{ADMIN}");
-        }
-      }
-    }
+  if (defined($form->{COMPANY_ID})) {
+    _companie_admin($attr);
   }
 
   if ($user_info->{errno}) {
@@ -674,7 +800,7 @@ sub form_user_change {
   else {
     $html->message('info', $lang{CHANGED}, $lang{CHANGED} . ' ' . ($users->{info} || ''));
     if (defined($form->{FIO})) {
-      $users->pi_change({ %FORM });
+      $users->pi_change($form);
     }
 
     my $credit_changed = 0;
@@ -686,19 +812,19 @@ sub form_user_change {
     if ($user_info->{DISABLE} && $user_info->{DISABLE} == 3 && $form->{DISABLE} == 0) {
       require Control::Services;
       my $action = 0;
-      service_status_change({ UID => $user_info->{UID}, BILL_ID => $user_info->{BILL_ID} },
+      service_status_change($user_info,
         $action,
-        { #DEBUG => 4,
+        {
           DATE      => $DATE,
           USER_INFO => $user_info
         });
     }
     else {
-      cross_modules('payments_maked', { USER_INFO => $user_info, CHANGE_CREDIT => $credit_changed, FORM => \%FORM });
+      cross_modules('payments_maked', { USER_INFO => $user_info, CHANGE_CREDIT => $credit_changed, FORM => $form });
     }
-    #External scripts
+
     if ($conf{external_userchange}) {
-      if (!_external($conf{external_userchange}, \%FORM)) {
+      if (!_external($conf{external_userchange}, $form)) {
         return 0;
       }
     }
@@ -710,7 +836,6 @@ sub form_user_change {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 form_user_add($attr) - User account add
@@ -834,108 +959,6 @@ sub form_user_add {
   return 1;
 }
 
-
-#**********************************************************
-=head2 form_users_multiuser($attr) - Multiuser operation
-
-=cut
-#**********************************************************
-sub form_users_multiuser {
-
-  my @multiuser_arr = split(/, /, $FORM{IDS} || q{});
-
-  my %CHANGE_PARAMS = (
-    SKIP_STATUS_CHANGE => $FORM{DISABLE} ? undef : 1
-  );
-
-  if ($FORM{MU_COMMENTS}) {
-    append_comments(\@multiuser_arr, $FORM{COMMENTS_TEXT});
-    delete($FORM{MU_COMMENTS});
-  }
-
-  while (my ($k, undef) = each %FORM) {
-    if ($k =~ /^MU_(\S+)/) {
-      my $val = $1;
-      $CHANGE_PARAMS{$val} = $FORM{$val};
-    }
-  }
-
-  if (!defined($FORM{DISABLE})) {
-    $CHANGE_PARAMS{UNCHANGE_DISABLE} = 1;
-  }
-  else {
-    $CHANGE_PARAMS{DISABLE} = $FORM{MU_DISABLE} || 0;
-  }
-
-  if ($#multiuser_arr < 0) {
-    $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
-  }
-  elsif (defined($FORM{MU_TAGS} && in_array('Tags', \@MODULES))) {
-    require Tags;
-
-    my $Tags = Tags->new($db, $admin, \%conf);
-
-    foreach my $id (@multiuser_arr) {
-      $Tags->tags_user_change({
-        IDS     => $FORM{TAGS_IDS},
-        UID     => $id,
-        REPLACE => $FORM{OPT_TAGS_RADIO} && $FORM{OPT_TAGS_RADIO} eq 'TAGS_APPEND' ? 1 : 0
-      });
-      $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
-    }
-  }
-  elsif (defined($FORM{MU_UREPORTS_TP} && in_array('Ureports', \@MODULES))) {
-    require Ureports;
-    my $Ureports = Ureports->new($db, $admin, \%conf);
-
-    $Ureports->user_list_add({
-      TP_ID  => $FORM{UREPORTS_TP},
-      STATUS => $FORM{UREPORTS_STATUS},
-      UIDS   => $FORM{IDS},
-      TYPE   => $FORM{UREPORTS_TYPE}
-    });
-
-    $html->message('err', $lang{INFO}, "$lang{TARIF_PLAN} $lang{NOT} $lang{ADDED} UID:$Ureports->{errnostr}") if ($Ureports->{errnostr});
-    $html->message('info', $lang{INFO}, "$Ureports->{TOTAL} $lang{ADDED}") if (!$Ureports->{errno});
-
-    $Ureports->tp_user_reports_multi_change({ %FORM, UIDS => $FORM{IDS}, IDS => $FORM{R_IDS}, TP_ID => $FORM{UREPORTS_TP} });
-    if (!$Ureports->{errno}) {
-      $html->message('info', $lang{INFO}, $lang{CHANGED});
-    }
-
-  }
-  elsif (defined($FORM{MU_BONUS} && in_array('Bonus', \@MODULES)) && $FORM{MU_BONUS} == 1) {
-    load_module('Bonus', $html);
-    bonus_multi_add(\%FORM);
-  }
-  elsif ($FORM{MU_DELIVERY} || $FORM{DELIVERY_CREATE}) {
-    load_module('Msgs', $html);
-    msgs_mu_delivery_add(\%FORM)
-  }
-  elsif (scalar keys %CHANGE_PARAMS < 1) {
-    #$html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
-  }
-  else {
-    foreach my $uid (@multiuser_arr) {
-      if ($FORM{DEL} && $FORM{MU_DEL}) {
-        my $user_info = $users->info($uid);
-        user_del({ USER_INFO => $user_info });
-
-        _error_show($users);
-      }
-      else {
-        $users->change($uid, { UID => $uid, %CHANGE_PARAMS });
-        if (_error_show($users)) {
-          return 0;
-        }
-      }
-    }
-    $html->message('info', $lang{MULTIUSER_OP}, "$lang{TOTAL}: " . ($#multiuser_arr + 1) . " IDS: $FORM{IDS}");
-  }
-
-  return 1;
-}
-
 #**********************************************************
 =head2 form_users($attr) - User account managment form
 
@@ -985,7 +1008,8 @@ sub form_users {
     }
   }
   elsif ($FORM{MULTIUSER}) {
-    form_users_multiuser($attr);
+    $attr->{FORM}=\%FORM;
+    form_multiuser_actions($attr);
   }
 
   return 1;
@@ -1029,8 +1053,11 @@ sub _password_recovery_sms {
     DEBUG   => $attr->{DEBUG}
   });
 
-  if ($sms_id) {
+  if ($sms_id && $sms_id > 1) {
     $html->message('info', $lang{INFO}, "$lang{PASSWD} SMS $lang{SENDED}" . (($sms_id > 1) ? "\n ID: $sms_id" : ''));
+  }
+  else {
+    return $html->message('err', $lang{INFO}, "SMS $lang{NOT} $lang{SENDED}");
   }
 
   return 1;
@@ -1231,9 +1258,10 @@ sub user_pi {
       }
 
       $Attach->attachment_del({
-        ID    => $FORM{ATTACHMENT},
-        TABLE => $FORM{TABLE},
-        UID   => $user->{UID}
+        ID              => $FORM{ATTACHMENT},
+        TABLE           => $FORM{TABLE},
+        UID             => $user->{UID},
+        DEL_BY_FILEPATH => 1
       });
 
       if (!_error_show($Attach)) {
@@ -1255,7 +1283,14 @@ sub user_pi {
       $FORM{FIO} = $FORM{FIO1};
     }
 
-    $user->pi_add({ %FORM });
+    $user->pi(\%FORM);
+    if ($user->{errno} && $user->{errno} == 2) {
+      $user->pi_add(\%FORM);
+    }
+    else {
+      $user->pi_change(\%FORM);
+    }
+
     if (!$user->{errno}) {
       $html->message('info', $lang{ADDED}, $lang{ADDED}) if (!$attr->{REGISTRATION});
     }
@@ -1385,10 +1420,11 @@ sub user_pi {
   _error_show($Contacts);
 
   my $user_contact_types = $Contacts->contact_types_list({
-    SHOW_ALL_COLUMNS => 1,
-    COLS_NAME        => 1,
-    HIDDEN           => '0',
+    _SHOW_ALL_COLUMNS => 1,
+    COLS_NAME         => 1,
+    HIDDEN            => '0',
   });
+
   _error_show($Contacts);
 
   # Translate type names
@@ -1432,9 +1468,7 @@ sub user_pi {
       CHECK_ADDRESS_FLAT => $conf{REG_CHECK_ADDRESS_FLAT}
     });
 
-    #if (in_array('Docs', \@MODULES)) {
-    $user_pi->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$user_pi}, %{$attr} }, { OUTPUT2RETURN => 1 });
-    #}
+    $user_pi->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract'), { %{$user_pi}, %{$attr} }, { OUTPUT2RETURN => 1 });
 
     my $pi_form = $html->tpl_show(templates('form_pi'), {
       FORM_ATTR => 'container-md pr-0 pl-0',
@@ -1460,10 +1494,7 @@ sub user_pi {
 
     my $location_id = $FORM{LOCATION_ID} || $user_pi->{LOCATION_ID};
 
-
-    #if (in_array('Docs', \@MODULES)) {
-    $user_pi->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$user_pi} }, { OUTPUT2RETURN => 1 });
-    #}
+    $user_pi->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract'), { %{$user_pi} }, { OUTPUT2RETURN => 1 });
 
     if ($user_pi->{CONTRACT_ID}) {
       $user_pi->{CONTRACT_ID_DATE} = "$user_pi->{CONTRACT_ID}, $user_pi->{CONTRACT_DATE}";
@@ -1523,6 +1554,9 @@ sub user_pi {
     $attr
       USER_INFO
 
+  Results:
+   TRUE or FALSE
+
 =cut
 #**********************************************************
 sub user_form {
@@ -1541,6 +1575,7 @@ sub user_form {
       LOCATION_ID  => $FORM{LOCATION_ID},
       ADDRESS_FLAT => $FORM{ADDRESS_FLAT},
     });
+
     if ($Company->{errno}) {
       $html->message('err', $lang{ERROR},
         "$lang{ERROR} " . "Can't create company '$FORM{COMPANY_NAME}'");
@@ -1587,7 +1622,7 @@ sub user_form {
       $user_info->{EXDATA} = $html->tpl_show(templates('form_row'), {
         ID    => "",
         NAME  => "$lang{COMPANY} ",
-        VALUE => $html->element('p', $company->{NAME}, { class => 'form-control-static', OUTPUT2RETURN => 1 }),
+        VALUE => $html->element('H3', $company->{NAME}, { class => 'form-control-static', OUTPUT2RETURN => 1 }),
       }, { OUTPUT2RETURN => 1 });
     }
 
@@ -1663,42 +1698,8 @@ sub user_form {
     print user_pi({ MAIN_USER_TPL => $main_account, %$attr, CHECK_ADDRESS_FLAT => $conf{REG_CHECK_ADDRESS_FLAT} });
   }
   elsif ($FORM{USER_PORTAL} && $permissions{0}{3}) {
-    my $login_url = $SELF_URL;
-    $login_url =~ s/admin//;
-    $conf{WEB_AUTH_KEY} = 'LOGIN' if (!$conf{WEB_AUTH_KEY});
-
-    # delete old cookie if present
-    $users->web_session_del({ SID => $COOKIES{sid} || '--' });
-
-    my $_login = urlencode($user_info->{LOGIN} || q{});
-    my $_password = urlencode($user_info->{PASSWORD} || q{});
-
-    if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
-      $html->redirect("$login_url?user=$_login&passwd=$_password", { WAIT => 0 });
-      exit 0;
-    }
-    else {
-      my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
-      my $method = $a_method[0];
-
-      my $users_list = $users->list({
-        $method   => '_SHOW',
-        UID       => $user_info->{UID},
-        COLS_NAME => 1
-      });
-
-      my $met = lc $method;
-      my $info = $users_list->[0]->{$met};
-
-      exit 0 unless ($info);
-
-      if ($method eq "PHONE") {
-        $info =~ s/\+/\%2B/g;
-      }
-
-      $html->redirect("$login_url?user=$info&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
-      exit 0;
-    }
+    user_portal_access($user_info);
+    exit 0;
   }
   elsif ($FORM{SHOW_PASSWORD} && $permissions{0}{3}) {
     $conf{WEB_AUTH_KEY} = 'LOGIN' if (!$conf{WEB_AUTH_KEY});
@@ -1760,6 +1761,57 @@ sub user_form {
   return 1;
 }
 
+#**********************************************************
+=head2 user_portal_access($user_info)
+
+  Arguments:
+    $user_info
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub user_portal_access {
+  my ($user_info)=@_;
+
+  my $login_url = $conf{USER_PORTAL_URL} || $SELF_URL;
+  $login_url =~ s/admin\//\//;
+  $conf{WEB_AUTH_KEY} = 'LOGIN' if (!$conf{WEB_AUTH_KEY});
+
+  # delete old cookie if present
+  $users->web_session_del({ SID => $COOKIES{sid} || '--' });
+
+  my $_login = urlencode($user_info->{LOGIN} || q{});
+  my $_password = urlencode($user_info->{PASSWORD} || q{});
+
+  if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
+    $html->redirect("$login_url?user=$_login&passwd=$_password", { WAIT => 0 });
+  }
+  else {
+    my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+    my $method = $a_method[0];
+
+    my $users_list = $users->list({
+      $method   => '_SHOW',
+      UID       => $user_info->{UID},
+      COLS_NAME => 1
+    });
+
+    my $met = lc($method);
+    my $info = $users_list->[0]->{$met};
+
+    return 0 if (! $info);
+
+    if ($method eq "PHONE") {
+      $info =~ s/\+/\%2B/g;
+    }
+
+    $html->redirect("$login_url?user=$info&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
+  }
+
+  return 0;
+}
 
 #**********************************************************
 =head2 user_info_items($uid, $user_info)
@@ -2348,7 +2400,7 @@ sub user_info {
         'data-tooltip'          => "$lang{TAGS} ($lang{ADD})",
         'data-tooltip-position' => 'top',
         onclick                 => $permissions{0}{3} ? "loadToModal('$SELF_URL?qindex=" . get_function_index('tags_user')
-          . "&UID=$uid&header=2&FORM_NAME=USERS_TAG&PAGE_ROWS=999')" : '',
+          . "&UID=$uid&header=2&FORM_NAME=USERS_TAG&PAGE_ROWS=999','','lg')" : '',
       });
     }
   }
@@ -2402,21 +2454,26 @@ sub user_info {
 
 
 #**********************************************************
-=head2 form_users_list()
+=head2 form_users_list($attr)
+
+  Arguments:
+    $attr
+
+  Result
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub form_users_list {
   my ($attr) = @_;
-  return 0 if (!$permissions{0}{2});
 
+  return 0 if (!$permissions{0}{2});
   form_users() if ($FORM{MULTIUSER});
 
   my %col_hidden = ();
   $col_hidden{TYPE_PAGE} = $FORM{type} if ($FORM{type});
 
   if ($FORM{COMPANY_ID} && !$FORM{change}) {
-    # print $html->br($html->b("$lang{COMPANY}:") . $FORM{COMPANY_ID});
     $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}" if ($pages_qs !~ /COMPANY_ID/);
     $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID};
     $col_hidden{COMPANY_ID} = $FORM{COMPANY_ID};
@@ -2707,143 +2764,13 @@ sub form_users_list {
   }
 
   my $table2 = $html->table({
-    width => '100%',
     rows  => \@totals_rows
   });
 
   if ($permissions{0}{7} && !$FORM{EXPORT_CONTENT} && !$FORM{xml}) {
-    $html->{FORM_ID} = 'users_list';
-
-    my $mu_comments_radio1_input = $html->form_input('optradio', 'append', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio1" checked' }) . "  $lang{APPEND}";
-    my $mu_comments_radio2_input = $html->form_input('optradio', 'change', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio2"' }) . "  $lang{CHANGE}";
-    my $mu_comments_radio1_label = $html->element('label', $mu_comments_radio1_input, { class => 'form-check-label', for => 'radio1' });
-    my $mu_comments_radio2_label = $html->element('label', $mu_comments_radio2_input, { class => 'form-check-label', for => 'radio2' });
-    my $mu_comments_radio1 = $html->element('div', $mu_comments_radio1_label, { class => 'form-check' });
-    my $mu_comments_radio2 = $html->element('div', $mu_comments_radio2_label, { class => 'form-check' });
-    my $mu_comments_radio_div = $html->element('div', $mu_comments_radio1 . $mu_comments_radio2, { class => 'col-md-6' });
-    my $mu_comments_textarea = $html->element('textarea', $FORM{COMMENTS_TEXT}, { name => "COMMENTS_TEXT", rows => "4", cols => "50", form => "users_list" });
-    my $mu_comments_textarea_div = $html->element('div', $mu_comments_textarea, { class => 'col-md-6' });
-    my $mu_comments_row = $html->element('div', $mu_comments_textarea_div . $mu_comments_radio_div, { class => 'row' });
-
-    my @multi_operation = (
-      [ $html->form_input('MU_GID', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{GROUP},
-        sel_groups({ SKIP_MULTISELECT => 1 }) ],
-      [ $html->form_input('MU_DISABLE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DISABLE},
-        $html->form_input('DISABLE', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
-      [ $html->form_input('MU_DEL', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DEL},
-        $html->form_input('DEL', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
-      [ $html->form_input('MU_ACTIVATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{ACTIVATE},
-        $html->date_fld2('ACTIVATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-      [ $html->form_input('MU_EXPIRE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{EXPIRE},
-        $html->date_fld2('EXPIRE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-      [ $html->form_input('MU_CREDIT', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CREDIT},
-        $html->form_input('CREDIT', $FORM{CREDIT}) ],
-      [ $html->form_input('MU_CREDIT_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{CREDIT} $lang{DATE}",
-        $html->date_fld2('CREDIT_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $FORM{CREDIT_DATE} }) ],
-      [ $html->form_input('MU_REDUCTION', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{REDUCTION},
-        $html->form_input('REDUCTION', $FORM{REDUCTION}, { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }) ],
-      [ $html->form_input('MU_REDUCTION_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{REDUCTION} $lang{DATE}",
-        $html->date_fld2('REDUCTION_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $FORM{CREDIT_DATE} }) ],
-      [ $html->form_input('MU_COMMENTS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{COMMENTS}, $mu_comments_row ],
-      [ '', $html->form_input('MULTIUSER', $lang{APPLY}, { TYPE => 'submit' }) ],
-    );
-
-    if (in_array('Msgs', \@MODULES)) {
-      load_module('Msgs', $html);
-      my $delivery_form = msgs_mu_delivery_form();
-      if ($delivery_form) {
-        @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DELIVERY}, $delivery_form ],
-          @multi_operation);
-      }
-    }
-
-    #Ureport muliuser select options
-    if (in_array('Ureports', \@MODULES)) {
-      load_module('Ureports', $html);
-
-      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('ureports_multiuser_sel') .
-        '&header=2&FORM_ID=users_list', {
-        LOAD_TO_MODAL => 1,
-        class         => 'btn btn-default',
-      });
-
-      @multi_operation = (
-        [
-          $html->form_input('MU_UREPORTS_TP', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{NOTIFICATIONS},
-          $load_to_modal_btn
-        ],
-        @multi_operation,
-      );
-    }
-
-    #Tags muliuser select options
-    if (in_array('Tags', \@MODULES)) {
-      load_module('Tags', $html);
-      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('tags_multiuser_form') .
-        "&header=2&MULTIUSER_INDEX=$index&FORM_ID=users_list", {
-        LOAD_TO_MODAL => 1,
-        class         => 'btn btn-default',
-      });
-
-      my $mu_tags_radio1_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_APPEND', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-append"' }) . "  $lang{APPEND}";
-      my $mu_tags_radio2_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_CHANGE', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-change" checked' }) . "  $lang{CHANGE}";
-      my $mu_tags_radio1_label = $html->element('label', $mu_tags_radio1_input, { class => 'form-check-label', for => 'radio1' });
-      my $mu_tags_radio2_label = $html->element('label', $mu_tags_radio2_input, { class => 'form-check-label', for => 'radio2' });
-      my $mu_tags_radio1 = $html->element('div', $mu_tags_radio1_label, { class => 'form-check' });
-      my $mu_tags_radio2 = $html->element('div', $mu_tags_radio2_label, { class => 'form-check' });
-      my $mu_tags_radio_div = $html->element('div', $mu_tags_radio1 . $mu_tags_radio2, { class => 'col-md-6' });
-      my $mu_tags_textarea_div = $html->element('div', $load_to_modal_btn, { class => 'col-md-6' });
-      my $mu_tags_row = $html->element('div', $mu_tags_textarea_div . $mu_tags_radio_div, { class => 'row' });
-
-      @multi_operation = (
-        [
-          $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{TAGS},
-          $mu_tags_row
-        ],
-        @multi_operation,
-      );
-    }
-
-    #Bonus muliuser select options
-    if (in_array('Bonus', \@MODULES)) {
-      load_module('Bonus', $html);
-
-      @multi_operation = (
-        [
-          $html->form_input('MU_BONUS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{BONUS},
-          $html->form_input('BONUS', '', { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }),
-        ],
-        @multi_operation,
-      );
-    }
-
-    my Abills::HTML $table3 = $html->table({
-      width      => '100%',
-      caption    => $lang{MULTIUSER_OP},
-      HIDE_TABLE => 1,
-      rows       => \@multi_operation,
-      ID         => 'USER_MANAGMENT'
-    });
-
-    if ($FORM{json} && $FORM{API_KEY}) {
-      print $table->show({ OUTPUT2RETURN => 1 });
-    }
-    else {
-      print $html->form_main(
-        {
-          CONTENT => $table->show({ OUTPUT2RETURN => 1 })
-            . ((!$admin->{MAX_ROWS}) ? $table2->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }) : '')
-            . $table3->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }),
-          HIDDEN  => {
-            UID   => $FORM{UID},
-            index => 11,
-          },
-          NAME    => 'users_list',
-          class   => 'hidden-print',
-          ID      => 'users_list',
-        }
-      );
-    }
+    $attr->{USERS_TABLE}=$table;
+    $attr->{USERS_TOTAL_TABLE}=$table2;
+    form_multiuser($attr);
   }
   else {
     print $table->show();
@@ -2952,7 +2879,11 @@ sub user_company {
   my $company = $customer->company();
   form_search(
     {
-      SIMPLE        => { $lang{COMPANY} => 'COMPANY_NAME' },
+      SIMPLE => {
+        $lang{COMPANY}    => 'COMPANY_NAME',
+        $lang{EDRPOU}     => 'EDRPOU',
+        $lang{TAX_NUMBER} => 'TAX_NUMBER',
+      },
       HIDDEN_FIELDS => { UID => $FORM{UID} }
     }
   );
@@ -2969,7 +2900,8 @@ sub user_company {
 
   $FORM{UID} = 0 if (!$FORM{UID});
   my $user_index = get_function_index('form_users');
-  $table->addrow($lang{DEFAULT}, '', $html->button("$lang{DEL}", "index=" . get_function_index('form_users') . "&change=1&UID=$FORM{UID}&COMPANY_ID=0", { class => 'del' }),);
+  $table->addrow($lang{DEFAULT}, '', $html->button("$lang{DEL}", "index=" . get_function_index('form_users') . "&change=1&UID=$FORM{UID}&COMPANY_ID=0",
+    { class => 'del', CONFIRM => "$lang{UNLINK} $lang{COMPANY}?" }));
 
   foreach my $line (@{$list}) {
     $table->{rowcolor} = ($user_info->{COMPANY_ID} && $user_info->{COMPANY_ID} == $line->{id}) ? 'active' : undef;
@@ -2981,7 +2913,8 @@ sub user_company {
       ($user_info->{COMPANY_ID} && $user_info->{COMPANY_ID} == $line->{id})
         ? ''
         : $html->button("$lang{CHANGE}",
-        "index=" . $user_index . "&change=1&UID=$FORM{UID}&COMPANY_ID=$line->{id}", { class => 'add' }
+        "index=" . $user_index . "&change=1&UID=$FORM{UID}&COMPANY_ID=$line->{id}",
+        { class => 'add', CONFIRM => "$lang{ADD} $lang{COMPANY} $line->{name}?" }
       ),
     );
   }
@@ -3006,7 +2939,6 @@ sub user_company {
 sub form_wizard {
   #  my ($attr) = @_;
 
-  # Function name:module:describe
   my %steps = ();
 
   $index = get_function_index('form_wizard');
@@ -3124,13 +3056,7 @@ sub form_wizard {
     # $fn, $module, $describe
     my ($fn, $module, undef) = split(/:/, $steps{$step}, 3);
     if ($module) {
-      #if (in_array($module, \@MODULES)) {
       load_module($module, $html);
-      #}
-      #else {
-      #  print "ERROR: Unknow module: '$module' function: $fn";
-      #  return 0;
-      #}
     }
 
     if (!$FORM{change}) {
@@ -3542,10 +3468,11 @@ sub user_contacts_renew {
 =head2 form_info_field_tpl($attr) - Info fields tp form
 
   Arguments:
-    COMPANY                - Company info fields
-    VALUES                 - Info field value hash_ref
-    RETURN_AS_ARRAY        - returns hash_ref for name => $input (for custom design logic)
-    CALLED_FROM_CLIENT_UI  - apply client_permission view/edit logic
+    $attr
+      COMPANY                - Company info fields
+      VALUES                 - Info field value hash_ref (Company or Users obj)
+      RETURN_AS_ARRAY        - returns hash_ref for name => $input (for custom design logic)
+      CALLED_FROM_CLIENT_UI  - apply client_permission view/edit logic
 
   Returns:
     Return formed HTML
@@ -3563,50 +3490,43 @@ sub form_info_field_tpl {
   my @name_view_arr = ();
 
   my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $list;
-  if (!$conf{info_fields_new}) {
-    $list = $Conf->config_list({
-      PARAM => $prefix,
-      SORT  => 2
-    });
-  }
-  else {
-    require Info_fields;
-    Info_fields->import();
-    my $Info_fields = Info_fields->new($db, $admin, \%conf);
-    #domain_id
-    my $fields_list = $Info_fields->fields_list({
-      COMPANY   => ($attr->{COMPANY} || 0),
-      DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
-      SORT      => 5,
-    });
+  my $info_fields_list;
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
 
-    my $i = 0;
-    foreach my $line (@$fields_list) {
-      if ($attr->{POPUP} && !$attr->{POPUP}->{$line->{SQL_FIELD}}) {
-        next;
-      }
-      $list->[$i]->[0] = ($attr->{COMPANY} ? 'ifc' : 'ifu') . $line->{SQL_FIELD};
-      $list->[$i]->[1] = join(':',
-        ($line->{PRIORITY} || 0),
-        $line->{TYPE},
-        $line->{NAME},
-        $line->{ABON_PORTAL},
-        $line->{USER_CHG},
-        ($line->{PATTERN} || ''),
-        ($line->{TITLE} || ''),
-        ($line->{PLACEHOLDER} || ''),
-        ($line->{REQUIRED} || ''),
-      );
-      $i++;
+  my $fields_list = $Info_fields->fields_list({
+    COMPANY   => ($attr->{COMPANY} || 0),
+    DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
+    SORT      => 5,
+  });
+
+  my $i = 0;
+  foreach my $line (@$fields_list) {
+    if ($attr->{POPUP} && !$attr->{POPUP}->{$line->{SQL_FIELD}}) {
+      next;
     }
+    $info_fields_list->[$i]->[0] = ($attr->{COMPANY} ? 'ifc' : 'ifu') . $line->{SQL_FIELD};
+    $info_fields_list->[$i]->[1] = join(':',
+      ($line->{PRIORITY} || 0),
+      $line->{TYPE},
+      $line->{NAME},
+      $line->{ABON_PORTAL},
+      $line->{USER_CHG},
+      ($line->{PATTERN} || ''),
+      ($line->{TITLE} || ''),
+      ($line->{PLACEHOLDER} || ''),
+      ($line->{REQUIRED} || ''),
+    );
+    $i++;
   }
+
   my $uid = $FORM{UID} || q{};
   return '' if ($FORM{json} || $FORM{xml});
 
   my $row_template = templates('form_row');
 
-  foreach my $line (@$list) {
+  foreach my $line (@$info_fields_list) {
     my $field_id = '';
     my $container_args = '';
 
@@ -3634,10 +3554,6 @@ sub form_info_field_tpl {
         $selected = $attr->{VALUES}->{uc("$field_name\_id")} || $attr->{VALUES}->{$field_name};
       }
 
-      require Info_fields;
-      Info_fields->import();
-      my $Info_fields = Info_fields->new($db, $admin, \%conf);
-
       $input = $html->form_select($field_name, {
         SELECTED      => $selected,
         SEL_LIST      => $Info_fields->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 }),
@@ -3648,6 +3564,8 @@ sub form_info_field_tpl {
         REQUIRED      => !$attr->{SKIP_REQUIRED} && $required,
         OUTPUT2RETURN => 1
       });
+
+      $attr->{VALUES}->{$field_name .'_SEL'}=$input;
     }
 
     #Checkbox
@@ -3723,7 +3641,7 @@ sub form_info_field_tpl {
         . "&ATTACHMENT=$field_id:$file_id"
         . (($uid) ? "&UID=$uid" : '');
 
-      my $span = $html->element('span', ((!$FORM{xml}) ? '&hellip;' : q{}), { class => 'btn btn-secondary', OUTPUT2RETURN => 1 });
+      my $span = $html->element('span', $html->element('i', '', { class => 'fas fa-paperclip' }), { class => 'btn btn-default', OUTPUT2RETURN => 1 });
       my $file_input = $html->form_input($field_name, '', {
         TYPE          => 'file',
         EX_PARAMS     => 'style="display: none;"',
@@ -3736,19 +3654,16 @@ sub form_info_field_tpl {
         OUTPUT2RETURN => 1
       });
 
-      my $label = $html->element('label', $span . $file_input, { class => 'input-group-btn', OUTPUT2RETURN => 1 });
+      my $label = $html->element('label', $span . $file_input, { class => 'input-group-prepend mb-0', OUTPUT2RETURN => 1 });
       $file_input_content .= $label . $file_name_input;
 
       if (exists $attr->{VALUES}->{$field_name}) {
         if ($Attach->{TOTAL} && $Attach->{FILENAME} && $permissions{0}->{5}) {
-          $file_input_content .= $html->element(
-            'span',
-            $html->button(
-              "$lang{DEL}",
-              "index=" . get_function_index('user_pi') . "&ATTACHMENT=$field_id:$file_id&del=1" . (($uid) ? "&UID=$uid" : ''),
-              { class => 'del', MESSAGE => "$lang{DELETED}: $Attach->{FILENAME} ?" }
+          $file_input_content .= $html->element('div',
+            $html->button('', "index=" . get_function_index('user_pi') . "&ATTACHMENT=$field_id:$file_id&del=1" . (($uid) ? "&UID=$uid" : ''),
+              { class => 'btn btn-default text-danger', ADD_ICON => 'fa fa-trash ', MESSAGE => "$lang{DELETED}: $Attach->{FILENAME} ?" }
             ),
-            { class => 'input-group-addon' }
+            { class => 'input-group-append' }
           );
         }
       }
@@ -3909,13 +3824,11 @@ sub form_show_attach {
     $FORM{ATTACHMENT} = $2;
   }
 
-  $Attach->attachment_info(
-    {
-      ID    => $FORM{ATTACHMENT},
-      TABLE => $FORM{TABLE},
-      UID   => $uid
-    }
-  );
+  $Attach->attachment_info({
+    ID    => $FORM{ATTACHMENT},
+    TABLE => $FORM{TABLE},
+    UID   => $uid
+  });
 
   if (!$Attach->{TOTAL}) {
     print "Content-Type: text/html\n\n";
@@ -3938,6 +3851,11 @@ sub form_show_attach {
 
     # Need to separate filename from full path
     my ($filename) = $filepath =~ /^.*\/([a-zA-z0-9_.-]+)$/;
+
+    if ($filepath =~ /(.*\/)([^\/]+)$/) {
+      $attach_path = $1;
+      $filename = $2;
+    }
 
     $Attach->{CONTENT} = file_op({
       FILENAME => $filename,
@@ -4472,7 +4390,7 @@ sub unique_token_generate {
 }
 
 #**********************************************************
-=head2 form_user_holdup()
+=head2 form_user_holdup($user_)
 
 =cut
 #**********************************************************
@@ -4698,11 +4616,12 @@ sub _user_auth_data_modal_content {
 
   $i = 0;
   for my $key (@$auth_keys) {
+    my $checked_data = $auth_data->[$i] || '';
     $buttons .= $html->element('button',
       $lang{COPY} . ' ' . ($lang{$key} || $key),
       {
         class                   => 'btn btn-success mr-2',
-        onclick                 => qq{copyToBuffer('$auth_data->[$i]')},
+        onclick                 => qq{copyToBuffer('$checked_data')},
         'data-tooltip-position' => 'top',
         'data-tooltip'          => "$lang{COPIED}!",
         'data-tooltip-onclick'  => '1'
@@ -4729,7 +4648,7 @@ sub _add_user_comment_to_info {
   my $comments_list = $Info->get_comments('form_user_profile', $FORM{UID}, { COLS_NAME => 1 });
 
   foreach my $comment (@$comments_list) {
-      if ($comment->{text} && $FORM{COMMENTS} && $comment->{text} eq $FORM{COMMENTS}) {
+    if ($comment->{text} && $FORM{COMMENTS} && $comment->{text} eq $FORM{COMMENTS}) {
       return 1;
     }
   }
@@ -4738,6 +4657,309 @@ sub _add_user_comment_to_info {
     OBJ_TYPE => 'form_user_profile',
     OBJ_ID   => $FORM{UID},
     TEXT     => $FORM{COMMENTS}
+  });
+
+  return 1;
+}
+
+#********************************************************
+=head2 _companie_admin($attr) - Companies amdin
+
+  Arguments:
+    $attr
+      USER_INFO
+      FORM
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#********************************************************
+sub _companie_admin {
+  my ($attr)=@_;
+
+  my $form = $attr->{FORM};
+  my $user_info = $attr->{USER_INFO};
+
+  require Customers;
+  Customers->import();
+  my $Customer = Customers->new($db, $admin, \%conf);
+  my $Company = $Customer->company();
+
+  if (!$form->{COMPANY_ID}) {
+    $Company->admins_del({
+      UID => $user_info->{UID},
+    });
+  }
+  else {
+    $Company->admins_list({
+      COMPANY_ID => $form->{COMPANY_ID},
+      GET_ADMINS => 1,
+      COLS_NAME  => 1,
+    });
+
+    if (defined $Company->{TOTAL} && $Company->{TOTAL} == 0) {
+      $Company->admins_change({
+        COMPANY_ID => $form->{COMPANY_ID},
+        IDS        => $user_info->{UID},
+      });
+      if (!$Company->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{NEW} $lang{ADMIN}");
+      }
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_multiuser_actions($attr) - Multiuser operation
+
+  Arguments:
+    $attr
+      FORM
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_multiuser_actions {
+  my ($attr)=@_;
+
+  my $form = $attr->{FORM};
+  my @multiuser_arr = split(/, /, $form->{IDS} || q{});
+
+  my %CHANGE_PARAMS = (
+    SKIP_STATUS_CHANGE => ($form->{DISABLE}) ? undef : 1
+  );
+
+  if ($form->{MU_COMMENTS}) {
+    append_comments(\@multiuser_arr, $form->{COMMENTS_TEXT});
+    delete($form->{MU_COMMENTS});
+  }
+
+  while (my ($k, undef) = each %{ $form }) {
+    if ($k =~ /^MU_(\S+)/) {
+      my $val = $1;
+      $CHANGE_PARAMS{$val} = $form->{$val};
+    }
+  }
+
+  if (!defined($form->{DISABLE})) {
+    $CHANGE_PARAMS{UNCHANGE_DISABLE} = 1;
+  }
+  else {
+    $CHANGE_PARAMS{DISABLE} = $form->{MU_DISABLE} || 0;
+  }
+
+  if ($#multiuser_arr < 0) {
+    $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
+  }
+  elsif (defined($form->{MU_TAGS} && in_array('Tags', \@MODULES))) {
+    require Tags;
+
+    my $Tags = Tags->new($db, $admin, \%conf);
+
+    foreach my $id (@multiuser_arr) {
+      $Tags->tags_user_change({
+        IDS     => $form->{TAGS_IDS},
+        UID     => $id,
+        REPLACE => $form->{OPT_TAGS_RADIO} && $form->{OPT_TAGS_RADIO} eq 'TAGS_APPEND' ? 1 : 0
+      });
+      $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
+    }
+  }
+  elsif (defined($form->{MU_UREPORTS_TP} && in_array('Ureports', \@MODULES))) {
+    require Ureports::Services;
+    my $Ureports_services = Ureports::Services->new($db, $admin, \%conf);
+    $Ureports_services->ureport_add_multiple_users({
+      %FORM,
+      R_IDS  => $form->{R_IDS},
+      TP_ID  => $form->{UREPORTS_TP},
+      STATUS => $form->{UREPORTS_STATUS},
+      UIDS   => [ split(',\s?', $form->{IDS}) ],
+      TYPE   => [ split(',\s?', $form->{UREPORTS_TYPE}) ]
+    });
+
+    $html->message('err', $lang{INFO}, "$lang{TARIF_PLAN} $lang{NOT} $lang{ADDED} UID:$Ureports_services->{FAILED_USERS}") if ($Ureports_services->{FAILED_USERS});
+    $html->message('info', $lang{INFO}, "$Ureports_services->{TOTAL} $lang{ADDED}") if ($Ureports_services->{TOTAL});
+  }
+  elsif (defined($form->{MU_BONUS} && in_array('Bonus', \@MODULES)) && $form->{MU_BONUS} == 1) {
+    load_module('Bonus', $html);
+    bonus_multi_add($form);
+  }
+  elsif ($form->{MU_DELIVERY} || $form->{DELIVERY_CREATE}) {
+    load_module('Msgs', $html);
+    msgs_mu_delivery_add($form)
+  }
+  elsif (scalar keys %CHANGE_PARAMS < 1) {
+    #$html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
+  }
+  else {
+    foreach my $uid (@multiuser_arr) {
+      if ($form->{DEL} && $form->{MU_DEL}) {
+        my $user_info = $users->info($uid);
+        user_del({ USER_INFO => $user_info });
+
+        _error_show($users);
+      }
+      else {
+        $users->change($uid, { UID => $uid, %CHANGE_PARAMS });
+        if (_error_show($users)) {
+          return 0;
+        }
+      }
+    }
+    $html->message('info', $lang{MULTIUSER_OP}, "$lang{TOTAL}: " . ($#multiuser_arr + 1) . " IDS: $form->{IDS}");
+  }
+
+  return 1;
+}
+
+
+#********************************************************
+=head2 form_multiuser($attr) - Companies amdin
+
+  Arguments:
+    $attr
+      USER_INFO
+      USERS_TABLE
+      USERS_TOTAL_TABLE
+      FORM
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#********************************************************
+sub form_multiuser {
+  my ($attr) = @_;
+
+  my $form = $attr->{FORM};
+  $html->{FORM_ID} = 'users_list';
+
+  my $mu_comments_radio1_input = $html->form_input('optradio', 'append', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio1" checked' }) . "  $lang{APPEND}";
+  my $mu_comments_radio2_input = $html->form_input('optradio', 'change', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio2"' }) . "  $lang{CHANGE}";
+  my $mu_comments_radio1_label = $html->element('label', $mu_comments_radio1_input, { class => 'form-check-label', for => 'radio1' });
+  my $mu_comments_radio2_label = $html->element('label', $mu_comments_radio2_input, { class => 'form-check-label', for => 'radio2' });
+  my $mu_comments_radio1 = $html->element('div', $mu_comments_radio1_label, { class => 'form-check' });
+  my $mu_comments_radio2 = $html->element('div', $mu_comments_radio2_label, { class => 'form-check' });
+  my $mu_comments_radio_div = $html->element('div', $mu_comments_radio1 . $mu_comments_radio2, { class => 'col-md-6' });
+  my $mu_comments_textarea = $html->element('textarea', $form->{COMMENTS_TEXT}, { name => "COMMENTS_TEXT", rows => "4", cols => "50", form => "users_list" });
+  my $mu_comments_textarea_div = $html->element('div', $mu_comments_textarea, { class => 'col-md-6' });
+  my $mu_comments_row = $html->element('div', $mu_comments_textarea_div . $mu_comments_radio_div, { class => 'row' });
+
+  my @multi_operation = (
+    [ $html->form_input('MU_GID', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{GROUP},
+      sel_groups({ SKIP_MULTISELECT => 1 }) ],
+    [ $html->form_input('MU_DISABLE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DISABLE},
+      $html->form_input('DISABLE', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
+    [ $html->form_input('MU_DEL', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DEL},
+      $html->form_input('DEL', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
+    [ $html->form_input('MU_ACTIVATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{ACTIVATE},
+      $html->date_fld2('ACTIVATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
+    [ $html->form_input('MU_EXPIRE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{EXPIRE},
+      $html->date_fld2('EXPIRE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
+    [ $html->form_input('MU_CREDIT', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CREDIT},
+      $html->form_input('CREDIT', $form->{CREDIT}) ],
+    [ $html->form_input('MU_CREDIT_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{CREDIT} $lang{DATE}",
+      $html->date_fld2('CREDIT_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $form->{CREDIT_DATE} }) ],
+    [ $html->form_input('MU_REDUCTION', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{REDUCTION},
+      $html->form_input('REDUCTION', $form->{REDUCTION}, { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }) ],
+    [ $html->form_input('MU_REDUCTION_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{REDUCTION} $lang{DATE}",
+      $html->date_fld2('REDUCTION_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $form->{CREDIT_DATE} }) ],
+    [ $html->form_input('MU_COMMENTS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{COMMENTS}, $mu_comments_row ],
+    [ '', $html->form_input('MULTIUSER', $lang{APPLY}, { TYPE => 'submit' }) ],
+  );
+
+  if (in_array('Msgs', \@MODULES)) {
+    load_module('Msgs', $html);
+    my $delivery_form = msgs_mu_delivery_form();
+    if ($delivery_form) {
+      @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DELIVERY}, $delivery_form ],
+        @multi_operation);
+    }
+  }
+
+  #Ureport muliuser select options
+  if (in_array('Ureports', \@MODULES)) {
+    load_module('Ureports', $html);
+
+    my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('ureports_multiuser_sel') .
+      '&header=2&FORM_ID=users_list', {
+      LOAD_TO_MODAL => 1,
+      class         => 'btn btn-default',
+    });
+
+    @multi_operation = (
+      [
+        $html->form_input('MU_UREPORTS_TP', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{NOTIFICATIONS},
+        $load_to_modal_btn
+      ],
+      @multi_operation,
+    );
+  }
+
+  #Tags muliuser select options
+  if (in_array('Tags', \@MODULES)) {
+    load_module('Tags', $html);
+    my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('tags_multiuser_form') .
+      "&header=2&MULTIUSER_INDEX=$index&FORM_ID=users_list", {
+      LOAD_TO_MODAL => 1,
+      class         => 'btn btn-default',
+    });
+
+    my $mu_tags_radio1_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_APPEND', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-append"' }) . "  $lang{APPEND}";
+    my $mu_tags_radio2_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_CHANGE', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-change" checked' }) . "  $lang{CHANGE}";
+    my $mu_tags_radio1_label = $html->element('label', $mu_tags_radio1_input, { class => 'form-check-label', for => 'radio1' });
+    my $mu_tags_radio2_label = $html->element('label', $mu_tags_radio2_input, { class => 'form-check-label', for => 'radio2' });
+    my $mu_tags_radio1 = $html->element('div', $mu_tags_radio1_label, { class => 'form-check' });
+    my $mu_tags_radio2 = $html->element('div', $mu_tags_radio2_label, { class => 'form-check' });
+    my $mu_tags_radio_div = $html->element('div', $mu_tags_radio1 . $mu_tags_radio2, { class => 'col-md-6' });
+    my $mu_tags_textarea_div = $html->element('div', $load_to_modal_btn, { class => 'col-md-6' });
+    my $mu_tags_row = $html->element('div', $mu_tags_textarea_div . $mu_tags_radio_div, { class => 'row' });
+
+    @multi_operation = (
+      [
+        $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{TAGS},
+        $mu_tags_row
+      ],
+      @multi_operation,
+    );
+  }
+
+  #Bonus muliuser select options
+  if (in_array('Bonus', \@MODULES)) {
+    load_module('Bonus', $html);
+
+    @multi_operation = (
+      [
+        $html->form_input('MU_BONUS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{BONUS},
+        $html->form_input('BONUS', '', { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }),
+      ],
+      @multi_operation,
+    );
+  }
+
+  my Abills::HTML $table3 = $html->table({
+    caption    => $lang{MULTIUSER_OP},
+    HIDE_TABLE => 1,
+    rows       => \@multi_operation,
+    ID         => 'USER_MANAGMENT'
+  });
+
+  print $html->form_main({
+    CONTENT => $attr->{USERS_TABLE}->show({ OUTPUT2RETURN => 1 })
+      . ((!$admin->{MAX_ROWS}) ? $attr->{USERS_TOTAL_TABLE}->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }) : '')
+      . $table3->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }),
+    HIDDEN  => {
+      UID   => $attr->{UID},
+      index => 11,
+    },
+    NAME    => 'users_list',
+    class   => 'hidden-print',
+    ID      => 'users_list',
   });
 
   return 1;

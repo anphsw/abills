@@ -82,11 +82,24 @@ $lang{DOCUMENT_SIGNING} = 'Document is awaiting signature from the user';
 $lang{DOCUMENT_SEND_USER_FOR_SIGN} = 'The document has been successfully sent to the user for signing';
 $lang{DOCUMENT_SIGNED} = 'Document signed';
 $lang{SIGNED_DOCUMENTS} = 'Signed documents';
+$lang{UREPORTS_ERROR_CODE} = 'Error code';
 
 $lang{ERR_NO_NEW_INVOICES_FOR_THIS_PERIOD} = 'No new invoices for this period.';
 $lang{ERR_INVOICE_ID_AND_CREATE_INVOICE} = 'Incorrect data, parameter id or ids should be provided. Both are provided.';
 $lang{ERR_NO_ID_OR_IDS} = 'Incorrect data, parameter id or ids should be provided. Both are missing.';
 $lang{ERR_NO_INVOICE_ID_AND_CREATE_INVOICE} = 'Incorrect data, parameter invoiceCreate or invoiceId should be provided.';
 $lang{ERR_ADD_INVOICE} = 'Failed add invoice';
+$lang{ALL_PERIOD} = 'All period';
+$lang{DOCUMENT_CUSTOMERS_LOG} = 'Clients log';
+$lang{DOCS_LEGAL_ENTITY} = 'Legal Entity';
+$lang{DOCS_FOP} = 'FOP';
+$lang{DOCS_INDIVIDUAL} = 'Individual';
+
+$lang{DOCS_SEND_INVOICE} = 'Date of sending';
+$lang{DOCS_RECEIVE_INVOICE} = 'Date of receiving';
+$lang{DOCS_TRACKING_NUMBER} = 'Tracking number';
+$lang{DOCS_TRACKING_DATE} = 'Tracking date';
+$lang{OF_CLIENT} = 'of client';
+$lang{BY_CLIENT} = 'by client';
 
 1;

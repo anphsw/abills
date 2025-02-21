@@ -34,5 +34,6 @@ $lang{CHECK_FOOTER}             = 'Check footer';
 $lang{CHECK_HEADER}             = 'Check header';
 $lang{ENTER_KKT_LICENSE}        = 'Enter kkt license and save settings';
 $lang{NOT_SUPPORTED_TAX_RATES}  = 'Tax rates not supported or need to update the module';
+$lang{YOUR_RECEIPT}             = 'Your receipt of payment';
 
 1;

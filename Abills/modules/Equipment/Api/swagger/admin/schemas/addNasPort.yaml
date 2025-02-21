@@ -1,0 +1,20 @@
+type: object
+properties:
+  port:
+    type: number
+    example: 0
+  status:
+    type: number
+    example: 0
+  uplink:
+    type: number
+    example: 0
+  comments:
+    type: string
+    example: ""
+  vlan:
+    type: number
+    example: 0
+  datetime:
+    type: string
+    example: "2024-02-14 12:00:00"

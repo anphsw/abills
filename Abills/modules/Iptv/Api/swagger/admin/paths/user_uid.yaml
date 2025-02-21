@@ -5,13 +5,7 @@ get:
   description: Возвращает ТП Iptv пользователя
   operationId: getUserIptvByUID
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение

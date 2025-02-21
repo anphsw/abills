@@ -142,12 +142,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: nasId
-      in: query
-      description: ID сервера доступа
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/nasId"
     - name: showAllColumns
       in: query
       description: Параметр, при котором выводятся все поля
@@ -190,18 +185,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 100000
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
-        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

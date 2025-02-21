@@ -38,7 +38,7 @@ my Users $Users;
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($db, $admin, $conf) = @_;
+  my ($db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db        => $db,
@@ -50,6 +50,10 @@ sub new {
   };
 
   bless($self, $class);
+
+  $self->{REMOTE_ADDR} = ($attr && $attr->{REMOTE_ADDR})
+    ? $attr->{REMOTE_ADDR}
+    : ($ENV{REMOTE_ADDR} || '127.0.0.1');
 
   $Paysys = Paysys->new($db, $admin, $conf);
   $Payments = Payments->new($db, $admin, $conf);
@@ -351,7 +355,7 @@ sub _paysys_pay_error {
       TRANSACTION_ID => "$attr->{PAYMENT_SYSTEM}:$attr->{EXT_ID}",
       INFO           => $attr->{_EXT_INFO},
       USER_INFO      => $attr->{USER_INFO},
-      PAYSYS_IP      => $ENV{REMOTE_ADDR},
+      PAYSYS_IP      => $self->{REMOTE_ADDR},
       STATUS         => $attr->{ERROR},
       DOMAIN_ID      => $ENV{DOMAIN_ID} || 0,
       MERCHANT_ID    => $merchant_id,
@@ -462,6 +466,7 @@ sub _paysys_pay_payment_process {
       USER_INFO    => $user,
       SKIP_MODULES => 'Sqlcmd, Cards',
       SILENT       => 1,
+      QUITE        => 1,
       SUM          => $PAYMENT_SUM || $amount,
       AMOUNT       => $amount || $PAYMENT_SUM,
       EXT_ID       => "$payment_system:$ext_id",
@@ -470,6 +475,8 @@ sub _paysys_pay_payment_process {
       FORM         => $attr,
     });
   }
+
+  $user->{UID} = $user->{_COMPANY_ADMIN} if ($user->{_COMPANY_ADMIN});
 
   $Payments->add($user, {
     SUM            => $amount,
@@ -481,7 +488,7 @@ sub _paysys_pay_payment_process {
     CHECK_EXT_ID   => $attr->{FORCE_PAYMENT} ? '' : "$payment_system:$ext_id",
     ER             => $er,
     CURRENCY       => $currency,
-    USER_INFO      => $attr->{USER_INFO}
+    USER_INFO      => $user
   });
 
   # Exists payments Duplicate
@@ -633,6 +640,9 @@ sub _paysys_pay_payments_made {
       return 1;
     }
 
+    # if parallel payments need do new info about user
+    $user = $Users->info($user->{UID}, { USERS_AUTH => 1 });
+
     ::cross_modules('payments_maked', {
       PAYSYS_PAYMENT => {
         PAYMENT_SYSTEM => $payment_system,
@@ -670,7 +680,7 @@ sub _paysys_pay_update_transaction {
   my %transaction = (
     ID          => $self->{paysys_id},
     STATUS      => $attr->{ERROR} || 2,
-    PAYSYS_IP   => $ENV{REMOTE_ADDR},
+    PAYSYS_IP   => $self->{REMOTE_ADDR},
     INFO        => $attr->{_EXT_INFO},
     USER_INFO   => $attr->{USER_INFO},
   );
@@ -684,7 +694,7 @@ sub _paysys_pay_update_transaction {
 }
 
 #**********************************************************
-=head2 _paysys_pay_payment_process() - get base config
+=head2 _paysys_pay_conf() - get base config
 
   Arguments:
     $attr
@@ -717,11 +727,11 @@ sub _paysys_pay_conf {
     $merchant_id = $params->[0]->{merchant_id} if (!$attr->{MERCHANT_ID});
     foreach my $param (@{$params}) {
       next if !$param->{param};
-      if (!$attr->{PAYMENT_METHOD} && $param->{param} =~ /PAYMENT_METHOD/ && is_number($param->{param}, 0, 1)) {
+      if (!$attr->{PAYMENT_METHOD} && $param->{param} =~ /PAYMENT_METHOD/ && is_number($param->{value}, 0, 1)) {
         $method = $param->{value};
       }
       elsif (!$attr->{PAYMENT_INNER_DESCRIBE} && $param->{param} =~ /INNER_DESCRIPTION/) {
-        $attr->{PAYMENT_INNER_DESCRIBE} = $param->{value};
+        $inner_describe = $param->{value};
       }
     }
   }
@@ -809,6 +819,8 @@ sub paysys_check_user {
 
   if ($Users->{errno}) {
     $self->mk_log('Mysql error ' . ($Users->{errno} || q{}));
+    # need to make empty if call the same object multiple times
+    delete $Users->{errno};
     return 2;
   }
   elsif ($Users->{TOTAL} < 1) {
@@ -1020,17 +1032,18 @@ sub paysys_pay_check {
     SUM            => '_SHOW',
     GID            => '_SHOW',
     UID            => '_SHOW',
+    SKIP_TOTAL     => 1,
     COLS_NAME      => 1
   });
 
   $Users->list({ UID => $paysys_list->[0]->{uid}, COLS_NAME => 1, COLS_UPPER => 1 }) if ($self->{conf}->{PAYSYS_LOG});
 
-  if ($Paysys->{TOTAL}) {
+  if ($Paysys->{TOTAL} && $paysys_list->[0]->{id}) {
     $self->{paysys_id} = $paysys_list->[0]->{id};
     return $paysys_list->[0]->{id}, $paysys_list->[0]->{status}, $paysys_list->[0];
   }
 
-  return $result;
+  return $result, 0;
 }
 
 #**********************************************************
@@ -1064,7 +1077,9 @@ sub paysys_info {
     IP             => '_SHOW',
     STATUS         => '_SHOW',
     DATE           => '_SHOW',
+    DATETIME       => '_SHOW',
     COLS_NAME      => 1,
+    COLS_UPPER     => 1,
   });
 
   if ($Paysys->{TOTAL} == 1) {
@@ -1156,7 +1171,7 @@ sub mk_log {
     if (!$self->{insert_id}) {
       my $result = $Paysys->log_add({
         REQUEST        => $buffer,
-        PAYSYS_IP      => $ENV{REMOTE_ADDR},
+        PAYSYS_IP      => $self->{REMOTE_ADDR},
         HTTP_METHOD    => $ENV{REQUEST_METHOD},
         SYSTEM_ID      => $attr->{PAYSYS_ID},
         ERROR          => $attr->{ERROR} || '',
@@ -1179,7 +1194,7 @@ sub mk_log {
         ID             => $self->{insert_id} || '--',
         REQUEST        => $buffer,
         RESPONSE       => $message,
-        IP             => $ENV{REMOTE_ADDR},
+        IP             => $self->{REMOTE_ADDR},
         HTTP_METHOD    => $ENV{REQUEST_METHOD},
         SYSTEM_ID      => $attr->{PAYSYS_ID},
         UID            => $uid || $attr->{UID},
@@ -1205,8 +1220,8 @@ sub mk_log {
         $main::TIME = strftime("%H:%M:%S", localtime(time));
       }
 
-      $ENV{REMOTE_ADDR} //= '127.0.0.1';
-      print $fh "\n$main::DATE $main::TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
+      $self->{REMOTE_ADDR} //= '127.0.0.1';
+      print $fh "\n$main::DATE $main::TIME $self->{REMOTE_ADDR} $paysys =========================\n";
 
       if ($attr->{REQUEST}) {
         print $fh "$attr->{REQUEST}\n=======\n";
@@ -1250,9 +1265,9 @@ sub mk_log {
         Find parameters for processing of user based on Payment system service id
 
         $Paysys_Core->conf_gid_split({
-          PARAM     => 'PAYSYS_PORTMONE_PAYEE_ID,
-          VALUE     => 10
-          PAYSYS_ID => $PAYSYSTEM_ID
+          PARAMETER     => 'PAYSYS_PORTMONE_PAYEE_ID',
+          VALUE         => 10,
+          PAYSYS_ID     => $PAYSYSTEM_ID
         });
 
   Returns:
@@ -1277,6 +1292,8 @@ sub conf_gid_split {
   });
 
   foreach my $param (@{$merchant_params}) {
+    # in config stored in one type in, in merchant params in second type
+    $param->{value} =~ s/\\"/"/g if ($param->{value});
     $self->{conf}->{$param->{param}} = $param->{value} || '';
   }
 
@@ -1388,6 +1405,7 @@ sub _hide_text {
   my @join_test = ();
   $text =~ s/\s+$//gm;
   $text =~ s/\'/_/g;
+  $text =~ s/&|%//g;
   my $str_utf8 = decode('UTF-8', $text);
 
   my @split_fio = split(/ /, $str_utf8);
@@ -1544,6 +1562,10 @@ sub _paysys_extra_check_user {
   foreach my $params (@params_array) {
     my @check_fields = ();
 
+    if ($params->{USER_ACCOUNT}) {
+      $params->{USER_ACCOUNT} =~ s/[,*;]//g;
+    }
+
     if ($self->{conf}->{PAYSYS_USER_MULTI_CHECK}) {
       my @check_arr = split(/,\s?/, uc($self->{conf}->{PAYSYS_USER_MULTI_CHECK}));
       @check_fields = grep {$_ ne $params->{CHECK_FIELD}} @check_arr;
@@ -1562,6 +1584,8 @@ sub _paysys_extra_check_user {
         }
       }
 
+      # need to make empty if call the same object multiple times
+      delete $Users->{errno};
       $list = $Users->list({
         $params->{CHECK_FIELD} => '_SHOW',
         LOGIN                  => '_SHOW',
@@ -1583,7 +1607,7 @@ sub _paysys_extra_check_user {
         $CHECK_FIELD           => $params->{USER_ACCOUNT} || '---',
         COLS_NAME              => 1,
         COLS_UPPER             => $attr->{COLS_UPPER} ? 1 : '',
-        PAGE_ROWS              => 4,
+        PAGE_ROWS              => 8,
       });
 
       delete $Users->{errno} if ($Users->{errno} && $CHECK_FIELD ne $check_fields[-1]);
@@ -1628,7 +1652,7 @@ sub sum2commission_sum {
     $commission_sum = $commission;
   }
   else {
-    $total_sum = (($sum * (($commission || 0) + 100)) / 100);
+    $total_sum = $sum * (1 / (1 - (($commission || 0) / 100)));
     $commission_sum = sprintf('%.2f', ($total_sum - $sum));
   }
 
@@ -1661,7 +1685,7 @@ sub commission_sum2sum {
     $final_amount = $sum - $commission;
   }
   else {
-    $final_amount = ($sum * 100) / (100 + ($commission || 0));
+    $final_amount = ($sum / (1 / (1 - ($commission || 0) / 100)));
   }
 
   return sprintf('%.2f', $final_amount);

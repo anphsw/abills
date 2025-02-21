@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_VERIFY",
+  "type": "object",
+  "properties": {
+    "result": {
+      "type": "string"
+    }
+  },
+  "required": ["result"]
+}

@@ -81,6 +81,7 @@ data=<?xml version=\"1.0\" encoding=\"UTF-8\"?>
     <PAYEE>$payee_id</PAYEE>
     <PAYER>
         <CONTRACT_NUMBER>$user_id</CONTRACT_NUMBER>
+        <AMOUNT>10</AMOUNT>
     </PAYER>
 </REQUESTS>
 },

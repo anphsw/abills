@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `ureports_log` (
   `destination` VARCHAR(60) NOT NULL DEFAULT '',
   `report_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `status` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `status` INT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`)
 )
@@ -27,9 +27,12 @@ CREATE TABLE IF NOT EXISTS `ureports_main` (
   COMMENT = 'Ureports user account';
 
 CREATE TABLE IF NOT EXISTS `ureports_user_send_types` (
-  `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
-  `type` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `id` INTEGER(11) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type` TINYINT(4) UNSIGNED NOT NULL DEFAULT 0,
   `destination` VARCHAR(60) NOT NULL DEFAULT '',
+  `error_code` INT(6) UNSIGNED NOT NULL DEFAULT 1,
+  `error_msg` TEXT,
   KEY (`uid`),
   KEY (`type`)
 )
@@ -71,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `ureports_tp_reports` (
   `default_value` VARCHAR(10) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`),
+  KEY `report_id` (`report_id`),
   KEY `tp_id_report_id` (`tp_id`, `report_id`)
 )
   DEFAULT CHARSET = utf8

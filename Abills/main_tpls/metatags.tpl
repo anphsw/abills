@@ -12,6 +12,7 @@
   <meta http-equiv='Pragma' CONTENT='no-cache'/>
   <meta http-equiv='Content-Type' CONTENT='text/html; charset=%CHARSET%'/>
   <meta http-equiv='Content-Language' content='%CONTENT_LANGUAGE%'/>
+  <meta name='google' content='nopagereadaloud'>
   <meta name='Author' content='~AsmodeuS~'/>
   <!-- Some new feature, need to actualize -->
   <!-- <meta name='theme-color' content="#db5945"> -->

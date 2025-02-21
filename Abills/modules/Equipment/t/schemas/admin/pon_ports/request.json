@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_EQUIPMENT_PON_PORTS",
+  "method": "GET",
+  "path": "equipment/pon/ports/",
+  "params": {}
+}

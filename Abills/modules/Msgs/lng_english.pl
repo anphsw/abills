@@ -120,7 +120,6 @@ $lang{HEAD} = 'Head';
 $lang{TIME_START_WORK} = 'The time to start work';
 $lang{TIME_END_WORK} = 'The time to finish work';
 $lang{ACTUAL_TIME_END} = 'The actual time to finish';
-$lang{BRIGADE} = 'Brigade';
 $lang{D_ACTIVE} = 'Active';
 
 $lang{MONDAY_FULL} = 'Monday';
@@ -149,6 +148,10 @@ $lang{UNREPLY_MSGS} = 'Unreply message';
 $lang{TICKET} = 'Ticket';
 $lang{TICKET_BRIGADE} = 'Tickets installers';
 $lang{BRIGADE} = 'Brigade';
+$lang{BRIGADES} = 'Brigades';
+$lang{MEMBERS} = 'Members';
+$lang{ASSIGNED_BRIGADE} = 'Assigned brigade';
+$lang{WORK_REGION} = 'Work region';
 $lang{LOCATION_BRIGADE} = 'Snap to geo address';
 
 $lang{TICKET_REPORT} = 'Works on ticket';
@@ -286,8 +289,26 @@ $lang{MSGS_MAKE_PRIVATE} = 'Make private';
 $lang{MSGS_MAKE_PUBLIC} = 'Make public';
 $lang{MSGS_PROJECT} = 'Project';
 $lang{MSGS_RECENT_USER_REQUESTS} = 'Recent user requests';
+$lang{MSGS_BOLD} = 'Bold';
+$lang{MSGS_SPOILER} = 'Spoiler';
+$lang{MSGS_NUMBER_OF_ANSWERS} = 'Number of answers';
+$lang{MSGS_ANSWERS} = 'Answers';
+$lang{MSGS_NUMBER_OF_USES} = 'Number of uses';
 
 $lang{ERR_SEND_PUSH_ADMIN} = 'An error occurred while sending a Push notification. Push is not configured for the web interface, or administrators are not subscribed to Push notifications';
 $lang{ERR_SEND_MESSAGE_ADMIN} = 'An error occurred while sending notification.';
+$lang{ERR_MESSAGE_SECONDS_LIMIT} = 'Messages can be sent up to once every %LIMIT% seconds';
+$lang{ERR_NO_ATTACHMENT} = 'Not found attachment with id %ID%';
+$lang{ERR_READ_ATTACHMENT} = 'Not found attachment with id %ID%';
+$lang{ERR_NO_PERMISSION_ADD_MESSAGE} = 'No permission to add messages';
+$lang{ERR_NO_PERMISSION_TO_CHAPTER} = 'No permission for this chapter';
+$lang{ERR_NO_MESSAGE_ACCESS} = 'The message cannot be accessed';
+$lang{ERR_NO_ATTACHMENT_ADDED} = 'No attachments added';
+
+$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Checking works before closing the ticket';
+$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Displaying user equipment information';
+$lang{SHOW_MSGS_MAP} = 'Show message on map';
+$lang{TICKET_WORKS} = 'Ticket works';
+$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Ability to attach equipment to a ticket';
 
 1;

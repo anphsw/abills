@@ -1,71 +1,74 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
   "title": "The Root Schema",
-  "required": [
-    "authType",
-    "descr",
-    "extAcct",
-    "id",
-    "mac",
-    "nasAlive",
-    "nasDisable",
-    "nasGroupName",
-    "nasId",
-    "nasIdentifier",
-    "nasIp",
-    "nasMngIpPort",
-    "nasMngPassword",
-    "nasMngUser",
-    "nasName",
-    "nasRadPairs",
-    "nasType"
-  ],
-  "properties": {
-    "authType": {
-      "type": "number"
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "authType": {
+        "type": "number"
+      },
+      "descr": {
+        "type": "string"
+      },
+      "extAcct": {
+        "type": "number"
+      },
+      "id": {
+        "type": "number"
+      },
+      "nasAlive": {
+        "type": "number"
+      },
+      "nasDisable": {
+        "type": "number"
+      },
+      "nasGroupName": {
+        "type": "string"
+      },
+      "nasId": {
+        "type": "number"
+      },
+      "nasIdentifier": {
+        "type": "string"
+      },
+      "nasIp": {
+        "type": "string"
+      },
+      "nasMngIpPort": {
+        "type": "string"
+      },
+      "nasMngUser": {
+        "type": "string"
+      },
+      "nasName": {
+        "type": "string"
+      },
+      "nasRadPairs": {
+        "type": "string"
+      },
+      "nasType": {
+        "type": "string"
+      }
     },
-    "descr": {
-      "type": "string"
-    },
-    "extAcct": {
-      "type": "number"
-    },
-    "id": {
-      "type": "number"
-    },
-    "nasAlive": {
-      "type": "number"
-    },
-    "nasDisable": {
-      "type": "number"
-    },
-    "nasGroupName": {
-      "type": "string"
-    },
-    "nasId": {
-      "type": "number"
-    },
-    "nasIdentifier": {
-      "type": "string"
-    },
-    "nasIp": {
-      "type": "string"
-    },
-    "nasMngIpPort": {
-      "type": "string"
-    },
-    "nasMngUser": {
-      "type": "string"
-    },
-    "nasName": {
-      "type": "string"
-    },
-    "nasRadPairs": {
-      "type": "string"
-    },
-    "nasType": {
-      "type": "string"
-    }
+    "required": [
+      "authType",
+      "descr",
+      "extAcct",
+      "id",
+      "mac",
+      "nasAlive",
+      "nasDisable",
+      "nasGroupName",
+      "nasId",
+      "nasIdentifier",
+      "nasIp",
+      "nasMngIpPort",
+      "nasMngPassword",
+      "nasMngUser",
+      "nasName",
+      "nasRadPairs",
+      "nasType"
+    ]
   }
 }

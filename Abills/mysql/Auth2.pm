@@ -1726,7 +1726,7 @@ sub get_ip {
     return $self->get_ip2($nas_num, $nas_ip, $attr);
   }
 
-  my $guest = ($guest_mode) ? "AND guest=$guest_mode" : "AND guest=0" ;
+  my $guest = ($guest_mode) ? "AND guest='$guest_mode'" : "AND guest=0" ;
   my $extra_params = '';
   if($attr->{SERVER_VLAN} && $attr->{VLAN}) {
     $extra_params = " AND (server_vlan='$attr->{SERVER_VLAN}' AND vlan='$attr->{VLAN}') ";
@@ -1965,7 +1965,7 @@ sub get_ip2 {
   my ($nas_num, $nas_ip, $attr) = @_;
 
   my $guest_mode = $self->{GUEST} || $attr->{GUEST} || 0;
-  my $guest = ($guest_mode) ? "AND guest=$guest_mode" : "AND guest=0" ;
+  my $guest = ($guest_mode) ? "AND guest='$guest_mode'" : "AND guest=0" ;
 
   #Get reserved IP with status 11
   my $user_name = $self->{USER_NAME} || '';
@@ -2009,7 +2009,7 @@ sub get_ip2 {
     $WHERE = "nas_ippools.nas_id = '$nas_num'";
     if($guest_mode) {
       #Only guest pool
-      $WHERE .= " AND ippools.guest=$guest_mode";
+      $WHERE .= " AND ippools.guest='$guest_mode'";
       if($attr->{SERVER_VLAN}) {
         $WHERE .= " AND ippools.vlan='$attr->{SERVER_VLAN}'";
       }

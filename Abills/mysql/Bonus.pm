@@ -99,7 +99,7 @@ sub change {
     }
   );
 
-  return $self->{result};
+  return $self;
 }
 
 
@@ -198,7 +198,7 @@ sub tp_change {
       DATA         => $attr
     }
   );
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -212,7 +212,7 @@ sub tp_del {
 
   $self->query_del('bonus_tps', $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1294,7 +1294,7 @@ sub tp_using_change {
       DATA         => $attr
     }
   );
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1308,7 +1308,7 @@ sub tp_using_del {
 
   $self->query_del('bonus_tp_using', $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************

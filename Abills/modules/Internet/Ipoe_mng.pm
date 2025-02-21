@@ -102,7 +102,7 @@ sub internet_ipoe_activate{
     $nas_id = int( $FORM{NAS_ID} );
   }
   else{
-    my $poll_list = $Nas->nas_ip_pools_list({ SHOW_ALL_COLUMNS => 1, COLS_NAME => 1, PAGE_ROWS => 65000 });
+    my $poll_list = $Nas->nas_ip_pools_list({ _SHOW_ALL_COLUMNS => 1, COLS_NAME => 1, PAGE_ROWS => 65000 });
     my $ip_num = unpack( "N", pack( "C4", split( /\./, $ip ) ) );
 
     # Get valid NAS

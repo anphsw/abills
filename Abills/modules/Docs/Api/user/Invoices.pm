@@ -1,7 +1,7 @@
 package Docs::Api::user::Invoices;
 =head1 NAME
 
-  Portal articles manage
+  Docs invoices
 
   Endpoints:
     /user/docs/invoices/*
@@ -82,7 +82,7 @@ sub get_user_docs_invoices {
     DOC_ID         => '_SHOW',
     EXT_ID         => '_SHOW',
     UID            => $path_params->{uid},
-    COLS_NAME      => 1,
+    %PARAMS,
   });
 
   return {

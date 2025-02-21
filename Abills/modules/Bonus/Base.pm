@@ -45,6 +45,9 @@ sub bonus_payments_maked {
   my $self = shift;
   my ($attr) = @_;
 
+  # add this row if makes multiple time bonus
+  # return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
+
   return '' if (!$CONF->{BONUS_PAYMENTS} || !$attr->{SUM});
   my $form = $attr->{FORM} || {};
   my $score = 0;
@@ -202,12 +205,14 @@ sub bonus_service_discount_mk {
   my $self = shift;
   my ($attr) = @_;
 
+  return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
+
   my $form = $attr->{FORM} || {};
   my @excluder_arr = ();
 
   my $user_info = $attr->{USER_INFO};
-  if ($user_info->{GID}) {
-    $user_info->group_info($main::users->{GID});
+  if ($user_info->{GID} && !$attr->{QUITE}) {
+    $user_info->group_info($user_info->{GID});
 
     if (!$user_info->{BONUS}) {
       $html->message('warn', $lang->{BONUS_DISABLED_FOR_GROUP}, '', { ID => 1901 });
@@ -400,7 +405,7 @@ sub bonus_service_discount_mk {
 
   #Result
   if ($RESULT{DISCOUNT} && $RESULT{DISCOUNT} > 0) {
-    $main::users->change($user_info->{UID}, {
+    $user_info->change($user_info->{UID}, {
       REDUCTION      => $RESULT{DISCOUNT},
       REDUCTION_DATE => $RESULT{DISCOUNT_PERIOD},
       UID            => $user_info->{UID}
@@ -415,7 +420,7 @@ sub bonus_service_discount_mk {
   }
 
   if ($RESULT{BONUS_SUM} && $RESULT{BONUS_SUM} > 0) {
-    $main::users->{MAIN_BILL_ID} = $main::users->{BILL_ID};
+    $user_info->{MAIN_BILL_ID} = $user_info->{BILL_ID};
 
     $Payments->add($user_info,{
       SUM          => $RESULT{BONUS_SUM},
@@ -426,7 +431,7 @@ sub bonus_service_discount_mk {
       CHECK_EXT_ID => ($attr->{EXT_ID}) ? 'B_' . $attr->{EXT_ID} : undef
     });
 
-    if ($Payments->{errno}) {
+    if ($Payments->{errno} && !$attr->{QUITE}) {
       if ($Payments->{errno} == 12) {
         $html->message('err', $lang->{ERROR}, $lang->{ERR_WRONG_SUM});
       }
@@ -444,7 +449,7 @@ sub bonus_service_discount_mk {
       $html->message('info', $lang->{INFO}, "$message") if !$attr->{QUITE};
     }
 
-    $main::users->{BILL_ID} = $main::users->{MAIN_BILL_ID} if $main::users->{MAIN_BILL_ID};
+    $user_info->{BILL_ID} = $user_info->{MAIN_BILL_ID} if $user_info->{MAIN_BILL_ID};
   }
 
   return 0;

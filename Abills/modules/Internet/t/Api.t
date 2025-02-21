@@ -88,23 +88,37 @@ my @tests = folder_list($ARGS, $RealBin);
 my $debug = $ARGS->{DEBUG} || 0;
 
 foreach my $test (@tests) {
+  # TODO: move to core
   if ($test->{path} =~ /user\/:id\/holdup\//g) {
     my $id = (scalar(@{$service})) ? $service->[0]->{id} : '';
     $test->{path} =~ s/:id/$id/g;
 
     if ($test->{method} eq 'POST') {
       my $hold_up_min_period = 1;
-      ($hold_up_min_period) = split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}) if ($conf{INTERNET_USER_SERVICE_HOLDUP});
+      ($hold_up_min_period) = split(/:/, $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
 
       $test->{body}->{from_date} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400));
       $test->{body}->{to_date} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * ($hold_up_min_period + 1)));
     }
+  }
+  elsif ($test->{path} =~ /user\/internet\/:id\/activate/g) {
+    my $id = $active_tariffs->[0]->{id};
+    $test->{path} =~ s/:id/$id/g;
   }
   elsif ($test->{path} =~ /user\/internet\/:id/g) {
     if ($test->{method} eq 'DELETE') {
       $Shedule->info({ UID => $user->[0]->{uid}, TYPE => 'tp', MODULE => 'Internet' });
       $Shedule->{SHEDULE_ID} //= '';
       $test->{path} =~ s/:id/$Shedule->{SHEDULE_ID}/g;
+    }
+    elsif ($test->{method} eq 'PUT') {
+      $test->{body}->{tpId} = $available_tariffs->[0]->{tp_id};
+      my $id = $active_tariffs->[0]->{id};
+      $test->{path} =~ s/:id/$id/g;
+    }
+    else {
+      my $id = $active_tariffs->[0]->{id};
+      $test->{path} =~ s/:id/$id/g;
     }
   }
   elsif ($test->{path} =~ /internet\/activate\//g) {

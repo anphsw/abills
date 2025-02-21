@@ -150,7 +150,8 @@
       sum: document.getElementById('sum').value || 1,
       gpay: paymentData,
       systemId: googlePayConfig.paysysId,
-      returnUrl: 1
+      returnUrl: 1,
+      operationId: `G${Math.floor(Math.random() * 1000000000)}`
     };
 
     try {

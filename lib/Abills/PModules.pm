@@ -6,7 +6,6 @@ package Abills::PModules;
 
 =cut
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use feature 'state';
 use strict;
 our (%EXPORT_TAGS);

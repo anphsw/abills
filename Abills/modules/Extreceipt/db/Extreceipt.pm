@@ -198,11 +198,14 @@ sub get_new_payments {
       . 'SELECT p.id, '. $CASE .'
       FROM payments p
       LEFT JOIN users u ON (u.uid = p.uid)
-      WHERE p.id NOT IN (SELECT payments_id FROM extreceipts)
+      WHERE p.id NOT IN (SELECT payments_id FROM extreceipts WHERE payments_id > ?)
       AND p.id > ? AND p.id <= ? 
       HAVING kkt_id > 0;',
     'do',
-    { Bind => [ $start_id, $last_id ] }
+    { Bind => [ $start_id,
+      $start_id,
+      $last_id ]
+    }
   );
 
   return 1;

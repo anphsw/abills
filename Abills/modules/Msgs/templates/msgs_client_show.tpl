@@ -1,82 +1,5 @@
-<style>
-	.attachment_responsive {
-		border-radius: 5px;
-		cursor: pointer;
-		transition: 0.3s;
-	}
-
-	.attachment_responsive:hover {
-		opacity: 0.7;
-	}
-
-	.modal-img {
-		display: none;
-		position: fixed;
-		z-index: 99999;
-		padding-top: 100px;
-		left: 0;
-		top: 0;
-		width: 100%;
-		height: 100%;
-		overflow: auto;
-		background-color: rgb(0, 0, 0);
-		background-color: rgba(0, 0, 0, 0.9);
-	}
-
-	.modal-content-img {
-		margin: auto;
-		display: block;
-		max-width: 90%;
-	}
-
-	.modal-content-img {
-		-webkit-animation-name: zoom;
-		-webkit-animation-duration: 0.6s;
-		animation-name: zoom;
-		animation-duration: 0.6s;
-	}
-
-	@-webkit-keyframes zoom {
-		from {
-			-webkit-transform: scale(0)
-		}
-		to {
-			-webkit-transform: scale(1)
-		}
-	}
-
-	@keyframes zoom {
-		from {
-			transform: scale(0)
-		}
-		to {
-			transform: scale(1)
-		}
-	}
-
-	.closeImageResize {
-		position: absolute;
-		top: 15px;
-		right: 35px;
-		color: #f1f1f1;
-		font-size: 40px;
-		font-weight: bold;
-		transition: 0.3s;
-	}
-
-	.closeImageResize:hover,
-	.closeImageResize:focus {
-		color: #bbb;
-		text-decoration: none;
-		cursor: pointer;
-	}
-
-	@media only screen and (max-width: 700px) {
-		.modal-content-img {
-			width: 100%;
-		}
-	}
-</style>
+<link rel='stylesheet' href='/styles/default/css/modules/msgs/msgs.reply.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/msgs/highlight.min.css'>
 
 <FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message_form' id='add_message_form'>
   <input type='hidden' name='index' value='$index'/>
@@ -187,3 +110,6 @@
     });
   }());
 </script>
+<script src='/styles/default/js/msgs/msgs.reply.js'></script>
+<script src='/styles/default/js/msgs/highlight.min.js'></script>
+<script>hljs.highlightAll();</script>

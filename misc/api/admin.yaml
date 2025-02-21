@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS ADMIN API
-  version: 1.2.9
-  description: >
-    Last modified 2024-08-14 <br>
+  version: 1.38.05
+  description: |
+    Last modified 2025-01-09 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_admin.yaml.
     Copy it and upload it to your favorite OPEN API viewer.
@@ -23,6 +23,8 @@ servers:
 tags:
   - name: admins
     description: Работа с администраторами
+  - name: bots
+    description: Пути ботов пользователя
   - name: builds
     description: Дома
   - name: callback
@@ -57,6 +59,8 @@ tags:
     description: Abon
   - name: cablecat
     description: Работа с модулем Cablecat
+  - name: cards
+    description: Работа с модулем Cards
   - name: crm
     description: Crm
   - name: docs
@@ -77,12 +81,15 @@ tags:
     description: Работа с модулем Storage
   - name: tags
     description: Работа с метками пользователя (модуль Tags)
+  - name: tasks
+    description: Работа с модулем Tasks
   - name: ureports
     description: Работа с оповещениями (модуль Ureports)
   - name: voip
     description: Работа с телефонией (модуль Voip)
 paths:
   $ref: "./admin/admins/paths.yaml"
+  $ref: "./admin/bots/paths.yaml"
   $ref: "./admin/builds/paths.yaml"
   $ref: "./admin/callback/paths.yaml"
   $ref: "./admin/companies/paths.yaml"
@@ -100,6 +107,7 @@ paths:
   $ref: "./admin/version/paths.yaml"
   $ref: "../../Abills/modules/Abon/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Cablecat/Api/swagger/admin/paths.yaml"
+  $ref: "../../Abills/modules/Cards/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Crm/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Docs/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Equipment/Api/swagger/admin/paths.yaml"
@@ -110,10 +118,118 @@ paths:
   $ref: "../../Abills/modules/Portal/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Storage/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Tags/Api/swagger/admin/paths.yaml"
+  $ref: "../../Abills/modules/Tasks/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Ureports/Api/swagger/admin/paths.yaml"
   $ref: "../../Abills/modules/Voip/Api/swagger/admin/paths.yaml"
 components:
+  parameters:
+    pathAid:
+      name: aid
+      in: path
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+    pathNasId:
+      name: nasId
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+    pathTpId:
+      name: tpId
+      in: path
+      description: tpId тарифного плана
+      required: true
+      schema:
+        type: integer
+        format: int64
+    pathUid:
+      name: uid
+      in: path
+      description: ID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    aid:
+      name: aid
+      in: query
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+    domainId:
+      name: domainId
+      in: query
+      description: ID домена (модуль Multidoms)
+      schema:
+        type: integer
+    nasId:
+      name: nasId
+      in: query
+      description: ID сервера доступа.
+      schema:
+        type: boolean
+        default: true
+    tpId:
+      name: tpId
+      in: query
+      description: ID тарифного плана
+      schema:
+        type: integer
+    uid:
+      name: uid
+      in: query
+      description: ID пользователя
+      schema:
+        type: integer
+        format: int64
+    desc:
+      name: desc
+      in: query
+      description: "Specify sorting order: 'ASC' for ascending, 'DESC' for descending"
+      schema:
+        type: string
+        enum: [ASC, DESC]
+        default: ASC
+    pageRows:
+      name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    pg:
+      name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+    sort:
+      name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+        default: 0
   schemas:
+    ErrorUserNotExists:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 15
+        errstr:
+          type: string
+          example: User not found with uid 121212
+        uid:
+          type: number
+          example: 121212
     ApiGetResponse400:
       type: object
       properties:

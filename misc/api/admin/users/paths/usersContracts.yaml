@@ -9,24 +9,14 @@ get:
       schema:
         type: boolean
         default: true
-    - name: uid
-      in: query
-      description: ID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: companyId
       in: query
       description: ID компании
       schema:
         type: boolean
         default: true
-    - name: aid
-      in: query
-      description: Админ создавший дополнительный договор
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/aid"
     - name: date
       in: query
       description: Дата создания дополнительного договора
@@ -81,17 +71,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

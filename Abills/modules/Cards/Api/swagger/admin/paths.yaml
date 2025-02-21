@@ -1,0 +1,2 @@
+/cards/{uid}/payments:
+  $ref: "./paths/payment.yaml"

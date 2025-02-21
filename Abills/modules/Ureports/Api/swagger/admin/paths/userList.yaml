@@ -4,12 +4,7 @@ get:
   summary: Список пользователей с включенными оповещениями
   operationId: ureportsUserList
   parameters:
-    - name: tpId
-      in: query
-      description: ID тарифного план
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/tpId"
     - name: tpName
       in: query
       description: Название тарифного плана
@@ -28,24 +23,17 @@ get:
       schema:
         type: boolean
         default: false
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: reportsCount
       in: query
       description: Количество отчётов
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 100000
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

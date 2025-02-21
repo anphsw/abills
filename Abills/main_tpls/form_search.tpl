@@ -30,7 +30,7 @@
                   class='form-control' type='text'>
               </div>
               <div class='col-md-2'>
-                <input placeholder='UID' pattern='\d+\,?\*?' id='UID' name='UID' value='%UID%' type='text' class='form-control' />
+                <input placeholder='UID' pattern='\d+,?\*?' id='UID' name='UID' value='%UID%' type='text' class='form-control' />
               </div>
             </div>
 

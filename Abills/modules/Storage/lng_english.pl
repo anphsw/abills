@@ -156,7 +156,6 @@ $lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'This SN is already in use';
 $lang{STORAGE_MONTHS_LEFT} = 'Months left';
 $lang{STORAGE_COMPLETED} = 'Completed';
 
-$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Ability to attach equipment to a ticket';
 $lang{ITEM_ADDED_TO} = 'Item added to';
 
 $lang{MOVED} = 'Moved';
@@ -196,7 +195,11 @@ $lang{STORAGE_SOLD} = 'Sold';
 $lang{STORAGE_PURCHASED_ITEM} = 'Purchase of goods';
 $lang{STORAGE_SHIPPING_STATUS} = 'Shipping status';
 $lang{STORAGE_PURCHASE_REPORT} = 'Purchase report';
+$lang{STORAGE_ACCESS_LEVEL} = 'Access level';
+$lang{STORAGE_VIEW_ONLY} = 'View only';
+$lang{STORAGE_MANAGEMENT} = 'Management';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'The quantity of goods is incorrect';
+$lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'No permissions to manage storage';
 
 1;

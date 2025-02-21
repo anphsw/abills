@@ -174,6 +174,7 @@ sub docs_receipt_add {
   }
 
   $Docs->{TOTAL_SUM} = sprintf( "%.2f", $Docs->{TOTAL_SUM} );
+  $Docs->{DOC_TYPE} = 3;
 
   $Docs->{'TOTAL_SUM_WITHOUT_VAT'} = sprintf( "%.2f",
       ($conf{DOCS_VAT_INCLUDE}) ? $Docs->{TOTAL_SUM} - ($Docs->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $Docs->{TOTAL_SUM} );
@@ -726,7 +727,7 @@ sub docs_receipt_print {
       $Docs->{AMOUNT_FOR_PAY} += $Docs->{ 'ORDER_COUNT_' . $i } * $Docs->{ 'ORDER_PRICE_' . $i } if ($line->[5] == 0);
 
       #alternative currancy sum
-      if ( $Docs->{EXCHANGE_RATE} > 0 ){
+      if ( $Docs->{EXCHANGE_RATE} && $Docs->{EXCHANGE_RATE} > 0 ){
         $Docs->{ 'ORDER_ALT_SUM_' . $i } = sprintf( "%.2f", $Docs->{ 'ORDER_SUM_' . $i } * $Docs->{EXCHANGE_RATE} );
         $Docs->{ 'ORDER_ALT_PRICE_' . $i } = sprintf( "%.2f",
           $Docs->{ 'ORDER_PRICE_' . $i } * $Docs->{EXCHANGE_RATE} );
@@ -745,7 +746,7 @@ sub docs_receipt_print {
   $Docs->{AMOUNT_FOR_PAY} = int( $Docs->{AMOUNT_FOR_PAY} * 100 );
   $Docs->{TOTAL_SUM_CENT} = int( $Docs->{TOTAL_SUM} * 100 );
 
-  if ( $Docs->{EXCHANGE_RATE} > 0 ) {
+  if ( $Docs->{EXCHANGE_RATE} && $Docs->{EXCHANGE_RATE} > 0 ) {
     $Docs->{TOTAL_ALT_SUM} = sprintf("%.2f", $Docs->{TOTAL_SUM} * $Docs->{EXCHANGE_RATE});
     $Docs->{AMOUNT_FOR_PAY_ALT} = sprintf("%.2f", $Docs->{AMOUNT_FOR_PAY} * $Docs->{EXCHANGE_RATE});
     $Docs->{CHARGED_ALT_SUM} = sprintf("%.2f", $Docs->{CHARGED_SUM} * $Docs->{EXCHANGE_RATE});
@@ -817,6 +818,7 @@ sub docs_receipt_print {
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
     $attr->{SEND_EMAIL} = 1;
   }
+  $Docs->{DOC_TYPE} = 3;
 
   return docs_print( $FORM{termo_printer_tpl} ? 'invoice_termo_printer' : 'receipt', { %{$Docs}, %{$attr} } );
 }

@@ -56,6 +56,13 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='TAGGED_VLAN'>Tagged VLAN:</label>
+        <div class='col-md-8'>
+          <input id='TAGGED_VLAN' value='1' type='checkbox'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='BRANCH'>Branch:</label>
         <div class='col-md-8'>
           <input id='BRANCH' value='%UC_TYPE% %BRANCH%' readonly class='form-control-plaintext' type='text'>

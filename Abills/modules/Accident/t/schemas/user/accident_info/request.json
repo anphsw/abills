@@ -1,0 +1,5 @@
+{
+  "name": "USER_ACCIDENT_INFO",
+  "method": "GET",
+  "path": "user/accident/"
+}

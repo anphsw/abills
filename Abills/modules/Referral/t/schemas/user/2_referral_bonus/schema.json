@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "comments": {
+        "type": "string"
+      },
+      "date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "fio": {
+        "type": "string"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "sum": {
+        "type": "integer"
+      }
+    },
+    "required": ["address", "comments", "date", "fio", "id", "sum"]
+  }
+}

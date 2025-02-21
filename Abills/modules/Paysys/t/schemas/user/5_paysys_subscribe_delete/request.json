@@ -1,0 +1,6 @@
+{
+  "name": "USER_PAYSYS_SUBSCRIBE_DELETE",
+  "method": "DELETE",
+  "path": "user/paysys/recurrent/",
+  "body": {}
+}

@@ -8,7 +8,7 @@
       <tr>
         <td>_{LOGIN}_:</td>
         <td>
-          <a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a>
+          <a href='%SELF_URL%?index=15&UID=%UID%'>%LOGIN%</a>
         </td>
       </tr>
       <tr>

@@ -227,8 +227,13 @@ sub referrals_list {
     COLS_NAME    => 1,
     PAGE_ROWS    => 99999
   });
+  print "\nTotal referrals: $Referral->{TOTAL} \n" if ( $Referral->{TOTAL} && $attr->{DEBUG});
 
+  my $i;
   foreach my $referral (@{$referral_list}) {
+    $i++;
+    print "$i.Referrer UID: $referral->{referrer}\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2 && $referral->{referrer});
+
     if ($referral->{referral_uid}) {
       my $payments_bonus = 0;
       my $fees_bonus = 0;
@@ -659,6 +664,7 @@ sub referral_bonus_add {
   $params{REFERRAL_UID} = $attr->{REFERRAL_UID} if ($attr->{REFERRAL_UID});
   $params{UID} = $attr->{UID} if ($attr->{UID});
   $params{STATUS} = 2;
+  $params{DEBUG} = $attr->{DEBUG} || 0;
 
   my $result = $self->referrals_list(\%params);
 
@@ -726,9 +732,9 @@ sub _referral_check_user_status {
   my $status = 0;
 
   my $user_info = $Users->info($referral->{UID});
-  $status += $user_info->{DISABLE};
+  $status += $user_info->{DISABLE} if ($user_info->{DISABLE});
 
-  require Control::Services;
+  do 'Control/Services.pm';
   my $service_info = get_services({ UID => $referral->{UID}} );
 
   foreach my $service (@{ $service_info->{list} }){

@@ -131,7 +131,6 @@ $lang{HEAD} = 'Руководитель';
 $lang{TIME_START_WORK} = 'Время начала работ';
 $lang{TIME_END_WORK} = 'Время окончания работ';
 $lang{ACTUAL_TIME_END} = 'Фактическое время окончания';
-$lang{BRIGADE} = 'Бригада';
 $lang{D_ACTIVE} = 'Активная';
 
 $lang{MONDAY_FULL} = 'Понедельник';
@@ -160,6 +159,10 @@ $lang{UNREPLY_MSGS} = 'Без ответа';
 $lang{TICKET} = 'Заявка';
 $lang{TICKET_BRIGADE} = 'Тикеты монтажников';
 $lang{BRIGADE} = 'Бригада';
+$lang{BRIGADES} = 'Бригады';
+$lang{MEMBERS} = 'Участники';
+$lang{ASSIGNED_BRIGADE} = 'Назначенная бригада';
+$lang{WORK_REGION} = 'Рабочий регион';
 $lang{LOCATION_BRIGADE} = 'Привязать к геоадресу';
 
 $lang{TICKET_REPORT} = 'Работы над заявками';
@@ -295,8 +298,26 @@ $lang{MSGS_MAKE_PRIVATE} = 'Сделать внутренним';
 $lang{MSGS_MAKE_PUBLIC} = 'Сделать публичным';
 $lang{MSGS_PROJECT} = 'Проект';
 $lang{MSGS_RECENT_USER_REQUESTS} = 'Последние запросы пользователя';
+$lang{MSGS_BOLD} = 'Жирный';
+$lang{MSGS_SPOILER} = 'Спойлер';
+$lang{MSGS_NUMBER_OF_ANSWERS} = 'Количество ответов';
+$lang{MSGS_ANSWERS} = 'Ответы';
+$lang{MSGS_NUMBER_OF_USES} = 'Количество использований';
 
 $lang{ERR_SEND_PUSH_ADMIN} = 'Возникла ошибка при отправке Push сообщения. Push не настроен для вебинтерфейса, или администраторы не подписаны на Push уведомления';
 $lang{ERR_SEND_MESSAGE_ADMIN} = 'Возникла ошибка при отправке сообщения.';
+$lang{ERR_MESSAGE_SECONDS_LIMIT} = 'Сообщения можно отправлять не чаще, чем раз в %LIMIT% секунд';
+$lang{ERR_NO_ATTACHMENT} = 'Вложение с идентификатором %ID% не найдено';
+$lang{ERR_READ_ATTACHMENT} = 'Вложение с идентификатором %ID% не найдено';
+$lang{ERR_NO_PERMISSION_ADD_MESSAGE} = 'Нет разрешения на добавление сообщений';
+$lang{ERR_NO_PERMISSION_TO_CHAPTER} = 'Нет разрешения на доступ к этому разделу';
+$lang{ERR_NO_MESSAGE_ACCESS} = 'Сообщение недоступно';
+$lang{ERR_NO_ATTACHMENT_ADDED} = 'Вложения не добавлены';
+
+$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Проверка работ перед закрытием заявки';
+$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Отображение информации по оборудованию пользователя';
+$lang{SHOW_MSGS_MAP} = 'Отобразить сообщение на карте';
+$lang{TICKET_WORKS} = 'Работы по заявке';
+$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Возможность прикрепить оборудование к тикету';
 
 1;

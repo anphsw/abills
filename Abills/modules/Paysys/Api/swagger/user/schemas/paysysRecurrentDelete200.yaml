@@ -1,0 +1,8 @@
+type: object
+properties:
+  message:
+    type: string
+    example: Successfully unsubscribed
+  result:
+    type: string
+    example: SUCCESS_UNSUBSCRIBE

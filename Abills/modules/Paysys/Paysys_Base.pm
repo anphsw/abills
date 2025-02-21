@@ -424,7 +424,7 @@ sub paysys_pay {
     $merchant_id = $params->[0]->{merchant_id} if (!$attr->{MERCHANT_ID});
     foreach my $param (@{$params}) {
       next if !$param->{param};
-      if (!$attr->{PAYMENT_METHOD} && $param->{param} =~ /PAYMENT_METHOD/ && is_number($param->{param}, 0, 1)) {
+      if (!$attr->{PAYMENT_METHOD} && $param->{param} =~ /PAYMENT_METHOD/ && is_number($param->{value}, 0, 1)) {
         $method = $param->{value};
       }
       elsif (!$attr->{PAYMENT_INNER_DESCRIBE} && $param->{param} =~ /INNER_DESCRIPTION/) {
@@ -1284,6 +1284,7 @@ sub mk_log {
     }
   }
 
+  my $REMOTE_ADDR     = $attr->{REMOTE_ADDR} || $ENV{REMOTE_ADDR} || '127.0.0.1';
   my $paysys          = $attr->{PAYSYS_ID} || '';
   my $paysys_log_file = $attr->{LOG_FILE} || ($base_dir // '/usr/abills/') . 'var/log/paysys_check.log';
 
@@ -1316,7 +1317,7 @@ sub mk_log {
     if (!$insert_id) {
       my $result = $Paysys->log_add({
         REQUEST        => $buffer,
-        PAYSYS_IP      => $ENV{REMOTE_ADDR},
+        PAYSYS_IP      => $REMOTE_ADDR,
         HTTP_METHOD    => $ENV{REQUEST_METHOD},
         SYSTEM_ID      => $attr->{PAYSYS_ID},
         ERROR          => $attr->{ERROR} || '',
@@ -1339,7 +1340,7 @@ sub mk_log {
         ID             => $insert_id || '--',
         REQUEST        => $buffer,
         RESPONSE       => $message,
-        IP             => $ENV{REMOTE_ADDR},
+        IP             => $REMOTE_ADDR,
         HTTP_METHOD    => $ENV{REQUEST_METHOD},
         SYSTEM_ID      => $attr->{PAYSYS_ID},
         UID            => $uid || $attr->{UID},
@@ -1365,8 +1366,7 @@ sub mk_log {
         $TIME = strftime("%H:%M:%S", localtime(time));
       }
 
-      $ENV{REMOTE_ADDR} //= '127.0.0.1';
-      print $fh "\n$DATE $TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
+      print $fh "\n$DATE $TIME $REMOTE_ADDR $paysys =========================\n";
 
       if ($attr->{REQUEST}) {
         print $fh "$attr->{REQUEST}\n=======\n";
@@ -1621,6 +1621,7 @@ sub _hide_text {
   my @join_test = ();
   $text =~ s/\s+$//gm;
   $text =~ s/\'/_/g;
+  $text =~ s/&|%//g;
   my $str_utf8 = decode("UTF-8", $text);
 
   my @split_fio = split(/ /, $str_utf8);
@@ -1807,6 +1808,10 @@ sub _paysys_extra_check_user {
   foreach my $params (@params_array) {
     my @check_fields = ();
 
+    if ($params->{USER_ACCOUNT}) {
+      $params->{USER_ACCOUNT} =~ s/[,*;]//g;
+    }
+
     if ($conf{PAYSYS_USER_MULTI_CHECK}) {
       my @check_arr = split(/,\s?/, uc($conf{PAYSYS_USER_MULTI_CHECK}));
       @check_fields = grep {$_ ne $params->{CHECK_FIELD}} @check_arr;
@@ -1925,6 +1930,7 @@ sub paysys_statement_processing {
     if ($type) {
       my $company = $Companies->list({
         COMPANY_ADMIN => '_SHOW',
+        UID           => '_SHOW',
         COLS_NAME     => 1,
         $field_name   => $search_str || '--',
       });
@@ -1940,7 +1946,7 @@ sub paysys_statement_processing {
 
       # set user info of company admin
       $CHECK_FIELD = 'UID';
-      $search_str = $company->[0]->{uid};
+      $search_str = $company->[0]->{company_admin} || $company->[0]->{uid} || '--';
     }
 
     next if (!$search_str);

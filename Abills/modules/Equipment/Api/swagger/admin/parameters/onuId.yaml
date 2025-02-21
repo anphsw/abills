@@ -1,0 +1,5 @@
+name: onuId
+in: query
+description: ID ONU
+schema:
+  type: integer

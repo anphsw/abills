@@ -1,0 +1,9 @@
+{
+  "name": "USER_PASSWORD_RESET",
+  "method": "POST",
+  "path": "user/password/reset/",
+  "body": {
+    "code": "2PwcRKVYBgWq4q5aU8Rvq1QVfFRgQGdNThN6TtSzSEUP7Cyyw8LtEUCK86j73jQVRkHh6gCG5RQYhqYBiM3qnMPqECDdSRc5K1jnzeWj92j3LyD5tanabQDtNS3guJav",
+    "password": "testpassword12345"
+  }
+}

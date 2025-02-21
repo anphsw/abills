@@ -279,10 +279,10 @@ sub pi {
 
         next if $type ne '2';
         push (@search_fields,
-          "$field_name\_list.name AS $field_name",
-          "$field_name AS $field_name\_id"
+          "`$field_name\_list`.name AS `$field_name`",
+          "`$field_name` AS `$field_name\_id`"
         );
-        $ext_tables .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
+        $ext_tables .= "LEFT JOIN `$field_name" . "_list` ON (pi.`$field_name` = `$field_name" . "_list`.id)";
       }
     }
   }
@@ -616,14 +616,14 @@ sub group_change {
   my $self = shift;
   my ($gid, $attr) = @_;
 
-  $attr->{SEPARATE_DOCS} = 1 if $attr->{SEPARATE_DOCS};
-  $attr->{ALLOW_CREDIT} = 1 if $attr->{ALLOW_CREDIT};
-  $attr->{DISABLE_PAYSYS} = 1 if $attr->{DISABLE_PAYSYS};
-  $attr->{DISABLE_PAYMENTS} = 1 if $attr->{DISABLE_PAYMENTS};
-  $attr->{DISABLE_CHG_TP} = 1 if $attr->{DISABLE_CHG_TP};
-  $attr->{BONUS} = 1 if $attr->{BONUS};
-  $attr->{DOCUMENTS_ACCESS} = 1 if $attr->{DOCUMENTS_ACCESS};
-  $attr->{DISABLE_ACCESS} = 1 if $attr->{DISABLE_ACCESS};
+  $attr->{SEPARATE_DOCS} = $attr->{SEPARATE_DOCS} ? 1 : 0;
+  $attr->{ALLOW_CREDIT} = $attr->{ALLOW_CREDIT} ? 1 : 0;
+  $attr->{DISABLE_PAYSYS} = $attr->{DISABLE_PAYSYS} ? 1 : 0;
+  $attr->{DISABLE_PAYMENTS} = $attr->{DISABLE_PAYMENTS} ? 1 : 0;
+  $attr->{DISABLE_CHG_TP} = $attr->{DISABLE_CHG_TP} ? 1 : 0;
+  $attr->{BONUS} = $attr->{BONUS} ? 1 : 0;
+  $attr->{DOCUMENTS_ACCESS} = $attr->{DOCUMENTS_ACCESS} ? 1 : 0;
+  $attr->{DISABLE_ACCESS} = $attr->{DISABLE_ACCESS} ? 1 : 0;
 
   $attr->{GID} = $gid;
 
@@ -803,21 +803,6 @@ sub list {
     push @WHERE_RULES, "p.date IS NULL";
   }
 
-  # if ($attr->{FORGOT_PASSWD} && $attr->{EMAIL} eq '_SHOW') {
-  #   @WHERE_RULES = ();
-  #   push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2))
-  #                       LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
-  # }
-  #
-  # if ($attr->{LOCATION_ID}) {
-  #   $self->{SEARCH_FIELDS} .= 'pi.location_id, ';
-  # }
-  #
-  # if ($attr->{STREET_ID}) {
-  #   $self->{SEARCH_FIELDS} .= 'builds.street_id, ';
-  #   $self->{SEARCH_FIELDS} .= 'streets.name, ';
-  # }
-
   #Show last
   if ($attr->{PAYMENTS} || ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ /[0-9\s,<>=]+/)) {
     my @HAVING_RULES = @WHERE_RULES;
@@ -836,7 +821,8 @@ sub list {
       foreach my $payment_days (@params) {
         my $value = "NOW() - INTERVAL $payment_days DAY";
         $value =~ s/([<>=]{1,2})//g;
-        $value = $1 . $value;
+        my $comparison = $1 || '=';
+        $value = $comparison . $value;
         push @where_, "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
         push @having_, "MAX(p.date)$value";
       }
@@ -847,10 +833,11 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
 
-
     if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
-      $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
-      $self->{SEARCH_FIELDS_COUNT}++;
+      if ($self->{SEARCH_FIELDS} !~ /deposit/) {
+        $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
+        $self->{SEARCH_FIELDS_COUNT}++;
+      }
       foreach my $rule (@HAVING_RULES) {
         $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
       }
@@ -899,7 +886,8 @@ sub list {
         foreach my $payment_days (@params) {
           my $value = "NOW() - INTERVAL $payment_days DAY";
           $value =~ s/([<>=]{1,2})//g;
-          $value = $1 . $value;
+          my $comparison = $1 || '=';
+          $value = $comparison . $value;
           $WHERE_RULES[$#WHERE_RULES] = "p.date$value";
         }
       }
@@ -936,7 +924,8 @@ sub list {
       foreach my $operation_days (@params) {
         my $value = "NOW() - INTERVAL $operation_days DAY";
         $value =~ s/([<>=]{1,2})//g;
-        $value = $1 . $value;
+        my $comparison = $1 || '=';
+        $value = $comparison . $value;
         push @WHERE_RULES,  "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
         push @HAVING_RULES, "MAX(f.date)$value";
       }
@@ -946,8 +935,11 @@ sub list {
     }
 
     if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
-      $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
-      $self->{SEARCH_FIELDS_COUNT}++;
+      if ($self->{SEARCH_FIELDS} !~ /deposit/) {
+        $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
+        $self->{SEARCH_FIELDS_COUNT}++;
+      }
+
       foreach my $rule (@HAVING_RULES) {
         $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
       }
@@ -993,7 +985,8 @@ sub list {
         foreach my $operation_days (@params) {
           my $value = "CURDATE() - INTERVAL $operation_days DAY";
           $value =~ s/([<>=]{1,2})//g;
-          $value = $1 . $value;
+          my $comparison = $1 || '=';
+          $value = $comparison . $value;
           $WHERE_RULES[$#WHERE_RULES] = "f.date$value";
         }
       }
@@ -1860,85 +1853,6 @@ sub web_session_find {
   return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
 }
 
-
-#**********************************************************
-=head2 info_field_attach_add($attr) - Info fields attach add
-
-  Arguments:
-    $attr
-      COMPANY_PREFIX
-  Returns:
-    Object
-
-=cut
-#**********************************************************
-sub info_field_attach_add {
-  my $self = shift;
-  my ($attr) = @_;
-	my $insert_id = 0;
-
-  my $prefix = ($attr->{COMPANY_PREFIX}) ? 'ifc' : 'ifu';
-
-  require Attach;
-  Attach->import();
-  my $Conf   = Conf->new($self->{db}, $admin, $self->{conf});
-  my $Attach = Attach->new($self->{db}, $admin, $CONF);
-  my $list   = $Conf->config_list({ PARAM => $prefix .'*' });
-
-  if ($Conf->{TOTAL} && $Conf->{TOTAL} > 0) {
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /$prefix(\S+)/) {
-        my $field_name = $1;
-        my (undef, $type, undef) = split(/:/, $line->[1]);
-        if ($type == 13) {
-          #attach
-          if (ref $attr->{uc($field_name)} eq 'HASH' && $attr->{uc($field_name)}{filename}) {
-            if($CONF->{ATTACH2FILE}) {
-              if($self->{UID}) {
-                $self->pi({ UID => $self->{UID} });
-                if($self->{uc($field_name)}) {
-                  $Attach->attachment_del({
-                    ID         => $self->{uc($field_name)},
-                    TABLE      => $field_name.'_file',
-                    UID        => $self->{UID},
-                    SKIP_ERROR => 1
-                  })
-                }
-              }
-            }
-
-            $Attach->attachment_add(
-              {
-                TABLE        => $field_name . '_file',
-                CONTENT      => $attr->{uc($field_name)}{Contents},
-                FILESIZE     => $attr->{uc($field_name)}{Size},
-                FILENAME     => $attr->{uc($field_name)}{filename},
-                CONTENT_TYPE => $attr->{uc($field_name)}{'Content-Type'},
-                UID          => $attr->{UID},
-                FIELD_NAME   => $field_name
-              }
-            );
-
-            if($Attach->{errno}) {
-              $self->{errno} = $Attach->{errno};
-              $self->{errstr} = $Attach->{errstr};
-            }
-            else {
-              $attr->{uc($field_name)} = $Attach->{INSERT_ID};
-              $insert_id = $Attach->{INSERT_ID};
-            }
-          }
-          else {
-            delete $attr->{uc($field_name)};
-          }
-        }
-      }
-    }
-  }
-
-  return $attr;
-}
-
 #**********************************************************
 =head2 report_users_summary($attr)
 
@@ -2543,7 +2457,7 @@ sub phone_pin_update_attempts {
   my $self = shift;
   my ($uid) = @_;
 
-  $self->query("UPDATE users_phone_pin SET attempts = attempts + 1 WHERE uid = ?", undef, { Bind => [ $uid ] });
+  $self->query("UPDATE users_phone_pin SET attempts = attempts + 1 WHERE uid = ?", 'do', { Bind => [ $uid ] });
 
   return $self;
 }
@@ -2560,7 +2474,7 @@ sub phone_pin_add {
   my $interval = $CONF->{AUTH_BY_PHONE_PIN_INTERVAL} || 5;
 
   $self->query("REPLACE INTO users_phone_pin (uid, pin_code, time_code, phone)
-    VALUES(?, ?, NOW() + INTERVAL '$interval' MINUTE, ?);", undef, { Bind => [ $attr->{UID}, $attr->{PIN_CODE}, $attr->{PHONE} ] });
+    VALUES(?, ?, NOW() + INTERVAL '$interval' MINUTE, ?);", 'do', { Bind => [ $attr->{UID}, $attr->{PIN_CODE}, $attr->{PHONE} ] });
 
   return $self;
 }
@@ -2574,7 +2488,7 @@ sub phone_pin_del {
   my $self = shift;
   my $uid = shift;
 
-  $self->query("DELETE FROM users_phone_pin WHERE uid = ?;", undef, { Bind => [ $uid ] });
+  $self->query("DELETE FROM users_phone_pin WHERE uid = ?;", 'do', { Bind => [ $uid ] });
 
   return $self;
 }

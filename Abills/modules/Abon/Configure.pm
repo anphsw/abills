@@ -67,7 +67,7 @@ sub abon_tariffs {
     $Abon->{NAME_SEL} = $html->form_main({
       CONTENT => $html->form_select('ABON_ID', {
         SELECTED   => $Abon->{ID} || $FORM{ABON_ID},
-        SEL_LIST   => $Abon->tariff_list({ COLS_NAME => 1 }),
+        SEL_LIST   => $Abon->tariff_list({ TP_ID => '_SHOW', TP_NAME => '_SHOW', COLS_NAME => 1 }),
         SEL_KEY    => 'tp_id',
         SEL_VALUE  => 'tp_name',
         AUTOSUBMIT => 'form'
@@ -311,7 +311,7 @@ sub abon_tariffs {
   delete $LIST_PARAMS{ABON_ID};
   my ($table, $list) = result_former({
     INPUT_DATA     => $Abon,
-    FUNCTION       => 'tariff_list_former',
+    FUNCTION       => 'tariff_list',
     DEFAULT_FIELDS => 'TP_NAME,DESCRIPTION,USER_DESCRIPTION,PERIOD,PRICE,COMMENTS,PAYMENT_TYPE,USER_COUNT',
     EXT_TITLES     => \%EXT_TITLES,
     TABLE          => {
@@ -583,7 +583,7 @@ sub _plugin_sel {
 
   my $service_list = $Abon->tariff_list({
     STATUS      => 0,
-    NAME        => '_SHOW',
+    TP_NAME     => '_SHOW',
     PLUGIN      => '!',
     COLS_NAME   => 1,
     PAGE_ROWS   => 1,
@@ -594,7 +594,7 @@ sub _plugin_sel {
 
     foreach my $line (@$service_list) {
       if ($line->{plugin}) {
-        $service_name{$line->{id}} = "$line->{name}:$line->{plugin}";
+        $service_name{$line->{id}} = "$line->{tp_name}:$line->{plugin}";
       }
     }
 

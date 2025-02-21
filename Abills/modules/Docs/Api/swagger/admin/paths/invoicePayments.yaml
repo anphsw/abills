@@ -3,12 +3,7 @@ get:
     - docs
   summary: Платежи к инвойсам(счетам-фактурам)
   parameters:
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: invoiceId
       in: query
       description: ID инвойса

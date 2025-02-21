@@ -1,0 +1,9 @@
+{
+  "name": "USER_IPTV_TARIFF_ADD",
+  "method": "POST",
+  "path": "/user/iptv/tariff/add/",
+  "body": {
+    "tpId": 123,
+    "serviceId": 1
+  }
+}

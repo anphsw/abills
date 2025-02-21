@@ -6,6 +6,8 @@ Arguments:
 
   TABLES="fees,payments" - List of part tables
   SKIP_TABLES="payments,fees" - SKip tables
+  INFO - partitions info
+  DISABLE="errors_log,internet_log" - Disable partitions
   DEBUG=0..7
 
 Options:
@@ -52,10 +54,7 @@ if ($conf{PARTITIONING_FIN}) {
 
 load_pmodule('DateTime');
 
-my $query_cmd='query2';
-if($Admin->can('query')) {
-  $query_cmd='query';
-}
+my $query_cmd='query';
 
 if($debug > 4) {
   $Admin->{debug}=1;
@@ -65,17 +64,11 @@ if(defined($argv->{INFO})) {
   db_info();
   exit;
 }
+elsif($argv->{DISABLE}) {
+  disable_partition($argv->{DISABLE});
+}
 elsif(defined($argv->{help})) {
-
-print << "[END]";
-
-  MySQL partitioning
-
-  TABLES = List of part tables
-  DEBUG
-
-[END]
-
+  _help();
 }
 else {
   partitioning();
@@ -168,16 +161,10 @@ sub check_have_partition {
     print "Update DB to 5.7 cur version: $version\n";
   }
 
-  #For ald version
-  #$sth_ = $dbh->prepare(qq{SELECT variable_value FROM information_schema.global_variables WHERE variable_name = 'have_partitioning'});
-
   #MySQL 5.6
   $Admin->$query_cmd(qq{SELECT plugin_status FROM information_schema.plugins WHERE plugin_name = 'partition'});
 
-  # MySQL 5.5
-  #return 1 if ($row && $row eq 'YES');
   # MySQL 5.6
-
   if ($Admin->{list}->[0]->[0] && $Admin->{list}->[0]->[0] eq 'ACTIVE') {
     return 1;
   }
@@ -325,7 +312,6 @@ sub date_next_part {
   elsif ($period eq 'month') {
     $curr_date = $curr_date->truncate( to => 'month' );
     $curr_date->add(months => 2 + $curr_part);
-
     $period_date = $curr_date->strftime('%Y-%m-%d');
   }
 
@@ -389,6 +375,51 @@ sub init_partition {
   }
 
   return 1;
+}
+
+
+#**********************************************************
+=head2 disable_partition($tables)
+
+  Arguments:
+    $tables
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub disable_partition {
+  my ($tables) = @_;
+
+  if ($debug) {
+    print "Disable: $tables\n";
+  }
+
+  my @tables = split(/,s?/, $tables);
+
+  foreach my $table (@tables) {
+    $Admin->query("ALTER TABLE `$table` REMOVE PARTITIONING;", 'do');
+    print "Disable: $table\n";
+  }
+
+  return 1;
+}
+
+sub _help {
+
+print << "[END]";
+
+  MySQL partitioning
+
+  TABLES = List of part tables
+  SKIP_TABLES
+  INFO - partitions info
+  DISABLE="errors_log,internet_log" - Disable partitions
+  DEBUG=0..5
+
+[END]
+
 }
 
 1;

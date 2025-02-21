@@ -15,7 +15,7 @@
     </div>
 
     <div id='MAIN_CONTAINER'>
-      <form action='$SELF_URL' METHOD='post' name='form_forgot_password' id='form_forgot_password'>
+      <form action='$SELF_URL' METHOD='post' name='form_user_forgot_password' id='form_user_forgot_password'>
         <input type='hidden' name='FORGOT_PASSWD' value='1'>
 
         <div %UID_HIDDEN% class='row p-0 m-0'>
@@ -71,7 +71,7 @@
             <input id='PHONE_PATTERN_FIELD' name='PHONE_PATTERN_FIELD' value='%PHONE_PATTERN_FIELD%' %PHONE_REQUIRED%
                    placeholder='_{PHONE}_' class='form-control' data-phone-field='PHONE'
                    data-check-phone-pattern='%PHONE_NUMBER_PATTERN%' type='text' autocomplete='off'>
-            <input id='PHONE' name='PHONE' value='' class='form-control' type='hidden'>
+            <input id='PHONE' name='PHONE' value='%PHONE%' class='form-control' type='hidden'>
 
             <div class='input-group-append'>
               <div class='input-group-text'>
@@ -84,7 +84,7 @@
         %EXTRA_PARAMS%
 
         <div class='row p-0 m-0'>
-          <button style='font-size: 1.1rem !important;' type='submit' name='SEND_SMS' value='1'
+          <button style='font-size: 1.1rem !important;' type='submit' name='PASSWD_RECOVERY' value='1'
                   class='btn rounded btn-primary btn-block g-recaptcha' %CAPTCHA_BTN%>
             _{SEND}_
           </button>

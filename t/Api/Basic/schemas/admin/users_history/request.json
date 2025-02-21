@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_USERS_HISTORY",
+  "method": "GET",
+  "path": "users/:uid/history/",
+  "params": {}
+}

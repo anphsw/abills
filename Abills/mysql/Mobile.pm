@@ -453,6 +453,19 @@ sub user_add {
 
   $self->query_add('mobile_main', $attr);
 
+  $admin->{MODULE} = $MODULE;
+
+  my @info = ('PHONE', 'ID');
+  my @actions_history = ();
+
+  foreach my $param (@info) {
+    next if !defined($attr->{$param});
+    push @actions_history, join(':', ($param, $attr->{$param}));
+  }
+  $self->{ID} = $self->{INSERT_ID};
+
+  $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
+
   return $self;
 }
 
@@ -477,13 +490,12 @@ sub user_list {
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',                         'INT',   'mm.id',                                                            1 ],
-    [ 'UID',                        'INT',   'mm.uid',                                                           1 ],
-    [ 'DESCRIPTION',                'STR',   'mm.description',                                                   1 ],
+    [ 'UID',                        'INT',   'mm.uid',                                                            1 ],
     [ 'PHONE',                      'STR',   'mm.phone',                                                         1 ],
-    [ 'DATE',                       'DATE',  'mm.date',                                                          1 ],
     [ 'TRANSACTION_ID',             'STR',   'mm.transaction_id',                                                1 ],
     [ 'DISABLE',                    'INT',   'mm.disable',                                                       1 ],
     [ 'TP_ID',                      'INT',   'mm.tp_id',                                                         1 ],
+    [ 'DATE',                       'DATE',  'mm.date',                                                          1 ],
     [ 'TP_NAME',                    'STR',   'tp.name AS tp_name',                                               1 ],
     [ 'EXTERNAL_METHOD',            'STR',   'mm.external_method',                                               1 ],
     [ 'TP_DISABLE',                 'INT',   'mm.tp_disable',                                                    1 ],
@@ -492,13 +504,15 @@ sub user_list {
     [ 'MONTH_FEE',                  'INT',   'tp.month_fee',                                                     1 ],
     [ 'PAYMENT_TYPE',               'INT',   'tp.payment_type',                                                  1 ],
     [ 'REDUCTION_FEE',              'INT',   'tp.reduction_fee',                                                 1 ],
+    [ 'DESCRIPTION',                'STR',   'mm.description',                                                   1 ],
+    [ 'COMMENTS',                   'STR',   'mm.comments',                                                      1 ],
     [ 'DAYS_SINCE_LAST_ACTIVATION', 'INT',   'DATEDIFF(NOW(), mm.tp_activate) AS days_since_last_activation',      ],
   ], {
     WHERE             => 1,
     WHERE_RULES       => \@WHERE_RULES,
     USE_USER_PI       => 1,
     USERS_FIELDS_PRE  => 1,
-    SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE' ]
+    SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE', 'PHONE' ]
   });
 
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
@@ -516,7 +530,7 @@ sub user_list {
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total
+  $self->query("SELECT COUNT(*) AS total, COUNT(CASE WHEN mm.disable <> 0 THEN 1 END) AS disabled_count
     FROM mobile_main mm
     LEFT JOIN users u ON (mm.uid=u.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id = mm.tp_id)
@@ -539,6 +553,20 @@ sub user_del {
   my ($attr) = @_;
 
   $self->query_del('mobile_main', $attr);
+
+  my @del_descr = ();
+  if($attr->{UID}) {
+    push @del_descr, "UID: $attr->{UID}";
+  }
+  if ($attr->{ID}) {
+    push @del_descr, "ID: $attr->{ID}";
+  }
+  if($attr->{COMMENTS}) {
+    push @del_descr, "COMMENTS: $attr->{COMMENTS}";
+  }
+
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add($attr->{UID}, join(' ', @del_descr), { TYPE => 10 });
 
   return $self;
 }
@@ -607,6 +635,10 @@ sub user_change {
   # $attr->{MANDATORY} //= 0;
   # $attr->{PAYMENT_TYPE} //= 0;
 
+  $self->user_info($attr->{ID});
+
+  $admin->{MODULE} = $MODULE;
+  $attr->{UID} ||= $self->{UID};
   $attr->{TP_DISABLE} = defined $attr->{TP_DISABLE} ? $attr->{TP_DISABLE} : $attr->{TP_STATUS};
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -615,6 +647,183 @@ sub user_change {
   });
 
   return $self;
+}
+
+#**********************************************************
+=head2 log_add($attr) - add data to the mobile_log table;
+
+  Arguments:
+
+  attr
+    UID               - user identifier;
+    TRANSACTION_ID    - unique identifier for the transaction;
+    EXTERNAL_METHOD   - name of the external method used in the request;
+    USER_SUBSCRIBE_ID - identifier of the user's subscription;
+    RESPONSE          - response data received from the external service;
+    CALLBACK_DATE     - date and time when the callback was received;
+    CALLBACK          - callback data from the external service;
+
+  Returns:
+    self object;
+
+  Examples:
+    $Mobile->log_add(
+          {
+            UID               => 1,
+            TRANSACTION_ID    => 'txn_123456789',
+            EXTERNAL_METHOD   => 'subscribeUser',
+            USER_SUBSCRIBE_ID => 101,
+            RESPONSE          => "{ "status": "success", "message": "Subscription active" }",
+            CALLBACK_DATE     => '2024-10-01 14:00:00',
+            CALLBACK          => "{ "status": "notified" }",
+          }
+      );
+=cut
+#**********************************************************
+sub log_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('mobile_log', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 log_change()
+
+=cut
+#**********************************************************
+sub log_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $change_param = $attr->{CHANGE_BY_TRANSACTION_ID} ? 'TRANSACTION_ID' : 'ID';
+
+  $self->changes({
+    CHANGE_PARAM => $change_param,
+    TABLE        => 'mobile_log',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 log_list($attr
+
+  Arguments:
+
+  attr
+    SORT            - sort column;
+    DESC            - DESC / ASC;
+    PG              - page id;
+    PAGE_ROWS       - count of raws returned
+  Returns:
+    list of raws;
+
+=cut
+#**********************************************************
+sub log_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',                'INT',    'ml.id',              1 ],
+    [ 'UID',               'INT',    'ml.uid',             1 ],
+    [ 'TRANSACTION_ID',    'STR',    'ml.transaction_id',  1 ],
+    [ 'DATE',              'DATE',   'ml.date',            1 ],
+    [ 'RESPONSE',          'STR',    'ml.response',        1 ],
+    [ 'CALLBACK',          'STR',    'ml.callback',        1 ],
+    [ 'CALLBACK_DATE',     'DATE',   'ml.callback_date',   1 ],
+    [ 'EXTERNAL_METHOD',   'STR',    'ml.external_method', 1 ],
+    [ 'USER_SUBSCRIBE_ID', 'INT',    'ml.user_subscribe_id', 1 ],
+    [ 'TIME_SINCE_EVENT',  'INT',    'TIMESTAMPDIFF(SECOND, ml.date, NOW()) AS time_since_event', 1 ],
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+
+  $self->query("
+    SELECT
+      $self->{SEARCH_FIELDS}
+      ml.id
+    FROM mobile_log ml
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,{ %$attr,
+      COLS_NAME  => 1,
+      COLS_UPPER => 1
+    }
+  );
+
+  my $list = $self->{list} || [];
+
+  return [] if ($self->{errno} || $self->{TOTAL} < 1);
+
+  $self->query("SELECT COUNT(ml.id) AS total
+   FROM mobile_log ml
+   $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#**********************************************************
+=head2 mobile_tp_report() - report of tariff plans
+
+=cut
+#**********************************************************
+sub mobile_tp_report {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $SORT -= 1 if ($SORT > 1);
+
+  $self->{EXT_TABLES}          = '';
+  $self->{SEARCH_FIELDS}       = '';
+  $self->{SEARCH_FIELDS_COUNT} = 0;
+  $attr->{DELETED}             = 0;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'DOMAIN_ID', 'INT', 'tp.domain_id', ],
+  ], { WHERE => 1, USERS_FIELDS => 1 });
+
+  $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT mm.uid) AS counts,
+      COUNT(DISTINCT CASE WHEN mm.tp_disable=0 AND u.disable=0 THEN mm.uid ELSE NULL END) AS active,
+      COUNT(DISTINCT CASE WHEN mm.tp_disable!=0 OR u.disable!=0 THEN mm.uid ELSE NULL END) AS disabled,
+      COUNT(DISTINCT CASE WHEN IF(u.company_id > 0, cb.deposit, b.deposit) < 0 THEN mm.uid ELSE NULL END) AS debetors,
+      COUNT(DISTINCT CASE WHEN u.reduction = 100 THEN mm.uid ELSE NULL END) AS users_reduction,
+      ROUND(SUM(p.sum) / COUNT(DISTINCT mm.id), 2) AS arpu,
+      ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
+      tp.month_fee AS month_fee,
+      tp.day_fee AS day_fee
+		FROM mobile_main mm
+    LEFT JOIN users u ON mm.uid = u.uid
+		LEFT JOIN tarif_plans tp ON (tp.tp_id = mm.tp_id)
+    LEFT JOIN bills b ON (u.bill_id = b.id)
+    LEFT JOIN companies company ON  (u.company_id=company.id)
+    LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+    LEFT JOIN payments p ON (p.uid=mm.uid
+      AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')) )
+    $WHERE
+    GROUP BY tp.tp_id
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return [ ] if ($self->{errno});
+
+  return $self->{list};
 }
 
 1;

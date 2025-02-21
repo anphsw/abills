@@ -10,12 +10,7 @@ post:
       required: true
       schema:
         type: integer
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     description: Параметры, которые нужно указать
     content:
@@ -47,12 +42,7 @@ put:
       required: true
       schema:
         type: integer
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     description: Параметры, которые нужно указать
     content:
@@ -85,12 +75,7 @@ delete:
       required: true
       schema:
         type: integer
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: успешное выполнение

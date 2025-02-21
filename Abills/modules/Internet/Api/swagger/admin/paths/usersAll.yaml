@@ -15,18 +15,8 @@ get:
       schema:
         type: boolean
         default: true
-    - name: tpId
-      in: query
-      description: Идентификатор тарифного плана
-      schema:
-        type: boolean
-        default: true
-    - name: uid
-      in: query
-      description: UID пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/tpId"
+    - $ref: "#/components/parameters/uid"
     - name: cid
       in: query
       description: Идентификатор пользователя
@@ -525,17 +515,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 100000
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: успешное выполнение

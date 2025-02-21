@@ -28,12 +28,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: onuId
-      in: query
-      description: ID ONU
-      schema:
-        type: boolean
-        default: true
+    - $ref: "../parameters/onuId.yaml"
     - name: vlan
       in: query
       description: Vlan
@@ -76,18 +71,8 @@ get:
       schema:
         type: boolean
         default: false
-    - name: nasId
-      in: query
-      description: ID сервера доступа
-      schema:
-        type: boolean
-        default: true
-    - name: onuSnmpId
-      in: query
-      description: ONU SNMP ID
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/nasId"
+    - $ref: "../parameters/onuSnmpId.yaml"
     - name: portId
       in: query
       description: ID порта

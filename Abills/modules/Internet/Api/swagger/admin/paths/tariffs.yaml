@@ -87,12 +87,7 @@ get:
       schema:
         type: boolean
         default: false
-    - name: domainId
-      description: ID домена
-      in: query
-      schema:
-        type: boolean
-        default: false
+    - $ref: "#/components/parameters/domainId"
     - name: extBillAccount
       description: Дополнительный счет
       in: query
@@ -360,12 +355,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: tpId
-      description: Идентификатор тарифного плана
-      in: query
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/tpId"
     - name: trafTarifs
       description: Тарифы трафика
       in: query
@@ -408,11 +398,10 @@ get:
       schema:
         type: boolean
         default: false
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

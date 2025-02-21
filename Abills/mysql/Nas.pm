@@ -490,10 +490,6 @@ sub nas_ip_pools_list {
     );
   }
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless (exists $attr->{$_->[0]}) } @$search_columns;
-  }
-
   my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
 
   $self->query("SELECT $self->{SEARCH_FIELDS} pool.id
@@ -570,7 +566,10 @@ sub nas_ip_pools_set {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("DELETE FROM nas_ippools WHERE nas_id = $self->{NAS_ID} AND pool_id IN ($attr->{ids_remove}) ;", undef, {  });
+  #todo: think what to do with IN, probably parse array and bind each value separately
+  $self->query("DELETE FROM nas_ippools WHERE nas_id = ? AND pool_id IN ($attr->{ids_remove}) ;", 'do', {
+    Bind => [ $self->{NAS_ID} ]
+  });
 
   my @MULTI_QUERY = ();
 

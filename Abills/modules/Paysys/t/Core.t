@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 10;
+use Test::More;
 
 use lib '../../../../lib/';
 
@@ -41,17 +41,20 @@ my $uid = $argv->{UID};
 if (!$uid) {
   plan skip_all => 'Parameter UID=YOUR_UID is not define';
 }
+else {
+  plan tests => 10;
+}
 
 # calculate commission
 subtest 'sum2commission_sum' => sub {
   plan tests => 6;
 
   diag("Sum with percent commission");
-  my ($sum, $commission_sum, $total_sum) = $Paysys_Core->sum2commission_sum(11, 3.5, 0);
+  my ($sum, $commission_sum, $total_sum) = $Paysys_Core->sum2commission_sum(325, 1.5, 0);
 
-  cmp_ok($sum, '==', 11, 'Sum is valid 11');
-  cmp_ok($commission_sum, '==', 0.38, 'Commission sum is valid 0.38');
-  cmp_ok($total_sum, '==', 11.38, 'Total sum valid 11.38');
+  cmp_ok($sum, '==', 325, 'Sum is valid 11');
+  cmp_ok($commission_sum, '==', 4.95, 'Commission sum is valid 4.95');
+  cmp_ok($total_sum, '==', 329.95, 'Total sum valid 329.95');
 
   diag("Sum with static commission");
   ($sum, $commission_sum, $total_sum) = $Paysys_Core->sum2commission_sum(11, 3.5, 1);
@@ -66,9 +69,9 @@ subtest 'commission_sum2sum' => sub {
   plan tests => 2;
 
   diag("Sum with percent commission");
-  my $final_amount = $Paysys_Core->commission_sum2sum(11.38, 3.5, 0);
+  my $final_amount = $Paysys_Core->commission_sum2sum(329.95, 1.5, 0);
 
-  cmp_ok($final_amount, '==', 11, 'Final amount valid 11');
+  cmp_ok($final_amount, '==', 325, 'Final amount valid 325');
 
   diag("Sum with static commission");
   $final_amount = $Paysys_Core->commission_sum2sum(14.5, 3.5, 1);

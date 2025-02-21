@@ -549,7 +549,7 @@ sub cams_archives {
   });
 
   my $user_tps = $Cams->_list({
-    SHOW_ALL_COLUMNS => '_SHOW',
+    _SHOW_ALL_COLUMNS => '_SHOW',
     UID              => $FORM{UID},
     SERVICE_ID       => join(';', map {$_->{id}} @{$services}),
     COLS_NAME        => 1,

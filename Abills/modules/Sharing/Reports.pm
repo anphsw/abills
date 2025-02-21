@@ -105,7 +105,7 @@ sub sharing_download_log {
 
   $LIST_PARAMS{DATE_START} = $FORM{FROM_DATE} ? $FORM{FROM_DATE} : $DATE;
   $LIST_PARAMS{DATE_END} = $FORM{TO_DATE} ? $FORM{TO_DATE} : $DATE;
-  $pages_qs = $pages_qs . "&TO_DATE=$LIST_PARAMS{DATE_END}&FROM_DATE=$LIST_PARAMS{DATE_END}";
+  #$pages_qs = $pages_qs . "&TO_DATE=$LIST_PARAMS{DATE_END}&FROM_DATE=$LIST_PARAMS{DATE_END}";
 
   result_former(
     {

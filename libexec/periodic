@@ -205,9 +205,8 @@ if ( $argv->{DATE} ){
   ($Y, $M, $D) = split( /-/, $argv->{DATE} );
   $YESTERDAY = POSIX::strftime( '%Y-%m-%d', localtime( POSIX::mktime( 0, 10, 1, $D, ($M - 1), ($Y - 1900) ) - 86400 ) );
 
-  #$YESTERDAY=$args->{DATE};
   $ADMIN_REPORT{DATE} = $argv->{DATE};
-  $admin->{DATE} = $argv->{DATE};
+  $admin->{DATE}      = $argv->{DATE};
 }
 else{
   $ADMIN_REPORT{DATE} = $DATE;
@@ -218,7 +217,6 @@ if ( defined( $argv->{NO_USERS_WARNINGS} ) ){
 }
 
 ($Y, $M, $D) = split( /-/, $ADMIN_REPORT{DATE}, 3 );
-
 $ADMIN_REPORT{YESTERDAY} = $YESTERDAY;
 
 if ( defined( $argv->{monthly} ) ){
@@ -532,6 +530,7 @@ sub sheduler{
           my ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
             undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_) = split(/:/, $holdup_rule);
 
+          $_hold_up_max_period ||= 999;
           if ($holdup_days && $holdup_days < $_hold_up_max_period) {
             ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
               undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) =
@@ -1028,14 +1027,18 @@ sub backup{
     return 0;
   }
 
+  if ($argv->{DATE}) {
+    print "Skip backup\n";
+    return 0;
+  }
+
   $admin->query( "SHOW TABLE STATUS" );
   my @ignore_tables_arr = (
     "--ignore-table=\"$conf{dbname}.ipn_traf_detail\"",
     "--ignore-table=\"$conf{dbname}.s_detail\"",
     "--ignore-table=\"$conf{dbname}.ipn_log_backup\"",
     "--ignore-table=\"$conf{dbname}.ipn_unknow_ips\"",
-    "--ignore-table=\"$conf{dbname}.errors_log\"",
-    "--ignore-table=\"$conf{dbname}.dv_log\""
+    "--ignore-table=\"$conf{dbname}.errors_log\""
   );
 
   my @tables = ();
@@ -1143,21 +1146,18 @@ sub backup{
 sub credit_operation{
   $DEBUG .= "Reset Credit\n" if ($debug > 1);
 
-  # For users
   $conf{MAX_STABLE_CREDIT} = 0 if (!$conf{MAX_STABLE_CREDIT});
   $users->{debug} = 1 if ($debug > 6);
 
-  my $list = $users->list(
-    {
-      CREDIT_DATE  => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
-      CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
-      DEPOSIT      => '_SHOW',
-      LOGIN_STATUS => '_SHOW',
-      %LIST_PARAMS,
-      PAGE_ROWS    => 1000000,
-      COLS_NAME    => 1
-    }
-  );
+  my $list = $users->list({
+    CREDIT_DATE  => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
+    CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
+    DEPOSIT      => '_SHOW',
+    LOGIN_STATUS => '_SHOW',
+    %LIST_PARAMS,
+    PAGE_ROWS    => 1000000,
+    COLS_NAME    => 1
+  });
 
   foreach my $line ( @{ $list } ){
     $DEBUG .= "$line->{login} ($line->{uid}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
@@ -1175,28 +1175,24 @@ sub credit_operation{
     }
   }
 
-  $list = $Company->list(
-    {
-      CREDIT_DATE => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
-      CREDIT      => ">$conf{MAX_STABLE_CREDIT}",
-      PAGE_ROWS   => 1000000,
-      COLS_NAME   => 1,
-      DEPOSIT     => '_SHOW',
-    }
-  );
+  $list = $Company->list({
+    CREDIT_DATE => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
+    CREDIT      => ">$conf{MAX_STABLE_CREDIT}",
+    PAGE_ROWS   => 1000000,
+    COLS_NAME   => 1,
+    DEPOSIT     => '_SHOW',
+  });
 
   foreach my $line ( @{$list} ){
     $DEBUG .= "$line->{name} ($line->{id}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
     if ( $debug < 8 ){
 
-      $Company->change(
-        {
-          CREDIT      => $conf{MAX_STABLE_CREDIT},
-          ID          => $line->{id},
-          CREDIT_DATE => '0000-00-00',
-        }
-      );
+      $Company->change({
+        CREDIT      => $conf{MAX_STABLE_CREDIT},
+        ID          => $line->{id},
+        CREDIT_DATE => '0000-00-00',
+      });
     }
   }
 

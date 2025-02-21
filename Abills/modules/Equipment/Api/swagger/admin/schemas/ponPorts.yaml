@@ -1,0 +1,34 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        branch:
+          type: string
+          example: 1/1/7
+        branchDesc:
+          type: string
+          example: OLT-70
+        id:
+          type: number
+          example: 1
+        nasId:
+          type: number
+          example: 117
+        ponType:
+          type: string
+          example: gpon
+        snmpId:
+          type: number
+          example: 268502784
+        status:
+          type: string
+          example: 1
+        vlanId:
+          type: number
+          example: 0
+  total:
+    type: number
+    example: 5

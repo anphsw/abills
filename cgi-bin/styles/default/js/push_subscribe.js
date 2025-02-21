@@ -54,7 +54,7 @@ const subscribe = (messaging) => {
         window['IS_PUSH_ENABLED'] = pushEnabled;
         updateButton(true, DISABLE_PUSH);
       } else {
-        fetch(`${window['BASE_URL']}/api.cgi/user/${window['UID']}/contacts/push/subscribe/1/`, {
+        fetch(`${window['BASE_URL']}/api.cgi/user/contacts/push/subscribe/1/`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -86,7 +86,7 @@ const unsubscribe = () => {
     window['IS_PUSH_ENABLED'] = pushEnabled;
     updateButton(true, ENABLE_PUSH);
   } else {
-    fetch(`${window['BASE_URL']}/api.cgi/user/${window['UID']}/contacts/push/subscribe/1/`, {
+    fetch(`${window['BASE_URL']}/api.cgi/user/contacts/push/subscribe/1/`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
@@ -129,7 +129,7 @@ const checkToken = async () => {
     if (window['IS_ADMIN_INTERFACE']) {
       pushEnabled = window['IS_PUSH_ENABLED'];
     } else {
-      const res = await (await fetch(`${window['BASE_URL']}/api.cgi/user/${window['UID']}/contacts/push/subscribe/1/`, {
+      const res = await (await fetch(`${window['BASE_URL']}/api.cgi/user/contacts/push/subscribe/1/`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',

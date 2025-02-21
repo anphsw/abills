@@ -542,10 +542,10 @@ sub traffic_by_port_list{
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   if ($attr->{UID}){
-    $WHERE .= "uid=$attr->{UID} AND";
+    $WHERE .= "uid='$attr->{UID}' AND";
   }
   elsif ($attr->{NAS_ID}){
-    $WHERE .= "nas_id=$attr->{NAS_ID} AND";
+    $WHERE .= "nas_id='$attr->{NAS_ID}' AND";
   }
 
   my $datetime_definition = "s_time AS datetime";

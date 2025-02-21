@@ -20,7 +20,7 @@ my $Dom = Dom->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 my $Equipment = Equipment->new($db, $admin, \%conf);
 
-my @USER_COLORS = ('#00a65a', "#747372", '#f39c12', '#dd4b39');
+my $user_status_list = $users->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', HASH => 1, COLS_NAME => 1 });
 
 #**********************************************************
 =head2 dom_info() Create 2D build model
@@ -36,6 +36,16 @@ sub dom_info {
   if (!$FORM{LOCATION_ID} || !$build_info->{TOTAL}) {
     $html->message('warn', $lang{ERROR}, "$lang{BUILD} $lang{NOT_EXIST}");
     return 0;
+  }
+
+  if($FORM{location_chg}){
+    print "Content-Type: text/html\n\n";
+    $html->tpl_show(_include('dom_comment', 'Dom'), {
+      LOCATION_ID => $FORM{LOCATION_ID} || q{},
+      COMMENTS    => $build_info->{COMMENTS} || q{},
+      \%FORM,
+    });
+    return 1;
   }
 
   if (!$build_info->{FLORS} || !$build_info->{ENTRANCES} || (!$build_info->{FLATS} && !$build_info->{BUILD_SCHEMA})) {
@@ -122,6 +132,21 @@ sub dom_info {
     $table->addrow( $item->{nas_name}, $item->{nas_entrance}, $item->{nas_floor} );
   }
   $info{TABLE_NAS} .= $table->show({NO_DEBUG_MARKERS => 1});
+
+  foreach my $status (sort keys %$user_status_list) {
+    my $status_name = $user_status_list->{$status}->{name} || '';
+    my $status_color = $user_status_list->{$status}->{color} || '';
+    $info{USER_STATUS} .= $html->badge(_translate($status_name),
+      {STYLE => "style=\"background-color: #$status_color;\""}).' ' if ($status_name);
+  }
+
+  $info{BTN_COMMENT} = $html->button('', undef, {
+    class          => 'info',
+    title          =>  $build_info->{COMMENTS} || '',
+    ex_params      => qq/onclick=loadToModal('?qindex=$index&location_chg=1&LOCATION_ID=$FORM{LOCATION_ID}') class='ml-3 cursor-pointer'/,
+    NO_LINK_FORMER => 1,
+    SKIP_HREF      => 1,
+  });
 
   $html->tpl_show(_include('dom_show', 'Dom'), \%info);
 
@@ -236,11 +261,8 @@ sub _dom_get_pon {
 #**********************************************************
 sub _dom_user_color {
   my ($user) = @_;
-
-  return $USER_COLORS[1] if ($user->{disable});
-  return $USER_COLORS[2] if ($user->{creditor});
-  return $USER_COLORS[3] if ($user->{debetor});
-  return $USER_COLORS[0];
+  return if (!$user_status_list->{$user->{disable}});
+  return '#' . $user_status_list->{$user->{disable}}->{color};
 }
 
 #**********************************************************
@@ -263,8 +285,8 @@ sub _dom_pon_color {
     }
   }
   else {
-    return '#dc3545' if $rx_power > -8 || $rx_power < -30;
-    return '#ffc107' if $rx_power > -10 || $rx_power < -27;
+    return '#dc3545' if ($rx_power > -8 || $rx_power < -30);
+    return '#ffc107' if ($rx_power > -10 || $rx_power < -27);
   }
 
   return '#28a745';

@@ -219,6 +219,15 @@
           </div>
 
           <div class='form-group row'>
+            <label class='col-md-3 col-form-label text-md-right' for='AVAILABILITY_PERIOD'>_{AVAILABILITY_PERIOD}_ _{DAYS}_:</label>
+            <div class='col-md-9'>
+              <input id='AVAILABILITY_PERIOD' name='AVAILABILITY_PERIOD' value='%AVAILABILITY_PERIOD%'
+                     placeholder='%AVAILABILITY_PERIOD%'
+                     class='form-control' type='number'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-md-3 col-form-label text-md-right' for='EXPIRE'>_{EXPIRE}_:</label>
             <div class='col-md-9'>
               <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'

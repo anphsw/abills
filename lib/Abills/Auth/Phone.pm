@@ -146,6 +146,7 @@ sub send_pin {
     }
     else {
       $self->{RETURN_RESULT}->{exists} = 'true';
+      $self->{RETURN_RESULT}->{auth_code} = $Users->{UID};
     }
 
     return $self;

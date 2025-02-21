@@ -1,4 +1,4 @@
-<div class='card card-outline card-form card-primary'>
+<div class='card card-outline card-primary'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{TRACKED_LEADS}_</h4>
     <div class='card-tools float-right'>
@@ -37,34 +37,4 @@
         jQuery('#CRM_WATCH_LEADS_SPINNER').parent().append(table);
       });
   });
-
-  function createTable(title = [], rows = []) {
-    let table = jQuery('<table></table>').addClass('table table-striped table-hover table-condensed');
-    let thead = jQuery('<thead></thead>');
-
-    let tr = jQuery('<tr></tr>');
-    title.forEach(thValue => {
-      let th = jQuery('<th></th>');
-      let span = jQuery('<span></span>').text(thValue);
-
-      th.append(span);
-      tr.append(th);
-    });
-    thead.append(tr);
-    table.append(thead);
-
-    let tbody = jQuery('<tbody></tbody>');
-    rows.forEach(row => {
-      let tr = jQuery('<tr></tr>');
-
-      row.forEach(column => {
-        let td = jQuery('<td></td>').append(column);
-        tr.append(td);
-      })
-      tbody.append(tr);
-    });
-
-    table.append(tbody);
-    return table;
-  }
 </script>

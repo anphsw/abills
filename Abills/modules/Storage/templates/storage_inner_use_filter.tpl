@@ -1,9 +1,11 @@
-<form action='$SELF_URL' method='GET' class='form-horizontal'>
-  <input type='hidden' name='index' value=$index>
+<form action='%SELF_URL%' method='GET' class='form-horizontal'>
+  <input type='hidden' name='index' value=%index%>
 
   <div class='card card-form card-primary card-outline'>
 
-    <div class='card-header with-border'><h4 class='card-title'>_{SEARCH}_</h4></div>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{SEARCH}_</h4>
+    </div>
 
     <div class='card-body'>
 

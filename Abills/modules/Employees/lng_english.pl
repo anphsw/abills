@@ -105,9 +105,6 @@ $lang{MOVING}='Moving';
 $lang{TYPE_IN_MOVING_TYPE} = 'Type in moving cashboxes';
 $lang{ALL_SALARY} = 'Pay out';
 
-$lang{TICKET_WORKS} = 'Ticket works';
-$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Checking works before closing the ticket';
-
 $lang{ADMIN_DEFAULT} = 'Default admin';
 
 1

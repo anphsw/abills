@@ -195,7 +195,14 @@ class ScheduleTable {
     let row = jQuery('<div></div>').append(label).append(input_col).addClass('form-group row mb-0');
     return jQuery('<div></div>').append(row).html();
   }
-
+  escapeHTML(unsafeText) {
+    return unsafeText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
   generateEditBtn(task) {
     let self = this;
     let id = `edit-${task.id}`;
@@ -216,7 +223,7 @@ class ScheduleTable {
       var add_contact_form = new AModal();
       add_contact_form
         .setId('change_duration_modal')
-        .setHeader(task.message || _DURATION)
+        .setHeader(self.escapeHTML(task.message.toString()) || _DURATION)
         .setBody(self.changeDurationForm(task.duration))
         .addButton(_SAVE, 'saveDuration', 'primary')
         .show(function () {
@@ -416,7 +423,11 @@ class Task {
     let $task = jQuery(this.task);
 
     let title = $(`<div class="d-flex bd-highlight" id='title-${this.id}'>
-      <div class="bd-highlight flex-grow-1 pt-1 w-50"><div title='${this.message}' class='task-title'>${this.message}</div></div></div>`);
+      <div class="bd-highlight flex-grow-1 pt-1 w-50">
+        <div class='task-title'></div>
+      </div>
+    </div>`);
+    title.find('.task-title').text(this.message);
 
     let info = $(`<div class='task-info'></div>`)
     let textColor = this.admin ? 'text-success' : 'text-danger';

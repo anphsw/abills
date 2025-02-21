@@ -273,7 +273,7 @@ sub tv_service_import_tp {
           $Iptv->channel_add({
             NUM       => $tp_id,
             NAME      => $FORM{'NAME_' . $tp_id},
-            FILTER_ID => $tp_id,
+            FILTER_ID => $FORM{'FILTER_ID_' . $tp_id} || $tp_id,
           });
 
           _error_show($Iptv, { MESSAGE => "$lang{CHANNEL}: " . $tp_id });
@@ -282,7 +282,7 @@ sub tv_service_import_tp {
           $Tariffs->add({
             SERVICE_ID => $Iptv->{ID},
             NAME       => $FORM{'NAME_' . $tp_id},
-            FILTER_ID  => $tp_id,
+            FILTER_ID  => $FORM{'FILTER_ID_' . $tp_id} || $tp_id,
             ID         => $tp_id,
             MODULE     => 'Iptv'
           });
@@ -329,7 +329,7 @@ sub tv_service_export_form {
   my $table = $html->table({
     width       => '100%',
     caption     => $lang{SUBSCRIBES},
-    title_plain => [ '#', $lang{NUM}, $lang{NAME}, $lang{TYPE} ],
+    title_plain => [ '#', $lang{NUM}, $lang{NAME}, $lang{TYPE}, 'Filter ID' ],
     ID          => 'IPTV_EXPORT_TPS',
     EXPORT      => 1
   });
@@ -357,11 +357,13 @@ sub tv_service_export_form {
       Encode::_utf8_off($tp_name);
     }
 
+    $tp->{FILTER_ID} //= $tp->{ID};
     $table->addrow(
       $html->form_input('IDS', $tp->{ID}, { TYPE => 'checkbox' }),
       $tp->{ID},
       $html->form_input('NAME_' . $tp->{ID}, $tp_name, { EX_PARAMS => 'readonly' }),
-      $tp_type
+      $tp_type,
+      $html->form_input('FILTER_ID_' . $tp->{ID}, $tp->{FILTER_ID}, { EX_PARAMS => 'readonly' }),
     );
   }
 
@@ -578,8 +580,8 @@ sub _service_portal_filter {
 sub _service_extra_params {
 
   my %other_attr = ();
-  $other_attr{BTN_ACTION} = "add";
-  $other_attr{BTN_LNG} = "$lang{ADD}";
+  $other_attr{BTN_ACTION} = 'add';
+  $other_attr{BTN_LNG} = $lang{ADD};
   $other_attr{PARAMS_ACTION} = "$lang{ADD} $lang{PARAMS}";
 
   use Users;
@@ -606,40 +608,32 @@ sub _service_extra_params {
   });
 
   if ($FORM{add}) {
-    $Iptv->extra_params_add({
-      %FORM,
-      IP_MAC => $FORM{IP},
-    });
+    $Iptv->extra_params_add({ %FORM, IP_MAC => $FORM{IP} });
   }
   elsif ($FORM{change}) {
     my $chg_params = $Iptv->extra_params_list({
-      ID         => $FORM{change},
-      SERVICE_ID => '_SHOW',
-      GROUP_ID   => '_SHOW',
-      TP_ID      => '_SHOW',
-      SMS_TEXT   => '_SHOW',
-      SEND_SMS   => '_SHOW',
-      IP_MAC     => '_SHOW',
-      BALANCE    => '_SHOW',
-      MAX_DEVICE => '_SHOW',
-      PIN        => '_SHOW',
+      ID           => $FORM{change},
+      SERVICE_ID   => '_SHOW',
+      GROUP_ID     => '_SHOW',
+      TP_ID        => '_SHOW',
+      SMS_TEXT     => '_SHOW',
+      SEND_SMS     => '_SHOW',
+      IP_MAC       => '_SHOW',
+      BALANCE      => '_SHOW',
+      MAX_DEVICE   => '_SHOW',
+      PIN          => '_SHOW',
+      EMAIL_DOMAIN => '_SHOW'
     });
 
-    $other_attr{IP} = $chg_params->[0]{IP_MAC};
-    $other_attr{TP_ID} = $chg_params->[0]{TP_ID};
-    $other_attr{GROUP_ID} = $chg_params->[0]{GROUP_ID};
-    $other_attr{SMS_TEXT} = $chg_params->[0]{SMS_TEXT};
-    $other_attr{BALANCE} = $chg_params->[0]{BALANCE};
-    $other_attr{SERVICE_ID} = $chg_params->[0]{SERVICE_ID};
-    $other_attr{MAX_DEVICE} = $chg_params->[0]{MAX_DEVICE};
-    $other_attr{PIN} = $chg_params->[0]{PIN};
-    $other_attr{CHG} = $chg_params->[0]{ID};
-    $other_attr{BTN_ACTION} = "chg";
-    $other_attr{BTN_LNG} = "$lang{CHANGE}";
-    $other_attr{PARAMS_ACTION} = "$lang{CHANGE} $lang{PARAMS}";
-    if ($chg_params->[0]{SEND_SMS} eq '1') {
-      $other_attr{SEND_SMS} = "1"
+    if ($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0) {
+      %other_attr = (%other_attr, %{$chg_params->[0]});
+      $other_attr{IP} = $chg_params->[0]{IP_MAC};
+      $other_attr{CHG} = $chg_params->[0]{ID};
+      $other_attr{SEND_SMS} = $chg_params->[0]{SEND_SMS} eq '1';
     }
+    $other_attr{BTN_ACTION} = 'chg';
+    $other_attr{BTN_LNG} = $lang{CHANGE};
+    $other_attr{PARAMS_ACTION} = "$lang{CHANGE} $lang{PARAMS}";
   }
   elsif ($FORM{chg}) {
     $Iptv->extra_params_change({
@@ -678,35 +672,36 @@ sub _service_extra_params {
   });
 
   my $extra_params = $Iptv->extra_params_list({
-    SERVICE_ID => $FORM{service_id} || $FORM{SERVICE_ID},
-    SMS_TEXT   => '_SHOW',
-    SEND_SMS   => '_SHOW',
-    IP_MAC     => '_SHOW',
-    BALANCE    => '_SHOW',
-    ID         => '_SHOW',
-    MAX_DEVICE => '_SHOW',
-    PIN        => '_SHOW',
+    SERVICE_ID   => $FORM{service_id} || $FORM{SERVICE_ID},
+    SMS_TEXT     => '_SHOW',
+    SEND_SMS     => '_SHOW',
+    IP_MAC       => '_SHOW',
+    BALANCE      => '_SHOW',
+    ID           => '_SHOW',
+    MAX_DEVICE   => '_SHOW',
+    PIN          => '_SHOW',
+    EMAIL_DOMAIN => '_SHOW'
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ "ID", "IP", "$lang{GROUP}", "$lang{MAX_DEVICES}", "$lang{DEPOSIT}", "$lang{TARIF_PLAN}", "$lang{SEND} SMS", "SMS $lang{TEXT}", "PIN" ],
-      caption    => $lang{PARAMS},
-      ID         => 'IPTV_PARAMS',
-      DATA_TABLE => 1,
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    title      => [ 'ID', 'IP', $lang{GROUP}, $lang{MAX_DEVICES}, $lang{DEPOSIT}, "E-mail $lang{DOMAIN}",
+      $lang{TARIF_PLAN}, "$lang{SEND} SMS", "SMS $lang{TEXT}", "PIN" ],
+    caption    => $lang{PARAMS},
+    ID         => 'IPTV_PARAMS',
+    DATA_TABLE => 1,
+  });
 
   my $change_buttons = '';
   my $delete_buttons = '';
   foreach my $element (@$extra_params) {
-    my $enable = $element->{SEND_SMS} eq '1' ? "$lang{ENABLE}" : "$lang{DISABLE}";
+    my $enable = $element->{SEND_SMS} ? $lang{ENABLE} : $lang{DISABLE};
     my $service_id = $FORM{service_id} || $FORM{SERVICE_ID} || '';
     $change_buttons = $html->button($lang{CHANGE}, "index=$index&change=$element->{ID}&extra_params=1&SERVICE_ID=$service_id", { class => 'change' });
     $delete_buttons = $html->button($lang{REMOVE}, "index=$index&delete=$element->{ID}&extra_params=1&SERVICE_ID=$service_id", { class => 'del' });
-    $table->addrow($element->{ID}, $element->{IP_MAC} || "", $element->{GROUP_NAME} || "", $element->{MAX_DEVICE} || "", $element->{BALANCE} || "",
-      $element->{TP_NAME} || "", $enable, $element->{SMS_TEXT} || "", $element->{PIN}, $change_buttons, $delete_buttons);
+    $table->addrow($element->{ID}, $element->{IP_MAC} || '', $element->{GROUP_NAME} || '', $element->{MAX_DEVICE} || '',
+      $element->{BALANCE} || '', $element->{EMAIL_DOMAIN}, $element->{TP_NAME} || "", $enable,
+      $element->{SMS_TEXT} || '', $element->{PIN}, $change_buttons, $delete_buttons);
   }
   print $table->show();
 

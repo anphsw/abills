@@ -1,82 +1,4 @@
-<style>
-  .attachment_responsive {
-    border-radius: 5px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-
-  .attachment_responsive:hover {
-    opacity: 0.7;
-  }
-
-  .modal-img {
-    display: none;
-    position: fixed;
-    z-index: 99999;
-    padding-top: 100px;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgb(0, 0, 0);
-    background-color: rgba(0, 0, 0, 0.9);
-  }
-
-  .modal-content-img {
-    margin: auto;
-    display: block;
-    max-width: 90%;
-  }
-
-  .modal-content-img {
-    -webkit-animation-name: zoom;
-    -webkit-animation-duration: 0.6s;
-    animation-name: zoom;
-    animation-duration: 0.6s;
-  }
-
-  @-webkit-keyframes zoom {
-    from {
-      -webkit-transform: scale(0)
-    }
-    to {
-      -webkit-transform: scale(1)
-    }
-  }
-
-  @keyframes zoom {
-    from {
-      transform: scale(0)
-    }
-    to {
-      transform: scale(1)
-    }
-  }
-
-  .closeImageResize {
-    position: absolute;
-    top: 15px;
-    right: 35px;
-    color: #f1f1f1;
-    font-size: 40px;
-    font-weight: bold;
-    transition: 0.3s;
-  }
-
-  .closeImageResize:hover,
-  .closeImageResize:focus {
-    color: #bbb;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  @media only screen and (max-width: 700px) {
-    .modal-content-img {
-      width: 100%;
-    }
-  }
-</style>
+<link rel='stylesheet' href='/styles/default/css/modules/msgs/msgs.reply.css'>
 
 <input type='hidden' name='MAIN_INNER_MESSAGE' value='%MAIN_INNER_MSG%'/>
 <input type='hidden' name='SUBJECT' value='%SUBJECT%' size=50/>
@@ -89,6 +11,18 @@
     <h5 class='card-title'>_{REPLY}_</h5>
   </div>
   <div class='card-body form'>
+
+    <div class='text-format mb-1'>
+      <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-bold' title='_{MSGS_BOLD}_'>
+        <span class='text-bold'>B</span>
+      </button>
+      <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-spoiler' title='_{MSGS_SPOILER}_'>
+        <span class='text-bold'>S</span>
+      </button>
+      <button type='button' tabindex='200' class='btn btn-sm btn btn-outline-info' id='btn-code' title='_{CODE}_'>
+        <span class='text-bold'><i class='fa fa-code'></i></span>
+      </button>
+    </div>
 
     <div class='form-group row w-100 m-0'>
         <textarea id='REPLY_TEXT' name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10>%QUOTING%%REPLY_TEXT%</textarea>
@@ -267,5 +201,7 @@
       jQuery("[name='REPLY_TEXT']").val("");
     }
   });
+
 </script>
 <script src='/styles/default/js/draganddropfile.js'></script>
+<script src='/styles/default/js/msgs/msgs.reply.js'></script>

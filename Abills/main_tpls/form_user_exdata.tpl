@@ -21,7 +21,7 @@
       </div>
     </div>
     <div id='CUSTOM_DISABLE_FORM' class='col-sm col-12 form-group h-0-18'>
-      <div class='info-box h-100'>
+      <div class='info-box h-100 %DISABLE_COLOR%'>
         <div class='info-box-content'>
           <span class='info-box-text text-center'></span>
           <div class='info-box-content'>

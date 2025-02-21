@@ -1,0 +1,8 @@
+/bots/subscribe/phone:
+  $ref: "./paths/subscribePhone.yaml"
+/bots/subscribe:
+  $ref: "./paths/subscribe.yaml"
+/bots/subscribe/link/{string_bot}:
+  $ref: "./paths/subscribeLink.yaml"
+/bots/subscribe/qrcode/{string_bot}:
+  $ref: "./paths/subscribeQrcode.yaml"

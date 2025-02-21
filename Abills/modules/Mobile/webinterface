@@ -11,7 +11,7 @@ use warnings FATAL => 'all';
 use Mobile;
 use Time::Piece;
 use JSON qw(decode_json);
-use Abills::Base qw/in_array _bp/;
+use Abills::Base qw/in_array _bp vars2lang/;
 
 our (
   %lang,
@@ -33,6 +33,7 @@ my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HO
 our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
 
 require Mobile::Periodic;
+require Mobile::Reports;
 require Mobile::User_portal;
 
 use Mobile::Services;
@@ -40,6 +41,9 @@ my $Services = Mobile::Services->new($db, $admin, \%conf, { lang => \%lang });
 
 use Mobile::Configure;
 my $Configure = Mobile::Configure->new($db, $admin, \%conf, { lang => \%lang });
+
+use Tariffs;
+my $Tariffs = Tariffs->new($db, \%conf, $admin);
 
 #**********************************************************
 =head2 mobile_categories()
@@ -207,9 +211,6 @@ sub mobile_tariff_plans {
     $html->message('info', $lang{CHANGED}) if !_error_show($result);
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    use Tariffs;
-    my $Tariffs = Tariffs->new($db, \%conf, $admin);
-
     $Tariffs->del($FORM{del}, { MODULE => 'Mobile' });
     $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Tariffs);
   }
@@ -341,15 +342,25 @@ sub mobile_user {
       $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
     }
     else {
-      my $result = $Services->phone_activate(\%FORM);
-      $result->{message} = $result->{errmsg} if $result->{errmsg};
-      if (!_error_show($result)) {
-        if ($result->{EXTERNAL_METHOD} && $result->{EXTERNAL_METHOD} eq 'partnerP2C') {
-          $Mobile->user_info($FORM{ID});
-          $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
-        }
-        else {
-          $html->message('info', $lang{ADDED}, $lang{MOBILE_WAIT_CONFIRMATION_NUMBER});
+      my $remaining_activations = _mobile_calculate_remaining_activations($FORM{ID});
+      if (!$remaining_activations) {
+        $html->message('err', $lang{INFO}, vars2lang($lang{MOBILE_ALL_ACTIVATION_ATTEMPTS_USED}, { ATTEMPTS => 5 }));
+      }
+      elsif (_mobile_has_active_otp($FORM{ID})) {
+        $Mobile->user_info($FORM{ID});
+        $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
+      }
+      else {
+        my $result = $Services->phone_activate(\%FORM);
+        $result->{message} = $result->{errmsg} if $result->{errmsg};
+        if (!_error_show($result)) {
+          if ($result->{EXTERNAL_METHOD} && $result->{EXTERNAL_METHOD} eq 'partnerP2C') {
+            $Mobile->user_info($FORM{ID});
+            $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
+          }
+          else {
+            $html->message('info', $lang{ADDED}, $lang{MOBILE_WAIT_CONFIRMATION_NUMBER});
+          }
         }
       }
     }
@@ -377,6 +388,9 @@ sub mobile_user {
       $Mobile->{LNG_ACTION} = $lang{CHANGE};
 
       $Mobile->{TP_SEL} = $html->form_input('TP_NAME', $Mobile->{TP_NAME}, { class => 'form-control', EX_PARAMS => 'readonly' });
+      my $change_tp_btn = $html->button($lang{CHANGE}, "UID=$Mobile->{UID}&get_index=mobile_chg_tp&full=1&ID=$Mobile->{ID}", { class => 'change' });
+      my $input_group_text = $html->element('div', $change_tp_btn, { class => 'input-group-text' });
+      $Mobile->{TP_CHANGE_BTN} = $html->element('div', $input_group_text, { class => 'input-group-append' });
     }
     else {
       $Mobile->{ACTION} = 'tp_activate';
@@ -414,18 +428,159 @@ sub mobile_user {
     $Mobile->user_add(\%FORM);
     $html->message('info', $lang{ADDED}) if !_error_show($Mobile);
   }
+  elsif ($FORM{change}) {
+    $Mobile->user_change({ ID => $FORM{ID}, DESCRIPTION => $FORM{DESCRIPTION}, COMMENTS => $FORM{COMMENTS} });
+    $html->message('info', $lang{CHANGED}) if !_error_show($Mobile);
+  }
   elsif ($FORM{del} && $FORM{ID} && $FORM{COMMENTS}) {
     $Mobile->user_del(\%FORM);
     $html->message('info', $lang{DELETED}) if !_error_show($Mobile);
   }
+  elsif ($FORM{chg}) {
+    $Mobile->user_info($FORM{chg});
+    if ($Mobile->{TOTAL} && $Mobile->{TOTAL} > 0) {
+      $FORM{add_form} = 1;
+      $Mobile->{PHONE_READONLY} = 'readonly';
+      $Mobile->{DATE_EX_PARAMS} = "disabled='disabled'";
+      $Mobile->{ACTION} = 'change';
+      $Mobile->{LNG_ACTION} = $lang{CHANGE};
+    }
+  }
 
   if ($FORM{add_form}) {
-    $Mobile->{DATE} = $html->form_datepicker('DATE', $Mobile->{DATE} || $DATE, { OUTPUT2RETURN => 1 });
+    $Mobile->{DATE} = $html->form_datepicker('DATE', $Mobile->{DATE} || $DATE, { EX_PARAMS => $Mobile->{DATE_EX_PARAMS}, OUTPUT2RETURN => 1 });
     $Mobile->{UID} //= $FORM{UID};
     $html->tpl_show(_include('mobile_add_phone_form', 'Mobile'), $Mobile);
   }
 
   users_list_table();
+}
+
+#**********************************************************
+=head2 mobile_chg_tp()
+
+=cut
+#**********************************************************
+sub mobile_chg_tp {
+  my ($attr) = @_;
+
+  if (!$admin->{permissions}{0}{10}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY}, { ID => 843 });
+    return 1;
+  }
+
+  my $user;
+  my $uid = 0;
+  if (defined($attr->{USER_INFO})) {
+    $user = $attr->{USER_INFO};
+    $uid = $user->{UID};
+    $Mobile = $Mobile->user_info($FORM{ID});
+    if ($Mobile->{TOTAL} < 1) {
+      $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE});
+      return 0;
+    }
+  }
+  else {
+    $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST});
+    return 0;
+  }
+
+  if (!$uid) {
+    $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST});
+    return 0;
+  }
+
+  if ($FORM{set}) {
+    my $result = $Services->user_change_tp(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    if (!_error_show($result)) {
+      $html->message('info', $lang{CHANGED});
+      $Mobile = $Mobile->user_info($FORM{ID});
+    }
+  }
+
+  my $user_info = $users->pi({ UID => $uid });
+
+  require Control::Services;
+  $Tariffs->{TARIF_PLAN_SEL} = sel_tp({
+    CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
+    USER_GID                => $user_info->{GID} || 0,
+    USER_INFO               => $users,
+    SELECT                  => 'TP_ID',
+    SHOW_ALL                => 1,
+    TP_ID                   => $Mobile->{TP_ID},
+    GROUP_SORT              => 1,
+    SKIP_TP                 => $Mobile->{TP_ID},
+    EX_PARAMS               => {
+      SORT_VALUE     => 1,
+      SORT_KEY       => 1,
+      GROUP_COLOR    => 1,
+      MAIN_MENU      => $admin->{permissions}{4} ? get_function_index('mobile_tariff_plans') : undef,
+      MAIN_MENU_ARGV => "TP_ID=" . ($Mobile->{TP_ID} || '')
+    },
+    MODULE     => 'Mobile',
+  });
+
+  $Tariffs->{ACTION} = 'set';
+  $Tariffs->{LNG_ACTION} = $lang{CHANGE};
+  $Tariffs->{UID} = $attr->{USER_INFO}->{UID};
+  $Tariffs->{TP_ID} = $Mobile->{TP_ID};
+  $Tariffs->{TP_NAME} = ($Mobile->{TP_NUM}) ? "$Mobile->{TP_NUM}: $Mobile->{TP_NAME}" : $lang{NOT_EXIST};
+  $Tariffs->{ID} = $Mobile->{ID};
+
+  $html->tpl_show(templates('form_chg_tp'), $Tariffs);
+}
+
+#**********************************************************
+=head2 mobile_users_list()
+
+=cut
+#**********************************************************
+sub mobile_users_list {
+  my ($attr) = @_;
+
+  if ($FORM{search_form}) {
+    mobile_users_search();
+    $LIST_PARAMS{TP_ID} =~ s/,\s?/;/g if ($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/);
+  }
+
+  result_former({
+    INPUT_DATA      => $Mobile,
+    BASE_FIELDS     => 0,
+    FUNCTION        => 'user_list',
+    DEFAULT_FIELDS  => 'LOGIN,UID,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,DISABLE,PHONE,DATE,TP_ACTIVATE,DESCRIPTION,COMMENTS',
+    EXT_TITLES      => {
+      id             => 'ID',
+      tp_name        => $lang{TARIF_PLAN},
+      service_status => $lang{MOBILE_STATUS_TARIFF_PLAN},
+      disable        => $lang{MOBILE_STATUS_NUMBER},
+      phone          => $lang{PHONE},
+      date           => $lang{DATE},
+      tp_activate    => $lang{MOBILE_ACTIVATION_DATE},
+      description    => $lang{DESCRIBE},
+      comments       => $lang{COMMENTS}
+    },
+    FILTER_VALUES   => {
+      disable => sub {
+        my $status = shift;
+
+        return !$status ? $html->color_mark($lang{ENABLE}, '#009D00') : $html->color_mark($lang{DISABLED}, '#FF0000');
+      },
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{MOBILE_COMMUNICATION} - $lang{USERS}",
+      qs      => $pages_qs,
+      ID      => 'MOBILE_USERS_LIST',
+      EXPORT  => 1,
+      MENU    =>
+        "$lang{ADD}:index=" . (($FORM{UID}) ? "$index&UID=$FORM{UID}&add_form=1&new=1" : get_function_index('form_wizard')) . ':add'
+          . (($FORM{UID}) ? '' : ";$lang{SEARCH}:index=$index&search_form=1:search"),
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Mobile',
+    TOTAL           => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 5) ? 0 : 1
+  });
 }
 
 #**********************************************************
@@ -439,6 +594,7 @@ sub users_list_table {
     ID             => '_SHOW',
     UID            => $LIST_PARAMS{UID} || $FORM{UID} || '_SHOW',
     DESCRIPTION    => '_SHOW',
+    COMMENTS       => '_SHOW',
     PHONE          => '_SHOW',
     DATE           => '_SHOW',
     TP_NAME        => '_SHOW',
@@ -450,12 +606,14 @@ sub users_list_table {
     COLS_NAME      => 1
   });
 
+  my $disabled_count = $Mobile->{DISABLED_COUNT};
   my $html_language = $html->{language} || 'english';
   my $column_lang = $html_language eq 'russian' ? 'ru' : $html_language eq 'ukrainian' ? 'ua' : 'en';
   my $extra_columns = 0;
 
   my @title = ('#', 'UID', $lang{PHONE}, $lang{DATE}, $lang{MOBILE_STATUS_NUMBER}, $lang{TARIF_PLAN},
-    $lang{MOBILE_STATUS_TARIFF_PLAN}, $lang{MOBILE_ACTIVATION_DATE}, $lang{DESCRIBE});
+    $lang{MOBILE_STATUS_TARIFF_PLAN}, $lang{MOBILE_ACTIVATION_DATE}, $lang{DESCRIBE}, $lang{COMMENTS});
+  push @title, $lang{MOBILE_ACTIVATION_ATTEMPTS_COUNT} if $disabled_count && $disabled_count > 0;
   my @extra_row = ();
   if ($Mobile->{BALANCES} && ref $Mobile->{BALANCES} eq 'ARRAY') {
     $extra_columns = scalar(@{$Mobile->{BALANCES}});
@@ -463,7 +621,7 @@ sub users_list_table {
       my $column_name = $column->{"name_$column_lang"} || $column->{name_en};
       push @title, $column_name;
 
-      my $measure = $column->{"measure_$column_lang"} || $column->{measure_en};
+      my $measure = $column->{"measure_$column_lang"} || $column->{measure_en} || '';
       my $amount = $column->{amount} || 0;
 
       push @extra_row, join(' ', ($amount, $measure));
@@ -482,10 +640,24 @@ sub users_list_table {
 
   foreach my $line (@{$users}) {
     my @buttons = ();
+    my $remaining_activations = '';
 
     if ($line->{disable}) {
-      push @buttons, $html->button($lang{PHONE_ACTIVATE}, "index=$index&activate=1&ID=$line->{id}&$pages_qs",
-        { class => 'btn btn-default btn-xs' });
+      $remaining_activations = _mobile_calculate_remaining_activations($line->{id});
+      if ($remaining_activations) {
+        push @buttons, $html->button($lang{PHONE_ACTIVATE}, "index=$index&activate=1&ID=$line->{id}&$pages_qs",
+          { class => 'btn btn-default btn-xs' });
+      }
+      else {
+        my $tooltip_message = vars2lang($lang{MOBILE_ALL_ACTIVATION_ATTEMPTS_USED}, { ATTEMPTS => 5 });
+        push @buttons, $html->button($lang{PHONE_ACTIVATE}, '', {
+          NO_LINK_FORMER => 1,
+          JAVASCRIPT     => 1,
+          SKIP_HREF      => 1,
+          class          => 'btn btn-default btn-xs',
+          ex_params      => "data-tooltip='$tooltip_message'",
+        });
+      }
 
       if (!$line->{transaction_id}) {
         $line->{phone} ||= '';
@@ -510,7 +682,16 @@ sub users_list_table {
     # my $tp_status = $status{defined $line->{tp_disable} ? $line->{tp_disable} : 1};
     my $tp_status = $html->color_mark($service_status[ $line->{tp_disable} ], $service_status_colors[ $line->{tp_disable} ]);
     my @row = ($line->{id}, $line->{uid}, $line->{phone}, $line->{date}, $phone_status,
-      $line->{tp_name}, $tp_status, $line->{tp_activate}, $line->{description});
+      $line->{tp_name}, $tp_status, $line->{tp_activate}, $line->{description}, $line->{comments});
+
+    if ($disabled_count) {
+      if (!$phone_status) {
+        push @row, '';
+      }
+      else {
+        push @row, $remaining_activations;
+      }
+    }
 
     if ($extra_columns) {
       if ($FORM{ID} && $FORM{ID} eq $line->{id} && scalar(@extra_row)) {
@@ -522,6 +703,9 @@ sub users_list_table {
     }
 
     push @row, $html->element('div', join(' ', @buttons), { class => 'btn-group' });
+
+    my $chg_btn = $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}&UID=$line->{uid}", { class => 'change' });
+    push @row, $chg_btn;
 
     $table->addrow(@row);
   }
@@ -551,6 +735,102 @@ sub categories_sel {
     SEL_OPTIONS  => { '' => '--' },
     EX_PARAMS    => 'required="required"',
   });
+}
+
+#**********************************************************
+=head2 mobile_users_search()
+
+=cut
+#**********************************************************
+sub mobile_users_search {
+
+  my %info = ();
+
+  $info{STATUS_SEL} = sel_status({
+    STATUS => $FORM{DISABLE} || '',
+    ALL    => 1,
+    NAME   => 'DISABLE'
+  });
+
+  $info{SERVICE_STATUS_SEL} = sel_status({
+    STATUS => $FORM{SERVICE_STATUS} || '',
+    ALL    => 1,
+    NAME   => 'SERVICE_STATUS'
+  });
+
+  $info{TP_SEL} = $html->form_select('TP_ID', {
+    SELECTED     => $FORM{TP_ID},
+    SEL_LIST     => $Mobile->tariff_list({
+      NAME      => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000
+    }),
+    SEL_VALUE    => 'name',
+    SEL_KEY      => 'id',
+    SORT_KEY_NUM => 1,
+    NO_ID        => 1,
+    SEL_OPTIONS  => { '' => '--' },
+  });
+
+  my $search_form = $html->tpl_show(_include('mobile_users_search', 'Mobile'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
+
+  form_search({
+    SEARCH_FORM  => $search_form,
+    ADDRESS_FORM => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _mobile_calculate_remaining_activations($user_subscribe_id)
+
+=cut
+#**********************************************************
+sub _mobile_calculate_remaining_activations {
+  my $user_subscribe_id = shift;
+
+  my $daily_activation_attempts = 5;
+  my $last_requests = $Mobile->log_list({
+    EXTERNAL_METHOD   => 'partnerP2CConfirm',
+    USER_SUBSCRIBE_ID => $user_subscribe_id,
+    DATE              => '_SHOW',
+    TIME_SINCE_EVENT  => "<=86400",
+    COLS_NAME         => 1
+  });
+
+  return $daily_activation_attempts if !$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1;
+  return 0 if $Mobile->{TOTAL} >= $daily_activation_attempts;
+
+  return $daily_activation_attempts - $Mobile->{TOTAL};
+}
+
+#**********************************************************
+=head2 _mobile_has_active_otp($user_subscribe_id)
+
+=cut
+#**********************************************************
+sub _mobile_has_active_otp {
+  my $user_subscribe_id = shift;
+
+  return 0 if !$user_subscribe_id;
+
+  my $otp_lifetime = 180;
+  my $last_requests = $Mobile->log_list({
+    EXTERNAL_METHOD   => 'partnerP2C;partnerP2CConfirm',
+    USER_SUBSCRIBE_ID => $user_subscribe_id,
+    DATE              => '_SHOW',
+    TIME_SINCE_EVENT  => "<=$otp_lifetime",
+    PAGE_ROWS         => 1,
+    SORT              => 'ml.id',
+    DESC              => 'DESC',
+    COLS_NAME         => 1
+  });
+  
+  return 0 if !$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1;
+  
+  return $last_requests->[0] && $last_requests->[0]{EXTERNAL_METHOD} && $last_requests->[0]{EXTERNAL_METHOD} eq 'partnerP2C';
 }
 
 1;

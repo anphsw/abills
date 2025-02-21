@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS `api_log`
     `http_status`     SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
     `http_method`     VARCHAR(10)          NOT NULL DEFAULT '',
     `error_msg`       TEXT                 NOT NULL DEFAULT '',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `date` (`date`),
+    KEY `uid` (`uid`)
 )
     CHARSET = utf8
     COMMENT = 'Api log';

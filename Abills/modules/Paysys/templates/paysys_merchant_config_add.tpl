@@ -60,6 +60,7 @@
 <script>
   try {
     var arr = JSON.parse('%JSON_LIST%');
+    var acc_keys = JSON.parse('%ACCOUNT_KEYS%');
   } catch (err) {
     console.log('JSON parse error.');
   }
@@ -71,15 +72,9 @@
   jQuery('#ACCOUNT_KEYS_SELECT').hide();
   jQuery('#PAYMENT_METHOD_SELECT').hide();
 
-  jQuery('#KEYS')
-    .append(new Option('CONTRACT_ID', 'CONTRACT_ID'))
-    .append(new Option('UID', 'UID'))
-    .append(new Option('LOGIN', 'LOGIN'))
-    .append(new Option('EMAIL', 'EMAIL'))
-    .append(new Option('PHONE', 'PHONE'))
-    .append(new Option('CELL_PHONE', 'CELL_PHONE'))
-    .append(new Option('BILL_ID', 'BILL_ID'))
-    .append(new Option('_PIN_ABS', '_PIN_ABS'));
+  acc_keys.map(acc_key => {
+    jQuery('#KEYS').append(new Option(acc_key, acc_key))
+  });
 
   function rebuild_form(type) {
     jQuery('.appended_field').remove();
@@ -87,6 +82,8 @@
     let sorted = keys.sort();
     let systemID = arr[type]['SYSTEM_ID'] || 0;
     let checkBoxes = arr[type]['CHECKBOX_FIELDS'] || [];
+    let selectFields = arr[type]['SELECT_FIELDS'] || {};
+    let splitRules = arr[type]['SPLIT_RULES'] || ['MERCHANT_ID','PERCENT'];
     jQuery('#SYSTEM_ID').attr('value', systemID);
 
     jQuery('#ACCOUNT_KEYS_SELECT').show();
@@ -115,6 +112,179 @@
         } else {
           jQuery('#PAYMENT_METHOD').val(' ').change();
         }
+      } else if (param.includes('SPLIT_RULES')) {
+        const merchant_rules = (val || '').split(';').map(item => {
+          const values = item.split(':');
+          return Object.fromEntries(splitRules.map((rule, index) => [rule, Number(values[index] || 0)]));
+        });
+
+        let formContainer = jQuery('#paysys_connect_system_body');
+
+        let hiddenInput = jQuery('<input>').attr({
+          type: 'hidden',
+          name: param,
+          id: param
+        });
+        formContainer.append(hiddenInput);
+
+        let label = jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12');
+        formContainer.append(label);
+
+        let addButton = jQuery('<div></div>').addClass('text-right');
+        // need to separate elements because is adding a div around the button and the span and Boostrap dies
+        let button = jQuery("<button type='button'></button>").addClass('btn btn-sm btn-success mb-3');
+        button.append(jQuery('<span></span>').addClass('fa fa-plus'));
+        addButton.append(button);
+
+        let splitRulesLocales = {
+          MERCHANT_ID: 'ID _{_MERCHANT}_',
+          PERCENT: '_{PERCENT}_',
+        }
+
+        sendRequest(`/api.cgi/paysys/merchants?paysysId=${arr[type]['ID']}&LIST2HASH=id,merchant_name`, {}, 'GET')
+          .then(merchants => {
+            function addFieldPair(obj = {}) {
+              let container = jQuery('<div></div>').addClass('field-pair');
+
+              splitRules.forEach(key => {
+                if (key.includes('MERCHANT_ID')) {
+                  let element = jQuery('<div></div>').addClass('form-group appended_field');
+                  element.append(jQuery('<label></label>').text(splitRulesLocales[key]).addClass('col-md-12 col-sm-12 text-muted'));
+                  let selectList = jQuery('<select></select>', {id: obj[key], name: key, class: 'split-rules'});
+                  let inputGroup = jQuery('<div></div>', {class: 'input-group-append select2-append'}).append(selectList);
+                  let selectDiv = jQuery('<div></div>', {class: 'select'}).append(inputGroup);
+                  let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'})
+                    .append(selectDiv);
+                  let dFlex = jQuery('<div></div>', {class: 'col-md-12 col-sm-12'}).append(flexFill);
+                  element.append(dFlex);
+
+                  selectList.append(jQuery(`<option></option>`, {value: '', text: ''}));
+                  Object.entries(merchants).forEach(([id, name]) => {
+                    selectList.append(jQuery(`<option></option>`, {
+                      id: `${id}_${obj[key]}`,
+                      text: name,
+                      value: id,
+                      ...((id == obj[key]) ? { selected: "" } : {})
+                    }));
+                  })
+
+                  selectList.select2({width: '100%', allowClear: true, placeholder: ''});
+
+                  container.append(element);
+                }
+                else {
+                  let element = jQuery('<div></div>').addClass('form-group appended_field');
+                  element.append(jQuery('<label></label>').text(splitRulesLocales[key]).addClass('col-md-12 col-sm-12 text-muted'));
+                  element.append(jQuery('<div></div>').addClass('col-md-12 col-sm-12').append(
+                    jQuery("<input>").attr({
+                      name: key,
+                      value: obj[key] || '',
+                      type: 'text'
+                    }).addClass('form-control split-rules')
+                  ));
+                  container.append(element);
+                }
+              });
+
+              formContainer.append(container);
+              formContainer.append('<hr>');
+
+              formContainer.append(addButton);
+              updateHiddenInput();
+            }
+
+            merchant_rules.forEach(obj => addFieldPair(obj));
+
+            addButton.click(function () {
+              addFieldPair();
+            });
+
+            formContainer.append(addButton);
+
+            function serializeInputs() {
+              let values = [];
+              let totalPercent = 0;
+
+              formContainer.find('input[name="PERCENT"]').removeClass('is-invalid');
+              formContainer.find('.percent-error').remove();
+
+              formContainer.find('.field-pair').each(function () {
+                let pairValues = [];
+                splitRules.forEach(key => {
+                  let inputValue = jQuery(this).find(`[name="${key}"]`).val() || 0;
+                  pairValues.push(inputValue);
+
+                  if (key === 'PERCENT') {
+                    totalPercent += parseFloat(inputValue) || 0;
+                  }
+                });
+                values.push(pairValues.join(':'));
+              });
+
+              if (totalPercent > 100) {
+                makeNegativePercent();
+              }
+
+              return values.join(';');
+            }
+
+            function updateHiddenInput() {
+              let serializedValue = serializeInputs();
+              hiddenInput.val(serializedValue);
+            }
+
+            formContainer.on('input', 'input.split-rules', updateHiddenInput);
+            formContainer.on('change', 'select.split-rules', updateHiddenInput);
+
+            jQuery('form').on('submit', function (e) {
+              let totalPercent = 0;
+
+              formContainer.find('input[name="PERCENT"]').each(function () {
+                totalPercent += parseFloat(jQuery(this).val()) || 0;
+              });
+
+              if (totalPercent !== 100 && totalPercent !== 0) {
+                e.preventDefault();
+                makeNegativePercent();
+              }
+            });
+
+            function makeNegativePercent() {
+              formContainer.find('input[name="PERCENT"]').addClass('is-invalid');
+
+              if (formContainer.find('.percent-error').length === 0) {
+                let errorMessage = jQuery('<div></div>')
+                  .addClass('percent-error text-danger mt-2')
+                  .text('_{ERR_PERCENT_VALUE}_');
+
+                formContainer.find('.field-pair').last().after(errorMessage);
+              }
+            }
+          });
+      } else if (selectFields[param]) {
+        let element = jQuery('<div></div>').addClass('form-group appended_field');
+        element.append(jQuery("<label for='" + (param || '') + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
+
+        let selectList = jQuery('<select></select>', {id: param, name: param});
+        let inputGroup = jQuery('<div></div>', {class: 'input-group-append select2-append'}).append(selectList);
+        let selectDiv = jQuery('<div></div>', {class: 'select'}).append(inputGroup);
+        let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'})
+          .append(selectDiv);
+        let dFlex = jQuery('<div></div>', {class: 'col-md-12 col-sm-12'}).append(flexFill);
+        element.append(dFlex);
+
+        selectList.append(jQuery(`<option></option>`, {value: '', text: ''}));
+        jQuery.each(selectFields[param], (idx, value) => {
+          selectList.append(jQuery(`<option></option>`, {
+            value,
+            text: value,
+            ...((val === value) ? { selected: "" } : {})
+          }));
+        })
+
+        selectList.select2({width: '100%', allowClear: true, placeholder: ''});
+
+        jQuery('#paysys_connect_system_body').append(element);
       } else if (checkBoxes.includes(param)) {
         const checked = (val === '1') ? 'checked' : '';
         let element = jQuery('<div></div>').addClass('form-group appended_field');
@@ -139,7 +309,7 @@
       }
     }
 
-    generateTooltips(type);
+    // generateTooltips(type);
   }
 
   jQuery('#BTN_ADD').on('click', () => {

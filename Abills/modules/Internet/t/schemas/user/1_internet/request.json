@@ -1,0 +1,7 @@
+{
+  "name": "USER_INTERNET",
+  "method": "GET",
+  "path": "user/internet/",
+  "params": {},
+  "TODO": "pass internetId by post-response in first item of array, after delete Api.t"
+}

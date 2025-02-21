@@ -315,7 +315,7 @@ $lang{EXT_SERVICES} = 'Додаткові послуги';
 $lang{TAGS} = 'Мітка';
 $lang{INVOICES} = 'Рахунки-Фактури';
 $lang{NEG_DEPOSIT_FILTER_ID} = 'Фільтр негативного депозиту';
-$lang{CONTRACT_ID} = 'Номер контракту';
+$lang{CONTRACT_ID} = 'Номер договору';
 $lang{BUILDS} = 'Будинки';
 $lang{HEADER} = ' Заголовок';
 $lang{MONTH_ALIGNMENT} = 'Вирівнювання місяця';
@@ -874,6 +874,7 @@ $lang{CONSOLE} = 'Термінал';
 
 $lang{LAST_FEES} = 'Останнє зняття';
 $lang{CASHBOX} = 'Каса';
+$lang{MOVING_BETWEEN_CASHBOXES}='Переміщення між касами';
 $lang{ENTER_DEL} = 'Введіть слово';
 $lang{MATCH_USER} = 'Зіставити користувача';
 $lang{NEXT_POOL} = 'Наступний пул';
@@ -1109,14 +1110,42 @@ $lang{ANY_NUMBER} = 'Число';
 $lang{ANY} = 'Любий';
 $lang{ERR_REQUIRED_PARAMETER} = 'Обовязковий параметр до заповнення %PARAMETER%';
 $lang{ERR_PARAMETER_NOT_VALID} = 'Параметр %PARAMETER% є невалідним. %MESSAGE%';
+$lang{ERR_NO_FIELD} = 'Відсутнє поле %FIELD%';
 
 $lang{MASS_DELETION_PAYMENT} = 'Масове видалення оплат';
 $lang{MASS_DELETION_FEES} = 'Масове видалення списань';
+
+$lang{UNKNOWN_ERROR} = 'Невідома помилка';
 $lang{ERR_NOT_SELECTED} = 'Не обрано';
+$lang{ERR_CANNOT_LOAD_PLUGIN} = 'Не вдалося завантажити необхідний плагін';
+$lang{ERR_NO_CONTACT} = 'Контакт не знайдено';
+$lang{ERR_INVALID_DATA_IN_THE_REQUEST} = 'Неправильні дані в запиті';
+$lang{ERR_PROVIDED_URL_IS_NOT_VALID} = 'Наданий URL недійсний';
+$lang{ERR_TOKEN_EXPIRED_OR_INVALID} = 'Токен закінчився або недійсний';
+$lang{ERR_THE_RECIPIENT_IS_NOT_REGISTERED} = 'Отримувач не зареєстрований';
+$lang{ERR_THE_USER_HAS_BLOCKED_THE_SENDER} = 'Користувач заблокував відправника';
+$lang{ERR_THE_USER_IS_NOT_SUBSCRIBED_TO_THE_SERVICE} = 'Користувач не підписаний на сервіс';
+$lang{ERR_THE_USER_ACCOUNT_WAS_NOT_FOUND} = 'Обліковий запис користувача не знайдено';
+$lang{ERR_UNAUTHENTICATED} = 'Неправильні облікові дані для автентифікації';
+
 $lang{FIXED_FEES_FREE_PERIOD}='Безкоштовний період до початку місяця';
 
 $lang{MONITORING_ALL_SESSIONS} = 'Перегляд всіх сесій';
 $lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Забрати діалог в адміністратора';
 $lang{NOT_CHANGED} = 'Зміни не внесені';
+$lang{WITHOUT} = 'Без';
+
+$lang{PAYMENT} = 'Оплата';
+$lang{AVAILABILITY_PERIOD} = 'Період доступності';
+
+$lang{PENETRATION_RATE} = 'Проникнення';
+$lang{POPULATION} = 'Населення';
+$lang{HOUSEHOLDS} = 'Домогосподарства';
+$lang{ARCHIVAL} = 'Архівний';
+$lang{FINANCE} = 'Фінанси';
+
+$lang{PASSWORD_CHANGE_MANDATORY} = 'Зміна пароля обов\'язкова';
+$lang{PASSWORD_EXPIRY_NOTICE} = 'З міркувань безпеки паролі повинні змінюватися кожні %DAYS% днів. Термін дії вашого пароля закінчився, будь ласка, змініть його, щоб продовжити користування системою.';
+$lang{DAYS_LEFT_FOR_PASSWORD_CHANGE} = 'Залишилось %DAYS% днів до обов\'язкової зміни пароля.';
 
 1;

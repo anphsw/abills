@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "warnings",
+  "type": "object",
+  "properties": {
+    "link": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "tvId": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "link",
+    "logo",
+    "name",
+    "tvId"
+  ]
+}

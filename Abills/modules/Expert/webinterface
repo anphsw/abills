@@ -127,6 +127,9 @@ sub expert_edit {
   elsif ($FORM{ANSWER_CHANGE}) {
     $Expert->answer_change(\%FORM);
   }
+  elsif ($FORM{del_answer}) {
+    $Expert->answer_del($FORM{del_answer});
+  }
 
   $FORM{ID} //= 0;
   my $answers_list = $Expert->answers_list($FORM{ID});
@@ -199,9 +202,19 @@ sub answers_edit {
         LOAD_TO_MODAL  => 1,
         NO_LINK_FORMER => 1,
         class          => 'change',
-        TITLE          => 'question'
+        TITLE          => 'change'
       }
     );
+    $answers_html .= $html->button($lang{DEL},
+      "index=$index&header=2&ID=$FORM{ID}&del_answer=$answer->{id}",
+      {
+        NO_LINK_FORMER => 1,
+        class    => 'del',
+        TITLE    => 'delete',
+        MESSAGE  => "$lang{DEL} $lang{QUESTION_ANSWER} '$answer->{answer}'?",
+      }
+    );
+
     $answers_html .= $html->br();
   }
 
@@ -325,7 +338,7 @@ sub _get_info {
 sub expert_faq {
 
   my %faq_types = (
-    0 => $lang{MODAL},
+    # 0 => $lang{MODAL},
     1 => $lang{WEBPAGE},
     2 => $lang{PAGE},
   );
@@ -333,22 +346,11 @@ sub expert_faq {
   my %extra_params = (
     LNG_ACTION => $lang{ADD},
     ACTION     => 'add',
-    ICON_DOCS  => 'https://oblador.github.io/react-native-vector-icons/'
   );
 
   if ($FORM{add}) {
-    my $icons = web_request('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/glyphmaps/MaterialCommunityIcons.json', {
-      METHOD      => 'GET',
-      JSON_RETURN => 1,
-    });
-
-    if ($FORM{ICON} && !$icons->{$FORM{ICON}}) {
-      $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} $lang{ICON} $FORM{ICON}", { ID => 9001 });
-    }
-    else {
-      $Expert->faq_add(\%FORM);
-      $html->message('info', $lang{ADDED}) if (!_error_show($Expert));
-    }
+    $Expert->faq_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if (!_error_show($Expert));
   }
   elsif ($FORM{chg}) {
     $extra_params{LNG_ACTION} = $lang{CHANGE};
@@ -360,21 +362,12 @@ sub expert_faq {
       SHOW_ALL_COLUMNS => 1,
       COLS_UPPER       => 1,
     });
+
     %extra_params = (%extra_params, %{$faq_info->[0] || {}});
   }
   elsif ($FORM{change}) {
-    my $icons = web_request('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/glyphmaps/MaterialCommunityIcons.json', {
-      METHOD      => 'GET',
-      JSON_RETURN => 1,
-    });
-
-    if ($FORM{ICON} && !$icons->{$FORM{ICON}}) {
-      $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} $lang{ICON} $FORM{ICON}", { ID => 9001 });
-    }
-    else {
-      $Expert->faq_change(\%FORM);
-      $html->message('info', $lang{SUCCESS}, $lang{CHANGED}) if (!_error_show($Expert));
-    }
+    $Expert->faq_change(\%FORM);
+    $html->message('info', $lang{SUCCESS}, $lang{CHANGED}) if (!_error_show($Expert));
   }
   elsif ($FORM{del}) {
     $Expert->faq_del($FORM{del});
@@ -400,18 +393,23 @@ sub expert_faq {
     FUNCTION          => 'faq_list',
     BASE_FIELDS       => 0,
     FUNCTION_FIELDS   => 'change,del',
-    DEFAULT_FIELDS    => 'ID,TITLE,TYPE,ICON',
+    DEFAULT_FIELDS    => 'ID,PRIORITY,TITLE,BODY',
     EXT_TITLES        => {
-      id    => 'ID',
-      type  => $lang{TYPE},
-      body  => $lang{TEXT},
-      title => $lang{HEADER},
-      icon  => $lang{ICON}
+      id       => 'ID',
+      type     => $lang{TYPE},
+      body     => $lang{TEXT},
+      title    => $lang{HEADER},
+      icon     => $lang{ICON},
+      priority => $lang{PRIORITY}
     },
     FILTER_VALUES => {
       type        => sub {
         my (undef, $values) = @_;
         return $faq_types{$values->{type} || 0};
+      },
+      priority        => sub {
+        my (undef, $values) = @_;
+        return (defined $values->{priority}) ? "$values->{priority}" : $values->{priority};
       },
     },
     SKIP_USER_TITLE   => 1,

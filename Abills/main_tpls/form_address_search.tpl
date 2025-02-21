@@ -2,12 +2,7 @@
   <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
   <input type='hidden' name='MAPS_SHOW_OBJECTS' id='MAPS_SHOW_OBJECTS' value='%MAPS_SHOW_OBJECTS%'>
 
-  <div class='form-group row' style='%EXT_SEL_STYLE%'>
-    <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{DISTRICTS}_:</label>
-    <div class='col-sm-9 col-md-8'>
-      %ADDRESS_DISTRICT%
-    </div>
-  </div>
+  %ADDRESS_DISTRICT%
 
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-STREET'>_{ADDRESS_STREET}_:</label>
@@ -95,7 +90,12 @@
 
         if (data.length < 1) return 1;
 
-        feelOptionGroup(street, data, 'districtId', 'districtName', 'streetName');
+        const [streetNameKey, districtNameKey, districtIdKey] =
+          'street_name' in (data[0] || {})
+            ? ['street_name', 'district_name', 'district_id']
+            : ['streetName', 'districtName', 'districtId'];
+
+        feelOptionGroup(street, data, districtIdKey, districtNameKey, streetNameKey);
 
         let feel_options = street.find('option[value!=""]').length;
         if (feel_options > 0) initChosen();
@@ -106,7 +106,6 @@
 
   function GetBuilds(data) {
     let build_id = jQuery(data).data('build-id') || '%BUILD_ID%';
-    console.log(build_id)
     let build = jQuery(`#${build_id}`);
     build.attr('disabled', 'disabled');
     let street_id = jQuery(data).val();
@@ -133,7 +132,10 @@
         build.html('');
         if (data.length < 1) return 1;
 
-        feelOptionGroup(build, data, 'streetId', 'streetName', 'number');
+        const [streetIdKey, streetNameKey] = 'street_name' in (data[0] || {})
+            ? ['street_id', 'street_name'] : ['streetId', 'streetName'];
+
+        feelOptionGroup(build, data, streetIdKey, streetNameKey, 'number');
 
         let feel_options = build.find('option[value!=""]').length;
         if (feel_options > 0) initChosen();

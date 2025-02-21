@@ -15,7 +15,13 @@
    DOMAIN_ID         - DOmain id
    ADD_GID           - Add users to GID
    GET_LOCATION      - Sync only locations (Discrict,streets,build,geo coords)
-   SKIP_SERVICE      - Skip sync service
+   SKIP_SERVICE      - Skip sync servic
+
+   SKIP_LOGIN_PREFIX - Skip login with prefix
+   BILLING_ID        - UID highten then BILLING_ID
+   SKIP_FIELDS       - List of skip fields
+   UPDATE            - Update exist users
+
    SKIP_WRONG_MAIL
    SYNC_COMPANY      - Add company main account
    IMPORT_LIMIT      - Import limit count
@@ -49,6 +55,9 @@ use Companies;
 use Shedule;
 use Address;
 use Encode;
+use Contacts;
+use Userside::Import;
+
 
 our (
   $argv,
@@ -67,6 +76,8 @@ my $Users        = Users->new($db, $Admin, \%conf);
 my $Companies    = Companies->new($db, $Admin, \%conf);
 my $Address      = Address->new($db, $Admin, \%conf);
 my $Tariffs      = Tariffs->new($db, \%conf, $Admin);
+my $Contacts     = Contacts->new($db, $Admin, \%conf);
+
 our $admin       = $Admin;
 our $html        = Abills::HTML->new( { CONF => \%conf } );
 my $import_limit = $argv->{IMPORT_LIMIT} || 1000000000;
@@ -75,8 +86,6 @@ require Abills::Misc;
 
 my $main_file = $base_dir . '/language/english.pl';
 require $main_file;
-my $userside_default_url = q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
-my $request_timeout   = $argv->{REQUEST_TIMEOUT} || 60;
 
 if($argv->{ODOO_CUSTOM}) {
   odoo_custom();
@@ -85,8 +94,9 @@ elsif($argv->{FIELDS_INFO}) {
   fields_info();
 }
 else {
-  sync_system({ TYPE => $argv->{TYPE} })
+  sync_system($argv);
 }
+
 
 #**********************************************************
 =head2 us_get_street_list();
@@ -98,26 +108,11 @@ else {
 =cut
 #**********************************************************
 sub us_get_street_list {
+  my Userside::Import $Userside = shift;
 
   _log('LOG_DEBUG', "Userside: get_street_list");
 
-  my $url = $argv->{URL} || $userside_default_url;
-
-  $url .= '&request=get_street_list';
-
-  my $result = web_request($url, {
-    JSON_RETURN => 1,
-    CURL        => 1,
-    JSON_UTF8   => 1,
-    DEBUG       => ($debug > 4) ? 1 : 0,
-    TIMEOUT     => $request_timeout,
-    FILE_CURL   => $conf{FILE_CURL}
-  });
-
-  if (! $result || $result->{errno}) {
-    print "ERROR:". ($result->{errstr} || q{});
-    return {};
-  }
+  my $result = $Userside->fetch('get_street_list');
 
   my %street_list = ();
   foreach my $street_id ( keys %{ $result } ) {
@@ -128,36 +123,23 @@ sub us_get_street_list {
 }
 
 #**********************************************************
-=head2 us_get_city_district_list();
+=head2 us_get_city_district_list($Userside);
 
   Arguments:
+    $Userside
 
   Results:
+    $city_district_hash_ref
 
 =cut
 #**********************************************************
 sub us_get_city_district_list {
+  my Userside::Import $Userside = shift;
   my %city_district = ();
 
   _log('LOG_DEBUG', "Userside: get_city_district_list");
 
-  my $url = $argv->{URL} || $userside_default_url;
-
-  $url .= '&request=get_city_district_list';
-
-  my $result = web_request($url, {
-    JSON_RETURN => 1,
-    CURL        => 1,
-    JSON_UTF8   => 1,
-    DEBUG       => ($debug > 4) ? 1 : 0,
-    TIMEOUT     => $request_timeout,
-    FILE_CURL   => $conf{FILE_CURL}
-  });
-
-  if (! $result || $result->{errno}) {
-    print "ERROR:". (($result) ? $result->{errstr} : q{NO_RESULT});
-    return \%city_district;
-  }
+  my $result = $Userside->fetch('get_city_district_list');
 
   foreach my $city_district (keys %{$result}) {
     if ($city_district && $city_district == -1) {
@@ -179,6 +161,8 @@ sub us_get_city_district_list {
 =cut
 #**********************************************************
 sub us_get_house_list {
+  my Userside::Import $Userside = shift;
+
   my %build_list = ();
 
   _log('LOG_DEBUG', "Userside: get_house_list");
@@ -186,26 +170,10 @@ sub us_get_house_list {
   #@Fixme
   #get_city_list
 
-  my $city_district_list = us_get_city_district_list();
-  my $street_list = us_get_street_list();
+  my $city_district_list = us_get_city_district_list($Userside);
+  my $street_list = us_get_street_list($Userside);
 
-  my $url = $argv->{URL} || $userside_default_url;
-
-  $url .= '&request=get_house_list';
-
-  my $result = web_request($url, {
-    JSON_RETURN => 1,
-    CURL        => 1,
-    JSON_UTF8   => 1,
-    DEBUG       => ($debug > 4) ? 1 : 0,
-    TIMEOUT     => $request_timeout,
-    FILE_CURL   => $conf{FILE_CURL}
-  });
-
-  if (! $result) {
-    _log('LOG_ALERT', "ERROR: Empty result for: ". $url);
-    return 0;
-  }
+  my $result = $Userside->fetch('get_house_list');
 
   foreach my $build_id ( keys %{ $result } ) {
     $build_list{$build_id}{NAME}        = $result->{$build_id}->{full_name};
@@ -238,66 +206,87 @@ sub us_get_house_list {
 }
 
 #**********************************************************
-=head2 userside_import();
+=head2 userside_import($attr);
 
   Arguments:
+    $attr
+      REQUEST_TIMEOUT
+      URL
 
   Results:
 
 =cut
 #**********************************************************
 sub userside_import {
+  my ($attr)=@_;
   my @users_info = ();
+
+  if ($attr->{REQUEST_TIMEOUT}) {
+    $conf{USERSIDE_TIMEOUT}=$attr->{REQUEST_TIMEOUT};
+  }
+  if ($argv->{URL}) {
+    $conf{USERSIDE_API_URL}=$argv->{URL};
+  }
+
+  my $Userside = Userside::Import->new(\%conf);
+
+  if ($attr->{DEBUG}) {
+    $Userside->{debug}=$attr->{DEBUG};
+  }
 
   _log('LOG_DEBUG', "Userside: userside_import");
 
-  my $build_list = us_get_house_list();
+  my $build_list = us_get_house_list($Userside);
 
-  my $url = $argv->{URL} || $userside_default_url;
-  $url .= '&request=get_user_list';
+  my $result = $Userside->fetch('get_user_list');
 
-  my $result = web_request($url, {
-    JSON_RETURN => 1,
-    CURL        => 1,
-    JSON_UTF8   => 1,
-    DEBUG       => ($debug > 4) ? 1 : 0,
-    TIMEOUT     => $request_timeout,
-    FILE_CURL   => $conf{FILE_CURL}
-  });
-
-  if (! $result || $result->{errno}) {
-    print "ERROR:". (($result) ? $result->{errstr} : q{NO RESULT});
-    return {};
-  }
-
-  #_log('LOG_DEBUG', $result);
   my $imported = 1;
-  foreach my $login ( keys %{ $result } ) {
-    my $u = $result->{$login};
+  foreach my $us_id ( keys %{ $result } ) {
+    my $us = $result->{$us_id};
+
+    if ($argv->{BILLING_ID}) {
+      if ($us->{billing_id} && $us->{billing_id} < $argv->{BILLING_ID}) {
+        print "SKIP UID: $us->{billing_id}\n" if ($debug > 3);
+        next;
+      }
+    }
+
+    if ($argv->{LOGIN} && $argv->{LOGIN} ne $us->{login}) {
+      next;
+    }
+    elsif ($argv->{SKIP_LOGIN_PREFIX} && $us->{login} =~ /^$argv->{SKIP_LOGIN_PREFIX}/) {
+      print "SKIP LOGIN: $us->{billing_id}\n" if ($debug > 3);
+      next
+    }
+#    my $billing_id = $us->{billing_id} || 'N/D';
 
     my %services = ();
     my $tarif;
+    my $tp_num;
     my $ip_mac;
-    if (ref $u->{tariff}->{current} eq 'ARRAY') {
-      $tarif = $u->{tariff}->{current}->[0];
+    if (ref $us->{tariff}->{current} eq 'ARRAY') {
+      $tarif = $us->{tariff}->{current}->[0];
     }
     else {
-      my $id = (keys %{ $u->{tariff}->{current} })[0] || q{};
-      $tarif = $u->{tariff}->{current}->{$id}
+      my $id = (keys %{ $us->{tariff}->{current} })[0] || q{};
+      $tarif = $us->{tariff}->{current}->{$id};
+      $tp_num = $tarif;
     }
 
-    if (ref $u->{ip_mac} eq 'ARRAY') {
-      $ip_mac = $u->{ip_mac}->[0];
+    if (ref $us->{ip_mac} eq 'ARRAY') {
+      $ip_mac = $us->{ip_mac}->[0];
     }
     else {
-      my $id = (keys %{ $u->{ip_mac} })[0] || q{};
-      $ip_mac = $u->{ip_mac}->{$id}
+      my $id = (keys %{ $us->{ip_mac} })[0] || q{};
+      $ip_mac = $us->{ip_mac}->{$id}
     }
 
     if($tarif) {
       %services = (
         4 => {
-          TP_NAME => $tarif->{name} || $tarif->{id} || q{},
+          #TP_NAME => $tarif->{name} || $tarif->{id} || q{},
+          TP_NAME => $tarif->{name} || q{},
+          TP_NUM  => $tp_num || $tarif->{id},
           CID     => $ip_mac->{mac} || q{},
           IP      => int2ip($ip_mac->{ip} || 0),
         }
@@ -305,38 +294,40 @@ sub userside_import {
     }
 
     my $group;
-    if (ref $u->{group} eq 'ARRAY') {
-      $group = $u->{group}->[0];
+    if (ref $us->{group} eq 'ARRAY') {
+      $group = $us->{group}->[0];
     }
     else {
-      my $id = (keys %{ $group })[0] || q{};
-      $group = $group->{$id}
+      my $id = (keys %{ $us->{group} })[0] || q{};
+      $group = $id;
     }
 
-    my $house_id = $u->{address}->[0]->{house_id} || 0;
-    # print "// $u->{login} //";
-    # print "// $build_list->{$house_id}->{CITY} //\n\n";
+    my $house_id = $us->{address}->[0]->{house_id} || 0;
+
     push @users_info, {
-      LOGIN            => $u->{login},
+      LOGIN            => $us->{login},
       CITY             => $build_list->{$house_id}->{CITY} || q{},
       ADDRESS_STREET   => $build_list->{$house_id}->{STREET_NAME} || q{},
       ADDRESS_BUILD    => $build_list->{$house_id}->{NUMBER} || q{},
-      ADDRESS_FLAT     => $u->{address}->[0]->{apartment}->{number} || q{},
-      ADDRESS_FLOR     => $u->{address}->[0]->{floor} || q{},
-      ADDRESS_ENTRANCE => $u->{address}->[0]->{entrance} || q{},
+      ADDRESS_FLAT     => $us->{address}->[0]->{apartment}->{number} || q{},
+      ADDRESS_FLOR     => $us->{address}->[0]->{floor} || q{},
+      ADDRESS_ENTRANCE => $us->{address}->[0]->{entrance} || q{},
       ADDRESS_COORDX   => $build_list->{$house_id}->{COORDX} || q{},
       ADDRESS_COORDY   => $build_list->{$house_id}->{COORDY} || q{},
-      PHONE            => $u->{phone}->[0]->{number} || q{},
-      EMAIL            => $u->{email}->[0]->{address} || q{},
-      FIO              => $u->{full_name} || q{},
-      PASSWORD         => $u->{password} || q{},
+      PHONE            => $us->{phone}->[0]->{number} || q{},
+      CELL_PHONE       => $us->{phone}->[1]->{number} || q{},
+      EMAIL            => $us->{email}->[0]->{address} || q{},
+      FIO              => $us->{full_name} || q{},
+      PASSWORD         => $us->{password} || q{},
       GID              => $group || 0,
-      DEPOSIT          => $u->{balance} || 0,
-      CREDIT           => $u->{credit} || 0,
-      DISCOUNT         => $u->{discount} || 0,
-      DISABLE          => $u->{state_id} || 0,
-      CONTRACT_ID      => $u->{account_number} || 0,
-      COMMENTS         => $u->{account_number} || 0,
+      DEPOSIT          => $us->{balance} || 0,
+      CREDIT           => $us->{credit} || 0,
+      DISCOUNT         => $us->{discount} || 0,
+      REDUCTION        => $us->{discount} || 0,
+      DISABLE          => ($us->{state_id}) ? 0 : 0,
+      CONTRACT_ID      => $us->{account_number} || 0,
+      COMMENTS         => $us->{comment} || $us->{account_number} || 0,
+      UID              => $us->{billing_id},
       SERVICES         => \%services
     };
 
@@ -374,10 +365,11 @@ sub fields_info {
 =cut
 #**********************************************************
 sub sync_system {
+  my ($attr)=@_;
 
-  my $type = $argv->{TYPE} || q{userside};
+  my $type = $attr->{TYPE} || q{userside};
   my $fn = $type .'_import';
-  &{ \&$fn }();
+  &{ \&$fn }($attr);
 
   return 1;
 }
@@ -564,6 +556,9 @@ sub odoo_import {
   Arguments:
     $users_list_arr - list of import users
 
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub user_import {
@@ -593,6 +588,17 @@ sub user_import {
       print "Sync field: $sync_field Remote filed: " . $sync_value . "\n";
     }
 
+    if ($argv->{SKIP_FIELDS}) {
+      my @skip_fields = split(/,\s?/, $argv->{SKIP_FIELDS});
+
+      foreach my $field (@skip_fields) {
+        delete $user_info->{$field};
+        if ($debug > 3) {
+          print "  SKIP_FIELD: $field\n";
+        }
+      }
+    }
+
     #Get location_id
     my $location_id = get_location_id($user_info);
 
@@ -618,7 +624,7 @@ sub user_import {
 
     if ($Users->{TOTAL}) {
       if($debug > 1) {
-        print "====> $user_info->{LOGIN} exists UID: $user_list->[0]->{uid} REGISTRATION: $user_list->[0]->{registration}\n";
+        print "====> LOGIN: $user_info->{LOGIN} EXISTS UID: $user_list->[0]->{uid} REGISTRATION: $user_list->[0]->{registration}\n";
       }
 
       $argv->{UPDATE}=1;
@@ -656,10 +662,8 @@ sub user_import {
           }
         }
 
-        #sync_internet({
-        #  EXT_SYSTEM => $user_info,
-        #  UID        => $uid
-        #});
+        $Contacts->contacts_add({ TYPE_ID => 2, VALUE => $user_info->{PHONE}, UID => $user_info->{UID} }) if ($user_info->{PHONE});
+        $Contacts->contacts_add({ TYPE_ID => 9, VALUE => $user_info->{EMAIL}, UID => $user_info->{UID} }) if ($user_info->{EMAIL});
 
         if($debug > 10) {
           print "--------------------------------------------\n\n";
@@ -668,59 +672,70 @@ sub user_import {
         }
       }
 
-      next;
-    }
-
-    if($debug > 0) {
-      print "ADD LOGIN $sync_field: $sync_value\n";
-    }
-
-    if(! $user_info->{PASSWORD}) {
-      $user_info->{PASSWORD} //= $user_info->{LOGIN}.'1234567890';
-    }
-
-    if ($argv->{SKIP_WRONG_MAIL} && $user_info->{EMAIL}) {
-      if ($user_info->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
-        delete $user_info->{EMAIL};
-      }
-    }
-
-    my Users $User = $Users->add({
-      %{ $user_info },
-      CREATE_BILL => 1,
-      DOMAIN_ID   => $domain_id
-    });
-
-    if(! $User->{errno}) {
-      print "Registred UID: $User->{UID}\n";
-      $user_info->{UID}=$User->{UID};
-      $User->pi_add($user_info);
+      next if (! $argv->{UPDATE});
     }
     else {
-      if($Users->{errno} == 11) {
-        print "Error: $User->{errno} $User->{errstr} '$user_info->{EMAIL}'\n";
+      if ($debug > 0) {
+        Encode::_utf8_off($sync_value);
+        print "ADD LOGIN $sync_field: $sync_value\n";
+      }
+
+      if (!$user_info->{PASSWORD}) {
+        $user_info->{PASSWORD} //= $user_info->{LOGIN} . '1234567890';
+      }
+
+      if ($argv->{SKIP_WRONG_MAIL} && $user_info->{EMAIL}) {
+        if ($user_info->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
+          delete $user_info->{EMAIL};
+        }
+      }
+
+      my Users $User = $Users->add({
+        %{$user_info},
+        CREATE_BILL => 1,
+        DOMAIN_ID   => $domain_id
+      });
+
+      if (!$User->{errno}) {
+        print "Registred UID: $User->{UID}\n";
+        $user_info->{UID} = $User->{UID};
+        $Users->pi_add($user_info);
       }
       else {
-        print "Error: $User->{errno} $User->{errstr}\n";
+        if ($Users->{errno} == 11) {
+          print "ERROR: $User->{errno} $User->{errstr} '$user_info->{EMAIL}'\n";
+        }
+        else {
+          print "ERROR: USER_ADD $User->{errno} $User->{errstr}\n";
+        }
       }
-    }
 
-    $count++;
-    if($count > $import_limit) {
-      exit;
+      $count++;
+      if ($count > $import_limit) {
+        exit;
+      }
     }
 
     if ($user_info->{DEPOSIT}) {
       $user_info->{SUM}  = $user_info->{DEPOSIT};
-      $user_info->{USER} = $User;
+      $user_info->{USER} = $Users;
       internet_wizard_fin($user_info);
     }
 
     if ($user_info->{SERVICES} && $user_info->{SERVICES}->{4}) {
-      $user_info->{SERVICES}->{4}->{UID}=$user_info->{UID};
-      $user_info->{SERVICES}->{4}->{REGISTRATION}=1;
-      $user_info->{SERVICES}->{4}->{QUITE}=1;
+      $user_info->{SERVICES}->{4}->{UID} = $user_info->{UID};
+      my $internet_one_serivice = 1;
+      if ($internet_one_serivice) {
+        if (_internet_update_service($user_info->{SERVICES}->{4})) {
+          print "Update internet: $user_info->{SERVICES}->{4}->{UID}\n" if ($debug > 3);
+          next;
+        }
+      }
+
+      $user_info->{SERVICES}->{4}->{REGISTRATION} = 1;
+      $user_info->{SERVICES}->{4}->{QUITE} = 1;
       internet_service_add($user_info->{SERVICES}->{4});
+      print "Register internet: \n" if ($debug > 3);
     }
   }
 
@@ -731,6 +746,65 @@ sub user_import {
   return 1;
 }
 
+sub _internet_update_service {
+  my ($service) = @_;
+
+  require Internet;
+  my $Internet = Internet->new($db, $admin, \%conf);
+  if ($debug > 6) {
+    $Internet->{debug} = 1;
+  }
+
+  $service->{INTERNET_SKIP_FEE}=1;
+  if ($argv->{SKIP_FIELDS}) {
+    my @skip_fields = split(/,\s?/, $argv->{SKIP_FIELDS});
+
+    foreach my $field (@skip_fields) {
+      delete $service->{$field};
+      if ($debug > 3) {
+        print "  SKIP_FIELD: $field\n";
+      }
+    }
+  }
+
+  if ($Internet->can('user_info')) {
+    $Internet->user_info($service->{UID});
+  }
+  else {
+    $Internet->info($service->{UID});
+  }
+
+  if (! $Internet->{UID}) {
+    return 0;
+  }
+
+  $service->{ID}=$Internet->{ID};
+
+  if ($service->{TP_NUM}) {
+    if ($debug > 6) {
+      $Tariffs->{debug} = 1;
+    }
+
+    my $tp_list = $Tariffs->list({
+      NAME        => '_SHOW',
+      INNER_TP_ID => '_SHOW',
+      TP_ID       => $service->{TP_NUM},
+      DOMAIN_ID   => $admin->{DOMAIN_ID},
+      COLS_NAME   => 1
+    });
+
+    $service->{TP_ID}=$tp_list->[0]->{tp_id} || 0;
+  }
+
+  if ($Internet->can('user_change')) {
+    $Internet->user_change($service);
+  }
+  else {
+    $Internet->change($service);
+  }
+
+  return 1;
+}
 
 ##**********************************************************
 #=head2 sync_internet($user_info);
@@ -1226,7 +1300,7 @@ sub company_import2 {
       }
 
       $user_info->{COMPANY_ID}=$company_id;
-      add_user($user_info);
+      _add_user($user_info);
       next;
     }
 
@@ -1288,11 +1362,17 @@ sub company_import2 {
 
 
 #**********************************************************
-=head2 add_user($service_list);
+=head2 _add_user($service_list);
+
+  Arguments:
+    $services_info
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
-sub add_user {
+sub _add_user {
   my($services_info)=@_;
 
   foreach my $service_info ( @{ $services_info->{contracts} } ) {
@@ -1327,7 +1407,7 @@ sub add_user {
       });
 
       $service_info->{UID}=$Users->{UID};
-      add_internet($service_info);
+      _add_internet($service_info);
     }
     else {
       $Users->change($u_list->[0]->{uid}, {
@@ -1336,7 +1416,7 @@ sub add_user {
       });
 
       $service_info->{UID}=$u_list->[0]->{uid};
-      add_internet($service_info);
+      _add_internet($service_info);
     }
   }
 
@@ -1355,7 +1435,7 @@ sub add_user {
 
 =cut
 #**********************************************************
-sub add_internet {
+sub _add_internet {
   my ($service_info)=@_;
 
   my $Internet = Internet->new($db, $Admin, \%conf);
@@ -1713,9 +1793,12 @@ sub get_location_id {
     else {
       $Address->district_add({ NAME => $user_info->{CITY} || 'DEFAULT' });
       $district_id = $Address->{DISTRICT_ID};
-      $Address->{debug}=0;
     }
 
+    Encode::_utf8_off($user_info->{ADDRESS_STREET});
+    Encode::_utf8_off($user_info->{ADDRESS_BUILD});
+
+    $user_info->{ADDRESS_STREET} =~ s/,/__/g;
     my $streets_list = $Address->street_list({
       STREET_NAME => $user_info->{ADDRESS_STREET},
       DISTRICT_ID => $district_id,
@@ -1748,8 +1831,6 @@ sub get_location_id {
     });
 
     if ($Address->{errno}) {
-      Encode::_utf8_off($user_info->{ADDRESS_STREET});
-      Encode::_utf8_off($user_info->{ADDRESS_BUILD});
       print "ERROR: $street_id ($user_info->{ADDRESS_STREET}) $user_info->{ADDRESS_BUILD}\n";
     }
     else {

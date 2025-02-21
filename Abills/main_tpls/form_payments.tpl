@@ -1,4 +1,4 @@
-<form action='%SELF_URL%' method='post' id='user_form' name='user_form' role='form'>
+<form class='double_enter_check' action='%SELF_URL%' method='post' id='form_payments_add' name='form_payments_add' role='form'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=subf value='$FORM{subf}'>
   <input type=hidden name=OP_SID value='%OP_SID%'>
@@ -13,7 +13,7 @@
     <div class='card card-primary card-outline container-md'>
       <div class='card-header with-border'>
         <h4 class='card-title'>_{PAYMENTS}_</h4>
-        <span class='float-right'>%CARDS_BTN%<span>
+        <span class='float-right'>%CARDS_BTN%</span>
       </div>
 
       <div class='card-body'>

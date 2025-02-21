@@ -1,6 +1,6 @@
 <form name='CRM_PROGRESSBAR_STEP_ADD' id='form_CRM_PROGRESSBAR_STEP_ADD' method='post' class='form form-horizontal'>
 
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
   <div class='card card-primary card-outline card-form'>
@@ -16,9 +16,9 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required' for='NAME'>_{NAME}_:</label>
         <div class='col-md-8'>
-          <input type='text' class='form-control' id='NAME' name='NAME' VALUE='%NAME%'>
+          <input type='text' class='form-control' required id='NAME' name='NAME' VALUE='%NAME%'>
         </div>
       </div>
       <div class='form-group row'>

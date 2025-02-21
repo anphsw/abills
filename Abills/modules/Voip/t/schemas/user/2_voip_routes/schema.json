@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_VOIP_ROUTES",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "prefix": {
+        "type": "integer"
+      },
+      "price": {
+        "type": "integer"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "required": ["name", "prefix", "price", "status"]
+  }
+}

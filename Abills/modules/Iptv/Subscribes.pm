@@ -38,7 +38,7 @@ sub iptv_subscribes{
     elsif ( $FORM{IMPORT} ){
       $result = $FORM{IMPORT}{Content};
     }
-    elsif ( $conf{IPTV_SUBSCRIBE_CMD} ){
+    elsif ($conf{IPTV_SUBSCRIBE_CMD}) {
       $result = cmd(
         $conf{IPTV_SUBSCRIBE_CMD},
         {

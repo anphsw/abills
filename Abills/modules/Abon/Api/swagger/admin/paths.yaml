@@ -6,3 +6,9 @@
   $ref: "./paths/tariffs_id_Users_uid.yaml"
 /abon/users:
   $ref: "./paths/users.yaml"
+/abon/plugin/{plugin_id}/info/:
+  $ref: "./paths/plugin_info_id.yaml"
+/abon/plugin/{plugin_id}/print/:
+  $ref: "./paths/plugin_print_id.yaml"
+/users/{uid}/abon:
+  $ref: "./paths/user_abon.yaml"

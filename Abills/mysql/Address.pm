@@ -13,6 +13,8 @@ use Conf;
 our $VERSION = 2.05;
 my ($admin, $CONF);
 
+use Abills::Base qw(in_array);
+
 #**********************************************************
 # Init
 #**********************************************************
@@ -81,7 +83,7 @@ sub address_info {
       FROM builds b
       LEFT JOIN streets s  ON (s.id=b.street_id)
       LEFT JOIN districts d  ON (d.id=s.district_id)
-      LEFT JOIN districts dp ON FIND_IN_SET(dp.id, REPLACE(d.path, '/', ',')) > 0
+      LEFT JOIN districts dp ON FIND_IN_SET(dp.id, REPLACE(IF(d.path, d.path, d.id), '/', ',')) > 0
       WHERE b.id= ? ",
       undef,
       { INFO => 1,
@@ -242,32 +244,52 @@ sub district_list {
   my @WHERE_RULES = ();
   push @WHERE_RULES, "d.path NOT LIKE '%/%'" if $attr->{ROOT_NODES};
 
+  if ($attr->{DISTRICT_POPULATION} && $attr->{HIDDEN_COLUMNS} && ref $attr->{HIDDEN_COLUMNS} eq 'ARRAY') {
+    if (in_array('DISTRICT_POPULATION', $attr->{HIDDEN_COLUMNS})) {
+      delete $attr->{DISTRICT_POPULATION};
+    }
+  }
+
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',           'INT',  'd.id'                    ],
-    [ 'NAME',         'STR',  'd.name'                  ],
-    [ 'COMMENTS',     'STR',  'd.comments'              ],
-    [ 'DOMAIN_ID',    'INT',  'd.domain_id'             ],
-    [ 'COORDX',       'INT',  'd.coordx',             1 ],
-    [ 'COORDY',       'INT',  'd.coordy',             1 ],
-    [ 'PATH',         'STR',  'd.path',               1 ],
-    [ 'PARENT_ID',    'INT',  'd.parent_id',          1 ],
-    [ 'TYPE_ID',      'INT',  'd.type_id',            1 ],
-    [ 'ZIP',          'INT',  'd.zip',                1 ],
-    [ 'TYPE_NAME',    'STR',  'at.name AS type_name', 1 ],
-    [ 'FULL_NAME',    'STR',  "GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name",  1 ],
-    [ 'PARENT_NAME',  'STR', 'dp.name AS parent_name',  1 ],
+    [ 'ID',            'INT',  'd.id'                    ],
+    [ 'NAME',          'STR',  'd.name'                  ],
+    [ 'DISTRICT_NAME', 'STR',  'd.name',  'd.name AS district_name'        ],
+    [ 'COMMENTS',      'STR',  'd.comments'              ],
+    [ 'DOMAIN_ID',     'INT',  'd.domain_id'             ],
+    [ 'COORDX',        'INT',  'd.coordx',             1 ],
+    [ 'COORDY',        'INT',  'd.coordy',             1 ],
+    [ 'PATH',          'STR',  'd.path',               1 ],
+    [ 'PARENT_ID',     'INT',  'd.parent_id',          1 ],
+    [ 'TYPE_ID',       'INT',  'd.type_id',            1 ],
+    [ 'TYPE_NAME',     'STR',  'at.name AS type_name', 1 ],
+    [ 'DISTRICT_POPULATION', 'INT',  'COUNT(DISTINCT pi.uid) AS district_population',  1 ],
+    [ 'POPULATION',    'INT',  'd.population',         1 ],
+    [ 'HOUSEHOLDS',    'INT',  'd.households',         1 ],
+    [ 'ZIP',           'INT',  'd.zip',                1 ],
+    [ 'FULL_NAME',     'STR',  "GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name",  1 ],
+    [ 'PARENT_NAME',   'STR',  'dp.name AS parent_name',  1 ],
+    [ 'STREET_COUNT',  'INT',  'COUNT(DISTINCT CASE WHEN s.district_id = d.id THEN s.id END) AS street_count',  1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
-  my $EXT_TABLES = 'LEFT JOIN streets s ON (d.id=s.district_id)';
+  my $EXT_TABLES = '';
+  if ($attr->{DISTRICT_POPULATION}) {
+    $EXT_TABLES .= "LEFT JOIN districts dc ON dc.path LIKE CONCAT(d.path, '/%')\n";
+    $EXT_TABLES .= "LEFT JOIN streets s ON s.district_id = d.id OR s.district_id = dc.id\n";
+    $EXT_TABLES .= "LEFT JOIN builds b ON b.street_id = s.id\n";
+    $EXT_TABLES .= "LEFT JOIN users_pi pi ON (b.id = pi.location_id)\n";
+  }
+  else {
+    $EXT_TABLES .= 'LEFT JOIN streets s ON (d.id=s.district_id)';
+  }
   $EXT_TABLES .= "\nLEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0" if ($self->{SEARCH_FIELDS} =~ /dfp\./);
   $EXT_TABLES .= "\nLEFT JOIN address_types AS at ON (d.type_id = at.id)" if ($self->{SEARCH_FIELDS} =~ /at\./);
   $EXT_TABLES .= "\nLEFT JOIN districts AS dp ON (d.parent_id = dp.id)" if ($self->{SEARCH_FIELDS} =~ /dp\./);
 
   $self->query("SELECT d.id,
+        $self->{SEARCH_FIELDS}
         d.name,
         d.zip,
-        $self->{SEARCH_FIELDS}
-        COUNT(DISTINCT s.id) AS street_count
+        COUNT(DISTINCT CASE WHEN s.district_id = d.id THEN s.id END) AS street_count
       FROM districts d
       $EXT_TABLES
     $WHERE
@@ -300,13 +322,8 @@ sub district_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT id, name, path, parent_id, type_id,
-    zip, comments, coordx, coordy
-  FROM districts WHERE id= ? ;",
-  undef,
-  { INFO => 1,
-    Bind => [ $attr->{ID} ] }
-  );
+  $self->query("SELECT * FROM districts WHERE id = ? ;",
+   undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
@@ -435,12 +452,14 @@ sub street_list {
       ['TYPE',          'INT', 's.type',                               1 ],
       ['BUILD_NUMBER',  'STR', 'b.number',  'b.number AS build_number',1 ],
       ['BUILD_FLATS',   'INT', 'b.flats','b.number AS build_flats',    1 ],
+      ['STREET_POPULATION', 'INT',  'COUNT(DISTINCT pi.uid) AS street_population',  1 ],
+      ['POPULATION',    'INT', 's.population',                         1 ],
+      ['HOUSEHOLDS',    'INT', 's.households',                         1 ],
       ['DOMAIN_ID',     'INT', 'd.domain_id',                            ],
       ['TYPE',          'INT', 's.type',                                 ],
       ['ID',            'INT', 's.id',                                   ]
     ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
   );
 
   my $EXT_TABLE        = '';
@@ -452,6 +471,9 @@ sub street_list {
     #$self->{SEARCH_FIELDS}  = . $self->{SEARCH_FIELDS};
     $EXT_TABLE_TOTAL  = ' LEFT JOIN builds b ON (b.street_id=s.id) LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
     $EXT_FIELDS_TOTAL = ', COUNT(DISTINCT b.id), COUNT(pi.uid), SUM(b.flats) / COUNT(pi.uid)';
+  }
+  elsif ($attr->{STREET_POPULATION}) {
+    $EXT_TABLE = 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
   }
 
   my $sql = "SELECT s.id,
@@ -501,7 +523,7 @@ sub street_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT * FROM streets WHERE id= ? ;",
+  $self->query("SELECT * FROM streets WHERE id = ?;",
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ]
@@ -602,6 +624,7 @@ sub build_list {
       [ 'DISTRICT_PARENT_NAME','INT','dp.name', 'dp.name AS district_parent_name'                          ],
       [ 'DISTRICT_TYPE_ID',  'INT', 'd.type_id', 'd.type_id AS district_type_id'                           ],
       [ 'STREET_NAME',       'STR', 's.name', 's.name AS street_name'                                      ],
+      [ 'STREET_SECOND_NAME','STR', 's.second_name', 's.second_name AS street_second_name'                 ],
       [ 'USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count'                                     ],
       [ 'USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections'   ],
       [ 'ADDED',             'DATE','b.added',                                                           1 ],

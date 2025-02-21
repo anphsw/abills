@@ -1,0 +1,39 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Some name
+  descr:
+    type: string
+    example: some description
+  disable:
+    type: integer
+    example: 0
+  triggers:
+    type: array
+    items:
+      type: object
+      properties:
+        type:
+          type: string
+          example: type name
+        old_value:
+          type: string
+          example: 10
+        new_value:
+          type: string
+          example: 12
+        contains:
+          type: string
+          example: contains text
+  actions:
+    type: array
+    items:
+      type: object
+      properties:
+        type:
+          type: string
+          example: type name
+        value:
+          type: string
+          example: some value

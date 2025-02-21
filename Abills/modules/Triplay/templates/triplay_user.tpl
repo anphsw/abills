@@ -19,13 +19,10 @@
                                     <span class='hidden-xs'>%TP_NUM%</span>
                                 </div>
                             </div>
-                            <input type='text' name='GRP' value='%TP_NAME% %DESCRIBE_AID%' ID='TP' class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
+                            <input type='text' name='GRP' value='%TP_NAME% %DESCRIBE_AID%' ID='TP'
+                                   class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
                             <div class='input-group-append'>
                                 %CHANGE_TP_BUTTON%
-                                <a class='btn input-group-button hidden-print px-3' title='_{PAY_TO}_'
-                                   href='%SELF_URL%?index=%index%&UID=%UID%&ID=%ID%&pay_to=1'>
-                                    <i class='$conf{CURRENCY_ICON}'></i>
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -51,6 +48,31 @@
 
         %SERVICES_INFO%
 
+
+        <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+            <div class='card-header with-border'>
+                <h3 class='card-title'>_{EXTRA}_</h3>
+                <div class='card-tools float-right'>
+                    <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                        <i class='fa fa-plus'></i>
+                    </button>
+                </div>
+            </div>
+            <div class='card-body'>
+                <div class='form-group row'>
+                    <label class='col-xs-4 col-md-3 text-right' for='PERSONAL_TP'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+                    <div class='col-xs-8 col-md-9'>
+                        <div class='input-group'>
+                            <input type='text' class='form-control r-0-25' id='PERSONAL_TP' name='PERSONAL_TP'
+                                   value='%PERSONAL_TP%'>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
         <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
             <div class='form-group'>
                 <label for='COMMENTS' class='col-md-12'>
@@ -58,7 +80,8 @@
                 </label>
 
                 <div class='col-md-12'>
-                    <textarea rows='5' cols='100' name='COMMENTS' class='form-control' id='COMMENTS'>%COMMENTS%</textarea>
+                    <textarea rows='5' cols='100' name='COMMENTS' class='form-control'
+                              id='COMMENTS'>%COMMENTS%</textarea>
                 </div>
 
             </div>
@@ -68,7 +91,7 @@
         <div class='card-footer'>
 
             %BACK_BUTTON%
-            <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%'  value='%ACTION_LNG%'>
+            <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%ACTION_LNG%'>
             %DEL_BUTTON%
         </div>
 

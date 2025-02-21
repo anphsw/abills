@@ -1,85 +1,88 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
   "title": "ADMIN Abon tp list",
-  "required": [
-    "activateNotification",
-    "createAccount",
-    "discount",
-    "extCmd",
-    "manualActivate",
-    "paymentType",
-    "periodAlignment",
-    "priority",
-    "promoPeriod",
-    "vat",
-    "tpId",
-    "price",
-    "tpName",
-    "nextAbonDate",
-    "userCount",
-    "feesType",
-    "period",
-    "description",
-    "userPortal"
-  ],
-  "properties": {
-    "activateNotification": {
-      "type": "number"
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "activateNotification": {
+        "type": "number"
+      },
+      "createAccount": {
+        "type": "number"
+      },
+      "discount": {
+        "type": "number"
+      },
+      "extCmd": {
+        "type": "string"
+      },
+      "manualActivate": {
+        "type": "number"
+      },
+      "paymentType": {
+        "type": "number"
+      },
+      "periodAlignment": {
+        "type": "number"
+      },
+      "priority": {
+        "type": "number"
+      },
+      "promoPeriod": {
+        "type": "number"
+      },
+      "vat": {
+        "type": "number"
+      },
+      "tpId": {
+        "type": "number"
+      },
+      "price": {
+        "type": "number"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "nextAbonDate": {
+        "type": "string"
+      },
+      "userCount": {
+        "type": "number"
+      },
+      "feesType": {
+        "type": "number"
+      },
+      "period": {
+        "type": "number"
+      },
+      "description": {
+        "type": "string"
+      },
+      "userPortal": {
+        "type": "number"
+      }
     },
-    "createAccount": {
-      "type": "number"
-    },
-    "discount": {
-      "type": "number"
-    },
-    "extCmd": {
-      "type": "string"
-    },
-    "manualActivate": {
-      "type": "number"
-    },
-    "paymentType": {
-      "type": "number"
-    },
-    "periodAlignment": {
-      "type": "number"
-    },
-    "priority": {
-      "type": "number"
-    },
-    "promoPeriod": {
-      "type": "number"
-    },
-    "vat": {
-      "type": "number"
-    },
-    "tpId": {
-      "type": "number"
-    },
-    "price": {
-      "type": "number"
-    },
-    "tpName": {
-      "type": "string"
-    },
-    "nextAbonDate": {
-      "type": "string"
-    },
-    "userCount": {
-      "type": "number"
-    },
-    "feesType": {
-      "type": "number"
-    },
-    "period": {
-      "type": "number"
-    },
-    "description": {
-      "type": "string"
-    },
-    "userPortal": {
-      "type": "number"
-    }
+    "required": [
+      "activateNotification",
+      "createAccount",
+      "discount",
+      "extCmd",
+      "manualActivate",
+      "paymentType",
+      "periodAlignment",
+      "priority",
+      "promoPeriod",
+      "vat",
+      "tpId",
+      "price",
+      "tpName",
+      "nextAbonDate",
+      "userCount",
+      "feesType",
+      "period",
+      "description",
+      "userPortal"
+    ]
   }
 }

@@ -94,18 +94,21 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right required' for='SUM'>_{SUM_ALL}_: </label>
-        <div class='col-md-9'>
-          <input class='form-control' required id='SUM' name='SUM' type='number' step='0.01' value='%SUM%' %DISABLED%/>
-        </div>
-      </div>
-      <div class='form-group row'>
         <label class='col-md-3 col-form-label text-md-right' for='SELL_PRICE'>_{SELL_PRICE}_ (_{PER_ONE_ITEM}_): </label>
         <div class='col-md-9'>
           <input class='form-control' id='SELL_PRICE' name='SELL_PRICE' type='text' value='%SELL_PRICE%'/>
         </div>
       </div>
-      <div class='card card-primary card-outline collapsed-card'>
+      <div class='form-group row'>
+        <label class='col-md-3 col-form-label text-md-right required' for='SUM'>_{SUM_ALL}_: </label>
+        <div class='col-md-9'>
+          <input class='form-control' required id='SUM' name='SUM' type='number' step='0.01' value='%SUM%' %DISABLED%/>
+        </div>
+      </div>
+    </div>
+
+
+      <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
         <div class='card-header with-border text-center'>
           <h3 class='card-title'>_{EXTRA}_</h3>
           <div class='card-tools float-right'>
@@ -155,6 +158,7 @@
         </div>
       </div>
 
+    <div class='card-body'>
       <div class='form-group row'>
         <label class='col-md-3 col-form-label text-md-right'>_{DEPOT_NUM}_: </label>
         <div class='col-md-9'>%STORAGE_STORAGES%</div>

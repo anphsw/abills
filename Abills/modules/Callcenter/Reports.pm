@@ -306,7 +306,7 @@ sub callcenter_admins_report {
 
   my $calls_list = $Callcenter->callcenter_list_calls({
     DATE_START     => $FORM{DATE_START},
-    DATE_END       => $FORM{DATE_END}. '23:59:59',
+    DATE_END       => $FORM{DATE_END}. ' 23:59:59',
     OPERATOR_PHONE => $FORM{ADMIN_SELECT},
     DATE           => '_SHOW',
     STATUS         => '_SHOW',
@@ -323,16 +323,17 @@ sub callcenter_admins_report {
   my %admin_statuses =();
 
   foreach my $call (@$calls_list) {
-    $admin_statuses{$call->{admin}}{processed} += 1     if ($call->{status} == 3);
-    $admin_statuses{$call->{admin}}{not_processed} += 1 if ($call->{status} == 4);
+    $admin_statuses{$call->{admin}}{processed} += 1            if ($call->{admin} && $call->{status} == 3);
+    $admin_statuses{$call->{admin}}{not_processed} += 1        if ($call->{admin} && $call->{status} == 4);
+    $admin_statuses{" $lang{NOT_DEFINED}"}{processed} += 1     if (!$call->{admin} && $call->{status} == 3);
+    $admin_statuses{" $lang{NOT_DEFINED}"}{not_processed} += 1 if (!$call->{admin} && $call->{status} == 4);
   }
 
-  foreach my $admin_ (keys %admin_statuses) {
+  foreach my $admin_ (sort keys %admin_statuses) {
     push @assigned, $admin_;
     push @processed, $admin_statuses{$admin_}->{processed};
     push @not_processed, $admin_statuses{$admin_}->{not_processed};
   }
-
 
   print $html->chart({
     TYPE              => 'bar',

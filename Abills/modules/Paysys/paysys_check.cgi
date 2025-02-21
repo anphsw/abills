@@ -82,14 +82,20 @@ require Abills::Templates;
 load_module('Paysys', $html);
 require Paysys::Paysys_Base;
 
+my $REMOTE_ADDR = $ENV{REMOTE_ADDR} || '0.0.0.0';
+
+if ($conf{AUTH_X_FORWARDED} && $conf{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST}, [ split(',\s?', $conf{AUTH_X_DOMAIN}) ])) {
+  $REMOTE_ADDR = $ENV{$conf{AUTH_X_FORWARDED}} if ($ENV{$conf{AUTH_X_FORWARDED}});
+}
+
 #Check allow ips
 if ($conf{PAYSYS_IPS}) {
-  if ($ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $conf{PAYSYS_IPS})) {
+  if ($REMOTE_ADDR && !check_ip($REMOTE_ADDR, $conf{PAYSYS_IPS})) {
     print "Content-Type: text/html\n\n";
-    my $error = "Error: IP '$ENV{REMOTE_ADDR}' DENY by System";
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$ENV{REMOTE_ADDR}' DENY by System",
+    my $error = "Error: IP '$REMOTE_ADDR' DENY by System";
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$REMOTE_ADDR' DENY by System",
       "$conf{MAIL_CHARSET}", "2 (High)");
-    mk_log($error);
+    mk_log($error, { REMOTE_ADDR => $REMOTE_ADDR });
     exit;
   }
 }
@@ -120,7 +126,7 @@ our Users $users = Users->new($db, $admin, \%conf);
 
 #debug =========================================
 if ($debug > 1) {
-  mk_log('', { DATA => \%FORM });
+  mk_log('', { DATA => \%FORM, REMOTE_ADDR => $REMOTE_ADDR });
 }
 #NEW SCHEME ====================================
 paysys_new_scheme();
@@ -152,22 +158,21 @@ sub paysys_new_scheme {
   my $test_system = q{};
   if ($conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}) {
     my ($ips, $pay_system) = split(/:/, $conf{PAYSYS_TEST_SYSTEM});
-    if (check_ip($ENV{REMOTE_ADDR}, $ips)) {
+    if (check_ip($REMOTE_ADDR, $ips)) {
       $test_system = $FORM{PAYSYS_TEST_SYSTEM} || $pay_system;
     }
   }
 
-  foreach my $connected_system (@$connected_systems_list){
-    my $remote_ip = $ENV{REMOTE_ADDR};
+  foreach my $connected_system (@$connected_systems_list) {
     my $paysys_ip = $connected_system->{paysys_ip} || '';
-    my $module    = $connected_system->{module};
-    my $id        = $connected_system->{paysys_id};
+    my $module = $connected_system->{module};
+    my $id = $connected_system->{paysys_id};
 
     if ($test_system) {
       if ($test_system ne $module) {
         next;
       }
-      $paysys_ip = $ENV{REMOTE_ADDR};
+      $paysys_ip = $REMOTE_ADDR;
     }
 
     next if ($conf{PAYSYS_PAYSYS_ID_CHECK} && $ENV{HTTP_PAYSYSID} && !($ENV{HTTP_PAYSYSID} eq $id));
@@ -190,43 +195,46 @@ sub paysys_new_scheme {
       Socket->import();
 
       my @addresses = gethostbyname($domain) or next;
-      @addresses = map { inet_ntoa($_) } @addresses[4 .. $#addresses];
+      @addresses = map {inet_ntoa($_)} @addresses[4 .. $#addresses];
 
       $paysys_ip = join(', ', @addresses);
     }
 
-    if (check_ip($remote_ip, $paysys_ip) || $allowed){
+    if (check_ip($REMOTE_ADDR, $paysys_ip) || $allowed) {
       if ($debug > 0) {
-        mk_log('', { PAYSYS_ID => $id, DATA => \%FORM });
+        mk_log('', { PAYSYS_ID => $id, DATA => \%FORM, REMOTE_ADDR => $REMOTE_ADDR });
       }
 
       my $Paysys_plugin = _configure_load_payment_module($module, 0, \%conf);
 
       if ($debug > 2) {
-        mk_log("$module loaded", { PAYSYS_ID => $id });
+        mk_log("$module loaded", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
       }
 
       my $Payment_system = $Paysys_plugin->new($db, $admin, \%conf, {
-        CUSTOM_NAME => $connected_system->{name},
-        CUSTOM_ID   => $connected_system->{paysys_id}
+        CUSTOM_NAME  => $connected_system->{name},
+        CUSTOM_ID    => $connected_system->{paysys_id},
+        SUBSYSTEM_ID => $connected_system->{subsystem_id},
+        REMOTE_ADDR  => $REMOTE_ADDR,
       });
 
       if ($debug > 2) {
-        mk_log("$module object created", { PAYSYS_ID => $id });
+        mk_log("$module object created", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
       }
 
       if ($Payment_system->can('proccess')) {
         $Payment_system->proccess(\%FORM);
 
         if ($debug > 2) {
-          mk_log("$module process ended", { PAYSYS_ID => $id });
+          mk_log("$module process ended", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
         }
       }
       else {
         mk_log("$module don't have process statment", {
-          HEADER    => 1,
-          SHOW      => 1,
-          PAYSYS_ID => $module
+          HEADER      => 1,
+          SHOW        => 1,
+          PAYSYS_ID   => $module,
+          REMOTE_ADDR => $REMOTE_ADDR
         });
       }
 
@@ -238,7 +246,7 @@ sub paysys_new_scheme {
   paysys_payment_gateway();
 
   if ($debug > 1) {
-    mk_log('', { REPLY => 1 });
+    mk_log('', { REPLY => 1, REMOTE_ADDR => $REMOTE_ADDR });
   }
 
   return 1;
@@ -291,7 +299,7 @@ sub paysys_payment_gateway {
 
   $TEMPLATES_ARGS{IDENTIFIER_TEXT} = $lang{ENTER} . ' ' . ($lang{$conf{PAYSYS_GATEWAY_IDENTIFIER} || q{}} || 'UID');
 
-  $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS, { });
+  $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS, {});
 
   return 1;
 }

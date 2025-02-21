@@ -44,7 +44,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-sm-4 col-md-4 col-form-label' for='SEL_METHOD'>_{TYPE}_</label>
+        <label class='col-sm-4 col-md-4 col-form-label' for='SEL_METHOD'>_{PAYMENT_METHOD}_</label>
         <div class='col-sm-8 col-md-8'>
           %SEL_METHOD%
         </div>

@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "USER_INTERNET",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "uid": {
+        "type": "integer"
+      },
+      "nextAbon": {
+        "type": "object",
+        "properties": {
+          "abonDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "activateDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysToFee": {
+            "type": "integer"
+          },
+          "sum": {
+            "type": "integer"
+          }
+        },
+        "required": ["abonDate", "activateDate", "daysToFee", "sum"]
+      },
+      "holdup": {
+        "type": "object",
+        "properties": {
+          "canCancel": {
+            "type": "boolean"
+          },
+          "dateFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "del": {
+            "type": "integer"
+          },
+          "delIds": {
+            "type": "string"
+          }
+        },
+        "required": ["canCancel", "dateFrom", "dateTo", "del", "delIds"]
+      },
+      "schedule": {
+        "type": "object",
+        "properties": {
+          "canCancel": {
+            "type": "boolean"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "dateFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "dayFee": {
+            "type": "integer"
+          },
+          "monthFee": {
+            "type": "integer"
+          },
+          "tpAge": {
+            "type": "integer"
+          },
+          "sheduleId": {
+            "type": "integer"
+          },
+          "tpId": {
+            "type": "integer"
+          },
+          "tpName": {
+            "type": "string"
+          },
+          "inSpeed": {
+            "type": "integer"
+          },
+          "outSpeed": {
+            "type": "integer"
+          }
+        },
+        "required": ["canCancel", "date", "dateFrom", "dayFee", "monthFee", "tpAge", "sheduleId", "tpId", "tpName", "inSpeed", "outSpeed"]
+      },
+      "abonDistribution": {
+        "type": "integer"
+      },
+      "activatePrice": {
+        "type": "integer"
+      },
+      "canChangeTp": {
+        "type": "boolean"
+      },
+      "cid": {
+        "type": "string"
+      },
+      "dayFee": {
+        "type": "integer"
+      },
+      "inSpeed": {
+        "type": "integer"
+      },
+      "internetExpire": {
+        "type": "string",
+        "format": "date"
+      },
+      "internetStatus": {
+        "type": "integer"
+      },
+      "ipNum": {
+        "type": "integer"
+      },
+      "ip": {
+        "type": "string",
+        "format": "ipv4"
+      },
+      "loginStatus": {
+        "type": "integer"
+      },
+      "macDiscovery": {
+        "type": "boolean"
+      },
+      "monthFee": {
+        "type": "integer"
+      },
+      "outSpeed": {
+        "type": "integer"
+      },
+      "statusName": {
+        "type": "string"
+      },
+      "tpAge": {
+        "type": "integer"
+      },
+      "tpComments": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id", "tpName", "tpId", "uid",
+      "abonDistribution", "activatePrice", "canChangeTp", "cid", "dayFee",
+      "inSpeed", "internetExpire", "internetStatus", "ipNum", "ip",
+      "loginStatus", "macDiscovery", "monthFee", "outSpeed", "statusName",
+      "tpAge", "tpComments"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "GET_HOLDUP",
+  "type": "object",
+  "properties": {
+    "dateFrom": {
+      "type": "string"
+    },
+    "canCancel": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "dateFrom",
+    "canCancel"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_USER_CARD_PAY",
+  "method": "POST",
+  "path": "cards/:uid/payments/"
+}

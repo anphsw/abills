@@ -43,7 +43,7 @@ document.addEventListener('open-tree-toggle', function(event) {
       .then(data => {
         item.find('ul.ul-spinner').remove();
         params.url = '?get_index=form_streets&full=1&chg=';
-        params.key = 'streetName';
+        params.key = data[0] && typeof(data[0] === 'object') && 'streetName' in data[0] ? 'streetName' : 'street_name';
         createNodes(data, 'street', item, params);
 
         if (event.detail.parent.data('open-parent')) openParentItems();

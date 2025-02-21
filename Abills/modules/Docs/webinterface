@@ -494,17 +494,15 @@ sub docs_print {
   }
 
   my $template = $type;
-  if ( $FORM{qindex} && !$attr->{NO_HEADER} ){
+  if ( ($FORM{qindex} || $FORM{get_index}) && !$attr->{NO_HEADER} ){
     print $html->header();
   }
 
-  my $companies = {};
+  my $Companies = {};
   my $company_id = $LIST_PARAMS{COMPANY_ID} // $Docs->{COMPANY_ID} // $FORM{COMPANY_ID};
   if ($company_id) {
-    $companies = Companies->new($db, $admin, \%conf);
-    $companies->with_info_fields({
-      COMPANY_ID => $company_id,
-    });
+    $Companies = Companies->new($db, $admin, \%conf);
+    $Companies->info($company_id);
   }
   else {
     if ($attr->{USER_INFO}) {
@@ -518,10 +516,10 @@ sub docs_print {
   if ($Docs->{UID}) {
     $users->info( $Docs->{UID} ) if (!$users->{BILL_ID});
     $users->pi( { UID => $Docs->{UID} } );
-    if ($users->{ADDRESS_STREET}) {
-      $users->{ADDRESS_FULL} =
-        "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}"
-    }
+    # if ($users->{ADDRESS_STREET}) {
+    #   $users->{ADDRESS_FULL} =
+    #     "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}"
+    # }
     if ( $users->{GID} ){
       $users->group_info( $users->{GID} );
       if ( $users->{SEPARATE_DOCS} ){
@@ -601,7 +599,7 @@ sub docs_print {
   my $doc_info = $Documents->document_info({ %{$attr}, CHECK_IS_EXISTS => 1 });
 
   if($attr->{TAKE_PARAMS}) {
-    my @variables = (keys %{$attr}, keys %{$users}, keys %{$companies});
+    my @variables = (keys %{$attr}, keys %{$users}, keys %{$Companies});
     return @variables;
   }
 
@@ -632,7 +630,7 @@ sub docs_print {
         {
           %{$attr},
           %{($users) ? $users : {} },
-          %{$companies},
+          %{$Companies},
           %tpl_attributtes,
         },
         {
@@ -662,9 +660,8 @@ sub docs_print {
     my $doc = $Documents->document_print({
       %{$attr},
       PDF           => $FORM{pdf} ? 1 : 0,
-      PRINT_HEADERS => $FORM{qindex} || ''
+      PRINT_HEADERS => $FORM{qindex} || $FORM{get_index} || ''
     });
-
     $content = $doc->{content};
   }
 
@@ -1160,6 +1157,7 @@ sub docs_statement_of_account {
     $BILL_ACCOUNTS{ $users->{EXT_BILL_ID} } = "$lang{EXTRA} : $users->{EXT_BILL_ID}" if ($users->{EXT_BILL_ID});
   }
 
+  my $first_date_row = '';
 
   foreach my $month (sort keys %operations_month) {
     my $month_fees = 0.00;
@@ -1184,10 +1182,10 @@ sub docs_statement_of_account {
         : (sprintf("%.2f", $money_operation->{last_deposit} || 0) + sprintf("%.2f", $money_operation->{sum} || 0));
         $deposit = sprintf("%.2f", $deposit || 0);
 
-
         $month_payments += ($money_operation->{FEES}) ? 0 : sprintf("%.2f", $money_operation->{sum} || 0);
         $month_fees += ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : 0;
         $month_balance = ($money_operation->{FEES}) ? ($money_operation->{last_deposit} - $money_operation->{sum}) : ($money_operation->{last_deposit} + $money_operation->{sum});
+        $first_date_row = $money_operation->{datetime} if (!$first_date_row);
 
         $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
           date        => $date,
@@ -1237,6 +1235,10 @@ sub docs_statement_of_account {
   else {
     $period_to = $DATE;
     }
+  if ($FORM{ALL}){
+    $period_from = date_format($first_date_row, '%Y-%m-%d') ;
+    $period_to = $DATE;
+  }
 
   $Docs->{YEAR_SEL} = $html->form_select('DATE', {
     SELECTED  => $FORM{DATE} || "$y-01-01",
@@ -1248,7 +1250,10 @@ sub docs_statement_of_account {
   my $uid = $FORM{UID} || 0;
   my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS"
     .(($FORM{DATE}) ? "&DATE=$FORM{DATE}" : q{}), {
-    class => 'btn btn-light border mt-1'
+    class => 'btn btn-light border mt-1 mr-2'
+  });
+  my $all_period_btn = $html->button($lang{ALL_PERIOD}, "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&ALL=1", {
+    class => 'btn btn-light border mt-1 mr-2'
   });
 
   if ($FORM{xls}) {
@@ -1266,7 +1271,8 @@ sub docs_statement_of_account {
       PERIOD_FROM => $period_from,
       PERIOD_TO   => $period_to,
       DATE        => $DATE,
-      UPLOAD_XML  => $upload_xml
+      UPLOAD_XML  => $upload_xml,
+      ALL_PERIOD  => $all_period_btn
     });
   }
 
@@ -1806,6 +1812,134 @@ sub _send_invoice_viber {
   if (defined($ENV{HTTP_HOST})) {
     $html->message('info', $lang{INFO}, "$lang{INVOICE} $lang{SENT} $lang{ON} Viber");
   };
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 docs_customers ()
+
+   Attr:
+
+=cut
+#**********************************************************
+sub docs_customers {
+
+  delete $FORM{UID} if ($FORM{change} && $FORM{UID});
+
+  if ($FORM{add}) {
+    $Docs->docs_customers_add(\%FORM);
+    if (!$Docs->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CUSTOMER} $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{CUSTOMER} $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Docs->docs_customers_change(\%FORM);
+    if (!$Docs->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", $lang{CHANGED});
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", $lang{NOT_CHANGED});
+    }
+    delete $FORM{UID};
+  }
+  elsif ($FORM{del}) {
+    $Docs->docs_customers_del({ ID => $FORM{del} });
+    if (!$Docs->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}")
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT} $lang{DELETED}");
+    }
+  }
+
+  my %customer_types = (
+    0 => $lang{DOCS_LEGAL_ENTITY},
+    1 => $lang{DOCS_FOP},
+    2 => $lang{DOCS_INDIVIDUAL},
+  );
+
+  if ($FORM{add_form} || $FORM{chg} ) {
+    $Docs->docs_customers_info({ ID => $FORM{chg} });
+
+    $Docs->{DISABLE} = ($Docs->{DISABLE} && $Docs->{DISABLE} == 1) ? 'checked' : '';
+    $Docs->{IS_DOCS} = ($Docs->{IS_DOCS} && $Docs->{IS_DOCS} == 1) ? 'checked' : '';
+    $Docs->{SELECT_TYPE} = $html->form_select('TYPE', {
+      SELECTED    => $Docs->{TYPE} || $FORM{TYPE} || 0,
+      SEL_HASH    => \%customer_types,
+      SORT_KEY    => 1,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '' }
+    });
+
+    print $html->tpl_show(_include('docs_customers', 'Docs'), {
+      INDEX     => $index,
+      BTN_NAME  => $FORM{add_form} ? 'add' : 'change',
+      BTN_VALUE => $FORM{add_form} ? $lang{ADD} : $lang{CHANGE},
+      %$Docs
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  my $invoices_index = get_function_index('docs_invoices_list');
+
+  result_former({
+    INPUT_DATA      => $Docs,
+    FUNCTION        => 'docs_customers_list',
+    FUNCTION_INDEX  => $index,
+    DEFAULT_FIELDS  => 'NAME,UID,CONTRACT_ID,IS_DOCS,COMMENTS',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES => {
+      type => sub {
+        my $type = shift;
+        return $customer_types{$type},
+      },
+      uid => sub {
+        my $uid = shift;
+        return $html->button($uid, "index=$invoices_index&UID=$uid", { target => '_blank' });
+      },
+    },
+    SELECT_VALUE => {
+      is_docs => {
+        0 => ' ',
+        1 => '<i class="fa fa-check text-success"></i>'
+      },
+      disable => {
+        0 => ' ',
+        1 => '<i class="fa fa-check"></i>'
+      },
+    },
+    EXT_TITLES   => {
+      id            => 'ID',
+      customer      => $lang{CUSTOMER},
+      uid           => 'UID',
+      type          => $lang{TYPE},
+      contract_id   => $lang{CONTRACT_ID},
+      contract_date => "$lang{DATE} $lang{CONTRACT}",
+      inn           => $lang{INN},
+      edrpou        => $lang{EDRPOU},
+      date          => $lang{DATE},
+      is_docs       => $lang{DOCS},
+      disable       => $lang{DISABLE},
+      comments      => $lang{COMMENTS},
+    },
+    TABLE   => {
+      width      => '100%',
+      caption    => $lang{DOCUMENT_CUSTOMERS_LOG},
+      qs         => $pages_qs,
+      ID         => 'DOCUMENT_CUSTOMERS_LIST',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
+
 
   return 1;
 }

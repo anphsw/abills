@@ -175,7 +175,6 @@ And start this script again.
           'unsubscribed',
           'conversation_started'
         ],
-        send_name   => 'false',
         send_photo  => 'false'
       },
       JSON_RETURN => 1,
@@ -208,65 +207,10 @@ And start this script again.
   ABillS Viber bot successfully subscribed.
 
 [END]
-  print "Do you want configure Viber modules?\n";
-  print "Apply? (y/N): ";
-  chomp(my $ok = <STDIN>);
-
-  if (lc($ok) eq 'y') {
-    _configure_viber_modules();
-  }
 
   # Fill config variables
   $Conf->config_add({ PARAM => 'VIBER_BOT_NAME', VALUE => $bot_info->{uri}, REPLACE => 1 });
   $Conf->config_add({ PARAM => 'VIBER_WEBHOOK_URL', VALUE => $generated_url, REPLACE => 1 });
-}
-
-#*******************************************************************
-=head2 _configure_viber_modules() - modules configuration
-
-=cut
-#*******************************************************************
-sub _configure_viber_modules {
-  my $buttons_available_folder = $Bin . '/buttons-avaiable';
-  my $buttons_enabled_folder = $Bin . '/buttons-enabled';
-  if (!-d $buttons_enabled_folder && !mkdir($buttons_enabled_folder)) {
-    print "ERROR Folder $buttons_enabled_folder not created.\nCreate it manually and try again.\n";
-    return;
-  }
-
-  my @AVAILABLE_MODULES = ();
-  my @ENABLED_MODULES = ();
-
-  my $process_modules = sub {
-    my $LINK = shift;
-    my $function = sub {
-      my $name = $File::Find::name;
-      if (-d $name) {
-        return 1;
-      }
-      if ($_ && $_ ne '.') {
-        push(@$LINK, $_);
-      }
-    };
-    return $function;
-  };
-  find($process_modules->(\@AVAILABLE_MODULES), $buttons_available_folder);
-  find($process_modules->(\@ENABLED_MODULES), $buttons_enabled_folder);
-
-  my $i = 0;
-  my $n = scalar(@AVAILABLE_MODULES);
-  for my $available_module (sort @AVAILABLE_MODULES) {
-    $i++;
-    if (grep {$_ eq $available_module} @ENABLED_MODULES) {
-      print "($i/$n) Module $available_module already enabled.\n";
-      next;
-    };
-    print "($i/$n) Enable $available_module? (y/N)\n";
-    chomp(my $ok = <STDIN>);
-    if (lc($ok) eq 'y') {
-      `ln -s $buttons_available_folder/$available_module $buttons_enabled_folder/$available_module`;
-    }
-  }
 }
 
 #*******************************************************************

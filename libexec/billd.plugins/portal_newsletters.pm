@@ -13,14 +13,14 @@
 =cut
 
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 use FindBin '$Bin';
 
 push @INC, $Bin . '/../', $Bin . '/../Abills/';
 
 use Abills::Base qw(sendmail in_array datetime_diff);
 use Abills::Sender::Core;
-use Time::HiRes qw(usleep);
+use Time::HiRes qw(sleep);
 
 our (
   $debug,
@@ -120,6 +120,7 @@ sub portal_newsletter {
     my $message = _get_newsletter_message($letter, $news_link);
     my $sender_options = _get_newsletter_sender_options($letter, $news_link, $message, \@ATTACHMENTS);
     my $contact_name = uc(_get_newsletter_sender_name($sender_name));
+    my $sender_rate_limit = _get_sender_rate_limit($sender_name);
 
     my $allowed_users = $Users->list({
       $contact_name  => '!=0',
@@ -146,17 +147,23 @@ sub portal_newsletter {
       if ($debug < 6) {
         $sender_options->{TO_ADDRESS} = $contact->{value};
         $sender_options->{UID} = $contact->{uid};
-        $Sender->send_message($sender_options);
+        my $send_status = $Sender->send_message($sender_options);
 
-        $count++;
         if ($Sender->{errno}) {
           $Log->log_print('LOG_DEBUG', $contact->{uid}, "Error: $Sender->{errno} $Sender->{errstr}");
+        }
+        elsif (!$send_status) {
+          $Log->log_print('LOG_DEBUG', $contact->{uid}, "Error: send not successful with Sender $letter->{SEND_METHOD}")
+        }
+        else {
+          $count++;
         }
 
         if ($argv->{SLEEP}) {
           sleep int($argv->{SLEEP});
-        } else {
-          usleep(50000);
+        }
+        else {
+          sleep(1 / $sender_rate_limit);
         }
       }
       elsif ($debug > 7) {
@@ -299,6 +306,32 @@ sub _get_newsletter_sender_name {
   }
 
   return $name;
+}
+
+#**********************************************************
+=head2 _get_sender_rate_limit($name)
+
+    Get sender limit in microseconds
+    TODO: this function may be in Sender individually.
+
+    Arguments:
+      $name — Sender name
+
+    Returns:
+      $sender_rate_limit
+
+=cut
+#**********************************************************
+sub _get_sender_rate_limit {
+  my ($name) = @_;
+
+  my %sender_rate_limits = (
+    Viber_bot => 20,
+    Telegram  => 30,
+    Push      => 10000
+  );
+
+  return $sender_rate_limits{$name} || 1000;
 }
 
 1;

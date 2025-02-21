@@ -30,6 +30,24 @@ properties:
       serial:
         type: number
         example: 1
+  docsActsList:
+    type: number
+    example: 1
+  docsInvoicesList:
+    type: number
+    example: 1
+  docsReceiptList:
+    type: number
+    example: 1
+  equipmentUser:
+    type: number
+    example: 1
+  expertFaq:
+    type: number
+    example: 1
+  extreceiptsList:
+    type: number
+    example: 1
   internet:
     type: object
     properties:
@@ -87,6 +105,15 @@ properties:
   iptvUserInfo:
     type: number
     example: 1
+  moneyUnitNames:
+    type: object
+    properties:
+      majorUnit:
+        type: string
+        example: "грн"
+      minorUnit:
+        type: string
+        example: "коп"
   msgsUser:
     type: number
     example: 1
@@ -117,6 +144,12 @@ properties:
       organizationPrivacyPolicyDescription1:
         type: string
         example: "Privacy Policy ТОВ КНЕТ"
+      organizationAppLinkGooglePlay:
+        type: string
+        example: "https://play.google.com/store/apps/details?id=com.abillslite"
+      organizationAppLinkAppStore:
+        type: string
+        example: "https://apps.apple.com/ua/app/abills-lite/id1668648035"
   paysysPayment:
     type: number
     example: 1
@@ -240,6 +273,9 @@ properties:
       minPeriod:
         type: number
         example: 1
+  userSendPassword:
+    type: number
+    example: 1
   holdup:
     type: array
     items:

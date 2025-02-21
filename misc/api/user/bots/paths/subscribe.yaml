@@ -2,6 +2,7 @@ post:
   tags:
     - bots
   summary: Авторизация пользователя по токену с botLink (Только с бота)
+  deprecated: true
   parameters:
     - name: USERBOT
       in: header
@@ -16,7 +17,7 @@ post:
       required: true
       schema:
         type: string
-      example: 111111111
+        example: 111111111
   requestBody:
     content:
       application/json:
@@ -41,6 +42,9 @@ post:
               code:
                 type: string
                 example: 1
+              user:
+                type: boolean
+                example: true
     400:
       description: Нет поля token
       content:
@@ -50,7 +54,7 @@ post:
             properties:
               errno:
                 type: integer
-                example: 10047
+                example: 1770004
               errstr:
                 type: string
                 example: No field token

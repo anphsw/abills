@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "USER_PI_CHANGE",
+  "required": [
+    "result"
+  ],
+  "properties": {
+    "result": {
+      "type": "string"
+    }
+  }
+}

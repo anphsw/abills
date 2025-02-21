@@ -3,12 +3,7 @@ get:
     - voip
   summary: Информация о дополнительных номерах
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение
@@ -23,12 +18,7 @@ post:
     - voip
   summary: Добавить номер
   parameters:
-    - name: uid
-      in: path
-      description: UID пользователя в биллинге
-      required: true
-      schema:
-        type: integer
+    - $ref: "#/components/parameters/pathUid"
   requestBody:
     content:
       application/json:

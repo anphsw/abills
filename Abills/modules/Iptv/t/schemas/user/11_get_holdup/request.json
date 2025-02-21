@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_GET_HOLDUP",
+  "method": "GET",
+  "path": "/user/iptv/:id/holdup/"
+}

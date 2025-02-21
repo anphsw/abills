@@ -170,7 +170,7 @@ sub iptv_user_info {
       });
 
       if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= ($Iptv->{TOTAL} || 0)) {
-        $html->message("err", $lang{ERROR}, "$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS}: $service_info->{SUBSCRIBE_COUNT}");
+        $html->message("err", $lang{ERROR}, "$lang{IPTV_MAX_SUBSCRIPTIONS_REACHED}: $service_info->{SUBSCRIBE_COUNT}");
         return 0;
       }
 
@@ -196,7 +196,7 @@ sub iptv_user_info {
         IPTV_ACTIVATE => !$Tariffs->{PERIOD_ALIGNMENT} && $DATE ? $DATE : '0000-00-00'
       });
       if (!$Iptv->{errno}) {
-        $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
+        # $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
         $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
         $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} ||= 0;
 
@@ -217,9 +217,10 @@ sub iptv_user_info {
 
           my $result = iptv_account_action({
             %FORM,
-            ID        => $FORM{ID} || $Iptv->{ID},
-            SCREEN_ID => undef,
-            USER_INFO => $user
+            ID         => $FORM{ID} || $Iptv->{ID},
+            SCREEN_ID  => undef,
+            USER_INFO  => $user,
+            SERVICE_ID => $Iptv->{SERVICE_ID}
           });
 
           if ($result) {
@@ -767,10 +768,9 @@ sub iptv_watch {
 sub iptv_activation {
 
   if ($Tv_service && $Tv_service->can('get_code')) {
-    $user->info($user->{UID}, {
-      SHOW_PASSWORD => 1,
-    });
-    $Tv_service->get_code({ %$user, INDEX => $index, DEVICE => 1, });
+    $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
+    $Iptv->user_info($FORM{chg});
+    $Tv_service->get_code({ %$user, %{$Iptv}, INDEX => $index, DEVICE => 1, });
   }
 
   return 1;

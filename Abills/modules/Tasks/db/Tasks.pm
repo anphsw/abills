@@ -24,17 +24,17 @@ sub new {
   my $class = shift;
   my $db = shift;
   ($admin, $CONF) = @_;
-  
+
   $admin->{MODULE} = $MODULE;
-  
+
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $CONF
   };
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -46,7 +46,8 @@ sub new {
 sub info {
   my $self = shift;
   my ($attr) = @_;
-  return [ ] unless ($attr->{ID});
+
+  return {} unless ($attr->{ID});
 
   $self->query("SELECT tm.*,
       tt.name as type_name,
@@ -61,7 +62,7 @@ sub info {
     undef,
     { Bind => [ $attr->{ID} ], COLS_NAME => 1, COLS_UPPER => 1 }
   );
-  return [ ] if ($self->{errno});
+  return {} if ($self->{errno});
 
   my $info = $self->{list}->[0];
 
@@ -79,7 +80,7 @@ sub info {
     }
     $info->{PARTCIPIANTS_LIST} = join(',', @p_arr);
   }
- 
+
   return $info;
 }
 
@@ -93,7 +94,7 @@ sub add {
   my ($attr) = @_;
 
   $self->query_add('tasks_main', $attr);
-  return [ ] if ($self->{errno});
+  return $self if ($self->{errno});
 
   if ($attr->{LEAD_ID} && Abills::Base::in_array('Crm', \@main::MODULES)) {
     require Crm::db::Crm;
@@ -107,17 +108,17 @@ sub add {
 }
 
 #**********************************************************
-=head2 chg($attr)
+=head2 change$attr)
 
   Arguments:
     $attr - hash_ref
 
   Returns:
-    1
+    $self
 
 =cut
 #**********************************************************
-sub chg {
+sub change {
   my $self = shift;
   my ($attr) = @_;
 
@@ -137,7 +138,7 @@ sub chg {
     $Crm->_crm_workflow('closedTask', $old_info->{LEAD_ID}, { %{$attr}, TASK_TYPE => $old_info->{TASK_TYPE} });
   }
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -149,26 +150,37 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $PG   = $attr->{PG} || '0';
+  my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ID',           'INT',  'tm.id',                    1 ],
-      ['TASK_TYPE',    'INT',  'tm.task_type',             1 ],
-      ['STATE',        'INT',  'tm.state',                 1 ],
-      ['AID',          'INT',  'tm.aid',                   1 ],
-      ['RESPONSIBLE',  'INT',  'tm.responsible',           1 ],
-      ['PLAN_DATE',    'DATE', 'tm.plan_date',             1 ],
-      ['CLOSED_DATE',  'DATE', 'tm.closed_date',           1 ],
-      ['CONTROL_DATE', 'DATE', 'tm.control_date',          1 ],
-      ['MSG_ID',       'INT',  'tm.msg_id',                1 ],
-      ['STEP_ID',      'INT',  'tm.step_id',               1 ],
-      ['LEAD_ID',      'INT',  'tm.lead_id',               1 ],
-      ['DEAL_ID',      'INT',  'tm.deal_id',               1 ],
-    ],
-    { WHERE => 1 }
+  my @WHERE_RULES = ();
+
+  if (defined $attr->{SUBTASKS_OF} && $attr->{SUBTASKS_OF} =~ /^\d+$/) {
+    push @WHERE_RULES,
+      "(path LIKE CONCAT((SELECT CONCAT(path, '/') FROM tasks_main WHERE id = $attr->{SUBTASKS_OF}), '%')) OR tm.id = $attr->{SUBTASKS_OF}";
+    $attr->{PATH} = '_SHOW';
+  }
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'tm.id', 1 ],
+    [ 'TASK_TYPE', 'INT', 'tm.task_type', 1 ],
+    [ 'STATE', 'INT', 'tm.state', 1 ],
+    [ 'AID', 'INT', 'tm.aid', 1 ],
+    [ 'RESPONSIBLE', 'INT', 'tm.responsible', 1 ],
+    [ 'PLAN_DATE', 'DATE', 'tm.plan_date', 1 ],
+    [ 'CLOSED_DATE', 'DATE', 'tm.closed_date', 1 ],
+    [ 'CONTROL_DATE', 'DATE', 'tm.control_date', 1 ],
+    [ 'MSG_ID', 'INT', 'tm.msg_id', 1 ],
+    [ 'STEP_ID', 'INT', 'tm.step_id', 1 ],
+    [ 'LEAD_ID', 'INT', 'tm.lead_id', 1 ],
+    [ 'DEAL_ID', 'INT', 'tm.deal_id', 1 ],
+    [ 'PARENT_ID', 'INT', 'tm.parent_id', 1 ],
+    [ 'PATH', 'STR', 'tm.path', 1 ],
+    [ 'NAME', 'STR', 'tm.name', 1 ],
+  ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
 
   $self->query("SELECT 
@@ -195,7 +207,7 @@ sub list {
       $WHERE
       ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
-    {%$attr, COLS_NAME => 1, COLS_UPPER => 1}
+    { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
   );
 
   return [] if ($self->{errno});
@@ -227,7 +239,17 @@ sub del {
   my ($attr) = @_;
 
   $self->query_del('tasks_main', $attr);
-  return [ ] if ($self->{errno});
+  return $self if ($self->{errno});
+
+  my @del_descr = ();
+  if ($attr->{ID}) {
+    push @del_descr, "ID: $attr->{ID}";
+  }
+  if ($attr->{COMMENTS}) {
+    push @del_descr, "COMMENTS: $attr->{COMMENTS}";
+  }
+
+  $admin->action_add('', join(' ', @del_descr), { TYPE => 10 });
 
   return $self;
 }
@@ -244,21 +266,21 @@ sub p_list {
   $attr->{PARTCIPIANT} = $attr->{RESPONSIBLE};
   delete $attr->{RESPONSIBLE};
 
-  my $PG   = $attr->{PG} || '0';
+  my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ID',               'INT',         'tm.id',                    1 ],
-      ['TASK_TYPE',        'INT',         'tm.task_type',             1 ],
-      ['STATE',            'INT',         'tm.state',                 1 ],
-      ['AID',              'INT',         'tm.aid',                   1 ],
-      ['RESPONSIBLE',      'INT',         'tm.responsible',           1 ],
-      ['PLAN_DATE',        'DATE',        'tm.plan_date',             1 ],
-      ['CONTROL_DATE',     'DATE',        'tm.control_date',          1 ],
-      ['PARTCIPIANT',      'INT',         'tp.aid',                   1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'tm.id', 1 ],
+    [ 'TASK_TYPE', 'INT', 'tm.task_type', 1 ],
+    [ 'STATE', 'INT', 'tm.state', 1 ],
+    [ 'AID', 'INT', 'tm.aid', 1 ],
+    [ 'RESPONSIBLE', 'INT', 'tm.responsible', 1 ],
+    [ 'PLAN_DATE', 'DATE', 'tm.plan_date', 1 ],
+    [ 'CONTROL_DATE', 'DATE', 'tm.control_date', 1 ],
+    [ 'PARTCIPIANT', 'INT', 'tp.aid', 1 ],
+  ],
     { WHERE => 1 }
   );
 
@@ -287,7 +309,7 @@ sub p_list {
       $WHERE
       ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
-    {%$attr, COLS_NAME => 1, COLS_UPPER => 1}
+    { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
   );
 
   return [] if ($self->{errno});
@@ -320,7 +342,7 @@ sub p_add {
   my ($attr) = @_;
 
   $self->query_add('tasks_partcipiants', $attr);
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -335,7 +357,7 @@ sub p_del {
   my ($attr) = @_;
 
   $self->query_del('tasks_partcipiants', $attr);
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -350,7 +372,7 @@ sub type_add {
   my ($attr) = @_;
 
   $self->query_add('tasks_type', $attr);
-  return [ ] if ($self->{errno});
+  return $self if ($self->{errno});
 
   return $self;
 }
@@ -371,7 +393,7 @@ sub type_hide {
     { Bind => [ $id ] }
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -389,9 +411,9 @@ sub type_info {
       FROM tasks_type
       WHERE id= ?",
     undef,
-    { Bind => [ ($attr->{ID} ? $attr->{ID} : '' ) ], COLS_NAME => 1, COLS_UPPER => 1 }
+    { Bind => [ ($attr->{ID} ? $attr->{ID} : '') ], COLS_NAME => 1, COLS_UPPER => 1 }
   );
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self->{list}->[0];
 }
@@ -403,17 +425,25 @@ sub type_info {
 #**********************************************************
 sub types_list {
   my $self = shift;
- 
-  $self->query("SELECT *
-      FROM tasks_type
-      WHERE hidden = 0
-      ORDER BY name;",
+  my ($attr) = @_;
+
+  $attr->{HIDDEN} = 0;
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',     'INT', 'id',     1 ],
+    [ 'NAME',   'STR', 'name',   1 ],
+    [ 'HIDDEN', 'INT', 'hidden', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM tasks_type
+    $WHERE;",
     undef,
     { COLS_NAME => 1, COLS_UPPER => 1 }
   );
-  return [ ] if ($self->{errno});
 
-  return $self->{list};
+  return [] if ($self->{errno});
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -428,12 +458,12 @@ sub admins_list {
   $attr->{AID} =~ s/\,/\;/g if ($attr->{AID});
   $attr->{AID} =~ s/\,/\;/g if ($attr->{AID});
 
-  my $WHERE =  $self->search_former($attr, [
-      ['AID',              'INT',         'a.aid',                    1 ],
-      ['RESPONSIBLE',      'INT',         'ta.responsible',           1 ],
-      ['ADMIN',            'INT',         'ta.admin',                 1 ],
-      ['SYSADMIN',         'INT',         'ta.sysadmin',              1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'AID', 'INT', 'a.aid', 1 ],
+    [ 'RESPONSIBLE', 'INT', 'ta.responsible', 1 ],
+    [ 'ADMIN', 'INT', 'ta.admin', 1 ],
+    [ 'SYSADMIN', 'INT', 'ta.sysadmin', 1 ],
+  ],
     { WHERE => 1 }
   );
 
@@ -480,10 +510,10 @@ sub plugins_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ID',      'INT',  'p.aid',    1 ],
-      ['ENABLE',  'INT',  'p.enable', 1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'p.aid', 1 ],
+    [ 'ENABLE', 'INT', 'p.enable', 1 ],
+  ],
     { WHERE => 1 }
   );
 
@@ -548,7 +578,7 @@ sub enable_plugin {
     { Bind => [ $name ] }
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -569,7 +599,7 @@ sub disable_plugin {
     { Bind => [ $name ] }
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -603,9 +633,223 @@ sub cols_arr {
     FROM tasks_main
     LIMIT 1;",
     undef,
-    {COLS_NAME => 1}
+    { COLS_NAME => 1 }
   );
   return $self->{COL_NAMES_ARR};
+}
+
+#**********************************************************
+=head2 type_fields_add()
+
+=cut
+#**********************************************************
+sub type_fields_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{TASK_TYPE_ID};
+
+  $self->query_del('tasks_type_fields', undef, { task_type_id => $attr->{TASK_TYPE_ID} });
+
+  return $self if (!$attr->{ADDITIONAL_FIELDS} || ref $attr->{ADDITIONAL_FIELDS} ne 'ARRAY');
+
+  my @MULTI_QUERY = ();
+  foreach my $field (@{$attr->{ADDITIONAL_FIELDS}}) {
+    push @MULTI_QUERY, [ $attr->{TASK_TYPE_ID}, $field->{NAME} || '', $field->{TYPE} || '', $field->{LABEL} || '' ];
+  }
+
+  $self->query("INSERT INTO tasks_type_fields (task_type_id, name, type, label) VALUES (?, ?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 type_fields_list($attr)
+
+=cut
+#**********************************************************
+sub type_fields_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'NAME',         'STR', 'name',         1 ],
+    [ 'TYPE',         'STR', 'type',         1 ],
+    [ 'LABEL',        'STR', 'label',        1 ],
+    [ 'TASK_TYPE_ID', 'INT', 'task_type_id', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM tasks_type_fields
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return [] if ($self->{errno});
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 type_plugins_add()
+
+=cut
+#**********************************************************
+sub type_plugins_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{TASK_TYPE_ID};
+
+  $self->query_del('tasks_type_plugins', undef, { task_type_id => $attr->{TASK_TYPE_ID} });
+
+  return $self if (!$attr->{PLUGINS} || ref $attr->{PLUGINS} ne 'ARRAY');
+
+  my @MULTI_QUERY = ();
+  foreach my $plugin (@{$attr->{PLUGINS}}) {
+    push @MULTI_QUERY, [ $attr->{TASK_TYPE_ID}, $plugin ];
+  }
+
+  $self->query("INSERT INTO tasks_type_plugins (task_type_id, plugin_name) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 type_plugins_list($attr)
+
+=cut
+#**********************************************************
+sub type_plugins_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'PLUGIN_NAME',  'STR', 'plugin_name',  1 ],
+    [ 'TASK_TYPE_ID', 'INT', 'task_type_id', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM tasks_type_plugins
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return [] if ($self->{errno});
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 type_admins_add()
+
+=cut
+#**********************************************************
+sub type_admins_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{TASK_TYPE_ID};
+
+  $self->query_del('tasks_type_admins', undef, { task_type_id => $attr->{TASK_TYPE_ID} });
+
+  return $self if (!$attr->{ADMINS} || ref $attr->{ADMINS} ne 'ARRAY');
+
+  my @MULTI_QUERY = ();
+  foreach my $aid (@{$attr->{ADMINS}}) {
+    push @MULTI_QUERY, [ $attr->{TASK_TYPE_ID}, $aid ];
+  }
+
+  $self->query("INSERT INTO tasks_type_admins (task_type_id, aid) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 type_admins_list($attr)
+
+=cut
+#**********************************************************
+sub type_admins_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'AID',          'INT', 'aid',          1 ],
+    [ 'TASK_TYPE_ID', 'INT', 'task_type_id', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM tasks_type_admins
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return [] if ($self->{errno});
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 type_participants_add()
+
+=cut
+#**********************************************************
+sub type_participants_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{TASK_TYPE_ID};
+
+  $self->query_del('tasks_type_participants', undef, { task_type_id => $attr->{TASK_TYPE_ID} });
+
+  return $self if (!$attr->{PARTICIPANTS} || ref $attr->{PARTICIPANTS} ne 'ARRAY');
+
+  my @MULTI_QUERY = ();
+  foreach my $aid (@{$attr->{PARTICIPANTS}}) {
+    push @MULTI_QUERY, [ $attr->{TASK_TYPE_ID}, $aid ];
+  }
+
+  $self->query("INSERT INTO tasks_type_participants (task_type_id, aid) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 type_participants_list($attr)
+
+=cut
+#**********************************************************
+sub type_participants_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'AID',          'INT', 'aid',          1 ],
+    [ 'TASK_TYPE_ID', 'INT', 'task_type_id', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM tasks_type_participants
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return [] if ($self->{errno});
+
+  return $self->{list} || [];
 }
 
 

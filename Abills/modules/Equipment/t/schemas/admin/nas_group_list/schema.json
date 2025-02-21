@@ -1,29 +1,32 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
   "title": "The Root Schema",
-  "required": [
-    "comments",
-    "disable",
-    "gid",
-    "id",
-    "name"
-  ],
-  "properties": {
-    "comments": {
-      "type": "string"
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "comments": {
+        "type": "string"
+      },
+      "disable": {
+        "type": "number"
+      },
+      "gid": {
+        "type": "number"
+      },
+      "id": {
+        "type": "number"
+      },
+      "name": {
+        "type": "string"
+      }
     },
-    "disable": {
-      "type": "number"
-    },
-    "gid": {
-      "type": "number"
-    },
-    "id": {
-      "type": "number"
-    },
-    "name": {
-      "type": "string"
-    }
+    "required": [
+      "comments",
+      "disable",
+      "gid",
+      "id",
+      "name"
+    ]
   }
 }

@@ -23,6 +23,7 @@ use Triplay;
 use Triplay::Services;
 use Tariffs;
 use Abills::Base qw(expire_date);
+require Control::System;
 
 our (
   $db,
@@ -30,7 +31,6 @@ our (
   $admin,
   $users,
   $user,
-  %permissions,
   %ADMIN_REPORT
 );
 
@@ -84,6 +84,11 @@ sub triplay_tp {
     }
   }
   elsif ($FORM{change}) {
+    if ($FORM{create_fees_type}) {
+      my $Fees = Finance->fees($db, $admin, \%conf);
+      $Fees->fees_type_add({ NAME => $FORM{NAME}});
+      $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+    }
     $Triplay->tp_change({ %FORM, ID => $FORM{chg} });
 
     if (!$Triplay->{errno}) {
@@ -154,7 +159,7 @@ sub triplay_tp {
   my $Abon = Abon->new($db, $admin, \%conf);
   my $abon_select = $html->form_select('ABON_TP', {
     SELECTED       => $Triplay->{ABON_TP} || 0,
-    SEL_LIST       => $Abon->tariff_list_former({ TP_NAME=>'_SHOW', COLS_NAME => 1, PAGE_ROWS => 60000 }),
+    SEL_LIST       => $Abon->tariff_list({ TP_NAME=>'_SHOW', COLS_NAME => 1, PAGE_ROWS => 60000 }),
     SEL_VALUE      => 'tp_name',
     NO_ID          => 1,
     SEL_OPTIONS    => { '' => '--' },
@@ -187,44 +192,72 @@ sub triplay_tp {
 
   $Triplay->{NEXT_TARIF_PLAN_SEL} = sel_tp({
     SELECT          => 'NEXT_TARIF_PLAN',
-    NEXT_TARIF_PLAN => $Triplay->{NEXT_TARIF_PLAN},
+    NEXT_TARIF_PLAN => $FORM{NEXT_TARIF_PLAN} || $Triplay->{NEXT_TP_ID},
     MAIN_MENU       => 'triplay_tp',
     MODULE          => 'Triplay'
   });
 
+  my %tp_groups = ();
+  my $tp_groups_list = $Tariffs->tp_group_list({ COLS_NAME => 1 });
+  foreach my $line (@$tp_groups_list) {
+    $tp_groups{$line->{id}}=$line->{name};
+  }
+
+  $Triplay->{GROUPS_SEL} = $html->form_select('TP_GID', {
+    SELECTED       => $FORM{TP_GID} || $Triplay->{GID},
+    SEL_LIST       => $tp_groups_list,
+    MAIN_MENU      => get_function_index('form_tp_groups'),
+    MAIN_MENU_ARGV => "chg=" . ($Triplay->{GID} || q{}),
+    SEL_OPTIONS    => { '' => '' },
+  });
+
+  $FORM{REDUCTION_FEE}    = ($FORM{REDUCTION_FEE}) ? 'checked' : '';
+  $FORM{STATUS}           = ($FORM{STATUS}) ? 'checked' : '';
+  $FORM{PERIOD_ALIGNMENT} = ($FORM{PERIOD_ALIGNMENT}) ? 'checked' : '';
   $Triplay->{REDUCTION_FEE}    = ($Triplay->{REDUCTION_FEE})      ? 'checked' : '';
+  $Triplay->{STATUS}           = ($Triplay->{STATUS} || $FORM{STATUS}) ? 'checked' : '';
   $Triplay->{PERIOD_ALIGNMENT} = ($Triplay->{PERIOD_ALIGNMENT} || $FORM{PERIOD_ALIGNMENT}) ? 'checked' : '';
 
   $html->tpl_show(_include('triplay_tp', 'Triplay'), {
     %$Triplay,
+    %FORM,
     INTERNET => $internet_select,
     IPTV     => $iptv_select,
     VOIP     => $voip_select,
     ABON     => $abon_select,
     ID       => $Triplay->{TRIPLAY_TP_ID}
   });
+  $LIST_PARAMS{TP_ID} = $FORM{TP_IDS} if ($FORM{TP_IDS});
 
   result_former({
     INPUT_DATA      => $Triplay,
     FUNCTION        => 'tp_list',
     BASE_FIELDS     => 2,
-    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,DAY_FEE,INTERNET_NAME,IPTV_NAME,VOIP_NAME,ABON_NAME,COMMENT',
+    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,DAY_FEE,INTERNET_NAME,IPTV_NAME,VOIP_NAME,ABON_NAME,COMMENTS,ACTIV_PRICE',
     FUNCTION_FIELDS => 'change, del',
+    SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       id              => 'ID',
+      inner_tp_id     => 'TP_ID',
       name            => $lang{NAME},
       internet_name   => $lang{INTERNET},
       iptv_name       => $lang{TV},
       voip_name       => $lang{VOIP},
       month_fee       => $lang{MONTH_FEE},
       day_fee         => $lang{DAY_FEE},
-      comment         => $lang{COMMENTS},
+      comments        => $lang{COMMENTS},
       internet_name   => $lang{INTERNET},
       iptv_name       => $lang{TV},
       voip_name       => $lang{VOIP},
       abon_name       => $lang{ABON},
       age             => $lang{AGE},
-      next_tarif_plan => "$lang{NEXT} $lang{TARIF_PLAN}"
+      next_tp_id      => "$lang{NEXT_NEXT} $lang{TARIF_PLAN} ID",
+      period_alignment=> $lang{MONTH_ALIGNMENT},
+      credit          => $lang{CREDIT},
+      activate_price  => $lang{ACTIVATE},
+      describe_aid    => $lang{DESCRIBE_FOR_ADMIN},
+      tp_gid          => $lang{GROUP},
+      status          => $lang{ARCHIVAL},
     },
     TABLE           => {
       width   => '100%',
@@ -232,7 +265,18 @@ sub triplay_tp {
       qs      => $pages_qs,
       ID      => 'TRIPLAY_TP',
       EXPORT  => 1,
+      SHOW_FULL_LIST  => 1,
       MENU    => "$lang{ADD}:index=" . get_function_index('triplay_tp') . ':add' . ";",
+    },
+    SELECT_VALUE  => {
+      period_alignment => { 0 => $lang{NO}, 1 => $lang{YES} },
+      status => { 0 => $lang{NO}, 1 => $lang{YES} },
+    },
+    FILTER_VALUES => {
+      tp_gid => sub {
+        my $tp_gid = shift;
+        return $tp_groups{$tp_gid} || '';
+      },
     },
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,

@@ -752,7 +752,7 @@ sub msgs_admin_add_form {
   if ($msgs_permissions{3}{0} && $msgs_permissions{3}{2}) {
     $Msgs->{DISPATCH_SEL} = $html->form_select('DISPATCH_ID', {
       SELECTED    => $Msgs->{DISPATCH_ID} || '',
-      SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1 }),
+      SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1, PAGE_ROWS => 10000 }),
       SEL_OPTIONS => { '' => '--' },
       SEL_KEY     => 'id',
       SEL_VALUE   => 'plan_date,comments'
@@ -1078,7 +1078,7 @@ sub msgs_ticket_show {
 
   my $REPLIES = msgs_ticket_reply($message_id);
 
-  $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  # $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
   my $subject_before_convert = $Msgs->{SUBJECT} || '';
   $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
   if (!defined $Msgs->{TIMELINE_LAST_ITEM}) {
@@ -1196,10 +1196,11 @@ sub msgs_ticket_show {
 
   $Msgs->{ID} = $Msgs->{MAIN_ID};
 
-  while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-    my $msg_button = $html->button($1, "&index=$index&chg=$1", { class => 'badge bg-blue' });
-    $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
-  }
+  # while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
+  #   my $msg_button = $html->button($1, "&index=$index&chg=$1", { class => 'badge bg-blue' });
+  #   $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
+  # }
+  $Msgs->{MESSAGE} = msgs_text_formatting($Msgs->{MESSAGE}, 1);
 
   # return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
 
@@ -1295,24 +1296,6 @@ sub msgs_ticket_reply {
       next;
     }
 
-    my $skip_convert = undef;
-    if ($line->{text} && $line->{text} =~ /^RM\:(\d+)$/) {
-      require Msgs::Export_redmine;
-      Export_redmine->import();
-      my $Export_redmine = Export_redmine->new($db, $admin, \%conf);
-      my $task_info = $Export_redmine->task_info({ TASK_ID => $1 });
-
-      my $task_status = $task_info && $task_info->{status} && $task_info->{status}{name} ? $task_info->{status}{name} : $lang{UNKNOWN};
-      my $text = $html->element('h5', $html->badge($line->{text} . " ($task_status)", { TYPE => 'badge-primary' }));
-      $line->{text} = $html->button($text, '', {
-        GLOBAL_URL     => $Export_redmine->{TASK_LINK},
-        NO_LINK_FORMER => 1,
-        target         => '_blank',
-      });
-
-      $skip_convert = 1;
-    }
-
     $Msgs->{REPLY_QUOTE} = '>' . $line->{text}  if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id});
 
     my $reply_color = 'fas fa-user bg-green';
@@ -1356,7 +1339,7 @@ sub msgs_ticket_reply {
       REPLY_ID   => $line->{id},
       DATE       => $line->{datetime},
       PERSON     => ($line->{creator_id} || q{}) . ' ' . ($line->{aid} ? " ($lang{ADMIN})" : ''),
-      MESSAGE    => msgs_text_quoting($line->{text}, 1, { SKIP_CONVERT => $skip_convert }),
+      MESSAGE    => msgs_text_formatting($line->{text}, 1),
       QUOTING    => $quote_button,
       NEW_TOPIC  => _msgs_new_topic_button($uid, $message_id, $line->{id}, $Msgs->{CHAPTER}),
       EDIT       => _msgs_edit_reply_button($line->{id}),

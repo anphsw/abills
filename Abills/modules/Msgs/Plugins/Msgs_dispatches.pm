@@ -82,7 +82,7 @@ sub _msgs_create_dispatch {
   $attr->{DISPATCH_ID} = $Msgs->{DISPATCH_ID};
   $html->message('info', $lang->{INFO}, "$lang->{DISPATCH} $lang->{ADDED}") if (!$Msgs->{errno});
 
-  return 0;
+  return { RETURN_VARIABLES => { DISPATCH_ID => $attr->{DISPATCH_ID} } };
 }
 
 1;

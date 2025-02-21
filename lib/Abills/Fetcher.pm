@@ -9,10 +9,10 @@ package Abills::Fetcher;
 use strict;
 use warnings FATAL => 'all';
 use parent 'Exporter';
-use Abills::Base qw(cmd urlencode load_pmodule json_former);
+use Abills::Base qw(cmd urlencode load_pmodule json_former _caller);
 use POSIX qw(strftime);
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 our @EXPORT = qw(
   web_request
@@ -270,7 +270,18 @@ sub _curl_request {
     $curl_options .= " --data \"\@$conf{TPL_DIR}/tmp_.bin\"";
   }
 
-  if ($attr->{JSON_BODY}) {
+  if ($attr->{FORM_URLENCODED}) {
+    $request_params .= ' -H "Content-Type: application/x-www-form-urlencoded" ';
+    foreach my $key (keys %{$attr->{FORM_URLENCODED}}) {
+      $request_params .= qq/ --data-urlencode "$key=$attr->{FORM_URLENCODED}->{$key}" /;
+    }
+  }
+  elsif ($attr->{FORM_DATA}) {
+    foreach my $key (keys %{$attr->{FORM_DATA}}) {
+      $request_params .= qq/ --form "$key=$attr->{FORM_DATA}->{$key}" /;
+    }
+  }
+  elsif ($attr->{JSON_BODY}) {
     $request_params = '-d "' . json_former($attr->{JSON_BODY}, { ESCAPE_DQ => 1, %{$attr->{JSON_FORMER} || {}} }) . '"';
   }
   elsif ($attr->{REQUEST_PARAMS_JSON}) {
@@ -318,10 +329,18 @@ sub _curl_request {
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
+      my $caller = q{};
+      if ($debug > 3) {
+        $caller = qq{\nCALLER:===============================\n};
+        $caller .= _caller({ NO_PRINT => 1 });
+
+        $caller .= "\n";
+      }
+
       if (open(my $fh, '>>', $attr->{DEBUG2FILE})) {
         print $fh "===============================\n";
         print $fh " $DATE : $TIME ($request_) " . $request_cmd . "\n";
-        print $fh "$result\n" if ($debug > 1);
+        print $fh "$result\n$caller" if ($debug > 1);
         close($fh);
       }
       else {

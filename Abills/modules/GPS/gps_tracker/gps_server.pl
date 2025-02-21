@@ -320,6 +320,12 @@ sub parse_http_request {
     $FORM{$side} = $value;
   }
 
+  if ($FORM{id}) {
+    $FORM{gps_imei}=$FORM{id};
+    #Response for TRaccar
+    $FORM{RESPONSE}="HTTP/1.1 %status% %response%\nContent-Length:0\n\n";
+  }
+
   return \%FORM;
 }
 
@@ -607,7 +613,6 @@ sub parse_tk103 {
   $subProtocol = substr($ps_data, 13, 4);
 
   if ($subProtocol eq 'BP05') {
-
     $x = substr($ps_data, 39, 9);
     $y = substr($ps_data, 49, 10);
 
@@ -633,8 +638,6 @@ sub parse_tk103 {
     my $time = timelocal($sec, $min, $hour, $mday, $mon - 1, $year);
     $result{timestamp} = $time;
   }
-
-  $result{RESPONSE}="HTTP/1.1 %status% %response%\nContent-Length:0\n\n";
 
   return \%result;
 }

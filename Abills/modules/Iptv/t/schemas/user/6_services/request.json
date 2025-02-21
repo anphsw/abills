@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_SERVICES",
+  "method": "GET",
+  "path": "user/iptv/services/"
+}

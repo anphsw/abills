@@ -17,8 +17,8 @@ package Paysys::systems::Ipay_mp;
 =head VERSION
 
   Date: 07.06.2018
-  UPDATED: 20240813
-  VERSION: 8.44
+  UPDATED: 20240820
+  VERSION: 8.45
 
 =cut
 
@@ -31,7 +31,7 @@ use Abills::Base qw(load_pmodule json_former vars2lang is_number);
 use Abills::Fetcher qw(web_request);
 use Abills::Filters qw(_utf8_encode);
 
-my $PAYSYSTEM_VERSION = 8.44;
+my $PAYSYSTEM_VERSION = 8.45;
 my $PAYSYSTEM_NAME = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
 my $PAYSYSTEM_ID = 72;
@@ -177,6 +177,16 @@ sub create_request_params {
     }
 
     $request{request}{body}{threeds_info}{notification_url} = "$SELF_URL?index=$self->{index}&PARSE_QUERY_PARAMS=1&EXT_ID=$attr->{OPERATION_ID}&SUM=$attr->{INVOICE}&ipay_pay=1&notification=1";
+    $request{request}{body}{threeds_info}{threeds_requestor_url} = $SELF_URL;
+    $request{request}{body}{threeds_info}{user_ip} = $ENV{REMOTE_ADDR};
+    # browser config
+    $request{request}{body}{threeds_info}{browser_color_depth} = '<str_>' . ($attr->{BROWSER_COLOR_DEPTH} || '24');
+    $request{request}{body}{threeds_info}{browser_language} = '<str_>' . ($attr->{BROWSER_LANGUAGE} || 'uk-UA');
+    $request{request}{body}{threeds_info}{browser_screen_height} = '<str_>' . ($attr->{BROWSER_SCREEN_HEIGHT} || '1920');
+    $request{request}{body}{threeds_info}{browser_screen_width} = '<str_>' . ($attr->{BROWSER_SCREEN_WIDTH} || '1080');
+    $request{request}{body}{threeds_info}{browser_tz} = '<str_>' . ($attr->{BROWSER_TZ} || '-120');
+    $request{request}{body}{threeds_info}{browser_accept_header} = '<str_>' . ($attr->{BROWSER_ACCEPT_HEADER} || '*/*');
+    $request{request}{body}{threeds_info}{browser_user_agent} = '<str_>' . ($attr->{BROWSER_USER_AGENT} || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36');
   }
   elsif ($action eq 'PaymentVerify3DS') {
     $request{request}{body}{pmt_id} = $attr->{PMT_ID};
@@ -451,6 +461,7 @@ sub user_portal_special {
       }
 
       my $json_create_payment_string = $self->create_request_params('PaymentCreate', {
+        %$attr,
         CARD_ALIAS   => $attr->{CARD_ALIAS},
         INVOICE      => $attr->{SUM},
         OPERATION_ID => $attr->{OPERATION_ID},

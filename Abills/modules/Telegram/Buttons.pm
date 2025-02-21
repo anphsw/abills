@@ -1,3 +1,5 @@
+package Telegram::Buttons;
+
 =head1 NAME
 
   Telegram button
@@ -7,12 +9,29 @@
 use strict;
 use warnings FATAL => 'all';
 
-our (
-  $base_dir,
-  $db,
-  %conf,
-  $admin
-);
+use Abills::Base qw/gen_time/;
+
+#**********************************************************
+=head2 new($attr)
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my ($conf, $bot, $bot_db, $APILayer, $user_config) = @_;
+
+  my $self = {
+    conf        => $conf,
+    bot         => $bot,
+    bot_db      => $bot_db,
+    api         => $APILayer,
+    user_config => $user_config
+  };
+
+  bless($self, $class);
+
+  return $self;
+}
 
 #**********************************************************
 =head2 buttons_list()
@@ -20,24 +39,38 @@ our (
 =cut
 #**********************************************************
 sub buttons_list {
+  my $self = shift;
   my ($attr) = @_;
-  my @buttons_files = glob "$base_dir/Abills/modules/Telegram/buttons-enabled/*.pm";
+  my @buttons_files = glob "$main::base_dir/Abills/modules/Telegram/buttons/*.pm";
   my %BUTTONS = ();
+  my $err = '';
+
   foreach my $file (@buttons_files) {
     my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
-    if (eval { require "buttons-enabled/$button.pm"; 1; }) {
-      my $obj = $button->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
-      next if $attr->{for_admins} && !$obj->{for_admins};
-      next if !$attr->{for_admins} && $obj->{for_admins};
+    next if ($attr->{for_admins} && $button !~ /Admin/);
+    next if (!$attr->{for_admins} && $button =~ /Admin/);
 
-      $BUTTONS{$button} = $obj->btn_name() if $obj->can('btn_name');
-    }
-    else {
-      print $@;
+    eval {
+      require "Telegram/buttons/$button.pm";
+
+      my $obj = "Telegram::buttons::$button"->new(
+        @$self{qw(conf bot bot_db api user_config)}
+      );
+
+      if ($obj->can('enable') && $obj->enable()) {
+        if ($obj->can('btn_name')) {
+          $BUTTONS{$button} = $obj->btn_name();
+        }
+      }
+    };
+
+    if ($@) {
+      $err .= $@ . "\n";
+      $@ = undef;
     }
   }
 
-  return \%BUTTONS;
+  return (\%BUTTONS, $err);
 }
 
 #**********************************************************
@@ -54,14 +87,45 @@ sub buttons_list {
 =cut
 #**********************************************************
 sub telegram_button_fn {
+  my $self = shift;
   my ($attr) = @_;
+
+  my $button = $attr->{button};
+  my $fn = $attr->{fn};
+
   my $ret = 0;
-  if (eval { require "buttons-enabled/$attr->{button}.pm"; 1; }) {
-    my $obj = $attr->{button}->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
-    my $fn = $attr->{fn};
+  eval {
+    require "Telegram/buttons/$button.pm";
+    my $obj = "Telegram::buttons::$button"->new(
+      $self->{conf},
+      $self->{bot},
+      $self->{bot_db},
+      $self->{api},
+      $self->{user_config}
+    );
+
     if ($obj->can($fn)) {
       $ret = $obj->$fn($attr);
     }
+  };
+
+  if ($@) {
+    my $message = "<b>$self->{bot}{lang}{ERROR}</b>\n";
+    if ($self->{conf}{TELEGRAM_DEBUG}) {
+      $message .= "\n";
+      $message .= "$@"
+    }
+    $self->{bot_db}->del($self->{bot}->{chat_id});
+    $self->{bot}->send_message({ text => $message })
+  }
+
+  if ($self->{conf}{USER_FN_BOTS_LOG}) {
+    require Log;
+    Log->import();
+    my $user_fn_log = $self->{conf}{USER_FN_BOTS_LOG};
+    my $Log = Log->new($main::db, $self->{conf}, { LOG_FILE => $user_fn_log });
+    my $time = gen_time($main::begin_time, { TIME_ONLY => 1 });
+    $Log->log_print('LOG_INFO', 'TELEGRAM', "$self->{bot}{chat_id}:$button->$fn:$time", { LOG_LEVEL => 6 });
   }
 
   return $ret;

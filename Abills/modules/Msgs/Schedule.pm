@@ -81,7 +81,7 @@ sub _msgs_schedule_month_get_tasks {
     PRIORITY_ID            => '_SHOW',
     STATE                  => $FORM{TASK_STATUS_SELECT},
     CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
-    PAGE_ROWS              => 100,
+    PAGE_ROWS              => 65500,
     COLS_NAME              => 1
   });
 
@@ -96,18 +96,21 @@ sub _msgs_schedule_month_get_tasks {
     PRIORITY_ID            => '_SHOW',
     CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     COLS_NAME              => 1,
-    PAGE_ROWS              => 100
+    PAGE_ROWS              => 65500
   });
 
   my @tasks = ();
-  map push(@tasks, {
-    id          => $_->{id},
-    subject     => $_->{subject},
-    priority    => $_->{priority_id},
-    responsible => $_->{resposible_admin_login},
-    plan_date   => $_->{plan_date},
-    info_url    => "?get_index=msgs_admin&full=1&chg=$_->{id}"
-  }), (@{$messages_list}, @{$free_messages_list});
+  foreach my $task (@{$messages_list}, @{$free_messages_list}) {
+    $task->{subject} =~ s/\//\\\//g;
+    push(@tasks, {
+      id          => $task->{id},
+      subject     => $task->{subject},
+      priority    => $task->{priority_id},
+      responsible => $task->{resposible_admin_login},
+      plan_date   => $task->{plan_date},
+      info_url    => "?get_index=msgs_admin&full=1&chg=$task->{id}"
+    })
+  }
 
   return \@tasks;
 }
@@ -145,6 +148,8 @@ sub msgs_schedule_hours {
 
   my $tasks_json = json_former(\@tasks);
   $tasks_json =~ s/[\n\r]+//g;
+  $tasks_json =~ s/\"/\\\"/g;
+  $tasks_json =~ s/\//\\\//g;
 
   $Schedule_control->schedule_hours_tasks_board($tasks_json);
   $html->tpl_show(_include('msgs_schedule', 'Msgs'), { FORM_CLASS => 'd-none' });

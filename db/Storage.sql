@@ -211,6 +211,15 @@ CREATE TABLE IF NOT EXISTS `storage_storages`
 INSERT INTO `storage_storages` (`id`, `name`, `comments`)
 VALUES (1, '$lang{MAIN}', '');
 
+CREATE TABLE IF NOT EXISTS `storage_admin_access` (
+  `storage_id` SMALLINT(6) UNSIGNED NOT NULL,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `access` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  KEY `storage_id` (`storage_id`),
+  KEY `aid` (`aid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Access rights for storages';
 
 CREATE TABLE IF NOT EXISTS `storage_inner_use`
 (

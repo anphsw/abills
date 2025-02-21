@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 240
+  errstr:
+    type: string
+    example: ERR_SMALL_DEPOSIT

@@ -1,0 +1,16 @@
+allOf:
+  - $ref: "#/components/schemas/ApiAddResponse200"
+  - type: object
+    properties:
+      newLeadId:
+        type: integer
+        example: 37
+        description: "Lead id same to insertId"
+      newDialogueId:
+        type: integer
+        example: 26
+        description: "Id of automatically created dialogue"
+      newMessageId:
+        type: integer
+        example: 454
+        description: "Id of automatically created system message in new dialogue"

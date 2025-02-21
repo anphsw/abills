@@ -1,0 +1,85 @@
+allOf:
+  - $ref: '#/components/schemas/UserBaseService'
+  - type: object
+    properties:
+      abonDistribution:
+        type: integer
+        example: 0
+      activatePrice:
+        type: number
+        description: Цена активации.
+      canChangeTp:
+        type: boolean
+        description: Ли можно менять тарифный план.
+      cid:
+        type: string
+        example: 14:11:11:11:11:c1
+      dayFee:
+        type: number
+      inSpeed:
+        type: integer
+        example: 128
+      internetExpire:
+        type: string
+        format: date
+        description: Дата конца срока действия сервиса Интернет.
+      internetStatus:
+        type: integer
+        description: Статус сервиса Internet.
+      ipNum:
+        type: number
+        example: 84215045
+      ip:
+        type: string
+        format: ipv4
+        example: "5.5.5.5"
+      loginStatus:
+        type: integer
+      macDiscovery:
+        type: boolean
+        example: true
+      monthFee:
+        type: integer
+        example: 250
+      outSpeed:
+        type: integer
+        example: 128
+      schedule:
+        allOf:
+          - $ref: "#/components/schemas/UserServiceBaseSchedule"
+          - type: object
+            properties:
+              inSpeed:
+                type: number
+                example: 128
+              outSpeed:
+                type: number
+                example: 128
+      statusName:
+        type: string
+        example: enabled
+      tpAge:
+        type: number
+        example: 1
+      tpComments:
+        type: string
+        description: Описание тарифного плана.
+    required:
+      - abonDistribution
+      - activatePrice
+      - canChangeTp
+      - cid
+      - dayFee
+      - inSpeed
+      - internetExpire
+      - internetStatus
+      - ip
+      - ipNum
+      - loginStatus
+      - macDiscovery
+      - monthFee
+      - nextAbon
+      - outSpeed
+      - statusName
+      - tpAge
+      - tpComments

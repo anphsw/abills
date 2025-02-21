@@ -148,8 +148,6 @@ $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Getting ONU configuration 
 $lang{CABLE_TEST_FAILED} = 'failed to run cable test';
 $lang{LAST_CABLE_TEST_TIME} = 'Time of last cable tester run';
 
-$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Displaying user equipment information';
-
 $lang{MAC_FLOOD_COUNT} = 'Number of MAC addresses';
 
 $lang{FDB_USES_PORT_NUMBER_INDEX} = 'FDB uses port numbers as indexes';
@@ -222,5 +220,12 @@ $lang{PORT_ERRORS} = 'Port errors';
 
 $lang{INCOMING} = 'Incoming';
 $lang{OUTCOMING} = 'Outcoming';
+$lang{LOG_ONU} = 'Log ONU';
+$lang{CAPABILITY} = 'Capability';
+
+$lang{EQUIPMENT_SCALE_TO_CONTENT} = 'Scale to content';
+$lang{EQUIPMENT_ALIGN} = 'Align';
+$lang{EQUIPMENT_ADD_NEW_EQUIPMENT} = 'Add new equipment';
+$lang{EQUIPMENT_ADD_PORT_BINDING} = 'Add port binding';
 
 1

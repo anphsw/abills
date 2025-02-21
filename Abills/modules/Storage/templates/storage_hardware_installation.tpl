@@ -187,7 +187,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{COUNT}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='COUNT' type='text' %DISABLE%/>
+                    <input class='form-control' name='COUNT' type='text' %DISABLE% value='1'/>
                   </div>
                 </div>
                 <div class='form-group row'>
@@ -199,7 +199,8 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>SN:</label>
                   <div class='col-md-8'>
-                    <textarea class='form-control col-xs-12' name='SERIAL'>%SERIAL%</textarea>
+                    <input class='form-control storage_sn_installation' id='STORAGE_SERIAL' name='SERIAL' type='text' value='%SERIAL%'/>
+<!--                    <textarea class='form-control col-xs-12' name='SERIAL'>%SERIAL%</textarea>-->
                   </div>
                 </div>
               </div>
@@ -456,6 +457,42 @@
       return row;
     }
 
+    let storage_timeout = null;
+
+    function doSerialDuplicateDelayedSearch(id, val) {
+      if (storage_timeout) {
+        clearTimeout(storage_timeout);
+      }
+      storage_timeout = setTimeout(function () {
+        doSerialDuplicateSearch(id, val); //this is your existing function
+      }, 500);
+    }
+
+    function doSerialDuplicateSearch(id, val) {
+      if (!val) {
+        return 1;
+      }
+
+      document.getElementById('submitbutton').disabled = true;
+      jQuery.post('%SELF_URL%', 'header=2&qindex=' + '%MAIN_INDEX%' + '&sn_check=' + val, function (data) {
+        document.getElementById('submitbutton').disabled = false;
+        if (data === 'success') {
+          jQuery(`#${id}`).parent().parent().removeClass('has-error').addClass('has-success');
+          jQuery(`#${id}`).css('border', '3px solid green');
+          document.getElementById(id).setCustomValidity('');
+        } else {
+          jQuery(`#${id}`).parent().parent().removeClass('has-success').addClass('has-error');
+          jQuery(`#${id}`).css('border', '3px solid red');
+          document.getElementById(id).setCustomValidity('_{SERIAL_NUMBER_IS_ALREADY_IN_USE}_');
+        }
+      });
+    }
+
+    jQuery('#STORAGE_SERIAL').on('input', function () {
+      var value = jQuery('#STORAGE_SERIAL').val();
+      doSerialDuplicateDelayedSearch ('STORAGE_SERIAL', value)
+    });
+
     jQuery('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       jQuery('.new-block').remove();
       initChosen();
@@ -463,6 +500,16 @@
 
     jQuery('.sn_installation').on('input', function () {
       _checkOthersSN('SERIAL', jQuery('#main'));
+    });
+
+    jQuery('[name="COUNT"]').on('input', function () {
+      let serial_input = jQuery(this).parent().parent().parent().find('[name="SERIAL"]');
+      if (jQuery(this).val() > 1) {
+        serial_input.attr('disabled', true);
+      }
+      else {
+        serial_input.removeAttr('disabled');
+      }
     });
 
     jQuery('#ACCOUNTABILITY_AID').on('change', selectAccountability);

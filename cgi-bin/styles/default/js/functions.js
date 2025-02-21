@@ -1782,6 +1782,44 @@ function formatDate(date, format) {
   return format.replace(/mm|dd|yyyy|hh|ii|ss/gi, matched => map[matched])
 }
 
+function createTable(headers = [], rows = [], tableClasses = 'table table-striped table-hover table-condensed') {
+  if (!Array.isArray(headers) || !Array.isArray(rows)) {
+    throw new Error('Headers and rows must be arrays');
+  }
+
+  const table = jQuery('<table></table>').addClass(tableClasses);
+
+  if (headers.length > 0) {
+    const thead = jQuery('<thead></thead>');
+    const headerRow = jQuery('<tr></tr>');
+    headers.forEach(header => {
+      headerRow.append(jQuery('<th></th>').append(header));
+    });
+    thead.append(headerRow);
+    table.append(thead);
+  }
+
+  const tbody = jQuery('<tbody></tbody>');
+  rows.forEach(row => {
+    const tr = jQuery('<tr></tr>');
+
+    row.forEach(column => {
+      const td = jQuery('<td></td>');
+      if (column instanceof jQuery) {
+        td.append(column);
+      } else {
+        td.text(column);
+      }
+      tr.append(td);
+    });
+
+    tbody.append(tr);
+  });
+  table.append(tbody);
+
+  return table;
+}
+
 // jquery extend function
 $.extend({
   redirectPost: function (location, args_) {
@@ -1852,5 +1890,28 @@ $(function () {
       }
     });
   });
+
+  const targetElement = document.getElementById('password-expired-modal');
+
+  if (targetElement) {
+    const backupElement = targetElement.cloneNode(true);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.removedNodes.forEach((node) => {
+          if (node.id === "password-expired-modal") {
+            jQuery('.modal').modal('hide');
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.appendChild(backupElement.cloneNode(true));
+            setTimeout(() => {
+              jQuery('#password-expired-modal').modal('show');
+            }, 100);
+          }
+        });
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 });
 

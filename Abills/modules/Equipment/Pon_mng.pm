@@ -164,6 +164,7 @@ our @ONU_FIELDS = (
   'VERSION_ID',
   'VIDEO_RX_POWER',
   'VOLTAGE',
+  'PICTURE',
 );
 
 our @PORT_FIELDS = (
@@ -181,6 +182,7 @@ our @PORT_FIELDS = (
   'VLAN',
   'TRUNK',
   'CONNECTOR',
+  'PORT_UPTIME'
 );
 
 our @SW_FIELDS = (
@@ -203,6 +205,16 @@ our @CHECKED_FIELDS = (
   'ONU_STATUS',
   'TEMPERATURE',
   'UPTIME',
+  'DESCRIBE',
+  'SYSTEM_ID',
+  'PORT_IN_DISCARDS',
+  'PORT_OUT_DISCARDS',
+  'PORT_UPTIME',
+  'CABLE_TESTER',
+  'PORT_IN',
+  'PORT_OUT',
+  'PORT_STATUS',
+  'ADMIN_PORT_STATUS'
 );
 
 #********************************************************
@@ -692,6 +704,14 @@ sub equipment_pon {
     }
   }
 
+  my $select_onu_statuses = $html->form_select('ONU_STATUS', {
+    SELECTED     => $FORM{ONU_STATUS} || '',
+    SEL_HASH     => \%ONU_STATUS_CODE_TO_TEXT,
+    SEL_OPTIONS  => { '' => '--' },
+    USE_COLORS   => 1,
+    NO_ID        => 1
+  });
+
   my $pon_onu_all = $html->button($lang{ALL}, "index=$index&visual=$FORM{visual}&NAS_ID=$nas_id", { class => 'btn btn-info' });
   my $page_gs = "&visual=$FORM{visual}&NAS_ID=$nas_id";
   $page_gs .= "&PON_TYPE=$attr->{PON_TYPE}" if ($attr->{PON_TYPE});
@@ -702,6 +722,7 @@ sub equipment_pon {
   $LIST_PARAMS{BRANCH} = '_SHOW';
   $LIST_PARAMS{PAGE_ROWS} = 10000;
   $LIST_PARAMS{RX_POWER_SIGNAL} = $FORM{RX_POWER_SIGNAL} || '';
+  $LIST_PARAMS{STATUS} = $FORM{ONU_STATUS} if ($FORM{ONU_STATUS});
 
   my %EXT_TITLES = (
     ID                   => 'ID',
@@ -731,7 +752,8 @@ sub equipment_pon {
     onu_name             => "ONU $lang{NAME}",
     datetime             => $lang{UPDATED},
     external_system_link => $lang{EXTERNAL_SYSTEM_LINK},
-    tariff_plan          => $lang{TARIFF_PLAN}
+    tariff_plan          => $lang{TARIF_PLAN},
+    onu_type             => 'ONU_TYPE'
   );
 
   my ($table, $onu_list) = result_former({
@@ -745,7 +767,7 @@ sub equipment_pon {
     EXT_TITLES      => \%EXT_TITLES,
     TABLE           => {
       width            => '100%',
-      caption          => "PON ONU " . $pon_onu_all . $unregister_btn,
+      caption          => "PON ONU " . $pon_onu_all . $unregister_btn . $select_onu_statuses,
       qs               => $page_gs,
       SHOW_COLS        => \%EXT_TITLES,
       SHOW_COLS_HIDDEN => {
@@ -931,11 +953,14 @@ sub equipment_pon {
         my ($in, $out) = split(/,/, $onu->{traffic});
         push @row, "in: " . int2byte($in) . $html->br() . "out: " . int2byte($out);
       }
-      elsif ($col_id =~ /power/) {
+      elsif ($col_id eq 'rx_power' || $col_id eq 'tx_power') {
         push @row, pon_tx_alerts($onu->{$col_id});
       }
+      elsif ($col_id eq 'olt_rx_power') {
+        push @row, pon_olt_rx_alerts($onu->{$col_id});
+      }
       elsif ($col_id eq 'status') {
-        push @row, ($onu->{deleted}) ? $html->color_mark("Deleted", 'text-red') : pon_onu_convert_state($nas_type, $onu->{status}, $onu->{pon_type});
+        push @row, ($onu->{deleted}) ? $html->color_mark($lang{DELETED}, 'text-red') : pon_onu_convert_state($nas_type, $onu->{status}, $onu->{pon_type});
       }
       elsif ($col_id eq 'branch') {
         my $br = uc($onu->{pon_type}) . ' ' . $onu->{$col_id};
@@ -1297,7 +1322,7 @@ sub equipment_register_onu_cmd {
       DEBUG   => $FORM{DEBUG} || 0,
       PARAMS  => { %$attr, %FORM, %{$attr->{NAS_INFO}} },
       ARGV    => 1,
-      timeout => 30
+      timeout => $conf{EQUIPMET_REGONU_TIMEOUT} || 30
     });
     $result_code = $? >> 8;
   }
@@ -1629,23 +1654,24 @@ sub equipment_pon_onu {
 
   if ($FORM{IN_MODAL}) {
     %show_cols = (
-      ID           => 'ID',
-      id           => ' ',
-      mac_serial   => "MAC_SERIAL",
-      status       => $lang{STATUS},
-      rx_power     => "RX_POWER",
-      tx_power     => "TX_POWER",
-      olt_rx_power => "OLT_RX_POWER",
-      comments     => $lang{COMMENTS},
-      address_full => $lang{ADDRESS},
-      login        => $lang{USER},
-      traffic      => $lang{TRAFFIC},
-      distance     => $lang{DISTANCE},
-      datetime     => $lang{UPDATED},
-      vlan_id      => 'VLAN',
-      onu_desc     => "ONU $lang{COMMENTS}",
+      ID             => 'ID',
+      id             => ' ',
+      mac_serial     => "MAC_SERIAL",
+      status         => $lang{STATUS},
+      rx_power       => "RX_POWER",
+      tx_power       => "TX_POWER",
+      olt_rx_power   => "OLT_RX_POWER",
+      comments       => $lang{COMMENTS},
+      address_full   => $lang{ADDRESS},
+      login          => $lang{USER},
+      traffic        => $lang{TRAFFIC},
+      distance       => $lang{DISTANCE},
+      datetime       => $lang{UPDATED},
+      vlan_id        => 'VLAN',
+      onu_desc       => "ONU $lang{COMMENTS}",
       mac_behind_onu => $lang{MAC_BEHIND_ONU},
       onu_name       => "ONU $lang{NAME}",
+      onu_type       => 'ONU_TYPE'
     );
   }
 
@@ -1812,8 +1838,11 @@ sub equipment_pon_onu {
 
         push @row, $value;
       }
-      elsif ($col_id =~ /power/) {
+      elsif ($col_id eq 'rx_power' || $col_id eq 'tx_power') {
         push @row, pon_tx_alerts($onu->{$col_id});
+      }
+      elsif ($col_id eq 'olt_rx_power') {
+        push @row, pon_olt_rx_alerts($onu->{$col_id});
       }
       elsif ($col_id eq 'status') {
         push @row, pon_onu_convert_state($nas_type, $onu->{status}, $onu->{pon_type});
@@ -2028,6 +2057,7 @@ sub pon_onu_state {
     COLS_UPPER       => 1,
     PAGE_ROWS        => 10000,
     ONU_DHCP_PORT    => '_SHOW',
+    ONU_TYPE         => '_SHOW',
     %params
   });
 
@@ -2072,6 +2102,9 @@ sub pon_onu_state {
   if (!$onu_info{$id}{VLAN} && $attr->{VLAN}) {
     $onu_info{$id}{VLAN} = $attr->{VLAN};
   }
+  if ($attr->{SHOW_FIELDS} && $attr->{SHOW_FIELDS} =~ /PICTURE/g ) {
+    $onu_info{$id}{PICTURE} = $onu_info{$id}{Equipment_ID} || $onu_info->{ONU_TYPE} || '';
+  }
 
   if ($snmp_info->{main_onu_info}->{MAC_BEHIND_ONU}->{USE_MAC_LOG}) {
     my $mac_log_search_by_port_name = $snmp_info->{main_onu_info}->{MAC_BEHIND_ONU}->{MAC_LOG_SEARCH_BY_PORT_NAME};
@@ -2113,7 +2146,7 @@ sub pon_onu_state {
   }
 
   push @info, [
-    $lang{ONU_BILLING_DESC} . $html->button('',
+    $html->b($lang{ONU_BILLING_DESC}) . $html->button('',
       "NAS_ID=$nas_id&header=2&get_index=equipment_change_onu_billing_desc_ajax&ONU=" . ($onu_info->{ID} || q{}),
       { MESSAGE => $lang{CHANGE_ONU_DESC},
         ALLOW_EMPTY_MESSAGE => 1,
@@ -2426,7 +2459,7 @@ sub _olt_manage {
 
   #NAS INFO SECTION
   my @info = ([
-    $html->element('i', "", { class => 'fas fas-modal-window' }) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp; ONU"),
+    $html->element('i', '', { class => 'fas fa-ethernet' }) . $html->element('label', '&nbsp;&nbsp;&nbsp;&nbsp;ONU'),
     $html->button("$pon_type " . ($onu_info->{BRANCH} || q{}) . ((defined $onu_info->{ONU_ID}) ? ":$onu_info->{ONU_ID}" : q{}), 'test',
       { class      => 'btn btn-sm btn-secondary',
         TITLE      => 'OLT ' . $extra_nas_info{NAS_TYPE} . ' ↓ ↓ ↓ ↓',
@@ -2560,9 +2593,12 @@ sub default_get_onu_info {
     $onu_info{$id}{$oid_name} = $value;
   }
 
-  if ($onu_info{$id}{STATUS} && $onu_info{$id}{STATUS} != $ONU_STATUS_TEXT_CODES{DEREGISTERED}) { #TODO: add statuses to skip?
+  #if ($onu_info{$id}{STATUS} && $onu_info{$id}{STATUS} != $ONU_STATUS_TEXT_CODES{DEREGISTERED}) {
     foreach my $oid_name (sort keys %{$snmp_info->{main_onu_info}}) {
-
+      #TODO: add statuses to skip?
+      if ((! $onu_info{$id}{STATUS} || $onu_info{$id}{STATUS} == $ONU_STATUS_TEXT_CODES{DEREGISTERED}) && $oid_name ne 'ONU_LAST_DOWN_CAUSE') {
+        next;
+      }
       if ($#show_fields > -1 && !in_array($oid_name, \@show_fields)) {
         next;
       }
@@ -2634,7 +2670,7 @@ sub default_get_onu_info {
         $onu_info{$id}{$oid_name} = $value;
       }
     }
-  }
+  #}
 
   return %onu_info;
 }
@@ -3630,6 +3666,53 @@ sub _get_snmp {
   }
 
   return {};
+}
+
+#********************************************************
+=head2 pon_olt_rx_alerts($rx) - Make OLT levels alerts
+
+  Arguments:
+    $rx      - rx value
+      Excellent  -10 >= $rx >= -27
+      Worth      -30 >= $rx >= -8
+      Very bad   $rx < -30 or $rx > -8
+
+  Returns:
+    $rx - HTML with color marks
+
+=cut
+#********************************************************
+sub pon_olt_rx_alerts {
+  my ($rx) = @_;
+
+  my %signals = (
+    'BAD'   => {
+      'MIN' => ($conf{OLT_RX_LEVELS_ALERT}) ? $conf{OLT_RX_LEVELS_ALERT}{BAD}{MIN} : -30,
+      'MAX' => ($conf{OLT_RX_LEVELS_ALERT}) ? $conf{OLT_RX_LEVELS_ALERT}{BAD}{MAX} : -8
+    },
+    'WORTH' => {
+      'MIN' => ($conf{OLT_RX_LEVELS_ALERT}) ? $conf{OLT_RX_LEVELS_ALERT}{WORTH}{MIN} : -27,
+      'MAX' => ($conf{OLT_RX_LEVELS_ALERT}) ? $conf{OLT_RX_LEVELS_ALERT}{WORTH}{MAX} : -10
+    }
+  );
+
+  if (!$rx || $rx == 65535) {
+    $rx = '';
+  }
+  elsif ($rx > 0) {
+    $rx = $html->color_mark($rx, 'text-secondary');
+  }
+  elsif ($rx > $signals{BAD}{MAX} || $rx < $signals{BAD}{MIN}) {
+    $rx = $html->color_mark($rx, 'text-red');
+  }
+  elsif ($rx > $signals{WORTH}{MAX} || $rx < $signals{WORTH}{MIN}) {
+    $rx = $html->color_mark($rx, 'text-yellow');
+  }
+  else {
+    $rx = $html->color_mark($rx, 'text-green');
+  }
+
+  return $rx;
 }
 
 1

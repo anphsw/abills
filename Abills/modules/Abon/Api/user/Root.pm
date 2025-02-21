@@ -79,10 +79,7 @@ sub post_user_abon {
   my $services = $Abon->tariff_info($path_params->{id});
 
   if (!$Abon->{TOTAL}) {
-    return {
-      errno  => 1020001,
-      errstr => 'ERR_NO_ABON_SERVICE',
-    };
+    return $Errors->throw_error(1020002);
   }
   elsif ($Abon->{TOTAL} && $Abon->{TOTAL} < 0) {
     return {

@@ -18,7 +18,6 @@ use Tariffs;
 my $Tariffs;
 
 my $MODULE = 'Cams';
-my ($SORT, $DESC, $PG, $PAGE_ROWS);
 my ($db, $admin, $CONF);
 
 #**********************************************************
@@ -59,10 +58,10 @@ sub _list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : '';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : '';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
 
   my $search_columns = [
     [ 'UID',                'INT',  'cm.uid',                                1 ],
@@ -81,9 +80,9 @@ sub _list {
     [ 'SUBSCRIBE_ID',       'STR',  'cm.subscribe_id',                       1 ]
   ];
 
-  if ($attr->{SHOW_ALL_COLUMNS}) {
-    map {$attr->{ $_->[0] } = '_SHOW' unless (exists $attr->{ $_->[0] })} @{$search_columns};
-  }
+  # if ($attr->{SHOW_ALL_COLUMNS}) {
+  #   map {$attr->{ $_->[0] } = '_SHOW' unless (exists $attr->{ $_->[0] })} @{$search_columns};
+  # }
 
   my $WHERE = $self->search_former($attr, $search_columns, {
     WHERE             => 1,
@@ -98,6 +97,10 @@ sub _list {
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
+  if ($attr->{SERVICE_NAME}) {
+    $EXT_TABLE = " LEFT JOIN cams_services s ON (ctp.service_id=s.id) " . $EXT_TABLE;
+  }
+
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} cm.uid
    FROM cams_main cm
@@ -105,7 +108,6 @@ sub _list {
    LEFT JOIN cams_streams cs   ON (cm.uid=cs.uid)
    LEFT JOIN cams_tp ctp       ON (cm.tp_id=ctp.tp_id)
    LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
-   LEFT JOIN cams_services s   ON (ctp.service_id=s.id)
    $EXT_TABLE
    $WHERE GROUP BY cm.id;",
     undef,
@@ -227,10 +229,10 @@ sub user_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
 
   if ($attr->{PORTAL}) {
     delete $attr->{SERVICE_ID};
@@ -466,10 +468,10 @@ sub tp_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $search_columns = [
     [ 'TP_ID',            'INT', 'ctp.tp_id',                        1 ],
@@ -519,7 +521,7 @@ sub tp_list {
    FROM cams_tp ctp
    LEFT JOIN tarif_plans   tp ON (ctp.tp_id=tp.tp_id)
    LEFT JOIN cams_services s  ON (ctp.service_id=s.id)
-    $WHERE ORDER BY $SORT $DESC;",
+    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
       COLS_NAME => 1,
@@ -667,10 +669,10 @@ sub streams_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'g.service_id';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : "65000";
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'g.service_id';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : "65000";
 
   my $search_columns = [
     [ 'ID',                 'INT', 'cs.id',                                                                                1 ],
@@ -880,8 +882,8 @@ sub services_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former(
     $attr,
@@ -1007,8 +1009,8 @@ sub group_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former(
     $attr,
@@ -1145,9 +1147,9 @@ sub access_group_list {
 
   my @WHERE_RULES = ();
 
-  push @WHERE_RULES, "(g.location_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
-  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
-  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND (FIND_IN_SET($attr->{DISTRICT_ID}, REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
+  push @WHERE_RULES, "(g.location_id='$attr->{LOCATION_ID}')" if $attr->{LOCATION_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id='$attr->{STREET_ID}')" if $attr->{STREET_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND (FIND_IN_SET('$attr->{DISTRICT_ID}', REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
       FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(IF(dc.path, dc.path, d.id), '/', ','))))))";
   push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND g.district_id=0)";
 
@@ -1178,10 +1180,10 @@ sub access_folder_list {
 
   my @WHERE_RULES = ();
 
-  push @WHERE_RULES, "(f.build_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
-  push @WHERE_RULES, "(f.build_id=0 AND f.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
-  push @WHERE_RULES, "(f.build_id=0 AND f.street_id=0 AND (FIND_IN_SET($attr->{DISTRICT_ID}, REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
-      FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(IF(dc.path, dc.path, d.id), '/', ','))))))";
+  push @WHERE_RULES, "(f.build_id='$attr->{LOCATION_ID}')" if $attr->{LOCATION_ID};
+  push @WHERE_RULES, "(f.build_id=0 AND f.street_id='$attr->{STREET_ID}')" if $attr->{STREET_ID};
+  push @WHERE_RULES, "(f.build_id=0 AND f.street_id=0 AND (FIND_IN_SET('$attr->{DISTRICT_ID}', REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
+      FIND_IN_SET('$attr->{DISTRICT_ID}', (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(IF(dc.path, dc.path, d.id), '/', ','))))))";
   push @WHERE_RULES, "(f.location_id=0 AND f.street_id=0 AND f.district_id=0)";
 
   return $self->folder_list({
@@ -1507,8 +1509,8 @@ sub folder_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',           'INT', 'f.id',                    1 ],
@@ -1654,8 +1656,8 @@ sub model_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr,
     [

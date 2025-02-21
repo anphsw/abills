@@ -24,6 +24,7 @@
         %YEAR_SEL%
         <a href='javascript:window.print();' class='btn btn-light border fas fa-print mt-1 mr-2'>_{PRINT}_</a>
         %UPLOAD_XML%
+        %ALL_PERIOD%
       </form>
     </div>
 

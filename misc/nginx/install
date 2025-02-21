@@ -1,0 +1,5 @@
+::exec:/usr/abills/misc/certs_create.sh apache 1>&2
+::exec:mkdir /var/log/httpd
+:OS=LINUX:FILE=abills_httpd.conf > [%NGINX_CONF_DIR%]/abills_httpd.conf
+:OS=LINUX:exec: %RESTART_NGINX% restart
+:OS=LINUX:exec:chown %WEB_SERVER_USER% /usr/abills/cgi-bin /usr/abills/cgi-bin/admin /usr/abills/Abills/templates

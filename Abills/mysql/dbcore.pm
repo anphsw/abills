@@ -302,6 +302,10 @@ sub search_former{
     'VIBER'
   );
 
+  if ($data->{_SHOW_ALL_COLUMNS}) {
+    map { $data->{$_->[0]} = '_SHOW' unless (exists $data->{$_->[0]}) } @$search_params;
+  }
+
   if ( $attr->{USERS_FIELDS_PRE} ){
     push @WHERE_RULES, @{ $self->search_expr_users( { %{$data},
         EXT_FIELDS        => \@user_fields,
@@ -667,9 +671,10 @@ sub search_expr_users{
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
+    ACCEPT_RULES   => 'INT:pi.accept_rules',
+
     PHONE          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2) AND value <> "") AS phone/,
     EMAIL          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/,
-    ACCEPT_RULES   => 'INT:pi.accept_rules',
 
     CELL_PHONE     => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/,
     TELEGRAM       => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/,
@@ -758,144 +763,86 @@ sub search_expr_users{
     }
   }
 
-  #Info fields
-  if ($self->{conf}->{info_fields_new}) {
-    if (! $info_fields_list) {
-      $self->query("SELECT
+  if (!$info_fields_list) {
+    $self->query("SELECT
         name,
         sql_field,
         type,
+        company,
         domain_id,
         id
       FROM `info_fields`;", undef, { COLS_NAME => 1 });
-      $info_fields_list = $self->{list};
-    }
+    $info_fields_list = $self->{list};
+  }
 
-    if ( $info_fields_list ){
-      foreach my $line ( @{ $info_fields_list } ){
-        my $field_name = $line->{sql_field};
-        my $field_id   = uc($field_name);
-        my $type       = $line->{type} || 0;
+  if ($info_fields_list) {
+    foreach my $field (@{$info_fields_list}) {
+      my $field_name = $field->{sql_field};
+      my $field_id = uc($field_name);
+      my $type = $field->{type} || 0;
 
-        if ( defined( $attr->{$field_id} ) && $type == 4 ){
+      my $info_table = ($field->{company}) ? 'company' : 'pi';
+
+      if (defined($attr->{$field_id}) && $type == 4) {
+        push @fields,
+          @{$self->search_expr($attr->{$field_id}, 'INT', "$info_table.$field_name", {
+            EXT_FIELD  => 1,
+            _MULTI_HIT => $attr->{_MULTI_HIT}
+          })};
+      }
+      #Skip for bloab
+      elsif ($type == 5) {
+        next;
+      }
+      elsif ($attr->{$field_id}) {
+        if ($type == 1) {
           push @fields,
-            @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+            @{$self->search_expr($attr->{$field_id}, 'INT', "$info_table.$field_name", {
               EXT_FIELD  => 1,
               _MULTI_HIT => $attr->{_MULTI_HIT}
-            } ) };
+            })};
         }
-        #Skip for bloab
-        elsif ( $type == 5 ){
-          next;
+        elsif ($type == 2) {
+          push @fields, @{$self->search_expr($attr->{$field_id}, 'INT', "$info_table.$field_name", {
+            EXT_FIELD  => $field_name . '_list.name AS ' . $field_name,
+            _MULTI_HIT => $attr->{_MULTI_HIT}
+          })
+            };
+          $self->{EXT_TABLES} .= "LEFT JOIN `$field_name" . "_list` ON ($info_table.`$field_name` = `$field_name" . "_list`.id)";
+          $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         }
-        elsif ( $attr->{$field_id} ){
-          if ( $type == 1 ){
-            push @fields,
-              @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-                EXT_FIELD  => 1,
+        elsif ($type == 16) {
+          if ($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
+            my ($sn_type, $info) = split(/, /, $attr->{$field_id});
+            push @fields, @{$self->search_expr("$sn_type*" . ($info || q{}), 'STR', "$info_table.$field_name",
+              { EXT_FIELD  => 1,
                 _MULTI_HIT => $attr->{_MULTI_HIT}
-              } ) };
+              })};
           }
-          elsif ( $type == 2 ){
-            push @fields, @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-              EXT_FIELD  => $field_name . '_list.name AS ' . $field_name,
+          else {
+            push @fields, @{$self->search_expr($attr->{$field_id}, 'STR', "$info_table.$field_name", {
+              EXT_FIELD  => 1,
               _MULTI_HIT => $attr->{_MULTI_HIT}
-            })
-              };
-            $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
-          }
-          elsif ( $type == 16 ){
-            if($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
-              my ($sn_type, $info) = split( /, /, $attr->{$field_id} );
-              push @fields, @{ $self->search_expr( "$sn_type*". ($info || q{}), 'STR', "pi.$field_name",
-                { EXT_FIELD  => 1,
-                  _MULTI_HIT => $attr->{_MULTI_HIT}
-                } ) };
-            }
-            else {
-              push @fields, @{ $self->search_expr( $attr->{$field_id}, 'STR', "pi.$field_name", {
-                EXT_FIELD  => 1,
-                _MULTI_HIT => $attr->{_MULTI_HIT}
-              } ) };
-            }
-          }
-          else{
-            push @fields,
-              @{ $self->search_expr( $attr->{uc( $field_name )}, 'STR', "pi.$field_name", {
-                EXT_FIELD  => 1,
-                _MULTI_HIT => $attr->{_MULTI_HIT}
-              } ) };
+            })};
           }
         }
-
+        else {
+          push @fields,
+            @{$self->search_expr($attr->{uc($field_name)}, 'STR', "$info_table.$field_name", {
+              EXT_FIELD  => 1,
+              _MULTI_HIT => $attr->{_MULTI_HIT}
+            })};
+        }
       }
-      $self->{EXTRA_FIELDS} = $info_fields_list;
-      if($#fields > -1) {
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      if ($info_table eq 'c' && ! $attr->{_COMPANY_LIST}) {
+        print "// $attr->{_COMPANY_LIST} //";
+        #$EXT_TABLE_JOINS_HASH{companies} = 1;
       }
     }
-  }
-  elsif ( $info_field && $self->can( 'config_list' ) ){
-    my $list = $self->config_list( { PARAM => 'ifu*', SORT => 2 } );
 
-    if ( $self->{TOTAL} > 0 ){
-      foreach my $line ( @{$list} ){
-        if ( $line->[0] =~ /ifu(\S+)/ ){
-          my $field_name = $1;
-          my $field_id   = uc($field_name);
-          # $position, $type, $name
-          my (undef, $type, undef) = split( /:/, $line->[1] );
-
-          if($type !~ /\d+/) {
-            $type = 0;
-          }
-
-          if ( defined( $attr->{uc( $field_name )} ) && $type == 4 ){
-            push @fields,
-              @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-                EXT_FIELD  => 1,
-                _MULTI_HIT => $attr->{_MULTI_HIT}
-              } ) };
-          }
-          #Skip for bloab
-          elsif ( $type == 5 ){
-            next;
-          }
-          elsif ( $attr->{$field_id} ){
-            if ( $type == 1 ){
-              push @fields,
-                @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-                  EXT_FIELD => 1,
-                  _MULTI_HIT => $attr->{_MULTI_HIT}
-                } )
-              };
-            }
-            elsif ( $type == 2 ){
-              push @fields, @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-                EXT_FIELD => $field_name . '_list.name AS ' . $field_name,
-                _MULTI_HIT => $attr->{_MULTI_HIT}
-                })
-              };
-
-              $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
-            }
-            elsif ( $type == 16 ){
-              if($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
-                my ($sn_type, $info) = split( /, /, $attr->{$field_id} );
-                push @fields, @{ $self->search_expr( "$sn_type*". ($info || q{}), 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
-              }
-              else {
-                push @fields, @{ $self->search_expr( $attr->{$field_id}, 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
-              }
-            }
-            else{
-              push @fields,
-                @{ $self->search_expr( $attr->{uc( $field_name )}, 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
-            }
-          }
-        }
-      }
-      $self->{EXTRA_FIELDS} = $list;
+    $self->{EXTRA_FIELDS} = $info_fields_list;
+    if ($#fields > -1) {
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
     }
   }
 
@@ -1236,6 +1183,7 @@ sub search_expr_users{
 
   if($attr->{EXT_BILL_ID} || $attr->{COMPANY_NAME} || $attr->{TAX_NUMBER}) {
     $EXT_TABLE_JOINS_HASH{companies} = 1;
+    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
   }
 
   if ( $attr->{EXT_DEPOSIT}){
@@ -1258,7 +1206,7 @@ sub search_expr_users{
     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
   }
 
-  $self->{EXT_TABLES} = $self->mk_ext_tables( { JOIN_TABLES => \%EXT_TABLE_JOINS_HASH } );
+  $self->{EXT_TABLES} = $self->mk_ext_tables( { JOIN_TABLES => \%EXT_TABLE_JOINS_HASH, _COMPANY_LIST => $attr->{_COMPANY_LIST} } );
 
   delete $self->{SORT_BY};
   if ( $attr->{SORT} && $attr->{SORT} =~ /^\d+$/){
@@ -1296,6 +1244,7 @@ sub search_expr_users{
       JOIN_TABLES
       EXTRA_PRE_JOIN
       EXTRA_PRE_ONLY
+      _COMPANY_LIST
 
   Results:
     Join tables string
@@ -1312,7 +1261,7 @@ sub mk_ext_tables{
 
   my @EXT_TABLES_JOINS = (
     'groups:LEFT JOIN `groups` g ON (g.gid=u.gid)',
-    'companies:LEFT JOIN `companies` company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)',
+    (($attr->{_COMPANY_LIST}) ? undef : 'companies:LEFT JOIN `companies` company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)'),
     "bills:LEFT JOIN `bills` b ON (u.bill_id = b.id)\n" .
       " LEFT JOIN `bills` cb ON (company.bill_id=cb.id)",
     "ext_bills:LEFT JOIN `bills` ext_b ON (u.ext_bill_id = ext_b.id)\n" .
@@ -1336,6 +1285,10 @@ sub mk_ext_tables{
 
   my $join_tables = '';
   foreach my $table_ ( @EXT_TABLES_JOINS ){
+    if (! $table_) {
+      next;
+    }
+
     my ($table_name, $join_text) = split( /:/, $table_, 2 );
     if ( $attr->{JOIN_TABLES}->{$table_name} ){
       if ($join_tables !~ /$join_text/) {

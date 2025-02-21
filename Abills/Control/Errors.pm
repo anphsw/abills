@@ -145,6 +145,15 @@ sub _get_errors {
   $module_path =~ s{::}{/}g;
   eval {require $module_path};
 
+  if ($@) {
+    $@ = undef;
+
+    $module_name = "Api::Errors::$module";
+    $module_path = $module_name . '.pm';
+    $module_path =~ s{::}{/}g;
+    eval {require $module_path};
+  }
+
   return 'ERROR' if ($@);
 
   my $errors = $module_name->errors();

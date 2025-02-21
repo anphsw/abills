@@ -15,6 +15,7 @@ use FindBin '$Bin';
 push @INC, $Bin . '/../', $Bin . '/../Abills/';
 
 use Abills::Sender::Core;
+use Telegram::db::Telegram;
 
 our (
   $debug,
@@ -40,11 +41,10 @@ telegram_ping_users();
 #**********************************************************
 sub telegram_ping_users {
 
-  use Telegram::db::Telegram;
-  my $Telegram_db = Telegram->new($db, $Admin, \%conf);
+  my $Telegram_db = Telegram::db::Telegram->new($db, $Admin, \%conf);
 
   my $users_list = $Telegram_db->list({
-    UID                        => '!',
+    USER_ID                    => '_SHOW',
     PING_COUNT                 => '<3',
     FN                         => '_SHOW',
     MINUTES_SINCE_LAST_CONTACT => '>=2;<1440',
@@ -55,7 +55,7 @@ sub telegram_ping_users {
     $Sender->send_message({
       MESSAGE     => $lang{TELEGRAM_PING_MESSAGE},
       SENDER_TYPE => 'Telegram',
-      UID         => $user->{uid}
+      TO_ADDRESS => $user->{user_id}
     });
 
     $Telegram_db->change({

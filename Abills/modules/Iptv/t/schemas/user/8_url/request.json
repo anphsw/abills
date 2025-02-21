@@ -1,0 +1,5 @@
+{
+  "name": "USER_IPTV_ID_URL",
+  "method": "GET",
+  "path": "user/iptv/:id/url/"
+}

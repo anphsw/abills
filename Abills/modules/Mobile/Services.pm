@@ -13,7 +13,7 @@ my Control::Errors $Errors;
 my $Lifecell;
 my $Tariffs;
 
-use Abills::Base qw/in_array/;
+use Abills::Base qw/in_array json_former/;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -72,6 +72,14 @@ sub phone_activate {
 
   my $result = $Lifecell->phone_activate($Mobile);
 
+  $Mobile->log_add({
+    UID               => $Mobile->{UID},
+    USER_SUBSCRIBE_ID => $attr->{ID},
+    TRANSACTION_ID    => $Lifecell->{TRANSACTION_ID},
+    EXTERNAL_METHOD   => $Lifecell->{EXTERNAL_METHOD},
+    RESPONSE          => $result ? json_former($result) : ''
+  });
+
   if ($result && $result->{operationResult} && $result->{operationResult}{resultCode}) {
     my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
       $result->{operationResult}{resultDescription} : '';
@@ -115,6 +123,14 @@ sub phone_deactivate {
 
   my $result = $Lifecell->phone_deactivate($Mobile);
 
+  $Mobile->log_add({
+    UID               => $Mobile->{UID},
+    USER_SUBSCRIBE_ID => $attr->{ID},
+    TRANSACTION_ID    => $Lifecell->{TRANSACTION_ID},
+    EXTERNAL_METHOD   => $Lifecell->{EXTERNAL_METHOD},
+    RESPONSE          => $result ? json_former($result) : ''
+  });
+
   if ($result && $result->{operationResult} && $result->{operationResult}{resultCode}) {
     my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
       $result->{operationResult}{resultDescription} : '';
@@ -157,6 +173,14 @@ sub confirm_pin {
 
   $Mobile->{PIN} = $attr->{PIN};
   my $result = $Lifecell->confirm_pin($Mobile);
+
+  $Mobile->log_add({
+    UID               => $Mobile->{UID},
+    USER_SUBSCRIBE_ID => $attr->{ID},
+    TRANSACTION_ID    => $Lifecell->{TRANSACTION_ID},
+    EXTERNAL_METHOD   => $Lifecell->{EXTERNAL_METHOD},
+    RESPONSE          => $result ? json_former($result) : ''
+  });
 
   if ($result && $result->{operationResult} && $result->{operationResult}{resultCode}) {
     my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
@@ -288,6 +312,107 @@ sub user_add_tp {
 
   my $result = $Lifecell->order_offer({ %{$user_info}, LEGO_BLOCKS => $lego_blocks });
 
+  $Mobile->log_add({
+    UID               => $user_info->{UID},
+    USER_SUBSCRIBE_ID => $attr->{ID},
+    TRANSACTION_ID    => $Lifecell->{TRANSACTION_ID},
+    EXTERNAL_METHOD   => $Lifecell->{EXTERNAL_METHOD},
+    RESPONSE          => $result ? json_former($result) : ''
+  });
+
+  if ($result && $result->{operationResult} && defined($result->{operationResult}{resultCode})
+    && !$result->{operationResult}{resultCode} && $Lifecell->{TRANSACTION_ID}) {
+    $Mobile->user_change({
+      ID              => $attr->{ID},
+      TRANSACTION_ID  => $Lifecell->{TRANSACTION_ID},
+      TP_ID           => $attr->{TP_ID},
+      TP_STATUS       => $attr->{STATUS} || 0,
+      EXTERNAL_METHOD => $Lifecell->{EXTERNAL_METHOD},
+      TP_ACTIVATE     => '0000-00-00'
+    });
+
+    if (!$Mobile->{errno}) {
+      $Mobile->user_info($attr->{ID});
+      $Mobile->{TP_INFO} = $Tariffs->info($Mobile->{TP_ID});
+      $Mobile->{ACTIVATE} = '0000-00-00';
+      ::service_get_month_fee($Mobile, {
+        SERVICE_NAME               => $self->{lang}{MOBILE_COMMUNICATION},
+        DO_NOT_USE_GLOBAL_USER_PLS => 1,
+        MODULE                     => 'Mobile',
+        INNER_DESCRIBE             => $Lifecell->{TRANSACTION_ID},
+        QUITE                      => $attr->{QUITE}
+      });
+    }
+  }
+  else {
+    $Mobile->user_change({
+      ID              => $attr->{ID},
+      TP_ID           => $attr->{TP_ID},
+      TP_STATUS       => $attr->{CONTINUE_SUBSCRIPTION} ? 5 : 1,
+      TP_ACTIVATE     => '0000-00-00'
+    });
+
+    my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
+      $result->{operationResult}{resultDescription} : '';
+    return $Errors->throw_error(1640004, { errstr => $errstr });
+  }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 user_change_tp()
+
+=cut
+#**********************************************************
+sub user_change_tp {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $user_info = $Mobile->user_info($attr->{ID});
+  $user_info->{OLD_TP_ID} = $user_info->{TP_ID};
+  return $Errors->throw_error(1640007) if !$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1 || !$user_info->{PHONE};
+  # if ($user_info->{TP_ID} && (!defined($attr->{STATUS}) || $attr->{STATUS} eq $user_info->{TP_STATUS})) {
+  #   return $Errors->throw_error(1640006);
+  # }
+
+  if (!$attr->{TP_ID} || !$user_info->{TP_ID} || ($attr->{TP_ID} eq $user_info->{TP_ID})) {
+    return $Errors->throw_error(1640006);
+  }
+
+  my $tp_info = $Mobile->tariff_info({ ID => $attr->{TP_ID} });
+  return $Errors->throw_error(1640008) if (!$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1 || !$tp_info->{SERVICE_ID});
+
+  $tp_info->{SERVICE_ID} =~ s/,/;/g;
+  my $services = $Mobile->service_list({ ID => $tp_info->{SERVICE_ID}, NAME => '_SHOW', FILTER_ID => '_SHOW', COLS_NAME => 1 });
+  return $Errors->throw_error(1640009) if !$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1;
+
+  if (!$Lifecell->can('order_offer')) {
+    return $Errors->throw_error(1640015);
+  }
+
+  my $services_ids = [];
+  foreach my $service (@{$services}) {
+    next if !$service->{filter_id} || $service->{filter_id} !~ /^MVNO_/;
+    push(@{$services_ids}, $service->{filter_id});
+  }
+  my $lego_blocks = join(';', @{$services_ids});
+
+  if ($attr->{STATUS}) {
+    $Mobile->user_change({ ID => $attr->{ID}, TP_ID => $attr->{TP_ID}, TP_STATUS => $attr->{STATUS} });
+    return $Mobile;
+  }
+
+  my $result = $Lifecell->order_offer({ %{$user_info}, LEGO_BLOCKS => $lego_blocks });
+
+  $Mobile->log_add({
+    UID               => $user_info->{UID},
+    USER_SUBSCRIBE_ID => $attr->{ID},
+    TRANSACTION_ID    => $Lifecell->{TRANSACTION_ID},
+    EXTERNAL_METHOD   => $Lifecell->{EXTERNAL_METHOD},
+    RESPONSE          => $result ? json_former($result) : ''
+  });
+
   if ($result && $result->{operationResult} && defined($result->{operationResult}{resultCode})
     && !$result->{operationResult}{resultCode} && $Lifecell->{TRANSACTION_ID}) {
     $Mobile->user_change({
@@ -314,10 +439,8 @@ sub user_add_tp {
   }
   else {
     $Mobile->user_change({
-      ID              => $attr->{ID},
-      TP_ID           => $attr->{TP_ID},
-      TP_STATUS       => $attr->{CONTINUE_SUBSCRIPTION} ? 5 : 1,
-      TP_ACTIVATE     => '0000-00-00'
+      ID    => $attr->{ID},
+      TP_ID => $user_info->{OLD_TP_ID},
     });
 
     my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
@@ -327,4 +450,5 @@ sub user_add_tp {
 
   return $result;
 }
+
 1;

@@ -28,5 +28,15 @@
   $ref: "./paths/nasGroups_id.yaml"
 /equipment/nas/ip/pools/:
   $ref: "./paths/nasIpPools.yaml"
-/equipment/nas/ip/pools/{nasId}/{poolId}:
+/equipment/nas/ip/pools/{nasId}/{poolId}/:
   $ref: "./paths/nasIpPools_nasId_poolId.yaml"
+/equipment/pon/ports/:
+  $ref: "./paths/ponPorts.yaml"
+/equipment/nas/{id}/details/:
+    $ref: "./paths/nasIdDetails.yaml"
+/equipment/nas/netmap/positions/:
+  $ref: "./paths/nasNetmapPositions.yaml"
+/equipment/nas/{nas_id}/ports/:
+  $ref: "./paths/nasIdPorts.yaml"
+/equipment/nas/{nas_id}/ports/{port_id}/:
+  $ref: "./paths/nasIdPortsId.yaml"

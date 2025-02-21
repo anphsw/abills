@@ -286,6 +286,7 @@ sub info {
      a.telegram_id,
      a.department,
      a.start_work,
+     a.availability_period,
      ";
   }
 
@@ -309,7 +310,9 @@ sub info {
       a.g2fa,
       a.avatar_link,
       a.location_id,
-      a.address_flat
+      a.address_flat,
+      a.password_changed_at,
+      a.availability_period
      FROM
       `admins` a
      LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
@@ -395,7 +398,7 @@ sub list {
   }
 
   if ($attr->{ACTIVE_ONLY}) {
-    push @WHERE_RULES, $attr->{AID_EXCEPTION} ? "(a.disable = 0 OR a.aid = $attr->{AID_EXCEPTION})" : "a.disable = 0";
+    push @WHERE_RULES, $attr->{AID_EXCEPTION} ? "(a.disable = 0 OR a.aid = '$attr->{AID_EXCEPTION}')" : "a.disable = 0";
   }
 
   my $build_delimiter = $self->{conf}{BUILD_DELIMITER} || ', ';
@@ -442,7 +445,8 @@ sub list {
       ['LOCATION_ID',      'INT',  'a.location_id',                1 ],
       ['ADDRESS_FLAT',     'STR',  'a.address_flat',               1 ],
       ['ADDRESS_FULL',     'STR',  "IF(a.location_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', a.address_flat), '') AS address_full",  1 ],
-    ],
+      ['AVAILABILITY_PERIOD', 'INT',  'a.availability_period',     1 ],
+  ],
     {
       WHERE_RULES => \@WHERE_RULES,
       WHERE       => 1
@@ -459,7 +463,7 @@ sub list {
       $EMPLOYEE_COLS .= ' ep.id as position_id, ';
 
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
-      $WHERE .= " AND a.position = $attr->{POSITION}" if (int($attr->{POSITION}));
+      $WHERE .= " AND a.position = '$attr->{POSITION}'" if (int($attr->{POSITION}));
     }
   }
 
@@ -533,6 +537,14 @@ sub change {
     DATA            => $attr,
     EXT_CHANGE_INFO => "AID:$self->{AID}"
   });
+
+  if ($attr->{PASSWORD} && $self->{AFFECTED} && !$self->{errno}) {
+    $self->changes({
+      CHANGE_PARAM => 'AID',
+      TABLE        => 'admins',
+      DATA         => { AID => $attr->{AID}, PASSWORD_CHANGED_AT => 'NOW()' },
+    });
+  }
 
   $self->info($self->{AID});
   return $self;
@@ -961,13 +973,14 @@ sub online {
   }
 
   if ($insert) {
-    $self->query("REPLACE INTO web_online (admin, ip, logtime, aid, sid) VALUES (?, ?, UNIX_TIMESTAMP(), ?, ?);",
+    $self->query("REPLACE INTO web_online (admin, ip, logtime, aid, sid, ext_info) VALUES (?, ?, UNIX_TIMESTAMP(), ?, ?, ?);",
     'do',
     { Bind => [
      $self->{A_LOGIN},
      $self->{SESSION_IP},
      $self->{AID},
-     $self->{SID}
+     $self->{SID},
+     $attr->{EXT_INFO} || q{}
      ]} );
 
     $online_users .= "$self->{A_LOGIN} - $self->{SESSION_IP} (+) ". (($self->{conf}->{WEB_DEBUG}) ? $self->{SID} : '') ."\n";
@@ -991,7 +1004,7 @@ sub online_info {
   my $self         = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT aid, ip, admin FROM web_online WHERE sid=?;",
+  $self->query("SELECT aid, ip, admin, ext_info FROM web_online WHERE sid=?;",
    undef,
    { INFO => 1, Bind => [ $attr->{SID} ] });
 
@@ -1426,28 +1439,24 @@ sub admins_contacts_list {
 
   my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : "";
 
-  return [ ] if (!$attr->{AID});
+  return [ ] if (!$attr->{AID} && !$attr->{SKIP_AID_CHECK});
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',        'INT',  'ac.id',          1],
+      ['ID',        'INT',  'ac.id',           ],
       ['AID',       'INT',  'ac.aid',         1],
       ['TYPE',      'INT',  'ac.type_id',     1],
       ['VALUE',     'STR',  'ac.value',       1],
       ['PRIORITY',  'INT',  'ac.priority',    1],
       ['DEFAULT',   'INT',  'uct.is_default', 1],
       ['TYPE_NAME', 'STR',  'uct.name',       1],
-      ['HIDDEN',    'INT',  'uct.hidden'       ]
+      ['HIDDEN',    'INT',  'uct.hidden',     1]
     ],
     { WHERE       => 1 }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '* , '
-  }
-
   $self->query("SELECT $self->{SEARCH_FIELDS} ac.id
     FROM admins_contacts ac
-  LEFT JOIN users_contact_types uct ON(ac.type_id=uct.id)
+  LEFT JOIN users_contact_types uct ON (ac.type_id=uct.id)
   $WHERE $GROUP_BY ORDER BY ac.priority;"
  ,undef, {COLS_NAME => 1,  %{ $attr // {} }});
 
@@ -1602,7 +1611,7 @@ sub del_type_permits {
   my ($type) = @_;
   $self->query("DELETE FROM admin_type_permits WHERE type= ? ;", 'do', { Bind => [ $type ] });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1630,6 +1639,149 @@ sub admins_last_action {
   );
 
   return $self->{list} || [];
+}
+#**********************************************************
+=head2 admin_groups_templates_list($attr) - Admin gruop type permits list
+
+    Attr:
+     type
+     gid
+
+=cut
+#**********************************************************
+sub admin_group_templates_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'TYPE', 'STR', 'type',  1],
+    [ 'GID',  'INT', 'gid',   1],
+  ],
+    { WHERE => 1 }
+  );
+
+  $self->query("SELECT type, gid
+    FROM admin_group_templates
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  my $list = $self->{list};
+
+  $self->query("
+    SELECT COUNT(*) AS total
+    FROM admin_group_templates
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 admin_groups_templates_set ()
+
+    Attr:
+      permissions - list with GID
+      type - name of template
+
+=cut
+#**********************************************************
+sub admin_group_templates_set {
+  my $self = shift;
+  my ($permissions, $type) = @_;
+
+  $self->admin_group_templates_del($type);
+  my @MULTI_QUERY = ();
+
+  my @gids = split(/,\s?/, $permissions);
+
+  foreach my $gid (@gids) {
+    push @MULTI_QUERY, [ $type, $gid ];
+  }
+
+  $self->query("INSERT INTO admin_group_templates (type, gid)
+      VALUES (?, ?);", undef,
+    { MULTI_QUERY =>  \@MULTI_QUERY });
+
+  return $self if ($self->{errno});
+  return $self->{permissions};
+}
+
+#**********************************************************
+=head2 admin_groups_templates_del($type) - del type(template)
+
+  Arguments:
+    $type - name of template
+
+=cut
+#**********************************************************
+sub admin_group_templates_del {
+  my $self = shift;
+  my ($type) = @_;
+  $self->query("DELETE FROM admin_group_templates WHERE type= ? ;", 'do', { Bind => [ $type ] });
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 form_admin_action_full($attr) - additional info with log, payments and fees
+
+=cut
+#**********************************************************
+sub form_admin_action_full {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $uid = ($attr->{UID}) ? $attr->{UID} : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  $self->query("
+   SELECT aa.id, aa.module, aa.datetime, u.id AS login, a.id AS admin_login, aa.action_type, aa.actions
+   FROM admin_actions aa
+   LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.aid=a.aid)
+   LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.uid=u.uid)
+   WHERE aa.uid = $uid
+
+    UNION ALL
+   SELECT p.id, 'Payments', p.date, u.id AS login, a.id AS admin_login, '',
+      CONCAT('AMOUNT: ',ROUND(p.sum, 2),', DEPOSIT_BEFORE: ',ROUND(p.last_deposit,2), ', COMMENT: ', p.dsc)
+   FROM payments p
+   LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (p.aid=a.aid)
+   LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (p.uid=u.uid)
+   WHERE p.uid = $uid
+
+    UNION ALL
+   SELECT f.id, 'Fees', f.date, u.id AS login, a.id AS admin_login, '',
+      CONCAT('AMOUNT: ',ROUND(f.sum, 2),', DEPOSIT_BEFORE: ',ROUND(f.last_deposit,2), ', COMMENT: ', f.dsc)
+   FROM fees f
+   LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (f.aid=a.aid)
+   LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (f.uid=u.uid)
+   WHERE f.uid = $uid
+
+   ORDER BY 3 DESC
+   LIMIT $PG, $PAGE_ROWS;",
+   undef,
+   $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT
+    (SELECT COUNT(*) FROM admin_actions WHERE uid = ?) +
+    (SELECT COUNT(*) FROM payments      WHERE uid = ?) +
+    (SELECT COUNT(*) FROM fees          WHERE uid = ?) AS total;",
+    undef,
+    { INFO => 1,
+      Bind => [ $uid, $uid, $uid ]
+    }
+  );
+
+  return $list;
 }
 
 1

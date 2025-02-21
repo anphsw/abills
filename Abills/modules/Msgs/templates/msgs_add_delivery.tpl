@@ -47,14 +47,14 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DELIVERY_SEND_DATE'>_{SEND_TIME}_:</label>
+        <label class='col-md-3 control-label' for='DELIVERY_SEND_DATE'>_{SEND_DATE}_:</label>
         <div class='col-md-9'>
           %DATE_PIKER%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DELIVERY_SEND_TIME'></label>
+        <label class='col-md-3 control-label' for='DELIVERY_SEND_TIME'>_{TIME}_</label>
         <div class='col-md-9'>
           %TIME_PIKER%
         </div>

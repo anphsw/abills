@@ -1,0 +1,9 @@
+{
+  "name": "USER_VERIFY",
+  "method": "POST",
+  "path": "user/verify/",
+  "body": {
+    "email": "test@gmail.com",
+    "verificationCode": "12173"
+  }
+}

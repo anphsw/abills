@@ -15,12 +15,7 @@
         </div>
       </div>
 
-      <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='DISTRICTS_SEL'>_{DISTRICTS}_:</label>
-        <div class='col-md-8'>
-          %DISTRICTS_SEL%
-        </div>
-      </div>
+      %DISTRICTS_SEL%
 
       <div class='form-group row' data-visible='%STREET_TYPE_VISIBLE%' style='display:none;'>
         <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
@@ -36,9 +31,32 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='POPULATION'>_{POPULATION}_:</label>
+        <div class='col-md-8'>
+          <input id='POPULATION' name='POPULATION' value='%POPULATION%' min='0' class='form-control' type='number'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='HOUSEHOLDS'>_{HOUSEHOLDS}_:</label>
+        <div class='col-md-8'>
+          <input id='HOUSEHOLDS' name='HOUSEHOLDS' value='%HOUSEHOLDS%' min='0' class='form-control' type='number'>
+        </div>
+      </div>
+
     </div>
     <div class='card-footer'>
       <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>
 </form>
+
+<script>
+  jQuery('#POPULATION').on('input', function () {
+    let population = jQuery(this).val();
+    if (population < 1) return;
+
+    jQuery('#HOUSEHOLDS').val(Math.round(parseInt(population) / 3.3));
+  });
+</script>

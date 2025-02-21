@@ -176,7 +176,7 @@ sub user_set_credit {
 
     ::cross_modules('payments_maked', {
       USER_INFO => $Users,
-      SUM       => $sum,
+      #SUM       => $sum,
       SKIP_COMPANY_USERS => 1,
       SILENT    => 1,
       CREDIT_NOTIFICATION => 1
@@ -1269,6 +1269,18 @@ sub del_user_chg_shedule {
   $Shedule->del({ UID => $attr->{UID} || '-', ID => $Shedule->{SHEDULE_ID} });
 
   if (!$Shedule->{errno}) {
+    # recalculate credit price. Critical if it was less than old tp
+    if ($self->{conf}{user_credit_all_services}) {
+      $Users->info($attr->{UID});
+      ### XXX need to find way determine credit is enabled by user
+      if ($Users->{CREDIT}) {
+        my $credit_info = $self->user_set_credit({ UID => $Users->{UID}, REDUCTION => $Users->{REDUCTION} });
+        if ($credit_info->{CREDIT_SUM} && $Users->{CREDIT} < $credit_info->{CREDIT_SUM}) {
+          $Users->change($Users->{UID}, { UID => $Users->{UID}, CREDIT => $credit_info->{CREDIT_SUM} });
+        }
+      }
+    }
+
     return { success => 1, UID => $attr->{UID} };
   }
 
@@ -1914,6 +1926,10 @@ sub _add_holdup {
        ID
        IDS
        INTERNET_STATUS
+       USER_INFO
+
+  Returns:
+
 
 =cut
 #**********************************************************
@@ -1921,9 +1937,15 @@ sub _del_holdup {
   my $self = shift;
   my ($attr) = @_;
 
+  my $user_info = $attr->{USER_INFO};
+
   return { error => 4408, errstr => 'ERR_DEL_HOLDUP' } if (!$attr->{UID} || (!$attr->{ID} && !$CONF->{HOLDUP_ALL}));
 
   my ($ids, undef) = $self->_get_holdup_ids($attr->{UID}, $attr->{ID});
+
+  if (! $ids) {
+    return { error => 4418, errstr => 'ERR_DEL_HOLDUP' }
+  }
   # $attr->{IDS} = $ids if (!$attr->{IDS});
   $attr->{IDS} = $ids;
 
@@ -1937,7 +1959,7 @@ sub _del_holdup {
       STATUS => 0,
     });
 
-    ::service_get_month_fee($Internet, { QUITE => 1, USER_INFO => $Users });
+    ::service_get_month_fee($Internet, { QUITE => 1, USER_INFO => $user_info || $Users });
     $self->_show_message('info', '$lang{SERVICE}', '$lang{ACTIVATE}');
     return { success => 1, msg => 'Service activate' };
   }
@@ -1999,12 +2021,12 @@ sub _get_holdup_ids {
   $params{SERVICE_ID} = $id if (!$CONF->{HOLDUP_ALL});
   $params{MODULE} = 'ALL' if ($CONF->{HOLDUP_ALL});
 
-  my $list = $Shedule->list(\%params);
+  my $shedule_list = $Shedule->list(\%params);
 
   my %shedule_date = ();
   my @del_arr = ();
 
-  foreach my $line (@$list) {
+  foreach my $line (@$shedule_list) {
     my (undef, $action) = split(/:/, $line->{action});
     $shedule_date{ $action } = join('-', ($line->{y} || '*', $line->{m} || '*', $line->{d} || '*'));
     push @del_arr, $line->{id};

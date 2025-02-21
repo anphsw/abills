@@ -6,6 +6,9 @@ properties:
   id:
     type: number
     example: 5
+  priority:
+    type: number
+    example: 1
   title:
     type: string
     example: Абонентська плата як формується?

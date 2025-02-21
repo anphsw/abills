@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `triplay_tps`
 (
     `id`             SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `triplay_main`
     `tp_id`    SMALLINT UNSIGNED   NOT NULL DEFAULT 0,
     `disable`  TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
     `expire`   DATE                NOT NULL DEFAULT '0000-00-00',
+    `personal_tp` double(14, 2) unsigned NOT NULL DEFAULT '0.00',
     `comments` VARCHAR(250)        NOT NULL DEFAULT '',
     PRIMARY KEY (`uid`),
     KEY `tp_id` (`tp_id`)

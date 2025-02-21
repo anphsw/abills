@@ -507,7 +507,7 @@ sub form_templates {
 
   my $sys_templates      = '../../Abills/modules';
   my $main_templates_dir = '../../Abills/main_tpls/';
-  my %info               = (TEMPLATE => '');
+  my %info               = (TEMPLATE => '', ORIG_TEMPLATE => '');
   my $main_tpl_name      = '';
 
   my $domain_path = '';
@@ -521,7 +521,7 @@ sub form_templates {
     }
   }
 
-  $info{ACTION_LNG} = $lang{CHANGE};
+  $info{ACTION_LNG} = $lang{SAVE};
 
   if ($FORM{create}) {
     my ($module, $file, $lang) = split(/:/, $FORM{create}, 3);
@@ -655,17 +655,24 @@ sub form_templates {
     }
   }
   elsif ($FORM{tpl_name}) {
+    $info{ACTION_LNG} = $lang{CHANGE};
+
+    my ($module, $file) = split(/_/, $FORM{tpl_name}, 2);
+
     $info{TEMPLATE} = file_op({
       FILENAME => $FORM{tpl_name},
       PATH     => $conf{TPL_DIR},
-      CONTENT  => $info{TEMPLATE}
+    });
+
+    $info{ORIG_TEMPLATE} = file_op({
+      FILENAME => $file,
+      PATH     => $module ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
     });
 
     if ($info{TEMPLATE}) {
       show_tpl_info("$conf{TPL_DIR}/$FORM{tpl_name}", $conf{TPL_DIR});
 
       $info{TPL_NAME} = $FORM{tpl_name};
-      $html->message('info', $lang{CHAMGE}, "$lang{CHANGE}: $FORM{tpl_name}");
 
       $main_tpl_name = $FORM{tpl_name};
       $main_tpl_name =~ s/^_//;
@@ -675,13 +682,22 @@ sub form_templates {
   }
 
   $info{TEMPLATE} = convert($info{TEMPLATE}, { from_tpl => 1 });
+  $info{ORIG_TEMPLATE} = convert($info{ORIG_TEMPLATE}, { from_tpl => 1 });
 
   $FORM{create} = '' if (!$FORM{create});
   $FORM{tpl_name} = '' if (!$FORM{create});
   $info{TPL_NAME} = '' if (!$info{TPL_NAME});
 
-  my $tpl_ = $html->tpl_show(templates('form_template_editor'), { %info }, { OUTPUT2RETURN => 1 });
+  my $card = templates('form_template_card');
+  $info{CARDS} = $html->tpl_show($card, { TITLE => $lang{PREVIOUS} }, { OUTPUT2RETURN => 1 });
+  $info{CARDS} .= $html->tpl_show($card, { TITLE => $lang{YOUR} }, { OUTPUT2RETURN => 1 });
+  if ($info{ORIG_TEMPLATE}) {
+    $info{CARDS} .= $html->tpl_show($card, { TITLE => $lang{SYSTEM} }, { OUTPUT2RETURN => 1 });
+  }
+
+  my $tpl_ = $html->tpl_show(templates('form_template_editor'), \%info, { OUTPUT2RETURN => 1 });
   $tpl_ =~ s/__TEMPLATE__/$info{TEMPLATE}/g;
+  $tpl_ =~ s/__ORIG_TEMPLATE__/$info{ORIG_TEMPLATE}/g;
   print $tpl_;
 
   if($info{TPL_NAME} =~ /_admin_menu/){
@@ -942,14 +958,19 @@ sub show_tpl_info {
   my ($filename, $path) = @_;
 
   $filename =~ s/\.tpl$//;
+
+  my $tpl_params = tpl_describe("$filename", $path);
+
+  if (!%$tpl_params) {
+    return 1;
+  }
+
   my $table = $html->table({
     width       => '600',
     caption     => "$lang{INFO} - '$filename'",
     title_plain => [ $lang{NAME}, $lang{DESCRIBE}, $lang{PARAMS} ],
     ID          => 'TPL_INFO'
   });
-
-  my $tpl_params = tpl_describe("$filename", $path);
 
   foreach my $key (sort keys %$tpl_params) {
     $table->addrow('%' . $key . '%', $tpl_params->{$key}->{DESCRIBE}, $tpl_params->{$key}->{PARAMS});
@@ -1395,27 +1416,27 @@ sub form_holidays {
 
   require Tariffs;
   Tariffs->import();
-  my $holidays = Tariffs->new($db, \%conf, $admin);
+  my $Holidays = Tariffs->new($db, \%conf, $admin);
 
-  if($FORM{action} && $FORM{action} eq 'add'){
-    $holidays->holidays_add({
+  if($FORM{add} && $FORM{month}){
+    $Holidays->holidays_add({
       DAY      => "$FORM{month}-$FORM{DAY}",
       FILE     => $FORM{FILE_SELECT},
       DESCR    => $FORM{COMMENTS}
     });
 
-    if (!$holidays->{errno}) {
+    if (!$Holidays->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
-  elsif($FORM{action} && $FORM{action} eq 'change'){
-    $holidays->holidays_change({
+  elsif($FORM{change} && $FORM{month}){
+    $Holidays->holidays_change({
       DAY      => "$FORM{month}-$FORM{DAY}",
       FILE     => $FORM{FILE_SELECT},
       DESCR    => $FORM{COMMENTS}
     });
 
-    if (!$holidays->{errno}) {
+    if (!$Holidays->{errno}) {
       $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
@@ -1428,7 +1449,6 @@ sub form_holidays {
                 });
   }
 
-  # переход на шаблон загрузки файла
   if ($FORM{file} || $FORM{FILE}){
     $html->tpl_show(templates('form_upload_file'),
     {
@@ -1437,9 +1457,8 @@ sub form_holidays {
     return 1;
   }
 
-  # если выбран день из календаря для добавления
-  if ($FORM{add}) {
-    my ($month, $day) = split('-', $FORM{add});
+  if ($FORM{form_add}) {
+    my ($month, $day) = split('-', $FORM{form_add});
     my @files_select = holiday_files_list();
     my $file_upload_link = "$SELF_URL?index=" . get_function_index('form_holidays') . "&file=1";
     $html->tpl_show(templates('form_holiday_add'),
@@ -1449,25 +1468,25 @@ sub form_holidays {
       DAY          => $day,
       YEAR         => $FORM{year},
       ACTION       => 'add',
-      BTN_NAME     => "$lang{ADD}",
+      ACTION_LNG   => $lang{ADD},
       FILE_SELECT  => @files_select,
       UPLOAD_FILE  => $file_upload_link
     });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $holidays->holidays_del($FORM{del});
+    $Holidays->holidays_del($FORM{del});
 
-    if (!$holidays->{errno}) {
+    if (!$Holidays->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
   }
 
-  if($FORM{change} || $FORM{show}){
+  if($FORM{chg} || $FORM{show}){
     my $holiday_info;
     my ($month, $day)=split(/\-/, $DATE);
 
-    if ($FORM{change}) {
-      $holiday_info = $holidays->holidays_info({ DAY => $FORM{change} });
+    if ($FORM{chg}) {
+      $holiday_info = $Holidays->holidays_info({ DAY => $FORM{change} });
       if (!$holiday_info->{DAY}) {
         return 0;
       }
@@ -1476,14 +1495,13 @@ sub form_holidays {
     elsif($FORM{show} =~ /\-/) {
       my ($m, $d) = split('-', $FORM{show});
       my $search = $m . '-' . $d;
-      $holiday_info = $holidays->holidays_info({ DAY => $search });
+      $holiday_info = $Holidays->holidays_info({ DAY => $search });
       ($month, $day) = split('-', $holiday_info->{DAY});
     }
 
     my @files_select = holiday_files_list({ FILE => $holiday_info->{FILE} });      # список файлов
     my $file_upload_link = "$SELF_URL?index=" . get_function_index('form_holidays') . "&file=1"; # линк на загрузку файла
 
-    # заполнение шаблона
     $html->tpl_show(
       templates('form_holiday_add'),
     {
@@ -1493,15 +1511,15 @@ sub form_holidays {
       YEAR         => $FORM{year},
       COMMENTS     => $holiday_info->{DESCR},
       ACTION       => 'change',
-      BTN_NAME     => $lang{CHANGE},
+      ACTION_LNG   => $lang{CHANGE},
       FILE_SELECT  => @files_select,
       UPLOAD_FILE  => $file_upload_link
     });
   }
 
-  _error_show($holidays);
+  _error_show($Holidays);
 
-  my $list  = $holidays->holidays_list({COLS_NAME => 1});
+  my $list  = $Holidays->holidays_list({COLS_NAME => 1});
   my $year  = $FORM{year}  || POSIX::strftime("%Y", localtime(time));
   my $month = $FORM{month} || POSIX::strftime("%m", localtime(time));
   my $next_month = $month + 1;
@@ -1558,21 +1576,22 @@ sub form_holidays {
 
   my $table = $html->table({
     width      => '500',
-    rows       => [ [ "$lang{TOTAL}:", $html->b($holidays->{TOTAL}) ] ]
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Holidays->{TOTAL}) ] ]
   });
 
   print $table->show();
 
   $table = $html->table({
-    caption    => $lang{HOLIDAYS},
-    width      => '500',
-    title      => [ $lang{DAY}, $lang{FILE}, $lang{DESCRIBE}, '-' ],
+    caption => $lang{HOLIDAYS},
+    width   => '500',
+    title   => [ $lang{DAY}, $lang{FILE}, $lang{DESCRIBE}, '-' ],
+    ID      => 'HOLIDAYS'
   });
 
   foreach my $line (@$list) {
     my ($m, $d) = split(/-/, $line->{day});
-    my $change = $html->button($lang{CHANGE}, "index=75&change=$line->{day}", { class=>'change'});
-    my $delete = $html->button($lang{DEL}, "index=75&del=$line->{day}", { MESSAGE => "$lang{DEL} $line->{day}?", class => 'del' });
+    my $change = $html->button($lang{CHANGE}, "index=$index&change=$line->{day}", { class=>'change'});
+    my $delete = $html->button($lang{DEL}, "index=$index&del=$line->{day}", { MESSAGE => "$lang{DEL} $line->{day}?", class => 'del' });
     $table->addrow("$d $MONTHES[$m - 1]", $line->{file}, $line->{descr}, $change . $delete);
   }
 
@@ -1628,14 +1647,14 @@ sub table_for_calendar{
 
     my $comment     = '';
     my $holiday_day = '';
-    my $action      = 'add';
+    my $action      = 'form_add';
     my $delete      = '';
 
     if ($search && $holi_info->{DAY} && $search eq $holi_info->{DAY} ) {
       $comment     = $holi_info->{DESCR} || '';
       $holiday_day = "class='danger'";
       $action      = 'show';
-      $delete = $html->button($lang{DEL}, "index=75&del=".($attr->{MONTH})."-$i", { MESSAGE => "$lang{DEL} $attr->{MONTH}-$i?", class => 'del' });
+      $delete = $html->button($lang{DEL}, "index=$index&del=".($attr->{MONTH})."-$i", { MESSAGE => "$lang{DEL} $attr->{MONTH}-$i?", class => 'del' });
     }
 
     if (($no_days % 7) == 0) {
@@ -1643,7 +1662,7 @@ sub table_for_calendar{
     }
 
     $week_row .= "<td width='100' height='100' $holiday_day>
-                  <a href='/admin/index.cgi?index=75&$action=$attr->{MONTH}-$i&year=". ($FORM{year} || '') ."&month=". ($FORM{month} || '') ."' title='$comment'>
+                  <a href='/admin/index.cgi?index=$index&$action=$attr->{MONTH}-$i&year=". ($FORM{year} || '') ."&month=". ($FORM{month} || '') ."' title='$comment'>
                     <h4>$i</h4><br>
                   </a>
                   $delete
@@ -1718,218 +1737,25 @@ sub holiday_files_list {
 }
 
 #**********************************************************
-=head2 form_info_fields() - User extra fields add
+=head2 form_info_lists ($Info_fields) - manage info lists values
 
-  Information fields for users and companies
-
-=cut
-#**********************************************************
-#@deprecated
-sub form_info_fields {
-
-  if($conf{info_fields_new}) {
-    info_fields_new();
-    return 1;
-  }
-
-  require Info_fields;
-  Info_fields->import();
-  my $Info_fields = Info_fields->new($db, $admin, \%conf);
-
-  if ($FORM{FIELD_ID}){
-    $FORM{FIELD_ID} = lc( $FORM{FIELD_ID} );
-    $FORM{FIELD_ID} =~ s/[ \-]+//g;
-  }
-
-  if ($FORM{USERS_ADD}) {
-    if (length($FORM{FIELD_ID}) > 15) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 15)");
-    }
-    else {
-      $Info_fields->info_field_add({%FORM});
-      if (!$Info_fields->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{FIELD_ID} - $FORM{NAME}");
-      }
-    }
-  }
-  elsif ($FORM{COMPANY_ADD}) {
-    $Info_fields->info_field_add({%FORM});
-    if (!$Info_fields->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{FIELD_ID} - $FORM{NAME}");
-    }
-  }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Info_fields->info_field_del({ SECTION => $FORM{del}, %FORM });
-    if (!$Info_fields->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{FIELD_ID}");
-    }
-  }
-
-  _error_show($users);
-
-  my @fields_types = (
-    'String',
-    'Integer',
-    $lang{LIST},
-    $lang{TEXT},
-    'Flag',
-    'Blob',
-    'PCRE',
-    'AUTOINCREMENT',
-    'ICQ',
-    'URL',
-    'PHONE',
-    'E-Mail',
-    'Skype',
-    $lang{FILE},
-    $lang{DELIVERY},
-    'PHOTO',
-    'SOCIAL NETWORK',
-    'Crypt',
-    $lang{LANGUAGE},
-    'Time zone',
-    $lang{DATE},
-  );
-
-  my $fields_type_sel = $html->form_select(
-    'FIELD_TYPE',
-    {
-      SELECTED     => $FORM{field_type},
-      SEL_ARRAY    => \@fields_types,
-      NO_ID        => 1,
-      ARRAY_NUM_ID => 1,
-    }
-  );
-
-  delete ($Conf->{COL_NAMES_ARR});
-  my $list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2 });
-
-  my $table = $html->table(
-    {
-      width      => '500',
-      caption    => "$lang{INFO_FIELDS} - $lang{USERS}",
-      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, $lang{USER_PORTAL},
-        $lang{USER} . ' ' . $lang{CHANGE}, '-' ],
-      EXPORT     => 1,
-      FIELDS_IDS => ['NAME', 'SQL', 'TYPE'],
-      ID         => 'INFO_FIELDS_USERS',
-      NOT_RESPONSIVE => 1,
-    }
-  );
-
-  foreach my $line (@$list) {
-    my $field_name = '';
-
-    if ($line->[0] =~ /ifu(\S+)/) {
-      $field_name = $1;
-    }
-
-    my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->[1]);
-    if (! defined($field_type)){
-      $field_type = 0;
-    }
-
-    $table->addrow(
-      $name,
-      $field_name,
-        ($field_type == 2) ? $html->button($fields_types[$field_type], "index=" . ($index + 1) . "&LIST_TABLE=$field_name" . '_list') : $fields_types[$field_type],
-      $position,
-      $bool_vals[(defined $user_portal && $user_portal ne '') || 0],
-      $bool_vals[(defined $can_be_changed_by_user && $can_be_changed_by_user ne '') || 0],
-      ($permissions{4} && $permissions{4}{3}) ? $html->button($lang{DEL}, "index=$index&del=ifu&FIELD_ID=$field_name", { MESSAGE => "$lang{DEL} $field_name?", class => 'del' }) : ''
-    );
-  }
-
-  $table->{SKIP_EXPORT_CONTENT}=1;
-
-  $table->addrow(
-      $html->form_input('NAME', '', { EX_PARAMS => ' required="required" ' }),
-      $html->form_input('FIELD_ID', '', { SIZE => 12 }),
-      $fields_type_sel,
-      $html->form_input('POSITION',     0,     { SIZE => 10 }),
-      $html->form_input('USERS_PORTAL', 1,     { TYPE => 'CHECKBOX' }),
-      $html->form_input('CAN_BE_CHANGED_BY_USER',    $lang{USER} . ' ' . $lang{CHANGE}, { TYPE => 'CHECKBOX' }),
-      $html->form_input('USERS_ADD',    $lang{ADD}, { TYPE => 'SUBMIT' }),
-  );
-
-  print $html->form_main(
-    {
-      CONTENT => $table->show(),
-      HIDDEN  => { index => $index, },
-      NAME    => 'users_fields',
-      ID      => 'FORM_FIELDS_USERS',
-      EXPORT_CONTENT => 'INFO_FIELDS_USERS',
-#      class => 'form form-inline'
-    }
-  );
-
-  $list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
-  $table = $html->table(
-    {
-      width      => '500',
-      caption    => "$lang{INFO_FIELDS} - $lang{COMPANIES}",
-      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, $lang{USER_PORTAL}, '-' ],
-      NOT_RESPONSIVE => 1,
-    }
-  );
-
-  foreach my $line (@$list) {
-    my $field_name = '';
-
-    if ($line->[0] =~ /ifc(\S+)/) {
-      $field_name = $1;
-    }
-
-    my ($position, $field_type, $name, $user_portal) = split(/:/, $line->[1]);
-    if (! defined($field_type)){
-      $field_type = 0;
-    }
-
-    $user_portal ||=0;
-
-    $table->addrow(
-      $name,
-      $field_name,
-      ($field_type == 2) ?
-        $html->button($fields_types[$field_type], "index=" . ($index + 1) . "&LIST_TABLE=$field_name" . '_list') : $fields_types[$field_type],
-      $position,
-      $bool_vals[$user_portal],
-      ($permissions{4} && $permissions{4}{3}) ? $html->button($lang{DEL}, "index=$index&del=ifc&FIELD_ID=$field_name", { MESSAGE => "$lang{DEL} $field_name ?", class => 'del' }) : '',
-    );
-  }
-
-  $table->addrow($html->form_input('NAME', '', { FORM_ID => 'COMPANY_FIELDS', EX_PARAMS => ' required="required" '  }),
-    $html->form_input('FIELD_ID', '', { SIZE => 12, FORM_ID => 'COMPANY_FIELDS'  }),
-    $fields_type_sel,
-    $html->form_input('POSITION', 0, { SIZE => 10, FORM_ID => 'COMPANY_FIELDS' }),
-    $html->form_input('USERS_PORTAL', 1, { TYPE => 'CHECKBOX', FORM_ID => 'COMPANY_FIELDS' }),
-    $html->form_input('COMPANY_ADD', $lang{ADD}, { TYPE => 'SUBMIT', FORM_ID => 'COMPANY_FIELDS' })
-  );
-
-  print $html->form_main(
-    {
-      CONTENT => $table->show(),
-      HIDDEN  => { index => $index, },
-      NAME    => 'company_fields',
-      ID      => 'COMPANY_FIELDS',
-    }
-  );
-
-  return 1;
-}
-
-#**********************************************************
-=head2 form_info_lists () - manage info lists values
-
-  Attr
+  Arguments:
    $Info_fields - object
+
+  Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub form_info_lists {
-  my ($Info_fields) = @_;
+  my $info_fields = shift;
 
-  $FORM{LIST_TABLE}=($Info_fields->{list}->[0]->{SQL_FIELD} || '').'_list';
+  require Info_fields;
+  my Info_fields $Info_fields = $info_fields;
+
+  my $list = $Info_fields->fields_list({ ID => $FORM{chg} });
+  $FORM{LIST_TABLE}=($list->[0]->{SQL_FIELD} || '').'_list';
+
   my @ACTIONS = ('add_list_element', $lang{ADD});
 
   if ($FORM{add_list_element}) {
@@ -1964,9 +1790,8 @@ sub form_info_lists {
     ID         => 'LIST'
   });
 
-  my $list = $Info_fields->info_lists_list({%FORM, COLS_NAME => 1});
-
-  foreach my $line (@$list) {
+  my $lists_list = $Info_fields->info_lists_list({%FORM, COLS_NAME => 1});
+  foreach my $line (@$lists_list) {
     $table->addrow(
       $line->{id}, $line->{name},
       $html->button($lang{CHANGE}, "index=$index&LIST_TABLE=$FORM{LIST_TABLE}&chg=$FORM{chg}&chg_list_element=$line->{id}&chg_list_value=$line->{name}", { class => 'change' })
@@ -1988,7 +1813,7 @@ sub form_info_lists {
     class   => 'container-sm'
   });
 
-  return;
+  return 1;
 }
 
 #**********************************************************
@@ -2146,6 +1971,7 @@ sub form_fees_types {
       qs         => $pages_qs,
       ID         => 'FEES_TYPE',
       DATA_TABLE => 1,
+      EXPORT     => 1,
     },
     MAKE_ROWS    => 1,
     SEARCH_FORMER=> 1,
@@ -2246,6 +2072,13 @@ sub form_tp_groups {
   $Tariffs->{USER_CHG_TP} = ($Tarrifs->{USER_CHG_TP}) ? 'checked' : '';
   $html->tpl_show(templates('form_tp_group'), $Tarrifs);
 
+  my $get_index_tp = 'internet_tp';
+  if ($admin->{MODULE}){
+    $get_index_tp = 'iptv_tp'    if ($admin->{MODULE} =~ /Iptv/);
+    $get_index_tp = 'voip_tp'    if ($admin->{MODULE} =~ /Voip/);
+    $get_index_tp = 'triplay_tp' if ($admin->{MODULE} =~ /Triplay/);
+  }
+
   result_former({
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'tp_group_list',
@@ -2256,6 +2089,13 @@ sub form_tp_groups {
       name        => $lang{NAME},
       user_chg_tp => $lang{USER_CHG_TP},
       tarif_plans_count => $lang{COUNT}
+    },
+    FILTER_VALUES   => {
+      tarif_plans_count => sub {
+        my (undef, $line) = @_;
+        return if (!$line->{tarif_plans_count});
+        return $html->button($line->{tarif_plans_count}, "get_index=$get_index_tp&full=1&TP_IDS=$line->{tarif_plans_ids}");
+      }
     },
     SKIP_USER_TITLE => 1,
     SELECT_VALUE  => {
@@ -2268,6 +2108,7 @@ sub form_tp_groups {
       ID         => 'TP_GROUPS',
       EXPORT     => 1,
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+      SHOW_COLS_HIDDEN => { tarif_plans_ids => 1 },
     },
     MAKE_ROWS    => 1,
     TOTAL        => 1
@@ -2888,11 +2729,12 @@ sub form_feedback {
 }
 
 #**********************************************************
-=head2 info_fields_new()
+=head2 form_info_fields()
 
 =cut
 #**********************************************************
-sub info_fields_new {
+sub form_info_fields {
+
   require Info_fields;
   require Abills::Experimental;
   my $Info_fields = Info_fields->new($db, $admin, \%conf);
@@ -2958,10 +2800,10 @@ sub info_fields_new {
       $chg_list->[0]{ABON_PORTAL} = 'checked' if $chg_list->[0]{ABON_PORTAL};
       $chg_list->[0]{USER_CHG} = 'checked' if $chg_list->[0]{USER_CHG};
 
-    # manage list values
-    if ($chg_list->[0]{TYPE} && $chg_list->[0]{TYPE} == 2 ){
-      form_info_lists($Info_fields);
-    }
+      # manage list values
+      if ($chg_list->[0]{TYPE} && $chg_list->[0]{TYPE} == 2) {
+        form_info_lists($Info_fields);
+      }
 
     }
     $TEMPLATE_ADVERTISEMENT{READONLY} = 'readonly';
@@ -2982,6 +2824,7 @@ sub info_fields_new {
     });
     show_result($Info_fields, $lang{DELETED});
   }
+
   _error_show($Info_fields);
 
   if ($show_add_form) {
@@ -3008,6 +2851,7 @@ sub info_fields_new {
 
   my $status_bar = $html->table_header(\@header_arr);
 
+  #Import old fields
   if ($FORM{update_table}) {
     my $usr_list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2 });
     foreach my $line (@$usr_list) {
@@ -3107,6 +2951,7 @@ sub info_fields_new {
       caption => $lang{INFO_FIELDS},
       ID      => 'INFO_FIELDS',
       header  => $status_bar,
+      SHOW_FULL_LIST  => 1,
       MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply mt-1 ml-1",
     },
     MAKE_ROWS       => 1,

@@ -14,120 +14,52 @@ package Docs::Api;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(in_array);
-use Control::Errors;
-
 use Docs::Validations qw(POST_INVOICE_ADD POST_DOCS_INVOICES_PAYMENTS DELETE_DOCS_INVOICES_PAYMENTS PATCH_DOCS_INVOICES_PAYMENTS POST_USER_DOCS_INVOICES);
-use Docs::Constants qw(EDOCS_STATUS);
-use Docs;
-
-my Docs $Docs;
-my Control::Errors $Errors;
-
-#**********************************************************
-=head2 new($db, $conf, $admin, $lang)
-
-=cut
-#**********************************************************
-sub new {
-  my ($class, $db, $admin, $conf, $lang, $debug, $type, $html) = @_;
-
-  my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $conf,
-    lang  => $lang,
-    html  => $html,
-    debug => $debug
-  };
-
-  bless($self, $class);
-
-  $self->{routes_list} = ();
-
-  if ($type eq 'user') {
-    $self->{routes_list} = $self->user_routes();
-  }
-  elsif ($type eq 'admin') {
-    $self->{routes_list} = $self->admin_routes();
-  }
-
-  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $lang, module => 'Docs' });
-
-  $Docs = Docs->new($self->{db}, $self->{admin}, $self->{conf});
-  $Docs->{debug} = $self->{debug};
-
-  $self->{Errors} = $Errors;
-
-  return $self;
-}
 
 #**********************************************************
 =head2 user_routes() - Returns available API paths
 
   Returns:
-    {
-      $resource_1_name => [ # $resource_1_name, $resource_2_name - names of API resources. always equals to first path segment
-        {
-          method  => 'GET',          # HTTP method. Path can be queried only with this method
+    [
+      {
+        method      => 'GET',          # HTTP method. Path can be queried only with this method
 
-          path    => '/users/:uid/', # API path. May contain variables like ':uid'.
-                                     # these variables will be passed to handler function as argument ($path_params).
-                                     # variables are always numerical.
-                                     # example: if route's path is '/users/:uid/', and queried URL
-                                     # is '/users/9/', $path_params will be { uid => 9 }.
-                                     # if credentials is 'USER', variable :uid will be checked to contain only
-                                     # authorized user's UID.
+        path        => '/users/:uid/', # API path. May contain variables like ':uid'.
+                                       # variables will be passed to handler function as argument ($path_params).
+                                       # example: if route's path is '/users/:uid/', and queried URL
+                                       # is '/users/9/', $path_params will be { uid => 9 }.
+                                       # if credentials is 'ADMIN', 'ADMINSID', 'ADMINBOT',
+                                       # variable :uid will be checked to contain only existing user's UID.
 
-          handler => sub {           # handler function, coderef. Arguments that are passed to handler:
-            my (
-                $path_params,        # params from path. look at docs of path. hashref.
-                $query_params,       # params from query. for details look at Abills::Api::Router::new(). hashref.
-                                     # keys will be converted from camelCase to UPPER_SNAKE_CASE
-                                     # using Abills::Base::decamelize unless no_decamelize_params is set
-                $module_obj          # object of needed DB module (in this example - Users). used to run it's methods.
-                                     # may be empty if name of module is not set.
-               ) = @_;
+        params      => POST_USERS,     # Validation schema.
+                                       # Can be used as hashref, but we use constant for clear
+                                       # visual differences.
 
-            $module_obj->info(       # handler should return hashref or arrayref with needed data
-              $path_params->{uid}
-            );                       # in this example we call Users->info, and it's result are implicitly returned
-          },
+        controller  => 'Api::Controllers::Admin::Users::Info',
+                                       # Name of loadable controller.
 
-          module  => 'Users',        # name of DB module. it's object will be created and passed to handler as $module_obj. optional.
+        endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
+                                       # Path to handler function, must be coderef.
 
-          type    => 'HASH',         # type of returned data. may be 'HASH' or 'ARRAY'. by default (if not set) it is 'HASH'. optional.
-
-          credentials => [           # arrayref of roles required to use this path. if API user is authorized as at least one of
-                                     # these roles access to this path will be granted. optional.
-            'ADMIN'                  # may be 'ADMIN' or 'USER'
-          ],
-
-          no_decamelize_params => 0, # if set, $query_params for handler will not be converted to UPPER_SNAKE_CASE. optional.
-
-          conf_params => [ ... ]     # variables from $conf to be returned in result. arrayref.
-                                     # experimental feature, currently disabled
-        },
-        ...
-      ],
-      $resource_2_name => [
-        ...
-      ],
-      ...
-    }
+        credentials => [               # arrayref of roles required to use this path.
+                                       # if API admin/user is authorized as at least one of
+                                       # these roles access to this path will be granted. REQUIRED.
+                                       # List of credentials:
+          'ADMIN'                      # 'ADMIN', 'ADMINSID', 'ADMINBOT', 'USER', 'USERBOT', 'BOT_UNREG', 'PUBLIC'
+        ],
+      },
+    ]
 
 =cut
 #**********************************************************
 sub admin_routes {
-  my $self = shift;
-
   return [
     {
-      method       => 'GET',
-      path         => '/docs/invoices/payments/',
-      controller   => 'Docs::Api::admin::Invoices',
-      endpoint     => \&Docs::Api::admin::Invoices::get_docs_invoices_payments,
-      credentials  => [
+      method      => 'GET',
+      path        => '/docs/invoices/payments/',
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::get_docs_invoices_payments,
+      credentials => [
         'ADMIN', 'ADMINSID'
       ]
     },
@@ -135,14 +67,8 @@ sub admin_routes {
       method      => 'POST',
       path        => '/docs/invoices/payments/',
       params      => POST_DOCS_INVOICES_PAYMENTS,
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->post_docs_invoices_payments(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::post_docs_invoices_payments,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -151,14 +77,8 @@ sub admin_routes {
       method      => 'PATCH',
       path        => '/docs/invoices/payments/',
       params      => PATCH_DOCS_INVOICES_PAYMENTS,
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->patch_docs_invoices_payments(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::patch_docs_invoices_payments,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -166,14 +86,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/invoices/',
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->get_docs_invoices(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::get_docs_invoices,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -181,14 +95,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/invoices/:id/',
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->get_docs_invoices_id(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::get_docs_invoices_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -198,14 +106,8 @@ sub admin_routes {
       #TODO: use in future when will known all properties
       # params      => POST_INVOICE_ADD,
       path        => '/docs/invoices/',
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->post_docs_invoices(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::post_docs_invoices,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -213,14 +115,8 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/docs/invoices/:id/',
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->put_docs_invoices_id(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::put_docs_invoices_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -229,14 +125,8 @@ sub admin_routes {
       method      => 'DELETE',
       path        => '/docs/invoices/',
       params      => DELETE_DOCS_INVOICES_PAYMENTS,
-      handler     => sub {
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->delete_docs_invoices(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::delete_docs_invoices,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -244,16 +134,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/invoices/:uid/period/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        require Docs::Api::admin::Invoices;
-        Docs::Api::admin::Invoices->import();
-        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->get_docs_invoices_period(@_);
-      },
+      controller  => 'Docs::Api::admin::Invoices',
+      endpoint    => \&Docs::Api::admin::Invoices::get_docs_invoices_period,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -261,13 +143,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/users/:uid/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $Docs->user_info($path_params->{uid});
-
-        return $Docs;
-      },
+      controller  => 'Docs::Api::admin::Users',
+      endpoint    => \&Docs::Api::admin::Users::get_docs_users_uid,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -275,20 +152,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/edocs/branches/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $ESignService = $self->_init_esign_service();
-        return $ESignService if ($ESignService->{errno});
-        return {
-          errno  => 1054005,
-          errstr => 'Unknown operation'
-        } if (!$ESignService->can('get_branches'));
-
-        my $branches = $ESignService->get_branches();
-
-        return $branches;
-      },
+      controller  => 'Docs::Api::admin::Edocs',
+      endpoint    => \&Docs::Api::admin::Edocs::get_docs_edocs_branches,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -296,87 +161,8 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/docs/edocs/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        return {
-          errno  => 1054006,
-          errstr => 'No required field docType'
-        } if (!$query_params->{DOC_TYPE});
-
-        return {
-          errno  => 1054007,
-          errstr => 'Not valid field docType required. Allowed types is numbers: 2 - act and 4 - contractId',
-        } if (!in_array($query_params->{DOC_TYPE}, [ 2, 4 ]));
-
-        return {
-          errno  => 1054008,
-          errstr => 'No field branchId or orderId'
-        } if (!$query_params->{BRANCH_ID} || !$query_params->{OFFER_ID});
-
-        return {
-          errno  => 1054009,
-          errstr => 'No field uid or companyId'
-        } if (!$query_params->{UID} && !$query_params->{COMPANY_ID});
-
-        my $documents = $Docs->edocs_list({
-          DOC_TYPE   => $query_params->{DOC_TYPE},
-          DOC_ID     => $query_params->{DOC_ID},
-          UID        => $query_params->{UID} || '_SHOW',
-          COMPANY_ID => $query_params->{COMPANY_ID} || '_SHOW',
-          STATUS     => '_SHOW',
-          COLS_NAME  => 1,
-        });
-
-        return {
-          result   => EDOCS_STATUS->{$documents->[0]->{status}} || 'OK',
-          warning  => 1054010,
-          document => $documents->[0],
-          id       => $documents->[0]->{id},
-        } if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0);
-
-        $Docs->edocs_add({ %$query_params, STATUS => 1, AID => $self->{admin}->{AID}, });
-
-        return $Docs if $Docs->{errno};
-
-        ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Abills/Templates.pm'}));
-        ::load_module('Docs', $self->{html});
-
-        my %info = (
-          %{$query_params},
-          DOC_ID        => $query_params->{DOC_ID},
-          CERT          => '',
-          PDF           => $self->{conf}->{DOCS_PDF_PRINT} ? 1 : 0,
-          SAVE_DOCUMENT => 1
-        );
-
-        if ($query_params->{DOC_TYPE} == 4) {
-          ::docs_contract(\%info);
-        }
-        elsif ($query_params->{DOC_TYPE} == 2) {
-          require Docs::Acts;
-
-          if ($query_params->{COMPANY_ID}) {
-            require Companies;
-            my $Companies = Companies->new($self->{db}, $self->{admin}, $self->{conf});
-            $info{COMPANY} = $Companies->info($query_params->{COMPANY_ID});
-          }
-          else {
-            require Users;
-            my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-            $Users->info($query_params->{UID});
-            $info{USER_INFO} = $Users->pi({ UID => $query_params->{UID} });
-            $info{COMPANY} = {};
-          }
-
-          ::docs_acts_print(\%info);
-        }
-
-        return {
-          result => 'DOCUMENT_SEND_USER_FOR_SIGN',
-          id     => $Docs->{INSERT_ID},
-        };
-      },
+      controller  => 'Docs::Api::admin::Edocs',
+      endpoint    => \&Docs::Api::admin::Edocs::post_docs_edocs,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -384,34 +170,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/docs/edocs/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $ESignService = $self->_init_esign_service();
-        return $ESignService if ($ESignService->{errno});
-        return {
-          errno  => 1054005,
-          errstr => 'Unknown operation'
-        } if (!$ESignService->can('get_branches'));
-
-        my $branches = $ESignService->get_branches();
-
-        my $documents = $Docs->edocs_list({
-          %$query_params,
-          STATUS    => $query_params->{STATUS} || '_SHOW',
-          OFFER_ID  => $query_params->{OFFER_ID} || '_SHOW',
-          BRANCH_ID => $query_params->{BRANCH_ID} || '_SHOW',
-          COLS_NAME => 1,
-        });
-
-        foreach my $document (@{$documents}) {
-          $document->{status_message} = EDOCS_STATUS->{$document->{status}} || 'OK';
-          $document->{branch_info} = $branches->{$document->{branch_id} || ''} || '';
-          $document->{offer_info} = $branches->{$document->{branch_id} || ''}->{offers}->{$document->{offer_id} || ''} || '';
-        }
-
-        return $documents;
-      },
+      controller  => 'Docs::Api::admin::Edocs',
+      endpoint    => \&Docs::Api::admin::Edocs::get_docs_edocs,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -419,45 +179,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/docs/edocs/:id/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $document = $Docs->edocs_list({
-          ID         => $path_params->{id},
-          DOC_ID     => '_SHOW',
-          DOC_TYPE   => '_SHOW',
-          UID        => '_SHOW',
-          COMPANY_ID => '_SHOW',
-          COLS_UPPER => 1
-        });
-
-        if (!$Docs->{TOTAL}) {
-          return {
-            errno  => 1054011,
-            errstr => 'ERR_NOT_EXISTS'
-          };
-        }
-
-        require Docs::Misc::Documents;
-        Docs::Misc::Documents->import();
-        my $Documents = Docs::Misc::Documents->new($self->{db}, $self->{admin}, $self->{conf}, { html => $self->{html} });
-
-        $Documents->document_delete($document->[0]);
-        $Docs->edocs_del($path_params->{id});
-
-        if ($Docs->{AFFECTED}) {
-          return {
-            result => 'SUCCESSFULLY_DELETED',
-            doc_id => $path_params->{id},
-          };
-        }
-        else {
-          return {
-            errno  => 1054012,
-            errstr => 'ERR_NOT_EXISTS'
-          };
-        }
-      },
+      controller  => 'Docs::Api::admin::Edocs',
+      endpoint    => \&Docs::Api::admin::Edocs::delete_docs_edocs_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -469,106 +192,66 @@ sub admin_routes {
 =head2 user_routes() - Returns available API paths
 
   Returns:
-    {
-      $resource_1_name => [ # $resource_1_name, $resource_2_name - names of API resources. always equals to first path segment
-        {
-          method  => 'GET',          # HTTP method. Path can be queried only with this method
+    [
+      {
+        method      => 'GET',          # HTTP method. Path can be queried only with this method
 
-          path    => '/users/:uid/', # API path. May contain variables like ':uid'.
-                                     # these variables will be passed to handler function as argument ($path_params).
-                                     # variables are always numerical.
-                                     # example: if route's path is '/users/:uid/', and queried URL
-                                     # is '/users/9/', $path_params will be { uid => 9 }.
-                                     # if credentials is 'USER', variable :uid will be checked to contain only
-                                     # authorized user's UID.
+        path        => '/users/:uid/', # API path. May contain variables like ':uid'.
+                                       # variables will be passed to handler function as argument ($path_params).
+                                       # example: if route's path is '/users/:uid/', and queried URL
+                                       # is '/users/9/', $path_params will be { uid => 9 }.
+                                       # if credentials is 'ADMIN', 'ADMINSID', 'ADMINBOT',
+                                       # variable :uid will be checked to contain only existing user's UID.
 
-          handler => sub {           # handler function, coderef. Arguments that are passed to handler:
-            my (
-                $path_params,        # params from path. look at docs of path. hashref.
-                $query_params,       # params from query. for details look at Abills::Api::Router::new(). hashref.
-                                     # keys will be converted from camelCase to UPPER_SNAKE_CASE
-                                     # using Abills::Base::decamelize unless no_decamelize_params is set
-                $module_obj          # object of needed DB module (in this example - Users). used to run it's methods.
-                                     # may be empty if name of module is not set.
-               ) = @_;
+        params      => POST_USERS,     # Validation schema.
+                                       # Can be used as hashref, but we use constant for clear
+                                       # visual differences.
 
-            $module_obj->info(       # handler should return hashref or arrayref with needed data
-              $path_params->{uid}
-            );                       # in this example we call Users->info, and it's result are implicitly returned
-          },
+        controller  => 'Api::Controllers::Admin::Users::Info',
+                                       # Name of loadable controller.
 
-          module  => 'Users',        # name of DB module. it's object will be created and passed to handler as $module_obj. optional.
+        endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
+                                       # Path to handler function, must be coderef.
 
-          type    => 'HASH',         # type of returned data. may be 'HASH' or 'ARRAY'. by default (if not set) it is 'HASH'. optional.
-
-          credentials => [           # arrayref of roles required to use this path. if API user is authorized as at least one of
-                                     # these roles access to this path will be granted. optional.
-            'ADMIN'                  # may be 'ADMIN' or 'USER'
-          ],
-
-          no_decamelize_params => 0, # if set, $query_params for handler will not be converted to UPPER_SNAKE_CASE. optional.
-
-          conf_params => [ ... ]     # variables from $conf to be returned in result. arrayref.
-                                     # experimental feature, currently disabled
-        },
-        ...
-      ],
-      $resource_2_name => [
-        ...
-      ],
-      ...
-    }
+        credentials => [               # arrayref of roles required to use this path.
+                                       # if API admin/user is authorized as at least one of
+                                       # these roles access to this path will be granted. REQUIRED.
+                                       # List of credentials:
+          'ADMIN'                      # 'ADMIN', 'ADMINSID', 'ADMINBOT', 'USER', 'USERBOT', 'BOT_UNREG', 'PUBLIC'
+        ],
+      },
+    ]
 
 =cut
 #**********************************************************
 sub user_routes {
-  my $self = shift;
-
   return [
     {
       method      => 'GET',
       path        => '/user/docs/invoices/',
-      handler     => sub {
-        require Docs::Api::user::Invoices;
-        Docs::Api::user::Invoices->import();
-        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->get_user_docs_invoices(@_);
-      },
+      controller  => 'Docs::Api::user::Invoices',
+      endpoint    => \&Docs::Api::user::Invoices::get_user_docs_invoices,
       credentials => [
-        'USER', 'USERSID'
+        'USER', 'USERBOT'
       ]
     },
     {
       method      => 'GET',
       path        => '/user/docs/invoices/:id/',
-      handler     => sub {
-        require Docs::Api::user::Invoices;
-        Docs::Api::user::Invoices->import();
-        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->get_user_docs_invoices_id(@_);
-      },
+      controller  => 'Docs::Api::user::Invoices',
+      endpoint    => \&Docs::Api::user::Invoices::get_user_docs_invoices_id,
       credentials => [
-        'USER', 'USERSID'
+        'USER'
       ]
     },
     {
       method      => 'POST',
       params      => POST_USER_DOCS_INVOICES,
       path        => '/user/docs/invoices/',
-      handler     => sub {
-        require Docs::Api::user::Invoices;
-        Docs::Api::user::Invoices->import();
-        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Invoices->post_user_docs_invoices(@_);
-      },
+      controller  => 'Docs::Api::user::Invoices',
+      endpoint    => \&Docs::Api::user::Invoices::post_user_docs_invoices,
       credentials => [
-        'USER', 'USERSID'
+        'USER'
       ]
     },
     {
@@ -577,110 +260,28 @@ sub user_routes {
       controller  => 'Docs::Api::user::Invoices',
       endpoint    => \&Docs::Api::user::Invoices::get_user_docs_invoices_period,
       credentials => [
-        'USER', 'USERSID'
+        'USER'
       ]
     },
     {
       method      => 'GET',
       path        => '/user/docs/',
-      handler     => sub {
-        require Docs::Api::user::Root;
-        Docs::Api::user::Root->import();
-        my $Root = Docs::Api::user::Root->new($self->{db}, $self->{admin}, $self->{conf},
-          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
-
-        return $Root->get_user_docs(@_);
-      },
+      controller  => 'Docs::Api::user::Root',
+      endpoint    => \&Docs::Api::user::Root::get_user_docs,
       credentials => [
-        'USER', 'USERSID'
+        'USER'
       ]
     },
     {
       method      => 'POST',
       path        => '/user/docs/edocs/sign/:id/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $ESignService = $self->_init_esign_service();
-        return $ESignService if ($ESignService->{errno});
-        return {
-          errno  => 1054030,
-          errstr => 'UNKNOWN_OPERATION'
-        } if (!$ESignService->can('mk_sign'));
-
-        my $document = $Docs->edocs_list({
-          ID         => $path_params->{id},
-          UID        => $path_params->{uid},
-          COMPANY_ID => '_SHOW',
-          DOC_ID     => '_SHOW',
-          DOC_TYPE   => '_SHOW',
-          OFFER_ID   => '_SHOW',
-          BRANCH_ID  => '_SHOW',
-          COLS_UPPER => 1
-        });
-
-        return {
-          errno  => 1054031,
-          errstr => 'UNKNOWN_DOCUMENT'
-        } if (!$Docs->{TOTAL} || $Docs->{TOTAL} < 1);
-
-        if ($document->[0]->{company_id}) {
-          require Companies;
-          my $Companies = Companies->new($self->{db}, $self->{admin}, $self->{conf});
-          my $company_admin = $Companies->admins_list({ UID => $path_params->{uid}, COMPANY_ID => $document->[0]->{company_id}, COLS_NAME => 1 });
-
-          return {
-            errno  => 1054032,
-            errstr => 'UNKNOWN_DOCUMENT',
-          } if (!scalar @{$company_admin});
-        }
-        elsif ($document->[0]->{uid}) {
-          return {
-            errno  => 1054033,
-            errstr => 'UNKNOWN_DOCUMENT',
-          } if ($document->[0]->{uid} ne $path_params->{uid});
-        }
-        else {
-          return {
-            errno  => 1054034,
-            errstr => 'UNKNOWN_DOCUMENT',
-          };
-        }
-
-        my $sign_result = $ESignService->mk_sign($document->[0]);
-
-        return $sign_result;
-      },
+      controller  => 'Docs::Api::user::Edocs',
+      endpoint    => \&Docs::Api::user::Edocs::get_user_docs_edocs_sign_id,
       credentials => [
         'USER'
       ]
     },
   ],
-}
-
-#**********************************************************
-=head2 document_add()
-
-=cut
-#**********************************************************
-sub _init_esign_service {
-  my $self = shift;
-
-  require Docs::Init;
-  Docs::Init->import('init_esign_service');
-
-  my $ESignService = init_esign_service($self->{db}, $self->{admin}, $self->{conf}, {
-    lang   => $self->{lang},
-    html   => $self->{html},
-    SILENT => 1
-  });
-
-  return {
-    errno  => $ESignService->{errno} || 1054004,
-    errstr => $ESignService->{errstr} || 'ESIGN_SERVICE_NOT_CONNECTED'
-  } if (!%{$ESignService} || $ESignService->{errno});
-
-  return $ESignService;
 }
 
 1;

@@ -124,7 +124,7 @@ sub sqlcmd {
   my $table = $html->table({
     width       => '100%',
     caption     => $FORM{TABLE_INFO},
-    title_plain => [ $lang{DATE}, $lang{COMMENTS}, '-', '-' ],
+    title_plain => [ $lang{DATE}, $lang{COMMENTS}, '', '' ],
     qs          => $pages_qs,
     pages       => $Sqlcmd_main->{TOTAL},
     ID          => 'SQLCMD_SAVED_QUERIES'
@@ -192,12 +192,13 @@ sub sqlcmd {
       #Syntax highlight
       my @func = ('CURDATE', 'NOW', 'DECODE', 'ENCODE', 'CONCAT', 'INET_NTOA', 'INET_ATON');
       my @syntax = (
-        'SELECT', 'FROM', 'WHERE',   'MIN',   'MAX',   'AVG', 'SUM',    'IF',       'INSERT', 'UPDATE', 'INTO',    'VALUES',   'GROUP BY', 'ORDER BY', 'LIMIT', 'DATE_FORMAT', 'LEFT JOIN', 'INNER JOIN',
+        'SELECT', 'FROM', 'WHERE',   'MIN',   'MAX',   'AVG', 'SUM',    'IF',       'INSERT', 'UPDATE', 'INTO',    'VALUES',   'GROUP BY', 'ORDER BY', 'LIMIT', 'DATE_FORMAT', 'LEFT JOIN', 'INNER JOIN', ' IN', 'HAVING', 'AS', 'CASE',
+        'THEN', 'ELSE', 'END', 'WHEN',
         'ON',     'AND',  'EXPLAIN', 'ALTER', 'TABLE', 'ADD', 'COLUMN', 'UNSIGNED', 'NOT',    'NULL',   'DEFAULT', 'INTERVAL', 'COUNT',    'DESC',     'ASC',   @func
       );
 
       #my @types    = ('INT',  'VARCHAR', 'SMALLINT',  'CHAR',     'TINYINT',  'DOUBLE');
-      my @division = ('FROM', 'WHERE',   'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT');
+      my @division = ('FROM', 'WHERE',   'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT', 'AND', 'HAVING', 'CASE');
 
       foreach my $query (@{ $Sqlcmd->{EXECUTED_QUERY} }) {
         my $show_query = $query;

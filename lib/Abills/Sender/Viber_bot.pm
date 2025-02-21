@@ -13,6 +13,17 @@ use JSON;
 our $VERSION = 0.03;
 my %conf = ();
 
+my %status_compare = (
+  1 => 1000007,
+  2 => 1000008,
+  3 => 1000014,
+  4 => 1000014,
+  5 => 1000009,
+  6 => 1000011,
+  7 => 1000010,
+  8 => 1000012
+);
+
 #**********************************************************
 =head2 new($db, $admin, $CONF, $attr) - Create new Viber object
 
@@ -84,10 +95,6 @@ sub send_message {
 
   my $attachment_result = $self->send_attachments($attr);
 
-  if ($attr->{MAKE_REPLY}) {
-    $text .= "\\n\\n$attr->{LANG}->{MSGS_REPLY}: ";
-    $text .= make_reply($attr->{MAKE_REPLY}, $attr);
-  }
   my $message = {
     receiver        => $attr->{TO_ADDRESS},
     text            => $text,
@@ -95,7 +102,22 @@ sub send_message {
     type            => 'text',
   };
 
+  if ($attr->{MAKE_REPLY}) {
+    $message->{text} .= "\\n\\n$attr->{LANG}->{MSGS_REPLY}: ";
+    my ($append_text, $buttons) = $self->make_reply($attr->{MAKE_REPLY}, $attr);
+    $message->{text} .= $append_text;
+    $message->{keyboard} = {
+      Type          => 'keyboard',
+      DefaultHeight => 'true',
+      Buttons       => $buttons
+    };
+  }
+
   my $result = $self->send_request($message, $callback);
+  if ($result->{status}) {
+    $result->{errno} = $status_compare{$result->{status}} || $result->{status};
+    $result->{errstr} = $result->{status_message};
+  }
 
   if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
     _bp("Result", $result, { TO_CONSOLE => 1 });
@@ -145,7 +167,12 @@ sub send_request {
     HEADERS      => \@header,
     CURL         => 1,
     CURL_OPTIONS => '-XPOST',
+    DEBUG        => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
   });
+
+  if (! $result) {
+    print "NORESULT URL: $url REQUEST: $json_str\n";
+  }
 
   $result = decode_json($result);
 
@@ -188,12 +215,16 @@ sub perl2json {
 =head2 make_reply() - return reply url
 
   Returns:
-    string - reply url
+    (string - reply url, $keyboard - actions)
 
 =cut
 #**********************************************************
-sub make_reply() {
+sub make_reply {
+  my $self = shift;
   my ($message_id, $sender_attr) = @_;
+
+  my @buttons = ();
+  my $link = '';
 
   my $referer = (
     # Allow users to use their own portal URL
@@ -203,11 +234,44 @@ sub make_reply() {
       || ''
   );
 
+  my $have_reply = 0;
+
+  my @buttons_files = glob "$conf{base_dir}/Abills/modules/Viber/buttons/*.pm";
+  foreach my $file (@buttons_files) {
+    my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
+    if($button eq 'Msgs_reply'){
+      $have_reply = 1;
+    }
+  }
+
+  if ($have_reply && !$sender_attr->{AID}){
+    my $reply_button = {
+      ActionType => 'reply',
+      ActionBody => 'fn:Msgs_reply&reply&' . $message_id,
+      Text       => $sender_attr->{LANG}->{MSGS_REPLY},
+      TextSize   => 'regular'
+    };
+
+    my $cancel_button = {
+      ActionType => 'reply',
+      ActionBody => 'fn:Msgs_reply&cancel_msg',
+      Text       => $sender_attr->{LANG}->{CANCEL_TEXT},
+      BgColor    => '#FF0000',
+      TextSize   => 'regular'
+    };
+
+    push (@buttons, $reply_button, $cancel_button);
+  }
+  elsif($sender_attr->{AID}){
+    # TODO: Viber currently doesn't have admin support, add with admin support
+    # push(@keyboard, { text => $lang{MSGS_REPLY},  switch_inline_query_current_chat => "MSGS_ID=$message_id\n" });
+  }
+
   if ($referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g) {
     my $site_url = $1;
 
     if ($site_url) {
-      my $link = $site_url;
+      $link = $site_url;
 
       if ($sender_attr->{UID}) {
         $link .= "/index.cgi?get_index=msgs_user&ID=$message_id#last_msg";
@@ -216,11 +280,10 @@ sub make_reply() {
         my $receiver_uid = $sender_attr->{SENDER_UID} ? '&UID=' . $sender_attr->{SENDER_UID} : '';
         $link .= "/admin/index.cgi?get_index=msgs_admin&full=1$receiver_uid&chg=$message_id#last_msg";
       }
-      return $link;
     }
-
   }
-  return "";
+
+  return ($link, \@buttons);
 }
 
 #**********************************************************

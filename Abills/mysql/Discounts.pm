@@ -288,10 +288,10 @@ sub discounts_user_query {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT fio FROM users_pi WHERE uid = $attr->{UID}",
-    undef, { COLS_NAME => 1 });
+  $self->query("SELECT fio FROM users_pi WHERE uid = ?",
+    undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] });
 
   return $self;
 }
 
-1
+1;

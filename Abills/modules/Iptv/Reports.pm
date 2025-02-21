@@ -452,7 +452,7 @@ sub iptv_report_tp {
       $line->{tp_id},
       $html->button($line->{name}, "$main_link"),
       ($line->{counts} > 0 )          ? $html->button($line->{counts}, "$main_link")                        : 0,
-      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&SERVICE_STATUS=0")       : 0,
+      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&SERVICE_STATUS=0&LOGIN_STATUS=0")       : 0,
       ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&SERVICE_STATUS=!0")    : 0,
       ($line->{debetors} > 0 )        ? $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1")  : 0,
       ($line->{users_reduction} > 0 ) ? $html->button($line->{users_reduction}, "$main_link&REDUCTION=100") : 0,

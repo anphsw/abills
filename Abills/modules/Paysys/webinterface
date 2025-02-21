@@ -233,7 +233,7 @@ sub paysys_import_form_new {
       return 1;
     }
 
-    #Default import extration
+    #Default import extraction
     my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
 
     #Default Binding field
@@ -284,7 +284,7 @@ sub paysys_import_form_new {
     #Get data from file
     elsif ($FORM->{FILE_DATA}) {
       ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($FORM->{FILE_DATA}{Contents}, $import_expr,
-        $BINDING_FIELD, { DEBUG => $conf{PAYSYS_DEBUG} || 0, ENCODE => $FORM->{ENCODE} });
+        $BINDING_FIELD, { DEBUG => $debug ? 6 : 0, ENCODE => $FORM->{ENCODE} });
 
       if($FORM{METHOD} == 113){
         my $Address = Address->new($db, $admin, \%conf);
@@ -353,19 +353,29 @@ sub paysys_import_form_new {
     my $ids = join(';', @{ ($BINDING_IDS && ref $BINDING_IDS eq 'ARRAY') ? $BINDING_IDS : [] });
 
     if ($ids eq '') {
-      $html->message( 'err', $lang{ERROR}, "'$ids' $lang{USER_NOT_EXIST}" );
+      if (!$FORM->{PAYMENTS} || !$FORM->{FEES} || !$FORM->{CANCEL_PAYMENTS}) {
+        $html->message('err', $lang{ERROR}, $lang{ERR_PAYMENT_OR_FEE_NOT_SELECTED});
+      }
+      else {
+        $attr->{IMPORT_TYPE} ||= 0;
+        $html->message('err', $lang{ERROR}, $lang{ERR_IMPORT_REGULAR_EXPRESSION} . "_$attr->{IMPORT_TYPE}");
+      }
+
       return 0;
     }
 
     my $accounts_list;
     if(in_array($BINDING_FIELD, [ 'BANK_ACCOUNT', 'TAX_NUMBER' ])) {
-      print "Companyy ids: $BINDING_FIELD // $ids !!!\n" if($debug > 4);
+
+      print "Company ids: $BINDING_FIELD // $ids !!!\n" if($debug > 4);
+
       my $Customer = Customers->new($db, $admin, \%conf);
       my $Company  = $Customer->company();
       $accounts_list = $Company->list({
         FIO            => '_SHOW',
         LOGIN          => '_SHOW',
         BILL_ID        => '_SHOW',
+        UID            => '_SHOW',
         $BINDING_FIELD => $ids,
         PAGE_ROWS      => 1000000,
         COLS_NAME      => 1,
@@ -411,7 +421,7 @@ sub paysys_import_form_new {
 
         if ($uid) {
           my $user_   = $users->info($uid);
-          # ddelete param for cross modules
+          # delete param for cross modules
           delete $user_->{PAYMENTS_ADDED};
 
           $Payments->add($user_, {
@@ -433,12 +443,13 @@ sub paysys_import_form_new {
           else {
             $total_count++;
             $total_sum += $DATA_ARR->[$i]->{SUM};
-            if (! $FORM->{SKIP_CROSSMODULES_CALLS}) {
+            if (!$FORM->{SKIP_CROSSMODULES_CALLS}) {
               cross_modules('payments_maked', {
                 USER_INFO    => $user_,
                 QUITE        => 1,
                 SUM          => $DATA_ARR->[$i]->{SUM},
                 PAYMENT_ID   => $Payments->{PAYMENT_ID},
+                METHOD       => (defined($DATA_ARR->[$i]->{PAYMENT_METHOD}) && $DATA_ARR->[$i]->{PAYMENT_METHOD} ne '') ? $DATA_ARR->[$i]->{PAYMENT_METHOD} : 1,
                 SKIP_MODULES => 'Paysys,Sqlcmd'
               });
             }
@@ -525,12 +536,14 @@ sub paysys_import_form_new {
       return 0;
     }
     else {
+      $attr->{IMPORT_TYPE} ||= 0;
+
       $table = $html->table({
         width      => '100%',
         caption    => "$lang{PRE} Import - $import_types{$attr->{IMPORT_TYPE}}",
         title      => [ $lang{FIO}, $lang{PHONE}, $lang{CONTRACT_ID}, $lang{SUM}, $lang{DATE},
-            "$lang{BANK} $lang{ACCOUNT}", $lang{TYPE}, $lang{ADDRESS}, $lang{DESCRIBE},
-            "$lang{INNER} $lang{DESCRIBE}", $lang{BINDING}, "EXT ID", '-' ],
+          "$lang{BANK} $lang{ACCOUNT}", $lang{TYPE}, $lang{ADDRESS}, $lang{DESCRIBE},
+          "$lang{INNER} $lang{DESCRIBE}", $lang{BINDING}, "EXT ID", '-' ],
         qs         => $pages_qs,
         ID         => 'PAYSYS_IMPORT_LIST',
         SELECT_ALL => "FORM_IMPORT:IDS:$lang{SELECT_ALL}",
@@ -600,15 +613,17 @@ sub paysys_import_form_new {
       }
     }
 
+    my $footer = $html->tpl_show(_include('paysys_file_import_footer', 'Paysys'), {
+      TYPE       => $attr->{TYPE},
+      TYPE_LABEL => $lang{$attr->{TYPE} || 'PAYMENTS'},
+    }, { OUTPUT2RETURN => 1 });
+
     print $html->form_main({
-      CONTENT => $table->show() . $html->form_input( $attr->{TYPE}, 1, { TYPE =>
-        'radio' } ) . (($attr->{TYPE} && $attr->{TYPE} eq 'FEES') ? "$lang{FEES}" : " $lang{PAYMENTS} " . $html->form_input(
-        'CANCEL_PAYMENTS', 1, { TYPE => 'radio' } ) . " $lang{CANCEL_PAYMENTS} ") . ' ' . $html->form_input(
-        'SKIP_CROSSMODULES_CALLS', 1, { TYPE => 'checkbox' } ) . " $lang{NO} $lang{MODULES} ",
+      CONTENT => $table->show() . $footer,
       HIDDEN  => {
-        index       => $index,
-        OP_SID      => $op_sid,
-        IMPORT_TYPE => $FORM{IMPORT_TYPE},
+        index         => $index,
+        OP_SID        => $op_sid,
+        IMPORT_TYPE   => $FORM{IMPORT_TYPE},
         BINDING_FIELD => $BINDING_FIELD,
         %HIDDEN_HASH
       },
@@ -621,6 +636,7 @@ sub paysys_import_form_new {
       rows       => [ [ "$lang{TOTAL}:", $total_count, "$lang{SUM}:", $total_sum ] ]
     });
 
+    print $html->br();
     print $table->show();
   }
 
@@ -733,7 +749,7 @@ sub get_reg_payments {
   my $payments_list = $Payments->list({
     FROM_DATE => "$Y-$M-$D",
     TO_DATE   => date_inc($DATE),
-    EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
+    EXT_ID    => ($attr->{TRANSACTION_PREFIXES}) ? $attr->{TRANSACTION_PREFIXES} : ($attr->{EXT_ID} || q{}) . ':*',
     LOGIN     => '_SHOW',
     SUM       => '_SHOW',
     PAGE_ROWS => 100000,

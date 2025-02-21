@@ -276,8 +276,24 @@ sub reports {
         ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1, ID => 'REPORT_TAGS_SEL' });
 
         if ($tag_count) {
-          push @rows, $html->element('label', "$lang{TAGS}: ", { class => 'col-md-2 control-label' })
-            . $html->element('div', $form_tags_sel, { class => 'col-md-8' });
+          if ($attr->{TAGS_EXTENDED_FORM}) {
+            my $tags_col = $html->element('div', $form_tags_sel, { class => 'col-8' });
+
+            my $tags_search_val = $html->form_select('TAG_SEARCH_VAL', {
+              ID          => 'SEARCH_VAL',
+              SELECTED    =>  $attr->{TAG_SEARCH_VAL} || 0,
+              NO_ID       =>  1,
+              SEL_OPTIONS => {0 => $lang{OR}, 1 => $lang{AND}, 2 => $lang{NOT}},
+            });
+            my $tags_search_val_col = $html->element('div', $tags_search_val, { class => 'col-4' });
+
+            push @rows, $html->element('label', "$lang{TAGS}: ", { class => 'col-md-2 control-label' })
+              . $html->element('div', $tags_col . $tags_search_val_col, { class => 'col-md-8 row' });
+          }
+          else {
+            push @rows, $html->element('label', "$lang{TAGS}: ", { class => 'col-md-2 control-label' })
+              . $html->element('div', $form_tags_sel, { class => 'col-md-8' });
+          }
         }
       }
     }
@@ -482,7 +498,7 @@ sub report_fees {
     STREET         => 'street_name',
     PER_MONTH      => 'date',
     BUILD          => 'build',
-    ADMINS         => 'admin_name',
+    ADMINS         => 'a_name',
     PAYMENT_METHOD => 'method',
     GID            => 'gid',
     HOURS          => 'hour',
@@ -504,10 +520,10 @@ sub report_fees {
       PERIOD  => $x_variable{$type} || 'date',
     },
     FILTER_VALUES => {
-      admin_name => sub  {
+      a_login => sub  {
         my ($aid, $line) = @_;
 
-        return search_link($aid, { PARAMS => ['report_fees', "$type=1&$pages_qs&A_LOGIN"], LINK_NAME => $line->{admin_name} });
+        return search_link($aid, { PARAMS => ['report_fees', "$type=1&$pages_qs&A_LOGIN"], LINK_NAME => $line->{a_login} });
       }
     },
     EXT_TITLES      => {
@@ -522,7 +538,8 @@ sub report_fees {
       district_name => $lang{DISTRICT},
       street_name   => $lang{ADDRESS_STREET},
       method        => $lang{PAYMENT_METHOD},
-      admin_name    => $lang{ADMIN},
+      a_login       => "$lang{ADMIN} $lang{LOGIN}",
+      a_name        => "$lang{ADMIN} $lang{FIO}",
       login_count   => $lang{USERS},
       count         => $lang{COUNT},
       sum           => $lang{SUM},
@@ -612,28 +629,32 @@ sub report_payments {
   $FORM{FIELDS} =~ s/;/, /g if $FORM{FIELDS};
 
   reports({
-    DATE        => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
-    REPORT      => '',
-    PERIOD_FORM => 1,
-    DATE_RANGE  => 1,
-    ADMINS      => 1,
-    FIELDS      => \%METHODS_HASH,
-    EX_INPUTS   => [
-      $html->element('label', "$lang{PAYMENT_METHOD}:", { class=> 'col-md-2 col-form-label text-md-right' }) .
+    DATE               => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
+    REPORT             => '',
+    PERIOD_FORM        => 1,
+    DATE_RANGE         => 1,
+    ADMINS             => 1,
+    FIELDS             => \%METHODS_HASH,
+    EX_INPUTS          => [
+      $html->element('label', "$lang{PAYMENT_METHOD}:", { class => 'col-md-2 col-form-label text-md-right' }) .
         $html->element('div', $html->form_input('PAYMENT_METHOD_FILTER', '', {
-          EX_PARAMS => "data-filter='static'",
+          EX_PARAMS     => "data-filter='static'",
           OUTPUT2RETURN => 1
-        } ), { class=> 'col-md-8' })
+        }), { class => 'col-md-8' })
     ],
-    EXT_TYPE    => {
-      PAYMENT_METHOD => $lang{PAYMENT_METHOD},
-      ADMINS         => $lang{ADMINS},
-      PER_MONTH      => $lang{PER_MONTH},
-      DISTRICT       => $lang{DISTRICT},
-      STREET         => $lang{STREET},
-      BUILD          => $lang{BUILD},
-      GID            => $lang{GROUPS},
-    }
+    EXT_TYPE           => {
+      PAYMENT_METHOD    => $lang{PAYMENT_METHOD},
+      COMPANIES         => $lang{COMPANIES},
+      WITHOUT_COMPANIES => "$lang{WITHOUT} $lang{COMPANIES}",
+      ADMINS            => $lang{ADMINS},
+      PER_MONTH         => $lang{PER_MONTH},
+      DISTRICT          => $lang{DISTRICT},
+      STREET            => $lang{STREET},
+      BUILD             => $lang{BUILD},
+      GID               => $lang{GROUPS},
+    },
+    TAGS_EXTENDED_FORM => 1,
+    TAG_SEARCH_VAL     => $FORM{TAG_SEARCH_VAL}
   });
 
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
@@ -659,6 +680,16 @@ sub report_payments {
   $pages_qs .= "&TYPE=$type" if $type && $pages_qs !~ /&TYPE=/;
   $pages_qs .= $fields if defined $FORM{FIELDS};
   $pages_qs .= "&AID=$FORM{AID}" if defined $FORM{AID} && $pages_qs !~ /&AID=/;
+  $pages_qs .= "&TAGS=$FORM{TAGS}" if defined $FORM{TAGS} && $pages_qs !~ /&TAGS=/;
+  $pages_qs .= "&TAG_SEARCH_VAL=$FORM{TAG_SEARCH_VAL}" if defined $FORM{TAG_SEARCH_VAL} && $pages_qs !~ /&TAG_SEARCH_VAL=/;
+
+  if($FORM{GID}){
+    my @gids = split /\s*,\s*/, $FORM{GID};
+    foreach my $gid (@gids) {
+      $pages_qs .= "&GID=$gid";
+    }
+  }
+
   $LIST_PARAMS{AID} = $FORM{AID} if defined $FORM{AID};
 
   my %x_variable = (
@@ -667,16 +698,18 @@ sub report_payments {
     STREET         => 'street_name',
     PER_MONTH      => 'month',
     BUILD          => 'build',
-    ADMINS         => 'admin_name',
+    ADMINS         => 'a_name',
     PAYMENT_METHOD => 'method',
     GID            => 'gid',
     HOURS          => 'hour',
     USER           => 'login',
+    COMPANIES      => 'company_name',
   );
 
   my %ext_titles = (
     'ADMINS'         => {
-      admin_name  => $lang{ADMIN},
+      a_login     => "$lang{ADMIN} $lang{LOGIN}",
+      a_name      => "$lang{ADMIN} $lang{FIO}",
       login_count => $lang{COUNT} .' '. $lang{USERS},
       count       => $lang{COUNT} .' '. $lang{PAYMENTS},
       sum         => $lang{SUM},
@@ -749,9 +782,28 @@ sub report_payments {
       gid         => $lang{GROUP},
       tags        => $lang{TAGS},
     },
+    'COMPANIES' => {
+      company_name=> $lang{COMPANIES},
+      login_count => $lang{COUNT} .' '. $lang{USERS},
+      count       => $lang{COUNT} .' '. $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+      company_id  => "ID $lang{COMPANY}",
+    },
+    'WITHOUT_COMPANIES' => {
+      login_count => $lang{COUNT} .' '. $lang{USERS},
+      login       => $lang{USERS},
+      count       => $lang{COUNT} .' '. $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+      company_id  => '',
+    },
   );
 
   my @charts_dataset = split(',', 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''));
+  $LIST_PARAMS{TAG_SEARCH_VAL} = $FORM{TAG_SEARCH_VAL} if $FORM{TAG_SEARCH_VAL};
   ($table, $list) = result_former({
     INPUT_DATA      => $Payments,
     FUNCTION        => 'reports',
@@ -763,9 +815,9 @@ sub report_payments {
       gid    => sel_groups({ HASH_RESULT => 1 }),
     },
     FILTER_VALUES => {
-      admin_name => sub  {
+      a_login => sub  {
         my ($aid, $line) = @_;
-        return search_link($aid, { PARAMS => ['report_payments', "$type=1&$pages_qs$fields&A_LOGIN"], LINK_NAME => $line->{admin_name} });
+        return search_link($aid, { PARAMS => ['report_payments', "$type=1&$pages_qs$fields&A_LOGIN"], LINK_NAME => $line->{a_login} });
       }
     },
     CHARTS      => {
@@ -782,6 +834,7 @@ sub report_payments {
       build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
       district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
       street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
+      company_name  => "search_link:report_payments:COMPANY_ID,TYPE=USER,$pages_qs",
       sum           => "_format_sum_for_payments::sum",
     },
     TABLE           => {
@@ -904,6 +957,8 @@ sub form_system_changes {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
+  $LIST_PARAMS{ACTIONS} = "*TP_ID:$FORM{TP_ID} *" if (defined($FORM{TP_ID}));
+
   %search_params = %FORM;
   $search_params{MODULES_SEL} = $html->form_select(
     'MODULE',
@@ -932,19 +987,17 @@ sub form_system_changes {
     SEARCH_FORM   =>
       $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
     index         => $FORM{subf} || $index
-  });
+  }) if (!$FORM{HIDE_SEARCH});
 
   my $list = $admin->system_action_list({ %LIST_PARAMS, ADMIN_DISABLE => '_SHOW' });
-  my $table = $html->table(
-    {
-      width  => '100%',
-      title  => [ '#', $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', $lang{MODULES}, $lang{TYPE}, '-' ],
-      qs     => $pages_qs,
-      pages  => $admin->{TOTAL},
-      ID     => 'ADMIN_SYSTEM_ACTIONS',
-      EXPORT => 1,
-    }
-  );
+  my $table = $html->table({
+    width  => '100%',
+    title  => [ '#', $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', $lang{MODULES}, $lang{TYPE}, '-' ],
+    qs     => $pages_qs,
+    pages  => $admin->{TOTAL},
+    ID     => 'ADMIN_SYSTEM_ACTIONS',
+    EXPORT => 1,
+  });
 
   my $br = $html->br();
 
@@ -1052,7 +1105,7 @@ sub report_webserver {
 #**********************************************************
 sub report_bruteforce {
 
-  if ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5}) {
+  if ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{29}) {
     $users->bruteforce_del({
       DEL_ALL => ($FORM{del} eq 'all') ? 1 : undef,
       LOGIN   => $FORM{LOGIN},
@@ -1336,108 +1389,126 @@ sub logs_list {
 }
 
 #**********************************************************
-
-=head2 analiz_user_statistic() - analiz of user statistic
+=head2 web_admin_analiz_user_statistic() - analiz of user statistic
 
 =cut
+#**********************************************************
+sub web_admin_analiz_user_statistic {
+  _make_web_admin_analiz_user_stats('');
+  _make_web_admin_analiz_user_stats('TELEGRAM');
+  _make_web_admin_analiz_user_stats('VIBER');
+
+  return 1;
+}
 
 #**********************************************************
-sub analiz_user_statistic {
+=head2 _make_web_admin_analiz_user_stats($type) - process analyze
 
-  if (!$conf{USER_FN_LOG}) {
-    $conf{LOGS_DIR} = $var_dir . 'log/user_fn.log';
+  Arguments:
+    $type - type of logs: TELEGRAM, VIBER
+      optional
+
+  Returns:
+    prints output
+
+=cut
+#**********************************************************
+sub _make_web_admin_analiz_user_stats {
+  my ($type) = @_;
+
+  my $log_cfg_name = $type ? 'USER_FN_BOTS_LOG' : 'USER_FN_LOG';
+  my $log_cfg = $conf{$log_cfg_name};
+
+  if (!$log_cfg) {
+    $html->message('err',
+      $lang{ERROR},
+      $lang{ERR_NOT_EXISTS} . " $type \$conf{$log_cfg_name}"
+    );
+    return 1;
   }
 
   my $log_file;
-  if (!open($log_file, '<:encoding(UTF-8)', $conf{USER_FN_LOG})) {
-    $html->message('err', $lang{ERROR}, "Error in opening file $conf{USER_FN_LOG} $!");
+
+  if (!open($log_file, '<:encoding(UTF-8)', $log_cfg)) {
+    $html->message('err', $lang{ERROR}, "Error in opening file $log_cfg $!");
     return 1;
   }
 
   my %info;
   my %transition_info;
-  my $transition_1 = '';
-  my $session_id = '';
-  my %the_bigest_eql;
-  $the_bigest_eql{popularity} = 0;
-  $the_bigest_eql{time} = 0;
-  $the_bigest_eql{transition} = 0;
-  $the_bigest_eql{user_num} = 0;
+  my $last_fn = '';
+  my $last_sid = '';
+  my %stats = (
+    popularity       => 0,
+    time             => 0,
+    transition       => 0,
+    user_num         => 0,
+    total_transition => 0,
+    total_popularity => 0,
+    total_time       => 0,
+  );
 
   while (my $row = <$log_file>) {
-    if (grep /LOG_INFO/, $row) {
-      my @lines = split(/\s/, $row, 4);
+    next if (!($row =~ /LOG_INFO/));
+    next if ($type && !($row =~ /$type/));
 
-      @lines = split(/:/, $lines[3], 3);
-      $info{ $lines[1] }{time} = ($info{ $lines[1] }{time}) ? $info{ $lines[1] }{time} + $lines[2] : $lines[2];
-      $info{ $lines[1] }{popularity} += 1;
-      $the_bigest_eql{user_num} += $session_id ne $lines[0] ? 1 : 0;
+    my ($date, $time, $log_type, $other_info) = split(/\s/, $row, 4);
+    # Clean spaces for simpler regex after - better performance.
+    $other_info =~ s/\s//g;
+    my ($bot_type, $sid, $fn, $gt) = $other_info =~ /(?:\[(.*)\])?(.*?):(.*?):(.*)/;
 
-      if ($transition_1 ne $lines[1] && $session_id eq $lines[0]) {
-        $transition_info{ $lines[1] }{$transition_1} = ($transition_info{ $lines[1] }{$transition_1}) ? $transition_info{ $lines[1] }{$transition_1} + 1 : 1;
-        $the_bigest_eql{total_transition} = ($the_bigest_eql{total_transition}) ? $the_bigest_eql{total_transition} + 1 : 1;
+    $info{$fn}{time} += $gt;
+    $info{$fn}{popularity}++;
 
-        if ($transition_info{ $lines[1] }{$transition_1} > $the_bigest_eql{transition}) {
-          $the_bigest_eql{transition} = $transition_info{ $lines[1] }{$transition_1};
-        }
-      }
-      $transition_1 = $lines[1];
-      $session_id = $lines[0];
-
-      $the_bigest_eql{total_popularity} = ($the_bigest_eql{total_popularity}) ? $the_bigest_eql{total_popularity} + 1 : 1;
-      $the_bigest_eql{total_time} = ($the_bigest_eql{total_time}) ? $the_bigest_eql{total_time} + $lines[2] : $lines[2];
-
-      if ($info{ $lines[1] }{popularity} > $the_bigest_eql{popularity}) {
-        $the_bigest_eql{popularity} = $info{ $lines[1] }{popularity};
-      }
-
-      if ($info{ $lines[1] }{time} > $the_bigest_eql{time}) {
-        $the_bigest_eql{time} = $info{ $lines[1] }{time};
-      }
-
+    if ($last_sid ne $sid) {
+      $stats{user_num}++;
     }
+    elsif ($last_fn ne $fn) {
+      $transition_info{$fn}{$last_fn}++;
+      $stats{total_transition}++;
+      $stats{transition} = $transition_info{$fn}{$last_fn} if $transition_info{$fn}{$last_fn} > $stats{transition};
+    }
+
+    $stats{total_popularity}++;
+    $stats{total_time} += $gt;
+    $stats{popularity} = $info{$fn}{popularity} if $info{$fn}{popularity} > $stats{popularity};
+    $stats{time} = $info{$fn}{time} if $info{$fn}{time} > $stats{time};
+
+    $last_fn = $fn;
+    $last_sid = $sid;
   }
 
-  my $watch_table = $html->table(
-    {
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-chart-bar', style => 'font-size:28px;' })
-        . '&nbsp'
-        . $lang{POPULAR_MENU},
-      title_plain => [ $lang{NAME}, $lang{VISITS}, $lang{PERCENTAGE} ],
-      width       => '100%',
-      ID          => 'LIST_OF_LOGS_TABLE',
-    }
-  );
+  my $watch_table_icon = $html->element('i', '', { class => 'fa fa-chart-bar' });
+  my $watch_table = $html->table({
+    caption     => "$watch_table_icon&nbsp$type $lang{POPULAR_MENU}",
+    title_plain => [ $lang{NAME}, $lang{VISITS}, $lang{PERCENTAGE} ],
+    width       => '100%',
+    ID          => 'LIST_OF_LOGS_TABLE',
+  });
 
   foreach my $func_name (sort keys %info) {
     $watch_table->addrow(
       $func_name,
       $info{$func_name}{popularity},
-      $html->progress_bar(
-        {
-          TOTAL        => $the_bigest_eql{total_popularity},
-          COMPLETE     => $info{$func_name}{popularity},
-          PERCENT_TYPE => 1,
-          COLOR        => 'ADAPTIVE',
-          ACTIVE       => 1,
-          MAX          => $the_bigest_eql{popularity},
-        },
-      ),
+      $html->progress_bar({
+        TOTAL        => $stats{total_popularity},
+        COMPLETE     => $info{$func_name}{popularity},
+        PERCENT_TYPE => 1,
+        COLOR        => 'ADAPTIVE',
+        ACTIVE       => 1,
+        MAX          => $stats{popularity},
+      })
     );
   }
 
-  print $watch_table->show();
+  my $time_table_icon = $html->element('i', '', { class => 'fa fa-clock' });
+  my $time_table = $html->table({
+    caption     => "$time_table_icon&nbsp$type $lang{AVERAGE_TIME}",
+    width       => '100%',
+    ID          => 'LIST_OF_LOGS_TABLE',
+    title_plain => [ $lang{NAME}, $lang{TIME}, $lang{PERCENTAGE} ],
+  });
 
-  my $time_table = $html->table(
-    {
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-clock', style => 'font-size:28px;' })
-        . '&nbsp'
-        . $lang{AVERAGE_TIME},
-      width       => '100%',
-      ID          => 'LIST_OF_LOGS_TABLE',
-      title_plain => [ $lang{NAME}, $lang{TIME}, $lang{PERCENTAGE} ],
-    }
-  );
   foreach my $func_name (sort keys %info) {
     my $time = $info{$func_name}{time};
     $time =~ s/....$//;
@@ -1446,52 +1517,45 @@ sub analiz_user_statistic {
     $time_table->addrow(
       $func_name,
       $time,
-      $html->progress_bar(
-        {
-          TOTAL        => $the_bigest_eql{total_time},
-          COMPLETE     => $info{$func_name}{time},
+      $html->progress_bar({
+        TOTAL        => $stats{total_time},
+        COMPLETE     => $info{$func_name}{time},
+        PERCENT_TYPE => 1,
+        COLOR        => 'ADAPTIVE',
+        ACTIVE       => 1,
+        MAX          => $stats{time},
+      }),
+    );
+  }
+
+  my $popular_icon = $html->element('i', '', { class => 'fas fa-exchange-alt' });
+  my $popular_table = $html->table({
+    caption     => "$popular_icon&nbsp$type $lang{POPULAR_TRANSITIONS}",
+    width       => '100%',
+    ID          => 'LIST_OF_LOGS_TABLE',
+    title_plain => [ $lang{NAME}, $lang{TRANSITION}, $lang{PERCENTAGE} ],
+  });
+
+  foreach my $func_name (sort keys %transition_info) {
+    foreach my $to_func_name (sort keys %{$transition_info{$func_name}}) {
+      $popular_table->addrow(
+        $func_name . $html->element('i', '', { class => 'fas fa-fw fa-long-arrow-alt-right' }) . $to_func_name,
+        $transition_info{$func_name}{$to_func_name},
+        $html->progress_bar({
+          TOTAL        => $stats{total_transition},
+          COMPLETE     => $transition_info{$func_name}{$to_func_name},
           PERCENT_TYPE => 1,
           COLOR        => 'ADAPTIVE',
           ACTIVE       => 1,
-          MAX          => $the_bigest_eql{time},
-        },
-      ),
-    );
-  }
-  print $time_table->show();
-
-  my $table2 = $html->table(
-    {
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-exchange', style => 'font-size:28px;' })
-        . '&nbsp'
-        . $lang{POPULAR_TRANSITIONS},
-      width       => '100%',
-      ID          => 'LIST_OF_LOGS_TABLE',
-      title_plain => [ $lang{NAME}, $lang{TRANSITION}, $lang{PERCENTAGE} ],
-    }
-  );
-
-  foreach my $func_name (sort keys %transition_info) {
-
-    foreach my $comon_func_name (sort keys %{$transition_info{$func_name}}) {
-
-      $table2->addrow(
-        $func_name . $html->element('i', '', { class => 'fa fa-fw fa-long-arrow-right ' }) . $comon_func_name,
-        $transition_info{$func_name}{$comon_func_name},
-        $html->progress_bar(
-          {
-            TOTAL        => $the_bigest_eql{total_transition},
-            COMPLETE     => $transition_info{$func_name}{$comon_func_name},
-            PERCENT_TYPE => 1,
-            COLOR        => 'ADAPTIVE',
-            ACTIVE       => 1,
-            MAX          => $the_bigest_eql{transition},
-          },
-        ),
+          MAX          => $stats{transition},
+        })
       );
     }
   }
-  print $table2->show();
+
+  print $watch_table->show();
+  print $time_table->show();
+  print $popular_table->show();
 
   return 1;
 }

@@ -10,7 +10,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array mk_unique_value encode_base64);
 
 our (
-  $admin,
   $db,
   %lang,
   %LANG,
@@ -18,6 +17,7 @@ our (
   %module
 );
 
+our Admins $admin;
 our Abills::HTML $html;
 
 #**********************************************************
@@ -69,7 +69,6 @@ sub admin_profile {
     });
     $events_groups_show = '';
   }
-
 
   # download avatar to DB
   if ($FORM{UPLOAD_FILE}){
@@ -195,24 +194,24 @@ sub _form_profile_search {
   );
 
   #Get info fields
-  my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $list = $Conf->config_list({ PARAM => $prefix, SORT => 2 });
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
 
-  my $field_id = '';
-  foreach my $line (@$list) {
-    if ($line->[0] =~ /$prefix(\S+)/) {
-      $field_id = $1;
-    }
+  my $fields_list = $Info_fields->fields_list({
+    COMPANY   => ($attr->{COMPANY} || 0),
+    DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
+    SQL_FIELD => '_SHOW',
+    NAME      => '_SHOW',
+    SORT      => 5,
+  });
 
-    my (undef, undef, $name, undef) = split(/:/, $line->[1]);
-    my $field_name = uc($field_id);
-    $search_fields{$field_name}=_translate($name);
+  foreach my $field (@$fields_list) {
+    $search_fields{$field->{sql_field}}=_translate($field->{name});
   }
 
   my $table = $html->table({
-    width      => '400',
     caption    => "$lang{SEARCH} $lang{FIELDS}",
-    cols_align => [ 'left', 'right', ],
     ID         => 'SEARCH_FIELDS'
   });
 
@@ -262,7 +261,6 @@ sub flist {
 
   my $table = $html->table({
     width      => '100%',
-    cols_align => [ 'right', 'left', 'right', 'right', 'left', 'left', 'right' ],
     ID         => 'PROFILE_FUNCTION_LIST'
   });
 
@@ -468,13 +466,14 @@ sub _admin_info_change {
   $admin->info($admin->{AID});
   if ($FORM{chg_pswd} || $FORM{newpassword}) {
     require Control::Password;
-    form_passwd({ ADMIN => $admin });
+    form_passwd({ ADMIN => $admin, index => $index });
 
     if ($FORM{PASSWORD}) {
       $admin->change({
         AID      => $admin->{AID},
         PASSWORD => $FORM{PASSWORD},
       });
+      $html->message('info', $lang{CHANGED}, $lang{PASSWD}) if (!_error_show($admin)) ;
     }
   }
   if ($FORM{aedit}) {

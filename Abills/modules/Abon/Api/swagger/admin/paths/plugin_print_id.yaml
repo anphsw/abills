@@ -1,0 +1,43 @@
+get:
+  tags:
+    - abon
+  summary: Генерация PDF-файла от плагина тарифного плана
+  description: Этот путь позволяет сгенерировать и получить PDF-файл с данными, предоставленными плагином тарифного плана.
+  operationId: getAbonPluginIdPrint
+  parameters:
+    - name: plugin_id
+      in: path
+      description: Идентификатор тарифного плана
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешная генерация PDF-файла
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+            description: PDF-файл с данными от плагина
+    400:
+      description: Ошибка запроса
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errmsg:
+                type: string
+                description: Описание ошибки
+              errno:
+                type: integer
+                description: Уникальный код ошибки
+                example: 1020002
+              errstr:
+                type: string
+                description: Код ошибки в текстовом формате
+                example: ERR_NO_ABON_SERVICE
+  security:
+    - KEY: []

@@ -418,7 +418,6 @@ sub addrow {
   my $self = shift;
   my (@row) = @_;
 
-  #my $extra = (defined($self->{extra})) ? " $self->{extra}" : '';
   $row_number++;
   my $col_num=0;
 
@@ -447,7 +446,6 @@ sub addrow {
 sub addtd {
   my $self  = shift;
   my (@row) = @_;
-  #my $extra = (defined($self->{extra})) ? $self->{extra} : '';
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
@@ -592,7 +590,7 @@ sub show {
     $self->{show} = $self->{show} . $self->{pages};
   }
 
-  if (defined($self->{NO_PRINT}) && !defined($attr->{OUTPUT2RETURN})) {
+  if ($self->{NO_PRINT} && !defined($attr->{OUTPUT2RETURN})) {
     $self->{prototype}->{OUTPUT} .= $self->{show};
     $self->{show} = '';
   }
@@ -653,13 +651,12 @@ sub message {
   my $id = $attr->{ID} || q{};
   my $output = "$type: $id $caption $message\n";
 
-  if (defined($self->{NO_PRINT})) {
+  if ($self->{NO_PRINT}) {
     $self->{OUTPUT} .= $output;
     return $output;
   }
-  else {
-    print $output;
-  }
+
+  print $output;
 }
 
 #**********************************************************
@@ -879,14 +876,12 @@ sub letters_list {
   }
   $output .= '</LETTERS>';
 
-  if (defined($self->{NO_PRINT})) {
+  if ($self->{NO_PRINT}) {
     $self->{OUTPUT} .= $output;
     return '';
   }
-  else {
-    print $output;
-  }
 
+  print $output;
 }
 
 #**********************************************************

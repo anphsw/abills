@@ -8,6 +8,7 @@ package Conf;
 
 use strict;
 use parent qw(dbcore Exporter);
+use Abills::Base qw(in_array);
 
 our $VERSION = 7.00;
 
@@ -44,10 +45,10 @@ sub new {
           $ENV{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0
         ] });
   }
-  #my @non_changed_vars = ('TPL_DIR');
+  my @non_changed_vars = ('TPL_DIR', 'PUBLIC_MODE');
 
   foreach my $line (@{ $self->{list} }) {
-    if($line->[0] eq 'TPL_DIR') {
+    if(in_array($line->[0], \@non_changed_vars)) {
       next;
     }
 
@@ -159,12 +160,10 @@ sub config_change {
     });
   }
   else {
-    #print "// PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} //<br>";
     $attr->{NAME}=$attr->{$param};
     $self->changes({
       CHANGE_PARAM => 'PARAM,DOMAIN_ID',
       TABLE        => 'config',
-      #OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
       DATA         => $attr,
       %$attr
     });
@@ -362,60 +361,46 @@ sub list {
   Arguments:
     $password - string to check
     $config_string - (optional) encoded password constraints
-    
+
   Returns:
     boolean
-    
+
 =cut
 #**********************************************************
 sub check_password {
   my ($password, $config_string) = @_;
-  
+
   $config_string //= $CONF->{CONFIG_PASSWORD};
-  
+
   my $length = $CONF->{PASSWD_LENGTH};
   my ($case, $special_chars) = split(':', $config_string);
-  
-  if ($case > 3){
-    $case = 1;
-  }
-  if ($special_chars > 3){
-    $special_chars = 3;
-  }
-  
+
+  $case = $case > 3 ? 3 : $case < 0 ? 0 : $case;
+  $special_chars = $special_chars > 3 ? 3 : $special_chars < 0 ? 0 : $special_chars;
+
   return 0 if (length $password < $length);
-  
-  # Construct regexp
-  my $case_part = 'a-zA-Z';
-  if ($case == 1){
-    $case_part = 'A-Z'
+
+  my $upper_required = $case == 0 || $case == 2;
+  my $lower_required = $case == 1 || $case == 2;
+
+  if ($upper_required && $password !~ /[A-Z]/) {
+    return 0;
   }
-  elsif ($case == 2){
-    $case_part = 'a-z'
-  }
-  elsif ($case == 3){
-    $case_part = '';
-  }
-  
-  my $special_chars_part = '-_!&%@#:0-9';
-  if ($special_chars == 0) {
-    $special_chars_part = '0-9'
-  }
-  elsif ($special_chars == 1) {
-    $special_chars_part = '-_!&%@#:';
-  }
-  elsif ($special_chars == 3) {
-    $special_chars_part = '';
+  if ($lower_required && $password !~ /[a-z]/) {
+    return 0;
   }
 
-  if (
-    ( !$case_part || $password =~ /[$case_part]+/ )
-    && ( !$special_chars_part || $password =~ /[$special_chars_part]+/ )
-  ){
-    return 1;
+  my $digit_required    = $special_chars == 0 || $special_chars == 2;
+  my $special_required  = $special_chars == 1 || $special_chars == 2;
+
+  if ($digit_required && $password !~ /\d/) {
+    return 0;
   }
-  
-  return 0;
+  if ($special_required && $password !~ /[-_!&%@#:]/) {
+    return 0;
+  }
+
+  return 1;
 }
 
 #**********************************************************
@@ -434,6 +419,10 @@ sub _fill_conf_defaults {
 
   $CONF->{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
   $CONF->{PASSWD_LENGTH} //= 8;
+  $CONF->{MSGS_REFRESH_HEADER_MENU} //= 30;
+  $CONF->{MSGS_HEADER_MENU_DYNAMIC} //= 1;
+  $CONF->{CURRENCY_ICON} //= 'fas fa-euro-sign';
+  $CONF->{WEB_ENABLE_TEMPLATES_CHANGE_MESSAGE} //= 0;
 
   return $self;
 }

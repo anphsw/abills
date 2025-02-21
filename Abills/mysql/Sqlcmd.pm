@@ -410,7 +410,7 @@ sub history_del {
 
   $self->query_del('sqlcmd_history', $attr);
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************

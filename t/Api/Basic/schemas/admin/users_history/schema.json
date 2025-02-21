@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "integer",
+            "description": "Type of action taken"
+          },
+          "actions": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "description": "Action details including timestamps and status"
+          },
+          "adminDisable": {
+            "type": "integer",
+            "description": "Indicates if admin is disabled (0 for no, 1 for yes)"
+          },
+          "adminLogin": {
+            "type": "string",
+            "description": "Admin login username"
+          },
+          "aid": {
+            "type": "integer",
+            "description": "Admin ID"
+          },
+          "datetime": {
+            "type": "string",
+            "description": "Timestamp of the action"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Unique log entry ID"
+          },
+          "ip": {
+            "type": "string",
+            "description": "IP address of the admin or user"
+          },
+          "login": {
+            "type": "string",
+            "description": "User login identifier"
+          },
+          "module": {
+            "type": "string",
+            "description": "Module in which the action took place"
+          },
+          "uid": {
+            "type": "integer",
+            "description": "User ID"
+          }
+        },
+        "required": [
+          "actionType",
+          "actions",
+          "adminLogin",
+          "aid",
+          "datetime",
+          "id",
+          "ip",
+          "login",
+          "module",
+          "uid"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer",
+      "description": "Total number of logs"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

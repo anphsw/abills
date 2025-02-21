@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS `abon_tariffs` (
   `promo_period` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `hot_deal` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
+  UNIQUE KEY `name` (`name`),
+  KEY `category_id` (`category_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Abon tariffs';

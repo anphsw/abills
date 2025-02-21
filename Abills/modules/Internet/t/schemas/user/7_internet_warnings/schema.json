@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "properties": {
+    "abonDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "activateDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "daysToFee": {
+      "type": "integer"
+    },
+    "messageType": {
+      "type": "string"
+    },
+    "sum": {
+      "type": "integer"
+    },
+    "warning": {
+      "type": "integer"
+    }
+  },
+  "required": ["abonDate", "activateDate", "daysToFee", "messageType", "sum", "warning"]
+}

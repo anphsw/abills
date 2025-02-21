@@ -1,0 +1,25 @@
+post:
+  tags:
+    - crm
+  summary: Изменить рабочий процесс
+  operationId: crmWorkflowChange
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID рабочего процесса
+      schema:
+        type: integer
+        default: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/workflow.yaml"
+    required: true
+  responses:
+    400:
+      description: Can't get old data for change
+      content: { }
+  security:
+    - KEY: [ ]

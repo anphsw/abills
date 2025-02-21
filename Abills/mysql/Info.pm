@@ -2,7 +2,7 @@ package Info;
 use warnings FATAL => 'all';
 use strict;
 
-use POSIX qw( strftime );
+use POSIX qw(strftime);
 
 =head1 NAME
 
@@ -83,15 +83,15 @@ sub new {
   unless (defined $instance) {
     my $class = shift;
     ($db, $admin, $CONF) = @_;
-    
+
     my $self = {
       db    => $db,
       admin => $admin,
       conf  => $CONF,
     };
-    
+
     bless($self, $class);
-    $admin->{MODULE}=$MODULE;
+    $admin->{MODULE} = $MODULE;
 
     $instance = $self;
   }
@@ -237,7 +237,7 @@ sub get_image_info {
   my $self = shift;
   my ($image_id, $attr) = @_;
 
-  return _get_info_info (IMAGE_TABLE, $image_id, $attr);
+  return _get_info_info(IMAGE_TABLE, $image_id, $attr);
 }
 
 #**********************************************************
@@ -314,7 +314,7 @@ sub get_locations {
   my $self = shift;
   my ($obj_type, $id, $attr) = @_;
 
-  return _get_info_list (
+  return _get_info_list(
     $obj_type, $id, LOCATION_TABLE, $attr
   );
 }
@@ -328,21 +328,14 @@ sub add_location {
   my $self = shift;
   my ($obj_type, $obj_id, $attr) = @_;
 
-  if ($attr->{TIME}){
+  if ($attr->{TIME}) {
     $attr->{TIME} = strftime('%F %T', localtime($attr->{TIME}))
   }
-  if ($attr->{TIMESTAMP} && $attr->{TIMESTAMP} =~ /\d*/){
+  if ($attr->{TIMESTAMP} && $attr->{TIMESTAMP} =~ /\d*/) {
     $attr->{TIMESTAMP} = strftime('%F %T', localtime($attr->{TIMESTAMP}))
   }
 
-
-  #add location
-  return _add_info( $obj_type, $obj_id, LOCATION_TABLE,
-    {
-      %{$attr},
-    }
-  );
-
+  return _add_info($obj_type, $obj_id, LOCATION_TABLE, $attr);
 }
 
 #**********************************************************
@@ -395,7 +388,7 @@ sub get_documents {
   my $self = shift;
   my ($obj_type, $id, $attr) = @_;
 
-  return _get_info_list (
+  return _get_info_list(
     $obj_type, $id, DOCUMENT_TABLE, $attr
   );
 }
@@ -409,7 +402,7 @@ sub get_document_info {
   my $self = shift;
   my ($document_id, $attr) = @_;
 
-  return _get_info_info (DOCUMENT_TABLE, $document_id, $attr);
+  return _get_info_info(DOCUMENT_TABLE, $document_id, $attr);
 }
 
 #**********************************************************
@@ -421,8 +414,7 @@ sub add_document {
   my $self = shift;
   my ($obj_type, $obj_id, $attr) = @_;
 
-  #add document
-  return _add_info( $obj_type, $obj_id, DOCUMENT_TABLE,$attr );
+  return _add_info($obj_type, $obj_id, DOCUMENT_TABLE, $attr);
 }
 
 #**********************************************************
@@ -459,20 +451,15 @@ sub del_document {
 sub _del_info {
   my ($table, $attr) = @_;
 
-  my $key = uc($table->{TYPE})."_ID";
+  my $key = uc($table->{TYPE}) . "_ID";
 
-  #delete universl_info
   $instance->query_del('info_info', undef, { "$key" => $attr->{OBJ_ID} });
 
-  if ($instance->{errno}){
-    print "$instance->{errstr}";
+  if (! $instance->{errno}) {
+    $instance->query_del($table->{NAME}, undef, { ID => $attr->{OBJ_ID} });
   }
 
-  #delete referenced object
-  $instance->query_del($table->{NAME}, undef, { ID => $attr->{OBJ_ID} });
-
   return 1;
-
 }
 
 #**********************************************************
@@ -488,7 +475,7 @@ sub _get_info_info {
   }
 
   my $COLUMNS = join(', ', @{$table->{COLUMNS}});
-  
+
   my $type = $table->{TYPE};
   my $table_name = $table->{NAME};
   my $table_al = $table->{ALIAS};
@@ -504,12 +491,12 @@ sub _get_info_info {
       LIMIT 1",
     undef,
     {
-    %{$attr},
+      %{$attr},
       Bind => [ $type_id ]
     }
   );
 
-  if ($instance->{errno}){
+  if ($instance->{errno}) {
     return {};
   }
 
@@ -588,23 +575,17 @@ sub _add_info {
   my $type = $table->{TYPE} || return get_error(1, "Uncorrect Table definition");
   my $table_name = $table->{NAME} || return get_error(1, "Uncorrect Table definition");
 
-  my $key = uc $type."_ID";
+  my $key = uc $type . "_ID";
 
-  #add comment
   $instance->query_add(
     $table_name,
     $attr
   );
 
-  if ($instance->{debug}){
-    print "<hr><h1>Last insert id $instance->{INSERT_ID}</h1>"
-  }
-
-  if ($instance->{errno}){
+  if ($instance->{errno}) {
     return 0;
   }
 
-  #add info
   $instance->query_add(
     'info_info',
     {
@@ -612,7 +593,7 @@ sub _add_info {
       OBJ_ID   => $obj_id,
       $key     => $instance->{INSERT_ID},
       DATE     => 'NOW()',
-      AID => $instance->{admin}{AID}
+      AID      => $instance->{admin}{AID}
     }
   );
 
@@ -709,14 +690,15 @@ sub log_comments {
   my ($attr) = @_;
 
   my $SORT = $attr->{SORT} || '1';
-  my $DESC = $attr->{DESC} ? '' : 'DESC';
+  my $DESC = $attr->{DESC} ? 'DESC' : '';
 
-  if($attr->{COMMENT_ID}) {
+  if ($attr->{COMMENT_ID}) {
     $self->query("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
       COLS_NAME => 1,
-      Bind => [ $attr->{COMMENT_ID} ]
+      Bind      => [ $attr->{COMMENT_ID} ]
     });
-  } else {
+  }
+  else {
     $self->query("
       SELECT icc.id_comments, icc.old_comment, icc.text, icc.uid, icc.aid, icc.date_change
       FROM info_change_comments AS icc
@@ -748,7 +730,7 @@ sub info_document_add {
   $attr->{FILE} = "FILE: $file_path";
 
   $self->query_add('info_documents', $attr);
-  
+
   return $self;
 }
 
@@ -762,7 +744,7 @@ sub info_documents_list {
   my ($attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $DESC = ($attr->{DESC}) ? 'DESC' : '';
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
@@ -773,12 +755,12 @@ sub info_documents_list {
   }
 
   my $search_columns = [
-    [ 'ID',           'INT',  'ind.id',           1 ],
-    [ 'COMMENT_ID',   'INT',  'ind.comment_id',   1 ],
-    [ 'FILENAME',     'STR',  'ind.filename',     1 ],
-    [ 'CONTENT_SIZE', 'STR',  'ind.content_size', 1 ],
-    [ 'CONTENT_TYPE', 'STR',  'ind.content_type', 1 ],
-    [ 'FILE',         'STR',  'ind.file',         1 ]
+    [ 'ID',           'INT', 'ind.id',           1 ],
+    [ 'COMMENT_ID',   'INT', 'ind.comment_id',   1 ],
+    [ 'FILENAME',     'STR', 'ind.filename',     1 ],
+    [ 'CONTENT_SIZE', 'STR', 'ind.content_size', 1 ],
+    [ 'CONTENT_TYPE', 'STR', 'ind.content_type', 1 ],
+    [ 'FILE',         'STR', 'ind.file',         1 ]
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -792,7 +774,7 @@ sub info_documents_list {
    $WHERE
    ORDER BY $SORT $DESC
    LIMIT $PG, $PAGE_ROWS;", undef, {
-    COLS_NAME => 1,
+    COLS_NAME  => 1,
     COLS_UPPER => 1,
     %{$attr // {}} }
   );
@@ -811,7 +793,8 @@ sub info_document_info {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query("SELECT * FROM info_documents WHERE id = ?;", undef, { INFO => 1, Bind => [ $id ] });
+  $self->query("SELECT * FROM info_documents WHERE id = ?;", undef,
+    { INFO => 1, Bind => [ $id ] });
 
   return 0 if $self->{errno};
 
@@ -883,8 +866,8 @@ sub _save_to_disk {
 
   my $final_path = $Attach->save_file_to_disk({
     %{$attr},
-    FILENAME          => $filename,
-    DISK_FILENAME     => $disk_filename,
+    FILENAME      => $filename,
+    DISK_FILENAME => $disk_filename,
   });
 
   if ($Attach->{errno}) {
@@ -913,9 +896,9 @@ sub _read_file_from_disk {
 
   return 0 if ($directory =~ /\.\.\//);
 
-  if ( open(my $fh, '<', $directory . $filename) ) {
+  if (open(my $fh, '<', $directory . $filename)) {
     my $content = '';
-    while ( my $line = <$fh> ) {
+    while (my $line = <$fh>) {
       $content .= $line;
     }
     return $content;

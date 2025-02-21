@@ -44,6 +44,8 @@ sub extreceipt_payments_maked {
   shift;
   my ($attr) = @_;
 
+  return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
+
   ::load_module('Extreceipt');
 
   my $list = $Extreceipt->info($attr->{PAYMENT_ID});

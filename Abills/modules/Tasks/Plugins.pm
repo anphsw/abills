@@ -64,8 +64,9 @@ sub plugins_conig {
 =cut
 #**********************************************************
 sub enabled_plugins {
-  my $plugins_list = $Tasks->plugins_list({ENABLE => '1'});
-  return '' unless (length $plugins_list);
+  my $plugins_list = $Tasks->plugins_list({ ENABLE => '1' });
+  return '' if (!$Tasks->{TOTAL} || $Tasks->{TOTAL} < 1);
+  
   return _plugins_table($plugins_list);
 }
 
@@ -85,14 +86,11 @@ sub _plugins_table {
   });
 
   foreach my $line (@$plugins_list) {
-    # my $file = "$base_dir/Abills/modules/Tasks/Plugins/$line->{name}.pm";
-    # if (eval { require $file; 1; }) {
-      $table->addrow(
-        $html->form_input($line->{name}, '1', { TYPE => 'checkbox', class => 'plugin_checkbox', EX_PARAMS => ($line->{enable} ? 'checked' : '') }),
-        $line->{name},
-        ($line->{descr} || $line->{name}),
-      );
-    # }
+    $table->addrow(
+      $html->form_input($line->{name}, '1', { TYPE => 'checkbox', class => 'plugin_checkbox', EX_PARAMS => ($line->{enable} ? 'checked' : '') }),
+      $line->{name},
+      ($line->{descr} || $line->{name}),
+    );
   }
   return $table->show({OUTPUT_TO_RETURN => 1});
 }
@@ -113,6 +111,7 @@ sub _task_plugin_call {
     if ($obj->can($fn)) {
       $ret = $obj->$fn($attr);
     }
+
     return $ret;
   }
   return $ret;

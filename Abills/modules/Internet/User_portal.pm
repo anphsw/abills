@@ -10,7 +10,7 @@ use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff s
 use Abills::Filters qw(_mac_former $MAC);
 
 require Internet::Stats;
-require Control::Service_control;
+use Control::Service_control;
 
 our (
   $db,
@@ -1180,13 +1180,14 @@ sub internet_dhcp_get_mac_add {
         }
       }
       else {
-        require Internet::Dhcp;
-        dhcp_config({
-          NETWORKS => $net_id,
-          reconfig => 1,
-          QUITE    => 1,
-          %PARAMS_HASH
-        });
+        #@deprecated
+        # require Internet::Dhcp;
+        # dhcp_config({
+        #   NETWORKS => $net_id,
+        #   reconfig => 1,
+        #   QUITE    => 1,
+        #   %PARAMS_HASH
+        # });
         $Internet->{NEW_IP} = $PARAMS_HASH{IP};
       }
 

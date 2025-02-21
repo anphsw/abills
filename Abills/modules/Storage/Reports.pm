@@ -17,6 +17,8 @@ use Storage;
 our Abills::HTML $html;
 my $Storage = Storage->new($db, $admin, \%conf);
 
+my @installation_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS}, $lang{RETURNED_STORAGE});
+
 #**********************************************************
 =head2 storage_main_report($attr)
 
@@ -215,8 +217,9 @@ sub storage_start_page {
   #my ($attr) = @_;
 
   my %START_PAGE_F = (
-    'storage_main_report_charts'             => $lang{STORAGE},
-    'storage_installation_start_page_report' => $lang{STORAGE_PURCHASE_REPORT},
+    storage_main_report_charts             => $lang{STORAGE},
+    storage_installation_start_page_report => $lang{STORAGE_PURCHASE_REPORT},
+    storage_accountability_report          => $lang{ACCOUNTABILITY}
   );
 
   return \%START_PAGE_F;
@@ -297,6 +300,39 @@ sub storage_installation_start_page_report {
     DELIVERY_STATUS => json_former(\%delivery_status),
     PARAMS => json_former({ TABLE_ID => 'STORAGE_INSTALLED_SELL_TABLE_', LAST_ID => $last_id })
   }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 storage_accountability_report()
+
+=cut
+#**********************************************************
+sub storage_accountability_report {
+
+  my $report_table = $html->table({
+    width      => '100%',
+    caption    => $lang{ACCOUNTABILITY},
+    title      => [ $lang{NAME}, $lang{TYPE}, $lang{COUNT}, $lang{PRICE} ],
+    ID         => 'STORAGE_ACCOUNTABILITY_REPORT'
+  });
+
+  my $accountability_list = $Storage->storage_accountability_list({
+    AID             => $admin->{AID},
+    ARTICLE_TYPE_ID => '_SHOW',
+    COUNT           => '_SHOW',
+    ARTICLE_NAME    => '_SHOW',
+    SA_SUM          => '_SHOW',
+    TYPE_NAME       => '_SHOW',
+    MEASURE         => '_SHOW',
+    COLS_NAME       => 1,
+  });
+
+  foreach my $accountability (@{$accountability_list}) {
+    $report_table->addrow($accountability->{article_name}, $accountability->{type_name},
+      $accountability->{count}, $accountability->{sa_sum});
+  }
+
+  return $report_table->show();
 }
 
 #**********************************************************
@@ -860,6 +896,12 @@ sub storage_installation_report {
     NO_ID       => 1,
     SEL_OPTIONS => { '' => '--' },
   });
+  my $status_select = $html->form_select('STATUS', {
+    SELECTED     => $FORM{STATUS},
+    SEL_ARRAY    => \@installation_status,
+    ARRAY_NUM_ID => 1,
+    SEL_OPTIONS  => { '' => '--' },
+  });
 
   require Control::Reports;
   reports({
@@ -872,6 +914,7 @@ sub storage_installation_report {
       STORAGE     => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
       RESPONSIBLE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
       TYPE        => { LABEL => $lang{TYPE}, SELECT => $type_select },
+      STATUS      => { LABEL => $lang{STATUS}, SELECT => $status_select },
     }
   });
 
@@ -892,6 +935,7 @@ sub storage_installation_report {
     ADMIN_NAME   => '_SHOW',
     STORAGE_NAME => '_SHOW',
     MEASURE_NAME => '_SHOW',
+    STATUS       => defined $FORM{STATUS} && $FORM{STATUS} ne '' ? $FORM{STATUS} : '_SHOW',
     TO_DATE      => $FORM{TO_DATE} || $DATE,
     FROM_DATE    => $FORM{FROM_DATE} || $DATE,
     AID          => $FORM{INSTALLED_AID} || '_SHOW',
@@ -904,12 +948,13 @@ sub storage_installation_report {
   $pages_qs .= "&TYPE_ID=$FORM{TYPE_ID}" if $FORM{TYPE_ID};
   $pages_qs .= "&STORAGE_ID=$FORM{STORAGE_ID}" if $FORM{STORAGE_ID};
   $pages_qs .= "&INSTALLED_AID=$FORM{INSTALLED_AID}" if $FORM{INSTALLED_AID};
+  $pages_qs .= "&STATUS=$FORM{STATUS}" if defined $FORM{STATUS};
 
   my $installed_table = $html->table({
     width      => '100%',
     caption    => $lang{INSTALLED_PERIOD} . " (" . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE) . " )",
     title      => [ $lang{NAME}, $lang{COUNT}, $lang{PRICE},
-      $lang{SERIAL}, $lang{RESPONSIBLE}, $lang{DATE}, $lang{STORAGE} ],
+      $lang{SERIAL}, $lang{RESPONSIBLE}, $lang{STATUS}, $lang{DATE}, $lang{STORAGE} ],
     ID         => 'STORAGE_INSTALLED_TABLE',
     DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
     EXPORT     => 1,
@@ -922,6 +967,7 @@ sub storage_installation_report {
         $install->{sum},
         $install->{serial},
         $install->{admin_name},
+        $installation_status[$install->{status}],
         $install->{date},
         $install->{storage_name});
   }

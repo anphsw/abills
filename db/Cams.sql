@@ -6,20 +6,22 @@ CREATE TABLE IF NOT EXISTS `cams_tp` (
   `dvr` SMALLINT(6) UNSIGNED DEFAULT 0,
   `ptz` SMALLINT(6) UNSIGNED DEFAULT 0,
   `archive` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `service_id` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  KEY `tp_id` (`tp_id`)
+  `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  KEY `tp_id` (`tp_id`),
+  KEY `service_id` (`service_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT='Cams tariff plans';
 
 CREATE TABLE IF NOT EXISTS `cams_main` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `uid` INT(11) UNSIGNED DEFAULT 0,
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `tp_id` SMALLINT(6) UNSIGNED DEFAULT 0,
   `activate` DATETIME DEFAULT NULL,
   `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '',
   `expire` DATE NOT NULL DEFAULT '0000-00-00',
-  KEY `uid` (`uid`), 
+  KEY `uid` (`uid`),
+  KEY `tp_id` (`tp_id`),
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8 COMMENT='Users subscribed to cams';
@@ -56,12 +58,13 @@ CREATE TABLE IF NOT EXISTS `cams_streams` (
   `number_id` VARCHAR(32) NOT NULL DEFAULT '',
   `folder_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
+  KEY `uid` (`uid`),
   UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET=utf8 COMMENT='Storing all streams';
 
 CREATE TABLE IF NOT EXISTS `cams_services` (
-  `id` TINYINT(2) NOT NULL AUTO_INCREMENT,
+  `id` TINYINT(2) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL DEFAULT '',
   `module` VARCHAR(24) NOT NULL DEFAULT '',
   `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',

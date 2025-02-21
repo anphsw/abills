@@ -1,0 +1,25 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Задержка доставки"
+        tpl:
+          type: string
+          example: "Текст шаблона"
+        id:
+          type: number
+          example: 1
+        status:
+          type: number
+          example: 0
+        comments:
+          type: string
+          example: "Описание"
+  total:
+    type: number
+    example: 1

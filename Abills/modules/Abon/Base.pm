@@ -129,7 +129,7 @@ sub abon_quick_info {
   if ($uid) {
     $Abon->user_tariff_summary({ UID => $uid });
     if ($Abon->{LOST_FEE}) {
-      $Abon->{TOTAL_ACTIVE} = '!'.$Abon->{TOTAL_ACTIVE};
+      $Abon->{TOTAL_ACTIVE} = '!' . $Abon->{TOTAL_ACTIVE};
     }
   }
 
@@ -172,85 +172,6 @@ sub abon_payments_maked {
 }
 
 #**********************************************************
-=head2 abon_load_plugin($plugin_name, $attr) - Load plugin module
-
-  Argumnets:
-    $plugin_name  - service modules name
-    $attr
-       SERVICE_ID
-       SOFT_EXCEPTION
-       RETURN_ERROR
-
-  Returns:
-    Module object
-
-=cut
-#**********************************************************
-#@deprecated changed to Abills::Loader::Load_plugin
-sub abon_load_plugin {
-  my $self = shift;
-  my ($plugin_name, $attr) = @_;
-
-  my $api;
-  my $Service = $attr->{SERVICE} || {};
-  my $main_module = $Service->{MODULE} || 'Abon';
-  $plugin_name //= $Service->{PLUGIN};
-
-  if ($attr->{SERVICE_INFO}) {
-    my $service_info = $attr->{SERVICE_INFO};
-    $Service = $service_info->($attr->{SERVICE_ID});
-  }
-
-  return $api if !$plugin_name;
-
-  $plugin_name = $main_module . '::Plugin::' . $plugin_name;
-
-  my $load_success = main::load_module($plugin_name, { LOAD_PACKAGE => 1 });
-
-  if ($load_success) {
-    $plugin_name->import();
-
-    $Service->{DEBUG} = defined $attr->{DEBUG} ? $attr->{DEBUG} : $Service->{DEBUG};
-    if ($plugin_name->can('new')) {
-      $api = $plugin_name->new($Service->{db}, $Service->{admin}, $Service->{conf}, {
-        %{$Service},
-        HTML => $html,
-        LANG => $lang
-      });
-    }
-    else {
-      if ($attr->{RETURN_ERROR}) {
-        return {
-          errno  => 9901,
-          errstr => "Can't load '$plugin_name'. Purchase this module http://abills.net.ua",
-        };
-      }
-      else {
-        $html->message('err', $lang->{ERROR}, "Can't load '$plugin_name'. Purchase this module http://abills.net.ua");
-        return $api;
-      }
-    }
-  }
-  else {
-    if ($attr->{RETURN_ERROR}) {
-      return {
-        errno  => 9902,
-        errstr => "Can't load '$plugin_name'. Purchase this module http://abills.net.ua",
-      };
-    }
-    else {
-      print $@ if ($attr->{DEBUG});
-      $html->message('err', $lang->{ERROR}, "Can't load '$plugin_name'. Purchase this module http://abills.net.ua");
-      if (!$attr->{SOFT_EXCEPTION}) {
-        # die "Can't load '$plugin_name'. Purchase this module http://abills.net.ua";
-      }
-    }
-  }
-
-  return $api;
-}
-
-#**********************************************************
 =head2 abon_promotional_tp($attr)
 
   Arguments:
@@ -268,7 +189,7 @@ sub abon_promotional_tp {
 
   my @PERIODS = ($lang->{DAY}, $lang->{MONTH}, $lang->{QUARTER}, $lang->{SIX_MONTH}, $lang->{YEAR});
 
-  my $promotion_tps = $Abon->tariff_list_former({
+  my $promotion_tps = $Abon->tariff_list({
     PROMOTIONAL     => '!',
     PRICE           => '_SHOW',
     TP_NAME         => '_SHOW',
@@ -278,7 +199,7 @@ sub abon_promotional_tp {
     COLS_NAME       => 1
   });
   my $items = '';
-  
+
   my $user_activated_tps = $Abon->user_tariff_list($user_info->{UID}, { ACTIVE_ONLY => 1, COLS_NAME => 1 });
   my @activated_tps = ();
   map push(@activated_tps, $_->{id}), @{$user_activated_tps};
@@ -365,6 +286,7 @@ sub abon_user_services {
       end_date             => $service->{next_abon},
       description          => $service->{user_description} || '',
       period               => $periods[$service->{period}],
+      period_id            => $service->{period},
       activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
       service_link         => $service->{service_link},
       service_img          => "$base_attach_link/$service->{service_img}",

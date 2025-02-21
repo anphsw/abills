@@ -17,6 +17,7 @@ use warnings FATAL => 'all';
 
 use Sms;
 use Sms::Init;
+use Abills::Loader qw/load_plugin/;
 
 #*******************************************************************
 =head2 new() - init
@@ -50,42 +51,74 @@ sub sms_status {
   do 'Abills/Misc.pm';
   print "Sms status\n" if ($debug > 1);
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
+  my $services = $Sms->service_list({
+    PLUGIN     => '_SHOW',
+    STATUS     => '0',
+    DEBUG      => '_SHOW',
+    BY_DEFAULT => '_SHOW',
+    ID         => ($attr->{SMS_SERVICE} && $attr->{SMS_SERVICE} =~ /^\d+/) ? $attr->{SMS_SERVICE} : '_SHOW',
+    SORT       => 'smss.by_default DESC, smss.id ASC',
+    COLS_NAME  => 1
+  });
+  return {} if !$Sms->{TOTAL} || $Sms->{TOTAL} < 1;
 
-  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
-  if ($Sms_service->{errno}) {
-    return 0;
-  }
+  my $Sms_service = '';
+  foreach my $service (@{$services}) {
+    next if !$service->{plugin};
 
-  if ($Sms_service->can('get_status')) {
-    my $list = $Sms->list({
-      DATETIME   => '_SHOW',
-      SMS_STATUS => 0,
-      COLS_NAME  => 1,
-      PAGE_ROWS  => 100000
+    my $service_params = $Sms->service_params({ SERVICE_ID => $service->{id}, COLS_NAME => 1, COLS_UPPER => 1 });
+    my $params = { DEBUG => $service->{debug} };
+
+    foreach my $param (@{$service_params}) {
+      next if !$param->{PARAM};
+      $params->{$param->{PARAM}} = $param->{VALUE};
+    }
+
+    $Sms_service = load_plugin("Sms::Plugins::$service->{plugin}", {
+      SERVICE => {
+        %{$params},
+        db    => $self->{db},
+        admin => $self->{admin},
+        conf  => $self->{conf}
+      }
     });
 
-    foreach my $line ( @$list ) {
+    next if $Sms_service->{errno};
 
-      if($debug > 1) {
-        print "ID: $line->{id} DATE: $line->{datetime}\n";
+    if ($Sms_service->can('get_status')) {
+      if ($debug > 2) {
+        $Sms->{debug}=1;
       }
-
-      $Sms_service->get_status({
-        REF_ID => $line->{datetime},
-        EXT_ID => ($line->{ext_id} ? $line->{ext_id} : $line->{id}),
-        DEBUG  => $debug || 0,
+      my $sms_list = $Sms->list({
+        DATETIME   => '_SHOW',
+        SMS_STATUS => 0,
+        COLS_NAME  => 1,
+        SKIP_DEL_CHECK=>1,
+        PAGE_ROWS  => 100000
       });
 
-      if($debug > 1) {
-        print "  STATUS: ". (defined($Sms_service->{status}) ? $Sms_service->{status} : 0) ."\n";
-      }
+      foreach my $sms (@$sms_list) {
+        if ($debug > 1) {
+          print "ID: $sms->{id} DATE: $sms->{datetime}\n";
+        }
 
-      if (!$Sms_service->{errno}) {
-        if ($Sms_service->{status} || $Sms_service->{list}->[0]{status}) {
-          $Sms->change({
-            ID     => $line->{id},
-            STATUS => ($Sms_service->{status}) ? $Sms_service->{status} : $Sms_service->{list}->[0]{status}
-          });
+        $Sms_service->get_status({
+          REF_ID => $sms->{datetime},
+          EXT_ID => ($sms->{ext_id} ? $sms->{ext_id} : $sms->{id}),
+          DEBUG  => $debug || 0,
+        });
+
+        if ($debug > 1) {
+          print "  STATUS: " . (defined($Sms_service->{status}) ? $Sms_service->{status} : 0) . "\n";
+        }
+
+        if (!$Sms_service->{errno}) {
+          if ($Sms_service->{status} || $Sms_service->{list}->[0]{status}) {
+            $Sms->change({
+              ID     => $sms->{id},
+              STATUS => ($Sms_service->{status}) ? $Sms_service->{status} : $Sms_service->{list}->[0]{status}
+            });
+          }
         }
       }
     }

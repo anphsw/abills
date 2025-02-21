@@ -1,5 +1,5 @@
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='SERVICE_ID' value='%SERVICE_ID%'>
   <input type='hidden' name='extra_params' value=1>
   <input type='hidden' name='chg_param' value='%CHG%'>
@@ -29,6 +29,12 @@
         <label class='control-label col-md-4' for='IP'>IP: </label>
         <div class='col-md-8'>
           <input type='text' class='form-control' id='IP' name='IP' value='%IP%'/>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='control-label col-md-4' for='EMAIL_DOMAIN'>E-mail _{DOMAIN}_: </label>
+        <div class='col-md-8'>
+          <input type='text' class='form-control' id='EMAIL_DOMAIN' name='EMAIL_DOMAIN' value='%EMAIL_DOMAIN%'/>
         </div>
       </div>
       <div class='form-group row'>

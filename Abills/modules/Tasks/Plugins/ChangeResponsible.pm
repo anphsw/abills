@@ -58,7 +58,7 @@ sub change_responsible {
   my ($attr) = @_;
 
   if ($attr->{chg}) {
-    $self->{Tasks}->chg($attr);
+    $self->{Tasks}->change($attr);
     $html->redirect("?index=$attr->{index}");
     return 'stop';
   }

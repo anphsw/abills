@@ -83,6 +83,7 @@ sub form_fees {
       if ($period == 2) {
         my $FEES_DATE = $FORM{DATE} || $DATE;
         if (date_diff($DATE, $FEES_DATE) < 1) {
+          $FORM{SKIP_PRIORITY}=1;
           $Fees->take($user, $FORM{SUM}, \%FORM);
           if (! _error_show($Fees)) {
             $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM} $lang{DATE}: $FEES_DATE" );
@@ -293,7 +294,7 @@ sub form_fees_list {
     INPUT_DATA      => $Fees,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
-    HIDDEN_FIELDS   => 'ADMIN_DISABLE',
+    HIDDEN_FIELDS   => 'ADMIN_DISABLE,PRIORITY',
     DEFAULT_FIELDS  => 'ID,LOGIN,DATETIME,DSC,SUM,LAST_DEPOSIT,METHOD,ADMIN_NAME',
     FUNCTION_FIELDS => $permissions{2}{2} ? 'del' : '',
     FUNCTION_INDEX  => $index,
@@ -421,6 +422,7 @@ sub form_fees_list {
       ip               => 'IP',
       reg_date         => "$lang{FEES} $lang{REGISTRATION}",
       admin_name       => $lang{ADMIN},
+      a_login          => "$lang{ADMIN} $lang{LOGIN}",
       tax              => $lang{TAX},
       tax_sum          => "$lang{TAX} $lang{SUM}",
       invoice_id       => $lang{INVOICE},

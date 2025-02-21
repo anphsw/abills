@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='POST' name='CRM_COMPETITORS_TP' id='CRM_COMPETITORS_TP'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' method='POST' name='CRM_COMPETITORS_TP' id='CRM_COMPETITORS_TP'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' id='COMPETITOR_TP_ID' name='ID' value='%ID%'>
   <div class='row'>
     <div class='col-md-6'>

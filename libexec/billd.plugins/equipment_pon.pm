@@ -17,6 +17,7 @@
    CPE_FILL
    FORCE_FILL
    VLANS - used with CPE_CHECK/CPE_FILL/FORCE_FILL. check or fill abonent's VLAN/SERVER_VLAN
+   CPE_UNIFY  - Unified value without : and .
    FILL_CPE_FROM_NAS_AND_PORT
    FILL_SWITCH_PORT_FROM_CID
    PON_FILL_SWITCH_PORT_FROM_CID
@@ -72,7 +73,7 @@ elsif ($argv->{SNMP_SERIAL_SCAN_ALL}) {
   _scan_mac_serial_on_all_nas();
 }
 elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL} || $argv->{CPE_CHECK}) {
-  _save_port_and_nas_to_internet_main();
+  _save_port_and_nas_to_internet_main($argv);
 }
 elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
   _fill_cpe_from_nas_and_port();
@@ -260,7 +261,8 @@ sub _equipment_pon_load {
           NAS_TYPE       => $nas_type,
           MODEL_NAME     => $nas_info->{model_name},
           SNMP_TPL       => $nas_info->{snmp_tpl},
-          TIMEOUT        => $argv->{TIMEOUT}
+          TIMEOUT        => $argv->{TIMEOUT},
+          DEBUG          => $debug
         });
 
         $port_list = $Equipment->pon_port_list({
@@ -275,8 +277,8 @@ sub _equipment_pon_load {
         }
       }
 
-      foreach my $line (@$port_list) {
-        $olt_ports->{$line->{snmp_id}} = $line;
+      foreach my $port (@$port_list) {
+        $olt_ports->{$port->{snmp_id}} = $port;
       }
 
       my $query_oids;
@@ -418,6 +420,7 @@ sub _equipment_pon_load {
             $onu->{ONU_SNMP_ID},
             $onu->{LINE_PROFILE} || 'ONU',
             $onu->{SRV_PROFILE} || 'ALL',
+            $onu->{EQUIPMENT_ID} || ''
           ];
         }
         if( in_array( 'Events', \@MODULES ) && $argv->{ALERT} ){
@@ -733,9 +736,16 @@ sub _scan_mac_serial_on_all_nas {
 #**********************************************************
 =head2 _save_port_and_nas_to_internet_main() - Fill NAS and PORT BY CPE MAC
 
+  Argumnets:
+    $attr
+
+  Results:
+
 =cut
 #**********************************************************
 sub _save_port_and_nas_to_internet_main {
+  my ($attr)=@_;
+
   require Internet;
   Internet->import();
   my $Internet = Internet->new($db, $Admin, \%conf);
@@ -746,12 +756,13 @@ sub _save_port_and_nas_to_internet_main {
   }
 
   my $onu_list = $Equipment->onu_and_internet_cpe_list({
-    NAS_IDS   => $argv->{NAS_IDS},
+    NAS_IDS   => $attr->{NAS_IDS},
     DELETED   => 0,
+    CPE_UNIFY => $attr->{CPE_UNIFY},
     PAGE_ROWS => $LIST_PARAMS{PAGE_ROWS} || 1000000,
   });
 
-  my $check_mode = $argv->{CPE_CHECK} && !$argv->{CPE_FILL} && !$argv->{FORCE_FILL};
+  my $check_mode = $attr->{CPE_CHECK} && !$attr->{CPE_FILL} && !$attr->{FORCE_FILL};
 
   my %onus_by_uid = ();
   my %attached_onu_by_uid = ();
@@ -770,11 +781,12 @@ sub _save_port_and_nas_to_internet_main {
     my @uid_onu_list = @{$onus_by_uid{$uid}};
     my $onu_to_set = $uid_onu_list[0];
 
-    if ($check_mode || $argv->{FORCE_FILL} || !$onu_to_set->{user_port} || !$onu_to_set->{user_nas}) {
+    if ($check_mode || $attr->{FORCE_FILL} || !$onu_to_set->{user_port} || !$onu_to_set->{user_nas}) {
       if (scalar @uid_onu_list > 1) {
         print "WARNING: there are more than one ONU with MAC $onu_to_set->{cpe}\n";
 
         my @online_uid_onu_list = grep { in_array($_->{onu_status}, \@ONU_ONLINE_STATUSES) } @uid_onu_list;
+
         if (scalar @online_uid_onu_list == 1) {
           $onu_to_set = $online_uid_onu_list[0];
           if ($onu_to_set->{user_nas} ne $onu_to_set->{onu_nas} || $onu_to_set->{user_port} ne $onu_to_set->{onu_port}) {
@@ -818,7 +830,7 @@ sub _save_port_and_nas_to_internet_main {
       }
     }
 
-    if ($argv->{VLANS}) {
+    if ($attr->{VLANS}) {
       my $attached_onu = $attached_onu_by_uid{$uid};
       next if (!$attached_onu);
       if ($attached_onu->{onu_status} && $attached_onu->{onu_status} == 4) {
@@ -846,13 +858,13 @@ sub _save_port_and_nas_to_internet_main {
         my $server_vlan_to_set = $attached_onu->{user_server_vlan};
 
         if (($attached_onu->{onu_vlan} && $attached_onu->{onu_vlan} != ($attached_onu->{user_vlan} || 0))
-          && (!$attached_onu->{user_vlan} || $argv->{FORCE_FILL})) {
+          && (!$attached_onu->{user_vlan} || $attr->{FORCE_FILL})) {
           $vlan_to_set = $attached_onu->{onu_vlan};
           print "User:$uid add vlan ($attached_onu->{onu_vlan})\n"
         }
 
         if ($attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan}
-            && (!$attached_onu->{user_server_vlan} || $argv->{FORCE_FILL})) {
+            && (!$attached_onu->{user_server_vlan} || $attr->{FORCE_FILL})) {
           $server_vlan_to_set = $attached_onu->{onu_server_vlan};
           print "User:$uid MAC/SERIAL: $attached_onu->{cpe} add server_vlan ($attached_onu->{onu_server_vlan})\n"
         }
@@ -866,6 +878,7 @@ sub _save_port_and_nas_to_internet_main {
       }
     }
   }
+
   return 1;
 }
 
@@ -1048,6 +1061,7 @@ sub _pon_fill_switch_port_from_cid {
   foreach my $line (@$mac_log_list) {
     $line->{port_name} =~ s/EPON//g;
     $line->{port_name} =~ s/GPON//g;
+    $line->{port_name} =~ s/ //g;
     $mac_behind_onu{$line->{mac}}{port}= $onu_dhcp{$line->{port_name}} if ($line->{port_name});
     $mac_behind_onu{$line->{mac}}{nas}= $line->{nas_id} if ($line->{nas_id});
   }

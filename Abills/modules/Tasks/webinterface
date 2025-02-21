@@ -5,16 +5,17 @@
 
 =cut
 
-
 use strict;
 use warnings FATAL => 'all';
 
 use Time::Piece;
+use Abills::Api::Handle;
 use Tasks::db::Tasks;
 use JSON qw(decode_json);
-use Abills::Base qw/in_array _bp/;
+use Abills::Base qw/in_array _bp json_former/;
 
 require Tasks::Plugins;
+use Tasks::Reports;
 
 our(
   %lang,
@@ -30,6 +31,19 @@ Time::Piece::mon_list(@MON);
 
 my $Tasks = Tasks->new($db, $admin, \%conf);
 
+my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
+  html    => $html,
+  lang    => \%lang,
+  cookies => \%COOKIES,
+  direct  => 1
+});
+
+my $state = {
+  0 => $lang{TASKS_IN_PROGRESS},
+  1 => $lang{TASKS_COMPLETED},
+  2 => $lang{TASKS_NOT_COMPLETED},
+};
+
 #**********************************************************
 =head2 tasks_list()
 
@@ -40,7 +54,8 @@ sub tasks_list {
   _tasks_check_state();
 
   if ($FORM{del}) {
-    $Tasks->del({ ID => $FORM{del} });
+    $Tasks->del({ ID => $FORM{del}, COMMENTS => $FORM{COMMENTS} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Tasks);
   }
   elsif ($FORM{show_task}) {
     print _task_show($FORM{show_task});
@@ -106,9 +121,12 @@ sub tasks_table {
   });
 
   foreach my $task (@$tasks_list) {
-    my $del_button = $html->button("", "index=$index&del=$task->{id}&tab=$attr->{TAB}", { class => "text-danger mr-2", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
-    my $edit_button = $html->button("", "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil-alt mr-2" });
-    my $show_button = $html->button("", "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye mr-2" });
+    my $del_button = $html->button('', "index=$index&del=$task->{id}&tab=$attr->{TAB}", {
+      MESSAGE => "$lang{DEL} $lang{TASK} $task->{name}?",
+      class   => 'del'
+    });
+    my $edit_button = $html->button('', "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil-alt mr-2" });
+    my $show_button = $html->button('', "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye mr-2" });
     my @fields = ($task->{type_name}, $task->{name}, $task->{responsible_name}, $task->{control_date});
     if ($attr->{TAB}) {
       if ($attr->{TAB} == 1 || $attr->{TAB} == 2) {
@@ -191,6 +209,7 @@ sub _show_task_cards {
   my $result = '';
 
   foreach my $line (@$list) {
+    $line->{CONTROL_DATE} = $DATE if !$line->{CONTROL_DATE} || $line->{CONTROL_DATE} eq '0000-00-00';
     my $d = Time::Piece->strptime($line->{CONTROL_DATE}, "%Y-%m-%d");
     my $c = Time::Piece->strptime($DATE, "%Y-%m-%d");
 
@@ -248,22 +267,20 @@ sub my_tasks {
 #**********************************************************
 sub _task_show {
   my ($task_id, $qs) = @_;
-  my $task_info = $Tasks->info({ ID => $task_id });
 
-  if ($task_info->{PARTCIPIANTS_LIST}) {
-    $task_info->{PARTCIPIANTS} = _admins_list({ AID => $task_info->{PARTCIPIANTS_LIST}, READONLY => 1 });
-  }
-  else {
-    $task_info->{HIDE_PARTCIPIANTS} = 'style="display: none;"';
-  }
+  my $task_types_hash = {};
+  my $task_types_list = $Tasks->types_list({ NAME => '_SHOW', COLS_NAME => 1 });
+  map $task_types_hash->{$_->{id}} = _translate($_->{name}), @{$task_types_list};
 
-  if (!$FORM{show_task}) {
-    $task_info->{PLUGINS_HTML} = plugins_fn_loader({ID => $task_id, FN => 'html_for_task_show', qs => $qs });
-  }
+  my $admins_hash = {};
+  my $admins_list = $Tasks->admins_list({ RESPONSIBLE => 1 });
+  map $admins_hash->{$_->{aid}} = join(' : ', ($_->{a_name}, $_->{a_login})), @{$admins_list};
 
-  my $result = $html->tpl_show('', $task_info, { TPL => 'task_show', MODULE => 'Tasks', OUTPUT2RETURN => 1 });
-
-  return $result;
+  return $html->tpl_show(_include('tasks_hierarchical_block_template', 'Tasks'), {
+    TASK_ID    => $task_id,
+    TASK_TYPES => json_former($task_types_hash),
+    ADMINS     => json_former($admins_hash)
+  }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -274,46 +291,79 @@ sub _task_show {
 sub task_web_add {
 
   my $params = ();
-  my $types_list = $Tasks->types_list();
-  my %hash = ();
-  my $task_info = {};
-  my $json_fields = "{";
-  my $json_admins = "{";
-  my $json_partcipiants = "{";
-  my $json_plugins = "{";
-  foreach my $line (@$types_list) {
-    my $plugins_fields = plugins_fn_loader({ PLUGINS => $line->{plugins}, FN => 'fields_for_task_add' }) || '""';
-    my $additional_fields = $line->{additional_fields} || '""';
-    $json_fields .= qq/"$line->{id}":$additional_fields,/;
-    $json_admins .= qq/"$line->{id}":"$line->{admins}",/;
-    $json_partcipiants .= qq/"$line->{id}":"$line->{partcipiants}",/;
-    $json_plugins .= qq/"$line->{id}":$plugins_fields,/;
-  }
-  $json_fields       =~ s/,$/}/;
-  $json_admins       =~ s/,$/}/;
-  $json_partcipiants =~ s/,$/}/;
-  $json_plugins      =~ s/,$/}/;
 
-  $params->{JSON_LIST} = $json_fields;
-  $params->{JSON_ADMINS} = $json_admins;
-  $params->{JSON_PARTCIPIANTS} = $json_partcipiants;
-  $params->{JSON_PLUGINS_FIELDS} = $json_plugins;
+  my ($types_list) = $Api->api_call({
+    METHOD => 'GET',
+    PATH   => "/tasks/types/",
+  });
+  my $task_info = {};
+
+  my $loaded_plugins = {};
+  my $types_hash = {};
+  foreach my $type (@{$types_list}) {
+    if ($type->{PLUGINS} && ref $type->{PLUGINS} eq 'ARRAY') {
+      my $type_plugins = [];
+      foreach my $plugin (@{$type->{PLUGINS}}) {
+        if (!$loaded_plugins->{$plugin}) {
+          my $plugins_fields = _task_plugin_call({ plugin => $plugin, fn => 'fields_for_task_add' });
+          $loaded_plugins->{$plugin} = {
+            NAME   => $plugin,
+            FIELDS => $plugins_fields && ref $plugins_fields eq 'ARRAY' ? $plugins_fields : []
+          };
+        }
+        push @{$type_plugins}, $loaded_plugins->{$plugin} if $loaded_plugins->{$plugin};
+      }
+      $type->{PLUGINS} = $type_plugins;
+    }
+    $types_hash->{$type->{id}} = $type;
+  }
+  $params->{TASK_TYPES} = json_former($types_hash);
   $params->{BTN_ACTION} = 'add';
   $params->{BTN_NAME} = $lang{ADD};
   $params->{BOX_TITLE} = $lang{ADD_TASK};
 
-  if ($FORM{add}) {
-    _task_add(\%FORM);
-    _error_show($Tasks);
+  if ($FORM{done}) {
+    my ($res) = $Api->api_call({
+      METHOD => 'PUT',
+      PATH   => "/tasks/$FORM{ID}/",
+      PARAMS => { STATE => 1, COMMENTS => $FORM{COMMENTS} }
+    });
+
+    _error_show($res);
+    $html->redirect('?index=' . get_function_index('tasks_list'));
+  }
+  elsif ($FORM{undone}) {
+    my ($res) = $Api->api_call({
+      METHOD => 'PUT',
+      PATH   => "/tasks/$FORM{ID}/",
+      PARAMS => { STATE => 2, COMMENTS => $FORM{COMMENTS} }
+    });
+
+    _error_show($res);
+    $html->redirect('?index=' . get_function_index('tasks_list'));
+  }
+  elsif ($FORM{add}) {
+    my ($res) = $Api->api_call({
+      METHOD => 'POST',
+      PATH   => '/tasks/',
+      PARAMS => \%FORM
+    });
+
+    _error_show($res);
     $html->redirect('?index=' . get_function_index('tasks_list')) if !$FORM{MSG_ID};
     return 1;
   }
-  elsif ($FORM{chg}) {
-    $Tasks->chg({ %FORM, STATE => 0 });
-    _error_show($Tasks);
-    if (!$Tasks->{errno} && $FORM{PARTCIPIANTS_LIST}) {
+  elsif ($FORM{chg} && $FORM{ID}) {
+    my ($res) = $Api->api_call({
+      METHOD => 'PUT',
+      PATH   => "/tasks/$FORM{ID}/",
+      PARAMS => { %FORM, STATE => 0 }
+    });
+
+    # $Tasks->change({ %FORM, STATE => 0 });
+    if (!_error_show($res) && $FORM{PARTICIPANTS_LIST}) {
       $Tasks->p_del({ ID => $FORM{ID} });
-      foreach (split(',', $FORM{PARTCIPIANTS_LIST})) {
+      foreach (split(',', $FORM{PARTICIPANTS_LIST})) {
         $Tasks->p_add({ ID => $FORM{ID}, AID => $_ });
       }
     }
@@ -326,6 +376,9 @@ sub task_web_add {
     $params->{BOX_TITLE} = $lang{CHANGE_TASK};
     $task_info = $Tasks->info({ ID => $FORM{chg_task} });
     $params->{RESPONSIBLE} = $task_info->{responsible};
+
+    $params->{SUBTASKS} = _get_subtasks_table($FORM{chg_task});
+    $params->{PARENT_TASK} = _get_parent_task_line($FORM{chg_task});
   }
 
   $params->{SEL_TASK_TYPE} = _task_type_select($types_list, $task_info->{task_type} || '');
@@ -343,8 +396,78 @@ sub task_web_add {
     return 1;
   }
 
+  $params->{PARENT_ID} = $FORM{PARENT_ID} if $FORM{PARENT_ID};
   $html->tpl_show('', { %{$params}, %{$task_info} }, { TPL => 'task_add', MODULE => 'Tasks' });
   return 1;
+}
+
+#**********************************************************
+=head2 _get_subtasks_table($task_id)
+
+=cut
+#**********************************************************
+sub _get_subtasks_table {
+  my $task_id = shift;
+
+  return '' if !$task_id;
+
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{TYPE}, $lang{NAME}, $lang{STATUS}, '' ],
+    ID          => "SUBTASKS_$task_id"
+  });
+  
+  my ($subtasks) = $Api->api_call({
+    PATH   => '/tasks',
+    PARAMS => { PARENT_ID => $task_id, PAGE_ROWS => 65500 },
+  });
+
+  if ($subtasks->{list} && ref $subtasks->{list} eq 'ARRAY') {
+    foreach my $subtask (@{$subtasks->{list}}) {
+      my $chg_btn = $html->button($lang{CHANGE}, "index=$index&chg_task=$subtask->{id}", { class => 'change' });
+      $table->addrow($subtask->{type_name}, $subtask->{name}, $state->{$subtask->{state}} || '', $chg_btn)
+    }
+  }
+
+  my @button_footer = (
+    $html->button($lang{TASKS_ADD_SUBTASK}, "get_index=task_web_add&full=1&PARENT_ID=$task_id", {
+      ex_params => 'target=_new',
+      class     => 'btn btn-primary float-right col-md-12 col-sm-12' })
+  );
+
+  $table->addfooter(@button_footer);
+
+  return $table->show();
+}
+
+#**********************************************************
+=head2 _get_parent_task_line($task_id)
+
+=cut
+#**********************************************************
+sub _get_parent_task_line {
+  my $task_id = shift;
+
+  return '' if !$task_id;
+
+  my ($task_info) = $Api->api_call({
+    PATH => "/tasks/$task_id/",
+  });
+  return if !$task_info->{parent_id};
+
+  my ($parent_info) = $Api->api_call({
+    PATH => "/tasks/$task_info->{parent_id}/",
+  });
+  return if !$parent_info->{id};
+  
+  my $task_name = "#$parent_info->{id}: " . join(': ', ($parent_info->{type_name} || '', $parent_info->{name} || ''));
+  
+  my $task_btn = $html->button($task_name, "get_index=task_web_add&full=1&chg_task=$parent_info->{id}");
+
+  my $col_8 = $html->element('div', $task_btn, { class => 'col-md-8' });
+  my $label = $html->element('label', "$lang{TASKS_PARENT_TASK}:", { class => 'col-md-4 col-form-label text-md-right' });
+
+  return $html->element('div', join('', ($label, $col_8)), { class => 'form-group row' });
 }
 
 #**********************************************************
@@ -387,7 +510,7 @@ sub _task_add {
 sub _task_change_state {
   my ($attr) = @_;
 
-  $Tasks->chg($attr);
+  $Tasks->change($attr);
 
   if($Tasks->{errno}) {
     $html->message('err', $lang{ERROR}, $Tasks->{errstr});
@@ -409,22 +532,54 @@ sub _task_change_state {
 sub tasks_type_config {
 
   if ($FORM{add} || $FORM{chg}) {
-    if ($FORM{ID}) {
-      $Tasks->type_hide($FORM{ID});
-      delete $FORM{ID};
+    if ($FORM{ADDITIONAL_FIELDS}) {
+      $FORM{ADDITIONAL_FIELDS} =~ s/\\(["\\])/$1/g;
+      my $decoded_fields = eval { decode_json($FORM{ADDITIONAL_FIELDS}) };
+      if ($@) {
+        $FORM{ADDITIONAL_FIELDS} = [];
+      }
+      else {
+        $FORM{ADDITIONAL_FIELDS} = $decoded_fields;
+      }
     }
-    $FORM{ADDITIONAL_FIELDS} ||= '{}';
-    $Tasks->type_add({ %FORM, ADMINS => $FORM{RESPONSIBLE_LIST}, PARTCIPIANTS => $FORM{PARTCIPIANTS_LIST} });
-    $html->message('err', $lang{ERROR}, "$lang{TASK_TYPE_ERROR}\n $Tasks->{errstr}") if $Tasks->{errno};
+    else {
+      $FORM{ADDITIONAL_FIELDS} = [];
+    }
+
+    $FORM{PARTICIPANTS} = $FORM{PARTICIPANTS_LIST} ? [ split /,\s?/, $FORM{PARTICIPANTS_LIST} ] : [];
+    $FORM{PLUGINS} = $FORM{PLUGINS} ? [ split /,\s?/, $FORM{PLUGINS} ] : [];
+    $FORM{ADMINS} = $FORM{RESPONSIBLE_LIST} ? [ split /,\s?/, $FORM{RESPONSIBLE_LIST} ] : [];
+
+    if ($FORM{ID}) {
+      my ($change_result) = $Api->api_call({
+        METHOD => 'PUT',
+        PATH   => "/tasks/types/$FORM{ID}/",
+        PARAMS => \%FORM,
+      });
+
+      $html->message('info', $lang{CHANGED}) if (!_error_show($change_result));
+    }
+    else {
+      my ($add_result) = $Api->api_call({
+        METHOD => 'POST',
+        PATH   => '/tasks/types/',
+        PARAMS => \%FORM,
+      });
+
+      $html->message('info', $lang{ADDED}) if (!_error_show($add_result));
+    }
   }
   if ($FORM{del}) {
-    $Tasks->type_hide($FORM{del});
+    my ($res) = $Api->api_call({
+      METHOD => 'DELETE',
+      PATH   => "/tasks/types/$FORM{del}/",
+    });
   }
   elsif ($FORM{add_type}) {
     my $params = ();
     $params->{BTN_ACTION} = 'add';
     $params->{BTN_NAME} = $lang{ADD};
-    $params->{ADDITIONAL_FIELDS} ||= '""';
+    $params->{ADDITIONAL_FIELDS} ||= '[]';
     $params->{ADMINS_LIST} = _admins_list({ RESPONSIBLE => 1 });
     $params->{SELECT_PLUGINS} = enabled_plugins();
     $html->tpl_show('', $params, { TPL => 'tasks_type_add', MODULE => 'Tasks' });
@@ -434,10 +589,16 @@ sub tasks_type_config {
     $params->{BTN_ACTION} = 'chg';
     $params->{BTN_NAME} = $lang{CHANGE};
     $params->{ADMINS_LIST} = _admins_list({ RESPONSIBLE => 1 });
-    my $type_info = $Tasks->type_info({ ID => $FORM{chg_type} });
-    $type_info->{ADDITIONAL_FIELDS} ||= '""';
-    $type_info->{RESPONSIBLE_LIST} = $type_info->{ADMINS};
-    $type_info->{PARTCIPIANTS_LIST} = $type_info->{PARTCIPIANTS};
+    my ($type_info) = $Api->api_call({
+      METHOD => 'GET',
+      PATH   => "/tasks/types/$FORM{chg_type}/",
+    });
+    $type_info->{ADDITIONAL_FIELDS} = json_former($type_info->{ADDITIONAL_FIELDS} || '[]');
+
+    $type_info->{PLUGINS} = $type_info->{PLUGINS} && ref $type_info->{PLUGINS} eq 'ARRAY' ? join(',', @{$type_info->{PLUGINS}}) : '';
+    $type_info->{RESPONSIBLE_LIST} = $type_info->{ADMINS} && ref $type_info->{ADMINS} eq 'ARRAY' ? join(',', @{$type_info->{ADMINS}}) : '';
+    $type_info->{PARTICIPANTS_LIST} = $type_info->{PARTICIPANTS} && ref $type_info->{PARTICIPANTS} eq 'ARRAY' ?
+      join(',', @{$type_info->{PARTICIPANTS}}) : '';
     $params->{SELECT_PLUGINS} = enabled_plugins();
     $html->tpl_show('', { %$params, %$type_info }, { TPL => 'tasks_type_add', MODULE => 'Tasks' });
   }
@@ -456,12 +617,13 @@ sub tasks_type_table {
   my ($attr) = @_;
 
   my $types_list = $Tasks->types_list({
+    NAME          => '_SHOW',
     COLS_NAME     => 1,
     COLS_UPPER    => 1,
     PG            => $FORM{pg},
     SORT          => $FORM{sort} || '',
     DESC          => $FORM{desc} || '',
-    %{$attr ? $attr : { } },
+    %{$attr ? $attr : {}},
   });
 
   my $f_index = get_function_index('tasks_type_config');
@@ -491,11 +653,11 @@ sub tasks_type_table {
 }
 
 #**********************************************************
-=head2 tasks_admins()
+=head2 tasks_permissions()
 
 =cut
 #**********************************************************
-sub tasks_admins {
+sub tasks_permissions {
   my ($attr) = @_;
 
   if($FORM{SAVE}) {
@@ -548,15 +710,14 @@ sub _responsible_select {
 
   my $admins_list = $Tasks->admins_list({ RESPONSIBLE => 1 });
 
-  my $result = $html->form_select('RESPONSIBLE',
-    {
-      SELECTED    => $attr->{SELECTED} || 0,
-      SEL_LIST    => $admins_list,
-      SEL_KEY     => 'aid',
-      SEL_VALUE   => 'a_name,a_login',
-      REQUIRED    => 1,
-      NO_ID       => 1,
-    });
+  my $result = $html->form_select('RESPONSIBLE', {
+    SELECTED  => $attr->{SELECTED} || 0,
+    SEL_LIST  => $admins_list,
+    SEL_KEY   => 'aid',
+    SEL_VALUE => 'a_name,a_login',
+    REQUIRED  => 1,
+    NO_ID     => 1,
+  });
 
   return $result;
 }
@@ -626,12 +787,35 @@ sub _admin_role {
 =cut
 #**********************************************************
 sub _tasks_check_state {
-  my $list = $Tasks->list({ CONTROL_DATE => "<$DATE", STATE => '0'});
+
+  my $list = $Tasks->list({ CONTROL_DATE => "<$DATE", STATE => '0' });
   foreach (@$list) {
     _task_change_state({ ID => $_->{id}, STATE => 2, COMMENTS => 'Closed on expiration' });
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 tasks_hierarchical_view_report()
+
+=cut
+#**********************************************************
+sub tasks_hierarchical_view_report {
+
+  my $task_types_hash = {};
+  my $task_types_list = $Tasks->types_list({ NAME => '_SHOW', COLS_NAME => 1 });
+  map $task_types_hash->{$_->{id}} = _translate($_->{name}), @{$task_types_list};
+
+  my $admins_hash = {};
+  my $admins_list = $Tasks->admins_list({ RESPONSIBLE => 1 });
+  map $admins_hash->{$_->{aid}} = join(' : ', ($_->{a_name}, $_->{a_login})), @{$admins_list};
+
+  $html->tpl_show(_include('tasks_hierarchical_block_template', 'Tasks'), {
+    TASK_TYPES         => json_former($task_types_hash),
+    ADMINS             => json_former($admins_hash),
+    ADD_FAKE_ROOT_NODE => 1
+  });
 }
 
 1;

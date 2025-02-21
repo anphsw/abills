@@ -1,0 +1,5 @@
+{
+  "name": "USER_INTERNET_WARNINGS",
+  "method": "GET",
+  "path": "user/internet/:id/warnings/"
+}

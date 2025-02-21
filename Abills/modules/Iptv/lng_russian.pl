@@ -72,7 +72,7 @@ $lang{ADDED_TP} = 'Дополнительные тарифные планы';
 
 $lang{MAX_DEVICES} = 'Максимально девайсов';
 
-$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = 'Вы превысили количество подписок на эту услугу';
+$lang{IPTV_MAX_SUBSCRIPTIONS_REACHED} = 'Вы уже достигли максимального количества подписок на эту услугу';
 $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = 'Этот тарифный план уже подключен';
 
 $lang{PLAYLISTS} = 'Плейлисты';
@@ -117,6 +117,7 @@ $lang{IPTV_PROMOTIONAL_TP} = 'Акционный ТП';
 $lang{SUGGEST_ACTIVATE_TP} = 'Предлагаем Вам активировать тарифный план';
 $lang{IPTV_ERROR_DEVICES_COUNT} = 'Превышено разрешенное количество устройств';
 $lang{IPTV_MONTHLY_REPORT} = 'Месячный отчет';
+$lang{IPTV_DAYS_OF_USE} = 'Дней использования';
 
 $lang{ERR_IPTV_DEL_ACTIVATED} = 'Прежде чем удалять службу, необходимо отключить ее';
 

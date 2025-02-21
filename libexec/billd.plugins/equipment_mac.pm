@@ -127,29 +127,29 @@ sub equipment_check {
     my $mac_list = $Equipment->mac_log_list({
       NAS_ID        => $equip->{NAS_ID},
       COLS_NAME     => 1,
-      PAGE_ROWS     => 100000,
+      PAGE_ROWS     => 1000000,
       MAC           => '_SHOW',
       VLAN          => '_SHOW',
       PORT          => '_SHOW',
       UNIX_DATETIME => '_SHOW',
       UNIX_REM_TIME => '_SHOW',
+      SKIP_ORDER    => 1
     });
 
     my %mac_log_hash = ();
 
-    foreach my $list (@$mac_list) {
-      $list->{port} =~ s/\./_/g;
-      my $key = $list->{mac} . '_' . $list->{vlan} . '_' . $list->{port};
-      $mac_log_hash{ $key }{id} = $list->{id};
-      $mac_log_hash{ $key }{datetime} = $list->{unix_datetime} || 0;
-      $mac_log_hash{ $key }{rem_time} = $list->{unix_rem_time} || 0;
+    foreach my $mac (@$mac_list) {
+      $mac->{port} =~ s/\./_/g;
+      my $key = $mac->{mac} . '_' . $mac->{vlan} . '_' . $mac->{port};
+      $mac_log_hash{ $key }{id} = $mac->{id};
+      $mac_log_hash{ $key }{datetime} = $mac->{unix_datetime} || 0;
+      $mac_log_hash{ $key }{rem_time} = $mac->{unix_rem_time} || 0;
     }
 
     if (!$argv->{SNMP_COMMUNITY}) {
       $SNMP_COMMUNITY = ($equip->{NAS_MNG_PASSWORD} || '') . '@' . (($equip->{NAS_MNG_IP_PORT}) ? $equip->{NAS_MNG_IP_PORT} : $equip->{NAS_IP});
     }
     $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: " . ($equip->{NAS_NAME} || q{}));
-
     my $fdb_list = get_fdb({
       %$equip,
       SNMP_COMMUNITY => $SNMP_COMMUNITY,

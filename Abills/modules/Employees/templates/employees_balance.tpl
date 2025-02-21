@@ -8,7 +8,7 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-3 control-label'>_{CASHBOX}_</label>
+        <label class='col-md-3 control-label required'>_{CASHBOX}_</label>
         <div class='col-md-9'>
           %CASHBOX_SELECT%
         </div>
@@ -57,7 +57,7 @@
           <div class='col-xs-3'>
             <i class='fa fa-plus fa-5x'></i>
           </div>
-          <div class='col-xs-9 text-right'>
+          <div class='col-xs-9 text-right p-1 ml-3'>
             <div style='font-size: 40px'>%TOTAL_COMING%</div>
           </div>
         </div>
@@ -71,7 +71,7 @@
           <div class='col-xs-3'>
             <i class='fa fa-minus fa-5x'></i>
           </div>
-          <div class='col-xs-9 text-right'>
+          <div class='col-xs-9 text-right p-1 ml-3'>
             <div style='font-size: 40px'>%TOTAL_SPENDING%</div>
           </div>
         </div>
@@ -85,7 +85,7 @@
           <div class='col-xs-3'>
             <i class='fa fa-calculator fa-5x'></i>
           </div>
-          <div class='col-xs-9 text-right'>
+          <div class='col-xs-9 text-right p-1 ml-3'>
             <div style='font-size: 40px'>%BALANCE%</div>
           </div>
         </div>

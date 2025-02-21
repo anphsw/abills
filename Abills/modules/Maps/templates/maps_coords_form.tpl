@@ -1,5 +1,5 @@
-<form action=$SELF_URL class='form-horizontal'>
-  <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
 
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{AUTO_COORDS}_</h4></div>
@@ -7,12 +7,7 @@
       <div class='form-address'>
         <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
-        <div class='form-group row' style='%EXT_SEL_STYLE%'>
-          <label class='col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{DISTRICTS}_</label>
-          <div class='col-md-8'>
-            %DISTRICTS_SELECT%
-          </div>
-        </div>
+        %DISTRICTS_SELECT%
 
         <div class='form-group row' style='%EXT_SEL_STYLE%'>
           <label class='col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{STREETS}_</label>

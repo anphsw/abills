@@ -181,7 +181,7 @@ sub notes_del{
 
   $self->query_del( 'notepad', $attr );
 
-  return $self->{result};
+  return $self;
 }
 
 

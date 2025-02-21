@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "USER_REGISTRATION",
+  "properties": {
+    "result": {
+      "type": "string"
+    },
+    "sendPin": {
+      "type": "integer"
+    }
+  },
+  "required": ["result"]
+}

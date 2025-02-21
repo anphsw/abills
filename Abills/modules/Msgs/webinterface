@@ -66,10 +66,11 @@ else {
   require Msgs::Tickets_list;
   require Msgs::Schedule;
   require Msgs::Dispatches;
-  require Msgs::Msgs_team_ticket;
-  require Msgs::Msgs_team_location;
+  # require Msgs::Msgs_team_ticket;
+  # require Msgs::Msgs_team_location;
   require Msgs::Msgs_Plugins;
   require Msgs::Msgs_qr;
+  require Msgs::Teams;
 }
 
 require Msgs::Reports if $permissions{3};
@@ -492,26 +493,86 @@ sub msgs_start_page {
 }
 
 #**********************************************************
-=head1 msgs_text_quoting($input_text) - Quoting text
+=head2 msgs_text_formatting($input_text, $is_admin, $attr) - Formats message text
 
-  Attibutes:
-    $input_text - Input text
+  Arguments:
+    $input_text - The input text to format
+    $is_admin   - Boolean indicating if the user is an admin
+    $attr       - Extra attributes (optional)
 
-  Results:
-    Quoting text
+  Returns:
+    Formatted message text.
+
+  Example:
+
+    my $formatted_text = msgs_text_formatting('Sample message', 1, {});
 
 =cut
 #**********************************************************
-sub msgs_text_quoting {
+sub msgs_text_formatting {
   my ($input_text, $is_admin, $attr) = @_;
 
-  $input_text //= '';
+  return $input_text if !$input_text;
 
-  if (!$attr->{SKIP_CONVERT}) {
-    $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  my $text = '';
+
+  $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+
+  if ($input_text && $input_text =~ /^RM\:(\d+)$/) {
+    require Msgs::Export_redmine;
+    Export_redmine->import();
+    my $Export_redmine = Export_redmine->new($db, $admin, \%conf);
+    my $task_info = $Export_redmine->task_info({ TASK_ID => $1 });
+
+    my $task_status = $task_info && $task_info->{status} && $task_info->{status}{name} ? $task_info->{status}{name} : $lang{UNKNOWN};
+    $input_text = $html->element('h5', $html->badge($input_text . " ($task_status)", { TYPE => 'badge-primary' }), { OUTPUT2RETURN => 1 });
+    $input_text = $html->button($input_text, '', {
+      GLOBAL_URL     => $Export_redmine->{TASK_LINK},
+      NO_LINK_FORMER => 1,
+      target         => '_blank',
+    }, { OUTPUT2RETURN => 1 });
   }
+
   $input_text =~ s/\\/\\\\/g;
   $input_text =~ s/\&#37/\\%/g;
+
+  $text = _msgs_text_quoting($input_text);
+
+  $text =~ s/&#42;(.*?)&#42;/$html->element('strong', $1, { OUTPUT2RETURN => 1 })/gse;
+  $text =~ s/\[HIDDEN\](.*?)\[\/HIDDEN\]/$html->element('div',
+    $html->element('div', $1, { class => 'spoiler-text', OUTPUT2RETURN => 1 }), { class => 'spoiler', OUTPUT2RETURN => 1 })/gse;
+
+  $text =~ s/\[CODE\](.*?)\[\/CODE\]/$html->element('pre',
+    $html->element('code', $1, { OUTPUT2RETURN => 1 }), { OUTPUT2RETURN => 1 })/gse;
+
+
+  while ($text =~ /\[\[(\d+)\]\]/) {
+    my $msg_button = $html->button($1, "&index=$index&" . ($is_admin ? "chg" : "ID") . "=$1",
+      { class => 'badge bg-blue' });
+    $text =~ s/\[\[\d+\]\]/$msg_button/;
+  }
+
+  return $text;
+}
+
+#**********************************************************
+=head2 _msgs_text_quoting($input_text) - Formats quoted text
+
+  Arguments:
+    $input_text - The input text containing quoted lines
+
+  Returns:
+    Formatted text with quotes styled appropriately.
+
+  Example:
+
+    my $formatted_text = _msgs_text_quoting('> Quoted message\nRegular message');
+
+=cut
+#**********************************************************
+sub _msgs_text_quoting {
+  my $input_text = shift;
+
   my $text = '';
   my $quote = '';
 
@@ -526,13 +587,6 @@ sub msgs_text_quoting {
   }
 
   $text = ($quote ? $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $text;
-
-  while ($text =~ /\[\[(\d+)\]\]/) {
-    my $msg_button = $html->button($1, "&index=$index&" . ($is_admin ? "chg" : "ID") . "=$1",
-      { class => 'badge bg-blue' });
-    $text =~ s/\[\[\d+\]\]/$msg_button/;
-  }
-
   return $text;
 }
 

@@ -196,7 +196,8 @@ my @modules = (
     cpan => 'Text::CSV'
   },
   {
-    cpan => 'AnyEvent'
+    cpan => 'AnyEvent',
+    apt  => 'libanyevent-perl'
   },
   {
     cpan => 'AnyEvent::HTTP'
@@ -378,7 +379,7 @@ sub test_module {
   my ($module) = @_;
 
   my $module_to_use = $module->{use} || $module->{cpan};
-  my $module_path = $$module_to_use . '.pm';
+  my $module_path = $module_to_use . '.pm';
   $module_path =~ s{::}{/}g;
   eval { require $module_path };
 

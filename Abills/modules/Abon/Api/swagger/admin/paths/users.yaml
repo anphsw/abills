@@ -11,12 +11,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: uid
-      in: query
-      description: Идентификатор пользователя
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/uid"
     - name: comments
       in: query
       description: Комментарии
@@ -47,12 +42,7 @@ get:
       schema:
         type: boolean
         default: true
-    - name: tpId
-      in: query
-      description: Идентификатор ТП
-      schema:
-        type: boolean
-        default: true
+    - $ref: "#/components/parameters/tpId"
     - name: nextAbon
       in: query
       description: Следующая абонплата
@@ -77,23 +67,10 @@ get:
       schema:
         type: boolean
         default: true
-    - name: pageRows
-      in: query
-      description: Количество записей
-      schema:
-        type: integer
-        default: 25
-    - name: sort
-      in: query
-      description: Сортировка по одному параметру выше
-      schema:
-        type: string
-    - name: pg
-      in: query
-      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-      schema:
-        type: integer
-        default: 0
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
   responses:
     200:
       description: Успешное выполнение

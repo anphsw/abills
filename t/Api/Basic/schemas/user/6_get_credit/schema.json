@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "creditChgPrice": {
+      "type": "string"
+    },
+    "creditMonthChanges": {
+      "type": "string"
+    },
+    "creditSum": {
+      "type": "string"
+    },
+    "creditDays": {
+      "type": "string"
+    }
+  },
+  "required": ["creditChgPrice", "creditMonthChanges", "creditSum", "creditDays"]
+}

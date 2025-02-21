@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS ADMIN API
-  version: 1.2.9
-  description: >
-    Last modified 2024-08-14 <br>
+  version: 1.39.10
+  description: |
+    Last modified 2025-02-14 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_admin.yaml.
     Copy it and upload it to your favorite OPEN API viewer.
@@ -23,6 +23,8 @@ servers:
 tags:
   - name: admins
     description: Работа с администраторами
+  - name: bots
+    description: Пути ботов пользователя
   - name: builds
     description: Дома
   - name: callback
@@ -57,6 +59,8 @@ tags:
     description: Abon
   - name: cablecat
     description: Работа с модулем Cablecat
+  - name: cards
+    description: Работа с модулем Cards
   - name: crm
     description: Crm
   - name: docs
@@ -77,6 +81,8 @@ tags:
     description: Работа с модулем Storage
   - name: tags
     description: Работа с метками пользователя (модуль Tags)
+  - name: tasks
+    description: Работа с модулем Tasks
   - name: ureports
     description: Работа с оповещениями (модуль Ureports)
   - name: voip
@@ -127,13 +133,7 @@ paths:
       summary: Информация администратора
       operationId: adminInfo
       parameters:
-        - name: aid
-          in: path
-          required: true
-          description: ID администратора
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathAid"
       responses:
         200:
           description: успешное выполнение
@@ -149,13 +149,7 @@ paths:
       summary: Изменить администратора
       operationId: adminChange
       parameters:
-        - name: aid
-          in: path
-          required: true
-          description: ID администратора
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathAid"
       requestBody:
         content:
           application/json:
@@ -169,6 +163,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminsChangeAdminResponse"
+      security:
+        - KEY: []
+  /admins/self:
+    get:
+      tags:
+        - admins
+      summary: Информация администратора о себе
+      operationId: adminSelfInfo
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                # "../schemas/adminInfo.yaml"
+                $ref: "#/components/schemas/AdminsAdminInfo"
       security:
         - KEY: []
   /admins:
@@ -205,12 +215,7 @@ paths:
       summary: Изменить права администратора
       operationId: adminSetPermissions
       parameters:
-        - name: aid
-          in: path
-          description: ID администратора
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathAid"
       requestBody:
         content:
           application/json:
@@ -292,18 +297,8 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: domainId
-          in: query
-          description: ID домена
-          schema:
-            type: boolean
-            default: false
-        - name: aid
-          in: query
-          description: ID админа
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/domainId"
+        - $ref: "#/components/parameters/aid"
         - name: sipNumber
           in: query
           description: SIP номер
@@ -430,17 +425,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -501,13 +489,7 @@ paths:
       summary: Создать контакт администратора
       operationId: addAdminContact
       parameters:
-        - name: aid
-          in: path
-          required: true
-          description: ID администратора
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathAid"
       requestBody:
         content:
           application/json:
@@ -526,13 +508,7 @@ paths:
       summary: Изменить контакт администратора
       operationId: changeAdminContact
       parameters:
-        - name: aid
-          in: path
-          required: true
-          description: ID администратора
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathAid"
       requestBody:
         content:
           application/json:
@@ -545,6 +521,188 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiAddResponse200"
+  /bots/subscribe/phone:
+    post:
+      tags:
+        - bots
+      summary: Авторизация пользователя по номеру телефона (Только с бота)
+      parameters:
+        - name: USERBOT
+          in: header
+          description: Какой именно бот Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: Telegram
+        - name: USERID
+          in: header
+          description: ID Telegram или Viber
+          required: true
+          schema:
+            type: string
+            example: 111111111
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  example: 380958656881
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully added
+                  code:
+                    type: string
+                    example: 1
+                  user:
+                    type: boolean
+                    example: true
+        400:
+          description: Нет поля phone
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 1770010
+                  errstr:
+                    type: string
+                    example: No field phone
+  /bots/subscribe:
+    post:
+      tags:
+        - bots
+      summary: Авторизация пользователя по токену с botLink (Только с бота)
+      parameters:
+        - name: USERBOT
+          in: header
+          description: Какой именно бот Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: Telegram
+        - name: USERID
+          in: header
+          description: ID Telegram или Viber
+          required: true
+          schema:
+            type: string
+            example: 111111111
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: а_WvnZTywig5qzipYH
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully added
+                  code:
+                    type: string
+                    example: 1
+                  user:
+                    type: boolean
+                    example: false
+        400:
+          description: Нет поля token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 1770004
+                  errstr:
+                    type: string
+                    example: No field token
+  /bots/subscribe/link/{string_bot}:
+    get:
+      tags:
+        - bots
+      summary: Получения ссылки на подписания на бота
+      parameters:
+        - name: string_bot
+          in: path
+          description: названия бота Viber или Telegram
+          required: true
+          schema:
+            type: string
+          example: Telegram
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  botLink:
+                    type: string
+                    example: "https://t.me/test_tg/?start=a_WvnZTywig5qzipYH"
+        400:
+          description: Нет параметра TELEGRAM_BOT_NAME в сonfig.pl
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 1770002
+                  errstr:
+                    type: string
+                    example: 'ERR_UNKNOWN_TELEGRAM_BOT'
+      security:
+        - KEY: [ ]
+  /bots/subscribe/qrcode/{string_bot}:
+    get:
+      tags:
+        - bots
+      summary: Получения QRCode на подписания на бота
+      parameters:
+        - name: string_bot
+          in: path
+          description: названия бота Viber или Telegram
+          required: true
+          schema:
+            type: string
+          example: Telegram
+      responses:
+        200:
+          description: |
+            #
+            ![Swagger logo](https://chart.apis.google.com/chart?cht=qr&chs=350x350&chld=L&choe=UTF-8&chl=https%3A%2F%2Ft.me%2Fabills_user_bot%3Fstart%3Dа_fB4xWXze5HgdSCu4)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
   /builds:
     get:
       tags:
@@ -970,23 +1128,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1149,29 +1294,11 @@ paths:
           schema:
             type: integer
             default: 0
-        - name: uid
-          in: query
-          description: Проверка по пользователю
-          schema:
-            type: integer
-            default: 0
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/uid"
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1339,18 +1466,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1539,12 +1658,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: uid
-          in: query
-          description: UID пользователя.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: fio
           in: query
           description: ФИО пользователя.
@@ -1593,12 +1707,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: aid
-          in: query
-          description: ID администратора, который провел списание.
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: adminName
           in: query
           description: Имя администратора, который провел списание.
@@ -1635,18 +1744,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1716,24 +1817,14 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: UID пользователя.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: login
           in: query
           description: Логин пользователя.
           schema:
             type: boolean
             default: true
-        - name: aid
-          in: query
-          description: ID администратора.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/aid"
         - name: adminName
           in: query
           description: Имя администратора.
@@ -1800,18 +1891,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1830,13 +1913,7 @@ paths:
       description: Возвращает список списаний пользователя
       operationId: getUserFees
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/pathUid"
         - name: datetime
           in: query
           description: Дата проведения списания.
@@ -1927,12 +2004,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: aid
-          in: query
-          description: ID администратора, который провел списание.
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: adminName
           in: query
           description: Имя администратора, который провел списание.
@@ -1969,18 +2041,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -1996,13 +2060,7 @@ paths:
       summary: Добавление списания пользователю
       operationId: addUserFee
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -2033,13 +2091,7 @@ paths:
       operationId: addUserFeeOld
       deprecated: true
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: sum
           in: path
           description: Сумма списания
@@ -2065,12 +2117,7 @@ paths:
         - fees
       summary: Удалить списание
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID списания
@@ -2425,12 +2472,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: domainId
-          in: query
-          description: ID домена, по умолчанию, работает только с модулем Multidoms
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/domainId"
         - name: gName
           in: query
           description: Название группы
@@ -2473,23 +2515,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -2631,13 +2660,7 @@ paths:
       description: Возвращает интервалы ТП
       operationId: getTpIntervalsInfo
       parameters:
-        - name: tpId
-          in: path
-          description: tpID тарифного плана
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathTpId"
       responses:
         200:
           description: Успешное выполнение
@@ -2662,12 +2685,7 @@ paths:
       operationId: getUserSessions
       deprecated: true
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+      - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -2738,12 +2756,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: uid
-          in: query
-          description: UID пользователя.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: billId
           in: query
           description: Счёт пользователя.
@@ -2804,12 +2817,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: aid
-          in: query
-          description: ID администратора, который провел платеж.
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: adminName
           in: query
           description: Имя администратора, который провел платеж.
@@ -2834,18 +2842,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -2912,13 +2912,7 @@ paths:
       description: Возвращает список оплат пользователя
       operationId: getUserPayments
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/pathUid"
         - name: datetime
           in: query
           description: Дата проведения платежа.
@@ -3027,12 +3021,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: aid
-          in: query
-          description: ID администратора, который провел платеж.
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: adminName
           in: query
           description: Имя администратора, который провел платеж.
@@ -3057,18 +3046,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -3084,13 +3065,7 @@ paths:
       summary: Добавление оплаты пользователю
       operationId: addUserPayment
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -3118,12 +3093,7 @@ paths:
         - payments
       summary: Удалить платеж
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID платежа
@@ -3201,18 +3171,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -3319,7 +3281,7 @@ paths:
                 $ref: "#/components/schemas/ApiAddResponse400"
       security:
         - KEY: []
-  /tp/{tpID}:
+  /tp/{tpId}:
     get:
       tags:
         - tp
@@ -3327,13 +3289,7 @@ paths:
       description: Возвращает тарифный план
       operationId: getTpInfo
       parameters:
-        - name: tpID
-          in: path
-          description: tpID тарифного плана
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathTpId"
       responses:
         200:
           description: Успешное выполнение
@@ -3380,12 +3336,7 @@ paths:
         - users
       summary: Получить всех пользователей
       parameters:
-        - name: uid
-          in: query
-          description: ID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: fio
           in: query
           description: ФИО пользователя
@@ -3626,17 +3577,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -3654,13 +3598,7 @@ paths:
       description: Возвращает пользователя
       operationId: getUserByUID
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: showPassword
           in: query
           description: Параметр который возвращает пароль пользователя
@@ -3691,13 +3629,7 @@ paths:
         Также можно добавлять все информационные поля
         Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -3717,13 +3649,7 @@ paths:
       description: Удаление пользователя по UID, полностью через API пользователя невозможно
       operationId: deleteUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: date
           in: query
           description: Дата удаления
@@ -3759,13 +3685,7 @@ paths:
       description: Возвращает персональную информацию пользователя
       operationId: getUserPiByUID
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -3788,13 +3708,7 @@ paths:
       deprecated: true
       operationId: changeUserPi
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -3817,13 +3731,7 @@ paths:
       deprecated: true
       operationId: addUserPi
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -3847,13 +3755,7 @@ paths:
       description: Возвращает контакты пользователя
       operationId: getUserContactsByUID
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -3875,13 +3777,7 @@ paths:
       summary: Добавление контакта пользователю
       operationId: updateUserContact
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -3904,13 +3800,7 @@ paths:
       summary: Обновить контакт пользователю
       operationId: updateUserConctact
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID контакта
@@ -3933,13 +3823,7 @@ paths:
       summary: Удалить контакт пользователя
       operationId: deleteUserContact
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID контакта
@@ -3991,24 +3875,14 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: ID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: companyId
           in: query
           description: ID компании
           schema:
             type: boolean
             default: true
-        - name: aid
-          in: query
-          description: Админ создавший дополнительный договор
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/aid"
         - name: date
           in: query
           description: Дата создания дополнительного договора
@@ -4063,17 +3937,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -4201,17 +4068,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -4219,6 +4079,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsersContractTypeList"
+      security:
+        - KEY: []
+  /users/{uid}/history:
+    get:
+      tags:
+        - users
+      summary: Получить историю пользователя по UID
+      description: Возвращает пользователя
+      operationId: getUsersHistory
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersUsersHistory"
+        400:
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorUserNotExists"
       security:
         - KEY: []
   /version:
@@ -4348,12 +4232,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          in: query
-          description: Id тарифного плана
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
         - name: tpName
           in: query
           description: Название тарифного плана
@@ -4390,23 +4269,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -4542,13 +4408,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -4578,13 +4438,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -4615,12 +4469,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: Идентификатор пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: comments
           in: query
           description: Комментарии
@@ -4651,12 +4500,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          in: query
-          description: Идентификатор ТП
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
         - name: nextAbon
           in: query
           description: Следующая абонплата
@@ -4681,23 +4525,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -4705,6 +4536,103 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AbonUserList"
+      security:
+        - KEY: []
+  /abon/plugin/{plugin_id}/info/:
+    get:
+      tags:
+        - abon
+      summary: Получение информации от плагина тарифного плана
+      description: "Этот путь позволяет получить данные от плагина тарифного плана по его идентификатору. Ответ является динамическим: набор ключей зависит от конкретного плагина."
+      operationId: getAbonPluginTp
+      parameters:
+        - name: plugin_id
+          in: path
+          description: Идентификатор тарифного плана
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Динамический объект с данными от плагина
+                additionalProperties:
+                  type: object
+                  description: Структура данных, специфичная для каждого плагина
+                  properties:
+                    key:
+                      type: string
+                      description: Имя поля (ключ), специфичное для плагина
+                    value:
+                      type: string
+                      description: Значение, соответствующее ключу
+      security:
+        - KEY: []
+  /abon/plugin/{plugin_id}/print/:
+    get:
+      tags:
+        - abon
+      summary: Генерация PDF-файла от плагина тарифного плана
+      description: Этот путь позволяет сгенерировать и получить PDF-файл с данными, предоставленными плагином тарифного плана.
+      operationId: getAbonPluginIdPrint
+      parameters:
+        - name: plugin_id
+          in: path
+          description: Идентификатор тарифного плана
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешная генерация PDF-файла
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+                description: PDF-файл с данными от плагина
+        400:
+          description: Ошибка запроса
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errmsg:
+                    type: string
+                    description: Описание ошибки
+                  errno:
+                    type: integer
+                    description: Уникальный код ошибки
+                    example: 1020002
+                  errstr:
+                    type: string
+                    description: Код ошибки в текстовом формате
+                    example: ERR_NO_ABON_SERVICE
+      security:
+        - KEY: []
+  /users/{uid}/abon:
+    get:
+      tags:
+        - abon
+      summary: Получить список периодических снятий пользователя
+      description: Возвращает список периодических снятий пользователя
+      operationId: getUserAbon
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbonUserAbonList"
       security:
         - KEY: []
   /cablecat/attachment:
@@ -4727,6 +4655,34 @@ paths:
                 $ref: "#/components/schemas/ApiAddResponse200"
       security:
         - KEY: []
+  /cards/{uid}/payments:
+    post:
+      tags:
+        - cards
+      summary: Пополнения скретч картой
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardsAddPaymentRequest"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardsAddPaymentResponse200"
+        400:
+          description: Нет параметра pin в теле запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardsAddPaymentResponse400"
+      security:
+        - KEY: [ ]
   /crm/leads:
     get:
       tags:
@@ -4752,12 +4708,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: uid
-          in: query
-          description: UID пользователя, к которому привязан потенциальный клиент
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: holdupDate
           in: query
           description: Дата, до которой приостановлена работа с клиентом.
@@ -4866,18 +4817,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -5105,18 +5048,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -5265,18 +5200,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -5317,12 +5244,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: aid
-          in: query
-          description: Id ответственного администратор
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: date
           in: query
           description: Дата создания диалога
@@ -5341,18 +5263,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -5655,6 +5569,28 @@ paths:
                 $ref: "#/components/schemas/ApiDeleteResponse200"
       security:
         - KEY: []
+  /crm/attachment/{id}/content/:
+    get:
+      tags:
+        - crm
+      summary: Получить контент файла
+      parameters:
+        - name: id
+          in: path
+          description: ID файла
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+      security:
+        - KEY: []
   /crm/sources/:
     get:
       tags:
@@ -5680,18 +5616,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -5727,6 +5655,105 @@ paths:
           content: { }
       security:
         - KEY: [ ]
+  /crm/leads/social/:
+    post:
+      tags:
+        - crm
+      summary: Добавление добавление лида извне
+      description: На данный момент поддерживается добавление лидов только через ботов
+      operationId: crmAddLeadsSocial
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmLeadsSocial"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmAddLeadsSocialResponse200"
+  
+  /crm/leads/dialogue/message/:
+    post:
+      tags:
+        - crm
+      summary: Отправка сообщения в диалог с бота
+      operationId: botAddMessageToDialogue
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmBotDialogueMessage"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: OK
+                  id:
+                    type: integer
+                    example: 1
+      security:
+        - KEY: [ ]
+  /crm/workflow/:
+    post:
+      tags:
+        - crm
+      summary: Добавление рабочего процесса
+      operationId: addCrmWorkflow
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmWorkflow"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiAddResponse200"
+      security:
+        - KEY: [ ]
+  /crm/workflow/{id}:
+    post:
+      tags:
+        - crm
+      summary: Изменить рабочий процесс
+      operationId: crmWorkflowChange
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID рабочего процесса
+          schema:
+            type: integer
+            default: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmWorkflow"
+        required: true
+      responses:
+        400:
+          description: Can't get old data for change
+          content: { }
+      security:
+        - KEY: [ ]
   /docs/invoices/:
     get:
       tags:
@@ -5745,12 +5772,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: customer
           in: query
           description: UID пользователя
@@ -5917,12 +5939,7 @@ paths:
         - docs
       summary: Платежи к инвойсам(счетам-фактурам)
       parameters:
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: invoiceId
           in: query
           description: ID инвойса
@@ -6000,12 +6017,7 @@ paths:
         - equipment
       summary: Список оборудования в пользование
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       operationId: equipmentUserDevices
       responses:
         200:
@@ -6056,12 +6068,7 @@ paths:
           description: уникальное ID ONU
           schema:
             type: integer
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: branch
           in: query
           description: Ветка
@@ -6086,12 +6093,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: onuId
-          in: query
-          description: ID ONU
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/EquipmentOnuId"
         - name: vlan
           in: query
           description: Vlan
@@ -6140,18 +6142,8 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: nasId
-          in: query
-          description: ID сервера доступа
-          schema:
-            type: boolean
-            default: true
-        - name: onuSnmpId
-          in: query
-          description: ONU SNMP ID
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/nasId"
+        - $ref: "#/components/parameters/EquipmentOnuSnmpId"
         - name: datetime
           in: query
           description: Дата последнего опроса ONU
@@ -6224,18 +6216,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -6276,12 +6260,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: onuId
-          in: query
-          description: ID ONU
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/EquipmentOnuId"
         - name: vlan
           in: query
           description: Vlan
@@ -6324,18 +6303,8 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: nasId
-          in: query
-          description: ID сервера доступа
-          schema:
-            type: boolean
-            default: true
-        - name: onuSnmpId
-          in: query
-          description: ONU SNMP ID
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/nasId"
+        - $ref: "#/components/parameters/EquipmentOnuSnmpId"
         - name: portId
           in: query
           description: ID порта
@@ -6424,17 +6393,10 @@ paths:
       summary: Список OLT
       operationId: getOltList
       parameters:
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -6664,12 +6626,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: nasId
-          in: query
-          description: ID сервера доступа
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/nasId"
         - name: nasGid
           in: query
           description: Группа серверов доступа
@@ -6700,12 +6657,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: domainId
-          in: query
-          description: ID домена
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/domainId"
         - name: domainName
           in: query
           description: Название домена (не работает если не включен Multidoms)
@@ -6802,18 +6754,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -6908,12 +6852,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: nasId
-          in: query
-          description: ID сервера доступа
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/nasId"
         - name: gid
           in: query
           description: ID группы
@@ -6938,12 +6877,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: domainId
-          in: query
-          description: ID домена
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/domainId"
         - name: nasIdentifier
           in: query
           description: Дополнительный идентификатор
@@ -6986,18 +6920,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -7096,17 +7022,10 @@ paths:
       summary: Список групп серверов доступа
       operationId: getNasGroups
       parameters:
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 100000
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -7349,12 +7268,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: nasId
-          in: query
-          description: ID сервера доступа
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/nasId"
         - name: showAllColumns
           in: query
           description: Параметр, при котором выводятся все поля
@@ -7397,18 +7311,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 100000
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -7444,19 +7350,14 @@ paths:
                 $ref: "#/components/schemas/EquipmentAddNasIpPoolResponse400"
       security:
         - KEY: []
-  /equipment/nas/ip/pools/{nasId}/{poolId}:
+  /equipment/nas/ip/pools/{nasId}/{poolId}/:
     delete:
       tags:
         - equipment
       summary: Удалить IP pool привязанный к серверу доступа
       operationId: nasIpPoolsDelete
       parameters:
-        - name: nasId
-          in: path
-          description: ID сервера доступа
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathNasId"
         - name: poolId
           in: path
           description: ID пула
@@ -7478,6 +7379,255 @@ paths:
                 $ref: "#/components/schemas/EquipmentDeleteNasIpPoolResponse400"
       security:
         - KEY: []
+  /equipment/pon/ports/:
+    get:
+      tags:
+        - equipment
+      summary: Список пон портов
+      operationId: getPonPorts
+      parameters:
+        - name: id
+          in: query
+          description: ID порта
+          schema:
+            type: boolean
+            default: true
+        - name: branch
+          in: query
+          description: branch
+          schema:
+            type: boolean
+            default: false
+        - name: branchDesc
+          in: query
+          description: описание Branch
+          schema:
+            type: boolean
+            default: false
+        - name: idVlan
+          in: query
+          description: ID Vlan
+          schema:
+            type: boolean
+            default: false
+        - name: nasId
+          in: query
+          description: ID сервера доступа
+          schema:
+            type: boolean
+            default: false
+        - name: snmpId
+          in: query
+          description: ID сервера доступа
+          schema:
+            type: boolean
+            default: false
+        - name: onuCount
+          in: query
+          description: Количество онушок
+          schema:
+            type: boolean
+            default: false
+        - name: ponType
+          in: query
+          description: тип пона
+          schema:
+            type: boolean
+            default: false
+        - name: status
+          in: query
+          description: status
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentPonPorts"
+      security:
+        - KEY: []
+  /equipment/nas/{id}/details/:
+      post:
+        tags:
+          - equipment
+        summary: Добавить информацию об оборудовании
+        operationId: nasAddDetails
+        parameters:
+          - name: id
+            in: path
+            description: ID сервера доступа
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentAddNasDetails"
+          required: true
+        responses:
+          200:
+            description: Успешное выполнение
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiAddResponse200"
+          400:
+            description: Дубликат
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiAddResponse400"
+        security:
+          - KEY: []
+  /equipment/nas/netmap/positions/:
+    post:
+      tags:
+        - equipment
+      summary: Добавить информацию о положении оборудования на карте сети
+      operationId: nasAddNetmapPosition
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentAddNasNetmapPosition"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiAddResponse200"
+        400:
+          description: Дубликат
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiAddResponse400"
+      security:
+        - KEY: []
+  /equipment/nas/{nas_id}/ports/:
+    get:
+      tags:
+        - equipment
+      summary: Список портов оборудования
+      operationId: getNasPorts
+      parameters:
+        - name: nas_id
+          in: path
+          description: ID сервера доступа
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: query
+          description: ID порта
+          schema:
+            type: boolean
+            default: true
+        - name: port
+          in: query
+          description: Порт
+          schema:
+            type: boolean
+            default: true
+        - name: adminPortStatus
+          in: query
+          description: Статус порта
+          schema:
+            type: boolean
+            default: false
+        - name: uplink
+          in: query
+          description: UPLINK
+          schema:
+            type: boolean
+            default: false
+        - name: status
+          in: query
+          description: Статус
+          schema:
+            type: boolean
+            default: false
+        - name: portComments
+          in: query
+          description: Комментарии к порту
+          schema:
+            type: boolean
+            default: false
+        - name: vlan
+          in: query
+          description: VLAN
+          schema:
+            type: boolean
+            default: false
+        - name: datetime
+          in: query
+          description: Дата и время
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentNasPortList"
+      security:
+        - KEY: []
+  /equipment/nas/{nas_id}/ports/{port_id}/:
+    put:
+      tags:
+        - equipment
+      summary: Изменить информацию о порте
+      operationId: nasPortChange
+      parameters:
+        - name: nas_id
+          in: path
+          description: ID сервера доступа
+          required: true
+          schema:
+            type: integer
+        - name: port_id
+          in: path
+          description: ID порта
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentAddNasPort"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentChangeNasResponse200"
+        400:
+          description: Нет поля ip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentChangeNasResponse400"
+      security:
+        - KEY: []
   /internet/sessions/{uid}:
     get:
       tags:
@@ -7486,12 +7636,7 @@ paths:
       description: Возвращает сессии пользователя
       operationId: getInernetUserSessions
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -7513,13 +7658,7 @@ paths:
         - internet
       summary: Hangup сессии абонента
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -7548,12 +7687,7 @@ paths:
       summary: Информация о списаниях
       operationId: userInternetWarnings
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: number
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID услуги
@@ -7576,13 +7710,7 @@ paths:
       summary: Добавление услугу Интернет пользователю
       operationId: addUserInternet
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -7610,13 +7738,7 @@ paths:
       summary: Изменение услуги Internet пользователю
       operationId: changeUserInternet
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -7645,13 +7767,7 @@ paths:
       summary: Изменение тарифного плана Internet пользователю
       operationId: changeUserInternetInfo
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -7763,12 +7879,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: domainId
-          description: ID домена
-          in: query
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/domainId"
         - name: extBillAccount
           description: Дополнительный счет
           in: query
@@ -8036,12 +8147,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          description: Идентификатор тарифного плана
-          in: query
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
         - name: trafTarifs
           description: Тарифы трафика
           in: query
@@ -8084,11 +8190,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -8130,12 +8235,7 @@ paths:
         - internet
       summary: Изменить тарифный план
       parameters:
-        - name: tpId
-          in: path
-          description: id тарифного плана
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathTpId"
       requestBody:
         content:
           application/json:
@@ -8156,12 +8256,7 @@ paths:
         - internet
       summary: Удалить тарифный план
       parameters:
-        - name: tpId
-          in: path
-          description: id тарифного плана
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathTpId"
       responses:
         200:
           description: Успешное выполнение
@@ -8185,13 +8280,7 @@ paths:
       description: Возвращает ТП интернет пользователя
       operationId: getUserInternetByUID
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -8214,13 +8303,7 @@ paths:
       summary: Информация об интернет услуге пользователя по ID услуги
       operationId: internetInfoUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID услуги
@@ -8261,18 +8344,8 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          in: query
-          description: Идентификатор тарифного плана
-          schema:
-            type: boolean
-            default: true
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
+        - $ref: "#/components/parameters/uid"
         - name: cid
           in: query
           description: Идентификатор пользователя
@@ -8771,17 +8844,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 100000
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -8799,13 +8865,7 @@ paths:
       description: Возвращает ТП Iptv пользователя
       operationId: getUserIptvByUID
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -8828,13 +8888,7 @@ paths:
       summary: Информация об Iptv услуге пользователя по ID услуги
       operationId: iptvInfoUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID услуги
@@ -8955,7 +9009,7 @@ paths:
       tags:
         - msgs
       summary: Получить список сообщений
-      operationId: msgsList
+      deprecated: true
       requestBody:
         description: Параметры, по которым можно фильтровать сообщения
         content:
@@ -8970,6 +9024,366 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiAddResponse200"
+      security:
+        - KEY: []
+    get:
+      tags:
+        - msgs
+      summary: Получить список сообщений
+      operationId: msgsList
+      parameters:
+        - name: msgId
+          in: query
+          schema:
+            type: integer
+          description: ID сообщения.
+        - name: clientId
+          in: query
+          schema:
+            type: string
+          description: ID клиента или имя группы.
+        - name: subject
+          in: query
+          schema:
+            type: string
+          description: Тема сообщения.
+        - name: chapterName
+          in: query
+          schema:
+            type: string
+          description: Название главы сообщения.
+        - name: chapterColor
+          in: query
+          schema:
+            type: string
+          description: Цвет главы сообщения.
+        - name: chapter
+          in: query
+          schema:
+            type: integer
+          description: ID главы.
+        - name: datetime
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Дата и время сообщения.
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Дата сообщения.
+        - name: state
+          in: query
+          schema:
+            type: integer
+          description: Статус сообщения.
+        - name: replyStatus
+          in: query
+          schema:
+            type: integer
+          description: Статус ответа.
+        - name: responsibleAdminLogin
+          in: query
+          schema:
+            type: string
+          description: Логин ответственного администратора.
+        - name: lastReplyDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Дата последнего ответа.
+        - name: planDateTime
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Планируемая дата и время.
+        - name: disable
+          in: query
+          schema:
+            type: integer
+          description: Флаг отключения.
+        - name: innerMsg
+          in: query
+          schema:
+            type: integer
+          description: Флаг внутреннего сообщения.
+        - name: message
+          in: query
+          schema:
+            type: string
+          description: Содержимое сообщения.
+        - name: reply
+          in: query
+          schema:
+            type: string
+          description: Содержимое ответа.
+        - name: msgPhone
+          in: query
+          schema:
+            type: string
+          description: Номер телефона, связанный с сообщением.
+        - name: userRead
+          in: query
+          schema:
+            type: integer
+          description: Флаг прочтения пользователем.
+        - name: closedDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Дата закрытия сообщения.
+        - name: monthClosed
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Месяц закрытия сообщения.
+        - name: runTime
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Общее время выполнения.
+        - name: doneDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Дата завершения задачи.
+        - name: uid
+          in: query
+          schema:
+            type: integer
+          description: ID пользователя.
+        - name: delegation
+          in: query
+          schema:
+            type: integer
+          description: Флаг делегирования.
+        - name: responsible
+          in: query
+          schema:
+            type: integer
+          description: ID ответственного администратора.
+        - name: planDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Планируемая дата.
+        - name: softDeadline
+          in: query
+          schema:
+            type: integer
+          description: Мягкий дедлайн (в днях).
+        - name: hardDeadline
+          in: query
+          schema:
+            type: integer
+          description: Жёсткий дедлайн (в днях).
+        - name: adminRead
+          in: query
+          schema:
+            type: integer
+          description: Флаг прочтения администратором.
+        - name: planTime
+          in: query
+          schema:
+            type: string
+            format: time
+          description: Планируемое время.
+        - name: dispatchId
+          in: query
+          schema:
+            type: integer
+          description: ID рассылки.
+        - name: ip
+          in: query
+          schema:
+            type: string
+            format: ipv4
+          description: IP-адрес.
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Начальная дата диапазона.
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Конечная дата диапазона.
+        - name: closedFromDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Начальная дата закрытия.
+        - name: closedToDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Конечная дата закрытия.
+        - name: adminLogin
+          in: query
+          schema:
+            type: integer
+          description: Логин администратора.
+        - name: msgsAid
+          in: query
+          schema:
+            type: integer
+          description: AID сообщений.
+        - name: adminName
+          in: query
+          schema:
+            type: integer
+          description: Имя администратора.
+        - name: repliesCounts
+          in: query
+          schema:
+            type: integer
+          description: Количество ответов.
+        - name: rating
+          in: query
+          schema:
+            type: integer
+          description: Рейтинг сообщения.
+        - name: locationId
+          in: query
+          schema:
+            type: integer
+          description: ID местоположения.
+        - name: locationIdMsg
+          in: query
+          schema:
+            type: integer
+          description: ID местоположения для сообщения.
+        - name: ratingComment
+          in: query
+          schema:
+            type: string
+          description: Комментарий к рейтингу.
+        - name: stateId
+          in: query
+          schema:
+            type: integer
+          description: ID статуса.
+        - name: priorityId
+          in: query
+          schema:
+            type: integer
+          description: ID приоритета.
+        - name: chgMsgs
+          in: query
+          schema:
+            type: integer
+          description: Флаг изменения сообщений.
+        - name: delMsgs
+          in: query
+          schema:
+            type: integer
+          description: Флаг удаления сообщений.
+        - name: par
+          in: query
+          schema:
+            type: integer
+          description: Значение параметра.
+        - name: msgsTags
+          in: query
+          schema:
+            type: integer
+          description: ID тегов сообщения.
+        - name: downtime
+          in: query
+          schema:
+            type: string
+          description: Продолжительность простоя.
+        - name: replyText
+          in: query
+          schema:
+            type: string
+          description: Текст ответов.
+        - name: month
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Месяц сообщения.
+        - name: userName
+          in: query
+          schema:
+            type: string
+          description: Имя пользователя.
+        - name: adminDisable
+          in: query
+          schema:
+            type: integer
+          description: Флаг отключения администратора.
+        - name: doneSum
+          in: query
+          schema:
+            type: integer
+          description: Сумма завершённых задач.
+        - name: planInterval
+          in: query
+          schema:
+            type: integer
+          description: Интервал планирования.
+        - name: planPosition
+          in: query
+          schema:
+            type: integer
+          description: Позиция в плане.
+        - name: addressFull
+          in: query
+          schema:
+            type: string
+          description: Полный адрес.
+        - name: sendType
+          in: query
+          schema:
+            type: integer
+          description: Тип метода отправки.
+        - name: msgsTagsIds
+          in: query
+          schema:
+            type: string
+          description: ID тегов сообщения.
+        - name: closedAdmin
+          in: query
+          schema:
+            type: string
+          description: Имя администратора, который закрыл сообщение.
+        - name: watchers
+          in: query
+          schema:
+            type: string
+          description: Список имён наблюдателей.
+        - name: performers
+          in: query
+          schema:
+            type: integer
+          description: ID исполнителей (если модуль Employees активен).
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsMsgsList"
       security:
         - KEY: []
   /msgs/{id}/reply:
@@ -9009,11 +9423,15 @@ paths:
             type: integer
             format: int64
       requestBody:
-        description: Параметры, которые нужно указать
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/MsgsAddReplyRequest"
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/MsgsAddReplyRequest"
+                - $ref: "#/components/schemas/MsgsMsgsFiles"
         required: true
       responses:
         200:
@@ -9021,7 +9439,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiAddResponse200"
+                $ref: "#/components/schemas/MsgsAddReplyResponse200"
       security:
         - KEY: []
   /msgs/reply/{reply_id}/attachment:
@@ -9121,6 +9539,125 @@ paths:
                 $ref: "#/components/schemas/ApiAddResponse200"
       security:
         - KEY: []
+  /msgs/statuses/:
+    get:
+      tags:
+        - msgs
+      summary: Список статусов
+      operationId: msgsStatuses
+      parameters:
+        - name: color
+          in: query
+          description: цвет статуса
+          schema:
+            type: boolean
+            default: true
+        - name: icon
+          in: query
+          description: пиктограмма статуса
+          schema:
+            type: boolean
+            default: true
+        - name: id
+          in: query
+          description: ID статуса
+          schema:
+            type: boolean
+            default: true
+        - name: name
+          in: query
+          description: Название статуса
+          schema:
+            type: boolean
+            default: true
+        - name: readiness
+          in: query
+          description: Готовность (%)
+          schema:
+            type: boolean
+            default: true
+        - name: taskClosed
+          in: query
+          description: Задача закрыта (закрывается когда переходит в этот статус)
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsStatuses"
+      security:
+        - KEY: []
+  /msgs/survey/:
+    get:
+      tags:
+        - msgs
+      summary: Список шаблонов, опросов
+      operationId: msgsSurvey
+      parameters:
+        - name: name
+          in: query
+          description: Название
+          schema:
+            type: boolean
+            default: true
+        - name: tpl
+          in: query
+          description: Текст шаблона
+          schema:
+            type: boolean
+            default: true
+        - name: id
+          in: query
+          description: ID статуса
+          schema:
+            type: boolean
+            default: true
+        - name: status
+          in: query
+          description: статус
+          schema:
+            type: boolean
+            default: true
+        - name: comments
+          in: query
+          description: Описание
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsSurvey"
+      security:
+        - KEY: []
+  /msgs/report/dynamics/:
+    get:
+      tags:
+        - msgs
+      summary: Получить отчет о динамике сообщений и ответов на них
+      operationId: msgsDynamicsList
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsReportDynamics"
+      security:
+        - KEY: []
   /portal/articles:
     get:
       tags:
@@ -9163,23 +9700,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9323,23 +9847,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9457,17 +9968,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9574,17 +10078,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9696,12 +10193,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: aid
-          in: query
-          description: ID администратора
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/aid"
         - name: login
           in: query
           description: Логин пользователя, которому установлено оборудование
@@ -9768,17 +10260,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9843,11 +10328,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -9993,12 +10474,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         description: Параметры, которые нужно указать
         content:
@@ -10030,12 +10506,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         description: Параметры, которые нужно указать
         content:
@@ -10068,12 +10539,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: успешное выполнение
@@ -10106,12 +10572,7 @@ paths:
         - tags
       summary: Список меток назначенных пользователям
       parameters:
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: name
           in: query
           description: Название метки
@@ -10154,11 +10615,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -10176,13 +10633,7 @@ paths:
         - tags
       summary: Список меток назначенных пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/pathUid"
         - name: name
           in: query
           description: Название метки
@@ -10225,11 +10676,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -10247,12 +10694,7 @@ paths:
       summary: Добавление меток пользователю
       operationId: addTagsUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         description: Параметры, которые нужно указать
         content:
@@ -10286,12 +10728,7 @@ paths:
       summary: Замена меток пользователю
       operationId: replaceTagsUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         description: Параметры, которые нужно указать
         content:
@@ -10325,12 +10762,7 @@ paths:
       summary: Обновление меток пользователю
       operationId: updateTagsUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         description: Параметры, которые нужно указать
         content:
@@ -10358,6 +10790,207 @@ paths:
                 $ref: "#/components/schemas/TagsTagsUserResponse"
       security:
         - KEY: [ ]
+  /tasks:
+    get:
+      tags:
+        - tasks
+      summary: Список задач
+      parameters:
+        - name: id
+          in: query
+          description: Идентификатор задачи
+          schema:
+            type: boolean
+            default: false
+        - name: taskType
+          in: query
+          description: Тип задачи
+          schema:
+            type: boolean
+            default: false
+        - name: state
+          in: query
+          description: Состояние задачи
+          schema:
+            type: boolean
+            default: false
+        - name: aid
+          in: query
+          description: Идентификатор сотрудника, создавшего задачу
+          schema:
+            type: boolean
+            default: false
+        - name: responsible
+          in: query
+          description: Ответственный за задачу
+          schema:
+            type: boolean
+            default: false
+        - name: planDate
+          in: query
+          description: Дата планирования
+          schema:
+            type: boolean
+            default: false
+        - name: closedDate
+          in: query
+          description: Дата закрытия задачи
+          schema:
+            type: boolean
+            default: false
+        - name: controlDate
+          in: query
+          description: Дата контроля
+          schema:
+            type: boolean
+            default: false
+        - name: msgId
+          in: query
+          description: Идентификатор сообщения
+          schema:
+            type: boolean
+            default: false
+        - name: stepId
+          in: query
+          description: Идентификатор шага
+          schema:
+            type: boolean
+            default: false
+        - name: leadId
+          in: query
+          description: Идентификатор лида
+          schema:
+            type: boolean
+            default: false
+        - name: dealId
+          in: query
+          description: Идентификатор сделки
+          schema:
+            type: boolean
+            default: false
+        - name: parentId
+          in: query
+          description: Идентификатор родительской задачи
+          schema:
+            type: boolean
+            default: false
+        - name: path
+          in: query
+          description: Путь
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          in: query
+          description: Имя задачи
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TasksTasksList"
+      security:
+        - KEY: [ ]
+    post:
+      tags:
+        - tasks
+      summary: Добавление задачи
+      operationId: addTask
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TasksTaskAddRequest"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TasksTaskAddResponse"
+      security:
+        - KEY: [ ]
+  /tasks/{id}:
+    get:
+      tags:
+        - tasks
+      summary: Задача
+      parameters:
+        - name: id
+          in: path
+          description: ID задачи
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TasksTask"
+      security:
+        - KEY: [ ]
+    put:
+      tags:
+        - tasks
+      summary: Изменить задачу
+      parameters:
+        - name: id
+          in: path
+          description: ID задачи
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TasksTask"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TasksTaskChangeResponse"
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - tasks
+      summary: Удалить задачу
+      parameters:
+        - name: id
+          in: path
+          description: ID задачи
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+      security:
+        - KEY: [ ]
   /ureports/user/list:
     get:
       tags:
@@ -10365,12 +10998,7 @@ paths:
       summary: Список пользователей с включенными оповещениями
       operationId: ureportsUserList
       parameters:
-        - name: tpId
-          in: query
-          description: ID тарифного план
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
         - name: tpName
           in: query
           description: Название тарифного плана
@@ -10389,24 +11017,17 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: uid
-          in: query
-          description: UID пользователя
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: reportsCount
           in: query
           description: Количество отчётов
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 100000
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: успешное выполнение
@@ -10422,12 +11043,7 @@ paths:
         - ureports
       summary: Получить пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: успешное выполнение
@@ -10442,12 +11058,7 @@ paths:
         - ureports
       summary: Добавить оповещения пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10474,12 +11085,7 @@ paths:
         - ureports
       summary: Изменить оповещения пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10501,12 +11107,7 @@ paths:
       summary: Удалить оповещения пользователю
       operationId: ureportsDeleteUser
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -10522,12 +11123,7 @@ paths:
         - ureports
       summary: Получить отчеты пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: успешное выполнение
@@ -10542,12 +11138,7 @@ paths:
         - ureports
       summary: Добавить отчеты пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10574,12 +11165,7 @@ paths:
         - ureports
       summary: Удалить отчеты пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -10601,12 +11187,7 @@ paths:
         - ureports
       summary: Удалить отчет пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID отчета
@@ -10654,18 +11235,8 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          in: query
-          description: ID тарифного плана.
-          schema:
-            type: boolean
-            default: true
-        - name: uid
-          in: query
-          description: UID пользователя.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
+        - $ref: "#/components/parameters/uid"
         - name: number
           in: query
           description: Номер телефона пользователя.
@@ -10762,23 +11333,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -10834,12 +11392,7 @@ paths:
         - voip
       summary: Информация о услуге Voip пользователя
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -10854,12 +11407,7 @@ paths:
         - voip
       summary: Добавить услугу Voip пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10886,12 +11434,7 @@ paths:
         - voip
       summary: Изменить услугу Voip пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10918,12 +11461,7 @@ paths:
         - voip
       summary: Удалить пользователя Voip
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -10945,12 +11483,7 @@ paths:
         - voip
       summary: Изменить Voip тариф пользователю
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -10977,12 +11510,7 @@ paths:
         - voip
       summary: Удалить расписания изменение тарифа пользователя Voip
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -11028,29 +11556,11 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: UID пользователя в биллинге.
-          schema:
-            type: boolean
-            default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
+        - $ref: "#/components/parameters/uid"
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -11066,12 +11576,7 @@ paths:
         - voip
       summary: Информация о дополнительных номерах
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       responses:
         200:
           description: Успешное выполнение
@@ -11086,12 +11591,7 @@ paths:
         - voip
       summary: Добавить номер
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
       requestBody:
         content:
           application/json:
@@ -11119,12 +11619,7 @@ paths:
         - voip
       summary: Удалить привязанный номер
       parameters:
-        - name: uid
-          in: path
-          description: UID пользователя в биллинге
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathUid"
         - name: id
           in: path
           description: ID номера
@@ -11203,12 +11698,7 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: tpId
-          in: query
-          description: Внутренний ID тарифного плана.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/tpId"
         - name: freeTime
           in: query
           description: Беслатное время звонка.
@@ -11221,23 +11711,10 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -11279,12 +11756,7 @@ paths:
         - voip
       summary: Информация о тарифе Voip
       parameters:
-        - name: tpId
-          in: path
-          description: tpId Voip тарифа
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathTpId"
       responses:
         200:
           description: Успешное выполнение
@@ -11299,12 +11771,7 @@ paths:
         - voip
       summary: Изменить тариф Voip
       parameters:
-        - name: tpId
-          in: path
-          description: TP_ID Voip тарифа
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathTpId"
       requestBody:
         content:
           application/json:
@@ -11325,12 +11792,7 @@ paths:
         - voip
       summary: Удалить тариф Voip
       parameters:
-        - name: tpId
-          in: path
-          description: tpId Voip тарифа
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/pathTpId"
       responses:
         200:
           description: Успешное выполнение
@@ -11396,23 +11858,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -11553,23 +12002,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -11732,23 +12168,10 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -11884,24 +12307,14 @@ paths:
           schema:
             type: boolean
             default: true
-        - name: nasId
-          in: query
-          description: ID сервера доступа.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/nasId"
         - name: routeId
           in: query
           description: Идентификатор пути. Можно получить подробную информацию о пути из /voip/routes.
           schema:
             type: boolean
             default: true
-        - name: uid
-          in: query
-          description: UID пользователя.
-          schema:
-            type: boolean
-            default: true
+        - $ref: "#/components/parameters/uid"
         - name: start
           in: query
           description: Время звонка.
@@ -11944,12 +12357,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: tpId
-          in: query
-          description: Тарифный план, по которому тарифицируется звонок
-          schema:
-            type: boolean
-            default: false
+        - $ref: "#/components/parameters/tpId"
         - name: sum
           in: query
           description: Стоимость звонка для пользователя
@@ -11986,23 +12394,10 @@ paths:
           schema:
             type: string
             default: true
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: sort
-          in: query
-          description: Сортировка по одному параметру выше
-          schema:
-            type: string
-        - name: pg
-          in: query
-          description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
       responses:
         200:
           description: Успешное выполнение
@@ -12050,7 +12445,126 @@ paths:
         - KEY: []
 
 components:
+  parameters:
+    pathAid:
+      name: aid
+      in: path
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+    pathNasId:
+      name: nasId
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+    pathTpId:
+      name: tpId
+      in: path
+      description: tpId тарифного плана
+      required: true
+      schema:
+        type: integer
+        format: int64
+    pathUid:
+      name: uid
+      in: path
+      description: ID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    aid:
+      name: aid
+      in: query
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+    domainId:
+      name: domainId
+      in: query
+      description: ID домена (модуль Multidoms)
+      schema:
+        type: integer
+    nasId:
+      name: nasId
+      in: query
+      description: ID сервера доступа.
+      schema:
+        type: boolean
+        default: true
+    tpId:
+      name: tpId
+      in: query
+      description: ID тарифного плана
+      schema:
+        type: integer
+    uid:
+      name: uid
+      in: query
+      description: ID пользователя
+      schema:
+        type: integer
+        format: int64
+    desc:
+      name: desc
+      in: query
+      description: "Specify sorting order: 'ASC' for ascending, 'DESC' for descending"
+      schema:
+        type: string
+        enum: [ASC, DESC]
+        default: ASC
+    pageRows:
+      name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    pg:
+      name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+    sort:
+      name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+        default: 0
+    EquipmentOnuId:
+      name: onuId
+      in: query
+      description: ID ONU
+      schema:
+        type: integer
+    EquipmentOnuSnmpId:
+      name: onuSnmpId
+      in: query
+      description: ONU SNMP ID
+      schema:
+        type: string
   schemas:
+    ErrorUserNotExists:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 15
+        errstr:
+          type: string
+          example: User not found with uid 121212
+        uid:
+          type: number
+          example: 121212
     ApiGetResponse400:
       type: object
       properties:
@@ -14635,6 +15149,62 @@ components:
           example: 1
           default: 0
           description: Установить статус удалено пользователю, но полностью не удалять
+    UsersUsersHistory:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              actionType:
+                type: integer
+                description: Type of action taken
+                example: 2
+              actions:
+                type: string
+                description: Action details
+                example: "MSG_ID:3821 ADMIN_READ 0000-00-00 00:00:00->2023-01-23 21:46:47"
+              adminDisable:
+                type: integer
+                description: Indicates if admin is disabled (0 for no, 1+ for yes)
+                example: 0
+              adminLogin:
+                type: string
+                description: Admin login username
+                example: "abills"
+              aid:
+                type: integer
+                description: Admin ID
+                example: 1
+              datetime:
+                type: string
+                description: Date of action
+                example: "2023-01-23 21:46:47"
+              id:
+                type: integer
+                description: Unique log entry ID
+                example: 285
+              ip:
+                type: string
+                description: IP address of the admin or user
+                example: "192.168.99.1"
+              login:
+                type: string
+                description: User login identifier
+                example: "00000"
+              module:
+                type: string
+                description: Module in which the action took place
+                example: "Msgs"
+              uid:
+                type: integer
+                description: User ID
+                example: 102167
+        total:
+          type: integer
+          description: Total number of logs
+          example: 9861
     VersionSwaggerAdmin:
       type: object
       properties:
@@ -14869,9 +15439,6 @@ components:
         manualActivate:
           type: integer
           example: 0
-        module:
-          type: string
-          example: "PolisUA"
         name:
           type: integer
           example: 10
@@ -14901,7 +15468,7 @@ components:
           example: 0
         plugin:
           type: string
-          example: ""
+          example: "PolisUA"
         popular:
           type: integer
           example: 0
@@ -14986,6 +15553,88 @@ components:
         uid:
           type: number
           example: 120545
+    AbonUserAbon:
+      type: object
+      properties:
+        activeService:
+          type: integer
+          example: 1
+        comments:
+          type: string
+          example: ""
+        createDocs:
+          type: integer
+          example: 0
+        date:
+          type: string
+          example: "2025-01-14"
+        description:
+          type: string
+          example: ""
+        discount:
+          type: integer
+          example: 0
+        feesPeriod:
+          type: integer
+          example: 0
+        id:
+          type: integer
+          example: 14
+        manualActivate:
+          type: integer
+          example: 1
+        manualFee:
+          type: integer
+          example: 0
+        missing:
+          type: integer
+          example: 0
+        nextAbon:
+          type: string
+          example: "2025-02-01"
+        notification1:
+          type: string
+          example: "0000-00-00"
+        notification1AccountId:
+          type: integer
+          example: 0
+        notification2:
+          type: string
+          example: "0000-00-00"
+        period:
+          type: integer
+          example: 1
+        personalDescription:
+          type: string
+          example: ""
+        plugin:
+          type: string
+          example: ""
+        price:
+          type: integer
+          example: 200
+        promoPeriod:
+          type: integer
+          example: 5
+        reductionFee:
+          type: integer
+          example: 0
+        sendDocs:
+          type: integer
+          example: 0
+        serviceCount:
+          type: integer
+          example: 1
+        tpName:
+          type: string
+          example: "Статический IP"
+        userDescription:
+          type: string
+          example: ""
+    AbonUserAbonList:
+      type: array
+      items:
+        $ref: "#/components/schemas/AbonUserAbon"
     AbonUserList:
       type: array
       items:
@@ -15005,6 +15654,44 @@ components:
             Contents:
               type: string
               example: 'image content'
+    CardsAddPaymentRequest:
+      type: object
+      properties:
+        pin:
+          description: Пин карточки
+          type: string
+          example: 12345678
+        serial:
+          description: Серийный номер карты, необходимо передавать если не включена опция CARDS_PIN_ONLY
+          type: string
+          example: 12345678
+    CardsAddPaymentResponse200:
+      type: object
+      properties:
+        amount:
+          type: number
+          example: 1.99
+        commission:
+          type: number
+          example: 0.99
+        paymentId:
+          type: number
+          example: 18342
+        result:
+          type: string
+          example: Success payment, ID 18342
+    CardsAddPaymentResponse400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 1060002
+        errstr:
+          type: string
+          example: ERR_NO_FIELD
+        errmsg:
+          type: string
+          example: No field pin
     CrmAction:
       type: object
       properties:
@@ -15034,6 +15721,23 @@ components:
         filename:
           type: string
           example: 'image.jpg'
+    CrmAddLeadsSocialResponse200:
+      allOf:
+        - $ref: "#/components/schemas/ApiAddResponse200"
+        - type: object
+          properties:
+            newLeadId:
+              type: integer
+              example: 37
+              description: "Lead id same to insertId"
+            newDialogueId:
+              type: integer
+              example: 26
+              description: "Id of automatically created dialogue"
+            newMessageId:
+              type: integer
+              example: 454
+              description: "Id of automatically created system message in new dialogue"
     CrmAddPhoneExternalCMDResponse200:
       type: object
       properties:
@@ -15055,6 +15759,29 @@ components:
         'Content-Type':
           type: string
           example: 'image/jpg'
+    CrmBotDialogueMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Test message"
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              file_name:
+                type: string
+                example: 'test.txt'
+              contents:
+                type: string
+                example: 'some content'
+              size:
+                type: integer
+                example: 0
+              contentType:
+                type: string
+                example: 'text/plain'
     CrmChangeDealRequest:
       type: object
       properties:
@@ -15216,6 +15943,18 @@ components:
           uid:
             type: number
             example: 22199
+    CrmLeadsSocial:
+      type: object
+      properties:
+        fio:
+          type: string
+          example: "Test user"
+        phone:
+          type: string
+          example: "0507162626"
+        email:
+          type: string
+          example: "dev_api@abills.net.ua"
     CrmProgressMessage:
       type: object
       properties:
@@ -15295,6 +16034,46 @@ components:
           id:
             type: number
             example: 3
+    CrmWorkflow:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Some name
+        descr:
+          type: string
+          example: some description
+        disable:
+          type: integer
+          example: 0
+        triggers:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                example: type name
+              old_value:
+                type: string
+                example: 10
+              new_value:
+                type: string
+                example: 12
+              contains:
+                type: string
+                example: contains text
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                example: type name
+              value:
+                type: string
+                example: some value
     DocsInvoice:
       type: object
       properties:
@@ -15905,6 +16684,67 @@ components:
         total:
           type: number
           example: 8368
+    EquipmentAddNasDetails:
+      type: object
+      properties:
+        modelId:
+          type: integer
+          example: 1
+        systemId:
+          type: string
+          maxLength: 30
+          example: "SYS-12345"
+        ports:
+          type: integer
+          example: 24
+        firmware:
+          type: string
+          maxLength: 20
+          example: "1.0.5"
+        firmware2:
+          type: string
+          maxLength: 20
+          example: "1.0.6"
+        status:
+          type: integer
+          example: 1
+        startUpDate:
+          type: string
+          format: date
+          example: "2023-01-15"
+        comments:
+          type: string
+          example: "Main switch in server room"
+        serial:
+          type: string
+          maxLength: 100
+          example: "SN1234567890"
+        revision:
+          type: string
+          maxLength: 10
+          example: "Rev A"
+        snmpVersion:
+          type: integer
+          example: 2
+        serverVlan:
+          type: integer
+          example: 100
+        lastActivity:
+          type: string
+          format: date-time
+          example: "2024-02-07 12:34:56"
+        internetVlan:
+          type: integer
+          example: 200
+        tr069Vlan:
+          type: integer
+          example: 300
+        iptvVlan:
+          type: integer
+          example: 400
+        snmpTimeout:
+          type: integer
+          example: 5
     EquipmentAddNasGroupRequest:
       type: object
       properties:
@@ -15970,6 +16810,46 @@ components:
         errstr:
           type: string
           example: No field nasId
+    EquipmentAddNasNetmapPosition:
+      type: object
+      properties:
+        positions:
+          type: array
+          items:
+            type: object
+            properties:
+              coordx:
+                type: number
+                format: double
+                example: 12.3456789
+              coordy:
+                type: number
+                format: double
+                example: 98.7654321
+              nadId:
+                type: number
+                example: 1
+    EquipmentAddNasPort:
+      type: object
+      properties:
+        port:
+          type: number
+          example: 0
+        status:
+          type: number
+          example: 0
+        uplink:
+          type: number
+          example: 0
+        comments:
+          type: string
+          example: ""
+        vlan:
+          type: number
+          example: 0
+        datetime:
+          type: string
+          example: "2024-02-14 12:00:00"
     EquipmentAddNasRequest:
       type: object
       properties:
@@ -16409,6 +17289,20 @@ components:
             type: integer
             format: int32
             example: 3
+    EquipmentNasPortList:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: number
+            example: 1
+          port:
+            type: string
+            example: 199
+          nasId:
+            type: number
+            example: 2
     EquipmentNasTypesList:
       type: array
       items:
@@ -16471,6 +17365,41 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/EquipmentOnuInfo"
+    EquipmentPonPorts:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              branch:
+                type: string
+                example: 1/1/7
+              branchDesc:
+                type: string
+                example: OLT-70
+              id:
+                type: number
+                example: 1
+              nasId:
+                type: number
+                example: 117
+              ponType:
+                type: string
+                example: gpon
+              snmpId:
+                type: number
+                example: 268502784
+              status:
+                type: string
+                example: 1
+              vlanId:
+                type: number
+                example: 0
+        total:
+          type: number
+          example: 5
     EquipmentUsedPorts:
       type: object
       properties:
@@ -17632,12 +18561,190 @@ components:
     MsgsAddReplyRequest:
       type: object
       properties:
-        aid:
-          type: integer
-          example: 2
         replyText:
           type: string
           example: Reply text
+          description: "Текст ответа"
+        runTime:
+          type: string
+          example: "00:30:15"
+          description: "Время потраченное на обращение"
+        replyInnerMsg:
+          type: integer
+          example: 1
+          description: "Внутреннее сообщение, только администраторам"
+        state:
+          type: integer
+          example: 3
+          description: "Статус обращения. Статусы можно получить c помощью пути /msgs/statuses"
+    MsgsAddReplyResponse200:
+      type: object
+      properties:
+        adminRead:
+          type: string
+          example: "2024-12-26 23:45:50"
+        aid:
+          type: number
+          example: 1
+        aName:
+          type: string
+          example:
+        caption:
+          type: string
+          example:
+        chapter:
+          type: number
+          example: 1
+        chapterName:
+          type: string
+          example: "Cool tickets"
+        closedAid:
+          type: number
+          example: 0
+        closedDate:
+          type: string
+          example: "0000-00-00 00:00:00"
+        color:
+          type: string
+          example: "#0000FF"
+        date:
+          type: string
+          example: "2024-12-26 15:10:05"
+        datetime:
+          type: string
+          example: "2024-12-26 23:45:50"
+        deligation:
+          type: number
+          example: 0
+        deligationLevel:
+          type: number
+          example: 0
+        dispatchId:
+          type: number
+          example: 0
+        domainId:
+          type: number
+          example: 0
+        doneDate:
+          type: string
+          example: "0000-00-00"
+        fgName:
+          type: string
+          example:
+        gid:
+          type: number
+          example: 0
+        icon:
+          type: string
+          example: fa fa-envelope-open text-aqua
+        id:
+          type: number
+          example: 493
+        innerMsg:
+          type: number
+          example: 0
+        insertId:
+          type: number
+          example: 493
+        ip:
+          type: number
+          example: 2887274497
+        lastReplieDate:
+          type: string
+          example: "2024-12-26 23:45:50"
+        locationId:
+          type: number
+          example: 0
+        lockMsg:
+          type: number
+          example: 0
+        login:
+          type: string
+          example: diller
+        mainMsg:
+          type: number
+          example: 98
+        message:
+          type: string
+          example: TEST
+        name:
+          type: string
+          example: $langOPEN
+        par:
+          type: number
+          example: 0
+        phone:
+          type: string
+          example:
+        planDate:
+          type: string
+          example: "0000-00-00"
+        planInterval:
+          type: number
+          example: 0
+        planPosition:
+          type: number
+          example: 0
+        planTime:
+          type: string
+          example: "00:00:00"
+        priority:
+          type: number
+          example: 2
+        rating:
+          type: number
+          example: 0
+        ratingComment:
+          type: string
+          example:
+        readiness:
+          type: number
+          example: 0
+        reply:
+          type: string
+          example:
+        replyId:
+          type: number
+          example: 493
+        responsibleName:
+          type: string
+          example: abills
+        resposible:
+          type: number
+          example: 1
+        runTime:
+          type: number
+          example: 0
+        state:
+          type: number
+          example: 6
+        status:
+          type: number
+          example: 0
+        subject:
+          type: string
+          example: "так хто Вам казав що буде просто?"
+        surveyId:
+          type: number
+          example: 0
+        taskClosed:
+          type: number
+          example: 0
+        text:
+          type: string
+          example: "Знову ніхто нічого не читає..."
+        ticketRunTime:
+          type: string
+          example: "00:00:00"
+        total:
+          type: number
+          example: 1
+        uid:
+          type: number
+          example: 0
+        userRead:
+          type: string
+          example: "0000-00-00 00:00:00"
     MsgsChapter:
       type: object
       properties:
@@ -17663,28 +18770,234 @@ components:
     MsgsMsgs:
       type: object
       properties:
-        uid:
+        id:
           type: integer
-          example: 11135
+          example: 123
+        clientId:
+          type: string
+          example: "456"
+        subject:
+          type: string
+          example: "Subject of the message"
+        chapterName:
+          type: string
+          example: "General"
+        chapterColor:
+          type: string
+          example: "#FF5733"
         chapter:
           type: integer
           example: 2
-        message:
+        datetime:
           type: string
-          example: Test message
+          format: date-time
+          example: "2023-11-22T10:00:00Z"
+        date:
+          type: string
+          format: date
+          example: "2023-11-22"
         state:
           type: integer
-          example: 0
-        subject:
-          type: string
-          example: Message subject
-        priority:
+          example: 1
+        replyStatus:
           type: integer
           example: 2
+        responsibleAdminLogin:
+          type: string
+          example: "admin123"
+        lastReplyDate:
+          type: string
+          format: date
+          example: "2023-11-21"
+        planDateTime:
+          type: string
+          format: date-time
+          example: "2023-11-23T14:30:00Z"
+        disable:
+          type: integer
+          example: 0
+        innerMsg:
+          type: integer
+          example: 1
+        message:
+          type: string
+          example: "This is the content of the message."
+        reply:
+          type: string
+          example: "This is a reply."
+        msgPhone:
+          type: string
+          example: "+1234567890"
+        userRead:
+          type: integer
+          example: 1
+        closedDate:
+          type: string
+          format: date
+          example: "2023-11-24"
+        monthClosed:
+          type: string
+          format: date
+          example: "2023-11"
+        runTime:
+          type: string
+          example: "01:30:00"
+        doneDate:
+          type: string
+          format: date
+          example: "2023-11-23"
+        uid:
+          type: integer
+          example: 11135
+        delegation:
+          type: integer
+          example: 1
+        responsible:
+          type: integer
+          example: 234
+        planDate:
+          type: string
+          format: date
+          example: "2023-11-25"
+        softDeadline:
+          type: integer
+          example: 5
+        hardDeadline:
+          type: integer
+          example: 10
+        adminRead:
+          type: integer
+          example: 1
+        planTime:
+          type: string
+          format: time
+          example: "14:30:00"
+        dispatchId:
+          type: integer
+          example: 678
+        ip:
+          type: string
+          format: ipv4
+          example: "192.168.1.1"
+        fromDate:
+          type: string
+          format: date
+          example: "2023-11-01"
+        toDate:
+          type: string
+          format: date
+          example: "2023-11-30"
+        closedFromDate:
+          type: string
+          format: date
+          example: "2023-11-20"
+        closedToDate:
+          type: string
+          format: date
+          example: "2023-11-30"
+        adminLogin:
+          type: integer
+          example: 111
+        msgsAid:
+          type: integer
+          example: 222
+        adminName:
+          type: integer
+          example: "Admin Name"
+        repliesCounts:
+          type: integer
+          example: 3
+        rating:
+          type: integer
+          example: 5
+        locationId:
+          type: integer
+          example: 456
+        locationIdMsg:
+          type: integer
+          example: 789
+        ratingComment:
+          type: string
+          example: "Good service."
+        stateId:
+          type: integer
+          example: 1
+        priorityId:
+          type: integer
+          example: 2
+        chgMsgs:
+          type: integer
+          example: 0
+        delMsgs:
+          type: integer
+          example: 0
+        par:
+          type: integer
+          example: 1
+        msgsTags:
+          type: integer
+          example: 123
+        downtime:
+          type: string
+          example: "00:15:00"
+        replyText:
+          type: string
+          example: "This is the reply text."
+        month:
+          type: string
+          format: date
+          example: "2023-11"
+        userName:
+          type: string
+          example: "JohnDoe"
+        adminDisable:
+          type: integer
+          example: 0
+        doneSum:
+          type: integer
+          example: 10
+        planInterval:
+          type: integer
+          example: 30
+        planPosition:
+          type: integer
+          example: 1
+        addressFull:
+          type: string
+          example: "123 Main St, Apt 4B"
+        sendType:
+          type: integer
+          example: 2
+        msgsTagsIds:
+          type: string
+          example: "1,2,3"
+        closedAdmin:
+          type: string
+          example: "Admin A"
+        watchers:
+          type: string
+          example: "Admin B, Admin C"
+        performers:
+          type: integer
+          example: 333
+    MsgsMsgsFiles:
+      type: object
+      properties:
+        file1:
+          type: string
+          format: binary
+        file2:
+          type: string
+          format: binary
     MsgsMsgsList:
-      type: array
-      items:
-        $ref: "#/components/schemas/MsgsMsgs"
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/MsgsMsgs"
+        total:
+          type: integer
     MsgsRepliesList:
       type: array
       items:
@@ -17710,6 +19023,89 @@ components:
         mainMsg:
           type: integer
           example: 40
+    MsgsReportDynamics:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                example: '2025-01-01'
+              value:
+                type: object
+                properties:
+                  closed:
+                    type: integer
+                    example: 0
+                  messages:
+                    type: integer
+                    example: 4
+                  replies:
+                    type: integer
+                    example: 5
+        total:
+          type: integer
+    MsgsStatuses:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              color:
+                type: string
+                example: '#0000FF'
+              icon:
+                type: string
+                example: fa fa-envelope-open text-aqua
+              id:
+                type: number
+                example: 0
+              localeName:
+                type: string
+                example: open
+              name:
+                type: string
+                example: "$lang{OPEN}"
+              readiness:
+                type: number
+                example: 0
+              taskClosed:
+                type: number
+                example: 0
+        total:
+          type: number
+          example: 1
+    MsgsSurvey:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Задержка доставки"
+              tpl:
+                type: string
+                example: "Текст шаблона"
+              id:
+                type: number
+                example: 1
+              status:
+                type: number
+                example: 0
+              comments:
+                type: string
+                example: "Описание"
+        total:
+          type: number
+          example: 1
     MsgsWorkflow:
       type: object
       properties:
@@ -18234,6 +19630,139 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TagsTagUser"
+    TasksTask:
+      type: object
+      properties:
+        additionalValues:
+          type: string
+          example: ""
+        adminName:
+          type: string
+          example: "abills"
+        aid:
+          type: integer
+          example: 1
+        comments:
+          type: string
+          example: "Some comment"
+        controlDate:
+          type: string
+          example: "2024-10-31"
+        descr:
+          type: string
+          example: "Send some message."
+        id:
+          type: integer
+          example: 70
+        name:
+          type: string
+          example: "Send message"
+        planDate:
+          type: string
+          example: "2024-10-25"
+        plugins:
+          type: string
+          example: ""
+        responsible:
+          type: integer
+          example: 1
+        responsibleName:
+          type: string
+          example: "Admin Abills"
+        state:
+          type: integer
+          example: 0
+        taskType:
+          type: integer
+          example: 7
+        typeName:
+          type: string
+          example: "First type"
+    TasksTaskAddRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Task Name"
+        taskType:
+          type: integer
+          example: 2
+        descr:
+          type: string
+          example: "This is a detailed description of the task."
+        state:
+          type: integer
+          example: 1
+        aid:
+          type: integer
+          example: 45
+        responsible:
+          type: integer
+          example: 30
+        planDate:
+          type: string
+          example: "2024-11-01"
+        closedDate:
+          type: string
+          example: "2024-11-15"
+        controlDate:
+          type: string
+          example: "2024-10-31"
+        additionalValues:
+          type: string
+          example: ""
+        comments:
+          type: string
+          example: "Some internal comments on the task."
+        msgId:
+          type: integer
+          example: 5678
+        stepId:
+          type: integer
+          example: 3
+        leadId:
+          type: integer
+          example: 125
+        dealId:
+          type: integer
+          example: 6789
+        parentId:
+          type: integer
+          example: 100
+        path:
+          type: string
+          example: "/100/123"
+    TasksTaskAddResponse:
+      type: object
+      properties:
+        affected:
+          type: integer
+          example: 1
+        insertId:
+          type: integer
+          example: 187
+        total:
+          type: integer
+          example: 0
+    TasksTaskChangeResponse:
+      type: object
+      properties:
+        affected:
+          type: integer
+          example: 1
+        total:
+          type: integer
+          example: 0
+    TasksTasksList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/TasksTask"
+        total:
+          type: number
+          example: 173
     UreportsAddUserReportRequest:
       type: object
       properties:

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string"
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "paysysId": {
+      "type": "integer"
+    },
+    "recurrentModule": {
+      "type": "string"
+    },
+    "sum": {
+      "type": "number"
+    }
+  },
+  "required": ["date", "orderId", "paysysId", "recurrentModule", "sum"]
+}

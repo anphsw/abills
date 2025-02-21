@@ -269,7 +269,7 @@ sub attachment_copy {
 
   my $at_list = $Msgs->attachments_list({
     REPLY_ID         => $old_id,
-    SHOW_ALL_COLUMNS => 1,
+    _SHOW_ALL_COLUMNS => 1,
     COLS_NAME        => 1,
     COLS_UPPER       => 1,
   });
@@ -295,6 +295,72 @@ sub attachment_copy {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 msgs_attachment_add($path_params, $query_params, $module_obj)
+
+=cut
+#**********************************************************
+sub msgs_attachment_add {
+  my $self = shift;
+  my ($attr, $msgs_info) = @_;
+
+  my %result = (
+    status      => 0,
+    attachments => [],
+  );
+
+  my $regex_pattern = qr/FILE/;
+  my @files = grep { /$regex_pattern/ } keys %{$attr};
+
+  return {
+    no_attachments => 1,
+    errno          => 1070001,
+    errstr         => 'ERR_NO_ATTACHMENT_ADDED',
+  } if (!scalar @files);
+
+  my $files_count_limit = $self->{conf}{MSGS_MAX_FILES} || 3;
+  my $files_uploaded = 0;
+  foreach my $file (sort @files) {
+    if ($files_uploaded >= $files_count_limit) {
+      $result{warning} = "Limit of attachments. Count limit is $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT} files. Files which processed is present in attachments array.";
+
+      last;
+    }
+
+    my $file_obj = $attr->{$file};
+    $file_obj->{CONTENT_TYPE} = $file_obj->{'CONTENT-TYPE'} if (!$file_obj->{CONTENT_TYPE});
+    next if ref $attr->{$file} ne 'HASH';
+    my @keys = ('CONTENT_TYPE', 'SIZE', 'CONTENTS', 'FILENAME');
+    next if (map {$file_obj->{$_} } grep exists($file_obj->{$_}), @keys) != scalar @keys;
+
+    if ($file_obj->{CONTENTS} =~ /^[\n\r]/g) {
+      $file_obj->{CONTENTS} =~ s/^.*\r?\n?//;
+    }
+
+    my $add_status = $self->attachment_add({
+      MSG_ID       => $msgs_info->{MSG_ID} || 0,
+      REPLY_ID     => $msgs_info->{REPLY_ID} || 0,
+      MESSAGE_TYPE => $msgs_info->{REPLY_ID} ? 1 : 0,
+      CONTENT      => $file_obj->{CONTENTS},
+      FILESIZE     => $file_obj->{SIZE},
+      FILENAME     => $file_obj->{FILENAME},
+      CONTENT_TYPE => $file_obj->{CONTENT_TYPE},
+      UID          => $msgs_info->{UID},
+      COORDX       => $file_obj->{COORDX},
+      COORDY       => $file_obj->{COORDY},
+    });
+
+    if ($add_status) {
+      push @{$result{attachments}}, { status => 0, message => 'Successfully added file', file => $file_obj->{NAME} }
+    }
+    else {
+      push @{$result{attachments}}, { errno => $self->{errno} || 1070006, errstr => $self->{errstr} || 'ERR_SAVE_FILE', file => $file_obj->{NAME} }
+    }
+  }
+
+  return \%result;
 }
 
 1;

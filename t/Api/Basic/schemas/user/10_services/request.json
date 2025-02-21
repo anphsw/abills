@@ -1,0 +1,6 @@
+{
+  "name": "USER_SERVICES_LIST",
+  "method": "GET",
+  "path": "user/services/",
+  "params": {}
+}

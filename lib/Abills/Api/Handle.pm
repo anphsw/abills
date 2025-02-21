@@ -93,14 +93,6 @@ sub api_call {
     };
   }
   else {
-    #define $admin->{permissions}
-    if ($self->{cookies}->{admin_sid}) {
-      ::check_permissions('', '', ($self->{cookies}->{admin_sid} || q{}), {});
-    }
-    else {
-      ::check_permissions('', '', '--', { API_KEY => $ENV{HTTP_KEY} });
-    }
-
     $router = Abills::Api::Router->new($self->{db}, $self->{admin}, $self->{conf}, {
       url            => $attr->{PATH},
       request_method => $attr->{METHOD} || 'GET',
@@ -239,16 +231,18 @@ sub add_credentials {
 
     return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
 
-    my $API_KEY = $ENV{HTTP_KEY} || '-';
+    my $API_KEY = $ENV{HTTP_KEY} || '';
 
     return ::check_permissions('', '', '', { API_KEY => $API_KEY }) == 0;
   });
 
   $router->add_credential('ADMINSID', sub {
-    shift;
+    my $request = shift;
     my $admin_sid = $self->{cookies}->{admin_sid} || '';
 
     return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
+
+    $request->{query_params}{REQUEST_ADMINSID} = $admin_sid;
 
     return ::check_permissions('', '', $admin_sid, {}) == 0;
   });
@@ -257,15 +251,7 @@ sub add_credentials {
     #TODO check how does it work when user have G2FA
     my $request = shift;
 
-    my $SID = $ENV{HTTP_USERSID};
-    return $self->_validate_user_session($SID, $request);
-  });
-
-  $router->add_credential('USERSID', sub {
-    #TODO check how does it work when user have G2FA
-    my $request = shift;
-
-    my $SID = $self->{cookies}->{sid} || '';
+    my $SID = $ENV{HTTP_USERSID} || $self->{cookies}->{sid} || '';
     return $self->_validate_user_session($SID, $request);
   });
 
@@ -274,11 +260,11 @@ sub add_credentials {
   });
 
   if ($self->{direct} || ($ENV{REMOTE_ADDR} && $self->{conf}->{BOT_APIS} && check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{BOT_APIS}))) {
-    return 0 if (!$ENV{HTTP_USERBOT} || !$ENV{HTTP_USERID});
+    return 0 if (!$ENV{HTTP_USERBOT} || (!$ENV{HTTP_USERID} && !$ENV{HTTP_ADMINID}));
 
-    if ($self->{conf}->{BOT_SECRET}) {
+    if (!$self->{direct} && $self->{conf}{BOT_SECRET}) {
       return 0 if (!$ENV{HTTP_BOTSECRET});
-      return 0 if ($self->{conf}->{BOT_SECRET} ne $ENV{HTTP_BOTSECRET});
+      return 0 if ($self->{conf}{BOT_SECRET} ne $ENV{HTTP_BOTSECRET});
     }
 
     my %bot_types = ();
@@ -289,11 +275,12 @@ sub add_credentials {
 
     my $Bot_type = $bot_types{uc($ENV{HTTP_USERBOT})} || '--';
     my $Bot_user = $ENV{HTTP_USERID} || '--';
+    my $Bot_admin = $ENV{HTTP_ADMINID} || '--';
 
     $router->add_credential('USERBOT', sub {
       my $request = shift;
 
-      $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} ? $self->{conf}->{USERS_WEB_ADMIN_ID} : 3, {
+      $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} || 3, {
         DOMAIN_ID => $request->{req_params}->{DOMAIN_ID},
         IP        => $ENV{REMOTE_ADDR},
         SHORT     => 1
@@ -318,11 +305,33 @@ sub add_credentials {
       }
     });
 
-    $router->add_credential('USERBOT_UNREG', sub {
+    $router->add_credential('ADMINBOT', sub {
       my $request = shift;
 
-      $request->{query_params}{BOT} = $Bot_type;
-      $request->{query_params}{USER_ID} = $Bot_user;
+      my $list = $self->{admin}->admins_contacts_list({
+        TYPE           => $Bot_type,
+        VALUE          => $Bot_admin,
+        AID            => '_SHOW',
+        SKIP_AID_CHECK => 1
+      });
+
+      if (!scalar @{$list}) {
+        return 0
+      }
+      else {
+        $self->{admin}->info($list->[0]->{aid});
+        %main::permissions = %{$self->{admin}->get_permissions()};
+        return 1;
+      }
+    });
+
+    $router->add_credential('BOT_UNREG', sub {
+      my $request = shift;
+
+      # defined as path_params, because query params can go through validations
+      $request->{path_params}{bot} = $Bot_type;
+      $request->{path_params}{bot_name} = $ENV{HTTP_USERBOT};
+      $request->{path_params}{user_id} = $Bot_user;
 
       return 1;
     });
@@ -340,7 +349,7 @@ sub _validate_user_session {
   my $self = shift;
   my ($SID, $request) = @_;
 
-  $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} ? $self->{conf}->{USERS_WEB_ADMIN_ID} : 3, {
+  $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} || 3, {
     DOMAIN_ID => $request->{req_params}->{DOMAIN_ID} || 0,
     IP        => $ENV{REMOTE_ADDR},
     SHORT     => 1
@@ -352,10 +361,11 @@ sub _validate_user_session {
 
   my ($uid) = $Auth_User->auth_user('', '', $SID);
 
-  $request->{path_params}{uid} = $uid;
-  $request->{query_params}{REQUEST_USERSID} = $SID;
-
   return 0 if ref $uid ne '';
+
+  $request->{path_params}{uid} = $uid;
+  # please do not delete this line, bot authorization is linked to it
+  $request->{query_params}{REQUEST_USERSID} = $SID;
 
   return $uid != 0;
 }

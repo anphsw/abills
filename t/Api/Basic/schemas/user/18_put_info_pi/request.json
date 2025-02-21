@@ -1,0 +1,20 @@
+{
+  "name": "USER_INFO_PI",
+  "method": "PUT",
+  "path": "user/pi/",
+  "body": {
+    "fio": "Testiv Test Testovych",
+    "fio1": "Testiv1",
+    "fio2": "Test2",
+    "fio3": "Testovych3",
+    "cellPhone": "0951133456",
+    "floor": "4",
+    "email": "test@gmail.com",
+    "phone": "0951133456",
+    "addressFlat": "42342",
+    "buildId": 1,
+    "locationId": 1,
+    "districtId": 1,
+    "streetId": 1
+  }
+}

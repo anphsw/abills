@@ -22,7 +22,7 @@ our (
 our Admins $admin;
 our Abills::HTML $html;
 
-use Abills::Base qw(cmd tpl_parse);
+use Abills::Base qw(cmd tpl_parse json_former);
 our $Msgs = Msgs->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -216,44 +216,39 @@ sub msgs_new {
         . $html->badge($Msgs->{OPENED}, { TYPE => 'badge badge-info', STYLE => "TITLE='$lang{OPEN}'" });
     }
 
-    my $refresh_time = $conf{MSGS_REFRESH_HEADER_MENU} || 30;
-
-    $conf{MSGS_HEADER_MENU_DYNAMIC} //= 1;
     if (!$FORM{xml} && !$FORM{json}) {
-      my $url = '';
-      if ($conf{API_ENABLE}) {
-        my ($proto, $host, $port) = url2parts($SELF_URL);
-        $url = "$proto://$host:$port/api.cgi/msgs/list?snakeCase=1&pageRows=20&clientId&" .
+      my $url = "/api.cgi/msgs/list?snakeCase=1&pageRows=20&clientId&" .
           "chapterName&datetime&state=0&resposibleAdminLogin&priorityId&domainId&message&" .
           "adminRead&repliesCounts&chgMsgs&delMsgs&userName&adminDisable&msgsTagsIds&" .
           "closedAdmin&watchers&planTime&total&inWork&open&unmaked&closed";
-      }
-      else {
-        $url = "$SELF_URL?get_index=msgs_admin&STATE=0&sort=1&desc=DESC&EXPORT_CONTENT=MSGS_LIST&header=1&json=1&PAGE_ROWS=20";
-      }
+
+      my $admin_msgs = {
+        AFTER   => 3,
+        REFRESH => $conf{MSGS_REFRESH_HEADER_MENU},
+      };
+      $admin_msgs->{HEADER} = "$lang{OPEN}: $Msgs->{OPENED}" if $Msgs->{OPENED};
+      $admin_msgs->{BADGE} = $Msgs->{OPENED} if $Msgs->{OPENED};
+      $admin_msgs->{UPDATE} = $url if $conf{MSGS_HEADER_MENU_DYNAMIC};
 
       # Forming JSON
-      $admin->{ADMIN_MSGS} = '';
-      $admin->{ADMIN_MSGS} .= qq{"HEADER":"$lang{OPEN}: $Msgs->{OPENED}",} if ($Msgs->{OPENED});
-      $admin->{ADMIN_MSGS} .= qq{"BADGE":$Msgs->{OPENED},} if ($Msgs->{OPENED});
-      $admin->{ADMIN_MSGS} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};
-      $admin->{ADMIN_MSGS} .= qq{"REFRESH":$refresh_time,};
-      $admin->{ADMIN_MSGS} .= qq{"AFTER":3};
-      $admin->{ADMIN_MSGS} =~ s/\r\n|\n//gm;
-      $admin->{ADMIN_MSGS} =~ s/\"/\"/gm;
+      $admin->{ADMIN_MSGS} = json_former($admin_msgs);
+      # TODO: remove this line and braces in tpl on breaking changes in header.tpl
+      $admin->{ADMIN_MSGS} = substr($admin->{ADMIN_MSGS}, 1, -1);
 
       $url .= "&RESPOSIBLE=$admin->{AID}" if ($admin->{AID});
 
+      my $admin_responsible = {
+        AFTER => 6,
+        REFRESH => $conf{MSGS_REFRESH_HEADER_MENU}
+      };
+      $admin_responsible->{HEADER} = "$lang{RESPOSIBLE}: $Msgs->{RESPOSIBLE}" if $Msgs->{RESPOSIBLE};
+      $admin_responsible->{BADGE} = $Msgs->{RESPOSIBLE} if $Msgs->{RESPOSIBLE};
+      $admin_responsible->{AID} = $admin->{AID} if ($admin->{AID});
+      $admin_responsible->{UPDATE} = $url if $conf{MSGS_HEADER_MENU_DYNAMIC};
       # Forming JSON
-      $admin->{ADMIN_RESPONSIBLE} = '';
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"HEADER":"$lang{RESPOSIBLE}: $Msgs->{RESPOSIBLE}",} if ($Msgs->{RESPOSIBLE});
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"BADGE":$Msgs->{RESPOSIBLE},} if ($Msgs->{RESPOSIBLE});
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"AID":$admin->{AID},} if ($admin->{AID});
-      $admin->{ADMIN_RESPONSIBLE} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"REFRESH":$refresh_time,};
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"AFTER":6};
-      $admin->{ADMIN_RESPONSIBLE} =~ s/\r\n|\n//gm;
-      $admin->{ADMIN_RESPONSIBLE} =~ s/\"/\"/gm;
+      $admin->{ADMIN_RESPONSIBLE} = json_former($admin_responsible);
+      # TODO: remove this line and braces in tpl on breaking changes in header.tpl
+      $admin->{ADMIN_RESPONSIBLE} = substr($admin->{ADMIN_RESPONSIBLE}, 1, -1);
     }
 
     return $msg_count;

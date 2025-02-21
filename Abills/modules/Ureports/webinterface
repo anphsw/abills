@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 8.13,
+  REQUIRE_VERSION => 8.24,
 })) {
   exit;
 }
@@ -86,6 +86,25 @@ my %REPORTS = (
   16 => "$lang{NEXT_PERIOD_TP}",
 );
 
+our %error_codes_to_lang = (
+  0       => $lang{UNKNOWN_ERROR},
+  1       => $lang{SENT},
+  1000005 => $lang{ERR_CANNOT_LOAD_PLUGIN},
+  1000006 => $lang{ERR_NO_CONTACT},
+  1000007 => $lang{ERR_PROVIDED_URL_IS_NOT_VALID},
+  1000008 => $lang{ERR_TOKEN_EXPIRED_OR_INVALID},
+  1000009 => $lang{ERR_THE_RECIPIENT_IS_NOT_REGISTERED},
+  1000010 => $lang{ERR_THE_USER_HAS_BLOCKED_THE_SENDER},
+  1000011 => $lang{ERR_THE_USER_IS_NOT_SUBSCRIBED_TO_THE_SERVICE},
+  1000012 => $lang{ERR_THE_USER_ACCOUNT_WAS_NOT_FOUND},
+  1000013 => $lang{ERR_UNAUTHENTICATED},
+  1000014 => $lang{ERR_INVALID_DATA_IN_THE_REQUEST},
+  1000015 => $lang{ERR_UNKNOWN},
+  1000016 => $lang{ERR_QUOTA_EXCEEDED},
+  1000017 => $lang{UNAVAILABLE},
+  1000018 => $lang{ERR_SERVICE_ERROR},
+);
+
 #**********************************************************
 =head2 ureports_users_list()
 
@@ -98,16 +117,25 @@ sub ureports_users_list {
     return 0;
   }
 
-  if ($FORM{add_form}) {
-
-  }
-  elsif ($attr->{TP}) {
+  if ($attr->{TP}) {
     $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
   }
   elsif ($FORM{TP_ID}) {
     $FORM{subf} = $index;
     ureports_tp();
     return 0;
+  }
+
+  if ($FORM{refresh} && $FORM{USER_SEND_TYPE_IDS}) {
+    $Ureports->user_send_type_change({
+      ID         => $_,
+      ERROR_CODE => 1,
+      ERROR_MSG  => ''
+    }) foreach (split /,/, $FORM{USER_SEND_TYPE_IDS});
+  }
+  elsif ($FORM{del} && $FORM{USER_SEND_TYPE_IDS}) {
+    $Ureports->user_send_type_del({ ID => $_ }) foreach (split /,/, $FORM{USER_SEND_TYPE_IDS});
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Ureports);
   }
 
   $FORM{GROUP_SEL} = sel_groups();
@@ -142,30 +170,61 @@ sub ureports_users_list {
 
   result_former({
     INPUT_DATA      => $Ureports,
-    FUNCTION        => 'user_list',
+    FUNCTION        => 'user_send_types_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
-    HIDDEN_FIELDS   => 'DESTINATION_ID',
+    DEFAULT_FIELDS  => 'USER_SEND_TYPE_ID,LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION,ERROR_CODE,ERROR_MSG',
+    HIDDEN_FIELDS   => 'DESTINATION_ID,USER_SEND_TYPE_ID',
     FUNCTION_FIELDS => 'ureports_user:show:uid',
     EXT_TITLES      => {
-      tp_name       => $lang{TARIF_PLAN},
-      status        => $lang{STATUS},
-      type          => $lang{TYPE},
-      destination   => $lang{DESTINATION},
-      reports_count => $lang{REPORTS},
-      last_message  => $lang{LAST_MESSAGE}
+      user_send_type_id => '#',
+      tp_name           => $lang{TARIF_PLAN},
+      status            => $lang{STATUS},
+      type              => $lang{TYPE},
+      destination       => $lang{DESTINATION},
+      reports_count     => $lang{REPORTS},
+      last_message      => $lang{LAST_MESSAGE},
+      error_code        => $lang{UREPORTS_ERROR_CODE},
+      error_msg         => $lang{ERROR},
     },
     FILTER_COLS     => {
       destination => '_ureports_destination_filter',
       type        => '_ureports_type_filter'
     },
+    FILTER_VALUES   => {
+      error_code => sub {
+        my $error_code = shift;
+
+        return "0 : $lang{UNKNOWN_ERROR}" if !$error_code;
+        return '' if $error_code && $error_code == 1;
+
+        return $error_codes_to_lang{$error_code} ? "$error_code : $error_codes_to_lang{$error_code}" : $error_code;
+      },
+    },
+    MULTISELECT     => 'USER_SEND_TYPE_IDS:user_send_type_id:UREPORTS_USERS',
     TABLE           => {
       width   => '100%',
       caption => $lang{USERS},
       qs      => $pages_qs,
       ID      => 'UREPORTS_USERS',
       EXPORT  => 1,
-      MENU    => $lang{SEARCH} . ':index=' . get_function_index('ureports_users_list') . '&search_form=1:search;'
+      MENU    => $lang{SEARCH} . ':index=' . get_function_index('ureports_users_list') . '&search_form=1:search;',
+      SELECT_ALL          => "UREPORTS_USERS:USER_SEND_TYPE_IDS:$lang{SELECT_ALL}",
+      MULTISELECT_ACTIONS => [
+        {
+          TITLE    => $lang{DEL},
+          ICON     => 'fa fa-trash',
+          ACTION   => "$SELF_URL?index=$index&del=1",
+          PARAM    => 'USER_SEND_TYPE_IDS',
+          CLASS    => 'text-danger',
+          COMMENTS => "$lang{DEL}?"
+        },
+        {
+          TITLE  => $lang{SEEN},
+          ICON   => 'fa fa-undo',
+          ACTION => "$SELF_URL?index=$index&refresh=1",
+          PARAM  => 'USER_SEND_TYPE_IDS'
+        }
+      ],
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
@@ -696,11 +755,20 @@ sub ureports_stats {
     WITH_TIME => 0
   });
 
+  my $status_sel = $html->form_select('STATUS', {
+    SELECTED     => defined $FORM{STATUS} ? $FORM{STATUS} : '',
+    SEL_HASH     => \%error_codes_to_lang,
+    ARRAY_NUM_ID => 1,
+    SEL_OPTIONS  => { '' => '--' },
+    SORT_KEY     => 1
+  });
+
   $html->tpl_show(_include('ureports_stats', 'Ureports'), {
-    PERIOD         => $period,
-    SID            => ($sid || ''),
-    UID            => $FORM{UID},
-    UIDS           => ($FORM{UIDS} || ''),
+    PERIOD     => $period,
+    SID        => ($sid || ''),
+    UID        => $FORM{UID},
+    UIDS       => ($FORM{UIDS} || ''),
+    STATUS_SEL => $status_sel
   });
 
   if (defined($FORM{show})) {
@@ -712,6 +780,7 @@ sub ureports_stats {
     $LIST_PARAMS{PERIOD} = int($FORM{PERIOD});
     $pages_qs .= "&PERIOD=$FORM{PERIOD}";
   }
+  $LIST_PARAMS{STATUS} = $FORM{STATUS} if defined $FORM{STATUS};
 
   my $list = $Ureports->log_list({ %LIST_PARAMS, COLS_NAME => 1 });
 
@@ -722,8 +791,8 @@ sub ureports_stats {
     caption      => $lang{STATS},
     title        => [ "#", $lang{USER}, $lang{DATE}, $lang{DESTINATION}, $lang{TARIF_PLAN}, $lang{REPORTS}, $lang{STATUS}, '-' ],
     qs           => $pages_qs,
-    pages        => $Ureports->{TOTAL},
     recs_on_page => $LIST_PARAMS{PAGE_ROWS},
+    DATA_TABLE   => 1,
     ID           => 'REPORTS_LOG',
   });
 
@@ -741,7 +810,7 @@ sub ureports_stats {
       $line->{destination},
       $line->{tp_id},
       $line->{report_id},
-      ($line->{status}) ? 'OK' : $lang{UNKNOWN},
+      $error_codes_to_lang{$line->{status}} || $error_codes_to_lang{0},
       $html->button("D", "index=$index&UID=$line->{uid}&MSG_ID=$line->{id}",
         { TITLE => $lang{DETAIL}, class => 'show' })
         . ' ' . $delete);
@@ -908,7 +977,7 @@ sub ureports_user_info {
     my %rev_service_type = reverse %service_type;
     my %user_types = ();
     foreach (@types) {
-      $user_types{$_} = $rev_service_type{$_};
+      $user_types{$_} = $rev_service_type{$_} if ($_);
     }
     %service_type = reverse %user_types;
   }
@@ -1605,29 +1674,6 @@ sub _ureports_get_user_contacts {
       $item->{type_id} = '1';
     }
   }
-
-  # my $pi = Users->new($db, $admin, \%conf);
-  # $pi->pi({ UID => $uid });
-
-  # if ($pi->{EMAIL}) {
-  #   my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
-  #
-  #   foreach my $email (split(';\s?', $pi->{EMAIL})) {
-  #     push @{$contacts_list}, {
-  #       type_id => $email_type_id,
-  #       value   => $email
-  #     };
-  #   }
-  # }
-  #
-  # my $phone = $user->{PHONE} || $pi->{PHONE};
-  # if ($phone && in_array('Sms', \@MODULES)) {
-  #   my $cell_phone_type = $Contacts->contact_type_id_for_name('CELL_PHONE');
-  #   push @{$contacts_list}, {
-  #     type_id => $cell_phone_type,
-  #     value   => $phone
-  #   };
-  # }
 
   if ($conf{PUSH_ENABLED}) {
     delete $Contacts->{TOTAL};

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-package main v0.3.2;
+package main v0.4.0;
 =head ABillS Api MojoLite
 
   Test Version
@@ -161,11 +161,6 @@ sub start {
   my $Paths = Abills::Api::Paths->new($db, $admin, $Conf->{conf}, \%lang, $html);
 
   my @paths = ();
-  my $path_list = $Paths->list();
-
-  foreach my $path_name (keys %{$path_list}) {
-    push @paths, @{$path_list->{$path_name}};
-  }
 
   my $modules = $Paths->_extra_api_modules();
 
@@ -188,6 +183,12 @@ sub start {
 
     push @paths, @{$paths || []};
   }
+
+  for my $path (@paths) {
+    my  $module_path = $path->{controller} . '.pm';
+    $module_path =~ s{::}{/}g;
+    require $module_path;
+  };
 
   my %method_map = (
     GET    => \&get,

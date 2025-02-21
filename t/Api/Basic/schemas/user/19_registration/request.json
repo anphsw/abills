@@ -1,0 +1,10 @@
+{
+  "name": "USER_REGISTRATION",
+  "method": "POST",
+  "path": "user/registration/",
+  "body": {
+    "email": "test@gmail.com",
+    "fio": "Test User tester",
+    "login": "testuser"
+  }
+}

@@ -11,13 +11,7 @@ post:
       schema:
         type: integer
         format: int64
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение
@@ -47,13 +41,7 @@ delete:
       schema:
         type: integer
         format: int64
-    - name: uid
-      in: path
-      description: UID пользователя
-      required: true
-      schema:
-        type: integer
-        format: int64
+    - $ref: "#/components/parameters/pathUid"
   responses:
     200:
       description: Успешное выполнение

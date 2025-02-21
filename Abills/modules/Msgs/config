@@ -23,6 +23,9 @@ our %FUNCTIONS_LIST = (
   "23:8:$lang{TICKET_REPORT_BY_ADMINS}:msgs_admin_report:"           => 4,
   "24:8:$lang{TICKET_REPORT}:msgs_works_report:"                     => 4,
   "25:8:$lang{SUPPORT_SYSTEM_STATS}:msgs_support_stats:"             => 4,
+  "26:8:$lang{SURVEY}:msgs_survey_report:"                           => 4,
+
+  "27:2:$lang{BRIGADES}:msgs_teams:"                                 => 5,
 
   "70:2:$lang{PLUGINS}:msgs_plugins_list:"                           => 5,
   "71:70:Msgs:msgs_plugin_priority:AJAX"                             => 5,
@@ -59,8 +62,8 @@ elsif (defined($admin->{AID})) {
   $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"}                    = 8;
   $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"}                     = 8;
   $FUNCTIONS_LIST{"45:01::msgs_repeat_ticket:AJAX"}                               = 8;
-  $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"}            = 8;
-  $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"}            = 8;
+  # $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"}            = 8;
+  # $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"}            = 8;
 
   if ($conf{MSGS_CHAT}) {
     $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;

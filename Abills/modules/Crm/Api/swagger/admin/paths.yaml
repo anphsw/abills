@@ -36,7 +36,17 @@
   $ref: "./paths/attachment.yaml"
 /crm/attachment/{id}:
   $ref: "./paths/attachment_id.yaml"
+/crm/attachment/{id}/content/:
+  $ref: "./paths/attachment_id_content.yaml"
 /crm/sources/:
   $ref: "./paths/sources.yaml"
 /crm/leads/{id}/phone/:
   $ref: "./paths/leads_id_Phone.yaml"
+/crm/leads/social/:
+  $ref: "./paths/leadsSocial.yaml"
+/crm/leads/dialogue/message/:
+  $ref: "./paths/botDialogueMessage.yaml"
+/crm/workflow/:
+  $ref: "./paths/workflow.yaml"
+/crm/workflow/{id}:
+  $ref: "./paths/workflow_id.yaml"

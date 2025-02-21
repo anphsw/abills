@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `extreceipts` (
   `payments_id`  INT(11)      UNSIGNED NOT NULL DEFAULT '0',
   `command_id`   VARCHAR(60)           NOT NULL DEFAULT '',
@@ -7,7 +9,9 @@ CREATE TABLE IF NOT EXISTS `extreceipts` (
   `cancel_id`    VARCHAR(60)           NOT NULL DEFAULT '',
   `status`       TINYINT(1)   UNSIGNED NOT NULL DEFAULT '0',
   `kkt_id`       INT(11)      UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`payments_id`)
+  PRIMARY KEY (`payments_id`),
+  KEY `status` (`status`),
+  KEY `kkt_id` (`kkt_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'External receipts';
@@ -26,7 +30,9 @@ CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
   `admins`       VARCHAR(30)           NOT NULL DEFAULT '',
   `aid`          VARCHAR(60)           NOT NULL DEFAULT '',
   `tax_id`       SMALLINT     UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`kkt_id`)
+  PRIMARY KEY (`kkt_id`),
+  KEY `aid` (`aid`),
+  KEY `api_id` (`api_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'kkt';

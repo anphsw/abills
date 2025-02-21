@@ -20,7 +20,8 @@ our (
   @MONTHES,
   %FORM,
   @status,
-  $pages_qs
+  $pages_qs,
+  $base_dir
 );
 
 our Abills::HTML $html;
@@ -32,12 +33,16 @@ our Abills::HTML $html;
 #**********************************************************
 sub form_admins {
 
+  my $base_fields = 4;
   my $Employees;
 
   if (in_array('Employees', \@MODULES)) {
     require Employees;
     Employees->import();
     $Employees = Employees->new($db, $admin, \%conf);
+
+    # if enabled Employees enabled it's showing extra 2 columns
+    $base_fields = 6;
   }
 
   my $admin_form = Admins->new($db, \%conf);
@@ -133,7 +138,7 @@ sub form_admins {
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
       }
 
-      $FORM{G2FA} = '' if ($FORM{g2fa_remove});
+      $FORM{G2FA} = '' if ($FORM{g2fa_remove} || !$FORM{G2FA});
 
       $admin_form->change({ %FORM });
       if (!$admin_form->{errno}) {
@@ -322,6 +327,8 @@ sub form_admins {
     email            => 'Email',
     sip_number       => 'SIP',
     avatar_link      => $lang{AVATAR},
+    g2fa             => 'G2FA',
+    availability_period => $lang{AVAILABILITY_PERIOD},
   );
 
   if ($conf{ADMIN_NEW_ADDRESS_FORM}) {
@@ -337,17 +344,18 @@ sub form_admins {
   ($table, $admins_list) = result_former({
     INPUT_DATA      => $admin,
     FUNCTION        => 'list',
-    BASE_FIELDS     => 4,
+    BASE_FIELDS     => $base_fields,
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => \%EXT_TITLES,
-    TABLE => {
+    TABLE           => {
       width          => '100%',
       caption        => $lang{ADMINS},
       qs             => $pages_qs,
       ID             => 'ADMINS_LIST',
       SHOW_FULL_LIST => 1,
       header         => \@status_bar,
+      EXPORT         => 1,
       MENU           => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
     },
   });
@@ -355,16 +363,17 @@ sub form_admins {
 
   foreach my $line (@$admins_list) {
     my @fields_array = ();
-    for (my $i = 0; $i < 4 + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 0; $i < $base_fields + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $admin->{COL_NAMES_ARR}->[$i] || '';
 
+      if ($field_name eq 'g2fa') {
+        $line->{g2fa} = $line->{g2fa} ? $lang{ENABLED} : $lang{DISABLED};
+      }
       if ($field_name eq 'avatar_link'){
         my $avatar = ($line->{avatar_link}) ? "/images/$line->{avatar_link}" : '/styles/default/img/admin/avatar5.png';
         $line->{avatar_link} = "<img src='$avatar' class='img-circle ' alt='User Image' style='width: 40px;'>";
       }
-
-      if ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
-#        $line->{disable} = $status[ $line->{disable} ];
+      elsif ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
         my %disable_status = (
           '0'  => "$lang{ACTIV}:text-success",
           '1'  => "$lang{DISABLE}:text-danger",
@@ -436,6 +445,41 @@ sub form_admins_groups {
     }
   }
 
+  if ($FORM{add_group_permits}) {
+    $admin_->{MAIN_AID} = $admin->{AID};
+    $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
+    $admin_->admin_group_templates_set($FORM{GID}, $FORM{TYPE});
+    $html->message('info', $lang{INFO}, "$lang{CHANGED}") if (!_error_show($admin_));
+  }
+  elsif ($FORM{del_permits}) {
+    $admin_->admin_group_templates_del($FORM{del_permits});
+    $html->message("info", $lang{DELETED}, "$lang{TPL_DELETED} $FORM{del_permits}") if (!_error_show($admin_));
+  }
+
+  my %group_type_permits = ();
+  my $buttons = '';
+
+  my $admin_groups_type_permits_list = $admin_->admin_group_templates_list({ COLS_NAME => 1 });
+
+  foreach my $item (@$admin_groups_type_permits_list) {
+    $group_type_permits{$item->{type}}->{$item->{gid}} = 1;
+  }
+
+  if ($admin_->{TOTAL}){
+    foreach my $k (sort keys(%group_type_permits)) {
+      my $group_type_url = $k;
+      $group_type_url =~ s/\+/%2B/g;
+      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_GROUP_TYPE=$group_type_url";
+      my $btn_css_style = ($FORM{ADMIN_GROUP_TYPE} && $k && $FORM{ADMIN_GROUP_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
+      my $button = $html->button($group_type_url, $url_btn, { class => $btn_css_style }) . '  ';
+      my $button_del = $html->button("", "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&del_permits=$group_type_url",
+        { ADD_ICON => "fa fa-times", MESSAGE => "$lang{DEL} $group_type_url" });
+
+      $buttons .= $button;
+      $buttons .= $button_del if ($FORM{ADMIN_GROUP_TYPE} && $k && $FORM{ADMIN_GROUP_TYPE} eq $k);
+    }
+  }
+
   my $table = $html->table({
     width   => '100%',
     caption => $lang{GROUP},
@@ -451,6 +495,9 @@ sub form_admins_groups {
 
   foreach my $line (@$list) {
     $admins_group_hash{ $line->[0] } = 1;
+  }
+  if ($FORM{ADMIN_GROUP_TYPE}){
+    %admins_group_hash = %{$group_type_permits{$FORM{ADMIN_GROUP_TYPE}}};
   }
 
   $list = $users->groups_list({ 
@@ -472,9 +519,16 @@ sub form_admins_groups {
       $line->{name});
   }
 
+  my $form_add_group_templates = $html->tpl_show(templates('admin_add_group_templates'),{
+      AID     => $FORM{AID},
+      subf    => $FORM{subf},
+      BUTTONS => $buttons,
+    },{ OUTPUT2RETURN => 1 }
+  );
+
   print $html->form_main(
     {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      CONTENT => $form_add_group_templates . $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
         index => $index,
         AID   => $FORM{AID},
@@ -963,6 +1017,8 @@ sub form_admin_permissions {
       "$lang{SHOW} $lang{SALARY}",
       "$lang{SHOW} $lang{AND} $lang{ALL_SALARY} $lang{SALARY}",
       $lang{TAKE_DIALOGUE_FROM_ADMIN},
+      "$lang{BALANCE} $lang{CASHBOX}",   # 11
+      $lang{MOVING_BETWEEN_CASHBOXES},   # 12
     ], # Modules managments
 
     [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
@@ -1187,10 +1243,11 @@ sub form_admin_permissions {
   });
 
   my $i = 0;
-  my $version = '';
+
   foreach my $name (sort @MODULES) {
     my $module_permissions = get_function_index(lc($name) . '_permissions');
     my $permissions_btn = $module_permissions ? $html->button($name, "index=$module_permissions&AID=$admin_->{AID}") : '';
+    my $version = _admins_get_file_version($name);
 
     $table2->addrow(
       $html->button("$name", '',
@@ -1310,36 +1367,25 @@ sub form_admins_contacts {
   Contacts->import();
   my $contacts = Contacts->new($db, $admin, \%conf);
 
-  #my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-  #my @priority_colors = ('#8A8A8A', '#3d3938', '#1456a8', '#E06161', 'red');
-
   if (!defined($FORM{AID})) {
     $FORM{subf} = 61;
     form_admins();
     return 1;
   }
 
-  #  if ( $FORM{CONTACTS} ){
-  #    return admin_contacts_renew();
-  #  }
+  my $list = $admin->admins_contacts_list({
+    AID      => $FORM{AID},
+    VALUE    => '_SHOW',
+    PRIORITY => '_SHOW',
+    TYPE     => '_SHOW',
+    HIDDEN   => '0'
+  });
 
-  my $list = $admin->admins_contacts_list(
-    {
-      AID      => $FORM{AID},
-      VALUE    => '_SHOW',
-      PRIORITY => '_SHOW',
-      TYPE     => '_SHOW',
-      HIDDEN   => '0'
-    }
-  );
-
-  my $contacts_type_list = $contacts->contact_types_list(
-    {
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME        => 1,
-      HIDDEN           => '0',
-    }
-  );
+  my $contacts_type_list = $contacts->contact_types_list({
+    _SHOW_ALL_COLUMNS => 1,
+    COLS_NAME         => 1,
+    HIDDEN            => '0',
+  });
 
   map {$_->{name} = $lang{$_->{name}} || $_->{name}} @{$contacts_type_list};
 
@@ -1549,6 +1595,50 @@ sub _paranoid_log_params_filter {
   }
 
   return $params;
+}
+
+
+=head2 _admins_get_file_version($filename)
+
+  Arguments:
+    $filename - file name without '.pm'
+  Returns:
+    file version
+
+  Examples:
+   _admins_get_file_version(file_name)
+
+=cut
+#**********************************************************
+sub _admins_get_file_version {
+  my ($filename) = @_;
+  return if (!$filename);
+
+  my $content = '';
+  my $filepath = $base_dir . "Abills/mysql/$filename.pm";
+
+  if ( !-f $filepath) {
+    $filepath = $base_dir . "Abills/modules/$filename/db/$filename.pm";
+  }
+
+  if (open(my $fh, '<', $filepath)){
+    while (my $line = <$fh>) {
+      if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/) {
+        $content = $1;
+        return $content;
+      }
+      elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/) {
+        $content = $1;
+        return $content;
+      }
+      elsif ($line =~ /VERSION\:\s+([0-9.]+)/) {
+        $content = $1;
+        return $content;
+      }
+    }
+  }
+
+  return $content || '';
 }
 
 1

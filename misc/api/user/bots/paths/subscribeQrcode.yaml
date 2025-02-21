@@ -20,3 +20,5 @@ get:
           schema:
             type: string
             format: binary
+  security:
+    - USERSID: [ ]

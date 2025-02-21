@@ -12,7 +12,6 @@ Abills::Base - Base functions
 
 =cut
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use feature 'state';
 use strict;
 our (%EXPORT_TAGS);
@@ -249,16 +248,9 @@ sub in_array {
     return 0;
   }
 
-  # if ( $] <= 5.010 || $] >= 5.38 ) {
   if (grep { $_ eq $value } @$array) {
     return 1;
   }
-  # }
-  # else {
-  #   if ($value ~~ @$array) {
-  #     return 1;
-  #   }
-  # }
 
   return 0;
 }
@@ -327,6 +319,7 @@ sub convert {
     $text =~ s/[\r\n]/\n/gi if ($attr->{json});
     $text =~ s/\%/\&#37/g;
     $text =~ s/\*/&#42;/g;
+    $text =~ s/\'/&#39;/g;
     #$text =~ s/\+/\%2B/g;
 
     if ($attr->{SHOW_URL}) {
@@ -1715,6 +1708,22 @@ sub ssh_cmd {
       print "$cmds\n";
     }
 
+    if($ENV{CMD_EMULATE_MODE}) {
+      my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+      my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
+      if (open(my $fh, '>>', '/usr/abills/var/log/cmd.log')) {
+        print $fh "$DATE $TIME " . $cmds ."\n";
+        close($fh);
+      }
+      else {
+        die "Can't open '/usr/abills/var/log/cmd.log' $!\n";
+      }
+
+      if ($ENV{CMD_EMULATE_MODE} > 1) {
+        return [];
+      }
+    }
+
     if($debug < 8) {
       open(my $ph, '-|', "$cmds") || die "Can't open '$cmds' $!\n";
       @value = <$ph>;
@@ -2130,6 +2139,7 @@ sub startup_files {
 
   my $content = '';
   if(lc($^O) eq 'freebsd') {
+    #TODO: add nginx conf
     %startup_files = (
       WEB_SERVER_USER    => "www",
       RADIUS_SERVER_USER => "freeradius",
@@ -2146,10 +2156,12 @@ sub startup_files {
     %startup_files = (
       WEB_SERVER_USER    => "www-data",
       APACHE_CONF_DIR    => '/etc/apache2/sites-enabled/',
+      NGINX_CONF_DIR     => '/etc/nginx/sites-enabled/',
       RADIUS_SERVER_USER => "freerad",
       RESTART_MYSQL      => '/etc/init.d/mysqld',
       RESTART_RADIUS     => '/etc/init.d/freeradius',
       RESTART_APACHE     => '/etc/init.d/apache2',
+      RESTART_NGINX      => '/etc/init.d/nginx',
       RESTART_DHCP       => '/etc/init.d/isc-dhcp-server',
       SUDO               => '/usr/bin/sudo',
     );
@@ -2493,7 +2505,7 @@ sub dirname {
       USE_CAMELIZE        - camelize keys of hash
       CONTROL_CHARACTERS  - escape \t and \n
       BOOL_VALUE          - return null, true and false as boolean value in json
-      RM_SPACES           - remove all spaces from response
+      FORCE_STRING        - force to string value if its not boolean
 
   Result
     JSON_string
@@ -2511,9 +2523,7 @@ sub json_former {
       push @text_arr, json_former($key, $attr);
     }
 
-    $attr->{RM_SPACES} ?
-      return '[' . join(',', @text_arr) . ']' :
-      return '[' . join(', ', @text_arr) . ']';
+    return '[' . join(',', @text_arr) . ']';
   }
   elsif (ref $request eq 'HASH') {
     foreach my $key (sort keys %{$request}) {
@@ -2531,9 +2541,7 @@ sub json_former {
         push @text_arr, qq{\"$key\":$val};
     }
 
-    $attr->{RM_SPACES} ?
-      return '{' . join(',', @text_arr) . '}' :
-      return '{' . join(', ', @text_arr) . '}';
+    return '{' . join(',', @text_arr) . '}';
   }
   else {
     $request //= '';
@@ -2556,10 +2564,15 @@ sub json_former {
         return qq{\\"$request\\"} :
         return qq{\"$request\"};
     }
-    elsif (is_number($request)) {
+    elsif ($attr->{BOOL_VALUES} && $request =~ /^(true|false|null)$/) {
       return qq{$request};
     }
-    elsif ($attr->{BOOL_VALUES} && $request =~ /^(true|false|null)$/) {
+    elsif ($attr->{FORCE_STRING}) {
+      $attr->{ESCAPE_DQ} ?
+        return qq{\\"$request\\"} :
+        return qq{\"$request\"};
+    }
+    elsif (is_number($request)) {
       return qq{$request};
     }
     else {
@@ -2965,16 +2978,22 @@ sub get_period_dates {
 =head2 expire_date(attr); - Get expire date
 
   Arguments:
-    $attr,
+    $attr
+      EXPIRE
     $Tariffs
+      AGE
 
   Result:
-    $self
+    $expire_date
 
 =cut
 #**********************************************************
 sub expire_date {
   my ($attr, $Tariffs) = @_;
+
+  if (! $Tariffs->{AGE}) {
+    return '0000-00-00';
+  }
 
   $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
 
@@ -2986,7 +3005,7 @@ sub expire_date {
     $year += 1900;
     $mon++;
     ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
-    $attr->{EXPIRE} ="$year-$mon-$mday";
+    $attr->{EXPIRE} = sprintf("%d-%02d-%02d", $year, $mon, $mday);
   }
 
   return $attr->{EXPIRE};

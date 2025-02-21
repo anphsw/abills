@@ -49,12 +49,13 @@ our (
   %permissions,
   @state_colors,
   %functions,
-  $ui
+  $ui,
+  %LIST_PARAMS
 );
 
 
 use Abills::Defs;
-use Abills::Base qw(in_array mk_unique_value decode_base64 convert gen_time);
+use Abills::Base qw(in_array mk_unique_value decode_base64 convert gen_time json_former vars2lang);
 use Admins;
 use Users;
 use Finance;
@@ -191,11 +192,6 @@ if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
       $FORM{UID} = $list->[0]->{uid};
     }
 
-    $ui = user_info( $FORM{UID}, { %FORM,
-      LOGIN => (! $FORM{UID} && $FORM{LOGIN}) ? $FORM{LOGIN} : undef,
-      QUITE => 1
-    } );
-
     if ($FORM{PRE_ADDRESS} || $FORM{NEXT_ADDRESS}){
       $user = $users->pi({ UID => $FORM{UID} });
       require Address;
@@ -225,6 +221,11 @@ if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
 
       $FORM{UID} = $FORM{NEXT_ADDRESS} ? $next_uid : $previous_uid;
     }
+
+    $ui = user_info( $FORM{UID}, { %FORM,
+      LOGIN => (! $FORM{UID} && $FORM{LOGIN}) ? $FORM{LOGIN} : undef,
+      QUITE => 1
+    } );
 
     if ( $ui ){
       $html->{WEB_TITLE} = ($conf{WEB_TITLE} || '') .'['. ( $ui->{LOGIN} || q{deleted} ) .']';
@@ -923,7 +924,7 @@ sub form_changes {
   if (! exists($INC{"Control/Services.pm"})) {
     require Control::Services;
   }
-  my $tps_hash = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Dv' });
+  my $tps_hash = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Triplay' });
 
   $pages_qs .= $pages_qs2;
   # if($FORM{FROM_DATE}) {
@@ -949,15 +950,27 @@ sub form_changes {
     COLS_NAME     => 1
   });
 
+  if ($FORM{FULL} && $FORM{UID}){
+    $list = $admin->form_admin_action_full({
+      UID        => $FORM{UID},
+      COLS_NAME  => 1,
+      %LIST_PARAMS,
+    });
+    $pages_qs2 .= "&FULL=1";
+  }
+
   if ($attr->{PAGES_QS}) {
     $pages_qs2 .= $attr->{PAGES_QS};
   }
+
+  my @btn_bar = ("$lang{ADDITIONAL_INFORMATION}:index=$index&FULL=1$pages_qs2");
 
   my $table = $html->table({
     width      => '100%',
     title      =>
     [ '#', $lang{LOGIN}, $lang{DATE}, $lang{MODULES}, $lang{TYPE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', '-' ],
     qs         => $pages_qs2, # $pages_qs
+    header     => $FORM{UID} ? \@btn_bar : '',
     caption    => $lang{LOG},
     pages      => $admin->{TOTAL},
     ID         => 'ADMIN_ACTIONS',
@@ -969,21 +982,22 @@ sub form_changes {
   foreach my $line (@$list) {
     my @location_ids = ();
     if ($line->{actions}) {
-      @location_ids = $line->{actions} =~ m/LOCATION_ID (\d+)->(\d+)/g;
+      my %location_name = map {
+        $_ => full_address_name($_)
+      } ($line->{actions} =~ m/LOCATION_ID\:?\s?(\d+)->(\d+)/g);
+
+      $line->{actions} =~ s/$_/$location_name{$_}/g for keys %location_name;
     }
 
-    my %location_name = ();
-
-    foreach my $location_id (@location_ids) {
-      $location_name{$location_id} = short_address_name($location_id);
+    my $delete = '';
+    if ($permissions{4} && $permissions{4}{3}) {
+      if ($admin->{AVAILABILITY_PERIOD} && date_diff($line->{datetime}, $DATE) > $admin->{AVAILABILITY_PERIOD}){
+      }
+      else {
+        $delete = $html->button( $lang{DEL}, "index=$index$pages_qs2&del=$line->{id}",
+          { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } );
+      }
     }
-
-    foreach my $name (keys %location_name) {
-      $line->{actions} =~ s/$name/$location_name{$name}/g
-    }
-
-    my $delete = ($permissions{4} && $permissions{4}{3}) ? $html->button( $lang{DEL}, "index=$index$pages_qs2&del=$line->{id}",
-        { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
 
     my ($value, $color);
     if ($line->{action_type}) {
@@ -1184,7 +1198,7 @@ sub fl {
       # Control/Users_mng
       push @m, "30:15:$lang{USER_INFO}:user_pi:UID::";
       # Internet
-      push @m, "18:15:$lang{NAS}:form_nas_allow:UID:Internet:";
+      push @m, "18:15:$lang{NAS}:internet_nas_access:UID:Internet:";
       # admin/index.cgi
       push @m, "19:15:$lang{BILL}:form_bills:UID::" if ($permissions{0}{15});
       # Control/Users_mng
@@ -1286,7 +1300,7 @@ sub fl {
         "86:4:$lang{USER_PORTAL}:null:::",
         "87:86:$lang{BRUTE_ATACK}:report_bruteforce::Control/Reports:",
         "88:86:$lang{SESSIONS}:report_ui_last_sessions::Control/Reports:",
-        "123:86:$lang{USER_STATISTIC}:analiz_user_statistic::Control/Reports:";
+        "123:86:$lang{USER_STATISTIC}:web_admin_analiz_user_statistic::Control/Reports:";
     }
   }
 
@@ -1313,8 +1327,8 @@ sub fl {
       "96:90:$lang{INFO_FIELDS}:form_info_fields::Control/System:",
       "98:90:$lang{TYPE} $lang{FEES}:form_fees_types::Control/System:",
       "99:90:$lang{BILLD}:form_billd_plugins::Control/System:",
-      "118:90:$lang{EDIT}:form_templates_pdf_save:AJAX:Control/System:",
-      "119:90:$lang{EDIT}:form_templates_pdf_edit::Control/System:",
+      "118:91:$lang{EDIT}:form_templates_pdf_save:AJAX:Control/System:",
+      "119:91:$lang{EDIT}:form_templates_pdf_edit:file:Control/System:",
       "120:90:$lang{SERVICE_STATUS}:form_status::Control/System:",
       "121:90:$lang{USER_STATUS}:form_user_status::Control/System:",
       "122:90:$lang{ORGANIZATION_INFO}:organization_info::Control/System:",
@@ -1697,11 +1711,12 @@ sub form_search {
           {
             SELECTED => $FORM{DISABLE},
             SEL_HASH => {
-            ('' => ''),
+              ('' => ''),
               (0 => $lang{ACTIV}),
               (1 => $lang{DISABLE}),
             },
-            NO_ID    => 1
+            NO_ID    => 1,
+            ID       => 'DISABLE_SEARCH'
           });
 
 
@@ -2036,7 +2051,7 @@ sub form_shedule {
   if (! exists($INC{"Control/Services.pm"})) {
     require Control::Services;
   }
-  my $tp_list = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Dv' });
+  my $tp_list = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Triplay' });
 
   if ($FORM{SHEDULE_DATE}) {
     $LIST_PARAMS{SHEDULE_DATE}=$FORM{SHEDULE_DATE};
@@ -2154,33 +2169,24 @@ sub form_period {
   my ($period, $attr) = @_;
 
   my @periods = ($lang{NOW}, $lang{NEXT_PERIOD}, $lang{DATE});
-  my $date_fld = $html->date_fld2('DATE', { FORM_NAME => 'user',
-      MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
+  my $date_fld = $html->date_fld2('DATE', { FORM_NAME => 'user', MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
 
-  my $form_period = "<label class='control-label col-md-3'>$lang{DATE}:</label><div class='col-md-9'>";
+  my $form_period = $html->element('label', "$lang{DATE}:", { class => 'control-label col-md-3', OUTPUT2RETURN => 1 });
 
-  $form_period .= "<div class='text-left'>" . $html->form_input(
-    'period', "0",
-    {
-      TYPE          => "radio",
-      STATE         => 1,
-      OUTPUT2RETURN => 1
-    }
-  ) . $periods[0];
-
-  $form_period .= "</div>\n";
+  my $col_content = $html->element('div', $html->form_input('period', '0', {
+    TYPE          => 'radio',
+    STATE         => 1,
+    OUTPUT2RETURN => 1
+  }) . $periods[0], { class => 'text-left', OUTPUT2RETURN => 1 });
 
   for (my $i = 1 ; $i <= $#periods ; $i++) {
     my $period_name = $periods[$i] || q{};
 
-    $period = $html->form_input(
-      'period', $i,
-      {
-        TYPE          => "radio",
-        STATE         => ($i eq $period) ? 1 : undef,
-        OUTPUT2RETURN => 1
-      }
-    );
+    $period = $html->form_input('period', $i, {
+      TYPE          => 'radio',
+      STATE         => ($i eq $period) ? 1 : undef,
+      OUTPUT2RETURN => 1
+    });
 
     if ($i == 1) {
       next if (!$attr->{ABON_DATE});
@@ -2190,10 +2196,10 @@ sub form_period {
       $period .= "$period_name $date_fld";
     }
 
-    $form_period .= "<div class='text-left'>$period</div>\n";
+    $col_content .= $html->element('div', $period, { class => 'text-left', OUTPUT2RETURN => 1 });
   }
 
-  return $form_period;
+  return $form_period . $html->element('div', $col_content, { class => 'col-md-8', OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -2719,15 +2725,14 @@ sub pre_page {
 
   if($permissions{8} && $permissions{8}{1}){
     ($admin->{ONLINE_USERS}, $admin->{ONLINE_COUNT}) = $admin->online({
-      SID     => $admin->{SID},
-      ACTIVE  => 6000,
-      TIMEOUT => $conf{web_session_timeout}
+      SID      => $admin->{SID},
+      ACTIVE   => 6000,
+      TIMEOUT  => $conf{web_session_timeout},
+      EXT_INFO => $ENV{HTTP_USER_AGENT} || q{}
     });
-    #my $br = $html->br();
-    #$admin->{ONLINE_USERS} =~ s/\n/$br/g;
   }
   else{
-    $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
+    $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout}, EXT_INFO => $ENV{HTTP_USER_AGENT} || q{} });
   }
 
   if (defined($FORM{index}) && $FORM{index} && $FORM{index} != 7 && !defined($FORM{type})) {
@@ -2741,6 +2746,7 @@ sub pre_page {
   if ($admin->{SETTINGS} && !$FORM{xml}) {
     form_admin_qm();
   }
+
   my $global_chat = '';
   if ($conf{MSGS_CHAT}) {
     $global_chat .= $html->tpl_show(templates('msgs_global_chat'), {
@@ -2779,17 +2785,37 @@ sub pre_page {
     }
   );
 
-  if ($conf{ISP_EXPRESSION} && $admin->{SETTINGS} && $admin->{SETTINGS}->{ql}) {
+  if ($conf{QUICK_LINKS} && $admin->{SETTINGS} && $admin->{SETTINGS}->{ql}) {
     my @element_button = split(',', $admin->{SETTINGS}->{ql});
     my @button_info = ();
 
-    foreach my $isp_button (@element_button) {
-      my ($key, $value) = split('\|', $isp_button);
+    foreach my $_button (@element_button) {
+      my ($key, $value) = split('\|', $_button);
+
+      while($value =~ /%(\S+)%/g) {
+        my $marker = $1;
+        if($FORM{$marker}) {
+          $value =~ s/\%$marker\%/$FORM{$marker}/;
+        }
+      }
+
       push @button_info, { $key => $value };
     }
 
-    $admin->{ISP_EXPRESSION} = $html->button_isp_express({
-      INFO  => \@button_info,
+    my $add_btn = $html->button('',
+      "index=". get_function_index('flist'),
+      {
+        title => "$lang{ADD} $lang{QUICK_MENU}",
+        class => 'nav-link',
+        ADD_ICON => 'fa fa-plus text-success mx-n1',
+        ex_params => qq{style='border-radius: 0 1rem 1rem 0'}
+      }
+    );
+    my $add_btn_wrapper = $html->element('li', $add_btn, { class => 'nav-item' });
+
+    $admin->{QUICK_LINKS} = $html->button_quick_link({
+      INFO     => \@button_info,
+      ADD_BTN  => $add_btn
     });
   }
 
@@ -2805,12 +2831,28 @@ sub pre_page {
   my $ext_navbar_info = '';
 
   if (in_array('Crm', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Crm})) {
-    my ($proto, $host, $port) = url2parts($SELF_URL);
+    my $admin_crm_dialogues = json_former({
+      HEADER  => $lang{DIALOGUES},
+      UPDATE  => '/api.cgi/crm/dialogues?LEAD_FIO&LAST_MESSAGE&DATE&STATE=0&SOURCE&snakeCase=1&PAGE_ROWS=20&SORT=ID&DESC=DESC',
+      BADGE   => $admin->{CRM_TOTAL_DIALOGUE},
+      AFTER   => 3,
+      REFRESH => 30,
+    });
+
     $ext_navbar_info .= $html->tpl_show(_include('crm_dialogue_header_navbar', 'Crm'), {
-      UPDATE => "$proto://$host:$port/api.cgi/crm/dialogues?LEAD_FIO&LAST_MESSAGE&DATE&STATE=0" .
-        "&SOURCE&snakeCase=1&PAGE_ROWS=20&SORT=ID&DESC=DESC",
-      BADGE  => $admin->{CRM_TOTAL_DIALOGUE}
+      ADMIN_CRM_DIALOGUES => $admin_crm_dialogues,
     }, { OUTPUT2RETURN => 1 });
+  }
+
+  if (in_array('Events', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Events})) {
+    my $admin_events_notice = {
+      HEADER  => $lang{EVENTS},
+      UPDATE  => '?get_index=events_notice&header=2&AJAX=1',
+      AFTER   => 30,
+      REFRESH => 30,
+      ENABLED => 1,
+    };
+    $admin->{ADMIN_EVENTS_NOTICE} = json_former($admin_events_notice);
   }
 
   print $html->tpl_show(templates('header'), {
@@ -2874,6 +2916,30 @@ sub post_page {
     }
   }
 
+  if ($admin->{PASSWORD_CHANGED_AT} && $conf{PASSWORD_EXPIRY_DAYS} && $conf{PASSWORD_EXPIRY_DAYS} > 0) {
+    if (
+      $index != get_function_index('form_admins') ||
+        !$FORM{AID} ||
+        $FORM{AID} != $admin->{AID} ||
+        (!$FORM{subf} && !$FORM{newpassword}) ||
+        ($FORM{subf} && $FORM{subf} != 54)
+    ) {
+      my $days_since_password_change = $admin->{PASSWORD_CHANGED_AT} eq '0000-00-00' ? $conf{PASSWORD_EXPIRY_DAYS} :
+        date_diff($admin->{PASSWORD_CHANGED_AT}, $DATE);
+      my $days_left = $conf{PASSWORD_EXPIRY_DAYS} - $days_since_password_change;
+
+      if ($days_since_password_change >= $conf{PASSWORD_EXPIRY_DAYS}) {
+        $html->tpl_show(templates('form_password_expired'), {
+          AID                    => $admin->{AID},
+          PASSWORD_EXPIRY_NOTICE => vars2lang($lang{PASSWORD_EXPIRY_NOTICE}, { DAYS => $conf{PASSWORD_EXPIRY_DAYS} })
+        });
+      }
+      elsif ($conf{PASSWORD_EXPIRY_DAYS} <= 7 || $days_left <= 7) {
+        $html->message('callout', $lang{WARNING}, $html->button(vars2lang($lang{DAYS_LEFT_FOR_PASSWORD_CHANGE},
+          { DAYS => $days_left }), "index=50&subf=54&AID=1"), { class => 'danger' });
+      }
+    }
+  }
   # Check if default password has been changed
   if (!$conf{DEFAULT_PASSWORD_CHANGED}
     && $admin->{AID} == 1
@@ -2991,11 +3057,11 @@ sub post_page {
       VERSION        => $admin->{VERSION},
       FOOTER_DEBUG   => $admin->{FOOTER_DEBUG},
       FOOTER_CONTENT => $admin->{FOOTER_CONTENT},
-      PUSH_SCRIPT    => ($conf{PUSH_ENABLED}
+      PUSH_SCRIPT    => (($conf{PUSH_ENABLED} && $conf{FIREBASE_CONFIG} && $conf{FIREBASE_VAPID_KEY})
         ? "<script src='/styles/default/js/push_subscribe.js'></script>"
         . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'></script>"
         . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js'></script>"
-        . "<script>window['FIREBASE_CONFIG']='" . (Abills::Base::json_former($conf{FIREBASE_CONFIG}) // '') . "'</script>"
+        . "<script>window['FIREBASE_CONFIG']='" . (json_former($conf{FIREBASE_CONFIG}) // '') . "'</script>"
         . "<script>window['FIREBASE_VAPID_KEY']='" . ($conf{FIREBASE_VAPID_KEY} // '') . "'</script>"
         : '<!-- PUSH DISABLED -->'
       )

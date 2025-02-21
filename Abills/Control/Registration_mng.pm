@@ -82,10 +82,6 @@ sub password_recovery {
   my %fields = ();
   $fields{$_} = 1 for split ',\s?', ($conf{PASSWORD_RECOVERY_REQUIRED_PARAMS} || 'LOGIN,EMAIL');
 
-  foreach my $param ('UID', 'PHONE', 'EMAIL', 'CONTRACT_ID', 'LOGIN') {
-    $attr->{$param} = '' if (!$fields{$param});
-  }
-
   foreach my $field (keys %fields) {
     return {
       errno      => 10081,

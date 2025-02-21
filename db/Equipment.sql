@@ -137,7 +137,8 @@ CREATE TABLE IF NOT EXISTS `equipment_infos` (
   `iptv_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
   `snmp_timeout` int(11)  unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`nas_id`),
-  KEY model_id (model_id)
+  KEY model_id (`model_id`),
+  KEY `status` (`status`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Equipment info';
@@ -286,13 +287,15 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00',
   `line_profile` VARCHAR(50) NOT NULL DEFAULT 'ONU',
   `srv_profile` VARCHAR(50) NOT NULL DEFAULT 'ALL',
-  `deleted` INT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `deleted` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `onu_type` VARCHAR(20) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY onu_dhcp_port (`onu_dhcp_port`),
   KEY onu_status (`onu_status`),
   KEY port_id (`port_id`),
-  KEY onu_mac_serial (`onu_mac_serial`)
+  KEY onu_mac_serial (`onu_mac_serial`),
+  KEY onu_type (`onu_type`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment ONU';
 
@@ -396,3 +399,27 @@ CREATE TABLE IF NOT EXISTS `equipment_ports_errors`(
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Equipment ports errors';
+
+CREATE TABLE IF NOT EXISTS `equipment_onu_models`(
+   `id`               INT         UNSIGNED NOT NULL AUTO_INCREMENT,
+   `pon_type`         VARCHAR(10)          NOT NULL DEFAULT '',
+   `onu_type`         VARCHAR(10)          NOT NULL DEFAULT '',
+   `wifi_ssids`       SMALLINT(10)UNSIGNED NOT NULL DEFAULT 0,
+   `ethernet_ports`   SMALLINT(10)UNSIGNED NOT NULL DEFAULT 0,
+   `voip_ports`       SMALLINT(10)UNSIGNED NOT NULL DEFAULT 0,
+   `catv`             TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0,
+   `custom_profiles`  TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0,
+   `capability`       TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0,
+   `image`            VARCHAR(100)                  DEFAULT '',
+   PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Equipment log onu';
+
+CREATE TABLE IF NOT EXISTS `equipment_netmap_positions` (
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL,
+  `coordx` DOUBLE NOT NULL DEFAULT 0.0,
+  `coordy` DOUBLE NOT NULL DEFAULT 0.0,
+  PRIMARY KEY (`nas_id`)
+)
+  DEFAULT CHARSET = utf8mb4
+  COMMENT = 'Positions of equipment in the netmap';

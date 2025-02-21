@@ -1,7 +1,22 @@
-%DISTRICT_SEL%
+<div class='form-group row' style='%EXT_SEL_STYLE%'>
+  <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-DISTRICT'>%DISTRICT_LABEL%:</label>
+  <div class='col-sm-9 col-md-8'>
+    %DISTRICT_SEL%
+  </div>
+</div>
+
+%ADDRESS_DISTRICT_SUBSELECT%
 
 <script>
 
+  var districtTypesLang = {};
+
+  try {
+    districtTypesLang = JSON.parse('%DISTRICT_TYPES_LANG%');
+  } catch (err) {
+    console.log('JSON parse error');
+    console.log(err);
+  }
   var district_id = jQuery(`[name='ID']`).val() || 0;
 
   if (jQuery(`[name='%DISTRICT_IDENTIFIER%']`).length < 1) {
@@ -18,6 +33,7 @@
     let infoPanel = false;
 
     let container = district_sel.parent().parent().parent().parent().parent();
+    container = container.parent();
 
     let street_id = district_sel.data('street-id');
     let id = district_sel.val();
@@ -40,12 +56,14 @@
     }
 
     let districtPanel = district_sel.parent().parent().parent().parent();
+    districtPanel = districtPanel.parent().parent();
     if (infoPanel) {
       districtPanel = districtPanel.parent()
       container = container.parent();
     }
 
-    districtPanel.nextAll('.mt-3').remove();
+    // districtPanel.nextAll('.mt-3').remove();
+    districtPanel.nextAll('.district-subselect').remove();
 
     jQuery(`[name='%DISTRICT_IDENTIFIER%']`).val(id);
 
@@ -60,7 +78,7 @@
       return;
     }
 
-    fetch(`/api.cgi/districts?PARENT_ID=${id}&PARENT_NAME=_SHOW&ID=!${district_id}&PAGE_ROWS=1000000`, {
+    fetch(`/api.cgi/districts?PARENT_ID=${id}&PARENT_NAME=_SHOW&ID=!${district_id}&PAGE_ROWS=1000000&TYPE_ID`, {
       mode: 'cors',
       cache: 'no-cache',
       credentials: 'same-origin',
@@ -97,7 +115,7 @@
     if (info_panel) {
       let span = jQuery('<span></span>', {class: 'fa fa-list-alt p-1'});
       let a = jQuery('<a></a>', {class: 'btn input-group-button rounded-left-0'})
-        .attr('href', 'https://192.168.0.108:9443/admin/index.cgi?get_index=form_districts&full=1&chg=0').append(span);
+        .attr('href', '?get_index=form_districts&full=1&chg=0').append(span);
       let groupAppend = jQuery('<div></div>', {class: 'input-group-append h-100'}).append(a);
       let db = jQuery('<div></div>', {class: 'bd-highlight'}).append(groupAppend);
       dFlex.append(db);
@@ -112,22 +130,37 @@
       dFlex.append(db);
     }
 
-    let group = jQuery('<div></div>', {class: 'mt-3'}).append(dFlex);
-    container.append(group);
-
-    defineLinkedInputsLogic(group);
-    let default_option = jQuery('<option></option>', {value: '', text: '--'});
-    selectList.append(default_option);
-
+    let districtTypes = [];
     let optgroups = {};
     data.forEach(address => {
+      const { parent_id, parent_name, type_id } = address;
+      address.parentId = address.parentId ?? parent_id;
+      address.parentName = address.parentName ?? parent_name;
+      address.typeId = address.typeId ?? type_id;
+
       if (!optgroups[address.parentId]) {
         optgroups[address.parentId] = jQuery(`<optgroup label='== ${address.parentName} =='></optgroup>`);
       }
 
+      if (address.typeId && districtTypesLang[address.typeId]) {
+        if (!districtTypes.includes(districtTypesLang[address.typeId])) districtTypes.push(districtTypesLang[address.typeId]);
+      }
       let option = jQuery('<option></option>', {value: address.id, text: address.name});
       optgroups[address.parentId].append(option);
     });
+
+    let labelText = districtTypes.join('/');
+    if (labelText) labelText += ':';
+    // let group = jQuery('<div></div>', {class: 'col-md-8'}).append(dFlex);
+    let colBody = jQuery('<div></div>').append(dFlex);
+    let group = jQuery('<div></div>', {class: 'col-md-8'}).append(colBody);
+    let label = jQuery('<label></label>', {class: 'col-sm-3 col-md-4 col-form-label text-md-right'}).text(labelText);
+    let row = jQuery('<div></div>', {class: 'form-group row district-subselect'}).append(label).append(group);
+    container.after(row);
+
+    defineLinkedInputsLogic(group);
+    let default_option = jQuery('<option></option>', {value: '', text: '--'});
+    selectList.append(default_option);
 
     jQuery.each(optgroups, function(key, value) { selectList.append(value);});
 

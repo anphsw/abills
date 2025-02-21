@@ -79,10 +79,10 @@
   </div>
 </script>
 
-<script id='docs_not_available'>
+<script id='docs_not_available' type='x-tmpl-mustache'>
   <div class='card card-danger card-outline'>
     <div class='card-body'>
-      Docs $lang{MODULE_NOT_TURNED_ON}!
+      Docs _{MODULE_NOT_TURNED_ON}_!
     </div>
   </div>
 </script>
@@ -278,8 +278,7 @@
         const dcsFields = dcs[dcsVariable]
 
         dcsFields.forEach(dcsField => {
-          const dcsFieldObject = new PdfTemplateField(dcsVariable, dcsField.x, dcsField.y)
-
+          const dcsFieldObject = new PdfTemplateField(dcsVariable, dcsField.x, dcsField.y, undefined, dcsField.font_size, dcsField.font_color)
           pages[dcsField.page].push(dcsFieldObject)
       });
     })

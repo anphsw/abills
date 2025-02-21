@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "number"
+      },
+      "message": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "typeId": {
+        "type": "number"
+      },
+      "uid": {
+        "type": "number"
+      }
+    },
+    "required": ["id", "message", "title", "typeId", "uid"]
+  }
+}

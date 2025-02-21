@@ -219,6 +219,12 @@ sub list {
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY  = $attr->{_GROUP_BY} || 'p.id';
+
+  if ($attr->{_GROUP_BY}) {
+    $attr->{_GROUP_SUM} = '_SHOW';
+    $attr->{_GROUP_COUNT} = '_SHOW';
+  }
 
   my @WHERE_RULES = ();
 
@@ -242,6 +248,20 @@ sub list {
     push @WHERE_RULES, "p.date >= CURDATE() - INTERVAL $attr->{PAYMENTS_MONTHES} MONTH";
   }
 
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 1) {
+    my $tags_count = scalar(split /,\s?/, $attr->{TAGS});
+    push @WHERE_RULES, "u.uid IN (SELECT tu.uid
+      FROM tags_users tu
+      GROUP BY tu.uid
+      HAVING COUNT(DISTINCT CASE WHEN tu.tag_id IN ($attr->{TAGS}) THEN tu.tag_id END) = $tags_count
+    )";
+    $attr->{TAGS} = '_SHOW';
+  }
+  elsif ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',       'DATE','p.date',   'p.date AS datetime'                           ],
       ['LOGIN',          'STR', 'u.id',         'u.id AS login'                            ],
@@ -251,6 +271,8 @@ sub list {
       ['DSC2',           'STR', 'p.dsc',  'p.dsc AS dsc2'                                  ],
       ['INNER_DESCRIBE2','STR', 'p.inner_describe', 'p.inner_describe AS inner_describe2'  ],
       ['SUM',            'INT', 'p.sum',                                                 1 ],
+      ['_GROUP_SUM',     'INT', 'p.sum',    'SUM(p.sum) AS _group_sum'],
+      ['_GROUP_COUNT',   'INT', '',         'COUNt(*) AS _group_count'],
       ['LAST_DEPOSIT',   'INT', 'p.last_deposit',                                        1 ],
       ['METHOD',         'INT', 'p.method',                                              1 ],
       ['AMOUNT',         'INT', 'p.amount',                                              1 ],
@@ -304,7 +326,7 @@ sub list {
     LEFT JOIN admins a ON (a.aid=p.aid)
     $EXT_TABLES
     $WHERE
-    GROUP BY p.id
+    GROUP BY $GROUP_BY
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -315,8 +337,9 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query("SELECT COUNT(tt.id) AS total, SUM(tt.sum) AS sum, COUNT(DISTINCT tt.uid) AS total_users
-    FROM (SELECT p.id, p.sum, p.uid
+  $self->query("SELECT COUNT(tt.id) AS total, SUM(tt.sum) AS sum, COUNT(DISTINCT tt.uid) AS total_users,
+    SUM(IF(tt.method = 8, tt.sum, 0)) AS total_recalculation_sum, COUNT(IF(tt.method = 8, tt.id, NULL)) AS total_recalculation_count
+    FROM (SELECT p.id, p.sum, p.uid, p.method
     FROM `$table_name` p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
@@ -450,7 +473,26 @@ sub reports {
     ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
   }
 
-  $attr->{SKIP_DEL_CHECK}=1;
+  $attr->{COMPANY_ID}='>0' if ($attr->{TYPE} eq 'COMPANIES');
+  $attr->{COMPANY_ID}='=0' if ($attr->{TYPE} eq 'WITHOUT_COMPANIES');
+
+  $attr->{SKIP_DEL_CHECK} = 1;
+
+  my @WHERE_RULES = ();
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 1) {
+    my $tags_count = scalar(split /,\s?/, $attr->{TAGS});
+    push @WHERE_RULES, "u.uid IN (SELECT tu.uid
+      FROM tags_users tu
+      GROUP BY tu.uid
+      HAVING COUNT(DISTINCT CASE WHEN tu.tag_id IN ($attr->{TAGS}) THEN tu.tag_id END) = $tags_count
+    )";
+    $attr->{TAGS} = '_SHOW';
+  }
+  elsif ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['METHOD',            'INT',  'p.method'                         ],
       ['MONTH',             'DATE', "DATE_FORMAT(p.date, '%Y-%m')"     ],
@@ -460,6 +502,7 @@ sub reports {
     ],
     {
       WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
       USERS_FIELDS      => 1,
       USE_USER_PI       => 1,
       SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ],
@@ -503,7 +546,7 @@ sub reports {
       $EXT_TABLE_JOINS_HASH{users}=1;
     }
     elsif ($type eq 'ADMINS') {
-      $date = "a.id AS admin_name";
+      $date = "a.id AS a_login, a.name AS a_name";
       $EXT_TABLE_JOINS_HASH{admins}=1;
       $self->{SEARCH_FIELDS} = 'p.aid,';
     }

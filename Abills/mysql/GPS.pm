@@ -491,7 +491,7 @@ sub admins_color_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT * FROM gps_admins_color WHERE aid=$attr->{AID}", undef,{ INFO => 1 });
+  $self->query("SELECT * FROM gps_admins_color WHERE aid=?", undef, { INFO => 1, Bind => [ $attr->{AID} ], });
 
   return $self;
 }
@@ -535,7 +535,9 @@ sub admins_show_change {
       });
     }
     else {
-      $self->query("UPDATE gps_admins_color SET show_admin=1 WHERE aid=$aid;");
+      $self->query("UPDATE gps_admins_color SET show_admin=1 WHERE aid=?;", 'do', {
+        Bind => [ $aid ]
+      });
     }
   }
 
