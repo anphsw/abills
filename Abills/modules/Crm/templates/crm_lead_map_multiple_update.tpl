@@ -1,5 +1,5 @@
-<form class='form-horizontal' action='$SELF_URL' method='post' role='form' id='crm_map_multiple_update'>
-  <input type=hidden name='qindex' value='$index'>
+<form class='form-horizontal' action='%SELF_URL%' method='post' role='form' id='crm_map_multiple_update'>
+  <input type=hidden name='qindex' value='%index%'>
   <input type='hidden' name='ID' id='ID' value='%IDS%'>
   <input type='hidden' name='header' value='2'>
   <input type='hidden' name='CRM_MULTISELECT' value='1'>

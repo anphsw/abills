@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array mk_unique_value camelize);
 
-our $VERSION = 1.3805;
+our $VERSION = 1.4307;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -64,6 +64,7 @@ sub load_own_resource_info {
   if ($@) {
     $error_msg = $@;
     $@ = undef;
+    $attr->{package} =~ s{-}{_}g;
     $module = 'Api::Paths::' . $attr->{package};
     $module_path = $module . '.pm';
     $module_path =~ s{::}{/}g;
@@ -117,7 +118,9 @@ sub _extra_api_modules {
     'Intervals',
     'Companies',
     'Config',
-    'Version'
+    'Version',
+    'Info-fields',
+    'Services'
   );
 
   if ($self->{conf}->{VIBER_TOKEN} || $self->{conf}->{TELEGRAM_TOKEN}) {

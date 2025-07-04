@@ -11,36 +11,36 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='NAME'>_{NAME}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='NAME'>_{NAME}_:</label>
+        <div class='col-md-8'>
           <input type='text' required class='form-control' id='NAME' NAME='NAME' VALUE='%NAME%'>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='GROUPS_SEL'>_{GROUP}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='GROUPS_SEL'>_{GROUP}_:</label>
+        <div class='col-md-8'>
           %GROUPS_SEL%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='MONTH_FEE'>_{MONTH_FEE}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='MONTH_FEE'>_{MONTH_FEE}_:</label>
+        <div class='col-md-8'>
           <input type='text' class='form-control' id='MONTH_FEE' NAME='MONTH_FEE' VALUE='%MONTH_FEE%'>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DAY_FEE'>_{DAY_FEE}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='DAY_FEE'>_{DAY_FEE}_:</label>
+        <div class='col-md-8'>
           <input type='text' class='form-control' id='DAY_FEE' NAME='DAY_FEE' VALUE='%DAY_FEE%'>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
-        <div class='col-md-9 p-2'>
+        <label class='col-md-4 control-label' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
+        <div class='col-md-8 p-2'>
           <div class='form-check text-left'>
             <input type='checkbox' class='form-check-input' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT'
                    %PERIOD_ALIGNMENT% value='1'>
@@ -49,43 +49,43 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
-        <div class='col-md-9 p-2'>
+        <label class='col-md-4 control-label' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
+        <div class='col-md-8 p-2'>
           <input type='checkbox' id='REDUCTION_FEE' NAME='REDUCTION_FEE' VALUE='1' %REDUCTION_FEE%>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='STATUS'>_{ARCHIVAL}_ _{TARIF_PLAN}_:</label>
-        <div class='col-md-9 p-2'>
+        <label class='col-md-4 control-label' for='STATUS'>_{ARCHIVAL}_ _{TARIF_PLAN}_:</label>
+        <div class='col-md-8 p-2'>
           <input type='checkbox' id='STATUS' NAME='STATUS' VALUE='1' %STATUS%>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
+        <div class='col-md-8'>
           %PAYMENT_TYPE_SEL%
         </div>
       </div>
 
-      <div class='form-group row'>
-        <label class='col-md-3 control-label' for='METHOD'>_{FEES}_ _{TYPE}_:</label>
-        <div class='col-md-9'>
+<!--      <div class='form-group row'>-->
+<!--        <label class='col-md-4 control-label' for='METHOD'>_{FEES}_ _{TYPE}_:</label>-->
+<!--        <div class='col-md-8'>-->
           %SEL_METHOD%
-        </div>
-      </div>
+<!--        </div>-->
+<!--      </div>-->
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='COMMENTS'>_{COMMENTS}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='COMMENTS'>_{COMMENTS}_:</label>
+        <div class='col-md-8'>
           <textarea class='form-control' placeholder='_{COMMENTS}_' name='COMMENTS' id='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
+        <div class='col-md-8'>
           <textarea cols='40' rows='3' name='DESCRIBE_AID' class='form-control' id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
         </div>
       </div>
@@ -107,28 +107,28 @@
         <div class='card-body'>
 
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{INTERNET}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label'>_{INTERNET}_:</label>
+            <div class='col-md-8'>
               %INTERNET%
             </div>
           </div>
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{TV}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label'>_{TV}_:</label>
+            <div class='col-md-8'>
               %IPTV%
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{ABON}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label'>_{ABON}_:</label>
+            <div class='col-md-8'>
               %ABON%
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{VOIP}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label'>_{VOIP}_:</label>
+            <div class='col-md-8'>
               %VOIP%
             </div>
           </div>

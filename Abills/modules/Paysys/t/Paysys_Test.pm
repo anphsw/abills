@@ -30,18 +30,7 @@ my $Paysys = Paysys->new($db, $admin, \%conf);
 #**********************************************************
 sub paysys_main_test {
 
-  my %debug_list = (
-    '' => '',
-    1  => 1,
-    2  => 2,
-    3  => 3,
-    4  => 4,
-    5  => 5,
-    6  => 6,
-    7  => 7,
-    8  => 8,
-    9  => 9
-  );
+  my %debug_list = map { $_ => $_ } 1..9;
 
   my $debug_select = q{};
 
@@ -174,10 +163,14 @@ sub paysys_test {
   my @request_params = ();
   my %request_params = ();
 
+  $request_params{HEADERS} = [];
   if ($FORM{headers}) {
     $FORM{headers} =~ s/\\//gm;
     $request_params{HEADERS} = eval{decode_json($FORM{headers})};
   }
+
+  # strange solution, because system do not parse query params if POST request
+  push @{$request_params{HEADERS}}, "X-Payment-System: $FORM{module}";
 
   if ($FORM{ROW_TEST}) {
     if ($FORM{ROW_TEST} =~ /\s=>\s/) {
@@ -210,7 +203,7 @@ sub paysys_test {
 
   $request_params{GET_HEADERS} = 1 if ($debug > 3);
 
-  my $response =  web_request($url, {
+  my $response = web_request($url, {
     INSECURE => 1,
     DEBUG    => $debug,
     TIMEOUT  => 5,

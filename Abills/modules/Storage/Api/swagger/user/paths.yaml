@@ -1,0 +1,2 @@
+/user/storage/incoming_articles:
+  $ref: "./paths/incoming_articles.yaml"

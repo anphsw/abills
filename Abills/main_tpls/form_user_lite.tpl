@@ -197,7 +197,7 @@
       <div class='form-group row'>
         <label class='col-sm-2 col-form-label text-md-right' for='CREDIT'>_{CREDIT}_</label>
         <div class='col-sm-4'>
-          <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0'
+          <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='text' min='0'
               value='%CREDIT%' data-tooltip='<h5>_{SUM}_:</h5>%CREDIT%<br/><h5>_{DATE}_:</h5>%DATE_CREDIT%'
               data-tooltip-position='top'>
         </div>
@@ -323,3 +323,7 @@
     </div>
   </div>
 </form>
+
+<script>
+  formatInputWithThousands('CREDIT');
+</script>

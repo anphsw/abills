@@ -37,6 +37,37 @@
       </div>
     </div>
 
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label' for='STATUS'>_{STATUS}_</label>
+      <div class='col-sm-8 col-md-9'>
+        %CONTRACT_STATUS_SEL%
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label'  for='BANK_NAME'> _{INDICATION}_</label>
+      <div class='input-group col-md-9'>
+        <input class='form-control' id='INDICATION' placeholder='%INDICATION%' name='INDICATION' value='%INDICATION%'>
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label' for='CONTRACT_EXPIRY'>_{EXPIRY}_</label>
+      <div class='col-sm-8 col-md-9'>
+        <div class='input-group'>
+          <input id='CONTRACT_EXPIRY' type='text' name='CONTRACT_EXPIRY'
+                 value='%CONTRACT_EXPIRY%' class='datepicker form-control'>
+        </div>
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label' for='PAYMENT_TYPE_SEL'>_{PAYMENT_METHOD}_</label>
+      <div class='col-sm-8 col-md-9'>
+        %PAYMENT_TYPE_SEL%
+      </div>
+    </div>
+
     <div class='form-group'>
       <div class='row'>
         <div class='col-sm-12 col-md-12'>

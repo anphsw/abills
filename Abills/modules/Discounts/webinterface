@@ -1,33 +1,40 @@
-=head1 Discounts
+=head1 NAME
 
-  Date: 2019-11-05
-  Change date: 2019-11-07
+  Discounts main module
 
-  Version: 8.01
+  DATE: 2019-11-05
+  CHANGE DATE: 2025-05-07
+
+  VERSION: 8.02
 
 =cut
 
-use Discounts;
-use Abills::Base qw(load_pmodule);
-
-load_pmodule('HTML::Barcode::Code128');
 
 use strict;
 use warnings FATAL => 'all';
-
+use Discounts;
+use Discounts::Reports;
+use Abills::Base qw(load_pmodule);
 require Abills::Defs;
 
-our ($db,
+our (
+  $db,
   $admin,
   %conf,
   %lang,
-  $html
+  $html,
+  $users
 );
 
 my $Discounts = Discounts->new($db, $admin, \%conf);
 
+
+if ($conf{DISCOUNTS_SHOP}) {
+  load_pmodule('HTML::Barcode::Code128');
+}
+
 #**********************************************************
-=head2 discounts_add_discounts() -
+=head2 discounts_add_shop_discounts() - function for adding shop discounts
 
   Arguments:
     attr -
@@ -37,25 +44,25 @@ my $Discounts = Discounts->new($db, $admin, \%conf);
 
 =cut
 #**********************************************************
-sub discounts_add_discounts {
-  my ($attr) = @_;
+sub discounts_add_shop_discounts {
+  #my ($attr) = @_;
   my $action = 'add';
   my $action_lang = "$lang{ADD}";
   my %DISCOUNT;
 
-  if($FORM{add}){
-    $Discounts->add_discount({%FORM});
-    if(!$Discounts->{errno}){
+  if ($FORM{add}) {
+    $Discounts->add_discount({ %FORM });
+    if (!$Discounts->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{DISCOUNT_ADDED}");
     }
-    else{
+    else {
       $html->message("err", "$lang{ERROR}", "$lang{DISCOUNT_NOT_ADDED}");
     }
   }
-  elsif($FORM{change}){
+  elsif ($FORM{change}) {
 
-    $Discounts->change_discount({%FORM});
-    if(!$Discounts->{errno}){
+    $Discounts->change_discount({ %FORM });
+    if (!$Discounts->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{DISCOUNT_CHANGED}");
     }
     else {
@@ -63,24 +70,24 @@ sub discounts_add_discounts {
     }
   }
 
-  if($FORM{chg}){
-    my $discount_info = $Discounts->info_discount({ID => $FORM{chg}});
+  if ($FORM{chg}) {
+    my $discount_info = $Discounts->info_discount({ ID => $FORM{chg} });
     $html->message("info", "$lang{CHANGE_DATA}");
 
-    if(!$Discounts->{errno}){
+    if (!$Discounts->{errno}) {
       $action = 'change';
       $action_lang = "$lang{CHANGE}";
       $DISCOUNT{NAME} = $discount_info->{NAME};
       $DISCOUNT{SIZE} = $discount_info->{SIZE};
       $DISCOUNT{COMMENTS} = $discount_info->{COMMENTS};
-      $DISCOUNT{ID}       = $FORM{chg};
+      $DISCOUNT{ID} = $FORM{chg};
     }
   }
 
-  if($FORM{del}){
-    $Discounts->delete_discount({ID => $FORM{del}});
+  if ($FORM{del}) {
+    $Discounts->delete_discount({ ID => $FORM{del} });
 
-    if(!$Discounts->{errno}){
+    if (!$Discounts->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{DISCOUNT_DELETED}");
     }
     else {
@@ -88,52 +95,49 @@ sub discounts_add_discounts {
     }
   }
 
-
-  $html->tpl_show(_include('discounts_add_discounts', 'Discounts'),{
+  $html->tpl_show(_include('discounts_add_discounts', 'Discounts'), {
     %DISCOUNT,
     ACTION      => $action,
     ACTION_LANG => $action_lang,
   });
 
-  result_former(
-    {
-      INPUT_DATA      => $Discounts,
-      FUNCTION       => 'list_discount',
-      BASE_FIELDS     => 4,
-      DEFAULT_FIELDS  => "id, name, size, comments",
-      FUNCTION_FIELDS => 'change, del',
-      EXT_TITLES      => {
-        'name'          => $lang{NAME},
-        'id'            => 'ID',
-        'size'          => "$lang{SIZE}(%)",
-        'comments'      => $lang{COMMENTS}
-      },
-      TABLE => {
-        width   => '100%',
-        caption => "$lang{DISCOUNTS}",
-        qs      => $pages_qs,
-        ID      => 'DISCOUNTS',
-        header  => '',
-        EXPORT  => 1,
-        #MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
-      },
-      #SELECT_VALUE    => {
-      # every_month => { 0 => "$lang{NO}:text-danger",
-      #             1 => "$lang{YES}:text-primary"
-      #           },
-     #},
-      MAKE_ROWS     => 1,
-      SEARCH_FORMER => 1,
-      MODULE        => 'Discounts',
-      TOTAL         => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Discounts,
+    FUNCTION        => 'list_discount',
+    BASE_FIELDS     => 4,
+    DEFAULT_FIELDS  => "id, name, size, comments",
+    FUNCTION_FIELDS => 'change, del',
+    EXT_TITLES      => {
+      'name'     => $lang{NAME},
+      'id'       => 'ID',
+      'size'     => "$lang{SIZE}(%)",
+      'comments' => $lang{COMMENTS}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{DISCOUNTS},
+      qs      => $pages_qs,
+      ID      => 'DISCOUNTS',
+      header  => '',
+      EXPORT  => 1,
+      #MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+    },
+    #SELECT_VALUE    => {
+    # every_month => { 0 => "$lang{NO}:text-danger",
+    #             1 => "$lang{YES}:text-primary"
+    #           },
+    #},
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Discounts',
+    TOTAL           => 1
+  });
 
   return 1;
 }
 
 #**********************************************************
-=head2 discounts_user_service() -
+=head2 discounts_user_shop_service() -
 
   Arguments:
     $attr -
@@ -143,35 +147,29 @@ sub discounts_add_discounts {
 
 =cut
 #**********************************************************
-sub discounts_user_service {
-  my ($attr) = @_;
+sub discounts_user_shop_service {
 
-  if($FORM{change}){
+  if ($FORM{change}) {
     $Discounts->discount_user_change(\%FORM);
 
-    if(!$Discounts->{errno}){
+    if (!$Discounts->{errno}) {
       $html->message('success', "$lang{SUCCESS}", "$lang{DISCOUNT_CHANGED}");
     }
-    else{
+    else {
       $html->message('err', "$lang{ERROR}", "$lang{DISCOUNT_NOT_CHANGED}");
     }
   }
 
-  my $discounts_list = $Discounts->user_discounts_list({%FORM, COLS_NAME => 1});
+  my $discounts_list = $Discounts->user_discounts_list({ %FORM, COLS_NAME => 1 });
 
-  # _bp("List", $discounts_list);
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{DISCOUNTS}",
-      title      => [ '-', "$lang{NAME}","$lang{SIZE}(%)", $lang{DATE}, $lang{COMMENTS} ],
-      #FIELDS_IDS => $Tags->{COL_NAMES_ARR},
-      cols_align => [ 'left', 'left', 'left', 'left' ],
-      qs         => $pages_qs,
-      ID         => 'DISCOUNT_USER',
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{DISCOUNTS}",
+    title   => [ '-', "$lang{NAME}", "$lang{SIZE}(%)", $lang{DATE}, $lang{COMMENTS} ],
+    #FIELDS_IDS => $Tags->{COL_NAMES_ARR},
+    qs      => $pages_qs,
+    ID      => 'DISCOUNT_USER',
+  });
 
   foreach my $line (@$discounts_list) {
     $table->addrow(
@@ -203,8 +201,8 @@ sub discounts_user_service {
         index => $index,
         UID   => $FORM{UID},
       },
-      NAME     => 'DISCOUNT_USER',
-      ID       => 'DISCOUNT_USER'
+      NAME    => 'DISCOUNT_USER',
+      ID      => 'DISCOUNT_USER'
     }
   );
 
@@ -238,9 +236,10 @@ sub discounts_user {
 
   my $logo = '<span style="color: red;">A</span>BillS';
 
-  if (sprintf("%.2f",$user->{DEPOSIT}) < 0.01) {
-    $html->message( 'err', $lang{ERROR}, $lang{WARR_DEPOSIT} );
-  } else {
+  if (sprintf("%.2f", $user->{DEPOSIT}) < 0.01) {
+    $html->message('err', $lang{ERROR}, $lang{WARR_DEPOSIT});
+  }
+  else {
     $html->tpl_show(
       _include('discounts_user_card', 'Discounts'), {
       CARD_SIGN => $lang{CARD_ABON},
@@ -254,4 +253,242 @@ sub discounts_user {
   return 1;
 }
 
-1
+
+#**********************************************************
+=head2 discounts_user_service() -
+
+=cut
+#**********************************************************
+sub discounts_user_service {
+
+  $FORM{SUM} =~ s/\s+//xg if ($FORM{SUM});
+  # $FORM{STATUS} ||= 0;
+
+  if ($FORM{add}) {
+    $FORM{FROM_DATE} = $DATE if (!$FORM{FROM_DATE});
+    $Discounts->user_add(\%FORM);
+    $html->message('success', $lang{DISCOUNT_ADDED}) if (!_error_show($Discounts));
+    $html->redirect("?index=$index&UID=". ($FORM{UID} || q{}));
+    delete $FORM{MODULE};
+  }
+  elsif ($FORM{chg}) {
+    $Discounts->user_info({ ID => $FORM{chg} });
+  }
+  elsif ($FORM{change}) {
+    $Discounts->user_change(\%FORM);
+    $html->message('success', $lang{DISCOUNT_CHANGED}) if (!_error_show($Discounts));
+    delete $FORM{MODULE};
+  }
+  elsif ($FORM{del}) {
+    $Discounts->user_del({ ID => $FORM{del} });
+    $html->message('success', $lang{DISCOUNT_DELETED}) if (!_error_show($Discounts));
+  }
+
+  my %discounts_types = (1 => $lang{DISCOUNT_EXCLUSIVE}, 2 => $lang{DISCOUNT_PROMOTIONAL});
+  $Discounts->{TYPE_SEL} = $html->form_select('TYPE', {
+    SELECTED => $Discounts->{TYPE} || $FORM{TYPE} || 1,
+    SEL_HASH => \%discounts_types,
+    SORT_KEY => 1,
+    REQUIRED => 1,
+    NO_ID    => 1,
+  });
+
+  my %discounts_status = (0 => $lang{ENABLE}, 1 => $lang{DISABLED});
+  $Discounts->{STATUS_SEL} = $html->form_select('STATUS', {
+    SELECTED => $Discounts->{STATUS} || $FORM{STATUS} || 0,
+    SEL_HASH => \%discounts_status,
+    SORT_KEY => 1,
+    NO_ID    => 1,
+  });
+
+  my %MODULES = (
+    ''         => $lang{ALL},
+    'Triplay'  => 'Triplay',
+    'Internet' => $lang{INTERNET},
+    'Iptv'     => $lang{IPTV},
+    #'Abon'     => $lang{ABON},
+    'Voip'     => $lang{VOIP},
+  );
+
+  $Discounts->{MODULE_SEL} = $html->form_select('MODULE', {
+    SELECTED  => $Discounts->{MODULE} || $FORM{MODULE} || '',
+    SEL_HASH  => \%MODULES,
+    EX_PARAMS => "onchange='autoReload()'",
+    NO_ID     => 1,
+  });
+
+  require Control::Services;
+  #my $user_info = $users->info($FORM{UID});
+  my $user_services = '';
+  my %user_service_hash = ();
+
+  $user_services = get_services($users, { MODULES => $Discounts->{MODULE} || $FORM{MODULE} });
+
+  if ($user_services->{list}) {
+    foreach my $service (@{$user_services->{list}}) {
+      $user_service_hash{$service->{TP_ID}} = $service->{SERVICE_NAME}; # if ($service->{ID});
+    }
+  }
+
+  $Discounts->{TARIFF_SEL} = $html->form_select('TP_ID', {
+    SELECTED    => $Discounts->{TP_ID} || $FORM{TP_ID} || '',
+    SEL_HASH    => \%user_service_hash,
+    SEL_OPTIONS => { '' => '--' },
+    NO_ID       => 1,
+  });
+
+  if ($FORM{add_form} || $FORM{chg}) {
+    print $html->tpl_show(_include('discounts_user', 'Discounts'), {
+      ACTION      => $FORM{add_form} ? 'add' : 'change',
+      ACTION_LANG => $FORM{add_form} ? $lang{ADD} : $lang{CHANGE},
+      %$Discounts,
+      %FORM
+    }, { OUTPUT2RETURN => 1 });
+
+    return q{};
+  }
+
+  my @status_bar = (
+    "$lang{ALL}:index=$index&STATUS=_SHOW&$pages_qs",
+    "$lang{ACTIV}:index=$index&STATUS=0&$pages_qs",
+    "$lang{DISABLED}:index=$index&STATUS=1&$pages_qs"
+  );
+
+  if (!$FORM{sort}) {
+    $LIST_PARAMS{SORT} = 'dm.from_date';
+    $LIST_PARAMS{DESC} = 'DESC';
+  }
+
+  if ($FORM{DEBUG}) {
+    $Discounts->{debug}=1;
+  }
+
+  result_former({
+    INPUT_DATA      => $Discounts,
+    FUNCTION        => 'user_list',
+    FUNCTION_INDEX  => $index,
+    DEFAULT_FIELDS  => 'ID,MODULE,PERCENT,SUM,FROM_DATE,TO_DATE,TYPE,COMMENTS,TP_ID,UID',
+    BASE_FIELDS     => 0,
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    HIDDEN_FIELDS   => 'UID',
+    FILTER_VALUES   => {
+      status => sub {
+        my $status_id = shift;
+        return ((defined($status_id)) ? $discounts_status{$status_id} : '');
+      },
+      type   => sub {
+        my $type_id = shift;
+        return ((defined($type_id)) ? $discounts_types{$type_id} : '');
+      },
+      module => sub {
+        my $module = shift;
+        return (($module) ? $MODULES{$module} : '');
+      },
+      tp_id  => sub {
+        my $tp_id = shift;
+        return (($tp_id) ? $user_service_hash{$tp_id} : '');
+      },
+    },
+    EXT_TITLES      => {
+      id        => 'ID',
+      module    => $lang{MODULE},
+      tp_id     => $lang{TARIF_PLAN},
+      percent   => $lang{PERCENT},
+      sum       => $lang{SUM},
+      from_date => "$lang{DATE} $lang{FROM}",
+      to_date   => "$lang{DATE} $lang{TO}",
+      status    => $lang{STATUS},
+      type      => $lang{TYPE},
+      comments  => $lang{COMMENTS},
+      reg_date  => $lang{DATE_OF_CREATION},
+      uid       => 'UID',
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{DISCOUNTS},
+      qs      => $pages_qs,
+      ID      => 'USER_DISCOUNTS_LIST',
+      header  => $html->table_header(\@status_bar),
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 discounts_mu_form() -
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub discounts_mu_form {
+
+  my %params = ();
+
+  my %MODULES = (
+    ''         => $lang{ALL},
+    'Triplay'  => 'Triplay',
+    'Internet' => $lang{INTERNET},
+    'Iptv'     => $lang{IPTV},
+    #'Abon'     => $lang{ABON},
+    'Voip'     => $lang{VOIP},
+  );
+
+  $params{MODULE_SEL} = $html->form_select('MODULE', {
+    SELECTED  => $FORM{MODULE} || '',
+    SEL_HASH  => \%MODULES,
+    NO_ID     => 1,
+  });
+
+  my %discounts_types = (1 => $lang{DISCOUNT_EXCLUSIVE}, 2 => $lang{DISCOUNT_PROMOTIONAL});
+  $params{TYPE_SEL} = $html->form_select('TYPE', {
+    SELECTED => $FORM{TYPE} || 1,
+    SEL_HASH => \%discounts_types,
+    SORT_KEY => 1,
+    NO_ID    => 1,
+  });
+
+  my $mu_content =  $html->tpl_show(_include('discounts_mu', 'Discounts'), {
+    %params
+  }, { OUTPUT2RETURN => 1 });
+
+  return [ $html->form_input('MU_DISCOUNTS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DISCOUNTS},
+    $mu_content ];
+}
+
+
+#**********************************************************
+=head2 discounts_mu_add($attr) -
+
+  Arguments:
+    $attr
+      IDS
+
+  Results:
+    $result_hash_ref
+
+=cut
+#**********************************************************
+sub discounts_mu_add {
+  my ($attr) = @_;
+
+  my @ids = split(/,\s?/x, $attr->{IDS});
+  my %result = ();
+  foreach my $uid ( @ids ) {
+    $Discounts->user_add({ %$attr, UID => $uid });
+    my %res = (message => 'Ok');
+    $result{$uid} = \%res;
+  }
+
+  return \%result;
+}
+
+1;

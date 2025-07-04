@@ -28,6 +28,7 @@ my $VERSION = 0.29;
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
 use Admins;
+use Abills::Filters;
 use Nas;
 use POSIX qw(strftime);
 use Internet::Sessions;
@@ -138,41 +139,6 @@ else {
 if ($debug > 0) {
   print "Total: $count\n";
   gen_time($begin_time);
-}
-
-
-#**********************************************************
-=head2 mk_cid_list($cid);
-
-  Arguments:
-    $cid
-
-  Results:
-    $cid_list
-
-=cut
-#**********************************************************
-sub mk_cid_list {
-  my ($cid)=@_;
-  my @cid_list = ();
-
-  my @mac_formats = (
-    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2.$3$4.$5$6',
-    '([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})|$1:$2:$3:$4:$5:$6',
-    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2$3$4$5$6',
-  );
-
-  foreach my $mac_format ( @mac_formats ) {
-    #print $mac_format ."\n";
-    my $_cid = $cid;
-    my ($expr, $result)=split(/\|/, $mac_format);
-
-    $_cid =~ s/$expr/eval "\"$result\""/e;
-
-    push @cid_list, $_cid;
-  }
-
-  return join(',', @cid_list);
 }
 
 #**********************************************************

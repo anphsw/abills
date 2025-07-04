@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS `work_planning`
   `id`                INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
   `date_of_creation`  DATE                 NOT NULL DEFAULT '0000-00-00',
   `date_of_execution` DATE                 NOT NULL DEFAULT '0000-00-00',
-  `aid`               SMALLINT             NOT NULL DEFAULT 0,
+  `aid`               SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `description`       VARCHAR(255)         NOT NULL DEFAULT '',
   `status`            SMALLINT UNSIGNED    NOT NULL DEFAULT 0,
   `budget`            FLOAT UNSIGNED       NOT NULL DEFAULT 0,

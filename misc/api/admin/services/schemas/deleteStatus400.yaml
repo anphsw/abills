@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: ""
+  errno:
+    type: integer
+    example: 1001032
+  errstr:
+    type: string
+    example: Status with id 1012 not exists

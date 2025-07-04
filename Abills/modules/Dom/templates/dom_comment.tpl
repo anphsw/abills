@@ -2,7 +2,7 @@
   <input type='hidden' name=index id=INDEX value=%index%>
   <input type='hidden' name=LOCATION_ID id=LOCATION_ID value=%LOCATION_ID%>
 
-  <div class='card card-primary card-outline box-form'>
+  <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border text-primary'>_{CHANGE}_ </div>
     <div class='card-body'>
       <div class='form-group row'>
@@ -13,7 +13,7 @@
       </div>
     </div>
     <div class='card-footer'>
-      <button type='submit' class='btn btn-primary' id="submit_btn">_{CHANGE}_</button>
+      <button type='submit' class='btn btn-primary' id='submit_btn'>_{CHANGE}_</button>
     </div>
   </div>
 </form>
@@ -22,8 +22,14 @@
   jQuery('#submit_btn').on('click', function (event) {
     var location_id = jQuery('#LOCATION_ID').val();
     var comments = jQuery('#COMMENTS').val();
-    if(location_id){
-      sendRequest(`/api.cgi/builds/${location_id}`, {comments: comments}, 'PUT');
+    if (location_id) {
+      event.preventDefault();
+
+      sendRequest(`/api.cgi/builds/${location_id}`, {comments: comments}, 'PUT')
+        .finally(response => {
+          aModal.hide();
+          location.reload()
+        });
     }
   });
 </script>

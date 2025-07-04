@@ -88,7 +88,7 @@ if ($conf{AUTH_X_FORWARDED} && $conf{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST},
   $REMOTE_ADDR = $ENV{$conf{AUTH_X_FORWARDED}} if ($ENV{$conf{AUTH_X_FORWARDED}});
 }
 
-#Check allow ips
+#@deprecated Check allow ips
 if ($conf{PAYSYS_IPS}) {
   if ($REMOTE_ADDR && !check_ip($REMOTE_ADDR, $conf{PAYSYS_IPS})) {
     print "Content-Type: text/html\n\n";
@@ -100,6 +100,7 @@ if ($conf{PAYSYS_IPS}) {
   }
 }
 
+#@deprecated CGI Auth for modules
 if ($conf{PAYSYS_PASSWD}) {
   my ($user, $password) = split(/:/, $conf{PAYSYS_PASSWD});
 
@@ -156,11 +157,16 @@ sub paysys_new_scheme {
 
   #test systems
   my $test_system = q{};
+  #@deprecated use PAYSYS_TEST_SYSTEM_IPS as main option
   if ($conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}) {
     my ($ips, $pay_system) = split(/:/, $conf{PAYSYS_TEST_SYSTEM});
     if (check_ip($REMOTE_ADDR, $ips)) {
       $test_system = $FORM{PAYSYS_TEST_SYSTEM} || $pay_system;
     }
+  }
+  # strange solution, because system do not parse query params if POST request
+  elsif ($conf{PAYSYS_TEST_SYSTEM_IPS} && $ENV{HTTP_X_PAYMENT_SYSTEM} && check_ip($REMOTE_ADDR, $conf{PAYSYS_TEST_SYSTEM_IPS})) {
+    $test_system = $ENV{HTTP_X_PAYMENT_SYSTEM};
   }
 
   foreach my $connected_system (@$connected_systems_list) {
@@ -264,7 +270,7 @@ sub paysys_new_scheme {
 #**********************************************************
 sub paysys_payment_gateway {
   # load header
-  $html->{METATAGS} = templates('metatags');
+  $html->{METATAGS} = templates('metatags_client');
   $html->{WEB_TITLE} = $lang{MAKE_PAYMENT};
 
   print $html->header();

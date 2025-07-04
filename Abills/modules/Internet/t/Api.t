@@ -32,7 +32,7 @@ use Shedule;
 use Control::Service_control;
 
 our (
-  %conf
+  %conf,
 );
 
 my $db = Abills::SQL->connect(
@@ -56,87 +56,86 @@ my $Users = Users->new($db, $admin, \%conf);
 my $Shedule  = Shedule->new($db, $admin, \%conf);
 my $Service_control  = Control::Service_control->new($db, $admin, \%conf);
 
+my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
+my $debug = $ARGS->{DEBUG} || 0;
+
+if ($debug > 6)  {
+  $Users->{debug}=1;
+  $Internet->{debug}=1;
+}
+
+my $test_user = $conf{API_TEST_USER_LOGIN} || 'test';
 my $user = $Users->list({
-  LOGIN     => $conf{API_TEST_USER_LOGIN} || 'test',
+  LOGIN     => $test_user,
   COLS_NAME => 1,
 });
 
-my $service = $Internet->user_list({
-  UID       => $user->[0]->{uid} || '---',
+if ($Users->{TOTAL} < 1) {
+  _log("test user not exists '$test_user'");
+}
+
+my $uid = $user->[0]->{uid};
+my $service_list = $Internet->user_list({
+  UID       => $uid || '---',
   TP_ID     => '_SHOW',
   ID        => '_SHOW',
   COLS_NAME => 1,
-  PAGE_ROWS => 1
+  PAGE_ROWS => 1,
+  GROUP_BY  => 'internet.id',
+  SORT      => 'internet.id',
+  DESC      => 'DESC'
 });
 
-my $active_tariffs = $Service_control->services_info({
-  UID             => $user->[0]->{uid},
-  SERVICE_INFO    => $Internet,
-  FUNCTION_PARAMS => {
-    GROUP_BY        => 'internet.id',
-    INTERNET_STATUS => '_SHOW',
-  },
-});
+# my $active_tariffs = $Service_control->services_info({
+#   UID             => $user->[0]->{uid},
+#   SERVICE_INFO    => $Internet,
+#   FUNCTION_PARAMS => {
+#     GROUP_BY        => 'internet.id',
+#     INTERNET_STATUS => '_SHOW',
+#   },
+# });
 
 my $available_tariffs = $Service_control->available_tariffs({
-  UID    => $user->[0]->{uid},
+  UID    => $uid,
   MODULE => 'Internet'
 });
 
-my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
-my @tests = folder_list($ARGS, $RealBin);
-my $debug = $ARGS->{DEBUG} || 0;
-
-foreach my $test (@tests) {
-  # TODO: move to core
-  if ($test->{path} =~ /user\/:id\/holdup\//g) {
-    my $id = (scalar(@{$service})) ? $service->[0]->{id} : '';
-    $test->{path} =~ s/:id/$id/g;
-
-    if ($test->{method} eq 'POST') {
-      my $hold_up_min_period = 1;
-      ($hold_up_min_period) = split(/:/, $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
-
-      $test->{body}->{from_date} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400));
-      $test->{body}->{to_date} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * ($hold_up_min_period + 1)));
-    }
-  }
-  elsif ($test->{path} =~ /user\/internet\/:id\/activate/g) {
-    my $id = $active_tariffs->[0]->{id};
-    $test->{path} =~ s/:id/$id/g;
-  }
-  elsif ($test->{path} =~ /user\/internet\/:id/g) {
-    if ($test->{method} eq 'DELETE') {
-      $Shedule->info({ UID => $user->[0]->{uid}, TYPE => 'tp', MODULE => 'Internet' });
-      $Shedule->{SHEDULE_ID} //= '';
-      $test->{path} =~ s/:id/$Shedule->{SHEDULE_ID}/g;
-    }
-    elsif ($test->{method} eq 'PUT') {
-      $test->{body}->{tpId} = $available_tariffs->[0]->{tp_id};
-      my $id = $active_tariffs->[0]->{id};
-      $test->{path} =~ s/:id/$id/g;
-    }
-    else {
-      my $id = $active_tariffs->[0]->{id};
-      $test->{path} =~ s/:id/$id/g;
-    }
-  }
-  elsif ($test->{path} =~ /internet\/activate\//g) {
-    if ($test->{method} eq 'POST') {
-      $test->{body}->{tp_id} = $available_tariffs->[1]->{id};
-      $test->{body}->{status} = 0;
-    }
-    elsif ($test->{method} eq 'PUT') {
-      $test->{body}->{id} = $active_tariffs->[0]->{id};
-      $test->{body}->{status} = int(rand(6));
-    }
-  }
+if ($Service_control->{error}) {
+  _log("[$Service_control->{error}] $Service_control->{errstr}");
 }
+
+$Shedule->info({ UID => $uid, TYPE => 'tp', MODULE => 'Internet' });
+
+my $hold_up_min_period = 1;
+($hold_up_min_period) = split(/:/, $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
+
+my %params = (
+  id        => $service_list->[0]->{id},
+  serviceId => $service_list->[0]->{id},
+  uid       => $uid,
+  sheduleId => $Shedule->{SHEDULE_ID} || 0,
+  fromDate  => POSIX::strftime('%Y-%m-%d', localtime(time + 86400)),
+  toDate    => POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * ($hold_up_min_period + 1)))
+);
+
+
+if (! $available_tariffs || ref $available_tariffs ne 'ARRAY') {
+  _log("No available tarifs");
+  $params{tpId} = $service_list->[0]->{tp_id};
+}
+else {
+  $params{tpId} = $available_tariffs->[0]->{tp_id};
+  $params{nextTpId} = $available_tariffs->[1]->{tp_id};
+}
+
+my @available_tests = folder_list($ARGS, $RealBin);
+my $run_tests = test_preprocess(\@available_tests, \%params, \%conf, { DEBUG => 2 });
+
 
 test_runner({
   apiKey => $apiKey,
   debug  => $debug
-}, \@tests);
+}, $run_tests);
 
 done_testing();
 

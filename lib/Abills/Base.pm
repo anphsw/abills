@@ -68,7 +68,6 @@ our @EXPORT = qw(
   is_html
   check_ip
   is_number
-  decode_quoted_printable
   get_period_dates
   expire_date
   datetime_diff
@@ -122,7 +121,6 @@ our @EXPORT_OK = qw(
   is_html
   check_ip
   is_number
-  decode_quoted_printable
   get_period_dates
   expire_date
   datetime_diff
@@ -268,8 +266,10 @@ sub in_array {
 =cut
 #**********************************************************
 sub indexof {
-  for (my $i = 1 ; $i <= $#_ ; $i++) {
-    if ($_[$i] eq $_[0]) { return $i - 1; }
+  my ($value, $array) = @_;
+
+  for (my $i = 1 ; $i <= $#{ $array } ; $i++) {
+    if ($array->[$i] eq $value) { return $i - 1; }
   }
   return -1;
 }
@@ -349,7 +349,7 @@ sub convert {
   elsif ($attr->{cp8662utf8}) { $text = cp8662utf8($text); }
   elsif ($attr->{utf82cp866}) { $text = utf82cp866($text); }
 
-  if($attr->{json}) {
+  if ($attr->{json}) {
     $text =~ s/\n/\\n/g;
   }
 
@@ -414,7 +414,7 @@ sub txt2translit {
 
   my $is_utf = Encode::is_utf8($text);
 
-  if($is_utf) {
+  if ($is_utf) {
     $text = Encode::decode("UTF-8", $text);
   }
 
@@ -586,9 +586,9 @@ sub parse_arguments {
     }
   }
 
-  if($attr) {
+  if ($attr) {
     foreach my $param ( keys %$attr ) {
-      if($args{$param}) {
+      if ($args{$param}) {
         my $fn = $attr->{$param};
         &{ \&$fn }();
       }
@@ -678,7 +678,7 @@ sub sendmail {
       $sendmail_options = $from;
     }
   }
-  elsif($attr->{TRUSTED_FROM} && $attr->{TRUSTED_FROM} ne '1') {
+  elsif ($attr->{TRUSTED_FROM} && $attr->{TRUSTED_FROM} ne '1') {
     $sendmail_options = "-f $attr->{TRUSTED_FROM}";
   }
 
@@ -725,7 +725,7 @@ $message};
       my $data = $attachment->{CONTENT};
       $message .= "\n--$boundary\n";
 
-      if($ENV{SENDMAIL_SAVE_ATTACH}) {
+      if ($ENV{SENDMAIL_SAVE_ATTACH}) {
         open(my $fh, '>', '/tmp/'.$attachment->{FILENAME});
           print $fh $attachment->{CONTENT};
         close $fh;
@@ -807,41 +807,46 @@ sub show_log {
 
   $login =~ s/\*/\[\.\]\{0,100\}/g if ($login ne '');
 
-  open(my $fh, '<', $logfile) || die "Can't open log file '$logfile' $!\n";
-  my ($date, $time, $log_type, $action, $user, $message);
-  while (<$fh>) {
-    if (/(\d+\-\d+\-\d+) (\d+:\d+:\d+) ([A-Z_]+:) ([A-Z_]+) \[(.+)\] (.+)/) {
-      $date     = $1;
-      $time     = $2;
-      $log_type = $3;
-      $action   = $4;
-      $user     = $5;
-      $message  = $6;
-    }
-    else {
-      next;
-    }
+  if (open(my $fh, '<', $logfile)) {
+    my ($date, $time, $log_type, $action, $user, $message);
+    while (<$fh>) {
+      if (/(\d+\-\d+\-\d+) (\d+:\d+:\d+) ([A-Z_]+:) ([A-Z_]+) \[(.+)\] (.+)/) {
+        $date = $1;
+        $time = $2;
+        $log_type = $3;
+        $action = $4;
+        $user = $5;
+        $message = $6;
+      }
+      else {
+        next;
+      }
 
-    if (defined($attr->{LOG_TYPE}) && "$log_type" ne "$attr->{LOG_TYPE}:") {
-      next;
-    }
+      if (defined($attr->{LOG_TYPE}) && "$log_type" ne "$attr->{LOG_TYPE}:") {
+        next;
+      }
 
-    if (defined($attr->{DATE}) && $date ne $attr->{DATE}) {
-      next;
-    }
+      if (defined($attr->{DATE}) && $date ne $attr->{DATE}) {
+        next;
+      }
 
-    if ($login ne "") {
-      if ($user =~ /^[ ]{0,1}$login\s{0,1}$/i) {
+      if ($login ne "") {
+        if ($user =~ /^[ ]{0,1}$login\s{0,1}$/i) {
+          push @err_recs, $_;
+          $types{$log_type}++;
+        }
+      }
+      else {
         push @err_recs, $_;
         $types{$log_type}++;
       }
     }
-    else {
-      push @err_recs, $_;
-      $types{$log_type}++;
-    }
+
+    close($fh);
   }
-  close($fh);
+  else {
+    die "Can't open log file '$logfile' $!\n";
+  }
 
   my $total = $#err_recs;
   my @list;
@@ -1167,7 +1172,7 @@ sub int2ml {
 
   my @money_unit_names = ();
 
-  if($attr->{MONEY_UNIT_NAMES}) {
+  if ($attr->{MONEY_UNIT_NAMES}) {
     if (ref $attr->{MONEY_UNIT_NAMES} ne 'ARRAY') {
       @money_unit_names = split(/;/, $attr->{MONEY_UNIT_NAMES});
     }
@@ -1323,16 +1328,17 @@ sub decode_base64 {
 }
 
 #**********************************************************
-=head2 encode_base64()
+=head2 encode_base64($text)
 
 =cut
 #**********************************************************
 sub encode_base64 {
+  my ($text, $eol) = @_;
 
   if ($] >= 5.006) {
     require bytes;
-    if (bytes::length($_[0]) > length($_[0])
-      || ($] >= 5.008 && $_[0] =~ /[^\0-\xFF]/))
+    if (bytes::length($text) > length($text)
+      || ($] >= 5.008 && $text =~ /[^\0-\xFF]/))
     {
       require Carp;
       Carp::croak("The Base64 encoding is only defined for bytes");
@@ -1342,10 +1348,9 @@ sub encode_base64 {
   require integer;
   integer->import();
 
-  my $eol = $_[1];
-  $eol = "\n" unless defined $eol;
+  $eol = "\n" if (! $eol);
 
-  my $res = pack("u", $_[0]);
+  my $res = pack("u", $text);
 
   # Remove first character of each line, remove newlines
   $res =~ s/^.//mg;
@@ -1353,8 +1358,8 @@ sub encode_base64 {
 
   $res =~ tr|` -_|AA-Za-z0-9+/|;    # `# help emacs
                                     # fix padding at the end
-  my $padding = (3 - length($_[0]) % 3) % 3;
-  $res =~ s/.{$padding}$/'=' x $padding/e if $padding;
+  my $padding = (3 - length($text) % 3) % 3;
+  $res =~ s/.{$padding}$/'=' x $padding/e if ($padding);
 
   # break encoded string into lines of no more than 76 characters each
   if (length $eol) {
@@ -1447,9 +1452,10 @@ sub tpl_parse {
     if (!defined($v)) {
       $v = '';
     }
+
     $string =~ s/\%$k\%/$v/g;
     if ($attr->{SET_ENV}) {
-      $ENV{$k}=$v;
+      local $ENV{$k}=$v;
     }
   }
 
@@ -1529,13 +1535,15 @@ sub cmd {
     foreach my $key ( sort keys %{ $attr->{PARAMS} } ) {
       next if (in_array($key, \@skip_keys));
       next if (ref $attr->{PARAMS}->{$key} ne '');
+      my $value = $attr->{PARAMS}->{$key} // '';
+      $value =~ s/\"/\\\"/g;
 
-      $cmd .= " $key=\"$attr->{PARAMS}->{$key}\"";
+      $cmd .= " $key=\"$value\"";
     }
   }
 
-  if($debug>2) {
-    if($attr->{COMMENT}) {
+  if ($debug > 2) {
+    if ($attr->{COMMENT}) {
       print "CMD: $attr->{COMMENT}\n";
     }
 
@@ -1545,7 +1553,7 @@ sub cmd {
     }
   }
 
-  if($ENV{CMD_EMULATE_MODE}) {
+  if ($ENV{CMD_EMULATE_MODE}) {
 
     my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
     my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
@@ -1575,14 +1583,14 @@ sub cmd {
   };
 
   if ($@) {
-    die unless $@ eq "alarm\n";                  # propagate unexpected errors
-    print "timed out\n" if ($debug>2);
+    die unless $@ eq "alarm\n"; # propagate unexpected errors
+    print "timed out\n" if ($debug > 2);
   }
-  elsif($!) {
+  elsif ($!) {
     $result = $cmd . " : " . $!
   }
   else {
-    print "NO errors\n" if ($debug>2);
+    print "NO errors\n" if ($debug > 2);
   }
 
   if ($debug) {
@@ -1594,7 +1602,7 @@ sub cmd {
     open(STDERR, '>&', $saveerr);
   }
 
-  if($attr->{RESULT_ARRAY}) {
+  if ($attr->{RESULT_ARRAY}) {
     my @result_rows = split(/\r\n/, $result);
     return \@result_rows
   }
@@ -1649,13 +1657,13 @@ sub ssh_cmd {
   my $nas_host  = $mng_array[0];
   my $nas_port  = 22;
 
-  if($attr->{SSH_PORT}) {
-    if($attr->{SSH_PORT} =~ /^\d+$/) {
+  if ($attr->{SSH_PORT}) {
+    if ($attr->{SSH_PORT} =~ /^\d+$/) {
       $nas_port = $attr->{SSH_PORT};
     }
   }
   elsif ($#mng_array > 1) {
-    if($mng_array[2] =~ /^\d+$/) {
+    if ($mng_array[2] =~ /^\d+$/) {
       $nas_port = $mng_array[2];
     }
   }
@@ -1681,7 +1689,7 @@ sub ssh_cmd {
 
   my @cmd_arr = ();
   if (ref $cmd eq 'ARRAY') {
-    if($attr->{SINGLE_THREAD}) {
+    if ($attr->{SINGLE_THREAD}) {
       push @cmd_arr, join('; ', @{$cmd});
     }
     else {
@@ -1699,7 +1707,7 @@ sub ssh_cmd {
       sleep $1;
       next;
     }
-    elsif(! $nas_host) {
+    elsif (! $nas_host) {
       next;
     }
 
@@ -1708,7 +1716,7 @@ sub ssh_cmd {
       print "$cmds\n";
     }
 
-    if($ENV{CMD_EMULATE_MODE}) {
+    if ($ENV{CMD_EMULATE_MODE}) {
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
       if (open(my $fh, '>>', '/usr/abills/var/log/cmd.log')) {
@@ -1724,7 +1732,7 @@ sub ssh_cmd {
       }
     }
 
-    if($debug < 8) {
+    if ($debug < 8) {
       open(my $ph, '-|', "$cmds") || die "Can't open '$cmds' $!\n";
       @value = <$ph>;
       close($ph);
@@ -1817,7 +1825,7 @@ sub datetime_diff {
 
   Examples:
 
-    date_format('2015-10-31 08:01:15', "%m.%d.%y");
+    date_format('2015-10-31 08:01:15', "%d.%m.%y");
 
     result 31.10.2015
 
@@ -1836,7 +1844,7 @@ sub date_format {
   my $min    = 0;
   my $sec    = 0;
 
-  if ($date =~ /(\d{4})\-(\d{2})\-(\d{2}) (\d{2}):(\d{2}):(\d{2})/) {
+  if ($date =~ m/(\d{4})\-(\d{2})\-(\d{2}) (\d{2}):(\d{2}):(\d{2})/x) {
     $year   = $1 - 1900;
     $month  = $2 - 1;
     $day    = $3;
@@ -1844,7 +1852,7 @@ sub date_format {
     $min    = $5;
     $sec    = $6;
   }
-  elsif ($date =~ /^(\d{4})\-(\d{2})\-(\d{2})$/) {
+  elsif ($date =~ m/^(\d{4})\-(\d{2})\-(\d{2})$/x) {
     $year   = $1 - 1900;
     $month  = $2 - 1;
     $day    = $3;
@@ -1918,7 +1926,7 @@ sub date_format {
 sub _bp {
   my ($explanation, $value, $attr) = @_;
 
-  $attr->{TO_CONSOLE} = 1 if( $attr->{TO_FILE} );
+  $attr->{TO_CONSOLE} = 1 if ( $attr->{TO_FILE} );
 
   # Allow to set args one time for all cals
   state $STATIC_ARGS;
@@ -1993,8 +2001,7 @@ sub _bp {
       $console_log_string = " /* \n $console_log_string \n */ ";
     }
 
-    if($attr->{TO_FILE}) {
-
+    if ($attr->{TO_FILE}) {
       our $base_dir;
       $base_dir //= '/usr/abills/';
 
@@ -2006,7 +2013,8 @@ sub _bp {
       print $fh $console_log_string . "\n";
       close($fh);
 
-    } else {
+    }
+    else {
       print $console_log_string . "\n";
     }
   }
@@ -2071,45 +2079,6 @@ sub urldecode {
 }
 
 #**********************************************************
-=head2 decode_quoted_printable($text) - Decode quoted printable text
-
-   Attributes:
-     $text - Text to decode
-
-  Returns:
-    Decoded text
-
-  Examples:
-     convert('=D0=9F=D1=80=D0=B8=D0=B2=D1=96=D1=82')
-     # Returns 'Привіт'
-
-=cut
-#**********************************************************
-sub decode_quoted_printable {
-  my $text = shift;
-
-  $text =~ s/\r\n/\n/g;
-  $text =~ s/[ \t]+\n/\n/g;
-  $text =~ s/=\n//g;
-
-  if (ord('A') == 193) { # EBCDIC style machine
-    if (ord('[') == 173) {
-      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp1047',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
-    }
-    elsif (ord('[') == 187) {
-      $text =~ s/=([\da-fA-F]{2})/Encode::encode('posix-bc',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
-    }
-    elsif (ord('[') == 186) {
-      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp37',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
-    }
-  }
-  else { # ASCII style machine
-    $text =~ s/=([\da-fA-F]{2})/pack("C", hex($1))/ge;
-  }
-  $text;
-}
-
-#**********************************************************
 =head2 startup_files($attr) - Get deamon startup information and other params of system
 
 Analise file /usr/abills/Abills/programs and return hash_ref of params
@@ -2138,7 +2107,7 @@ sub startup_files {
   }
 
   my $content = '';
-  if(lc($^O) eq 'freebsd') {
+  if (lc($^O) eq 'freebsd') {
     #TODO: add nginx conf
     %startup_files = (
       WEB_SERVER_USER    => "www",
@@ -2259,8 +2228,8 @@ sub next_month {
 
   my ($Y, $M, $D) = split(/-/, $DATE);
 
-  if($attr->{PERIOD}) {
-    if($attr->{END}) {
+  if ($attr->{PERIOD}) {
+    if ($attr->{END}) {
       $attr->{PERIOD} += 30;
     }
 
@@ -2278,10 +2247,10 @@ sub next_month {
   }
 
   $D = '01';
-  if($attr->{DAY}) {
+  if ($attr->{DAY}) {
     $D = $attr->{DAY};
   }
-  elsif($attr->{END}) {
+  elsif ($attr->{END}) {
     $D = ($M != 2 ? (($M % 2) ^ ($M > 7)) + 30 : (!($Y % 400) || !($Y % 4) && ($Y % 25) ? 29 : 28));
   }
 
@@ -2306,13 +2275,14 @@ sub next_month {
 =cut
 #**********************************************************
 sub show_hash {
-  my($hash, $attr) = @_;
+  my ($hash, $attr) = @_;
 
-  if(ref $hash ne 'HASH') {
+  if (ref $hash ne 'HASH') {
     return 0;
   }
 
-  my $space_shift += (($attr->{SPACE_SHIFT}) ? $attr->{SPACE_SHIFT} : 0);
+  my $space_shift = 0;
+  $space_shift += (($attr->{SPACE_SHIFT}) ? $attr->{SPACE_SHIFT} : 0);
   my $spaces = '';
 
   if ($space_shift) {
@@ -2333,9 +2303,9 @@ sub show_hash {
         SPACE_SHIFT => $space_shift+1
       });
     }
-    elsif(ref $hash->{$key} eq 'ARRAY') {
+    elsif (ref $hash->{$key} eq 'ARRAY') {
       foreach my $key_ (sort @{ $hash->{$key} }) {
-        if(ref $key_ eq 'HASH') {
+        if (ref $key_ eq 'HASH') {
           $result .= show_hash($key_, { %{ ($attr) ? $attr : {}},
             OUTPUT2RETURN => 1,
             SPACE_SHIFT   => $space_shift+1
@@ -2506,6 +2476,7 @@ sub dirname {
       CONTROL_CHARACTERS  - escape \t and \n
       BOOL_VALUE          - return null, true and false as boolean value in json
       FORCE_STRING        - force to string value if its not boolean
+      STRING_KEYS         - String keys array
 
   Result
     JSON_string
@@ -2515,7 +2486,6 @@ sub dirname {
 sub json_former {
   my ($request, $attr) = @_;
   my @text_arr = ();
-
   #TODO: if data is string, but contains only digits, it's returned as numbers
 
   if (ref $request eq 'ARRAY') {
@@ -2529,6 +2499,13 @@ sub json_former {
     foreach my $key (sort keys %{$request}) {
       next if ($attr->{UNIQUE_KEYS} && !is_number($key) && $request->{lc $key} && $request->{uc $key} && $key eq uc $key);
 
+      if ($attr->{STRING_KEYS} && in_array($key, $attr->{STRING_KEYS}) && ! $attr->{FORCE_STRING}) {
+          $attr->{FORCE_STRING} = 1;
+        }
+        else {
+          delete $attr->{FORCE_STRING};
+        }
+     
       my $val = json_former($request->{$key}, $attr);
 
       if ($attr->{USE_CAMELIZE}) {
@@ -2558,6 +2535,17 @@ sub json_former {
       $request =~ s/[\\]$/\\\\/g;
     }
 
+    $request =~ s{\\(u[0-9a-fA-F]{4}|.?)}
+      {
+      my $match = $1;
+      if (defined $match and ($match =~ /^u[0-9a-fA-F]{4}$/ or $match =~ /^[\"\/\\bfnrt]$/)) {
+        "\\$match";
+      }
+      else {
+        "\\\\" . $match;
+      }
+    }eg;
+
     if ($request =~ '<str_>' || (!$request && $request !~ '[0]')) {
       $request =~ s/<str_>//;
       $attr->{ESCAPE_DQ} ?
@@ -2581,6 +2569,8 @@ sub json_former {
         return qq{\"$request\"};
     }
   }
+
+  return q{};
 }
 
 #**********************************************************
@@ -2897,7 +2887,7 @@ sub is_html {
 sub check_ip {
   my ($require_ip, $ips) = @_;
 
-  if(! $require_ip) {
+  if (! $require_ip) {
     return 0;
   }
 
@@ -2912,8 +2902,9 @@ sub check_ip {
       if ($bit_mask eq '') {
         $bit_mask=32;
       }
+
       my $mask = unpack("N", pack( "B*", ("1" x $bit_mask . "0" x (32 - $bit_mask)) ));
-      if($neg && ($require_ip_num & $mask) == ($ip & $mask)) {
+      if ($neg && ($require_ip_num & $mask) == ($ip & $mask)) {
         return 0;
       }
       elsif (($require_ip_num & $mask) == ($ip & $mask)) {
@@ -2934,6 +2925,7 @@ sub check_ip {
       START_DATE
       ACCOUNT_ACTIVATE
       PERIOD_ALIGNMENT
+      END_DATE
 
   Returns:
     Return string of period
@@ -2957,7 +2949,7 @@ sub get_period_dates {
   if ($type == 1) {
     my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
 
-    $end_date = "$start_y-$start_m-$days_in_month";
+    $end_date = ($attr->{END_DATE}) ? $attr->{END_DATE} : "$start_y-$start_m-$days_in_month";
     if ($attr->{PERIOD_ALIGNMENT}) {
       $start_date = $START_PERIOD;
     }
@@ -2971,7 +2963,7 @@ sub get_period_dates {
     return " ($start_date-$end_date)";
   }
 
-  return '';
+  return q{};
 }
 
 #**********************************************************
@@ -2989,23 +2981,23 @@ sub get_period_dates {
 =cut
 #**********************************************************
 sub expire_date {
-  my ($attr, $Tariffs) = @_;
+  my ($attr, $tariffs) = @_;
 
-  if (! $Tariffs->{AGE}) {
+  if (!$tariffs->{AGE}) {
     return '0000-00-00';
   }
 
-  $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
+  $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $tariffs->{AGE}));
 
-  eval { require Date::Calc };
+  eval {require Date::Calc;};
   if (!$@) {
-    Date::Calc->import( qw/Add_Delta_Days/ );
+    Date::Calc->import(qw/Add_Delta_Days/);
 
-    my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
+    my (undef, undef, undef, $mday, $mon, $year, undef, undef, undef) = localtime time ;
     $year += 1900;
     $mon++;
-    ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
-    $attr->{EXPIRE} = sprintf("%d-%02d-%02d", $year, $mon, $mday);
+    ($year, $mon, $mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $tariffs->{AGE});
+    $attr->{EXPIRE} = sprintf('%d-%02d-%02d', $year, $mon, $mday);
   }
 
   return $attr->{EXPIRE};
@@ -3027,16 +3019,23 @@ sub _caller {
   my ($attr) = @_;
 
   my $delimeter = $attr->{DELIMITER} || "\n";
+
+  if ($ENV{HTTPS}) {
+    $delimeter = '<br>';
+  }
+
   my $caller = qq{\n\n};
   my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
   my $i = 1;
   my @r = ();
-  while (@r = caller($i)) {
+  while (@r = caller $i) {
     ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
-    $caller .= "  $filename:$line $subroutine\n";
+    $caller .= "  $filename:$line $subroutine $delimeter";
     $i++;
   }
-  print $caller if (! $attr->{NO_PRINT});
+  if (! exists($attr->{NO_PRINT})) {
+    print $caller;
+  }
 
   return $caller;
 }
@@ -3058,7 +3057,7 @@ sub _caller {
 #**********************************************************
 sub module_to_file {
   my ($module) = @_;
-  $module =~ s{::}{/}g;
+  $module =~ s{::}{/}xg;
   return $module . '.pm';
 }
 

@@ -42,7 +42,7 @@
         <label class='col-4 col-md-2 col-form-label text-right mb-3 mb-md-0' for='CREDIT'>_{CREDIT}_:</label>
         <div class='col-8 col-md-4 mb-3 mb-md-0'>
           <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control r-0-9'
-                 type='number' step='0.01' min='0'
+                 type='text' min='0'
                  data-tooltip='<h6>_{SUM}_:  %CREDIT%</h6><h6>_{DATE}_: %DATE_CREDIT%</h6>'
                  data-tooltip-position='top'>
         </div>
@@ -55,20 +55,27 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-sm-3 col-md-2 col-form-label text-right' for='BANK_BIC'>_{BANK}_</label>
+        <div class='col-sm-9 col-md-10'>
+          %BANK_BIC_SEL%
+        </div>
+      </div>
+
+<!--      <div class='form-group row'>-->
+<!--        <label for='BANK_BIC_STR' class='col-sm-3 col-md-2 text-right control-label'>_{BANK_BIC}_:</label>-->
+<!--        <div class='col-sm-9 col-md-10'>-->
+<!--          <div class='input-group'>-->
+<!--            <input class='form-control' id='BANK_BIC_STR' placeholder='%BANK_BIC_STR%' name='BANK_BIC_STR' value='%BANK_BIC_STR%' disabled="disabled">-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+
+      <div class='form-group row'>
         <label for='BANK_ACCOUNT' class='col-sm-3 col-md-2 text-right control-label'>_{ACCOUNT}_:</label>
         <div class='col-sm-9 col-md-10'>
           <div class='input-group'>
             <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
                  value='%BANK_ACCOUNT%'>
-          </div>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='BANK_NAME' class='col-sm-3 col-md-2 text-right control-label'>_{BANK}_:</label>
-        <div class='col-sm-9 col-md-10'>
-          <div class='input-group'>
-            <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
           </div>
         </div>
       </div>
@@ -83,14 +90,6 @@
         </div>
       </div>
 
-      <div class='form-group row'>
-        <label for='BANK_BIC' class='col-sm-3 col-md-2 text-right control-label'>_{BANK_BIC}_:</label>
-        <div class='col-sm-9 col-md-10'>
-          <div class='input-group'>
-            <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
@@ -135,3 +134,7 @@
   </div>
 </div>
 <!-- </form> -->
+
+<script>
+  formatInputWithThousands('CREDIT');
+</script>

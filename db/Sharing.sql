@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS `sharing_priority` (
 # NEW TABLES
 CREATE TABLE `sharing_additions` (
   `id` smallint(6) NOT NULL auto_increment,
-  `name` varchar(25) NOT NULL default '',
+  `name` varchar(80) NOT NULL default '',
   `quantity` int(11) unsigned NOT NULL default '0',
   `price` double(14,2) default NULL,
   `tp_id` smallint(6) unsigned NOT NULL default '0',
@@ -104,7 +104,7 @@ CREATE TABLE `sharing_additions` (
 
 CREATE TABLE IF NOT EXISTS `sharing_files` (
   `id` smallint(6) NOT NULL auto_increment,
-  `name` varchar(25) NOT NULL default '',
+  `name` varchar(80) NOT NULL default '',
   `amount` double(10,2) NOT NULL default '0.00',
   `link_time` smallint(3) NOT NULL default 0,
   `file_time` smallint(3) NOT NULL default 0,
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS `sharing_download_log` (
 
 CREATE TABLE IF NOT EXISTS `sharing_groups` (
   `id` smallint(6) NOT NULL auto_increment,
-  `name` varchar(25) NOT NULL default '',
+  `name` varchar(80) NOT NULL default '',
   `comment` text NOT NULL,
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET = utf8

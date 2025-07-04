@@ -2,7 +2,7 @@ SET SQL_MODE='NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
 CREATE TABLE IF NOT EXISTS `equipment_vendors` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `support` VARCHAR(50) NOT NULL DEFAULT '',
   `site` VARCHAR(150) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
@@ -49,12 +49,13 @@ REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`) VALUES
   (36, 'DCN', '', 'https://dcneurope.eu/'),
   (37, 'Extreme', '', 'https://www.extremenetworks.com/'),
   (38, 'NextHop', '', ''),
-  (39, 'SmartFiber', '', 'http://www.smartfiberbd.com/');
+  (39, 'SmartFiber', '', 'http://www.smartfiberbd.com/'),
+  (40, 'Aruba', '', '');
 
 
 CREATE TABLE IF NOT EXISTS `equipment_types` (
   `id` TINYINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8
@@ -191,7 +192,7 @@ CREATE TABLE IF NOT EXISTS `equipment_boxes` (
 CREATE TABLE IF NOT EXISTS `equipment_vlans` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `number` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `comments` TEXT NULL,
   UNIQUE (`name`)
 )
@@ -223,7 +224,7 @@ CREATE TABLE IF NOT EXISTS `equipment_traps` (
 CREATE TABLE IF NOT EXISTS `equipment_backup` (
 
   `id` INT(11) UNSIGNED PRIMARY KEY,
-  `name` VARCHAR(50) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `nas_id` SMALLINT(6) UNSIGNED REFERENCES `equipment_infos` (`nas_id`),
   `md5` VARCHAR(32) NOT NULL DEFAULT '',
   `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -295,7 +296,8 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   KEY onu_status (`onu_status`),
   KEY port_id (`port_id`),
   KEY onu_mac_serial (`onu_mac_serial`),
-  KEY onu_type (`onu_type`)
+  KEY onu_type (`onu_type`),
+  KEY deleted (`deleted`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment ONU';
 
@@ -328,7 +330,7 @@ CREATE TABLE IF NOT EXISTS `equipment_trap_types` (
 
 CREATE TABLE IF NOT EXISTS `equipment_snmp_params` (
   `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(32) NOT NULL DEFAULT '',
+  `name` varchar(80) NOT NULL DEFAULT '',
   `type` varchar(12) NOT NULL DEFAULT '',
   `acccess` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -357,7 +359,7 @@ CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
 
 CREATE TABLE IF NOT EXISTS `equipment_calculator`(
     `type` VARCHAR(20) NOT NULL DEFAULT '',
-    `name` VARCHAR(20) NOT NULL DEFAULT '',
+    `name` VARCHAR(80) NOT NULL DEFAULT '',
     `value` VARCHAR(255) NOT NULL DEFAULT ''
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment calculator';
@@ -421,5 +423,5 @@ CREATE TABLE IF NOT EXISTS `equipment_netmap_positions` (
   `coordy` DOUBLE NOT NULL DEFAULT 0.0,
   PRIMARY KEY (`nas_id`)
 )
-  DEFAULT CHARSET = utf8mb4
+  DEFAULT CHARSET = utf8
   COMMENT = 'Positions of equipment in the netmap';

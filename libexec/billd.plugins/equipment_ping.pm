@@ -133,6 +133,11 @@ sub equipment_ping {
     #   DURATION => $ret_time{$host_ip},
     # });
 
+    if (in_array('Accident', \@main::MODULES)) {
+      $ips{$host_ip}{STATUS} = 2;
+      accident_equipment_error($ips{$host_ip});
+    }
+
     print "SYN ping: $host_ip is reachable\n" if ( $debug > 1 );
     delete $syn{$host_ip};
   }

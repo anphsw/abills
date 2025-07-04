@@ -16,6 +16,7 @@ use warnings FATAL => 'all';
 
 our (
   %lang,
+  %conf,
   $VERSION,
   %FORM,
   $admin,

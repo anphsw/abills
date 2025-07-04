@@ -153,9 +153,10 @@ sub portal_newsletter {
           $Log->log_print('LOG_DEBUG', $contact->{uid}, "Error: $Sender->{errno} $Sender->{errstr}");
         }
         elsif (!$send_status) {
-          $Log->log_print('LOG_DEBUG', $contact->{uid}, "Error: send not successful with Sender $letter->{SEND_METHOD}")
+          $Log->log_print('LOG_DEBUG', $contact->{uid}, "Error: send not successful with Sender $letter->{SEND_METHOD}");
         }
         else {
+          $Log->log_print('LOG_DEBUG', $contact->{uid}, "Info: Sender status is $send_status. TYPE: $letter->{SEND_METHOD}") if ($debug > 4);
           $count++;
         }
 

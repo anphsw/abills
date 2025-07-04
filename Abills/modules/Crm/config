@@ -35,6 +35,7 @@ my $info = $html->badge($Crm->{TOTAL}, { TYPE => 'bg-primary' });
   "34:32:$lang{TARIF_PLANS}:crm_competitors_tp_report"            => 4,
   "35:32:$lang{USERS}:crm_competitors_users_report"               => 4,
   "36:14:$lang{CRM_REPORT_ON_ATTRACTING_POTENTIAL_CLIENTS}:crm_admin_leads_report" => 4,
+  "37:14:$lang{CRM_PROCESSED_LEADS}:crm_report_processed_leads"   => 4,
 
   "27:1:$lang{ACTION}:crm_actions_main"                           => 5,
   "28:1:$lang{COMPETITORS}:null"                                  => 5,

@@ -66,7 +66,7 @@ if (defined($argv->{'-h'}) || defined($argv->{'help'})) {
 my $internet_module_enabled = in_array('Internet', \@MODULES);
 
 if (!$argv->{ACTIONS}) {
-  $argv->{ACTIONS} = 'payments,fees,admin_actions,paysys_log';
+  $argv->{ACTIONS} = 'payments,fees,admin_actions,paysys_log,api_log';
   if ($internet_module_enabled) {
     $argv->{ACTIONS} .= ',internet_log';
   }
@@ -549,6 +549,20 @@ sub paysys_log_rotate {
 
   $attr->{TABLE_NAME} = 'paysys_log';
   $attr->{SUBSTITUTE_FIELDS} = { DATE => 'datetime' };
+
+  return _log_rotate($attr);
+}
+
+#**********************************************************
+=head2 api_log_rotate($attr)
+
+=cut
+#**********************************************************
+sub api_log_rotate {
+  my ($attr) = @_;
+
+  $attr->{TABLE_NAME} = 'api_log';
+  $attr->{SUBSTITUTE_FIELDS} = { DATE => 'date' };
 
   return _log_rotate($attr);
 }

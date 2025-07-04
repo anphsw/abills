@@ -8,6 +8,8 @@ package Api::Paths::Payments;
 use strict;
 use warnings FATAL => 'all';
 
+use Api::Validations::Payments qw(POST_PAYMENTS_TYPES PUT_PAYMENTS_TYPES);
+
 #**********************************************************
 =head2 paths() - Returns available API paths
 
@@ -105,6 +107,44 @@ sub admin_routes {
       endpoint    => \&Api::Controllers::Admin::Payments::get_payments_types,
       credentials => [
         'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/payments/types/:id/',
+      controller  => 'Api::Controllers::Admin::Payments',
+      endpoint    => \&Api::Controllers::Admin::Payments::get_payments_types_id,
+      credentials =>[
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/payments/types/:id/',
+      params      => POST_PAYMENTS_TYPES,
+      controller  => 'Api::Controllers::Admin::Payments',
+      endpoint    => \&Api::Controllers::Admin::Payments::post_payments_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/payments/types/:id/',
+      params      => PUT_PAYMENTS_TYPES,
+      controller  => 'Api::Controllers::Admin::Payments',
+      endpoint    => \&Api::Controllers::Admin::Payments::put_payments_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/payments/types/:id/',
+      controller  => 'Api::Controllers::Admin::Payments',
+      endpoint    => \&Api::Controllers::Admin::Payments::delete_payments_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
     {

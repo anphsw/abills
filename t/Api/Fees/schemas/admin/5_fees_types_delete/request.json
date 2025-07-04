@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_FEES_TYPES_DELETE",
+  "method": "DELETE",
+  "path": "fees/types/255",
+  "params": {}
+}

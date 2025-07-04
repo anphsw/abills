@@ -6,5 +6,7 @@
   $ref: "./paths/msgsReply.yaml"
 /user/msgs/chapters:
   $ref: "./paths/chapters.yaml"
+/user/msgs/search:
+  $ref: "./paths/msgsSearch.yaml"
 /user/msgs/attachments/{id}:
   $ref: "./paths/attachments.yaml"

@@ -359,10 +359,9 @@ sub table {
   my $proto  = shift;
   my $class  = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
-  my $self;
-  $self = {};
 
-  bless($self);
+  my $self = {};
+  bless($self, $class);
 
   $self->{prototype} = $proto;
   $self->{NO_PRINT}  = $proto->{NO_PRINT};

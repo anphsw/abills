@@ -111,23 +111,22 @@ sub click {
     my $module_name = $self->{bot}->{lang}->{uc($module)} || $module;
     $message .= "— $module_name: \n";
     if (!scalar(@$services)) {
-      $message .= "<i>$self->{bot}->{lang}->{NOT_EXIST}</i>\n";
+      $message .= "<i>$self->{bot}->{lang}->{NOT_ACTIVE}</i>\n";
     }
 
     foreach my $i (0..$#$services) {
       my $service = $services->[$i];
       my $tp_name = $service->{name} || $service->{tp_name};
 
-      # This is why we need to unify fields name.
-      my $possible_status =
-        # Normal logic
-        $service->{service_status}
-        # module Internet
-        || $service->{internet_status}
-        # module Voip
-        || $service->{voip_status}
-        # module Abon
-        || ($service->{active} && $service->{active} eq 'false' ? 2 : 0);
+      my $possible_status;
+
+      for my $key (qw(service_status internet_status voip_status)) {
+        if (defined $service->{$key}) {
+          $possible_status = $service->{$key};
+          last;
+        }
+      }
+      $possible_status //= ($service->{active} && $service->{active} eq 'false' ? 2 : 0);
 
       my $number = $i + 1;
       $message .= "$number) <b>$tp_name</b>: ". ($statuses->{$possible_status} || "") . "\n";

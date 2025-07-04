@@ -2,5 +2,6 @@
   "name": "USER_HOLDUP_INFO",
   "method": "GET",
   "path": "user/:id/holdup/",
-  "params": {}
+  "params": {},
+  "conf" : "HOLDUP_ALL"
 }

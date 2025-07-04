@@ -1,0 +1,28 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 0
+        name:
+          type: string
+          example: "$lang{ENABLE}"
+        localeName:
+          type: string
+          example: "Active"
+        color:
+          type: string
+          example: "4CAF50"
+        type:
+          type: integer
+          example: 0
+        getFees:
+          type: integer
+          example: 0
+  total:
+    type: integer
+    example: 6

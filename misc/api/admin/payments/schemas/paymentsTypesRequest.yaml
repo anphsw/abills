@@ -1,0 +1,16 @@
+type: object
+properties:
+  color:
+    type: string
+    pattern: "^#([A-Fa-f0-9]{6})$"
+    example: "#c2222e"
+  defaultPayment:
+    type: integer
+    example: 0
+  feesType:
+    type: integer
+    minimum: 0
+    example: 0
+  name:
+    type: string
+    example: "TestApiPaymentType"

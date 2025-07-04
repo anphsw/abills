@@ -200,7 +200,7 @@
         <label class='col-4 col-md-2 col-form-label text-right mb-3 mb-md-0' for='CREDIT'>_{CREDIT}_:</label>
         <div class='col-8 col-md-4 mb-3 mb-md-0'>
           <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control r-0-9'
-                 type='number' step='0.01' min='0'
+                 type='text' min='0'
                  data-tooltip='<h6>_{SUM}_:  %CREDIT%</h6><h6>_{DATE}_: %DATE_CREDIT%</h6>'
                  data-tooltip-position='top'>
           <!-- XXX tooltip shows every time, even if it is not needed. look at TOOLTIP_DISABLE. look at this tooltip at form_user_lite-->
@@ -316,3 +316,7 @@
     </div>
   </div>
 </form>
+
+<script>
+  formatInputWithThousands('CREDIT');
+</script>

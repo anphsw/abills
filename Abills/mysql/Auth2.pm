@@ -568,12 +568,13 @@ sub auth {
 
     if (! $self->{REASSIGN}) {
       $self->online_add({
-        %{ ($attr) ? $attr : {} },
-        NAS_ID             => $NAS->{NAS_ID},
-        FRAMED_IP_ADDRESS  => "INET_ATON('$self->{IP}')",
-        NAS_IP_ADDRESS     => $RAD->{'NAS-IP-Address'},
-        FRAMED_IPV6_PREFIX => ($self->{IPV6}) ? "INET6_ATON('". $self->{IPV6} ."')" : undef,
-        DELEGATED_IPV6_PREFIX=>($self->{IPV6_PREFIX}) ? "INET6_ATON('". $self->{IPV6_PREFIX} ."')" : undef,
+        %{($attr) ? $attr : {}},
+        NAS_ID                => $NAS->{NAS_ID},
+        FRAMED_IP_ADDRESS     => "INET_ATON('$self->{IP}')",
+        NAS_IP_ADDRESS        => $RAD->{'NAS-IP-Address'},
+        FRAMED_IPV6_PREFIX    => ($self->{IPV6}) ? "INET6_ATON('" . $self->{IPV6} . "')" : undef,
+        DELEGATED_IPV6_PREFIX => ($self->{IPV6_PREFIX}) ? "INET6_ATON('" . $self->{IPV6_PREFIX} . "')" : undef,
+        CONNECT_INFO          => $RAD->{'NAS-Port-Id'} || '',
         #FRAMED_INTERFACE_ID=> ($RAD_PAIRS->{'Framed-Interface-Id'}) ? "INET6_ATON('". $RAD_PAIRS->{'Framed-Interface-Id'}. "')" : undef,
       });
     }
@@ -2071,7 +2072,7 @@ sub get_ip2 {
         %$attr,
         NAS_ID            => $nas_num,
         FRAMED_IP_ADDRESS => "INET_ATON('". $assign_ip . "')",
-        NAS_IP_ADDRESS    => $nas_ip
+        NAS_IP_ADDRESS    => $nas_ip,
       });
     }
 
@@ -2351,7 +2352,7 @@ sub neg_deposit_filter_former {
           #FRAMED_IPV6_PREFIX => $RAD->{'Framed-IPv6-Prefix'},
           #FRAMED_INTERFACE_ID=> $RAD->{'Framed-Interface-Id'},
           GUEST              => 1,
-          CONNECT_INFO       => '-'
+          CONNECT_INFO       => $RAD->{'NAS-Port-Id'} || '-'
         });
       }
     }
@@ -2363,7 +2364,7 @@ sub neg_deposit_filter_former {
           GUEST        => 1,
           SERVER_VLAN  => $self->{SERVER_VLAN}, #$self->{VLAN}
           VLAN         => $self->{VLAN},
-          CONNECT_INFO => $self->{IP}
+          CONNECT_INFO => $RAD->{'NAS-Port-Id'} || $self->{IP}
         });
 
       if ($ip eq '-1') {
@@ -2504,8 +2505,7 @@ sub rad_pairs_former  {
 =cut
 #**********************************************************
 sub opt82_parse {
-  my $self = shift;
-  my ($RAD_REQUEST, $attr) = @_;
+  my ($self, $RAD_REQUEST, $attr) = @_;
 
   my %result      =  ();
   #my $hex2ansii   = '';
@@ -2516,26 +2516,23 @@ sub opt82_parse {
   }
 
   my $auth_expr = $attr->{AUTH_EXPR} || $CONF->{AUTH_EXPR} || q{};
-  # if($attr->{AUTH_EXPR}) {
-  #   $CONF->{AUTH_EXPR}=$attr->{AUTH_EXPR};
-  # }
 
   if ($auth_expr) {
-    $auth_expr =~ s/\n//g;
-    @o82_expr_arr    = split(/;/, $auth_expr);
+    $auth_expr    =~ s/\n//xg;
+    @o82_expr_arr = split(/;/x, $auth_expr);
   }
 
   if ($#o82_expr_arr > -1) {
     my $expr_debug  =  "";
     foreach my $expr (@o82_expr_arr) {
-      my ($parse_param, $expr_, $values, $attribute)=split(/:/, $expr);
-      my @EXPR_IDS = split(/,/, $values);
+      my ($parse_param, $expr_, $values, $attribute)=split(/:/x, $expr);
+      my @EXPR_IDS = split(/,/x, $values);
       if ($RAD_REQUEST->{$parse_param}) {
 
         my $input_value = $RAD_REQUEST->{$parse_param};
         if ($attribute && $attribute eq 'hex2ansii') {
           #$hex2ansii   = 1;
-          $input_value =~ s/^0x//;
+          $input_value =~ s/^0x//x;
           $input_value = pack 'H*', $input_value;
         }
 
@@ -2543,7 +2540,7 @@ sub opt82_parse {
           $expr_debug  .=  ($RAD_REQUEST->{'DHCP-Client-Hardware-Address'} || q{}) .": $parse_param, $expr_, $RAD_REQUEST->{$parse_param}/$input_value\n";
         }
 
-        if (my @res = ($input_value =~ /$expr_/i)) {
+        if (my @res = ($input_value =~ m/$expr_/xi)) {
           for (my $i=0; $i <= $#res ; $i++) {
             if ($CONF->{AUTH_EXPR_DEBUG} && $CONF->{AUTH_EXPR_DEBUG} > 3) {
               $expr_debug .= "  $EXPR_IDS[$i] / $res[$i]\n";
@@ -2566,21 +2563,15 @@ sub opt82_parse {
         }
       }
 
-#      if ($parse_param eq 'DHCP-Relay-Agent-Information') {
-#        $result{AGENT_REMOTE_ID} = substr($RAD_REQUEST->{$parse_param},0,25);
-#        $result{CIRCUIT_ID} = substr($RAD_REQUEST->{$parse_param},25,25);
-#      }
-#      else {
-        $result{AGENT_REMOTE_ID}='-';
-        $result{CIRCUIT_ID}='-';
-#      }
+      $result{AGENT_REMOTE_ID}='-';
+      $result{CIRCUIT_ID}='-';
     }
 
-    if ($result{NAS_MAC} && $result{NAS_MAC} =~ /^([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/i) {
+    if ($result{NAS_MAC} && $result{NAS_MAC} =~ m/^([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/xi) {
       $result{NAS_MAC} = "$1:$2:$3:$4:$5:$6";
     }
 
-    if ($result{USER_MAC} && $result{USER_MAC} =~ /^([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/i) {
+    if ($result{USER_MAC} && $result{USER_MAC} =~ m/^([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$/xi) {
       $result{USER_MAC} = "$1:$2:$3:$4:$5:$6";
     }
 
@@ -2599,12 +2590,12 @@ sub opt82_parse {
       $result{NAS_MAC} .= '00';
     }
 
-    if ($result{NAS_MAC} =~ /0x[a-f0-9]{0,4}([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
+    if ($result{NAS_MAC} =~ m/0x[a-f0-9]{0,4}([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/xi) {
       $result{NAS_MAC} = "$1:$2:$3:$4:$5:$6";
     }
 
     #  Switch port
-    if ($RAD_REQUEST->{'Agent-Circuit-Id'} && $RAD_REQUEST->{'Agent-Circuit-Id'} =~ /0x0004(\S{4})\d{2}([0-9a-f]{2})/i) {
+    if ($RAD_REQUEST->{'Agent-Circuit-Id'} && $RAD_REQUEST->{'Agent-Circuit-Id'} =~ m/0x0004(\S{4})\d{2}([0-9a-f]{2})/xi) {
       $result{VLAN} = $1;
       $result{PORT} = $2;
     }
@@ -2643,15 +2634,14 @@ sub opt82_parse {
 =cut
 #**********************************************************
 sub dhcp_info {
-  my $self = shift;
-  my ($attr, $NAS) = @_;
+  my ($self, $attr, $NAS) = @_;
 
   my @WHERE_RULES = ("u.deleted='0'");
   my $pass_fields = q{};
   # Do nothing if port is magistral, i.e. 25.26.27.28
   # Apply only for reserv ports
-  if ($attr->{NAS_PORT} && $NAS->{RAD_PAIRS} && $NAS->{RAD_PAIRS} =~ /Assign-Ports=\"(.+)\"/) {
-    my @allow_ports = split(/,/, $1);
+  if ($attr->{NAS_PORT} && $NAS->{RAD_PAIRS} && $NAS->{RAD_PAIRS} =~ m/Assign-Ports=\"(.+)\"/x) {
+    my @allow_ports = split(/,/x, $1);
     if (! in_array($attr->{NAS_PORT}, \@allow_ports)) {
       $self->{errno}=7;
       $self->{error_str}="WRONG_PORT '$attr->{NAS_PORT}'";
@@ -2695,7 +2685,7 @@ sub dhcp_info {
         PORT     => "internet.port"
       );
 
-      my @params = split(/,\s?/, $CONF->{AUTH_PARAMS});
+      my @params = split(/,\s?/x, $CONF->{AUTH_PARAMS});
       push @WHERE_RULES, join(' AND ',  map { $AUTH_PARAMS_VALUES{$_} .'=\''. $attr->{$_} .'\''  } @params);
     }
     else {
@@ -2710,17 +2700,9 @@ sub dhcp_info {
   elsif ($CONF->{INTERNET_LOGIN}) {
     push @WHERE_RULES, "internet.login='". $attr->{USER_NAME} ."'";
   }
-  # elsif($CONF->{AUTH_INTERNET_CID}) {
-  #   push @WHERE_RULES, "internet.cid='". $attr->{USER_MAC} ."'";
-  # }
-  #Depricated not used
-  #  elsif ($attr->{LOGIN}) {
-  #    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
-  #  }
   elsif ($attr->{USER_MAC}) {
     push @WHERE_RULES, "internet.cid='$attr->{USER_MAC}'";
     $self->{INFO} = "USER MAC '$attr->{USER_MAC}'";
-    #$pass_fields = "DECODE(". (($CONF->{INTERNET_PASSWORD}) ? 'internet.password' : 'u.password') .", '$CONF->{secretkey}') AS password,";
   }
 #  else {
 #    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
@@ -2837,8 +2819,7 @@ sub dhcp_info {
 
   if($attr->{IP} && $self->{IP} ne $attr->{IP}) {
     #Validate active sessions
-    $self->query("SELECT uid FROM internet_online
-      WHERE framed_ip_address=INET_ATON('$attr->{IP}') AND cid='$attr->{USER_MAC}';");
+    $self->query("SELECT uid FROM internet_online WHERE framed_ip_address=INET_ATON('$attr->{IP}') AND cid='$attr->{USER_MAC}';");
 
     if($self->{TOTAL} && $self->{TOTAL} > 0) {
       $self->{IP}=$attr->{IP};
@@ -2867,7 +2848,7 @@ sub dhcp_info {
 sub ipv6_2_long {
   my $ipv6 = shift;
 
-  my @list = $ipv6 =~ /([0-9a-f]{1,5})/g;
+  my @list = $ipv6 =~ m/([0-9a-f]{1,5})/xg;
   my $octets_count = 7 - $#list;
 
   if($octets_count) {

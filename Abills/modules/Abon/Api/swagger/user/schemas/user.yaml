@@ -4,57 +4,93 @@ allOf:
     properties:
       activate:
         type: boolean
-        description: Indicates if the service is activated.
+        example: false
       active:
         type: boolean
-        description: Indicates if the service is currently active.
+        example: true
       description:
         type: string
-        description: Description of the service.
+        example: "Test describe"
+      discount:
+        type: number
+        format: float
+        example: 20
+      discountActivate:
+        type: string
+        example: "0000-00-00"
+      discountExpire:
+        type: string
+        format: date
+        example: "0000-00-00"
       endDate:
         type: string
         format: date
-        description: End date of the service.
+        example: "2025-06-01"
+      id:
+        type: integer
+        example: 3
+      monthFee:
+        type: number
+        format: float
+        example: 0
+      nextAbon:
+        type: object
+        properties:
+          abonDate:
+            type: string
+            format: date
+            example: "2025-06-01"
+          daysToFee:
+            type: integer
+            example: 10
+          sum:
+            type: number
+            format: float
+            example: 39
+      originalPrice:
+        type: number
+        format: float
+        example: 39
       period:
         type: string
-        description: Billing period (e.g., day, month).
+        example: "month"
+      periodId:
+        type: integer
+        example: 1
       personalDescription:
         type: string
-        description: Personal description for the service.
+        example: ""
       price:
         type: number
-        format: double
-        description: Price of the service.
+        format: float
+        example: 39
+      serviceCount:
+        type: integer
+        example: 1
       serviceImg:
         type: string
         format: uri
-        description: URL to the service image.
-      serviceLink:
-        type: string
-        format: uri
-        description: Link to the service page.
+        example: "https://content.rozetka.com.ua/goods/images/big/309817406.jpg"
+      serviceStatus:
+        type: integer
+        example: 1
       startDate:
         type: string
         format: date
-        description: Start date of the service.
-      tpReductionFee:
-        type: number
-        format: double
-        description: Reduction fee for the tariff plan.
-      monthFee:
-        type: number
-        format: double
-        description: Monthly fee for the service.
+        example: "2025-05-01"
       statusName:
         type: string
-        description: Current status of the service.
-      originalPrice:
+        example: ""
+      tpId:
+        type: integer
+        example: 0
+      tpName:
+        type: string
+        example: "Оренда приставки - 39₴ "
+      tpReductionFee:
         type: number
-        format: double
-        description: Original price before any discounts.
-    required:
-      - activate
-      - active
-      - description
-      - period
-      - price
+        format: float
+        example: 0
+      uid:
+        type: integer
+        example: 1003074

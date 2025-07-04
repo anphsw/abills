@@ -1431,4 +1431,68 @@ sub tp_group_users_groups_info {
 }
 
 
+#**********************************************************
+=head2 tp_gradients_list($attr)
+
+=cut
+#**********************************************************
+sub tp_gradients_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'ID',          'INT', 'id',          1 ],
+    [ 'TP_ID',       'INT', 'tp_id',       1 ],
+    [ 'START_VALUE', 'INT', 'start_value', 1 ],
+    [ 'PRICE',       'INT', 'price',       1 ],
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} id
+     FROM tariff_plan_gradients
+     $WHERE ORDER BY $SORT $DESC;",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 tp_gradients_change($attr)
+
+=cut
+#**********************************************************
+sub tp_gradients_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{TP_ID};
+
+  $self->query_del('tariff_plan_gradients', undef, { TP_ID => $attr->{TP_ID} });
+
+  return $self if !$attr->{TARIFF_PLAN_GRADIENTS} || ref $attr->{TARIFF_PLAN_GRADIENTS} ne 'ARRAY';
+
+  my @MULTI_QUERY = ();
+  foreach my $gradient (@{$attr->{TARIFF_PLAN_GRADIENTS}}) {
+    if (!defined $gradient->{START_VALUE} || !$gradient->{PRICE} || $gradient->{START_VALUE} < 0) {
+      next
+    }
+
+    push @MULTI_QUERY, [ $attr->{TP_ID}, $gradient->{START_VALUE}, $gradient->{PRICE} ];
+  }
+
+  $self->query(
+    "INSERT INTO tariff_plan_gradients
+     (tp_id, start_value, price) VALUES (?, ?, ?);",
+    undef,
+    { MULTI_QUERY => \@MULTI_QUERY }
+  );
+
+  return $self;
+}
+
 1

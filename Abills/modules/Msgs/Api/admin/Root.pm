@@ -516,4 +516,41 @@ sub get_msgs_survey {
   }
 }
 
+#**********************************************************
+=head2 get_msgs_search($path_params, $query_params)
+
+  Endpoint POST /msgs/search/
+
+=cut
+#**********************************************************
+sub get_msgs_search {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  if (!$query_params->{SEARCH_TEXT}) {
+    return { list => [], total => 0 };
+  }
+
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+
+  if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
+    my @available_chapters = keys %{$self->{permissions}{4}};
+
+    $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
+      : join(';', grep {in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
+  }
+  elsif ($self->{permissions}{4}) {
+    $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});
+  }
+
+  my $list = $Msgs->messages_search($query_params);
+
+  return {
+    list  => $list,
+    total => $Msgs->{TOTAL}
+  }
+}
+
 1;

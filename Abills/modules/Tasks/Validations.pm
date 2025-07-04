@@ -27,14 +27,17 @@ use constant {
       type => 'unsigned_integer',
     },
     RESPONSIBLE  => {
-      type => 'unsigned_integer'
+      type => 'unsigned_integer',
     },
     PARENT_ID    => {
       # type => 'unsigned_integer'
     },
     CONTROL_DATE => {
-      type => 'date'
-    }
+      type => 'date',
+    },
+    LEAD_ID      => {},
+    STEP_ID      => {},
+    MSG_ID       => {}
   },
 };
 

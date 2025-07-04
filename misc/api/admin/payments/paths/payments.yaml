@@ -142,6 +142,7 @@ get:
     - $ref: "#/components/parameters/pageRows"
     - $ref: "#/components/parameters/pg"
     - $ref: "#/components/parameters/sort"
+    - $ref: "#/components/parameters/groupBy"
   responses:
     200:
       description: Успешное выполнение

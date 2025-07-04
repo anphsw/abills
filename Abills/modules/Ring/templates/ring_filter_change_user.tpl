@@ -24,14 +24,19 @@
       <div class='form-group row'>
         <label class='col-form-label text-md-right col-xs-4 col-md-4' for='PHONE'>_{PHONE}_</label>
         <div class='col-md-8'>
-          <div class='input-group'>
-            <input class='form-control' type='text' id='PHONE' name='CID' value='%PHONE%' disabled="disabled">
-            <div class='input-group-append'>
-              <a href='%CALLTO_HREF%' class='btn input-group-button'>
-                <i class='fa fa-phone'></i>
-              </a>
-            </div>
+          <div class='d-flex bd-highlight'>
+            %PHONE_SEL%
+            <a href='%CALLTO_HREF%' class='btn input-group-button'>
+              <i class='fa fa-phone'></i>
+            </a>
           </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-4'>_{FIO}_</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='FIO' id='FIO' value='%FIO%' disabled="disabled">
         </div>
       </div>
 
@@ -78,6 +83,7 @@
     let uid = jQuery('#UID').val();
     let status = jQuery('#STATUS').val();
     let comments = jQuery('#COMMENTS').val();
+    let phone = jQuery('#PHONE').val();
 
     let timeStartSec = jQuery('#TIME_START').val();
 
@@ -99,7 +105,7 @@
 
     let time = totalHours.toString().padStart(2, '0') + ":" + totalMin.toString().padStart(2, '0') + ":" + totalSec.toString().padStart(2, '0');
 
-    fetch('$SELF_URL?get_index=ring_user_filters&full=1&change=1&STATUS='+status+'&TIME='+time+'&COMMENTS='+comments+'&ID='+r_id+'&UID='+uid)
+    fetch('$SELF_URL?get_index=ring_user_filters&full=1&change=1&STATUS='+status+'&TIME='+time+'&COMMENTS='+comments+'&ID='+r_id+'&UID='+uid+'&PHONE='+phone)
       .then(response => {
         if (!response.ok) throw response;
         return response;

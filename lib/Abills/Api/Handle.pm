@@ -108,6 +108,7 @@ sub api_call {
     if (defined $router->{errno}) {
       $status = $router->{errno} == 10 ? 403 : ($router->{status}) ? $router->{status} : 400;
       $response = { errstr => $router->{errstr}, errno => $router->{errno} };
+      $response->{error_msg} = $router->{error_msg} if ($router->{error_msg} && $self->{conf}{API_DEBUG});
     }
     else {
       $self->add_credentials($router);
@@ -119,7 +120,7 @@ sub api_call {
       }
       else {
         $router->{result} = { errstr => 'Access denied', errno => 10 };
-        $router->{status} = 401;
+        $router->{status} = $router->{status} || 401;
       }
 
       if (!$router->{status} && ref $router->{result} eq 'HASH' && (exists $router->{result}->{errno} || exists $router->{result}->{error})) {
@@ -157,6 +158,7 @@ sub api_call {
       CONTROL_CHARACTERS => 1,
       BOOL_VALUES        => 1,
       UNIQUE_KEYS        => 1,
+      STRING_KEYS        => [ 'login', 'password', 'user_name' ]
     });
   }
   elsif ($self->{return_type} && $self->{return_type} eq 'xml' && !$content_type) {
@@ -233,7 +235,18 @@ sub add_credentials {
 
     my $API_KEY = $ENV{HTTP_KEY} || '';
 
-    return ::check_permissions('', '', '', { API_KEY => $API_KEY }) == 0;
+    my $status = ::check_permissions('', '', '', { API_KEY => $API_KEY });
+
+    if ($status == 0) {
+      return 1;
+    }
+
+    #Wrong passwd or bruteforce
+    if ($status && $status == 4) {
+      $router->{status} = 403;
+    }
+
+    return 0;
   });
 
   $router->add_credential('ADMINSID', sub {

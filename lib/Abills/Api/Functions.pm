@@ -156,6 +156,9 @@ sub _user_functions_list {
     Portal     => sub {
       return { portal_news => 1 };
     },
+    Crm        => sub {
+      return { crm_user_leads => 1 }
+    }
   );
 
   return \%modules;

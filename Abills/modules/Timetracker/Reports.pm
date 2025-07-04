@@ -262,10 +262,12 @@ sub report_sprint {
       $sprint_sel{$sprint->{id}} = "$sprint_number - $sprint_start_day";
       push @last_sprints, $sprint;
 
-      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $sprint->{id}, PROJECT_ID => $FORM{PROJECT_ID} });
-      foreach my $issue (@$issues_list) {
-        next if (!$issue->{assigned_to}->{name});
-        $responsible_sel{$issue->{'assigned_to'}->{'id'}} = $issue->{'assigned_to'}->{'name'};
+      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $sprint->{id}, PROJECT_ID => $FORM{PROJECT_ID}, DEBUG => 0 });
+      if (ref $issues_list eq 'ARRAY') {
+        foreach my $issue (@$issues_list) {
+          next if (!$issue->{assigned_to}->{name});
+          $responsible_sel{$issue->{'assigned_to'}->{'id'}} = $issue->{'assigned_to'}->{'name'};
+        }
       }
     }
   }
@@ -313,7 +315,13 @@ sub report_sprint {
     if ($sprint_start_sec <= $period_end_sec && $sprint_start_sec > $period_start_sec) {
       my $data_for_table = ();
 
-      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $FORM{SPRINT} || $sprint->{id}, PROJECT_ID => $FORM{PROJECT_ID} });
+      my $issues_list = $Redmine->get_list_issues({
+        VERSION_ID => $FORM{SPRINT} || $sprint->{id},
+        PROJECT_ID => $FORM{PROJECT_ID},
+        DEBUG      => $FORM{DEBUG}
+      });
+
+      _error_show($Redmine);
 
       foreach my $issue (@$issues_list) {
         next if (!$issue->{assigned_to}->{name});

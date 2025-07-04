@@ -1,0 +1,25 @@
+type: object
+required: [searchText]
+properties:
+  searchText:
+    type: string
+    example: 'test'
+  subject:
+    type: string
+    example: "456"
+  date:
+    type: string
+    format: date
+    example: "2023-11-22"
+  state:
+    type: integer
+    example: 1
+  replyId:
+    type: integer
+    example: 2
+  message:
+    type: string
+    example: "This is the content of the message."
+  replyText:
+    type: string
+    example: "This is a reply."

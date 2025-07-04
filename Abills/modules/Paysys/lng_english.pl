@@ -153,6 +153,7 @@ $lang{ERR_PAYMENT_OR_FEE_NOT_SELECTED} = 'You have not selected any payment or f
 $lang{ERR_TRANSACTION_NOT_EXISTS} = 'Transaction not exists';
 $lang{ERR_PAYMENT_SYSTEM_NOT_EXISTS} = 'Payment system not exists';
 $lang{ERR_PERCENT_VALUE} = 'Not allowed value Percent. Total value should be 100.';
+$lang{ERR_TRY_LATER} = 'There was an error, please try again later';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys merchant changed';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Configure for merchant changed with id - %MERCHANT_ID% and name - %MERCHANT_NAME%';

@@ -314,6 +314,7 @@ sub messages_list {
     [ 'ADMIN_DISABLE',          'INT',   'ra.disable', 'ra.disable AS admin_disable',                                  1 ],
     [ 'DONE_SUM',               'INT',   'SUM(m.resposible && m.state) AS done_sum',                                   1 ],
     [ 'PLAN_INTERVAL',          'INT',   'm.plan_interval',                                                            1 ],
+    [ 'CLIENT_RESPONSIBLE',     'STR',   'm.client_responsible',                                                       1 ],
     [ 'PLAN_POSITION',          'INT',   'm.plan_position',                                                            1 ],
     [ 'ADDRESS_FULL',           'STR',   "CONCAT(districts.name, ', ',streets.name, ', ', builds.number, " .
       "IF(pi.address_flat IS NOT NULL, CONCAT(', ', pi.address_flat), '')) AS address_full",                           1 ],
@@ -555,6 +556,7 @@ sub message_info {
       Bind => [ $id ] }
   );
 
+  my $total = $self->{TOTAL};
   #TODO: created fix returns error if no attachment
   #TODO: so need to check was error before if dont return error
   #TODO: because mostly all messages dont have attachments
@@ -562,6 +564,7 @@ sub message_info {
   $self->attachment_info({ MSG_ID => $self->{ID} });
 
   delete @{$self}{qw/errno errstr/} if (!$self->{errno} && $self->{errstr});
+  $self->{TOTAL} = $total;
 
   return $self;
 }
@@ -904,7 +907,7 @@ sub messages_reply_list {
   my $WHERE = $self->search_former($attr, [
     [ 'ID',            'INT',  'mr.id',                   ],
     [ 'MSG_ID',        'INT',  'mr.main_msg',           1 ],
-    [ 'LOGIN',         'INT',  'u.id'                     ],
+    [ 'LOGIN',         'INT',  'u.id', 'u.id AS login',   ],
     [ 'UID',           'INT',  'm.uid'                    ],
     [ 'INNER_MSG',     'INT',  'mr.inner_msg'             ],
     [ 'REPLY',         'STR',  'm.reply',                 ],
@@ -4831,6 +4834,80 @@ sub _msgs_action_handlers {
       $self->quick_replys_tags_add({ IDS => $action->{value}, MSG_ID => $msg_id });
     }
   }
+}
+
+#**********************************************************
+=head2 messages_search($attr)
+
+=cut
+#**********************************************************
+sub messages_search {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{SEARCH_TEXT};
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+
+  my @WHERE_RULES = ();
+  push @WHERE_RULES, "(m.subject LIKE '%$attr->{SEARCH_TEXT}%' OR m.message LIKE '%$attr->{SEARCH_TEXT}%' OR r.id IS NOT NULL)";
+
+  my $search_columns = [
+    [ 'ID',           'INT',  'm.id',                                   ],
+    [ 'MESSAGE_ID',   'INT',  'm.message_id',                         1 ],
+    [ 'SUBJECT',      'STR',  'm.subject',                            1 ],
+    [ 'UID',          'INT',  'm.uid',                                1 ],
+    [ 'DATE',         'STR',  'm.date',                               1 ],
+    [ 'STATE',        'INT',  'm.state', 1 ],
+    [ 'CHAPTER_NAME', 'STR',  'mc.name', 'mc.name AS chapter_name'      ],
+    [ 'CHAPTER_COLOR','STR',  'mc.color', 'mc.color AS chapter_color'   ],
+    [ 'CHAPTER',      'INT',  'm.chapter', 1 ],
+    [ 'MESSAGE',      'STR',  'm.message',                            1 ],
+    [ 'REPLY_ID',     'INT',  'r.id', 'r.id AS reply_id'                ],
+    [ 'REPLY_TEXT',   'STR',  'r.text', 'r.text AS reply_text'          ],
+    [ 'FOUND_IN',     'STR',  "CASE
+        WHEN m.subject LIKE '%$attr->{SEARCH_TEXT}%' THEN 'SUBJECT'
+        WHEN m.message LIKE '%$attr->{SEARCH_TEXT}%' THEN 'MESSAGE'
+        WHEN r.text LIKE '%$attr->{SEARCH_TEXT}%' THEN 'REPLY'",      1 ],
+    [ 'RESPONSIBLE',  'STR',    'ra.id', 'ra.id AS responsible'         ],
+  ];
+
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+  my $EXT_TABLES = "LEFT JOIN msgs_reply r ON m.id = r.main_msg AND r.text LIKE '%$attr->{SEARCH_TEXT}%'";
+  if ($self->{SEARCH_FIELDS} =~ /mc\./ || $WHERE =~ /mc\./) {
+    $EXT_TABLES .= "\nLEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)";
+  }
+  if ($self->{SEARCH_FIELDS} =~ /ra\./ || $WHERE =~ /ra\./) {
+    $EXT_TABLES .= "\nLEFT JOIN admins ra ON (ra.aid=mc.responsible)";
+  }
+
+  $self->query("SELECT m.id, $self->{SEARCH_FIELDS} m.id
+    FROM msgs_messages m
+    $EXT_TABLES
+    $WHERE
+    ORDER BY
+    $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;", undef, {
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+  });
+
+  return [] if $self->{errno};
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(m.id) AS total
+    FROM msgs_messages m
+    $EXT_TABLES
+    $WHERE;",
+    undef,
+    { INFO => 1 },
+  );
+
+  return $list;
 }
 
 1;

@@ -1,0 +1,326 @@
+get:
+  tags:
+    - triplay
+  summary: Список тарифов Triplay
+  parameters:
+    - name: abonName
+      description: Название тарифного плана Abon
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарий
+      schema:
+        type: boolean
+        default: false
+    - name: activatePrice
+      in: query
+      description: Цена активации услуги
+      schema:
+        type: boolean
+        default: false
+    - name: dayFee
+      in: query
+      description: Дневная абонплата
+      schema:
+        type: boolean
+        default: false
+    - name: internetTpId
+      description: ID тарифного плана Internet
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: credit
+      description: Кредит
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: creditTresshold
+      description: Несъёмный минимум
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: dayTimeLimit
+      description: Лимит времени (день)
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: dayTrafLimit
+      description: Дневной лимит трафика
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: describeAid
+      description: Описание для администратора
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/domainId"
+    - name: extBillAccount
+      description: Дополнительный счет
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: feesMethod
+      description: Тип списания
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: filterId
+      description: Filter ID
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: fine
+      description: Пеня
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: fixedFeesDay
+      description: Фиксированная дата абонплаты
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: ippool
+      description: IP pool
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: logins
+      description: Количество одновременных сессий для выбранного логина
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: maxSessionDuration
+      description: Максимальная продолжительность сессии
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: minSessionCost
+      description: Минимальная цена сессии
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: minUse
+      description: Минимальная денежная наработка
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: module
+      description: Модуль
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: monthTimeLimit
+      description: Месячный лимит времени
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: monthTrafLimit
+      description: Месячный лимит трафика
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: negDepositFilterId
+      description: Фільтр негативного депозиту
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: negDepositIppool
+      description: IP pool негативного депозиту
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: nextTpId
+      description: ID следующего тарифного плана
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: paymentType
+      description: Тип оплаты за услугу
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: periodAlignment
+      description: Параметр который возвращает биллинг
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: postpaidDailyFee
+      description: Выравнивание месяца
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: postpaidMonthlyFee
+      description: Абонплата за месяц - Послеоплата
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: serviceId
+      description: Id сервиса
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: serviceName
+      description: Название сервиса
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: smallDepositAction
+      description: Действие при нед. депозите
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: timeTarifs
+      description: Часовой тариф
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: totalTimeLimit
+      description: Временной лимит
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: totalTrafLimit
+      description: Лимит трафика
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: tpGid
+      description: ID группы
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: trafficTransferPeriod
+      description: Период перехода трафика
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: uplimit
+      description: Предупреждение
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: userCreditLimit
+      description: Лимит кредита
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: weekTimeLimit
+      description: Временной лимит (неделя)
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: weekTrafLimit
+      description: Недельный лимит трафика
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: internetTpName
+      description: Название тарифного плана Internet
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: iptvTpId
+      description: ID тарифного плана IPTV
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: iptvName
+      description: Название тарифного плана IPTV
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: monthFee
+      description: месячная абон плата
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/tpId"
+    - name: name
+      description: Название тарифного плана Triplay
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: tpReductionFee
+      description: Скидка в тарифном плане
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: id
+      description: id услуги
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: voipTpId
+      description: ID тарифного плана Voip
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: voipName
+      description: Название тарифного плана Voip
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_tariffs.yaml"
+  security:
+    - KEY: []

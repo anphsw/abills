@@ -26,7 +26,7 @@ use Abills::Api::Handle;
 
 require Control::Auth;
 require Abills::Misc;
-require 'language/english.pl';
+do 'language/english.pl';
 
 our %lang;
 our $html = Abills::HTML->new({ CONF => \%conf });
@@ -48,6 +48,8 @@ our @EXPORT = qw(
 our @EXPORT_OK = qw(
   test_runner
   folder_list
+  _log
+  test_preprocess
   help
 );
 
@@ -100,7 +102,7 @@ sub test_runner {
   }
 
   if (ref $tests ne 'ARRAY' || !scalar @{$tests}) {
-    print "Skip test runner, no tests for execute\n";
+    print "Skip test runner, no tests for execute\n" if (!$attr->{silent});
     return 0;
   }
 
@@ -235,7 +237,11 @@ sub run_tests {
 
     if ($debug) {
       print color($colors{INFO}), "\n\n";
-      my $req_body_preview = encode_json($test->{body}) || '';
+
+      my $req_body_preview = q{};
+      if ($test->{body}) {
+        $req_body_preview = encode_json($test->{body});
+      }
       print "REQUEST PARAMS: \n  METHOD: $test->{method}\n  PATH: $test->{path}\n  BODY:\n  $req_body_preview\n\n";
     }
 
@@ -272,6 +278,8 @@ sub run_tests {
     }
     print color($colors{INFO}), "------------------------------------\n";
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -454,6 +462,8 @@ sub folder_list {
     push @folders, _read_dir('user', $main_dir, ($attr->{PATH} || q{}));
   }
 
+  my $debug = $attr->{debug} || 0;
+
   if (!@folders) {
     print color($colors{BAD}), "NO TESTS - $main_dir\n";
     return [];
@@ -478,8 +488,8 @@ sub folder_list {
 
     next if (!-f $schema_file || !-f $request_file);
 
-    open(my $request_str, $request_file);
-    open(my $schema_str, $schema_file);
+    open(my $request_str, '<', $request_file);
+    open(my $schema_str, '<', $schema_file);
 
     my $request_plain = do {
       local $/;
@@ -494,7 +504,14 @@ sub folder_list {
     my %request_hash = %$request;
 
     $request_hash{schema} = $schema;
-    next if (scalar @executable_tests && !in_array(lc($request_hash{method}) . "/$request_hash{path}", \@executable_tests));
+
+    if ($debug > 3) {
+      print lc($request_hash{method}) . "/$request_hash{path}" . "\n";
+    }
+
+    if ($#executable_tests > -1 && !in_array(lc($request_hash{method}) . "/$request_hash{path}", \@executable_tests)) {
+      next;
+    }
 
     push(@test_list, \%request_hash);
   }
@@ -537,6 +554,82 @@ sub _read_dir {
 }
 
 #*******************************************************************
+=head2 _log($message) - Help
+
+  Arguments:
+    $message
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#*******************************************************************
+sub _log {
+  my ($message) = @_;
+
+  print "  ERROR: $message\n";
+
+  return 1;
+}
+
+#*******************************************************************
+=head2 test_preprocess($tests, $params, \%conf) - Help
+
+  Arguments:
+    $tests   - Test array
+    $params  - $params_hash
+    \%conf
+    $attr
+      DEBUG
+
+  Returns:
+    test for run
+
+=cut
+#*******************************************************************
+sub test_preprocess {
+  my ($tests, $params, $conf, $attr)=@_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my @run_tests = ();
+
+  foreach my $test (@$tests) {
+    if ($debug > 2) {
+      print "$test->{method}/$test->{path} \n";
+    }
+
+    if ($test->{conf} && $conf && ! $conf->{$test->{conf}}) {
+      if ($debug > 2) {
+        print "No config availeble\n";
+      }
+      next;
+    }
+
+    if ($test->{path} =~ /:([a-zA-Z\_]+)/g) {
+      my $param = $1;
+      if (defined($params->{$param})) {
+        $test->{path} =~ s/:$param/$params->{$param}/g;
+      }
+    }
+
+    if ($test->{body}) {
+      foreach my $key ( keys %{ $test->{body} } ) {
+        my $val = $test->{body}->{$key};
+        $val =~ s/^://gx;
+        $val =~ s/[{}]+//gx;
+        if (defined($params->{$val})) {
+          $test->{body}->{$key} = $params->{$val};
+        }
+      }
+    }
+
+    push @run_tests, $test;
+  }
+
+  return \@run_tests;
+}
+
+#*******************************************************************
 =head2 help() - Help
 
 =cut
@@ -565,6 +658,8 @@ sub help {
 
   help
 [END]
+
+  return 1;
 }
 
 1;

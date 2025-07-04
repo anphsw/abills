@@ -18,8 +18,9 @@ package Sorm::Plugins::Kzt;
 
 =head1 VERSION
 
-  VERSION: 1.1
-  UPDATED: 20240902
+  VERSION: 1.2
+  CREATED: 20240821
+  UPDATED: 202506027
 
 =cut
 
@@ -27,15 +28,18 @@ use strict;
 use warnings FATAL => 'all';
 
 use Companies;
+use Storage;
 use Time::Piece;
 use Abills::Base qw(date_format);
 
-my ($User, $Company, $Internet, $debug);
+my ($User, $Company, $Internet, $Storage, $debug);
 
-my $begin_date = '2015-01-01';
+my $begin_date = '2020-01-01';
 my $t = localtime;
 my $upload_t = $t - 86400;
 my $delimeter = '|';
+our $prefix = 'Fix_';
+our $mob_header = 0;
 
 my $year  = sprintf("%04d", $t->year());
 my $month = sprintf("%02d", $t->mon());
@@ -48,7 +52,7 @@ my $upload_month = sprintf("%02d", $upload_t->mon());
 my $upload_day = sprintf("%02d", $upload_t->mday());
 my $upload_date = "$upload_year-$upload_month-$upload_day";
 
-my $sufix = 'Fix_' . $upload_year . $upload_month . $upload_day . 'T' . $hour . $min . '.csv';
+my $sufix = $upload_year . $upload_month . $upload_day . 'T' . $hour . $min . '.csv';
 my %reports = ();
 
 #**********************************************************
@@ -87,6 +91,7 @@ sub init {
   $User = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Company = Companies->new($self->{db}, $self->{admin}, $self->{conf});
   $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
+  $Storage = Storage->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $argv = $self->{argv};
 
@@ -100,7 +105,7 @@ sub init {
       $upload_date = $argv->{DATE};
       my $sufix_date = $argv->{DATE};
       $sufix_date =~ s/\-//g;
-      $sufix = 'Fix_' . $sufix_date . 'T' . $hour . $min . '.csv';
+      $sufix = $sufix_date . 'T' . $hour . $min . '.csv';
     }
     else {
       print "Please specify argument DATE in correct format: DATE=YYYY-MM-DD \n";
@@ -145,6 +150,7 @@ sub init {
 sub ABD_report {
   my $self = shift;
   my ($uid) = @_;
+  $prefix = 'Fix_';
 
   $User->info($uid);
   if ($User->{errno}) {
@@ -161,9 +167,6 @@ sub ABD_report {
     $Internet->info($uid);
   }
 
-  my ($last_name, $name, $surname) = ($User->{FIO}, $User->{FIO2}, $User->{FIO3});
-  ($last_name, $name, $surname) = split(' ', $User->{FIO}) if (!$name || !$surname);
-
   my $passport = $User->{PASPORT_NUM} || q{};
   $passport =~ s/\s//g if ($User->{PASPORT_NUM});
   my $passport_grant = $User->{PASPORT_GRANT} || q{};
@@ -178,34 +181,68 @@ sub ABD_report {
   my $user_mac = $Internet->{CPE_MAC} ? $Internet->{CPE_MAC} : $Internet->{CID};
   $user_mac =~ s/://g if $Internet->{CPE_MAC};
 
+  my $network_type = 'FTTH';
+  my $service_type = 'фиксированный интернет ';
+  my $phone = '';
+  my $imsi = '';
+  my $user_status = '';
+  my $install_date = ($User->{ACTIVATE} && $User->{ACTIVATE} ne '0000-00-00') ? date_format($User->{ACTIVATE}, "%d.%m.%Y") : q{};
+
+  my $region_id = _region($User->{ADDRESS_FULL_LOCATION});
+
+  # Mobile subscribers
+  if ($self->{conf}->{SORM_IMSI_PREFIX} && $Internet->{CID} && $Internet->{CID} =~ /^$self->{conf}->{SORM_IMSI_PREFIX}/){
+    $prefix = 'Mob_';
+    $network_type = 'FWA';
+    $service_type = 'мобильная связь ';
+    $phone = $User->{CELL_PHONE} || $User->{PHONE} || '';
+    $imsi = $Internet->{CID};
+
+    if ($User->{DISABLE}){
+      $user_status = 'A' if ($User->{DISABLE} == 0);
+      $user_status = 'C' if ($User->{DISABLE} == 1);
+      $user_status = 'S' if ($User->{DISABLE} > 1);
+    }
+
+    my $user_storage = $Storage->storage_installation_list({ UID => $uid, DATE => '_SHOW', COLS_NAME => 1 });
+    $install_date = $user_storage->[0]->{date} || '';
+    $prefix = 'Mob_';
+
+    if ($mob_header == 0){
+      _add_header('ABD');
+      $mob_header = 1;
+    }
+  }
+
+
   my @arr = ();
 
     # ID абонента
   $arr[0] = $uid;
     # ФИО/Наименование организации
-  $arr[1] = ($User->{COMPANY_ID} > 0) ? $Company->{NAME} : ($last_name || q{}).' '.($name || q{}).' '.($surname || q{});
+  $arr[1] = ($User->{COMPANY_ID} > 0) ? $Company->{NAME} : ($User->{FIO} || q{});
     # Номер телефона абонента (empty)
-  $arr[2] = '';
-    # IMSI (empty)
-  $arr[3] = '';
+  $arr[2] = $phone;
+    # IMSI
+  $arr[3] = $imsi;
     # IMEI (empty)
   $arr[4] = '';
     # Адрес проживания/Адрес регистрации
   $arr[5] = $User->{ADDRESS_FULL_LOCATION} || q{};
     # Номер и дата выдачи документа
-  $arr[6] = "$passport от $passport_date, выдан $passport_grant";
+  $arr[6] = ($passport) ? "$passport от $passport_date, выдан $passport_grant" : '';
     # Дата рождения
   $arr[7] = ($User->{BIRTH_DATE} && $User->{BIRTH_DATE} ne '0000-00-00') ? date_format($User->{BIRTH_DATE}, "%d.%m.%Y") : q{};
     # ИИН/БИН
   $arr[8] = $User->{TAX_NUMBER} || q{};
     # Тип пользователя 1 - юридическое лицо, 2 - физическое лицо
   $arr[9] = ($User->{COMPANY_ID} > 0) ? 1 : 2;
-    # Контактное лицо  ???
-  $arr[10] = ($User->{COMPANY_ID} > 0) ? $Company->{REPRESENTATIVE} : '';
-    # Контактный телефон ???
-  $arr[11] = ($User->{COMPANY_ID} > 0) ? $Company->{PHONE}          : '';
+    # Контактное лицо
+  $arr[10] = ($User->{COMPANY_ID} > 0) ? $Company->{REPRESENTATIVE} : ($User->{FIO} || q{});
+    # Контактный телефон
+  $arr[11] = ($User->{COMPANY_ID} > 0) ? $Company->{PHONE} : $phone;
     # Тип услуги
-  $arr[12] = 'фиксированный интернет '.$internet_tp_name;
+  $arr[12] = $service_type.$internet_tp_name;
     # Короткий номер  (empty)
   $arr[13] = '';
   $arr[14] = $email;
@@ -215,14 +252,14 @@ sub ABD_report {
   $arr[16] = '';
     # Дата смены статуса SIM (empty)
   $arr[17] = '';
-    # Статус SIM-карты/Статус абонента (empty)
-  $arr[18] = '';
+    # Статус SIM-карты/Статус абонента
+  $arr[18] = $user_status;
     # Дата блокировки SIM (empty)
   $arr[19] = '';
     # Тип сети
-  $arr[20] = 'FTTH';
-    # Регион (справочник) ???
-  $arr[21] = '';
+  $arr[20] = $network_type;
+    # Регион
+  $arr[21] = $region_id;
     # Дата и время актуализации информации
   $arr[22] = ($User->{REGISTRATION} && $User->{REGISTRATION} ne '0000-00-00') ? date_format($User->{REGISTRATION}, "%d.%m.%Y") : q{};
     # Адрес регистрации абонентского оборудования
@@ -234,9 +271,9 @@ sub ABD_report {
     # Адрес установки абонентского оборудования
   $arr[26] = $User->{ADDRESS_FULL_LOCATION} || q{};
     # Статические IP-адреса для выделенных линий, начало диапазона
-  $arr[27] = $Internet->{IP};
+  $arr[27] = ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : '';
     # Статические IP-адреса для выделенных линий, конец диапазона
-  $arr[28] = $Internet->{IP};
+  $arr[28] = ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : '';
     # Дата и время активации (введения в статус) абонентского оборудования
   $arr[29] = ($User->{ACTIVATE} && $User->{ACTIVATE} ne '0000-00-00') ? date_format($User->{ACTIVATE}, "%d.%m.%Y"): q{};
     # Дата активации SIM абонента (empty)
@@ -250,7 +287,11 @@ sub ABD_report {
     # Адрес регистрации абонентского оборудования
   $arr[34] = $User->{ADDRESS_FULL_LOCATION} || q{};
     # Дата установки оборудования
-  $arr[35] = ($User->{ACTIVATE} && $User->{ACTIVATE} ne '0000-00-00') ? date_format($User->{ACTIVATE}, "%d.%m.%Y"): q{};
+  $arr[35] = $install_date;
+
+  delete($User->{FIO});
+  delete($User->{ADDRESS_FULL_LOCATION});
+  delete($User->{CELL_PHONE});
 
   _add_report("ABD", @arr);
 
@@ -274,14 +315,14 @@ sub _add_report {
 
   my $string = '';
   foreach my $line (@params) {
-    $line //= q{};
-    $line =~ s/$delimeter/ /;
+    $line //= '';
+    $line =~ s/$delimeter//;
     $string .= $line . $delimeter;
   }
 
-  $string =~ s/\r/ /g;
-  $string =~ s/\n/ /g;
-  $string =~ s/\t/ /g;
+  $string =~ s/\r//g;
+  $string =~ s/\n//g;
+  $string =~ s/\t//g;
   $string =~ s/$delimeter$/\n/;
 
   _save_report($type, $string);
@@ -307,7 +348,7 @@ sub _save_report {
   print "$content\n" if ($debug > 5);
 
   %reports = (
-    ABD  => $main::var_dir."sorm/Kzt/$sufix",
+    ABD  => $main::var_dir.'sorm/Kzt/'.$prefix.$sufix,
   );
 
   my $filename = $reports{$type};
@@ -374,11 +415,11 @@ sub _add_header {
     ]
   );
 
-  my $string = "";
+  my $string = '';
   foreach (@{$headers{$type}}) {
-    $string .= ($_ // "") . $delimeter;
+    $string .= ($_ // '') . $delimeter;
   }
-  $string =~ s/$delimeter$/\n/;
+  # $string =~ s/$delimeter$/\n/;
 
   _save_report($type, $string);
 
@@ -394,7 +435,7 @@ sub _add_header {
 sub send {
   my $self = shift;
   %reports = (
-    ABD  => $main::var_dir."sorm/Kzt/$sufix",
+    ABD  => $main::var_dir.'sorm/Kzt/'.$prefix.$sufix,
   );
 
   for my $report (values %reports) {
@@ -409,6 +450,47 @@ sub send {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 _region($attr)
+
+   Attr:
+     $User
+
+   Return:
+     region_id
+
+=cut
+#**********************************************************
+sub _region {
+  my ($address_district) = @_;
+  return '' if (!$address_district);
+
+  my $region_id = '';
+
+  $region_id = 1  if ($address_district =~ /Астана/);
+  $region_id = 2  if ($address_district =~ /Алматы/);
+  $region_id = 3  if ($address_district =~ /Акмолинская/);
+  $region_id = 4  if ($address_district =~ /Актюбинская/);
+  $region_id = 5  if ($address_district =~ /Алматинская/);
+  $region_id = 6  if ($address_district =~ /Атырауская/);
+  $region_id = 7  if ($address_district =~ /Западно-Казахстанская/);
+  $region_id = 8  if ($address_district =~ /Жамбылская/);
+  $region_id = 9  if ($address_district =~ /Карагандинская/);
+  $region_id = 10 if ($address_district =~ /Костанайская/);
+  $region_id = 11 if ($address_district =~ /Кызылординская/);
+  $region_id = 12 if ($address_district =~ /Мангистауская/);
+  $region_id = 13 if ($address_district =~ /Южно-Казахстанская/);
+  $region_id = 14 if ($address_district =~ /Павлодарская/);
+  $region_id = 15 if ($address_district =~ /Северо-Казахстанская/);
+  $region_id = 16 if ($address_district =~ /Восточно-Казахстанская/);
+  $region_id = 17 if ($address_district =~ /Шымкент/);
+  $region_id = 18 if ($address_district =~ /Абай/);
+  $region_id = 19 if ($address_district =~ /Жетысу/);
+  $region_id = 20 if ($address_district =~ /Улытауская/);
+
+  return $region_id;
 }
 
 1;

@@ -204,14 +204,14 @@ sub abon_tariffs {
     $Abon->{EXT_BILL_ACCOUNT} = '';
   }
 
-  my $FEES_METHODS = get_fees_types();
+  # $Abon->{FEES_TYPES_SEL} = $html->form_select('FEES_TYPE', {
+  #   SELECTED => $Abon->{FEES_TYPE},
+  #   SEL_HASH => { '' => '', %$FEES_METHODS },
+  #   NO_ID    => 1,
+  #   SORT_KEY => 1
+  # });
 
-  $Abon->{FEES_TYPES_SEL} = $html->form_select('FEES_TYPE', {
-    SELECTED => $Abon->{FEES_TYPE},
-    SEL_HASH => { '' => '', %$FEES_METHODS },
-    NO_ID    => 1,
-    SORT_KEY => 1
-  });
+  $Abon->{FEES_TYPES_SEL} = sel_fees_methods('FEES_TYPE', $Abon->{FEES_TYPE});
 
   $Abon->{DEBUG_SEL} = $html->form_select('DEBUG', {
     SELECTED  => $Abon->{DEBUG} || $FORM{DEBUG} || 0,
@@ -309,6 +309,8 @@ sub abon_tariffs {
   );
 
   delete $LIST_PARAMS{ABON_ID};
+  my $FEES_METHODS = get_fees_types();
+
   my ($table, $list) = result_former({
     INPUT_DATA     => $Abon,
     FUNCTION       => 'tariff_list',
@@ -502,7 +504,6 @@ sub abon_import_tp {
 
     my $tp_list = $Plugin->tp_export();
 
-    $Abon->{debug}=1;
     $Abon->tariff_info($FORM{ABON_ID});
 
     if($Plugin->{errno}) {
@@ -677,7 +678,7 @@ sub abon_plugin_reports {
 
   $Abon = $Abon->tariff_info($FORM{SERVICE_ID});
 
-  my $Plugin = load_plugin('Abon::Plugins::'.$Abon->{PLUGIN}, {
+  my $Plugin = load_plugin('Abon::Plugins::' . ($Abon->{PLUGIN} || ''), {
      SERVICE_ID => $FORM{SERVICE_ID},
      SERVICE    => $Abon,
      HTML       => $html,

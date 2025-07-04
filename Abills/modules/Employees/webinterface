@@ -2840,5 +2840,115 @@ sub address_list_tree_menu {
   return $menu;
 }
 
+#**********************************************************
+=head2 employees_start_page()
+
+=cut
+#**********************************************************
+sub employees_start_page {
+  my %START_PAGE_F = (
+    'employees_cash_balance_total' => $lang{EMPLOYEES_TOTAL_CASH_BALANCE}
+  );
+
+  return \%START_PAGE_F;
+}
+
+
+#**********************************************************
+=head2 employees_cash_balance_total() - dashboard report
+
+=cut
+#**********************************************************
+sub employees_cash_balance_total {
+
+  my $employees_cash = $Employees->employees_payments_cashbox({ AID => $admin->{AID}, COLS_NAME => 1 });
+  return if ( !$Employees->{TOTAL} );
+
+  my @ids;
+  foreach my $item (@$employees_cash) {
+    push @ids, $item->{id};
+  }
+  my $cashbox_ids = join(";", @ids);
+
+  my $cashbox_balance = $Employees->employees_total_balance({
+    CASHBOX_IDS => $cashbox_ids,
+    DESC      => $FORM{desc},
+    SORT      => $FORM{sort},
+    COLS_NAME => 1 });
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $html->button($lang{EMPLOYEES_TOTAL_CASH_BALANCE}, 'index=' . get_function_index('employees_cashbox_balance')),
+    title   => [ $lang{CASHBOX}, $lang{SUM} ],
+    ID      => 'EMPLOYEES',
+  });
+
+  foreach my $cashbox (@{$cashbox_balance}) {
+    my $total_balance = ($cashbox->{total_coming} || 0) - ($cashbox->{total_spending} || 0);
+    $table->addrow(
+      $html->button($cashbox->{name}, 'index=' . get_function_index('employees_cashbox_balance') . "&CASHBOX_ID=$cashbox->{id}"),
+      $total_balance,
+    );
+  }
+
+  return $table->show();
+}
+
+
+#**********************************************************
+=head2 employees_cashbox_admin_payment() - cashbox list for admin in login payments
+
+  attr:
+    AID - admin AID
+
+  Return
+    attr
+      CASHBOX_SELECT
+      CASHBOX_COMING_TYPE_SELECT
+=cut
+#**********************************************************
+sub employees_cashbox_admin_payment {
+  my ($attr) = @_;
+
+  return if ( !$attr->{USER_INFO}{admin}{AID} );
+
+  my $admin_cash = $attr->{USER_INFO}{admin}{AID} || 0;
+  my $employees_cash_all;
+  if($conf{EMPLOYEES_CASHBOX_ALL}){
+    my @cash_all = split(',',$attr->{USER_INFO}{conf}{EMPLOYEES_CASHBOX_ALL});
+    if(in_array("$admin_cash", \@cash_all)) {
+      $employees_cash_all = $Employees->employees_payments_cashbox({ COLS_NAME => 1 });
+    }
+  }
+  my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash});
+
+  #  get default cash for current admin
+  my $cashbox_id = '';
+  for my $key (@$employees_cash){
+    if ($key->{aid_default} && $key->{aid_default} == $admin_cash){
+      $cashbox_id = $key->{id};
+    }
+  }
+
+  my %params = ("" => "");
+  if ($Employees->{TOTAL} == 1) {
+    %params = (REQUIRED => 1);
+  }
+
+  $attr->{CASHBOX_SELECT} = $html->form_select('CASHBOX_ID', {
+    SELECTED  => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID} || $cashbox_id,
+    SEL_LIST  => $employees_cash_all || $employees_cash,
+    SEL_KEY   => 'id',
+    SEL_VALUE => 'name',
+    NO_ID     => 1,
+    MAIN_MENU => get_function_index('employees_cashbox_main'),
+    SEL_OPTIONS => { '' => '' },
+    %params
+  });
+
+   $attr->{CASHBOX_COMING_TYPE_SELECT} = employees_coming_select();
+
+  return $attr;
+}
 
 1

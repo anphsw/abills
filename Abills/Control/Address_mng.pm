@@ -126,8 +126,8 @@ sub form_districts {
 
         my $penetration_rate = 0;
         my $color = 'bg-danger';
-        if ($line->{households} && $district_population) {
-          $penetration_rate = int(($district_population / $line->{households}) * 100);
+        if ($district_population) {
+          $penetration_rate = int($district_population * 100);
         }
 
         if ($penetration_rate >= 80) {
@@ -948,6 +948,7 @@ sub sel_streets {
   $attr ||= {};
   $attr->{SELECT_ID} ||= 'STREET_ID';
   $attr->{SELECT_NAME} ||= 'STREET_ID';
+  $attr->{HIDE_ADD_STREET_BUTTON} = 1 if (!$admin->{permissions}{0} || !$admin->{permissions}{0}{34});
 
   $attr->{DISTRICT_ID} =~ s/,/;/g if $attr->{DISTRICT_ID};
   my $streets = $Address->street_list({
@@ -979,6 +980,13 @@ sub sel_streets {
   }
 
   my @street_buttons = ();
+  push @street_buttons, $html->button('', '', {
+    ICON      => 'fa fa-plus',
+    class     => 'BUTTON-ENABLE-STREET-ADD btn input-group-button rounded-left-0' . ($attr->{MULTIPLE} ? ' rounded-right-0' : ''),
+    SKIP_HREF => 1,
+    TITLE     => "$lang{ADD} $lang{STREET}",
+  }) if !$attr->{HIDE_ADD_STREET_BUTTON};
+
   push @street_buttons, $html->form_input('STREET_MULTIPLE', '1', {
     TYPE      => 'checkbox',
     class     => 'form-control-static m-2',
@@ -1052,7 +1060,7 @@ sub sel_builds {
     class     => 'BUTTON-ENABLE-ADD btn input-group-button rounded-left-0' . ($attr->{MULTIPLE} ? ' rounded-right-0' : ''),
     SKIP_HREF => 1,
     TITLE     => "$lang{ADD} $lang{BUILDS}",
-    EX_PARAMS => "onload='test'",
+    # EX_PARAMS => "onload='test'",
   }) if !$attr->{HIDE_ADD_BUILD_BUTTON};
 
   push @build_buttons, $html->form_input('BUILD_MULTIPLE', '1', {

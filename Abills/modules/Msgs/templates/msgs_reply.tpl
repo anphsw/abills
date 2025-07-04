@@ -180,11 +180,6 @@
     });
   }
 
-  var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
-  if (MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
-
-  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
-
   var survey_select = jQuery('select#SURVEY_ID');
   survey_select.on('change', function () {
     var select_value = this.value;
@@ -204,4 +199,9 @@
 
 </script>
 <script src='/styles/default/js/draganddropfile.js'></script>
+
+<script>
+  var MAX_FILES_COUNT = 3;
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT, 'REPLY_TEXT');
+</script>
 <script src='/styles/default/js/msgs/msgs.reply.js'></script>

@@ -1,0 +1,20 @@
+[
+  {
+    "COMMENTS": "25 2025-05-05 - 2025-05-20 Discount 50",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-05-05",
+      "END_DATE": "2025-05-20",
+      "DISCOUNT" : "50"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f', (1000 / 31 * 16) * 0.5)",
+      "DAYS": 16
+    }
+  }
+]

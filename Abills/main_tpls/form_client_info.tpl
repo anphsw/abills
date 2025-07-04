@@ -179,11 +179,11 @@
                       %SIGN_CONTRACT%
 
                       <a %NO_DISPLAY% title='_{PRINT}_' target='new' class='pl-3'
-                         href='%SELF_URL%?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'>
+                         href='%SELF_URL%?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&pdf=$conf{DOCS_PDF_PRINT}'>
                         <span class='fas fa-print'></span>
                       </a>
 
-                      <a href='%SELF_URL%?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='pl-3'>
+                      <a href='%SELF_URL%?index=10&CONTRACT_LIST=1' title='_{LIST}_' class='pl-3'>
                         <span class='fas fa-list'></span>
                       </a>
                     </div>

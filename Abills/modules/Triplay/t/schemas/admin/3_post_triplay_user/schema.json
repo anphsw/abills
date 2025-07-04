@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string"
+    },
+    "comments": {
+      "type": "string"
+    },
+    "dayAbon": {
+      "type": "number"
+    },
+    "disable": {
+      "type": "integer"
+    },
+    "expire": {
+      "type": "string",
+      "format": "date"
+    },
+    "monthAbon": {
+      "type": "number"
+    },
+    "personalTp": {
+      "type": "number"
+    },
+    "reductionFee": {
+      "type": "integer"
+    },
+    "serviceExpire": {
+      "type": "string"
+    },
+    "serviceStatus": {
+      "type": "integer"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "tpCredit": {
+      "type": "number"
+    },
+    "tpId": {
+      "type": "integer"
+    },
+    "tpName": {
+      "type": "string"
+    },
+    "tpNum": {
+      "type": "integer"
+    },
+    "tpPeriodAlignment": {
+      "type": "integer"
+    },
+    "uid": {
+      "type": "integer"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "module": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": "integer"
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "serviceId",
+          "uid"
+        ]
+      }
+    },
+    "userServices": {
+      "type": "object",
+      "properties": {
+        "abonServiceId": {
+          "type": "integer"
+        },
+        "internetServiceId": {
+          "type": "integer"
+        },
+        "iptvServiceId": {
+          "type": "integer"
+        },
+        "voipServiceId": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "required": [
+    "comment",
+    "comments",
+    "dayAbon",
+    "disable",
+    "expire",
+    "monthAbon",
+    "personalTp",
+    "reductionFee",
+    "serviceExpire",
+    "serviceStatus",
+    "total",
+    "tpCredit",
+    "tpId",
+    "tpName",
+    "tpNum",
+    "tpPeriodAlignment",
+    "uid",
+    "list",
+    "userServices"
+  ]
+}

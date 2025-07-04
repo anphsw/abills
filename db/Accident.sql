@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS `accident_address` (
 CREATE TABLE IF NOT EXISTS `accident_equipments` (
   `id`           SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `id_equipment` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `date`         DATE                 NOT NULL DEFAULT '0000-00-00',
-  `end_date`     DATE                 NOT NULL DEFAULT '0000-00-00',
+  `date`         DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `end_date`     DATETIME             NOT NULL DEFAULT '0000-00-00',
   `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `status`       TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0,
   `sent_open`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `accident_compensation` (
 
 CREATE TABLE IF NOT EXISTS `accident_types` (
   `id`           TINYINT(3) UNSIGNED  NOT NULL AUTO_INCREMENT,
-  `name`         VARCHAR(50)          NOT NULL DEFAULT '',
+  `name`         VARCHAR(80)          NOT NULL DEFAULT '',
   `priority`     TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
   `color`        VARCHAR(7)           NOT NULL DEFAULT '',
   `comments`     TEXT,

@@ -33,6 +33,20 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-md-3 control-label' for='PARENT_ID'>_{PARENT_ELEMENT}_:</label>
+        <div class='col-md-9'>
+          %PARENT_SELECT%
+        </div>
+      </div>
+
+      <div class='form-group row d-none' id='PARENT_VALUE_FORM_GROUP'>
+        <label class='col-md-3 control-label' for='PARENT_VALUE_ID'>_{PARENT_ELEMENT_VALUE}_:</label>
+        <div class='col-md-9'>
+          %PARENT_VALUE_SELECT%
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='col-md-3 control-label' for='PRIORITY_ID'>_{PRIORITY}_:</label>
         <div class='col-md-9'>
           <div class='input-group'>
@@ -140,5 +154,46 @@
   if (chgListValue){
     jQuery('#NAME').val(chgListValue);
   }
+
+  const PARENT_VALUE_FORM_GROUP = jQuery('#PARENT_VALUE_FORM_GROUP');
+  const PARENT_VALUE_SELECT_CONTAINER = PARENT_VALUE_FORM_GROUP.closest('.form-group.row').find('.col-md-9');
+  if (PARENT_VALUE_SELECT_CONTAINER.children().length > 0) {
+    PARENT_VALUE_FORM_GROUP.removeClass('d-none');
+  }
+
+  jQuery('#PARENT_ID').on('change', function () {
+    let val = jQuery(this).val();
+
+    PARENT_VALUE_FORM_GROUP.addClass('d-none');
+    PARENT_VALUE_SELECT_CONTAINER.html('');
+
+    if (!val) return;
+
+    sendRequest(`/api.cgi/info-fields/${val}/`, {}, 'GET').then(result => {
+      if (result.list_items) result.listItems = result.list_items;
+
+      if (result.listItems && result.listItems.length > 0) {
+        let select = jQuery('<select></select>')
+          .attr('id', 'PARENT_VALUE_ID')
+          .attr('name', 'PARENT_VALUE_ID')
+          .addClass('form-control');
+
+        result.listItems.forEach(item => {
+          jQuery('<option></option>')
+            .val(item.id)
+            .text(item.name)
+            .appendTo(select);
+        });
+
+        PARENT_VALUE_SELECT_CONTAINER.html(select);
+        PARENT_VALUE_FORM_GROUP.removeClass('d-none');
+
+        select.select2();
+      }
+
+    }).catch(err => {
+      console.log(err);
+    });
+  });
 
 </script>

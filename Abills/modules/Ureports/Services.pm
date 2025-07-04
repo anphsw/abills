@@ -104,7 +104,7 @@ sub ureport_add_multiple_users {
 
   foreach my $uid (@uids) {
     my $user_contacts = $contacts_hash{$uid};
-    if (!$user_contacts) {
+    if (!$user_contacts && !in_array(10, \@types)) {
       push @failed_users, $uid;
       next;
     }
@@ -117,8 +117,10 @@ sub ureport_add_multiple_users {
 
     my %user_destinations = ();
     foreach my $type (@types) {
-      next if (!$user_contacts->{$type} && !$types_extra_value{$type});
-      my $destination = $user_contacts->{$type} || $user_contacts->{$types_extra_value{$type}};
+      next if (!$user_contacts->{$type} && !$types_extra_value{$type}) && !$types_default_value{$type};
+      my $destination = $user_contacts->{$type} ||
+        ($types_extra_value{$type} ? $user_contacts->{$types_extra_value{$type}} : '') ||
+        $types_default_value{$type};
       next if !$destination;
 
       $user_destinations{'DESTINATION_' . $type} = $destination;

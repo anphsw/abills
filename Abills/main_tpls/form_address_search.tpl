@@ -7,7 +7,20 @@
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-STREET'>_{ADDRESS_STREET}_:</label>
     <div class='col-sm-9 col-md-8'>
-      %ADDRESS_STREET%
+      <div class='addStreetMenu'>
+        %ADDRESS_STREET%
+      </div>
+
+      <div class='input-group changeStreetMenu' style='display : none;'>
+        <input type='text' disabled id='ADD_ADDRESS_STREET_ID' name='ADD_ADDRESS_STREET' class='ADD_ADDRESS_STREET form-control INPUT-ADD-STREET'/>
+        <div class='input-group-append'>
+          <div class='input-group-text'>
+            <a class='BUTTON-ENABLE-STREET-SEL cursor-pointer'>
+              <span class='fa fa-list'></span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -236,7 +249,34 @@
     })
   }
 
+  function activateStreetButtons() {
+    jQuery('.BUTTON-ENABLE-STREET-ADD').on('click', function () {
+      let streetDiv = jQuery('.addStreetMenu');
+      streetDiv.removeClass('d-block');
+      streetDiv.addClass('d-none');
+      streetDiv.find('select').attr('disabled', 'disabled');
+      jQuery('.ADD_ADDRESS_STREET').removeAttr('disabled');
+
+      jQuery('.changeStreetMenu').show();
+      jQuery('.BUTTON-ENABLE-ADD').trigger('click');
+      jQuery('.BUTTON-ENABLE-SEL').parent().addClass('d-none');
+    });
+
+    jQuery('.BUTTON-ENABLE-STREET-SEL').on('click', function () {
+      let buildDiv = jQuery('.addStreetMenu');
+      buildDiv.removeClass('d-none');
+      buildDiv.addClass('d-block');
+      buildDiv.find('select').removeAttr('disabled');
+      jQuery('.ADD_ADDRESS_STREET').attr('disabled', 'disabled');
+
+      jQuery('.changeStreetMenu').hide();
+      jQuery('.BUTTON-ENABLE-SEL').parent().removeClass('d-none');
+      jQuery('.BUTTON-ENABLE-SEL').trigger('click');
+    })
+  }
+
   activateBuildButtons();
+  activateStreetButtons();
 
   jQuery('#ADDRESS_FLAT.INPUT-FLAT').on('input', function () {
     let check_flat = '%CHECK_ADDRESS_FLAT%';

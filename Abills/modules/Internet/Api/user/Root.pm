@@ -72,13 +72,14 @@ sub post_user_internet_id_activate {
   return {
     result => 'Already active'
   } if (defined $Internet->{STATUS} && $Internet->{STATUS} == 0);
+
   return {
     errno  => 200,
     errstr => 'Can\'t activate, not allowed'
   } unless (
     $Internet->{STATUS} &&
       ($Internet->{STATUS} == 2 || $Internet->{STATUS} == 5 ||
-        ($Internet->{STATUS} == 3 && $self->{conf}->{INTERNET_USER_SERVICE_HOLDUP})));
+        ($Internet->{STATUS} == 3 && ($self->{conf}->{INTERNET_USER_SERVICE_HOLDUP} || $self->{conf}->{HOLDUP_ALL}))));
 
   if ($Internet->{STATUS} == 3) {
     my $del_result = $Service_control->user_holdup({ del => 1, UID => $path_params->{uid}, ID => $path_params->{id} });
@@ -169,8 +170,9 @@ sub get_user_internet_tariffs_all {
   my ($path_params, $query_params) = @_;
 
   my $result = $Service_control->available_tariffs({
-    UID    => $path_params->{uid},
-    MODULE => 'Internet'
+    skip_check_deposit => 1,
+    UID                => $path_params->{uid},
+    MODULE             => 'Internet'
   });
 
   return {

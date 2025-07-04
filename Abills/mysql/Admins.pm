@@ -17,15 +17,15 @@ my $IP;
 #
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  my ($CONF)   = @_;
+  my ($class, $db, $CONF) = @_;
 
-  my $self = {};
+  my $self = {
+    db   => $db,
+    conf => $CONF
+  };
+
   bless($self, $class);
 
-  $self->{db}  = $db;
-  $self->{conf}= $CONF;
   $self->{admin}=$self;
 
   return $self;
@@ -37,8 +37,7 @@ sub new {
 =cut
 #**********************************************************
 sub admins_groups_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -52,12 +51,14 @@ sub admins_groups_list {
     $WHERE = ($attr->{AID}) ? "AND ag.aid='$attr->{AID}'" : "AND ag.aid='$self->{AID}'";
   }
 
-  $self->query("SELECT ag.gid, ag.aid, g.name
+  my $sql = << "SQL";
+    SELECT ag.gid, ag.aid, g.name
     FROM `admins_groups` ag, `groups` g
-    WHERE g.gid=ag.gid $WHERE ORDER BY $SORT $DESC;",
-  undef,
-  $attr
-  );
+    WHERE g.gid=ag.gid $WHERE
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -68,11 +69,10 @@ sub admins_groups_list {
 =cut
 #**********************************************************
 sub admin_groups_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('admins_groups', undef, { aid => $self->{AID} });
-  my @groups = split(/,/, $attr->{GID});
+  my @groups = split(/,/x, $attr->{GID});
    my @MULTI_QUERY = ();
 
   foreach my $gid (@groups) {
@@ -84,6 +84,7 @@ sub admin_groups_change {
     { MULTI_QUERY =>  \@MULTI_QUERY });
 
   $self->system_action_add("AID:$attr->{AID} GID: " . (join(',', @groups)), { TYPE => 2 });
+
   return $self;
 }
 
@@ -121,8 +122,7 @@ sub get_permissions {
 =cut
 #**********************************************************
 sub set_permissions {
-  my $self = shift;
-  my ($permissions) = @_;
+  my ($self, $permissions) = @_;
 
   my $prev_permissions = get_permissions($self);
   my $add;
@@ -132,7 +132,7 @@ sub set_permissions {
   foreach my $section (sort keys %$permissions) {
     my $actions = $permissions->{$section};
     foreach my $action (sort keys %$actions) {
-      my ($perms, $module) = split(/_/, $action);
+      my ($perms, $module) = split(/_/x, $action);
       if (!$prev_permissions->{$section}->{$perms}) {
         if ($module) {
           $add .= " $module";
@@ -167,8 +167,7 @@ sub set_permissions {
 
   $self->query("DELETE FROM admin_permits WHERE aid= ? ;", 'do', { Bind => [ $self->{AID} ] });
 
-  $self->query("INSERT INTO admin_permits (aid, section, actions, module)
-      VALUES (?, ?, ?, ?);",
+  $self->query("INSERT INTO admin_permits (aid, section, actions, module) VALUES (?, ?, ?, ?);",
     undef,
     { MULTI_QUERY =>  \@MULTI_QUERY });
 
@@ -214,8 +213,7 @@ sub set_permissions {
 =cut
 #**********************************************************
 sub info {
-  my ($self) = shift;
-  my ($aid, $attr) = @_;
+  my ($self, $aid, $attr) = @_;
 
   my $PASSWORD = '0,';
   my $WHERE    = '';
@@ -263,7 +261,7 @@ sub info {
   my $fields = '';
 
   if (! $attr->{SHORT}) {
-     $fields = "
+     $fields = <<"FIELDS";
      a.name AS a_fio,
      a.regdate,
      a.phone,
@@ -287,41 +285,44 @@ sub info {
      a.department,
      a.start_work,
      a.availability_period,
-     ";
+FIELDS
   }
 
-  $self->query("SELECT $fields
-      $PASSWORD
-      a.full_log,
-      a.id AS a_login,
-      a.disable,
-      a.web_options,
-      a.gid,
-      a.position,
-      a.domain_id,
-      a.max_credit,
-      a.max_rows,
-      a.credit_days,
-      a.expire,
-      COUNT(ag.aid) AS gids_,
-      COUNT(aa.aid) AS admin_access,
-      a.aid,
-      a.name AS a_fio,
-      a.g2fa,
-      a.avatar_link,
-      a.location_id,
-      a.address_flat,
-      a.password_changed_at,
-      a.availability_period
-     FROM
-      `admins` a
-     LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
-     LEFT JOIN `domains` d ON (a.domain_id=d.id)
-     LEFT JOIN `admins_access` aa ON (aa.aid=a.aid)
-     $WHERE
-     GROUP BY a.aid
-     ORDER BY a.aid DESC
-     LIMIT 1;",
+my $sql = <<"SQL";
+  SELECT $fields
+    $PASSWORD
+    a.full_log,
+    a.id AS a_login,
+    a.disable,
+    a.web_options,
+    a.gid,
+    a.position,
+    a.domain_id,
+    a.max_credit,
+    a.max_rows,
+    a.credit_days,
+    a.expire,
+    COUNT(ag.aid) AS gids_,
+    COUNT(aa.aid) AS admin_access,
+    a.aid,
+    a.name AS a_fio,
+    a.g2fa,
+    a.avatar_link,
+    a.location_id,
+    a.address_flat,
+    a.password_changed_at,
+    a.availability_period
+  FROM `admins` a
+  LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
+  LEFT JOIN `domains` d ON (a.domain_id=d.id)
+  LEFT JOIN `admins_access` aa ON (aa.aid=a.aid)
+  $WHERE
+  GROUP BY a.aid
+  ORDER BY a.aid DESC
+  LIMIT 1;
+SQL
+
+  $self->query($sql,
      undef,
      { INFO => 1,
        Bind => [ @values ] }
@@ -342,10 +343,10 @@ sub info {
     });
 
     my @gid_arr = ();
-    if($self->{GID}) {
+    if ($self->{GID}) {
       push @gid_arr, $self->{GID};
     }
-    foreach my $line (@{ $self->{list} }) {
+    foreach my $line (@{$self->{list}}) {
       push @gid_arr, $line->[0];
     }
     $self->{GID} = join(',', @gid_arr);
@@ -362,8 +363,7 @@ sub info {
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $EXT_TABLES  = '';
@@ -402,56 +402,62 @@ sub list {
   }
 
   my $build_delimiter = $self->{conf}{BUILD_DELIMITER} || ', ';
-  my $WHERE = $self->search_former($attr, [
-      ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
-      # ['POSITION',     'STR',  'ep.position',      1 ],
-      ['REGDATE',          'DATE', "a.regdate",                    1 ],
-      ['START_WORK',       'DATE', "a.start_work",                 1 ],
-      #['GID',          'INT',  'ag.gid',          1 ],
-      #['GID',          'INT',  'a.gid',           1 ],
-      ['GPS_IMEI',         'STR',  'a.gps_imei',                   1 ],
-      ['RFID_NUMBER',      'STR',  'a.rfid_number',                1 ],
-      ['DISABLE',          'INT',  "a.disable",                    1 ],
-      ['CELL_PHONE',       'INT',  "a.cell_phone",                 1 ],
-      ['BIRTHDAY',         'DATE', 'a.birthday',                   1 ],
-      ['API_KEY',          'STR',  'a.api_key',                    1 ],
-      ['DOMAIN_NAME',      'STR',  'a.name', 'd.name AS domain_name' ],
-      ['DOMAIN_ID',        'INT',  'a.domain_id',                  1 ],
-      ['AID',              'INT',  'a.aid'                           ],
-      ['SIP_NUMBER',       'STR',  'a.sip_number',                 1 ],
-      ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
-      ['EMAIL',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9)",
-        "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9) AS email",                      1 ],
-      ['DEPARTMENT_NAME',  'STR',  'ed.name as department_name',   1 ],
-      ['POSITION_ID',      'INT',  'a.position AS position_id',    1 ],
-      ['ID',               'INT',  'a.id',                         1 ],
-      ['PHONE',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2))",
-        "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2)) AS phone", 1 ],
-      ['ADMIN_EXPIRE',     'DATE', 'a.expire AS admin_expire',     1 ],
-      ['DEPARTMENT',       'STR',  'a.department',                 1 ],
-      ['ADDRESS',          'STR',  'a.address',                    1 ],
-      ['PASPORT_NUM',      'STR',  'a.pasport_num',                1 ],
-      ['PASPORT_DATE',     'STR',  'a.pasport_date',               1 ],
-      ['PASPORT_GRANT',    'STR',  'a.pasport_grant',              1 ],
-      ['INN',              'STR',  'a.inn',                        1 ],
-      ['MAX_ROWS',         'INT',  'a.max_rows',                   1 ],
-      ['MIN_SEARCH_CHARS', 'INT',  'a.min_search_chars',           1 ],
-      ['MAX_CREDIT',       'INT',  'a.max_credit',                 1 ],
-      ['CREDIT_DAYS',      'INT',  'a.credit_days',                1 ],
-      ['COMMENTS',         'STR',  'a.comments',                   1 ],
-      ['LOGIN',            'STR',  'a.id'                            ],
-      ['G2FA',             'STR',  'a.g2fa',                       1 ],
-      ['AVATAR_LINK',      'STR',  'a.avatar_link',                1 ],
-      ['LOCATION_ID',      'INT',  'a.location_id',                1 ],
-      ['ADDRESS_FLAT',     'STR',  'a.address_flat',               1 ],
-      ['ADDRESS_FULL',     'STR',  "IF(a.location_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', a.address_flat), '') AS address_full",  1 ],
-      ['AVAILABILITY_PERIOD', 'INT',  'a.availability_period',     1 ],
-  ],
-    {
-      WHERE_RULES => \@WHERE_RULES,
-      WHERE       => 1
-    }
-  );
+  my $search_columns = [
+    ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
+    # ['POSITION',     'STR',  'ep.position',      1 ],
+    ['REGDATE',          'DATE', "a.regdate",                    1 ],
+    ['START_WORK',       'DATE', "a.start_work",                 1 ],
+    #['GID',          'INT',  'ag.gid',          1 ],
+    #['GID',          'INT',  'a.gid',           1 ],
+    ['GPS_IMEI',         'STR',  'a.gps_imei',                   1 ],
+    ['RFID_NUMBER',      'STR',  'a.rfid_number',                1 ],
+    ['DISABLE',          'INT',  "a.disable",                    1 ],
+    ['CELL_PHONE',       'INT',  "a.cell_phone",                 1 ],
+    ['BIRTHDAY',         'DATE', 'a.birthday',                   1 ],
+    ['API_KEY',          'STR',  'a.api_key',                    1 ],
+    ['DOMAIN_NAME',      'STR',  'a.name', 'd.name AS domain_name' ],
+    ['DOMAIN_ID',        'INT',  'a.domain_id',                  1 ],
+    ['AID',              'INT',  'a.aid'                           ],
+    ['SIP_NUMBER',       'STR',  'a.sip_number',                 1 ],
+    ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
+    ['EMAIL',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9)",
+      "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9) AS email",                      1 ],
+    ['DEPARTMENT_NAME',  'STR',  'ed.name as department_name',   1 ],
+    ['POSITION_ID',      'INT',  'a.position AS position_id',    1 ],
+    ['ID',               'INT',  'a.id',                         1 ],
+    ['PHONE',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2))",
+      "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2)) AS phone", 1 ],
+    ['ADMIN_EXPIRE',     'DATE', 'a.expire AS admin_expire',     1 ],
+    ['DEPARTMENT',       'STR',  'a.department',                 1 ],
+    ['ADDRESS',          'STR',  'a.address',                    1 ],
+    ['PASPORT_NUM',      'STR',  'a.pasport_num',                1 ],
+    ['PASPORT_DATE',     'STR',  'a.pasport_date',               1 ],
+    ['PASPORT_GRANT',    'STR',  'a.pasport_grant',              1 ],
+    ['INN',              'STR',  'a.inn',                        1 ],
+    ['MAX_ROWS',         'INT',  'a.max_rows',                   1 ],
+    ['MIN_SEARCH_CHARS', 'INT',  'a.min_search_chars',           1 ],
+    ['MAX_CREDIT',       'INT',  'a.max_credit',                 1 ],
+    ['CREDIT_DAYS',      'INT',  'a.credit_days',                1 ],
+    ['COMMENTS',         'STR',  'a.comments',                   1 ],
+    ['LOGIN',            'STR',  'a.id'                            ],
+    ['G2FA',             'STR',  'a.g2fa',                       1 ],
+    ['AVATAR_LINK',      'STR',  'a.avatar_link',                1 ],
+    ['LOCATION_ID',      'INT',  'a.location_id',                1 ],
+    ['ADDRESS_FLAT',     'STR',  'a.address_flat',               1 ],
+    ['ADDRESS_FULL',     'STR',  "IF(a.location_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', a.address_flat), '') AS address_full",  1 ],
+    ['AVAILABILITY_PERIOD', 'INT',  'a.availability_period',     1 ],
+    ['STATUS_DATE',      'DATE', '',
+      '(SELECT datetime FROM admin_system_actions WHERE aid=a.aid AND action_type IN (8,9,80) ORDER BY datetime DESC LIMIT 1) AS status_date' ]
+  ];
+
+  if ($self->{EXTRA_SEARCH_COLUMNS} && ref $self->{EXTRA_SEARCH_COLUMNS} eq 'ARRAY') {
+    map push(@{$search_columns}, $_), @{$self->{EXTRA_SEARCH_COLUMNS}};
+  }
+
+  my $WHERE = $self->search_former($attr, $search_columns, {
+    WHERE_RULES => \@WHERE_RULES,
+    WHERE       => 1
+  });
 
   my $EMPLOYEE_JOIN = '';
   my $EMPLOYEE_COLS = '';
@@ -460,7 +466,7 @@ sub list {
     if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
       $EMPLOYEE_COLS .= ' ep.position as position, ';
-      $EMPLOYEE_COLS .= ' ep.id as position_id, ';
+      $EMPLOYEE_COLS .= ' ep.id as position_id, ' if ( $attr->{SHOW_EMPLOYEES} );
 
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
       $WHERE .= " AND a.position = '$attr->{POSITION}'" if (int($attr->{POSITION}));
@@ -473,7 +479,8 @@ sub list {
     $EXT_TABLES .= "\nLEFT JOIN districts ON (districts.id=streets.district_id)";
   }
 
-  $self->query("SELECT a.aid, a.id AS login,
+  my $sql = <<"SQL";
+    SELECT a.aid, a.id AS login,
     a.name,
     $EMPLOYEE_COLS
     $self->{SEARCH_FIELDS}
@@ -485,11 +492,11 @@ sub list {
     $WHERE
     $GROUP_BY
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
+    LIMIT $PG, $PAGE_ROWS;
+SQL
 
-  undef,
-  $attr
-  );
+
+  $self->query($sql, undef, $attr);
 
   if($self->{errno}) {
     return [];
@@ -497,14 +504,15 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(DISTINCT a.aid) AS total
-      FROM `admins` a
-      LEFT JOIN `groups` g ON (a.gid=g.gid)
-      $EXT_TABLES
-      $WHERE",
-      undef,
-      { INFO => 1 }
-    );
+    $sql = << "SQL";
+  SELECT COUNT(DISTINCT a.aid) AS total
+  FROM `admins` a
+  LEFT JOIN `groups` g ON (a.gid=g.gid)
+  $EXT_TABLES
+  $WHERE
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list || [];
@@ -516,8 +524,7 @@ sub list {
 =cut
 #**********************************************************
 sub change {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{A_LOGIN}) {
     $attr->{ID} = $attr->{A_LOGIN};
@@ -535,7 +542,7 @@ sub change {
     CHANGE_PARAM    => 'AID',
     TABLE           => 'admins',
     DATA            => $attr,
-    EXT_CHANGE_INFO => "AID:$self->{AID}"
+    EXT_CHANGE_INFO => "AID:$attr->{AID}"
   });
 
   if ($attr->{PASSWORD} && $self->{AFFECTED} && !$self->{errno}) {
@@ -544,9 +551,12 @@ sub change {
       TABLE        => 'admins',
       DATA         => { AID => $attr->{AID}, PASSWORD_CHANGED_AT => 'NOW()' },
     });
+
+    $self->password_blacklist_add({ AID => $attr->{AID}, PASSWORD => $attr->{PASSWORD} });
   }
 
   $self->info($self->{AID});
+
   return $self;
 }
 
@@ -556,8 +566,7 @@ sub change {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('admins', {
     ID       => $attr->{A_LOGIN},
@@ -582,8 +591,7 @@ sub add {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('admins', undef, { aid =>  $id });
   $self->query_del('admin_permits', undef, { aid => $id });
@@ -610,8 +618,7 @@ sub del {
 =cut
 #**********************************************************
 sub action_add {
-  my $self = shift;
-  my ($uid, $actions, $attr) = @_;
+  my ($self, $uid, $actions, $attr) = @_;
 
   if ($attr->{ACTION_COMMENTS}) {
     $actions .= ":$attr->{ACTION_COMMENTS}";
@@ -621,7 +628,7 @@ sub action_add {
     my @actions_history = ();
     my $request = $attr->{REQUEST};
     foreach my $param (@{ $attr->{INFO} }) {
-      if(defined($request->{$param})) {
+      if(defined($request->{$param}) && $request->{$param} ne '') {
         push @actions_history, $param.":".$request->{$param};
       }
     }
@@ -650,11 +657,9 @@ sub action_add {
 =cut
 #**********************************************************
 sub action_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT aid, INET_NTOA(ip) AS ip, datetime, actions, uid, module, action_type
-    FROM admin_actions WHERE id= ? ;",
+  $self->query("SELECT aid, INET_NTOA(ip) AS ip, datetime, actions, uid, module, action_type FROM admin_actions WHERE id= ? ;",
     undef,
     { INFO => 1, Bind => [ $id ] }
   );
@@ -668,8 +673,7 @@ sub action_info {
 =cut
 #**********************************************************
 sub action_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->action_info($id);
 
@@ -677,6 +681,8 @@ sub action_del {
     $self->query_del('admin_actions', { ID => $id });
     $self->system_action_add("ACTION:$id DATETIME:$self->{DATETIME} UID:$self->{UID} CHANGED:$self->{ACTION}", { TYPE => 10 });
   }
+
+  return $self;
 }
 
 #**********************************************************
@@ -685,8 +691,7 @@ sub action_del {
 =cut
 #**********************************************************
 sub action_summary {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
       ['TYPE',              'INT',  'aa.action_type',                      ],
@@ -702,24 +707,25 @@ sub action_summary {
     }
   );
 
-  $self->query("SELECT action_type, COUNT(*) AS total
-    FROM admin_actions aa
-    $WHERE
-    GROUP BY action_type;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+  SELECT action_type, COUNT(*) AS total
+  FROM admin_actions aa
+  $WHERE
+  GROUP BY action_type;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
+
 #**********************************************************
 =head2 action_list($attr) - Show admin users actions
 
 =cut
 #**********************************************************
 sub action_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -730,7 +736,7 @@ sub action_list {
 
   if ( $attr->{GID} || $attr->{GIDS} ){
     $attr->{GIDS} = $attr->{GID} if (!$attr->{GIDS});
-    if ( $attr->{GIDS} !~ /_SHOW/ ){
+    if ($attr->{GIDS} !~ m/_SHOW/x) {
       my @system_admins = ();
       push @system_admins, $self->{conf}->{USERS_WEB_ADMIN_ID} if ($self->{conf}->{USERS_WEB_ADMIN_ID});
       push @system_admins, $self->{conf}->{SYSTEM_ADMIN_ID} if ($self->{conf}->{SYSTEM_ADMIN_ID});
@@ -760,11 +766,12 @@ sub action_list {
       ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1],
       ['UID',          'INT',  'aa.uid',          ],
     ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES,
-      USERS_FIELDS_PRE => 1,
-      USE_USER_PI => 1,
-      SKIP_USERS_FIELDS=> [ 'UID' ]
+    { WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS_PRE  => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'UID' ],
+      SKIP_JOIN         => [ 'admin_actions' ]
     }
   );
 
@@ -774,11 +781,11 @@ sub action_list {
     $GROUP_BY = 'GROUP BY aa.id';
   }
 
-  if ($self->{SEARCH_FIELDS} =~ / a\./ || $WHERE =~ / a\./) {
+  if ($self->{SEARCH_FIELDS} =~ m/\s+a\./x || $WHERE =~ m/\s+a\./x) {
     $EXT_TABLES =  " LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.aid=a.aid) " . $EXT_TABLES;
   }
 
-  if ($self->{SEARCH_FIELDS} =~ / u\./ || $WHERE =~ / u\./) {
+  if ($self->{SEARCH_FIELDS} =~ m/\s+u\./x || $WHERE =~ m/\s+u\./x) {
     $EXT_TABLES =  " LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.uid=u.uid) ". $EXT_TABLES;
   }
 
@@ -789,29 +796,32 @@ sub action_list {
     $table_name .= '_' . $attr->{TABLE_SUFIX};
   }
 
-  $self->query("SELECT aa.id,
+  my $sql = <<"SQL";
+    SELECT aa.id,
       $self->{SEARCH_FIELDS}
       aa.uid,
       aa.aid
-   FROM $table_name aa $db_index
-   $EXT_TABLES
-   $WHERE
-   $GROUP_BY
-   ORDER BY $SORT $DESC
-   LIMIT $PG, $PAGE_ROWS;",
-   undef,
-   $attr
-  );
+    FROM $table_name aa $db_index
+    $EXT_TABLES
+    $WHERE
+    $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
   if (! $attr->{SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(*) AS total FROM $table_name aa $db_index
+    $sql = <<"SQL";
+    SELECT COUNT(*) AS total
+    FROM $table_name aa $db_index
     $EXT_TABLES
-    $WHERE;",
-      undef,
-      { INFO => 1 }
-    );
+    $WHERE;
+SQL
+
+    $self->query($sql,  undef, { INFO => 1 });
   }
 
   return $list;
@@ -832,8 +842,7 @@ sub action_list {
 =cut
 #**********************************************************
 sub system_action_add {
-  my $self = shift;
-  my ($actions, $attr) = @_;
+  my ($self, $actions, $attr) = @_;
 
   $self->query_add('admin_system_actions', {
     AID         => $self->{AID},
@@ -853,8 +862,7 @@ sub system_action_add {
 =cut
 #**********************************************************
 sub system_action_del {
-  my $self = shift;
-  my ($action_id) = @_;
+  my ($self, $action_id) = @_;
 
   $self->query_del('admin_system_actions', { ID => $action_id });
 
@@ -864,11 +872,16 @@ sub system_action_del {
 #**********************************************************
 =head2 system_action_list($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    $list_arr
+
 =cut
 #**********************************************************
 sub system_action_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -880,36 +893,41 @@ sub system_action_list {
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
       ['IP',           'IP',   'aa.ip'            ],
-      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"     ],
+      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'           ],
       ['ADMIN',        'STR',  'a.id', 'a.id'     ],
       ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1 ],
+      ['PERIOD',       'INT',  'TIMESTAMPDIFF(SECOND, aa.datetime, NOW())', ]
     ],
-    { WHERE       => 1,
-    }
+    { WHERE => 1 }
     );
 
-  $self->query(
-     "SELECT aa.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip) AS ip, aa.module,
-      aa.action_type,
-      aa.aid,
-      a.disable
-   FROM admin_system_actions aa
-      LEFT JOIN admins a ON (aa.aid=a.aid)
-      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-   undef,
-   $attr
-  );
+  if (! $attr->{TOTAL_ONLY}) {
+    my $sql = <<"SQL";
+  SELECT aa.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip) AS ip, aa.module,
+    aa.action_type,
+    aa.aid,
+    a.disable
+  FROM admin_system_actions aa
+  LEFT JOIN admins a ON (aa.aid=a.aid)
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;
+SQL
 
-  my $list = $self->{list};
+    $self->query($sql, undef, $attr);
+  }
 
-  $self->query("SELECT COUNT(*) AS total FROM admin_system_actions aa
-    LEFT JOIN admins a ON (aa.aid=a.aid)
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+  my $list = $self->{list} || [];
+
+  my $sql = <<"SQL";
+  SELECT COUNT(*) AS total FROM admin_system_actions aa
+  LEFT JOIN admins a ON (aa.aid=a.aid)
+  $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -920,12 +938,12 @@ sub system_action_list {
 =cut
 #**********************************************************
 sub password {
-  my $self = shift;
-  my ($password, $attr) = @_;
+  my ($self, $password, $attr) = @_;
 
-  my $secretkey = (defined($attr->{secretkey})) ? $attr->{secretkey} : '';
-  my $aid = $self->{AID};
-  $self->query("UPDATE admins SET password=ENCODE('$password', '$secretkey') WHERE aid='$aid';", 'do');
+  my $secretkey = ($attr->{secretkey}) ? $attr->{secretkey} : '';
+
+  $self->query("UPDATE admins SET password=ENCODE('$password', '$secretkey') WHERE aid= ? ;",
+    'do', { Bind => [ $self->{AID} ] });
 
   $self->system_action_add("AID:$self->{INSERT_ID} PASSWORD:****", { TYPE => 2 });
 
@@ -946,8 +964,7 @@ sub password {
 =cut
 #**********************************************************
 sub online {
-  my $self         = shift;
-  my ($attr)       = @_;
+  my ($self, $attr)= @_;
   my $time_out     = $attr->{TIMEOUT} || 3000;
   my $online_users = '';
   my $curuser      = '';
@@ -1001,8 +1018,7 @@ sub online {
 =cut
 #**********************************************************
 sub online_info {
-  my $self         = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT aid, ip, admin, ext_info FROM web_online WHERE sid=?;",
    undef,
@@ -1029,6 +1045,7 @@ sub online_list {
       COLS_NAME => 1,
       %{ $attr // { } }
     });
+
   return ($self->{errno} || !$self->{list}) ? [ ] : $self->{list};
 }
 
@@ -1046,8 +1063,7 @@ sub online_list {
 =cut
 #**********************************************************
 sub online_del {
-  my $self         = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("DELETE FROM web_online WHERE sid=?;", 'do', { Bind => [ $attr->{SID} ] });
 
@@ -1083,11 +1099,9 @@ sub online_del {
 =cut
 #**********************************************************
 sub settings_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM admin_settings
-    WHERE object=? AND aid=?;",
+  $self->query("SELECT * FROM admin_settings WHERE object=? AND aid=?;",
   undef,
   { INFO => 1, Bind => [ $id, $self->{AID} ] });
 
@@ -1100,8 +1114,7 @@ sub settings_info {
 =cut
 #**********************************************************
 sub settings_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('admin_settings', { %$attr, AID => $self->{AID} }, { REPLACE => 1 });
 
@@ -1111,19 +1124,23 @@ sub settings_add {
 #**********************************************************
 =head2 settings_change($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub settings_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'OBJECT,AID',
-      TABLE        => 'admin_settings',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'OBJECT,AID',
+    TABLE        => 'admin_settings',
+    DATA         => $attr,
+    SKIP_LOG     => 1
+  });
 
   return $self;
 }
@@ -1134,8 +1151,7 @@ sub settings_change {
 =cut
 #**********************************************************
 sub settings_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('admin_settings', undef,
     { aid    => $self->{AID},
@@ -1150,8 +1166,7 @@ sub settings_del {
 =cut
 #**********************************************************
 sub access_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete($self->{COL_NAMES_ARR});
 
@@ -1168,10 +1183,14 @@ sub access_list {
     }
   );
 
- $self->query("SELECT a.day, a.begin, a.end, INET_NTOA(a.ip) AS ip, a.bit_mask, a.disable, a.id
-   FROM admins_access a
- $WHERE
- ORDER BY $SORT $DESC;", undef, $attr);
+  my $sql = << "SQL";
+    SELECT a.day, a.begin, a.end, INET_NTOA(a.ip) AS ip, a.bit_mask, a.disable, a.id
+    FROM admins_access a
+    $WHERE
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
  return $self->{list};
 }
@@ -1182,8 +1201,7 @@ sub access_list {
 =cut
 #**********************************************************
 sub access_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('admins_access', $attr);
 
@@ -1192,6 +1210,7 @@ sub access_add {
   }
 
   $self->system_action_add("ACCESS IP: $attr->{DAY}: $attr->{BEGIN}-$attr->{END} $attr->{IP}", { TYPE => 1 });
+
   return $self;
 }
 
@@ -1202,12 +1221,12 @@ sub access_add {
 =cut
 #**********************************************************
 sub access_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('admins_access', $attr);
 
   $self->system_action_add("ALLOW IP: $attr->{ID}", { TYPE => 10 });
+
   return $self;
 }
 
@@ -1217,13 +1236,9 @@ sub access_del {
 =cut
 #**********************************************************
 sub access_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *,
-     INET_NTOA(ip) AS ip
-    FROM admins_access
-    WHERE id= ? ;",
+  $self->query("SELECT *, INET_NTOA(ip) AS ip FROM admins_access WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -1238,16 +1253,13 @@ sub access_info {
 =cut
 #**********************************************************
 sub access_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'admins_access',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'admins_access',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1259,8 +1271,7 @@ sub access_change {
 =cut
 #**********************************************************
 sub full_log_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete($self->{COL_NAMES_ARR});
 
@@ -1279,26 +1290,30 @@ sub full_log_list {
       ['FUNCTION_INDEX', 'STR', 'a.function_index', 1 ],
       ['AID',     'INT', 'a.aid'          ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(a.datetime, '%Y-%m-%d')" ],
+      ['SHOW_ACTION',   'INT',   '1 AS show_action',      1],
     ],
     { WHERE => 1 }
   );
 
- $self->query("SELECT $self->{SEARCH_FIELDS} a.aid
-   FROM admins_full_log a
- $WHERE
- ORDER BY $SORT $DESC
- LIMIT $PG, $PAGE_ROWS;", undef, $attr);
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} a.aid
+    FROM admins_full_log a
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;
+SQL
 
- my $list = $self->{list} || [];
 
- $self->query("SELECT COUNT(*) AS total
-   FROM admins_full_log a
- $WHERE",
+  $self->query($sql, undef, $attr);
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM admins_full_log a $WHERE",
     undef,
     { INFO => 1 }
   );
 
- return $list;
+  return $list;
 }
 
 #**********************************************************
@@ -1307,13 +1322,12 @@ sub full_log_list {
 =cut
 #**********************************************************
 sub full_log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{PARAMS} =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
   $attr->{PARAMS} =~ tr/+/ /;
 
-  my @pairs = split(/&/, $attr->{PARAMS});
+  my @pairs = split(/&/x, $attr->{PARAMS});
   $attr->{PARAMS} = join("\n", @pairs);
 
   $self->query_add('admins_full_log', $attr);
@@ -1342,13 +1356,9 @@ sub full_log_del {
 =cut
 #**********************************************************
 sub full_log_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *,
-     INET_NTOA(ip) AS ip
-    FROM admins_full_log
-    WHERE id= ? ;",
+  $self->query("SELECT *, INET_NTOA(ip) AS ip FROM admins_full_log WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -1363,8 +1373,7 @@ sub full_log_info {
 =cut
 #**********************************************************
 sub full_log_analyze {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete($self->{COL_NAMES_ARR});
 
@@ -1386,13 +1395,17 @@ sub full_log_analyze {
 
   my $WHERE = $self->search_former($attr, @fields, { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} a.aid
-   FROM admins_full_log a
-  $WHERE
-  $GROUP
-  ORDER BY count(*) DESC
-  LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr);
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} a.aid
+    FROM admins_full_log a
+    $WHERE
+    $GROUP
+    ORDER BY COUNT(*) DESC
+    LIMIT $PG, $PAGE_ROWS
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -1411,16 +1424,13 @@ sub full_log_analyze {
 =cut
 #**********************************************************
 sub full_log_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'admins_full_log',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'admins_full_log',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1431,8 +1441,7 @@ sub full_log_change {
 =cut
 #**********************************************************
 sub admins_contacts_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->{errno} = 0;
   $self->{errstr} = '';
@@ -1469,17 +1478,21 @@ sub admins_contacts_list {
 =cut
 #**********************************************************
 sub admins_contacts_info {
-  my $self = shift;
-  my ($aid) = @_;
+  my ($self, $aid) = @_;
 
-  $self->query("SELECT ac.id,
-  ac.aid,
-  ac.type_id,
-  ac.value,
-  ac.priority
-   FROM admins_contacts ac
-   WHERE ac.aid= ?
-   GROUP BY ac.id;",
+  my $sql = << "SQL";
+    SELECT ac.id,
+       ac.aid,
+       ac.type_id,
+       ac.value,
+       ac.priority
+    FROM admins_contacts ac
+    WHERE ac.aid= ?
+    GROUP BY ac.id;
+SQL
+
+
+  $self->query($sql,
     undef,
     { INFO => 1, Bind => [ $aid ] }
   );
@@ -1493,8 +1506,7 @@ sub admins_contacts_info {
 =cut
 # #**********************************************************
 sub admin_contacts_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self->query_add('admins_contacts', $attr, { REPLACE => 1 });
 }
@@ -1510,8 +1522,7 @@ sub admin_contacts_add {
 =cut
 #**********************************************************
 sub admin_contacts_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self->query_del('admins_contacts', undef, $attr);
 }
@@ -1522,8 +1533,7 @@ sub admin_contacts_del {
 =cut
 #**********************************************************
 sub admin_contacts_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'AID,TYPE_ID',
@@ -1540,22 +1550,19 @@ sub admin_contacts_change {
 =cut
 #**********************************************************
 sub admin_type_permits_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'TYPE', 'STR', 'type', 1],
+      [ 'TYPE',    'STR', 'type', 1],
       [ 'SECTION', 'INT', 'section', 1 ],
       [ 'ACTIONS', 'INT', 'actions', 1 ],
-      [ 'MODULE', 'STR', 'module', 1 ],
+      [ 'MODULE',  'STR', 'module', 1 ],
     ],
     { WHERE => 1,
     }
   );
 
-  $self->query("SELECT type, section, actions, module
-    FROM admin_type_permits
-    $WHERE;",
+  $self->query("SELECT type, section, actions, module FROM admin_type_permits $WHERE;",
     undef,
     { COLS_NAME => 1 }
   );
@@ -1573,22 +1580,20 @@ sub admin_type_permits_list {
 =cut
 #**********************************************************
 sub set_type_permits {
-  my $self = shift;
-  my ($permissions, $type) = @_;
+  my ($self, $permissions, $type) = @_;
 
   $self->query("DELETE FROM admin_type_permits WHERE type= ? ;", 'do', { Bind => [ $type ] });
   my @MULTI_QUERY = ();
 
   while (my ($section, $actions_hash) = each %$permissions) {
     while (my ($action, undef) = each %$actions_hash) {
-      my ($perms, $module) = split(/_/, $action);
+      my ($perms, $module) = split(/_/x, $action);
       next if ($section ne  int($section));
       push @MULTI_QUERY, [ $type, $section, ($perms || 0), "$module" ];
     }
   }
 
-  $self->query("INSERT INTO admin_type_permits (type, section, actions, module)
-      VALUES (?, ?, ?, ?);",
+  $self->query("INSERT INTO admin_type_permits (type, section, actions, module) VALUES (?, ?, ?, ?);",
     undef,
     { MULTI_QUERY =>  \@MULTI_QUERY });
 
@@ -1607,8 +1612,8 @@ sub set_type_permits {
 =cut
 #**********************************************************
 sub del_type_permits {
-  my $self = shift;
-  my ($type) = @_;
+  my ($self, $type) = @_;
+
   $self->query("DELETE FROM admin_type_permits WHERE type= ? ;", 'do', { Bind => [ $type ] });
 
   return $self;
@@ -1620,23 +1625,23 @@ sub del_type_permits {
 =cut
 #**********************************************************
 sub admins_last_action {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  return [] if !$attr->{ADMIN_NOT_ACTIVE_DAYS} || $attr->{ADMIN_NOT_ACTIVE_DAYS} < 1;
+  return [] if (!$attr->{ADMIN_NOT_ACTIVE_DAYS} || $attr->{ADMIN_NOT_ACTIVE_DAYS} < 1);
 
-  $self->query("SELECT a.id, a.aid,
+  my $sql = <<"SQL";
+SELECT a.id, a.aid,
       DATEDIFF(NOW(), MAX(aa.datetime)) AS last_action,
-			DATE_FORMAT(MAX(aa.datetime), '%Y-%m-%d') AS last_date,
+      DATE_FORMAT(MAX(aa.datetime), '%Y-%m-%d') AS last_date,
       a.disable
    FROM admins a
    LEFT JOIN admin_system_actions aa ON (a.aid = aa.aid)
-	 WHERE a.disable = 0 AND a.aid > 4
-	 GROUP BY a.aid
-   HAVING DATEDIFF(NOW(), MAX(aa.datetime)) > $attr->{ADMIN_NOT_ACTIVE_DAYS};",
-    undef,
-    { COLS_NAME => 1 }
-  );
+   WHERE a.disable = 0 AND a.aid > 4
+   GROUP BY a.aid
+   HAVING DATEDIFF(NOW(), MAX(aa.datetime)) > $attr->{ADMIN_NOT_ACTIVE_DAYS};
+SQL
+
+  $self->query($sql,  undef,  { COLS_NAME => 1 });
 
   return $self->{list} || [];
 }
@@ -1650,8 +1655,7 @@ sub admins_last_action {
 =cut
 #**********************************************************
 sub admin_group_templates_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former( $attr, [
     [ 'TYPE', 'STR', 'type',  1],
@@ -1660,19 +1664,14 @@ sub admin_group_templates_list {
     { WHERE => 1 }
   );
 
-  $self->query("SELECT type, gid
-    FROM admin_group_templates
-    $WHERE;",
+  $self->query("SELECT type, gid FROM admin_group_templates $WHERE;",
     undef,
     { COLS_NAME => 1 }
   );
 
   my $list = $self->{list};
 
-  $self->query("
-    SELECT COUNT(*) AS total
-    FROM admin_group_templates
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM admin_group_templates $WHERE;",
     undef,
     { INFO => 1 }
   );
@@ -1690,20 +1689,18 @@ sub admin_group_templates_list {
 =cut
 #**********************************************************
 sub admin_group_templates_set {
-  my $self = shift;
-  my ($permissions, $type) = @_;
+  my ($self, $permissions, $type) = @_;
 
   $self->admin_group_templates_del($type);
   my @MULTI_QUERY = ();
 
-  my @gids = split(/,\s?/, $permissions);
+  my @gids = split(/,\s?/x, $permissions);
 
   foreach my $gid (@gids) {
     push @MULTI_QUERY, [ $type, $gid ];
   }
 
-  $self->query("INSERT INTO admin_group_templates (type, gid)
-      VALUES (?, ?);", undef,
+  $self->query("INSERT INTO admin_group_templates (type, gid) VALUES (?, ?);", undef,
     { MULTI_QUERY =>  \@MULTI_QUERY });
 
   return $self if ($self->{errno});
@@ -1719,8 +1716,8 @@ sub admin_group_templates_set {
 =cut
 #**********************************************************
 sub admin_group_templates_del {
-  my $self = shift;
-  my ($type) = @_;
+  my ($self, $type) = @_;
+
   $self->query("DELETE FROM admin_group_templates WHERE type= ? ;", 'do', { Bind => [ $type ] });
 
   return $self;
@@ -1733,14 +1730,13 @@ sub admin_group_templates_del {
 =cut
 #**********************************************************
 sub form_admin_action_full {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $uid = ($attr->{UID}) ? $attr->{UID} : '';
+  my $uid       = ($attr->{UID}) ? $attr->{UID} : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query("
+  my $sql = <<"SQL";
    SELECT aa.id, aa.module, aa.datetime, u.id AS login, a.id AS admin_login, aa.action_type, aa.actions
    FROM admin_actions aa
    LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.aid=a.aid)
@@ -1748,7 +1744,7 @@ sub form_admin_action_full {
    WHERE aa.uid = $uid
 
     UNION ALL
-   SELECT p.id, 'Payments', p.date, u.id AS login, a.id AS admin_login, '',
+   SELECT p.id, 'Payments', p.reg_date, u.id AS login, a.id AS admin_login, '',
       CONCAT('AMOUNT: ',ROUND(p.sum, 2),', DEPOSIT_BEFORE: ',ROUND(p.last_deposit,2), ', COMMENT: ', p.dsc)
    FROM payments p
    LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (p.aid=a.aid)
@@ -1756,7 +1752,7 @@ sub form_admin_action_full {
    WHERE p.uid = $uid
 
     UNION ALL
-   SELECT f.id, 'Fees', f.date, u.id AS login, a.id AS admin_login, '',
+   SELECT f.id, 'Fees', f.reg_date, u.id AS login, a.id AS admin_login, '',
       CONCAT('AMOUNT: ',ROUND(f.sum, 2),', DEPOSIT_BEFORE: ',ROUND(f.last_deposit,2), ', COMMENT: ', f.dsc)
    FROM fees f
    LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (f.aid=a.aid)
@@ -1764,17 +1760,21 @@ sub form_admin_action_full {
    WHERE f.uid = $uid
 
    ORDER BY 3 DESC
-   LIMIT $PG, $PAGE_ROWS;",
-   undef,
-   $attr
-  );
+   LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT
-    (SELECT COUNT(*) FROM admin_actions WHERE uid = ?) +
-    (SELECT COUNT(*) FROM payments      WHERE uid = ?) +
-    (SELECT COUNT(*) FROM fees          WHERE uid = ?) AS total;",
+  $sql = << "SQL";
+SELECT
+  (SELECT COUNT(*) FROM admin_actions WHERE uid = ?) +
+  (SELECT COUNT(*) FROM payments      WHERE uid = ?) +
+  (SELECT COUNT(*) FROM fees          WHERE uid = ?) AS total;
+SQL
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $uid, $uid, $uid ]
@@ -1784,4 +1784,193 @@ sub form_admin_action_full {
   return $list;
 }
 
-1
+#**********************************************************
+=head2 admin_bruteforce_add($attr)
+
+=cut
+#**********************************************************
+sub admin_bruteforce_add {
+  my ($self, $attr) = @_;
+
+  $self->query_add('admin_bruteforce', {
+    %$attr,
+    IP       => $attr->{REMOTE_ADDR},
+    DATETIME => 'NOW()'
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 admin_bruteforce_list($attr)
+
+=cut
+#**********************************************************
+sub admin_bruteforce_list {
+  my ($self, $attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    ['LOGIN',           'STR', 'login',         ],
+    ['API_KEY',         'STR', 'api_key',       ],
+    ['IP',              'STR', 'login',         ],
+    ['AUTH_STATE',      'INT', 'auth_state',    ],
+  ],
+    { WHERE       => 1,
+    }
+  );
+
+  my $list;
+
+  if (!$attr->{CHECK}) {
+    my $sql = <<"SQL";
+  SELECT login, password, datetime, INET_NTOA(ip) AS ip FROM admin_bruteforce
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;
+SQL
+
+    $self->query($sql,
+      undef,
+      $attr
+    );
+
+    $list = $self->{list};
+  }
+
+  $self->query("SELECT COUNT(*) AS total FROM admin_bruteforce $WHERE;", undef, { INFO => 1 });
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 admin_bruteforce_del($attr) - clear bruterforce listing
+
+  Arguments:
+    $attr
+      DATE
+      PERIOD - period in days
+
+
+=cut
+#**********************************************************
+sub admin_bruteforce_del {
+  my ($self, $attr) = @_;
+
+  my $WHERE = '';
+
+  if ($attr->{DATE}) {
+    my $period = 1;
+    if($attr->{PERIOD}) {
+      $period = int($attr->{PERIOD});
+    }
+
+    $WHERE = "datetime <= '$attr->{DATE} 23:59:59' - INTERVAL $period DAY";
+  }
+  elsif ($attr->{DEL_ALL}) {
+
+  }
+  elsif($attr->{LOGIN}){
+    $WHERE = "login='$attr->{LOGIN}'";
+  }
+
+  $self->query("DELETE FROM admin_bruteforce " . ($WHERE ? "WHERE $WHERE" : ''), 'do');
+
+  return $self;
+}
+
+#**********************************************************
+=head2 password_blacklist_list($attr)
+
+=cut
+#**********************************************************
+sub password_blacklist_list {
+  my ($self, $attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SECRETKEY = $self->{conf}->{secretkey} || '';
+
+  $attr->{AID} //= 0;
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',         'INT',  'id',         1 ],
+    [ 'PASSWORD',   'STR',  "DECODE(password, '$SECRETKEY')", "DECODE(password, '$SECRETKEY') AS password" ],
+    [ 'AID',        'INT',  'aid',        1 ],
+    [ 'CHANGED_AT', 'DATE', 'changed_at', 1 ],
+  ], { WHERE => 1 });
+
+  my $sql = <<"SQL";
+  SELECT $self->{SEARCH_FIELDS} id
+  FROM password_blacklist
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS
+SQL
+
+  $self->query($sql, undef, $attr);
+
+  my $list = $self->{list} || [];
+  $self->query("SELECT COUNT(*) AS total FROM password_blacklist $WHERE;", undef, { INFO => 1 });
+
+  return $list;
+}
+
+#**********************************************************
+=head2 password_blacklist_add($attr)
+
+=cut
+#**********************************************************
+sub password_blacklist_add {
+  my ($self, $attr) = @_;
+
+  if ($attr->{PASSWORD}) {
+    $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
+  }
+
+  $self->query_add('password_blacklist', { %$attr, CHANGED_AT => 'NOW()' });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 password_blacklist_del($attr)
+
+=cut
+#**********************************************************
+sub password_blacklist_del {
+  my ($self, $attr) = @_;
+
+  $self->query_del('password_blacklist', undef, { ID => $attr->{ID}, AID => $attr->{AID} || 0 });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 password_blacklist_match($attr)
+
+=cut
+#**********************************************************
+sub password_blacklist_match {
+  my ($self, $attr) = @_;
+
+  if (!$attr->{PASSWORD} || !$attr->{AID}) {
+    return $self;
+  }
+
+  $self->query("SELECT COUNT(*) AS total_match FROM password_blacklist
+   WHERE aid IN (0, ?) AND DECODE(password, ?) = ?
+   LIMIT 1;", undef, {
+    INFO => 1,
+    Bind => [ $attr->{AID}, $self->{conf}->{secretkey}, $attr->{PASSWORD} ]
+  });
+
+  return $self;
+}
+
+1;

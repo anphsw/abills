@@ -108,6 +108,7 @@ sub verify_pid {
     $attr
       PROGRAM_NAME -  Program name
       LOG_DIR      -  logdir for pid  Default: /usr/abills/var/log/
+      DEBUG
 
   Returns:
 
@@ -125,10 +126,13 @@ sub daemonize {
   my $SAVEOUT;
   open($SAVEOUT, '>&', \*STDOUT) or die "Save STDOUT error: $!";
 
-  #Reset out
-  open STDIN, '>', '/dev/null';
-  open STDOUT, '>', '/dev/null';
-  open STDERR, '>', '/dev/null';
+  if (! $attr->{DEBUG}) {
+    #Reset out
+    open STDIN, '>', '/dev/null';
+    open STDOUT, '>', '/dev/null';
+    open STDERR, '>', '/dev/null';
+  }
+
   if (fork()) {
     exit;
   }
@@ -206,6 +210,8 @@ sub is_running {
 
   Argumenst:
     $attr     - Extra arguments
+    PROGRAM_NAME
+    LOG_DIR
 
   Returns;
     PID file name

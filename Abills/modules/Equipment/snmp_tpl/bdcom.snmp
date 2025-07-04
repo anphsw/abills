@@ -39,9 +39,10 @@
     },
     // "tx_power" = "tx_power * 0.1"
     // OLT_RX_POWER have different OID for P3310C, P3310D, P3608, P3612-2TE, P3616-2TE
+    // Another OID .1.3.6.1.4.1.3320.9.183.1.1.5
     "OLT_RX_POWER"   : {
       "NAME"   : "OLT_RX_POWER",
-      "OIDS"   : ".1.3.6.1.4.1.3320.9.183.1.1.5",
+      "OIDS"   : "1.3.6.1.4.1.3320.101.108.1.3",
       "PARSER" : "_bdcom_convert_power"
     },
     // "olt_rx_power" = "olt_rx_power * 0.1"
@@ -147,10 +148,11 @@
       "OIDS"   : ".1.3.6.1.4.1.3320.10.3.4.1.2",
       "PARSER" : "_bdcom_convert_power"
     }, //tx_power : tx_power * 0.1
-    // ONU_TX_POWER NOt work on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
+    // ONU_TX_POWER check if working on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
+    // Another OID .1.3.6.1.4.1.3320.9.183.1.1.5
     "OLT_RX_POWER"        : {
       "NAME"   : "OLT_RX_POWER",
-      "OIDS"   : ".1.3.6.1.4.1.3320.9.183.1.1.5",
+      "OIDS"   : "1.3.6.1.4.1.3320.10.2.3.1.3",
       "PARSER" : "_bdcom_convert_power"
       //SKIP   : "P3616-2TE" //seems that SKIP is not used anywhere. fix? re"NAME" to SKIP_MODEL?
     }, //olt_rx_power : olt_rx_power * 0.1

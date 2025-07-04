@@ -1,0 +1,42 @@
+get:
+  tags:
+    - users
+  summary: Получить список статусов пользователей
+  parameters:
+    - name: id
+      in: query
+      description: ID статуса
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название статуса
+      schema:
+        type: boolean
+        default: true
+    - name: color
+      in: query
+      description: Цвет статуса
+      schema:
+        type: boolean
+        default: true
+    - name: descr
+      in: query
+      description: Внутреннее описание статуса
+      schema:
+        type: boolean
+        default: true
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успішно
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/statusList.yaml"
+  security:
+    - KEY: []

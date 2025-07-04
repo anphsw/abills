@@ -29,6 +29,20 @@ sub new {
 }
 
 #**********************************************************
+=head2 fields_info($id, $attr)
+
+=cut
+#**********************************************************
+sub fields_info {
+  my $self = shift;
+  my $id = shift;
+
+  $self->query("SELECT * FROM info_fields WHERE id = ? ;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
 
 =head2  fields_add() - Add info
 
@@ -81,29 +95,29 @@ sub fields_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',          'INT', 'id',          1 ],
-    [ 'NAME',        'STR', 'name',        1 ],
-    [ 'SQL_FIELD',   'STR', 'sql_field',   1 ],
-    [ 'TYPE',        'INT', 'type',        1 ],
-    [ 'PRIORITY',    'INT', 'priority',    1 ],
-    [ 'COMPANY',     'INT', 'company',     1 ],
-    [ 'ABON_PORTAL', 'INT', 'abon_portal', 1 ],
-    [ 'USER_CHG',    'INT', 'user_chg',    1 ],
-    [ 'REQUIRED',    'INT', 'required',    1 ],
-    [ 'MODULE',      'STR', 'module',      1 ],
-    [ 'COMMENT',     'STR', 'comment',     1 ],
-    [ 'DOMAIN_ID',   'INT', 'domain_id',   1 ],
+    [ 'ID',              'INT', 'id',          1 ],
+    [ 'NAME',            'STR', 'name',        1 ],
+    [ 'SQL_FIELD',       'STR', 'sql_field',   1 ],
+    [ 'TYPE',            'INT', 'type',        1 ],
+    [ 'PRIORITY',        'INT', 'priority',    1 ],
+    [ 'COMPANY',         'INT', 'company',     1 ],
+    [ 'ABON_PORTAL',     'INT', 'abon_portal', 1 ],
+    [ 'USER_CHG',        'INT', 'user_chg',    1 ],
+    [ 'REQUIRED',        'INT', 'required',    1 ],
+    [ 'MODULE',          'STR', 'module',      1 ],
+    [ 'COMMENT',         'STR', 'comment',     1 ],
+    [ 'DOMAIN_ID',       'INT', 'domain_id',   1 ],
+    [ 'PARENT_ID',       'INT', 'parent_id',   1 ],
+    [ 'PARENT_VALUE_ID', 'INT', 'parent_value_id',   1 ],
   ], { WHERE => 1 });
 
   if ($attr->{NOT_ALL_FIELDS}) {
     $self->query("SELECT $self->{SEARCH_FIELDS} id
       FROM info_fields
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC;",
       undef,
       $attr
     );
@@ -113,7 +127,7 @@ sub fields_list {
       "SELECT *
      FROM info_fields
      $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     ORDER BY $SORT $DESC;",
       undef,
       { COLS_NAME => 1, COLS_UPPER => 1 }
     );
@@ -165,14 +179,19 @@ sub info_field_attach_add {
   my ($attr) = @_;
 
   my $insert_id = 0;
-  my $prefix = ($attr->{COMPANY_PREFIX}) ? 'ifc' : 'ifu';
 
   require Attach;
   Attach->import();
-  my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
   my $Attach = Attach->new($self->{db}, $self->{admin}, $self->{conf});
-  my $list = $Conf->config_list({ PARAM => $prefix . '*', COLS_NAME => 1 });
-  return $attr if !$Conf->{TOTAL} || $Conf->{TOTAL} < 1;
+
+  my $fields_list = $self->fields_list({
+    NAME      => '_SHOW',
+    SQL_FIELD => '_SHOW',
+    TYPE      => 13,
+    COMPANY   => $attr->{COMPANY_PREFIX} || 0
+  });
+
+  return $attr if ($self->{TOTAL} < 1);
 
   if ($attr->{UID}) {
     require Users;
@@ -183,12 +202,9 @@ sub info_field_attach_add {
   }
 
   
-  foreach my $line (@{$list}) {
-    next if $line->{param} !~ /$prefix(\S+)/;
-
-    my $field_name = $1;
-    my (undef, $type, undef) = split(/:/, $line->{value});
-    next if $type != 13;
+  foreach my $field (@{$fields_list}) {
+    my $field_name = $field->{SQL_FIELD};
+    my $type       = 13;
 
     if (ref $attr->{uc($field_name)} eq 'HASH' && $attr->{uc($field_name)}{filename}) {
       if ($self->{conf}->{ATTACH2FILE}) {
@@ -353,16 +369,6 @@ sub info_field_add {
           `create_time` datetime NOT NULL default '0000-00-00 00:00:00') DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
       );
     }
-
-    my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
-
-    $Conf->config_add(
-      {
-        PARAM     => $field_prefix . "_$attr->{FIELD_ID}",
-        VALUE     => "$attr->{POSITION}:$attr->{FIELD_TYPE}:$attr->{NAME}:$attr->{USERS_PORTAL}:$attr->{CAN_BE_CHANGED_BY_USER}",
-        DOMAIN_ID => $self->{admin}->{DOMAIN_ID} || 0
-      }
-    );
   }
 
 
@@ -387,20 +393,17 @@ sub info_field_del {
   my $self = shift;
   my ($attr) = @_;
 
-  my $sql = '';
-  if ($attr->{SECTION} eq 'ifc') {
-    $sql = "ALTER TABLE companies DROP COLUMN `$attr->{FIELD_ID}`;";
-  }
-  else {
-    $sql = "ALTER TABLE users_pi DROP COLUMN `$attr->{FIELD_ID}`;";
-  }
-
-  $self->query($sql, 'do');
+  # my $sql = '';
+  # if ($attr->{SECTION} eq 'ifc') {
+  #   $sql = "ALTER TABLE companies DROP COLUMN `$attr->{FIELD_ID}`;";
+  # }
+  # else {
+  #   $sql = "ALTER TABLE users_pi DROP COLUMN `$attr->{FIELD_ID}`;";
+  # }
+  #
+  # $self->query($sql, 'do');
 
   if (!$self->{errno} || $self->{errno} == 3) {
-    my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
-
-    $Conf->config_del("$attr->{SECTION}$attr->{FIELD_ID}");
     $self->{admin}->system_action_add("IF:_$attr->{FIELD_ID}", { TYPE => 10 });
   }
 
@@ -485,13 +488,11 @@ sub info_list_change {
   my $self = shift;
   my (undef, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => $attr->{LIST_TABLE},
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => $attr->{LIST_TABLE},
+    DATA         => $attr
+  });
 
   return $self->{result};
 }

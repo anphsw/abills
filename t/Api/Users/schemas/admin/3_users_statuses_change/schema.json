@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "color": {
+      "type": [
+        "string",
+        "integer"
+      ],
+      "pattern": "^[0-9A-Fa-f]{6}$",
+      "description": "Hexadecimal RGB color code (e.g., '000000')"
+    },
+    "descr": {
+      "type": "string",
+      "description": "Description of the status"
+    },
+    "id": {
+      "type": "integer",
+      "description": "Unique identifier for the status"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the status"
+    }
+  },
+  "required": [
+    "color",
+    "descr",
+    "id",
+    "name"
+  ]
+}

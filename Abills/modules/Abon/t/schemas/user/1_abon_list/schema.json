@@ -15,9 +15,9 @@
           "abonDate": { "type": "string", "format": "date" },
           "activateDate": { "type": "string", "format": "date" },
           "daysToFee": { "type": "integer" },
-          "sum": { "type": "integer" }
+          "sum": { "type": "number" }
         },
-        "required": ["abonDate", "activateDate", "daysToFee", "sum"]
+        "required": ["abonDate", "daysToFee", "sum"]
       },
       "holdup": {
         "type": "object",

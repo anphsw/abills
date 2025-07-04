@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_FEES_TYPES_CHANGE",
+  "method": "PUT",
+  "path": "fees/types/255",
+  "body": {
+    "name": "ApiTestPaymentChange",
+    "defaultDescribe": "Api payment change"
+  }
+}

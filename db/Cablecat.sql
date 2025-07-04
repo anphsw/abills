@@ -20,7 +20,7 @@ SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
 CREATE TABLE IF NOT EXISTS `cablecat_color_schemes` (
   `id`     SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
-  `name`   VARCHAR(64) NOT NULL,
+  `name`   VARCHAR(80) NOT NULL,
   `colors` TEXT
 )
   CHARSET = 'utf8'
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_color_schemes` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_cable_types` (
   `id`                      SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
-  `name`                    VARCHAR(64) NOT NULL,
+  `name`                    VARCHAR(80) NOT NULL,
   `color_scheme_id`         SMALLINT(6) NOT NULL DEFAULT 1 REFERENCES `cablecat_color_schemes` (`id`),
   `modules_color_scheme_id` SMALLINT(6) NOT NULL DEFAULT 1 REFERENCES `cablecat_color_schemes` (`id`),
   `fibers_count`            SMALLINT(6) NOT NULL DEFAULT 1,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_cable_types` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_connecter_types` (
   `id`         SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`       VARCHAR(32) NOT NULL,
+  `name`       VARCHAR(80) NOT NULL,
   `cartridges` SMALLINT(3) NOT NULL DEFAULT 1
 )
   CHARSET = 'utf8'
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_connecter_types` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_well_types` (
   `id`       SMALLINT(6)  UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name`     VARCHAR(32)  NOT NULL DEFAULT '',
+  `name`     VARCHAR(80)  NOT NULL DEFAULT '',
   `icon`     VARCHAR(120) NOT NULL DEFAULT 'well_green',
   `comments` TEXT
 )
@@ -69,7 +69,7 @@ REPLACE INTO `cablecat_well_types` (`id`, `name`) VALUES
 
 CREATE TABLE IF NOT EXISTS `cablecat_wells` (
   `id`                INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`              VARCHAR(64) NOT NULL,
+  `name`              VARCHAR(80) NOT NULL,
   `parent_id`         INT(11) UNSIGNED,
   `point_id`          INT(11) UNSIGNED REFERENCES `maps_points` (`id`) ON DELETE SET NULL,
   `type_id`           SMALLINT(6) UNSIGNED DEFAULT 1 REFERENCES `cablecat_well_types` (`id`) ON DELETE RESTRICT,
@@ -127,13 +127,13 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutations` (
   `connecter_id` INT(11) UNSIGNED,
   `created`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `height`       DOUBLE(6, 2) NULL,
-  `name`         VARCHAR(64)  NOT NULL DEFAULT ''
+  `name`         VARCHAR(80)  NOT NULL DEFAULT ''
 )
   CHARSET = 'utf8';
 
 CREATE TABLE IF NOT EXISTS `cablecat_splitter_types` (
   `id`         SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`       VARCHAR(32) NOT NULL,
+  `name`       VARCHAR(80) NOT NULL,
   `fibers_in`  SMALLINT(3) UNSIGNED,
   `fibers_out` SMALLINT(3) UNSIGNED
 )
@@ -164,7 +164,7 @@ REPLACE INTO `cablecat_splitter_types` (`id`, `name`, `fibers_in`, `fibers_out`)
 
 CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   `id`                   INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`                 VARCHAR(32)      NOT NULL DEFAULT '',
+  `name`                 VARCHAR(80)      NOT NULL DEFAULT '',
   `type_id`              SMALLINT(6) UNSIGNED REFERENCES `cablecat_splitter_types` (`id`) ON DELETE RESTRICT,
   `well_id`              INT(11) UNSIGNED     REFERENCES `cablecat_wells` (`id`),
   `point_id`             INT(11) UNSIGNED     REFERENCES `maps_points` (`id`) ON DELETE RESTRICT,
@@ -224,7 +224,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutation_cables` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_cross_types` (
   `id`             SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`           VARCHAR(64)          NOT NULL UNIQUE,
+  `name`           VARCHAR(80)          NOT NULL UNIQUE,
   `cross_type_id`  TINYINT(1)  UNSIGNED NOT NULL,
   `panel_type_id`  TINYINT(1)  UNSIGNED NOT NULL,
   `rack_height`    TINYINT(1)  UNSIGNED NOT NULL DEFAULT 1,
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_cross_types` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_crosses` (
   `id`              INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name`            VARCHAR(32) NOT NULL DEFAULT '',
+  `name`            VARCHAR(80) NOT NULL DEFAULT '',
   `well_id`         INT(11) UNSIGNED REFERENCES `cablecat_wells` (`id`) ON DELETE RESTRICT,
   `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `type_id`         SMALLINT(6) UNSIGNED DEFAULT 1 REFERENCES `cablecat_cross_types` (`id`) ON DELETE RESTRICT
@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_cross_links` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_coil` (
   `id`       INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`     VARCHAR(32)      NOT NULL DEFAULT '',
+  `name`     VARCHAR(80)      NOT NULL DEFAULT '',
   `point_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `cable_id` INT(11) UNSIGNED NOT NULL DEFAULT '1',
   `length`   INT              NOT NULL DEFAULT 30,
@@ -362,8 +362,9 @@ CREATE TABLE IF NOT EXISTS `cablecat_storage_installation` (
   `type`            SMALLINT(6) UNSIGNED NOT NULL NOT NULL DEFAULT 0,
   `installation_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
   `date`            DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `aid`             SMALLINT(6)      NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  `aid`             SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Storage installation to Cablecat objects';

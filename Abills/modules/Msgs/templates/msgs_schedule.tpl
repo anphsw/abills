@@ -1,18 +1,4 @@
-<div class='%FORM_CLASS%'>
-  <form class='form-inline'>
-    <input type='hidden' name='index' value='%index%'>
-    <input type='hidden' name='DATE' value='%DATE%'>
-
-    <div class='form-group mb-2'>
-      %ADMIN_SEL%
-    </div>
-    <div class='form-group mx-sm-3 mb-2'>
-      %STATUS_SEL%
-    </div>
-    <button type='submit' class='btn btn-primary mb-2'>_{APPLY}_</button>
-  </form>
-  <hr class='m-1'>
-</div>
+<link rel='stylesheet' type='text/css' href='/styles/default/css/schedule.css'>
 
 <script>
   document.addEventListener('save-plan-time', (e) => {
@@ -43,31 +29,30 @@
   jQuery('ul.time-sidebar').sortable({
     items: 'li.time-row.admin-row',
     cursor: 'move',
-    start: function(event, ui) {
+    start: function (event, ui) {
       ui.item.data('start-index', ui.item.index());
 
       let startIndex = ui.item.index();
       let correspondingRow = jQuery('.time-row-container').eq(startIndex);
       correspondingRow.addClass('selected');
     },
-    sort: function(event, ui) {
+    sort: function (event, ui) {
       let currentIndex = ui.placeholder.index();
       jQuery('.time-row-container.selected').insertAfter(jQuery('.time-row-container').eq(currentIndex - 1));
     },
-    stop: function(event, ui) {
+    stop: function (event, ui) {
       jQuery('.time-row-container').removeClass('selected');
     },
     update: function () {
-      const adminValues = jQuery('.draggable-row[data-admin]').map(function() {
+      const adminValues = jQuery('.draggable-row[data-admin]').map(function () {
         return jQuery(this).attr('data-admin');
       }).get();
 
       fetch('/api.cgi/admins/settings', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ SETTING: adminValues.join(','), OBJECT: 'MSGS_SCHEDULE_TASKS_BOARD' })
+        body: JSON.stringify({SETTING: adminValues.join(','), OBJECT: 'MSGS_SCHEDULE_TASKS_BOARD'})
       })
     }
   });
-
 </script>

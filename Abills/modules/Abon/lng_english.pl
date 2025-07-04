@@ -76,5 +76,7 @@ $lang{ABON_ACTIVATION_FROM_USER_PORTAL} = 'Activation only from the user portal'
 $lang{PROMOTIONAL_TP} = 'Promotional tariff plan';
 $lang{ABON_PROMO_PERIOD} = 'Promo period';
 $lang{ABON_HOT_DEAL} = 'Hot deal';
+$lang{ABON_DISCOUNT_ACTIVATE_DATE} = 'Discount activation date';
+$lang{ABON_DISCOUNT_EXPIRE_DATE} = 'Discount expiration date';
 
 1;

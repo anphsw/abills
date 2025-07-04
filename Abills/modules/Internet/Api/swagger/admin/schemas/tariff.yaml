@@ -75,3 +75,20 @@ properties:
   trafTarifs:
     type: number
     example: 0
+  gradients:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 1
+        price:
+          type: number
+          example: 12
+        startValue:
+          type: number
+          example: 10000
+        tpId:
+          type: number
+          example: 95

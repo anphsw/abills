@@ -1,0 +1,8 @@
+{
+  "name": "TRIPLAY_USER_CHANGE_SERVICE",
+  "method": "PATCH",
+  "path": "triplay/users/:uid/",
+  "body": {
+    "serviceStatus": 2
+  }
+}

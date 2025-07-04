@@ -17,6 +17,9 @@
           %ID_BUTTON_COPY%
           %SUBJECT%
         </h3>
+        <div class='card-tools'>
+          %PLAN_DATE_BADGE%
+        </div>
       </div>
 
       <div class='card-body text-left'>

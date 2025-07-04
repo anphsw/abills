@@ -94,6 +94,7 @@ sub triplay_tp {
     if (!$Triplay->{errno}) {
       $html->message('info', $lang{SUCCESS}, "$lang{TARIF_PLAN} $lang{CHANGED}");
       $Tariffs->change($Triplay->{TP_ID}, { %FORM, TP_ID => $Triplay->{TP_ID} });
+      $Triplay->tp_info({ TP_ID => $Tariffs->{TP_ID} });
     }
 
     $Triplay->{ACTION} = 'change';
@@ -167,12 +168,18 @@ sub triplay_tp {
     MAIN_MENU_ARGV => ($Triplay->{ABON_TP}) ? "TP_ID=$Triplay->{ABON_TP}" : ''
   });
 
-  $Triplay->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
-    SELECTED       => $Triplay->{FEES_METHOD} || 1,
-    SEL_HASH       => get_fees_types(),
-    NO_ID          => 1,
-    SORT_KEY       => 1,
-    SEL_OPTIONS    => { 0 => '' },
+  # $Triplay->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+  #   SELECTED       => $Triplay->{FEES_METHOD} || 1,
+  #   SEL_HASH       => get_fees_types(),
+  #   NO_ID          => 1,
+  #   SORT_KEY       => 1,
+  #   SEL_OPTIONS    => { 0 => '' },
+  #   MAIN_MENU      => get_function_index('form_fees_types'),
+  #   CHECKBOX       => 'create_fees_type',
+  #   CHECKBOX_TITLE => $lang{CREATE}
+  # });
+
+  $Triplay->{SEL_METHOD} = sel_fees_methods('FEES_METHOD', defined $Triplay->{FEES_METHOD} ? $Triplay->{FEES_METHOD} : 1, {
     MAIN_MENU      => get_function_index('form_fees_types'),
     CHECKBOX       => 'create_fees_type',
     CHECKBOX_TITLE => $lang{CREATE}
@@ -219,8 +226,8 @@ sub triplay_tp {
   $Triplay->{PERIOD_ALIGNMENT} = ($Triplay->{PERIOD_ALIGNMENT} || $FORM{PERIOD_ALIGNMENT}) ? 'checked' : '';
 
   $html->tpl_show(_include('triplay_tp', 'Triplay'), {
-    %$Triplay,
     %FORM,
+    %$Triplay,
     INTERNET => $internet_select,
     IPTV     => $iptv_select,
     VOIP     => $voip_select,

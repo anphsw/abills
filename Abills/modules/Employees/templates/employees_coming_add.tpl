@@ -9,9 +9,9 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>_{SUM}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required'>_{SUM}_:</label>
         <div class='col-md-8'>
-          <input type='number' step='0.01' class='form-control' name='AMOUNT' value='%AMOUNT%'>
+          <input type='number' step='0.01' class='form-control' name='AMOUNT' value='%AMOUNT%' required>
         </div>
       </div>
       <div class='form-group row'>
@@ -21,7 +21,7 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>_{CASHBOX}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required'>_{CASHBOX}_:</label>
         <div class='col-md-8'>
           %CASHBOX_SELECT%
         </div>

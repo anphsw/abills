@@ -64,6 +64,7 @@ our @status = ("$lang{UNKNOWN}",    #0
   'UNPAID',                        #15
   'WRONG_SUM',                     #16
   'PAYMENT_SQL_ERROR',             #17
+  "$lang{RECURRENT_PAYMENT} $lang{ERROR}", #18
 );
 
 our @status_color = ('',
@@ -718,55 +719,6 @@ sub _paysys_import_types {
   }
 
   return \%modules;
-}
-
-#**********************************************************
-=head2 get_reg_payments($attr) - Get register paymnets
-
-  Arguments:
-    $attr
-      DATE_FROM
-      DATE_TO
-      EXT_ID
-
-  Results:
-    \%reg_paymnets_list
-
-=cut
-#**********************************************************
-sub get_reg_payments {
-  my ($attr) = @_;
-
-  $Payments = Payments->new($db, $admin, \%conf);
-  my %reg_payments_list = ();
-
-  require POSIX;
-  POSIX->import(qw(mktime strftime));
-
-  my ($Y, $M, $D) = split(/-/, ($attr->{DATE_FROM} || $DATE), 3);
-  ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) - (86400 * 7)))));
-
-  my $payments_list = $Payments->list({
-    FROM_DATE => "$Y-$M-$D",
-    TO_DATE   => date_inc($DATE),
-    EXT_ID    => ($attr->{TRANSACTION_PREFIXES}) ? $attr->{TRANSACTION_PREFIXES} : ($attr->{EXT_ID} || q{}) . ':*',
-    LOGIN     => '_SHOW',
-    SUM       => '_SHOW',
-    PAGE_ROWS => 100000,
-    COLS_NAME => 1
-  });
-
-  foreach my $payment (@$payments_list) {
-    $reg_payments_list{$payment->{ext_id}} = {
-      id       => $payment->{id},
-      uid      => $payment->{uid},
-      sum      => $payment->{sum},
-      login    => $payment->{login},
-      datetime => $payment->{datetime},
-    };
-  }
-
-  return \%reg_payments_list;
 }
 
 1;

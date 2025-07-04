@@ -37,7 +37,13 @@ get:
         default: true
     - name: method
       in: query
-      description: Метод списания.
+      description: ID типа списания.
+      schema:
+        type: boolean
+        default: true
+    - name: methodName
+      in: query
+      description: Название типа списания.
       schema:
         type: boolean
         default: true
@@ -48,6 +54,21 @@ get:
         type: boolean
         default: false
     - $ref: "#/components/parameters/uid"
+    - name: contractId
+      in: query
+      description: Номер договора
+      schema:
+        type: boolean
+    - name: taxNumber
+      in: query
+      description: ИПН (РНОКПП)
+      schema:
+        type: boolean
+    - name: edrpou
+      in: query
+      description: EDRPOU компании
+      schema:
+       type: integer
     - name: fio
       in: query
       description: ФИО пользователя.
@@ -137,6 +158,7 @@ get:
     - $ref: "#/components/parameters/pageRows"
     - $ref: "#/components/parameters/pg"
     - $ref: "#/components/parameters/sort"
+    - $ref: "#/components/parameters/groupBy"
   responses:
     200:
       description: Успешное выполнение

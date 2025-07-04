@@ -198,8 +198,19 @@ $lang{STORAGE_PURCHASE_REPORT} = 'Purchase report';
 $lang{STORAGE_ACCESS_LEVEL} = 'Access level';
 $lang{STORAGE_VIEW_ONLY} = 'View only';
 $lang{STORAGE_MANAGEMENT} = 'Management';
+$lang{STORAGE_NOT_ACTIVATED_INSTALLMENT} = 'Not activated installment';
+$lang{STORAGE_NOT_ACTIVATED_RENT} = 'Not activated rent';
+$lang{STORAGE_IDENT} = 'Additional Identifier %IDENT%';
+$lang{STORAGE_INSTALLATION_SOURCE} = 'Installation Source';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'The quantity of goods is incorrect';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'No permissions to manage storage';
+$lang{ERR_STORAGE_SERIAL_DUPLICATE} = 'The serial number is duplicated';
+$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'Invalid incoming article';
+$lang{ERR_STORAGE_INSTALLATION} = 'Installation object is not defined';
+$lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Installation recipient is not defined';
+$lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Installed equipment not found';
+
+$lang{RETURN} = 'Return';
 
 1;

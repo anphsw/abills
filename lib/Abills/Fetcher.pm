@@ -483,7 +483,10 @@ sub _parse_request_data_hash {
   my ($attr) = @_;
   my @params = ();
 
-  if ($attr->{REQUEST_PARAMS} && ref $attr->{REQUEST_PARAMS} eq 'HASH') {
+  if ($attr->{EMBEDDED_REQUEST_PARAMS}) {
+    @params = _build_query_string($attr->{REQUEST_PARAMS});
+  }
+  elsif ($attr->{REQUEST_PARAMS} && ref $attr->{REQUEST_PARAMS} eq 'HASH') {
     foreach my $k (keys %{$attr->{REQUEST_PARAMS}}) {
       # Skip false and undefined values
       next if (!$k || !defined($attr->{REQUEST_PARAMS}->{$k}));
@@ -622,6 +625,36 @@ sub _parse_headers {
   }
 
   return \%headers, $res;
+}
+
+#**********************************************************
+=head2 _build_query_string($data, $prefix)
+
+=cut
+#**********************************************************
+sub _build_query_string {
+  my ($data, $prefix) = @_;
+  my @pairs;
+
+  if (ref $data eq 'HASH') {
+    for my $key (keys %$data) {
+      my $full_key = defined $prefix ? "$prefix\[$key]" : $key;
+      push @pairs, _build_query_string($data->{$key}, $full_key);
+    }
+  }
+  elsif (ref $data eq 'ARRAY') {
+    for my $i (0 .. $#$data) {
+      my $full_key = "$prefix\[$i]";
+      push @pairs, _build_query_string($data->[$i], $full_key);
+    }
+  }
+  else {
+    my $k = urlencode($prefix);
+    my $v = urlencode($data);
+    push @pairs, "$k=$v";
+  }
+
+  return @pairs;
 }
 
 1;

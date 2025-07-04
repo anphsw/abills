@@ -42,7 +42,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label required'>_{FILE}_:</label>
+        <label class='col-md-3 control-label'>_{FILE}_:</label>
         <div class='col-md-7'>%FILE_SELECT%</div>
         <div class='col-md-2'>
           <a href='%UPLOAD_FILE%' class='btn btn-primary'>
@@ -76,15 +76,27 @@
       <div class='form-group row'>
         <label class='control-label col-md-3'>_{SQL_QUERY}_:</label>
         <div class='col-md-9'>
-          <textarea class='form-control' placeholder='_{SQL_QUERY}_' name='SQL_QUERY'>%SQL_QUERY%</textarea>
+          <textarea class='form-control' placeholder='_{SQL_QUERY}_' name='SQL_QUERY' id='SQL_QUERY'>%SQL_QUERY%</textarea>
         </div>
       </div>
 
     </div>
 
     <div class='card-footer'>
+      %SQL_QUERY_BTN%
       <button type='submit' class='btn btn-primary'>%BUTTON%</button>
     </div>
 
   </div>
 </form>
+
+<script>
+  jQuery('#SQL_QUERY_BTN').on('click', function() {
+    var sql_query = jQuery('#SQL_QUERY').val();
+
+    if (sql_query){
+      var link = 'index.cgi?index=%INDEX%&chg=%ID%&SQL_QUERY_ADD=' + sql_query;
+      window.location.assign(link);
+    }
+  })
+</script>

@@ -13,7 +13,7 @@
     <ul class='list-group list-group-unbordered mb-3'>
       <li class='list-group-item'>
         <b>_{ORDER}_</b>
-        <div class='float-right'>%IPAY_PAYMENT_NO%</div>
+        <div class='float-right'>%TRANSACTION_ID%</div>
       </li>
       <li class='list-group-item'>
         <b>_{SUM}_</b>

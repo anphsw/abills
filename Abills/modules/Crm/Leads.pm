@@ -510,6 +510,21 @@ sub crm_leads {
 
   $LIST_PARAMS{SEARCH_COLUMNS} = \@search_fields;
   $LIST_PARAMS{HOLDUP_DATE} //= $FORM{HOLDUP_DATE_RANGE} if $FORM{HOLDUP_DATE_RANGE};
+  my $tags_hash = {};
+  my $tags = $Tags->list({
+    NAME      => '_SHOW',
+    PRIORITY  => '_SHOW',
+    COLOR     => '_SHOW',
+    COLS_NAME => 1
+  });
+  map $tags_hash->{$_->{id}} = $_, @{$tags};
+
+  my $sources_hash = {};
+  my $sources = $Crm->leads_source_list({
+    NAME      => '_SHOW',
+    COLS_NAME => 1
+  });
+  map $sources_hash->{$_->{id}} = $_->{name}, @{$sources};
 
   ($table, undef) = result_former({
     INPUT_DATA      => $Crm,
@@ -522,10 +537,7 @@ sub crm_leads {
     FUNCTION_INDEX  => $index,
     FILTER_COLS     => {
       current_step_name => '_crm_current_step_color::STEP_COLOR,',
-      last_action       => '_crm_last_action::LEAD_ID',
-      tag_ids           => '_crm_tags_name::TAG_IDS',
       assessment        => 'crm_assessment_stars::ASSESSMENT',
-      source            => '_crm_translate_source::SOURCE',
     },
     FILTER_VALUES => {
       lead_id => sub {
@@ -549,6 +561,35 @@ sub crm_leads {
           class          => 'crm-phone cursor-pointer',
           ex_params      => "data-lead='$line->{id}'"
         });
+      },
+      tag_ids => sub {
+        my $tag_ids = shift;
+        my ($line) = @_;
+
+        return '' if !$tag_ids;
+
+        my $tags_result = qq{};
+        my @priority_colors = ('', 'btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+
+        my @lead_tag_ids = split(/,\s?/, ($tag_ids || ''));
+
+        foreach my $lead_tag_id (@lead_tag_ids) {
+          next if !$tags_hash->{$lead_tag_id};
+
+          my $priority_color = ($priority_colors[$tags_hash->{$lead_tag_id}{priority}]) ?
+            $priority_colors[$tags_hash->{$lead_tag_id}{priority}] : $priority_colors[1];
+          $tags_result .= ' ' . $html->element('span', $tags_hash->{$lead_tag_id}{name}, {
+            class => $tags_hash->{$lead_tag_id}{color} ? 'label new-tags m-1' : "btn btn-xs $priority_color",
+            style => $tags_hash->{$lead_tag_id}{color} ? "background-color: $tags_hash->{$lead_tag_id}{color}; border-color: $tags_hash->{$lead_tag_id}{color}" : ''
+          });
+        }
+
+        return $tags_result;
+      },
+      source  => sub {
+        my $source_id = shift;
+
+        return $source_id ? _translate($sources_hash->{$source_id}) : '';
       }
     },
     SKIP_USER_TITLE => 1,
@@ -558,8 +599,7 @@ sub crm_leads {
       width       => '100%',
       caption     => $lang{LEADS},
       qs          => $pages_qs,
-      MENU        => "$lang{ADD}:index=$index&add_form=1:add;$lang{DELIVERY}:delivery=1&index=$index:",
-      # TODO: remove data_table
+      MENU        => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:get_index=crm_lead_search&full=1:search;$lang{DELIVERY}:delivery=1&index=$index:",
       DATA_TABLE  => { "order" => [ [ 1, "desc" ] ] },
       header      => $header,
       SELECT_ALL  => "CRM_LEADS:ID:$lang{SELECT_ALL}",
@@ -695,7 +735,18 @@ sub _crm_merge_dialogues {
 sub crm_lead_info {
   my ($lead_id) = @_;
 
-  _crm_tags(\%FORM) if $FORM{SAVE_TAGS};
+  if ($FORM{PRE} || $FORM{NEXT}) {
+    my $leads_list = $Crm->crm_lead_list({
+      LEAD_ID       => (($FORM{PRE}) ? '<' : '>') . ($FORM{LEAD_ID} || $lead_id),
+      PAGE_ROWS => 1,
+      COLS_NAME => 1,
+      SORT      => 'cl.id',
+      DESC      => ($FORM{PRE}) ? 'DESC' : '',
+    });
+    if ($Crm->{TOTAL} && $Crm->{TOTAL} > 0) {
+      $FORM{LEAD_ID} = $leads_list->[0]{lead_id};
+    }
+  }
 
   if ($FORM{delete_uid}) {
     $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => 0 });
@@ -758,7 +809,7 @@ sub crm_lead_info {
 
   return 1 if ($FORM{user_search_form} && $FORM{user_search_form} == 1);
 
-  $Crm->crm_action_add('', { ID => $lead_id, TYPE => 3 });
+  # $Crm->crm_action_add('', { ID => $lead_id, TYPE => 3 });
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
   my $convert_data_button = $html->button($lang{IMPORT}, "get_index=crm_lead_convert&header=2&FROM_LEAD_ID=$lead_id", {
@@ -791,15 +842,6 @@ sub crm_lead_info {
     });
   }
 
-  #TODO: add tags fields
-  # my $lead_tags = q{};
-  # my $tags_table = q{};
-  # my $tags_button = q{none};
-  # if (in_array('Tags', \@MODULES)) {
-  #   $lead_tags = _crm_tags({ LEAD => $lead_id, SHOW_TAGS => 1 });
-  #   $tags_table = _crm_tags({ LEAD => $lead_id, SHOW => 1 });
-  #   $tags_button = q{inline};
-  # }
 
   my $fields = crm_lead_fields($lead_info,
     {
@@ -815,12 +857,54 @@ sub crm_lead_info {
       CONVERT_DATA_BUTTON => $convert_data_button,
     });
   my $lead_profile_panel = $html->tpl_show($Templates->_include('crm_section_panel', 'Crm'), { %$lead_info,
-    # TAGS                => $lead_tags,
-    # TAGS_BUTTON         => $tags_button,
     CONVERT_LEAD_BUTTON => $convert_lead_to_client,
     LOG                 => crm_lead_recent_activity($lead_id),
     %{$fields},
   }, { OUTPUT2RETURN => 1 });
+
+  $FORM{LEAD_ID} //= '';
+  my $pre_button = $html->button(" ", "index=$index&LEAD_ID=$FORM{LEAD_ID}&PRE=$FORM{LEAD_ID}",
+    { class => 'float-left btn btn-default', ICON => 'fa fa-arrow-left', TITLE => $lang{BACK} });
+  my $next_button = $html->button(" ", "index=$index&LEAD_ID=$FORM{LEAD_ID}&NEXT=$FORM{LEAD_ID}",
+    { class => 'float-right btn btn-default', ICON => 'fa fa-arrow-right', TITLE => $lang{NEXT} });
+  my $fio = $html->button($html->b($lead_info->{FIO} || $lead_info->{LEAD_ID}), "index=$index&LEAD_ID=$FORM{LEAD_ID}",
+    { class => 'h5 mx-3 text-lightblue align-middle', TITLE => $lead_info->{FIO} || $lead_info->{LEAD_ID} });
+
+  my $user_tags = '';
+  if (in_array('Tags', \@MODULES) && $lead_info->{TAG_IDS}) {
+    if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+      require Tags;
+      Tags->import();
+      my $lead_tags = $lead_info->{TAG_IDS};
+      $lead_tags =~ s/,\s?/;/g;
+      my $Tags = Tags->new($db, $admin, \%conf);
+      my $list = $Tags->list({
+        NAME      => '_SHOW',
+        PRIORITY  => '_SHOW',
+        COMMENTS  => '_SHOW',
+        COLOR  => '_SHOW',
+        ID        => $lead_tags,
+        COLS_NAME => 1
+      });
+
+      my @tags_arr = ();
+
+      my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+      foreach my $line (@$list) {
+        push @tags_arr, $html->element('span', $line->{name}, {
+          'class'                 => "btn btn-sm $priority_colors[$line->{priority}]",
+          'data-tooltip'          => $line->{comments} || $line->{name},
+          'data-tooltip-position' => 'top',
+          'style'                 => $line->{color} ? "background-color: $line->{color}; border-color: $line->{color}" : ''
+        }) . ' ';
+      }
+
+      $user_tags = ($#tags_arr > -1) ? join(" ", @tags_arr) : '';
+    }
+  }
+  my $main_content = $html->element('div', $fio . $user_tags, { class => 'bd-highlight m-auto' });
+  print $html->element('div', "$pre_button $main_content $next_button",
+    { class => "user_header d-flex justify-content-between bd-highlight rounded mb-2" });
 
   $html->tpl_show($Templates->_include('crm_lead_info', 'Crm'), {
     LEAD_PROFILE_PANEL => $lead_profile_panel,
@@ -1455,36 +1539,6 @@ sub _crm_current_step_color {
 }
 
 #**********************************************************
-=head2 _crm_last_action() -
-
-  Arguments:
-    $attr -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub _crm_last_action {
-  my ($lead_id) = @_;
-
-  my $list = $Crm->progressbar_comment_list({
-    COLS_NAME => 1,
-    LEAD_ID   => $lead_id,
-    PAGE_ROWS => 1,
-    DATE      => '_SHOW',
-  });
-
-  if (!$Crm->{errno}) {
-    if (ref $list eq 'ARRAY' && scalar @$list > 0) {
-      return "$list->[0]->{date}";
-    }
-  }
-
-  return '';
-}
-
-#**********************************************************
 =head2 crm_lead_convert() -
 
   Arguments:
@@ -1828,86 +1882,6 @@ sub _progress_bar_step_sel {
 }
 
 #**********************************************************
-=head2 _crm_tags($attr)
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub _crm_tags {
-  my ($attr) = @_;
-
-  if ($attr->{SHOW}) {
-    my $list = $Tags->list({
-      NAME      => '_SHOW',
-      LIST2HASH => 'id,name'
-    });
-
-    my $lead_info = $Crm->crm_lead_list({
-      LEAD_ID   => $attr->{LEAD} || 0,
-      COLS_NAME => 1,
-      TAG_IDS   => '_SHOW'
-    });
-    my @lead_checked = split(/, /, ($lead_info->[0]{tag_ids} || ''));
-    my %checked_tags = ();
-    foreach my $item (@lead_checked) {
-      $checked_tags{$item} = $item;
-    }
-
-    my $table = $html->table({ width => '100%' });
-    foreach my $item (sort keys %{$list}) {
-      $table->addrow(
-        $html->form_input('TAG_IDS', $item, { TYPE => 'checkbox', ID => $item, STATE => $checked_tags{$item} ? 'checked' : '' }),
-        $list->{$item}
-      );
-    }
-
-    return $table->show({ OUTPUT2RETURN => 1 });
-  }
-  elsif ($attr->{SAVE_TAGS}) {
-    $Crm->crm_update_lead_tags({ LEAD_ID => $attr->{LEAD_ID}, TAG_IDS => $attr->{TAG_IDS} });
-  }
-  elsif ($attr->{SHOW_TAGS}) {
-    my $tags = qq{};
-    my @priority_colors = ('', 'btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
-    my $list = $Tags->list({
-      NAME      => '_SHOW',
-      PRIORITY  => '_SHOW',
-      COLOR     => '_SHOW',
-      COLS_NAME => 1
-    });
-
-    my $lead_info = $Crm->crm_lead_list({
-      LEAD_ID   => $attr->{LEAD} || 0,
-      COLS_NAME => 1,
-      TAG_IDS   => '_SHOW'
-    });
-
-    my @lead_checked = split(/, /, ($lead_info->[0]{tag_ids} || ''));
-    my %checked_tags = ();
-    foreach my $item (@lead_checked) {
-      $checked_tags{$item} = $item;
-    }
-
-    foreach my $item (@$list) {
-      next if !$checked_tags{$item->{id}};
-
-      my $priority_color = ($priority_colors[$item->{priority}]) ? $priority_colors[$item->{priority}] : $priority_colors[1];
-      $tags .= ' ' . $html->element('span', $item->{name}, {
-        class => $item->{color} ? 'label new-tags m-1' : "btn btn-xs $priority_color",
-        style => $item->{color} ? "background-color: $item->{color}; border-color: $item->{color}" : ''
-      });
-    }
-    return $tags || q{};
-  }
-
-  return 1;
-}
-
-#**********************************************************
 =head2 _crm_tags_name($tags)
 
   Arguments:
@@ -2141,26 +2115,6 @@ sub _crm_multiselect_form {
 }
 
 #**********************************************************
-=head2 _crm_translate_source($attr)
-
-  Arguments:
-    source_id - Source id
-
-  Returns:
-    Source name
-
-=cut
-#**********************************************************
-sub _crm_translate_source {
-  my $source_id = shift;
-
-  return '' if !$source_id;
-
-  my $source_info = $Crm->leads_source_info({ ID => $source_id, COLS_NAME => 1 });
-  return $Crm->{TOTAL} > 0 ? _translate($source_info->{NAME}) : '';
-}
-
-#**********************************************************
 =head2 crm_find_user_by_email()
 
 =cut
@@ -2304,8 +2258,10 @@ sub crm_leads_import {
   my $crm_leads_table_info = $Crm->table_info('crm_leads', { FULL_INFO => 1 });
 
   foreach my $leads_column (@{$crm_leads_table_info}) {
-    my $column_name = $leads_column->{column_name};
-    my $type = $leads_column->{data_type};
+    my $column_name = $leads_column->{column_name} || $leads_column->{COLUMN_NAME};
+    next if !$column_name;
+
+    my $type = $leads_column->{data_type} || $leads_column->{DATA_TYPE};
     
     push @output_fields, {
       NAME       => $lang{uc $column_name} || ucfirst $column_name,

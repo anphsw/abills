@@ -185,39 +185,43 @@
         </div>
         <div id='_abon' class='card-body'>
           <div class='form-group row'>
-            <label class='col-md-3 control-label' for='DAY_FEE'>_{DAY_FEE}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label' for='DAY_FEE'>_{DAY_FEE}_:</label>
+            <div class='col-md-8'>
               <input class='form-control' type=text name=DAY_FEE id='DAY_FEE' value='%DAY_FEE%'>
             </div>
           </div>
 
-          <div class='form-group custom-control custom-checkbox'>
-            <input class='custom-control-input' type='checkbox' id='POSTPAID_DAY_FEE'
-                   name='POSTPAID_DAY_FEE'
-                   %POSTPAID_DAY_FEE% value='1'>
-            <label for='POSTPAID_DAY_FEE' class='custom-control-label'>_{DAY_FEE}_ _{POSTPAID}_</label>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_:</label>
+            <div class='col-md-8'>
+              <div class='form-check'>
+                <input type='checkbox' class='form-check-input' id='POSTPAID_DAY_FEE' name='POSTPAID_DAY_FEE' %POSTPAID_DAY_FEE% value='1'>
+              </div>
+            </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-3 control-label' for=MONTH_FEE>_{MONTH_FEE}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 control-label' for=MONTH_FEE>_{MONTH_FEE}_:</label>
+            <div class='col-md-8'>
               <input class='form-control' type=text name=MONTH_FEE id=MONTH_FEE value='%MONTH_FEE%'>
             </div>
           </div>
 
-          <div class='form-group custom-control custom-checkbox'>
-            <input class='custom-control-input' type='checkbox' id='POSTPAID_MONTH_FEE'
-                   name='POSTPAID_MONTH_FEE'
-                   %POSTPAID_MONTH_FEE% value='1'>
-            <label for='POSTPAID_MONTH_FEE' class='custom-control-label'>_{MONTH_FEE}_ _{POSTPAID}_</label>
-          </div>
-
           <div class='form-group row'>
-            <label for='METHOD' class='control-label col-md-3'>_{FEES}_ _{TYPE}_:</label>
-            <div class='col-md-9'>
-              %SEL_METHOD%
+            <label class='col-md-4 col-form-label text-md-right' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_:</label>
+            <div class='col-md-8'>
+              <div class='form-check'>
+                <input type='checkbox' class='form-check-input' id='POSTPAID_MONTH_FEE' name='POSTPAID_MONTH_FEE' %POSTPAID_MONTH_FEE% value='1'>
+              </div>
             </div>
           </div>
+
+<!--          <div class='form-group row'>-->
+<!--            <label for='METHOD' class='control-label col-md-3'>_{FEES}_ _{TYPE}_:</label>-->
+<!--            <div class='col-md-9'>-->
+              %SEL_METHOD%
+<!--            </div>-->
+<!--          </div>-->
         </div>
       </div>
 

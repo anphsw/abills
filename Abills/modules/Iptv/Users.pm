@@ -252,6 +252,7 @@ sub iptv_user {
 
   $Iptv->{STATUS_SEL} = sel_status({ STATUS => $Iptv->{STATUS} }, $Iptv->{SCHEDULE} || {});
   $Iptv->{DESCRIBE_AID} = ($Iptv->{DESCRIBE_AID}) ? ('['.$Iptv->{DESCRIBE_AID}.']') : '';
+  $Iptv->{VOD} = ($Iptv->{VOD} && $Iptv->{VOD} == 1) ? 'checked' : '';
   my $service_info1 = q{};
   my $service_info2 = q{};
   my $service_info_subscribes = q{};
@@ -552,6 +553,12 @@ sub iptv_user_change {
     if (($attr->{TP_ID} || defined($attr->{STATUS})) && !$Iptv->{OLD_STATUS}) {
       iptv_user_services({ %$attr, change => 1, SERVICE_ID => $Iptv->{SERVICE_ID} });
     }
+    elsif ($attr->{STATUS} && $Iptv->{OLD_STATUS}) {
+      my DBI $db_ = $Iptv->{db}{db};
+      $db_->commit();
+      $db_->{AutoCommit} = 1;
+      return 1;
+    }
   }
 
   $Iptv->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID} || $Iptv->{TP_ID});
@@ -668,9 +675,11 @@ sub iptv_user_services {
       _iptv_channels_change_now({
         UID                => $Iptv->{UID},
         ID                 => $Iptv->{ID},
+        TP_ID              => $Iptv->{TP_ID},
         MANDATORY_ARR      => \@channel_list,
         channels           => 1,
-        MANDATORY_CHANNELS => 1
+        MANDATORY_CHANNELS => 1,
+        IPTV_              => $Iptv
       });
       _iptv_get_fees_mandatory_channels($Iptv);
     }
@@ -762,7 +771,7 @@ sub iptv_account_action {
 
   my $result = 0;
 
-  $Iptv->{SERVICE_ID} //= $attr->{SERVICE_ID};
+  $Iptv->{SERVICE_ID} = $attr->{SERVICE_ID} || $Iptv->{SERVICE_ID};
   if ($Iptv->{SERVICE_ID}) {
     $Tv_service = init_iptv_service($db, $admin, \%conf, {
       SERVICE_ID            => $Iptv->{SERVICE_ID},
@@ -903,7 +912,8 @@ sub iptv_account_action {
     if ($Tv_service && $Tv_service->can('user_change')) {
       $users->info($uid, { SHOW_PASSWORD => 1 });
       $users->pi({ UID => $uid });
-      $Iptv->user_info($Iptv->{ID} || $attr->{ID});
+      $Iptv->user_info($attr->{ID} || $Iptv->{ID});
+      $Iptv->{TP_INFO_OLD} //= $attr->{TP_INFO_OLD};
       $Tv_service->user_change({
         %$users,
         %$Iptv,
@@ -1273,7 +1283,11 @@ sub iptv_chg_tp {
 
         #Take Fees
         if (!$Iptv->{STATUS} && $FORM{GET_ABON}) {
-          service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV}, MODULE => 'Iptv' });
+          service_get_month_fee($Iptv, {
+            SERVICE_NAME => $lang{TV},
+            MODULE       => 'Iptv',
+            RECALCULATE  => $FORM{RECALCULATE}
+          });
         }
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
         $Iptv->user_info($FORM{ID} || $_user->{UID});

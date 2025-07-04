@@ -37,19 +37,29 @@ sub msgs_task_board {
   }
 
   my $date = $FORM{DATE} ? $FORM{DATE} : $DATE;
-  my ($year, $month, $day) = $date =~ /(\d{4})\-(\d{2})\-(\d{2})/;
 
-  my $tasks = _msgs_schedule_month_get_tasks($year, $month, $FORM{AID});
-  my $task_status_select = msgs_sel_status({ NAME => 'TASK_STATUS_SELECT', ALL => 1 });
-  my $admins_select = sel_admins();
+  my $status_list = $Msgs->status_list({
+    STATUS_ONLY => 1,
+    NAME        => '_SHOW',
+    COLOR       => '_SHOW',
+    ICON        => '_SHOW',
+    COLS_NAME   => 1
+  });
+  my $statuses = {};
+  foreach my $status (@{$status_list}) {
+    $statuses->{$status->{id}} = {
+      name  => _translate($status->{name}),
+      icon  => $status->{icon} || '',
+      color => $status->{color} || ''
+    };
+  }
 
-  $Schedule_control->schedule_tasks_board(json_former($tasks, { ESCAPE_DQ => 1 }), { %FORM,
-    ID      => 'MSGS_TASKS_BOARD',
-    FILTERS => $html->tpl_show(_include('msgs_schedule', 'Msgs'), {
-      DATE       => $date,
-      STATUS_SEL => $task_status_select,
-      ADMIN_SEL  => $admins_select,
-    }, { OUTPUT2RETURN => 1 })
+  my $locales = { russian => 'ru', ukrainian => 'uk' };
+
+  $html->tpl_show(_include('msgs_calendar', 'Msgs'), {
+    DATE       => $date,
+    STATUSES   => json_former($statuses),
+    LOCALE     => $locales->{$html->{language}} || 'en'
   });
 
   return 1;
@@ -96,7 +106,7 @@ sub _msgs_schedule_month_get_tasks {
     PRIORITY_ID            => '_SHOW',
     CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     COLS_NAME              => 1,
-    PAGE_ROWS              => 65500
+    PAGE_ROWS              => 50
   });
 
   my @tasks = ();

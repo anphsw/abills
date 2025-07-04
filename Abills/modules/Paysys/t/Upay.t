@@ -8,7 +8,6 @@ use lib '../../';
 use Paysys::t::Init_t;
 use Abills::Base qw(encode_base64);
 use Digest::MD5 qw(md5_hex);
-require Paysys::systems::Upay;
 
 our (
   %conf,
@@ -21,7 +20,16 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Upay->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::Plugins::Upay;
+  $Payment_plugin = Paysys::Plugins::Upay->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Upay;
+  $Payment_plugin = Paysys::Plugins::Upay->new($db, $admin, \%conf);
+}
+
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }

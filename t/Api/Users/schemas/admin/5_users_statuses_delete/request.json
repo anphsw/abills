@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_USERS_STATUSES_DELETE",
+  "method": "DELETE",
+  "path": "users/statuses/100/"
+}

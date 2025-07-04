@@ -12,22 +12,23 @@ use Abills::Defs;
 use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
   in_array startup_files load_pmodule urlencode encode_base64 json_former);
 
-our ($db,
+our (
+  $db,
   %lang,
   $base_dir,
   %LANG,
   @MONTHES,
   @WEEKDAYS,
   @bool_vals,
-  %permissions,
-  @state_colors
+  %permissions
+#  @state_colors,
+#  %COOKIES
 );
 
 our Abills::HTML $html;
 our Admins $admin;
 our Conf $Conf;
 our Users $users;
-
 
 #**********************************************************
 =head2 form_status() - service status listing
@@ -46,14 +47,14 @@ sub form_status {
   $Service->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
     $Service->status_add({%FORM});
     if (!$Service->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
-    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $Service->status_change({%FORM});
     if (!$Service->{errno}) {
@@ -155,14 +156,14 @@ sub form_user_status {
   $User->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
     $User->user_status_add({%FORM});
     if (!$User->{errno}) {
       $html->message('info', $lang{ADDED}, "ID=". ($FORM{ID} || 0));
     }
   }
   elsif ($FORM{change}) {
-    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $User->user_status_change({%FORM});
     if (!$User->{errno}) {
@@ -372,7 +373,7 @@ sub form_billd_plugins {
   });
 
   opendir my $fh, "$billd_plugin_dir" or die "Can't open dir '$billd_plugin_dir' $!\n";
-    my @contents = grep !/^\.\.?$/, readdir $fh;
+    my @contents = grep !/^\.\.?$/x, readdir $fh;
   closedir $fh;
 
   $table = $html->table(
@@ -386,7 +387,7 @@ sub form_billd_plugins {
   foreach my $filename (sort @contents) {
     my ($size, $mtime) = (stat("$billd_plugin_dir/$filename"))[7,9];
     my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
-    $filename =~ s/\.pm//;
+    $filename =~ s/\.pm//x;
 
     $table->addrow($filename,
       $date,
@@ -957,7 +958,7 @@ sub get_tpl_describe {
 sub show_tpl_info {
   my ($filename, $path) = @_;
 
-  $filename =~ s/\.tpl$//;
+  $filename =~ s/\.tpl$//x;
 
   my $tpl_params = tpl_describe("$filename", $path);
 
@@ -1918,13 +1919,13 @@ sub form_fees_types {
   if ($FORM{add}) {
     $Fees->fees_type_add({%FORM});
     if (!$Fees->{errno}) {
-      $html->message('info', $lang{ADDED}, "$lang{ADDED}");
+      $html->message('info', $lang{ADDED}, $lang{ADDED});
     }
   }
   elsif ($FORM{change}) {
     $Fees->fees_type_change({%FORM});
     if (!$Fees->{errno}) {
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
+      $html->message('info', $lang{CHANGED}, $lang{CHANGED});
     }
   }
   elsif (defined($FORM{chg})) {
@@ -1941,6 +1942,15 @@ sub form_fees_types {
 
   _error_show($Fees);
 
+  $Fees->{PARENT_SEL} = $html->form_select('PARENT_ID', {
+    SELECTED    => $Fees->{PARENT_ID},
+    SEL_LIST    => translate_list($Fees->fees_type_list({ PARENT_ID => 0, COLS_NAME => 1, PAGE_ROWS => 999999 })),
+    SEL_OPTIONS => { '' => '--' },
+    NO_ID       => 1,
+    SEL_VALUE   => 'name',
+    SEL_KEY     => 'id'
+  });
+
   $html->tpl_show(templates('form_fees_types'), $Fees);
 
   if (!defined($FORM{sort})) {
@@ -1956,16 +1966,16 @@ sub form_fees_types {
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      tax  => $lang{TAX},
-      id   => '#',
-      name => $lang{NAME},
+      tax              => $lang{TAX},
+      id               => '#',
+      name             => $lang{NAME},
       default_describe => $lang{COMMENTS},
-      sum  => $lang{SUM}
+      sum              => $lang{SUM}
     },
-    FILTER_COLS  => {
+    FILTER_COLS     => {
       name => '_translate',
     },
-    TABLE => {
+    TABLE           => {
       width      => '100%',
       caption    => "$lang{FEES} $lang{TYPE}",
       qs         => $pages_qs,
@@ -1973,9 +1983,9 @@ sub form_fees_types {
       DATA_TABLE => 1,
       EXPORT     => 1,
     },
-    MAKE_ROWS    => 1,
-    SEARCH_FORMER=> 1,
-    TOTAL        => 1
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
   });
 
   return 1;
@@ -2612,7 +2622,7 @@ sub form_payment_types {
   my $Payments = Payments->new($db, $admin, \%conf);
   my %info;
 
-  $info{BUTTON_LABALE} = 'add';
+  $info{BUTTON_LABEL} = 'add';
   $info{BUTTON_NAME}   = $lang{ADD};
 
   if ($FORM{add}) {
@@ -2631,7 +2641,7 @@ sub form_payment_types {
     $Payments->payment_type_change(\%FORM);
   }
   elsif (defined($FORM{chg})) {
-    $info{BUTTON_LABALE} = 'change';
+    $info{BUTTON_LABEL} = 'change';
     $info{BUTTON_NAME}   = $lang{CHANGE};
     $info{ID}            = $FORM{chg};
 
@@ -2652,16 +2662,21 @@ sub form_payment_types {
   _error_show($Payments);
 
   $info{ADMIN_PAY} = $lang{ADMIN_PAY};
-  $info{FEES_TYPE} = $html->form_select(
-    'FEES_TYPE',
-    {
-      SELECTED      => $Payments->{FEES_TYPE} || 0,
-      SEL_HASH      => get_fees_types(),
-      NO_ID         => 1,
-      SORT_KEY_NUM  => 1,
-      MAIN_MENU     => get_function_index('form_fees_types'),
-    }
-  );
+  # $info{FEES_TYPE} = $html->form_select(
+  #   'FEES_TYPE',
+  #   {
+  #     SELECTED      => $Payments->{FEES_TYPE} || 0,
+  #     SEL_HASH      => get_fees_types(),
+  #     NO_ID         => 1,
+  #     SORT_KEY_NUM  => 1,
+  #     MAIN_MENU     => get_function_index('form_fees_types'),
+  #   }
+  # );
+
+  $info{FEES_TYPE} = sel_fees_methods('FEES_TYPE', $Payments->{FEES_TYPE} || 0, {
+    MAIN_MENU   => get_function_index('form_fees_types'),
+    LABEL       => $lang{FEES}
+  });
 
   $info{ ALLOW_SET_ID } = $info{ID} ? 'disabled' : '';
 
@@ -2762,11 +2777,10 @@ sub form_info_fields {
     'Time zone',
     $lang{DATE},
   );
-  my @bool = ($lang{NO}, $lang{YES});
 
   my %TEMPLATE_ADVERTISEMENT = ();
   my $show_add_form = $FORM{add_form} || 0;
-  my $chg_list = ();
+  my $info_field = ();
   if ($FORM{add}) {
     if (!$FORM{SQL_FIELD}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (SQL_FIELD)");
@@ -2794,17 +2808,15 @@ sub form_info_fields {
   }
   elsif ($FORM{chg}) {
     $show_add_form = 1;
-    $chg_list = $Info_fields->fields_list({ ID => $FORM{chg} });
-    if ($chg_list->[0]) {
-      $chg_list->[0]{REQUIRED} = 'checked' if $chg_list->[0]{REQUIRED};
-      $chg_list->[0]{ABON_PORTAL} = 'checked' if $chg_list->[0]{ABON_PORTAL};
-      $chg_list->[0]{USER_CHG} = 'checked' if $chg_list->[0]{USER_CHG};
+    %{$info_field} = %{$Info_fields->fields_info($FORM{chg})};
+    if ($info_field->{ID}) {
+      $info_field->{REQUIRED} = 'checked' if $info_field->{REQUIRED};
+      $info_field->{ABON_PORTAL} = 'checked' if $info_field->{ABON_PORTAL};
+      $info_field->{USER_CHG} = 'checked' if $info_field->{USER_CHG};
 
-      # manage list values
-      if ($chg_list->[0]{TYPE} && $chg_list->[0]{TYPE} == 2) {
+      if ($info_field->{TYPE} && $info_field->{TYPE} == 2) {
         form_info_lists($Info_fields);
       }
-
     }
     $TEMPLATE_ADVERTISEMENT{READONLY} = 'readonly';
     $TEMPLATE_ADVERTISEMENT{READONLY2} = 'disabled';
@@ -2812,15 +2824,15 @@ sub form_info_fields {
       readonly => 'readonly',
       type     => 'text',
       class    => 'form-control',
-      value    => ($chg_list->[0]) ? $fields_types[$chg_list->[0]->{type}] : q{},
+      value    => (defined $info_field->{TYPE}) ? $fields_types[$info_field->{TYPE}] : q{},
     });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    my $list = $Info_fields->fields_list({ ID => $FORM{del} });
+    my $info_field_del_info = $Info_fields->fields_info($FORM{del});
     $Info_fields->fields_del($FORM{del}, COMMENTS => $FORM{COMMENTS});
     $Info_fields->info_field_del({
-      FIELD_ID => $list->[0]->{SQL_FIELD},
-      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu'),
+      FIELD_ID => $info_field_del_info->{SQL_FIELD},
+      SECTION  => ($info_field_del_info->{COMPANY} ? 'ifc' : 'ifu'),
     });
     show_result($Info_fields, $lang{DELETED});
   }
@@ -2829,15 +2841,50 @@ sub form_info_fields {
 
   if ($show_add_form) {
     $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} //= $html->form_select('TYPE', {
-      SELECTED     => $chg_list->[0]->{type} || 0,
+      SELECTED     => $info_field->{TYPE} || 0,
       SEL_ARRAY    => \@fields_types,
       ARRAY_NUM_ID => 1,
       SEL_OPTIONS  => { '' => '' }
     });
 
+    $TEMPLATE_ADVERTISEMENT{PARENT_SELECT} //= $html->form_select('PARENT_ID', {
+      SELECTED     => $info_field->{PARENT_ID} || 0,
+      SEL_LIST     => $Info_fields->fields_list({
+        ID        => $FORM{chg} ? "!$FORM{chg}" : '_SHOW',
+        TYPE      => 2,
+        COLS_NAME => 1
+      }),
+      SEL_VALUE    => 'name',
+      SEL_KEY      => 'id',
+      SORT_KEY_NUM => 1,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { '' => '' }
+    });
+    
+    if ($info_field->{PARENT_ID} && $info_field->{PARENT_VALUE_ID}) {
+      my $parent_info_field = $Info_fields->fields_info($info_field->{PARENT_ID});
+
+      if ($Info_fields->{TYPE} && $Info_fields->{TYPE} == 2 && $Info_fields->{SQL_FIELD}) {
+        my $list_items = $Info_fields->info_lists_list({ LIST_TABLE => lc $Info_fields->{SQL_FIELD} . '_list', COLS_NAME => 1 });
+        $parent_info_field->{LIST_ITEMS} = $Info_fields->{TOTAL} && $Info_fields->{TOTAL} > 0 ? $list_items : [];
+      }
+
+      if ($parent_info_field->{LIST_ITEMS} && scalar($parent_info_field->{LIST_ITEMS}) > 0) {
+        $TEMPLATE_ADVERTISEMENT{PARENT_VALUE_SELECT} //= $html->form_select('PARENT_VALUE_ID', {
+          SELECTED     => $info_field->{PARENT_VALUE_ID} || 0,
+          SEL_LIST     => $parent_info_field->{LIST_ITEMS},
+          SEL_VALUE    => 'name',
+          SEL_KEY      => 'id',
+          SORT_KEY_NUM => 1,
+          NO_ID        => 1,
+          SEL_OPTIONS  => { '' => '' }
+        });
+      }
+    }
+
     $html->tpl_show(templates('form_info_fields'), {
       %TEMPLATE_ADVERTISEMENT,
-      %{($chg_list->[0]) ? $chg_list->[0] : {}},
+      %{$info_field},
       SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
       SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
     });
@@ -2853,16 +2900,16 @@ sub form_info_fields {
 
   #Import old fields
   if ($FORM{update_table}) {
-    my $usr_list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2 });
+    my $usr_list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2, COLS_NAME => 1 });
     foreach my $line (@$usr_list) {
 
       my $field_name = '';
 
-      if ($line->[0] =~ /ifu\_(\S+)/) {
+      if ($line->{param} =~ /ifu\_(\S+)/) {
         $field_name = $1;
       }
 
-      my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->[1]);
+      my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->{value});
       $can_be_changed_by_user = ($can_be_changed_by_user) ? 1 : 0;
       if (!defined($field_type)) {
         $field_type = 0;
@@ -2877,15 +2924,15 @@ sub form_info_fields {
         USER_CHG    => $can_be_changed_by_user
       });
     }
-    my $company_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
+    my $company_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2, COLS_NAME => 1 });
 
     foreach my $line (@$company_list) {
       my $field_name = '';
 
-      if ($line->[0] =~ /ifc\_(\S+)/) {
+      if ($line->{param} =~ m/ifc\_(\S+)/x) {
         $field_name = $1;
       }
-      my ($position, $field_type, $name, $user_portal) = split(/:/, $line->[1]);
+      my ($position, $field_type, $name, $user_portal) = split(/:/x, $line->{value});
 
       if (!defined($field_type)) {
         $field_type = 0;
@@ -2941,18 +2988,19 @@ sub form_info_fields {
       }
     },
     SELECT_VALUE    => {
-      abon_portal => { 0 => $bool[0], 1 => $bool[1] },
-      user_chg    => { 0 => $bool[0], 1 => $bool[1] },
-      company     => { 0 => $bool[0], 1 => $bool[1] },
-      required    => { 0 => $bool[0], 1 => $bool[1] }
+      abon_portal => { 0 => $bool_vals[0], 1 => $bool_vals[1] },
+      user_chg    => { 0 => $bool_vals[0], 1 => $bool_vals[1] },
+      company     => { 0 => $bool_vals[0], 1 => $bool_vals[1] },
+      required    => { 0 => $bool_vals[0], 1 => $bool_vals[1] }
     },
     TABLE           => {
-      width   => '100%',
-      caption => $lang{INFO_FIELDS},
-      ID      => 'INFO_FIELDS',
-      header  => $status_bar,
-      SHOW_FULL_LIST  => 1,
-      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply mt-1 ml-1",
+      width          => '100%',
+      caption        => $lang{INFO_FIELDS},
+      ID             => 'INFO_FIELDS',
+      header         => $status_bar,
+      SHOW_FULL_LIST => 1,
+      EXPORT         => 1,
+      MENU           => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply mt-1 ml-1",
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
@@ -2961,4 +3009,50 @@ sub form_info_fields {
   return 1;
 }
 
-1
+#**********************************************************
+=head2 form_password_blacklist()
+
+=cut
+#**********************************************************
+sub form_password_blacklist {
+
+  if ($FORM{add} && $FORM{PASSWORD}) {
+    $admin->password_blacklist_add({ PASSWORD => $FORM{PASSWORD} });
+    $html->message('success', $lang{ADDED}) if (!_error_show($admin));
+  }
+  elsif ($FORM{del}) {
+    $admin->password_blacklist_del({ ID => $FORM{del}, AID => 0 });
+    $html->message('success', $lang{DELETED})  if (!_error_show($admin));
+  }
+  
+  $html->tpl_show(templates('form_password_blacklist'), {
+    INDEX     => $index,
+    BTN_NAME  => 'add',
+    BTN_VALUE => $lang{ADD}
+  });
+
+  $LIST_PARAMS{AID} = 0;
+  result_former({
+    INPUT_DATA      => $admin,
+    FUNCTION        => 'password_blacklist_list',
+    DEFAULT_FIELDS  => 'ID,PASSWORD,CHANGED_AT',
+    HIDDEN_FIELDS   => 'AID',
+    FUNCTION_FIELDS => 'del',
+    EXT_TITLES      => {
+      id         => '#',
+      password   => $lang{PASSWD},
+      changed_at => $lang{DATE}
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{FORBIDDEN_PASSWORDS},
+      qs      => $pages_qs,
+      ID      => 'PASSWORD_BLACKLIST_LIST',
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+1;

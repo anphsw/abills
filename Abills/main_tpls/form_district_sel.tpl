@@ -19,7 +19,13 @@
   }
   var district_id = jQuery(`[name='ID']`).val() || 0;
 
-  if (jQuery(`[name='%DISTRICT_IDENTIFIER%']`).length < 1) {
+  const districtIdentifier = jQuery(`[name='%DISTRICT_IDENTIFIER%']`);
+  const districtSel = jQuery(`[name='DISTRICT_SEL']`);
+
+  if (
+    districtIdentifier.length < 1 ||
+    districtIdentifier.closest('form')[0] !== districtSel.closest('form')[0]
+  ) {
     jQuery(jQuery(`[name='DISTRICT_SEL']:not([change-set])`).first().append(jQuery('<input/>', {
       type: 'hidden',
       name: '%DISTRICT_IDENTIFIER%',

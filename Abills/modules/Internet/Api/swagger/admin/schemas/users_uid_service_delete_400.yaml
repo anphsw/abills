@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 1360030
+  errstr:
+    type: string
+    example: ERR_UID_SERVICE_NOT_EXISTS

@@ -309,8 +309,8 @@ sub tags_sel {
   my $input_checkbox = $html->element('input', '', $checkbox_params);
   my $ext_button = $html->element('div', $html->element('i', '', { class => 'fa fa-exclamation' }) . $input_checkbox, { class => 'p-1' });
 
-  my $form = $html->form_select('TAGS', {
-    SELECTED   => $FORM{TAGS} || '',
+  my $form = $html->form_select($attr->{NAME} || 'TAGS', {
+    SELECTED   => $FORM{TAGS} || $attr->{TAGS} || '',
     SEL_LIST   => $tags_list,
     EX_PARAMS  => 'multiple="multiple"',
     EXT_BUTTON => $attr->{SHOW_EXT_BUTTON} ? $ext_button : '',

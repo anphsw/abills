@@ -81,4 +81,6 @@
       }
     }
   });
+
+  formatInputWithThousands('SUM');
 </script>

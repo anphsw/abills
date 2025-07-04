@@ -1,0 +1,8 @@
+type: object
+properties:
+  accepted:
+    type: integer
+    example: 1
+  result:
+    type: string
+    example: "Successfully accepted"

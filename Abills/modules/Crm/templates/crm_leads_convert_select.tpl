@@ -1,6 +1,6 @@
-<form id='LEAD_CONVERT' action='$SELF_URL' method='POST' class='form-horizontal'>
+<form id='LEAD_CONVERT' action='%SELF_URL%' method='POST' class='form-horizontal'>
 
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' id='FROM_LEAD_ID' name='FROM_LEAD_ID' value='%FROM_LEAD_ID%'>
   <input type='hidden' name='TO_LEAD_ID' value='%TO_LEAD_ID%'>
 

@@ -35,7 +35,8 @@
     let status = jQuery(select).val();
     let mainBlock = jQuery(select).parent().parent().parent();
 
-    if (status === '3') {
+    mainBlock.find('.appended_field').remove();
+    if (status === '3' || status === '5') {
       var element = jQuery("<div></div>").addClass("form-group row appended_field");
       element.append(jQuery("<label for=''></label>").text("_{MONTHES}_:").addClass("col-md-4 control-label"));
       element.append(jQuery("<div></div>").addClass("col-md-8")
@@ -114,7 +115,7 @@
   <input type=hidden name='step' value='$FORM{step}'>
   <input type=hidden name='STORAGE_MSGS_ID' value='$FORM{STORAGE_MSGS_ID}'>
 
-  <div class='card card-primary card-outline card-form'>
+  <div class='card card-primary card-outline container-md'>
     <div class='card-header'>
 
       <ul class='nav nav-tabs' role='tablist'>
@@ -242,7 +243,11 @@
 
             <div class='form-group row' style='%CHG_HIDE%'>
               <label class='col-md-4 control-label'>_{ACTION}_:</label>
-              <div class='col-md-8'>%STATUS% %STORAGE_DOC_CONTRACT% %STORAGE_DOC_RECEIPT%</div>
+              <div class='col-md-8'>%STATUS%
+                %STORAGE_DOC_CONTRACT%
+                %STORAGE_DOC_RECEIPT%
+                %STORAGE_DOC_RETURN%
+              </div>
             </div>
             <div id='storage_monthes_by_installments'>
 

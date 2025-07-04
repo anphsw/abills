@@ -35,6 +35,7 @@ put:
   description: >
     Также можно добавлять все информационные поля
     Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+    Пример загрузки файла на сервер наведен в multipart/form-data.
   parameters:
     - $ref: "#/components/parameters/pathUid"
   requestBody:
@@ -42,6 +43,9 @@ put:
       application/json:
         schema:
           $ref: "../schemas/addUserRequest.yaml"
+      multipart/form-data:
+        schema:
+          $ref: "../schemas/uploadFile.yaml"
     required: true
   responses:
     400:

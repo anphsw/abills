@@ -286,9 +286,9 @@ subtest 'paysys_pay_check' => sub {
 
   diag("Check not exists payment");
   ($paysys_id, $paysys_status, $transaction) = $Paysys_Core->paysys_pay_check({PAYSYS_ID => 4294967291});
-  cmp_ok($paysys_id, '==', 0, "Paysys id is $payment_id");
-  is($paysys_status, undef, 'Paysys status is undef');
-  is($transaction, undef, 'Transaction is undef');
+  cmp_ok($paysys_id, '==', 0, "Paysys id is 0");
+  is($paysys_status, 0, 'Paysys status is 0');
+  is_deeply($transaction, {}, 'Transaction is undef');
 };
 
 # paysys info
@@ -515,7 +515,8 @@ sub _paysys_info {
 
     isa_ok($transaction, 'HASH', 'Transaction is');
 
-    my @keys = ('ext_id', 'domain_id', 'system_id', 'uid', 'id', 'transaction_id', 'status', 'ip', 'datetime', 'login', 'sum');
+    my @keys = ('ext_id', 'domain_id', 'system_id', 'uid', 'id', 'transaction_id', 'status', 'ip', 'datetime', 'login', 'sum',
+      'EXT_ID', 'DOMAIN_ID', 'SYSTEM_ID', 'UID', 'ID', 'TRANSACTION_ID', 'STATUS', 'IP', 'DATETIME', 'LOGIN', 'SUM');
     my @transaction_keys = keys %{$transaction};
 
     is_deeply([ sort @keys ], [ sort @transaction_keys ], 'All base keys present in transaction hash');

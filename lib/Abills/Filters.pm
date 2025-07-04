@@ -42,6 +42,8 @@ our @EXPORT = qw(
   serial2mac
   url2parts
   value2readable
+  mk_cid_list
+  email_valid
   $IPV4
   $IPV4CIDR
   $HD
@@ -67,6 +69,8 @@ our @EXPORT_OK = qw(
   serial2mac
   url2parts
   value2readable
+  mk_cid_list
+  email_valid
   $IPV4
   $IPV4CIDR
   $HD
@@ -529,5 +533,96 @@ sub _mac_format_mask {
   return $mask;
 }
 
+#**********************************************************
+=head2 mk_cid_list($cid);
+
+  Arguments:
+    $cid
+
+  Results:
+    $cid_list
+
+=cut
+#**********************************************************
+sub mk_cid_list {
+  my ($cid)=@_;
+  my @cid_list = ();
+
+  my @mac_formats = (
+    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2.$3$4.$5$6',
+    '([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})|$1:$2:$3:$4:$5:$6',
+    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2$3$4$5$6',
+  );
+
+  foreach my $mac_format ( @mac_formats ) {
+    #print $mac_format ."\n";
+    my $_cid = $cid;
+    my ($expr, $result)=split(/\|/, $mac_format);
+
+    $_cid =~ s/$expr/eval "\"$result\""/e;
+
+    push @cid_list, $_cid;
+  }
+
+  return join(',', @cid_list);
+}
+
+#**********************************************************
+=head2 email_valid($email) - Validate email address
+
+  Arguments:
+    $email - Email address to validate
+
+  Returns:
+    1 - Email is valid
+    0 - Email is invalid
+
+  Examples:
+    my $is_valid = email_valid('user@example.com');
+
+=cut
+#**********************************************************
+sub email_valid {
+  my $email = shift;
+
+  if (!$email) {
+    return 0;
+  }
+
+  if ($email !~ /^$EMAIL_EXPR$/) {
+    return 0;
+  }
+
+  my ($local_part, $domain) = split('@', $email);
+
+  if (length($local_part) > 64) {
+    return 0;
+  }
+
+  if (length($domain) > 255) {
+    return 0;
+  }
+
+  if ($local_part =~ /^\./) {
+    return 0;
+  }
+
+  if ($local_part =~ /\.$/) {
+    return 0;
+  }
+
+  my @domain_parts = split(/\./, $domain);
+  foreach my $part (@domain_parts) {
+    if (length($part) > 63) {
+      return 0;
+    }
+
+    if ($part =~ /^-/ || $part =~ /-$/) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
 
 1;

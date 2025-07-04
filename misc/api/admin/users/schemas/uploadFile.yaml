@@ -1,0 +1,9 @@
+type: object
+properties:
+  __document:
+    type: string
+    format: binary
+    description: Тестовий файл для загрузки
+  __testField:
+    type: string
+    description: Пример дополнительного поля

@@ -6,7 +6,7 @@ package Export_redmine;
 
 =head1 VERSION
 
-  VERSION: 1.22
+  VERSION: 1.23
 
   API:
     http://www.redmine.org/projects/redmine/wiki/Rest_api
@@ -18,7 +18,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule);
 use Abills::Fetcher;
 
-our $VERSION = 1.22;
+our $VERSION = 1.23;
 
 my $MODULE = 'Export_redmine';
 my ($json);
@@ -158,6 +158,7 @@ sub export_task {
   }
 
   $attr->{MESSAGE} =~ s/\\\"/\"/g;
+  $attr->{SUBJECT} =~ s/\\\"/\"/g;
 
   my $data = {
     "issue" => {
@@ -170,9 +171,10 @@ sub export_task {
   };
 
   $self->send_request({
-    ACTION   => "/projects/$data->{issue}{project_id}/issues.json",
+    ACTION    => "/projects/$data->{issue}{project_id}/issues.json",
     JSON_BODY => $data,
-    METHOD   => 'POST',
+    METHOD    => 'POST',
+    DEBUG     => 1
   });
 
   if ($self->{RESULT} && $self->{RESULT}->{issue}->{id}) {
@@ -195,7 +197,7 @@ sub task_info {
   my ($attr) = @_;
 
   my $task_id = $attr->{TASK_ID} || 0;
-  return $self if !$task_id;
+  return $self if (!$task_id);
 
   $self->send_request({
     ACTION   => "issues.json?issue_id=$task_id&status_id=*",

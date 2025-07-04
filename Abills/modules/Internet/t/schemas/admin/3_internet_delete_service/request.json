@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_DELETE_USER_SERVICE",
+  "method": "DELETE",
+  "path": "internet/users/:uid/services/:serviceId/"
+}

@@ -1,0 +1,21 @@
+post:
+  tags:
+    - msgs
+  summary: Поиск сообщений по тексту
+  operationId: userSearchMsgs
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/msgsSearch.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/msgsSearchList.yaml"
+  security:
+    - KEY: []

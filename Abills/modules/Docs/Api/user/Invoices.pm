@@ -128,7 +128,7 @@ sub post_user_docs_invoices {
 
   my %add_params = ();
 
-  if (!$query_params->{NEXT_PERIOD} && !$query_params->{IDS}) {
+  if (!$query_params->{NEXT_PERIOD} || !$query_params->{IDS}) {
     $add_params{DATE} = $main::DATE;
   }
   else {

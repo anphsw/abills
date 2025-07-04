@@ -120,7 +120,10 @@ sub paysys_payment {
       COLS_NAME => '_SHOW'
     });
 
-    if ($Paysys->{errno}) {
+    if (($FORM{TRUE} || $FORM{FALSE}) && ($FORM{OPERATION_ID} || $FORM{TRANSACTION_ID})) {
+      return paysys_payment_show_result(\%FORM);
+    }
+    elsif ($Paysys->{errno}) {
       print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
     else {
@@ -185,7 +188,7 @@ sub paysys_payment {
     }
   }
 
-  $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
+  $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(10, { SYMBOLS => '0123456789' });
   if ($conf{PAYSYS_USER_PORTAL_MAP} && in_array('Maps', \@MODULES) && !$FORM{json}) {
     require Paysys::Maps;
     $TEMPLATES_ARGS{MAP} = paysys_maps_new();
@@ -277,6 +280,102 @@ sub paysys_payment {
 }
 
 #**********************************************************
+=head2 paysys_payment_show_result($attr) - Show result
+
+  WEB form show result
+
+  Attributes:
+    $attr
+      TRANSACTION_ID
+      UID
+      SUM
+      SHOW_TRUE_PARAMS - Hash ref
+        {NAME:VALUE}
+      SHOW_FALSE_PARAMS - Hash ref
+        {NAME:VALUE}
+      FALSE
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub paysys_payment_show_result {
+  my ($attr) = @_;
+
+  $attr->{TRANSACTION_ID} ||= $attr->{OPERATION_ID};
+  $attr->{SUM} = 0 if (!$attr->{FORCE_TRUE});
+
+  my $transaction_true = 1;
+
+  if ($attr->{FORCE_TRUE} && ($attr->{TRANSACTION_ID} || $attr->{OPERATION_ID}) && $attr->{SUM}) {
+    $attr->{SUM} = sprintf("%.2f", $attr->{SUM});
+    $attr->{MESSAGE} = $status[2];
+  }
+  elsif ($attr->{TRANSACTION_ID} || $attr->{OPERATION_ID}) {
+    my $list = $Paysys->list({
+      TRANSACTION_ID => $attr->{TRANSACTION_ID} || $attr->{OPERATION_ID},
+      UID            => $user->{UID} || $attr->{UID},
+      SUM            => '_SHOW',
+      STATUS         => '_SHOW',
+      USER_INFO      => '_SHOW',
+      INFO           => '_SHOW',
+      COLS_NAME      => 1,
+      SKIP_DEL_CHECK => 1,
+      SORT           => 'id'
+    });
+
+    if ($Paysys->{TOTAL} > 0) {
+      $attr->{SUM} = sprintf("%.2f", $list->[0]->{sum} || 0);
+      $attr->{PAYSYS_ID} = $list->[0]->{id};
+      $attr->{MESSAGE} = $status[$list->[0]->{status}];
+
+      if ($list->[0]->{status} != 2) {
+        $transaction_true = 0;
+      }
+    }
+    else {
+      $attr->{MESSAGE} = $lang{ERR_NO_TRANSACTION};
+      $attr->{FALSE} = 1;
+      $transaction_true = 0;
+    }
+
+    if ($list->[0]->{info} && $list->[0]->{info} =~ /TP_ID,(\d+)/) {
+      $attr->{TP_ID} = $1;
+    }
+  }
+
+  my $qs = '';
+  foreach my $key (keys %$attr) {
+    next if (in_array($key, [ 'index', '__BUFFER', 'root_index' ]));
+    $qs .= '&' . ($key || '') . '=' . ($attr->{$key} || '');
+  }
+
+  $attr->{BTN_REFRESH} = $html->button($lang{REFRESH}, "index=$index" . $qs, { BUTTON => 2 });
+  if ($attr->{FALSE} && !$transaction_true) {
+    if ($attr->{SHOW_FALSE_PARAMS}) {
+      while (my ($key, $value) = each %{$attr->{SHOW_FALSE_PARAMS}}) {
+        $attr->{EXTRA_MESSAGE} .= "$key - $value" . $html->br();
+      }
+    }
+
+    $html->tpl_show(_include('paysys_false', 'Paysys'), { %$attr });
+    $transaction_true = 0;
+  }
+  else {
+    if ($attr->{SHOW_TRUE_PARAMS}) {
+      while (my ($key, $value) = each %{$attr->{SHOW_TRUE_PARAMS}}) {
+        $attr->{EXTRA_MESSAGE} .= "$key - $value" . $html->br();
+      }
+    }
+
+    $attr->{TRUE} = 1;
+    $html->tpl_show(_include('paysys_complete', 'Paysys'), $attr);
+  }
+
+  return $transaction_true;
+}
+
+#**********************************************************
 =head2 _paysys_fast_pay($attr) - Show payment page
 
   Arguments:
@@ -337,7 +436,8 @@ sub _paysys_fast_pay {
     %FORM,
     %{($attr) ? $attr : {}},
     USER => $user,
-    UID  => $user->{UID}
+    UID  => $user->{UID},
+    SID  => $sid || $user->{SID} || '',
   });
 
   return 0 if (_error_show($pay_link));
@@ -354,6 +454,8 @@ sub _paysys_fast_pay {
       $pay_link->{FORM_DATA}->{$param->{field}} = $param->{value};
     }
   }
+
+  $attr->{DESCRIBE} = "$lang{ORDER} $pay_link->{TRANSACTION_ID}" if (!$attr->{DESCRIBE} && $pay_link->{TRANSACTION_ID} && $pay_link->{TRANSACTION_ID} ne 'Unknown');
 
   return $html->tpl_show(_include($template, 'Paysys'), {
     %FORM,

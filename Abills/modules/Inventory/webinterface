@@ -8,13 +8,13 @@
 use strict;
 use warnings;
 use Inventory::db::Inventory;
+use Abills::Base qw(convert);
+require Control::Selects;
 
 our ($db,
   $admin,
   %conf,
   %lang,
-  @WEEKDAYS,
-  @MONTHES,
   %permissions
 );
 
@@ -83,51 +83,8 @@ sub inventory_main {
     NO_ID    => 1
   });
 
-  my $list;
   if ($FORM{add_form}) {
-    if ($FORM{chg}) {
-      $list = $Inventory->inventory_units_list({ ID => $FORM{chg} });
-    }
-    else {
-      $list = $Inventory->inventory_types_list({});
-    }
-
-    $Inventory->{ADMINS_SEL} = sel_admins({
-      NAME     => 'RESPONSIBLE',
-      SELECTED => $Inventory->{RESPONSIBLE}
-    });
-
-    my @hardwares = ();
-    my @softwares = ();
-    foreach my $line (@{$list}) {
-      if ($line->[2] == 0) {
-        push @hardwares, $html->tpl_show(templates('form_row'), {
-          ID    => $line->[0],
-          NAME  => $line->[1],
-          VALUE => $html->form_input($line->[0], $line->[4])
-        }, { OUTPUT2RETURN => 1, ID => $line->[1] });
-      }
-      else {
-        push @softwares, $html->tpl_show(templates('form_row'), {
-          ID    => $line->[0],
-          NAME  => $line->[1],
-          VALUE => $html->form_input($line->[0], $line->[4])
-        }, { OUTPUT2RETURN => 1, ID => $line->[1] });
-      }
-    }
-
-    $html->tpl_show(
-      _include('inventory_main_form', 'Inventory'),
-      {
-        %{$Inventory},
-        %FORM,
-        ALIGN    => 'right',
-        HARDWARE => join(($FORM{json}) ? ',' : '', @hardwares),
-        SOFTWARE => join(($FORM{json}) ? ',' : '', @softwares),
-        #INTEGRATION_DATE => $date_integration
-      },
-      { ID => 'inventory_main_form' }
-    );
+    inventory_host_params(\%FORM);
   }
   elsif ($FORM{search_form}) {
     form_search({
@@ -143,41 +100,149 @@ sub inventory_main {
     });
   }
   elsif ($FORM{reports}) {
-    my ($table) = result_former({
-      INPUT_DATA      => $Inventory,
-      FUNCTION        => 'inventory_log_info',
-      DEFAULT_FIELDS  => 'IP,DATETIME,USERS,ADMINS,TPS,NAS,UID,SYS_ID,VERSION',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        ip       => 'IP',
-        users    => $lang{USERS},
-        admins   => $lang{ADMINS},
-        nas      => $lang{NAS},
-        tps      => $lang{TARIF_PLANS},
-        datetime => $lang{REACTION_TIME},
-        uid      => 'UID',
-        sys_id   => 'SYS_ID',
-        version  => $lang{VERSION}
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{HOSTS} - $lang{REPORTS}",
-        border  => 1,
-        qs      => $pages_qs,
-        ID      => 'INVENTORY_LOG_INFO',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      MODULE          => 'Inventory',
-    });
-    print $table->show();
+    inventory_host_reports(\%FORM);
+  }
+  elsif($FORM{IP}) {
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_whois');
+    my $whois = host_whois($FORM{IP});
+    $html->pre($whois);
   }
 
+  my $hosts_list = inventory_host_list({ %FORM, %$attr });
+
+  return '', '', '', $hosts_list;
+}
+
+#**********************************************************
+=head2 inventory_host_reports($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    $hosts_list_table
+
+=cut
+#**********************************************************
+sub inventory_host_reports {
+  #my ($attr) = @_;
+
+  my ($table) = result_former({
+    INPUT_DATA      => $Inventory,
+    FUNCTION        => 'inventory_log_info',
+    DEFAULT_FIELDS  => 'IP,DATETIME,USERS,ADMINS,TPS,NAS,UID,SYS_ID,VERSION',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      ip       => 'IP',
+      users    => $lang{USERS},
+      admins   => $lang{ADMINS},
+      nas      => $lang{NAS},
+      tps      => $lang{TARIF_PLANS},
+      datetime => $lang{REACTION_TIME},
+      uid      => 'UID',
+      sys_id   => 'SYS_ID',
+      version  => $lang{VERSION}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{HOSTS} - $lang{REPORTS}",
+      border  => 1,
+      qs      => $pages_qs,
+      ID      => 'INVENTORY_LOG_INFO',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Inventory',
+  });
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 inventory_host_params($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    $hosts_list_table
+
+=cut
+#**********************************************************
+sub inventory_host_params {
+  my ($attr) = @_;
+
+  my $list;
+  if ($attr->{chg}) {
+    $list = $Inventory->inventory_units_list({ ID => $attr->{chg} });
+  }
+  else {
+    $list = $Inventory->inventory_types_list({});
+  }
+
+  $Inventory->{ADMINS_SEL} = sel_admins({
+    NAME     => 'RESPONSIBLE',
+    SELECTED => $Inventory->{RESPONSIBLE}
+  });
+
+  my @hardwares = ();
+  my @softwares = ();
+  foreach my $line (@{$list}) {
+    if ($line->[2] == 0) {
+      push @hardwares, $html->tpl_show(templates('form_row'), {
+        ID    => $line->[0],
+        NAME  => $line->[1],
+        VALUE => $html->form_input($line->[0], $line->[4])
+      }, { OUTPUT2RETURN => 1, ID => $line->[1] });
+    }
+    else {
+      push @softwares, $html->tpl_show(templates('form_row'), {
+        ID    => $line->[0],
+        NAME  => $line->[1],
+        VALUE => $html->form_input($line->[0], $line->[4])
+      }, { OUTPUT2RETURN => 1, ID => $line->[1] });
+    }
+  }
+
+  $html->tpl_show(
+    _include('inventory_main_form', 'Inventory'),
+    {
+      %$Inventory,
+      %$attr,
+      ALIGN    => 'right',
+      HARDWARE => join(($attr->{json}) ? ',' : '', @hardwares),
+      SOFTWARE => join(($attr->{json}) ? ',' : '', @softwares),
+      #INTEGRATION_DATE => $date_integration
+    },
+    { ID => 'inventory_main_form' }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 inventory_type_add($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    $hosts_list_table
+
+=cut
+#**********************************************************
+sub inventory_host_list {
+  my ($attr) = @_;
+
+  my $uid = $FORM{UID} || 0;
+
   my @status_bar = (
-    "$lang{ALL}:index=$index&UID=$FORM{UID}&STATUS=ALL",
-    "$lang{ACTIVE}:index=$index&UID=$FORM{UID}&STATUS=0",
-    "$lang{DISABLE}:index=$index&UID=$FORM{UID}&STATUS=1",
-    "Fade out:index=$index&UID=$FORM{UID}&STATUS=2"
+    "$lang{ALL}:index=$index&UID=$uid&STATUS=ALL",
+    "$lang{ACTIVE}:index=$index&UID=$uid&STATUS=0",
+    "$lang{DISABLE}:index=$index&UID=$uid&STATUS=1",
+    "Fade out:index=$index&UID=$uid&STATUS=2"
   );
 
   my $type_list = $Inventory->inventory_types_list({ COLS_NAME => 1 });
@@ -186,7 +251,7 @@ sub inventory_main {
     $types{'type_' . $line->{id}} = "> $line->{name}";
   }
 
-  if ($FORM{UID}) {
+  if ($uid) {
     delete $LIST_PARAMS{COMMENTS};
     delete $LIST_PARAMS{LOGIN};
     delete $LIST_PARAMS{_MULTI_HIT};
@@ -225,6 +290,9 @@ sub inventory_main {
       superpassword   => 'inventory_former_passwd',
       password        => 'inventory_former_passwd:user_password'
     },
+    FILTER_VALUES   => {
+      ip            => sub { my $ip = shift; return $html->button($ip, "index=$index&IP=$ip&UID=". ($FORM{UID}), { BUTTON => 1 }) },
+    },
     TABLE           => {
       width   => '100%',
       caption => $lang{HOSTS},
@@ -242,7 +310,7 @@ sub inventory_main {
     TOTAL           => ($attr->{PROFILE_MODE}) ? 0 : 1,
   });
 
-  return '', '', '', $table->show();
+  return $table->show({ OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -470,9 +538,19 @@ sub inventory_bugs {
         SELECTED => $Inventory->{RESPONSIBLE} || $admin->{AID}
       });
 
-      ($Inventory->{FIX_VERSION}, undef)=split(/ /, get_version());
+      ($Inventory->{FIX_VERSION}, undef)=split(' ', get_version());
+
+      $Inventory->{ERROR}   = convert($Inventory->{ERROR} , { text2html => 1 });
+      $Inventory->{COMMENT} = convert($Inventory->{COMMENT}, { text2html => 1 });
+
       $html->tpl_show(_include('inventory_bug', 'Inventory'), $Inventory);
     }
+  }
+  elsif($FORM{IP}) {
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_whois');
+    my $whois = host_whois($FORM{IP});
+    $html->pre($whois);
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Inventory->bug_del({ ID => $FORM{del} });
@@ -496,7 +574,7 @@ sub inventory_bugs {
 
   my @header_arr = ("$lang{ALL}:index=$index&STATE=$pages_qs");
   foreach my $id (sort keys %status) {
-    if (defined($FORM{STATE}) && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == $id) {
+    if (defined($FORM{STATE}) && $FORM{STATE} =~ m/^\d+$/x && $FORM{STATE} == $id) {
       $LIST_PARAMS{STATE} = $FORM{STATE};
       $pages_qs .= "&STATE=$FORM{STATE}";
     }
@@ -529,19 +607,27 @@ sub inventory_bugs {
     INPUT_DATA      => $Inventory,
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      'id'          => 'ID',
-      'datetime'    => $lang{DATE},
-      'error'       => $lang{ERROR},
-      'ip'          => 'IP',
-      'hostname',   => $lang{HOSTNAME},
-      'status',     => $lang{STATUS},
-      'sys_id',     => 'SYS_ID',
-      'agent'       => 'AGENT',
-      'comments'    => $lang{COMMENTS},
-      'cur_version' => $lang{CUR_VERSION},
-      'fix_version' => 'FIX_VERSION',
-      'responsible' => $lang{RESPONSIBLE},
-      'inventory_uid' => 'Inventory UID'
+      'id'            => 'ID',
+      'datetime'      => $lang{DATE},
+      'error'         => $lang{ERROR},
+      'ip'            => 'IP',
+      'hostname',     => $lang{HOSTNAME},
+      'status',       => $lang{STATUS},
+      'sys_id',       => 'SYS_ID',
+      'agent'         => 'AGENT',
+      'comments'      => 'COMMENTS',
+      'cur_version'   => 'CUR_VERSION',
+      'fix_version'   => 'FIX_VERSION',
+      'responsible'   => $lang{RESPONSIBLE},
+      'inventory_uid' => 'Inventory UID',
+      'checksum'      => 'ERROR CHECKSUM',
+      'login'         => 'LOGIN'
+    },
+    FILTER_VALUES   => {
+      error         => sub {return convert(shift, { text2html => 1 })},
+      comment       => sub {return convert(shift, { text2html => 1 })},
+      inventory_uid => sub { my $uid = shift; return $html->button($uid, "index=11&UID=$uid", { BUTTON => 1 }) },
+      ip            => sub { my $ip = shift; return $html->button($ip, "index=$index&IP=$ip", { BUTTON => 1 }) },
     },
     TABLE           => {
       width   => '100%',
@@ -683,21 +769,26 @@ sub inventory_hosts {
 #**********************************************************
 =head2 inventory_former($value)
 
+  Argumentts:
+    $value
+
+  Results:
+    $formated_text
+
 =cut
 #**********************************************************
 sub inventory_former {
   my ($value) = @_;
   my $result = '';
 
-  if ($value =~ /\@/) {
+  if ($value =~ m/\@/x) {
     $result = $html->button($value, '#', {
       GLOBAL_URL => '#',
       COPY       => $value
     });
   }
   elsif ($value) {
-    my ($url, $login, $pass) = split(/ /, $value);
-
+    my ($url, $login, $pass) = split(/\s+/x, $value);
     $login //= q{};
     $pass //= q{};
 
@@ -934,6 +1025,8 @@ sub inventory_stats {
     BUTTON_ICON => 'minus',
     PARAMS      => 'card-primary card-outline'
   });
+
+  return 1;
 }
 
 1;

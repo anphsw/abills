@@ -61,7 +61,7 @@ sub form_nas {
     form_nas_search({ STANDART => 1 });
   }
   elsif ($FORM{add} && $permissions{4} && $permissions{4}{1}) {
-    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i) {
+    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i && ! $conf{NAS_SKIP_CHECK_MAC}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} MAC: '$FORM{MAC}'");
     }
     elsif(! $FORM{IP}) {
@@ -284,7 +284,7 @@ sub form_nas_mng {
     return form_mrtg_cfg($Nas);
   }
   elsif ($FORM{change} && $permissions{4} && $permissions{4}{2}) {
-    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i) {
+    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i && ! $conf{NAS_SKIP_CHECK_MAC}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} MAC: '$FORM{MAC}'");
     }
 
@@ -601,20 +601,17 @@ sub form_nas_console {
   }
   else {
     my $nas_module = "Internet::Nas::". ucfirst($nas_type);
-
-    eval " require $nas_module; ";
-
-    if (! $!) {
-      $nas_module->import();
-      my $Nas_console = $nas_module->new();
-      $Nas_console->test();
-      my $method_list = $Nas_console->methods();
-      #print @!;
+    if (load_module($nas_module, { LOAD_PACKAGE => 1 })) {
+      if ($nas_module) {
+        $nas_module->import();
+        my $Nas_console = $nas_module->new();
+        if ($Nas_console->test()) {
+          print "Test OK";
+          my $method_list = $Nas_console->methods();
+        }
+        #print @!;
+      }
     }
-    else {
-      print $!;
-    }
-
   }
 
   foreach my $cmd (@quick_cmd) {

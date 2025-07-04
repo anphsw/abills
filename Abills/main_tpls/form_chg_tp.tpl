@@ -1,9 +1,9 @@
-<form action='$SELF_URL' METHOD='POST' name='user' ID='user' class='form-horizontal'>
+<form action='%SELF_URL%' METHOD='POST' name='user' ID='user'>
     <input type=hidden name=sid value='$sid'>
     <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=ID value='%ID%'>
     <input type=hidden name=m value='%m%'>
-    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='index' value='%index%'>
 
     <fieldset>
 
@@ -15,7 +15,7 @@
             <div class='card-body'>
 
                 <div class='row no-padding'>
-                    <div class="col-md-12 text-center">
+                    <div class='col-md-12 text-center'>
                         %MENU%
                     </div>
                 </div>
@@ -23,7 +23,8 @@
                 <div class='form-group row'>
                     <label class='control-label col-md-3' for='TARIF'>_{FROM}_:</label>
                     <div class='col-md-9 text-left'>
-                        <input type=text name=TARIF value='%TP_ID% %TP_NAME% %DESCRIBE_AID%' ID='TARIF' class='form-control' readonly
+                        <input type=text name=TARIF value='%TP_ID% %TP_NAME% %DESCRIBE_AID%' ID='TARIF'
+                               class='form-control' readonly
                                style='text-align: inherit;'>
                     </div>
                 </div>
@@ -43,7 +44,7 @@
 
                     <label class='control-label col-md-3' for='RECALCULATE'>_{RECALCULATE}_:</label>
                     <div class='col-md-2 mt-2'>
-                        <input type=checkbox name=RECALCULATE value=1 checked>
+                        <input type=checkbox name=RECALCULATE value=1 id='RECALCULATE' checked>
                     </div>
                 </div>
 
@@ -52,11 +53,10 @@
                 </div>
 
             </div>
-          <div class='card-footer'>
-            <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
-          </div>
+            <div class='card-footer'>
+                <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
+            </div>
         </div>
-
 
     </fieldset>
 
@@ -69,6 +69,6 @@
 
 <script>
     jQuery('.datepicker').on('change', function () {
-        jQuery('input:radio[name="period"]').filter('[value="2"]').prop('checked', true);
+        jQuery('input:radio[name=\"period\"]').filter('[value=\"2\"]').prop('checked', true);
     });
 </script>

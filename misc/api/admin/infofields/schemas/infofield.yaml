@@ -1,0 +1,61 @@
+type: object
+properties:
+  abonPortal:
+    type: number
+    example: 0
+  comment:
+    type: string
+    example: ""
+  company:
+    type: number
+    example: 0
+  domainId:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 9
+  listItems:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 3
+        name:
+          type: string
+          example: "Audi"
+  module:
+    type: string
+    example: ""
+  name:
+    type: string
+    example: "car"
+  parentId:
+    type: number
+    example: 0
+  parentValueId:
+    type: number
+    example: 0
+  pattern:
+    type: string
+    example: ""
+  priority:
+    type: number
+    example: 0
+  required:
+    type: number
+    example: 0
+  sqlField:
+    type: string
+    example: "_car"
+  title:
+    type: string
+    example: ""
+  type:
+    type: number
+    example: 2
+  userChg:
+    type: number
+    example: 0

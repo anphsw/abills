@@ -12,6 +12,8 @@
   $ref: "./paths/user.yaml"
 /user/pi:
   $ref: "./paths/userPi.yaml"
+/user/accept-rules:
+  $ref: "./paths/acceptRules.yaml"
 /user/credit:
   $ref: "./paths/credit.yaml"
 /user/recommendedPay:

@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS `voip_main`
 CREATE TABLE IF NOT EXISTS `voip_route_extra_tarification`
 (
     `id`           SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name`         VARCHAR(32)          NOT NULL DEFAULT '',
+    `name`         VARCHAR(80)          NOT NULL DEFAULT '',
     `date`         DATE                 NOT NULL,
     `prepaid_time` INT UNSIGNED         NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `voip_route_extra_tarification`
 CREATE TABLE IF NOT EXISTS `voip_route_groups`
 (
     `id`   SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(32)          NOT NULL DEFAULT '',
+    `name` VARCHAR(80)          NOT NULL DEFAULT '',
     PRIMARY KEY (`id`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip route groups';
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS `voip_subscribes`(
 
 CREATE TABLE IF NOT EXISTS `voip_trunks`(
   `id`                 SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`               CHAR(20)             NOT NULL DEFAULT '',
+  `name`               CHAR(80)             NOT NULL DEFAULT '',
   `trunkprefix`        CHAR(20)             NOT NULL DEFAULT '',
   `protocol`           CHAR(10)             NOT NULL DEFAULT '',
   `provider_ip`        CHAR(80)             NOT NULL DEFAULT '',

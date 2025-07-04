@@ -7,7 +7,7 @@
 use warnings;
 use strict;
 use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash date_inc next_month check_ip);
-use Abills::Filters qw(_mac_former $MAC);
+use Abills::Filters qw(_mac_former mk_cid_list $MAC);
 
 require Internet::Stats;
 use Control::Service_control;
@@ -18,7 +18,11 @@ our (
   %conf,
   %lang,
   @WEEKDAYS,
-  @MONTHES
+  @MONTHES,
+  $DATE,
+  $TIME,
+  $sid,
+  %functions
 );
 
 our Users $user;
@@ -829,7 +833,7 @@ sub internet_user_stats {
   #Join Service
   if ($user->{COMPANY_ID}) {
     if ($FORM{COMPANY_ID}) {
-      $users = Users->new($db, $admin, \%conf);
+      #$users = Users->new($db, $admin, \%conf);
       require Internet::Reports;
       internet_report_use();
       return 0;
@@ -1391,6 +1395,7 @@ sub internet_filters_control {
     $attr
       UID
       ACCT_SESSION_ID
+      CID
 
   Results:
     TRUE or False
@@ -1401,6 +1406,10 @@ sub internet_hangup {
   #TODO: move to package
   my ($attr) = @_;
 
+  if($attr->{CID}) {
+    $attr->{CID} = mk_cid_list($attr->{CID});
+  }
+
   $Sessions->online_info( $attr );
   $Nas->info({ NAS_ID => $Sessions->{NAS_ID} });
 
@@ -1410,7 +1419,8 @@ sub internet_hangup {
   my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
   sleep 1;
   $Nas_cmd->hangup($Nas, 0, '', $Sessions);
-  `echo "$DATE $TIME hangup NAS_ID: $Sessions->{NAS_ID}  $attr->{UID} TYPE: $Nas->{NAS_TYPE} $Sessions->{ACCT_SESSION_ID}  " >> /tmp/hagup`;
+  my $cid = $attr->{CID} || q{};
+  `echo "$DATE $TIME hangup NAS_ID: $Sessions->{NAS_ID}  $attr->{UID} TYPE: $Nas->{NAS_TYPE} CID: $cid SESSION_ID: $Sessions->{ACCT_SESSION_ID}  " >> /tmp/hagup`;
 
   return 1;
 }

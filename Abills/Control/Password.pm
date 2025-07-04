@@ -131,17 +131,18 @@ sub form_passwd {
 #**********************************************************
 sub check_passwd {
   my ($attr) = @_;
-  my $ret  = 0;
 
-  if (! $FORM{newpassword}) {
-
+  if (!$FORM{newpassword}) {
+    return 0;
   }
-  elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
+
+  if (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
     $lang{ERR_SHORT_PASSWD} =~ s/6/$conf{PASSWD_LENGTH}/;
     $html->message( 'err', $lang{ERROR}, "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}");
-    $ret = 0;
+    return 0;
   }
-  elsif ($conf{CONFIG_PASSWORD}
+
+  if ($conf{CONFIG_PASSWORD}
     && ( $attr->{AID} || ( $conf{PASSWD_POLICY_USERS} && $attr->{UID}) )
     && !Conf::check_password($FORM{newpassword}, $conf{CONFIG_PASSWORD})
   ){
@@ -149,18 +150,27 @@ sub check_passwd {
     my $explain_string = config_get_password_constraints($conf{CONFIG_PASSWORD});
 
     $html->message( 'err', $lang{ERROR}, "$lang{ERR_PASSWORD_INSECURE} $explain_string");
-    $ret = 0;
-  }
-  elsif ($FORM{newpassword} eq $FORM{confirm}) {
-    $FORM{PASSWORD} = $FORM{newpassword};
-    $ret = 1;
-  }
-  elsif ($FORM{newpassword} ne $FORM{confirm}) {
-    $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM} );
-    $ret = 0;
+    return 0;
   }
 
-  return $ret;
+  if ($attr->{AID}) {
+    $admin->password_blacklist_match({ PASSWORD => $FORM{newpassword}, AID => $attr->{AID}, COLS_NAME => 1 });
+    if ($admin->{TOTAL_MATCH} && $admin->{TOTAL_MATCH} > 0) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_PASSWORD_NOT_ALLOWED});
+      return 0;
+    }
+  }
+
+  if ($FORM{newpassword} eq $FORM{confirm}) {
+    $FORM{PASSWORD} = $FORM{newpassword};
+    return 1;
+  }
+  else {
+    $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM} );
+    return 0;
+  }
+  
+  return 0;
 }
 
 #**********************************************************

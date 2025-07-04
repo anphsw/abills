@@ -17,9 +17,10 @@
 
     <div class='row d-print-none'>
       <form action='%SELF_URL%' name='docs_statment_account' class='form-inline'>
-        <input type=hidden name='qindex' value=15>
+        <input type=hidden name='qindex' value=%qindex%>
         <input type=hidden name='STATMENT_ACCOUNT' value=1>
         <input type=hidden name='UID' value=%UID%>
+        <input type=hidden name='COMPANY_ID' value=%COMPANY_ID%>
         <input type=hidden name='header' value='2'>
         %YEAR_SEL%
         <a href='javascript:window.print();' class='btn btn-light border fas fa-print mt-1 mr-2'>_{PRINT}_</a>
@@ -78,9 +79,9 @@
             <br>
           </div>
           <div class='col-md-6 text-left'>
-            <br>%UID%_%DATE%<br>
+            <br>%NUMBER_STATEMENT%_%DATE%<br>
             <b>%DATE% </b><br>
-            <b>%UID%</b>
+            <b>%NUMBER_STATEMENT%</b>
             <br>
           </div>
 

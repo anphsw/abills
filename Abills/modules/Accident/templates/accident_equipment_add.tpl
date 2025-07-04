@@ -21,14 +21,14 @@
       <div class='form-group row'>
         <label class='control-label col-md-4 col-sm-4'>_{FROM}_:</label>
         <div class='col-md-8 col-sm-8'>
-          <input type='text' class='form-control datepicker' value='%FROM_DATE%' name='FROM_DATE'/>
+          %FROM_DATE%
         </div>
       </div>
 
       <div class='form-group row'>
         <label class='control-label col-md-4 col-sm-4'>_{TO}_:</label>
         <div class='col-md-8 col-sm-8'>
-          <input type='text' class='form-control datepicker' value='%TO_DATE%' name='TO_DATE'/>
+          %TO_DATE%
         </div>
       </div>
 

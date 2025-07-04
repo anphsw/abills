@@ -288,6 +288,7 @@ sub docs_take_variables {
     'TOTAL_TAX_SUM_1',
     'ORDER_VAT_1',
     'ORDER_SUM_WITHOUT_VAT_1',
+    'ORDER_TOTAL_SUM_VAT',
     'TIME',
     'ORDERS'
   );
@@ -333,6 +334,33 @@ sub docs_take_variables {
     'DOCS_ABON_PERSONAL_DESCRIPTION',
   );
 
+  my @additional_var_storage = (
+    'STA_NAME',
+    'SERIAL',
+    'SAT_NAME',
+    'COUNT',
+    'SUM',
+    'MONTHES',
+    'ACTUAL_SELL_PRICE',
+  );
+
+  if ($conf{STORAGE_EXTRA_DOCS_VARS} && $conf{STORAGE_EXTRA_DOCS_VARS} > 0) {
+    my $extra_sets_count = $conf{STORAGE_EXTRA_DOCS_VARS};
+    if ($extra_sets_count > 5) {
+      $extra_sets_count = 5;
+    }
+
+    my @storage_base_field_names = @additional_var_storage;
+
+    for my $set_index (1..$extra_sets_count) {
+      my $field_index = $set_index + 1;
+
+      foreach my $field_name (@storage_base_field_names) {
+        push @additional_var_storage, $field_name . '_' . $field_index;
+      }
+    }
+  }
+  
   # Special variables where cant defined in standard scenario
   my @additional_special_vars = (
     'PASSWORD'
@@ -351,7 +379,8 @@ sub docs_take_variables {
     @additional_var_company,
     @additional_var_internet,
     @additional_special_vars,
-    @additional_var_abon
+    @additional_var_abon,
+    @additional_var_storage,
   );
 
   my $result = {};
@@ -1097,14 +1126,26 @@ sub docs_statement_of_account {
   }
   $LIST_PARAMS{GROUP_BY} = '';
 
+  my $customer = Customers->new( $db, $admin, \%conf );
+  my $Company = $customer->company();
+
+  if ($FORM{COMPANY_ID}) {
+    $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID};
+    $Company->info($FORM{COMPANY_ID});
+    $Company->{COMPANY_NAME} = $Company->{NAME};
+    $Company->{COMPANY_ID} = $FORM{COMPANY_ID};
+  }
+
   $Fees->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $fees_list = $Fees->list({
     DATETIME     => '_SHOW',
+    REG_DATE     => '_SHOW',
     MONTH        => '_SHOW',
     DSC          => '_SHOW',
     SUM          => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
     BILL_ID      => '_SHOW',
+    LOGIN        => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME    => 1,
     COLS_UPPER   => 1
@@ -1114,13 +1155,14 @@ sub docs_statement_of_account {
   my %operations_month = ();
 
   foreach my $line (@$fees_list) {
-    push @{$operations{$line->{datetime}}}, { %$line, FEES => 1 };
-    $operations_month{$line->{month}}{$line->{datetime}} = $operations{$line->{datetime}};
+    push @{$operations{$line->{reg_date}}}, { %$line, FEES => 1 };
+    $operations_month{$line->{month}}{$line->{reg_date}} = $operations{$line->{reg_date}};
   }
 
   $Payments->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $payments_list = $Payments->list({
     DATETIME     => '_SHOW',
+    REG_DATE     => '_SHOW',
     MONTH        => '_SHOW',
     DSC          => '_SHOW',
     DEPOSIT      => '_SHOW',
@@ -1130,17 +1172,18 @@ sub docs_statement_of_account {
     SUM          => '_SHOW',
     BILL_ID      => '_SHOW',
     AMOUNT       => '_SHOW',
+    LOGIN        => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME    => 1,
     COLS_UPPER   => 1
   });
 
   foreach my $line (@$payments_list) {
-    push @{$operations{$line->{datetime}}}, $line;
-    $operations_month{$line->{month}}{$line->{datetime}} = $operations{$line->{datetime}};
+    push @{$operations{$line->{reg_date}}}, $line;
+    $operations_month{$line->{month}}{$line->{reg_date}} = $operations{$line->{reg_date}};
   }
 
-  $users->pi({ UID => $LIST_PARAMS{UID} });
+  $users->pi({ UID => $LIST_PARAMS{UID} }) if $LIST_PARAMS{UID};
 
   my @statment_rows = ();
   my @statment_title = ( $lang{DATE}, $lang{LOGIN}, $lang{BILLS}, $lang{INVOICE}, $lang{DESCRIBE}, $lang{FEES},
@@ -1169,7 +1212,7 @@ sub docs_statement_of_account {
 
       foreach my $money_operation (@{$operations_month{$month}{$date_}}) {
         my $date = ($money_operation->{FEES}) ? substr($money_operation->{datetime},0,16) : $html->b((substr($money_operation->{datetime},0,16)));
-        my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
+        my $login = ($money_operation->{FEES}) ? $money_operation->{LOGIN} : $html->b($money_operation->{LOGIN});
         my $bill_id = ($money_operation->{FEES}) ? $BILL_ACCOUNTS{$money_operation->{bill_id}} : $BILL_ACCOUNTS{$money_operation->{bill_id}};
         my $invoice = ($money_operation->{invoice_num}) ? $html->b($money_operation->{invoice_num}) . "\n" . $money_operation->{invoice_date} : q{};
         my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
@@ -1185,7 +1228,6 @@ sub docs_statement_of_account {
         $month_payments += ($money_operation->{FEES}) ? 0 : sprintf("%.2f", $money_operation->{sum} || 0);
         $month_fees += ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : 0;
         $month_balance = ($money_operation->{FEES}) ? ($money_operation->{last_deposit} - $money_operation->{sum}) : ($money_operation->{last_deposit} + $money_operation->{sum});
-        $first_date_row = $money_operation->{datetime} if (!$first_date_row);
 
         $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
           date        => $date,
@@ -1248,11 +1290,13 @@ sub docs_statement_of_account {
   });
 
   my $uid = $FORM{UID} || 0;
-  my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS"
+  my $btn_link = $uid ? "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2" : "qindex=13&STATMENT_ACCOUNT=1&COMPANY_ID=$FORM{COMPANY_ID}&header=2";
+
+  my $upload_xml = $html->button('XLS', $btn_link."&xls=1&EXPORT_CONTENT=DOCS"
     .(($FORM{DATE}) ? "&DATE=$FORM{DATE}" : q{}), {
     class => 'btn btn-light border mt-1 mr-2'
   });
-  my $all_period_btn = $html->button($lang{ALL_PERIOD}, "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&ALL=1", {
+  my $all_period_btn = $html->button($lang{ALL_PERIOD}, $btn_link."&ALL=1", {
     class => 'btn btn-light border mt-1 mr-2'
   });
 
@@ -1268,10 +1312,13 @@ sub docs_statement_of_account {
     $html->tpl_show(_include('docs_statement_of_account', 'Docs'), {
       %{$users},
       %{$Docs},
+      %{$Company},
+      qindex      => $uid ? 15 : 13,
       PERIOD_FROM => $period_from,
       PERIOD_TO   => $period_to,
       DATE        => $DATE,
       UPLOAD_XML  => $upload_xml,
+      NUMBER_STATEMENT => $uid ? $uid : $FORM{COMPANY_ID},
       ALL_PERIOD  => $all_period_btn
     });
   }

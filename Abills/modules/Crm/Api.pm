@@ -352,7 +352,7 @@ sub admin_routes {
       controller  => 'Crm::Api::admin::Leads',
       endpoint    => \&Crm::Api::admin::Leads::post_crm_leads_social,
       credentials => [
-        'BOT_UNREG'
+        'BOT_UNREG', 'USERBOT'
       ]
     },
     {
@@ -362,7 +362,7 @@ sub admin_routes {
       controller  => 'Crm::Api::admin::Leads',
       endpoint    => \&Crm::Api::admin::Leads::post_crm_leads_dialogue_message,
       credentials => [
-        'BOT_UNREG'
+        'BOT_UNREG', 'USERBOT'
       ]
     },
   ];

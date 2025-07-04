@@ -369,7 +369,7 @@ sub voip_sheduler {
 
 	$Voip->user_info($uid);
 	if ($type eq 'tp') {
-		(undef, $action) = split(':', $action) if ($action && $action =~ /:/);
+		(undef, $action) = split(':', $action) if ($action && $action =~ ':');
 		$Voip->user_change({
 			UID   => $uid,
 			TP_ID => $action
@@ -385,18 +385,18 @@ sub voip_sheduler {
 		}
 		else {
 			my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
-			my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
+			my $d  = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
 
 			if ($Voip->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
 				$Voip->{TP_INFO}->{MONTH_FEE} = 0;
 			}
 
 			$user = undef;
-			$FORM{RECALCULATE} = 1 if ($attr->{RECALCULATE});
 			service_get_month_fee($Voip, {
 				QUITE        => 1,
 				SHEDULER     => 1,
 				SERVICE_NAME => 'Voip',
+				RECALCULATE  => $attr->{RECALCULATE},
 				DATE         => $attr->{DATE}
 			});
 

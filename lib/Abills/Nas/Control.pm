@@ -17,6 +17,8 @@ use BER;
 use SNMP_Session;
 use SNMP_util;
 use Socket;
+use IO::Socket;
+use IO::Select;
 use Radius;
 use Abills::Defs;
 use Abills::Base qw(ip2int cmd in_array);
@@ -98,8 +100,7 @@ sub new {
 #***********************************************************
 sub hangup {
   #TODO: unify result statuses, remove direct prints in functions, result will be no crashes in API request
-  my $self = shift;
-  my ($Nas, $PORT, $USER, $attr) = @_;
+  my ($self, $Nas, $PORT, $USER, $attr) = @_;
 
   my $nas_type = $Nas->{NAS_TYPE} || '';
   my %params = ();
@@ -142,19 +143,18 @@ sub hangup {
       $self->radius_request($Nas, \%params, $attr);
     }
   }
-  elsif ($nas_type eq 'mikrotik') {
-    my ($ip, $mng_port, $second_port, undef) = split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{}, 4);
+  elsif ($nas_type eq 'mikrotik' || $nas_type eq 'mikrotik_dhcp') {
+    my ($ip, $mng_port, $second_port, undef) = split(/:/x, $Nas->{NAS_MNG_IP_PORT} || q{}, 4);
     #IPN Hangup if COA port 0
-    if ($ip && !$mng_port && $second_port && $second_port > 0) {
-      #$Nas->{NAS_MNG_IP_PORT} = "$ip:$second_port";
+    if (($ip && !$mng_port && $second_port && $second_port > 0) || $CONF->{MIKROTIK_DHCP_OLD}) {
       hangup_ipoe($Nas, \%params);
     }
     else {
       $params{RAD_PAIRS} = {
-        'User-Name'        => $USER_NAME,
-        'Framed-IP-Address'=> $attr->{FRAMED_IP_ADDRESS},
-        'Acct-Session-Id'  => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
-      };
+        'User-Name'         => $USER_NAME,
+        'Framed-IP-Address' => $attr->{FRAMED_IP_ADDRESS},
+        'Acct-Session-Id'   => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
+       };
 
       $self->radius_request($Nas, \%params);
     }
@@ -199,10 +199,10 @@ sub hangup {
     $self->hangup_openvpn($Nas, \%params);
   }
   elsif ($nas_type eq 'ipcad'
-    || $nas_type eq 'mikrotik_dhcp'
+#    || $nas_type eq 'mikrotik_dhcp'
     || $nas_type eq 'dhcp'
     || $nas_type eq 'ipn'
-    || ( $CONF->{INTERNET_IPOE_NAS_TYPES} && $CONF->{INTERNET_IPOE_NAS_TYPES} =~ /$nas_type/)
+    || ( $CONF->{INTERNET_IPOE_NAS_TYPES} && $CONF->{INTERNET_IPOE_NAS_TYPES} =~ m/$nas_type/x)
   ) {
     hangup_ipoe($Nas, \%params);
   }
@@ -214,7 +214,7 @@ sub hangup {
     hangup_pppd_coa($Nas, \%params);
   }
   elsif ($nas_type eq 'accel_ppp' || $nas_type eq 'accel_ipoe') {
-    $USER =~ s/^!\s?//;
+    $USER =~ s/^!\s?//x;
     $params{RAD_PAIRS} = {
       # 'User-Name' => $USER,
       'Acct-Session-Id' => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
@@ -223,9 +223,9 @@ sub hangup {
     $self->radius_request($Nas, \%params);
   }
   elsif ( $nas_type eq 'redback' || $nas_type eq 'zte_m6000'){
-    if($attr->{CONNECT_INFO} && $attr->{CONNECT_INFO} !~ /pppoe/) {
+    if($attr->{CONNECT_INFO} && $attr->{CONNECT_INFO} !~ m/pppoe/x) {
       my $cid = $attr->{CID} || $attr->{CALLING_STATION_ID} || '';
-      $cid =~ s/\-/:/g;
+      $cid =~ s/\-/:/xg;
       $params{RAD_PAIRS}->{'User-Name'} = $cid;
     }
     $self->radius_request( $Nas, \%params );
@@ -234,7 +234,7 @@ sub hangup {
     $params{RAD_PAIRS}->{'Acct-Session-Id'} = $params{ACCT_SESSION_ID} || $params{SESSION_ID};
     $self->radius_request($Nas, \%params);
   }
-  elsif ($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ /\d+\.\d+\.\d+\.\d+:\d+:/) {
+  elsif ($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ m/\d+\.\d+\.\d+\.\d+:\d+:/x) {
     $self->radius_request($Nas, \%params);
   }
   elsif ($nas_type eq 'lisg_cst') {
@@ -276,8 +276,8 @@ sub telnet_cmd {
   my ($hostname, $commands) = @_;
   my $port = 23;
 
-  if ($hostname =~ /:/) {
-    ($hostname, $port) = split(/:/, $hostname, 2);
+  if ($hostname =~ m/:/x) {
+    ($hostname, $port) = split(':', $hostname, 2);
   }
 
   #my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
@@ -312,7 +312,7 @@ sub telnet_cmd {
   $SH->autoflush(1);
 
   foreach my $line (@{$commands}) {
-    my ($waitfor, $sendtext) = split(/\t/, $line, 2);
+    my ($waitfor, $sendtext) = split(/\t/x, $line, 2);
     my $wait_len = length($waitfor);
     $input = '';
 
@@ -340,8 +340,7 @@ sub telnet_cmd {
     $Log->log_print('LOG_DEBUG', "$USER_NAME", "Get: \"$input\"\nLength: $len", { ACTION => 'CMD' });
     $Log->log_print('LOG_DEBUG', "$USER_NAME", " Wait for: '$waitfor'", { ACTION => 'CMD' });
 
-    if ($input =~ /$waitfor/ig) {
-      # || $waitfor eq '') {
+    if ($input =~ m/$waitfor/ig) {
       $text = $sendtext;
       $Log->log_print('LOG_DEBUG', "$USER_NAME", "Send: $text", { ACTION => 'CMD' });
       send($SH, "$text\n", 0, $dest) or die $Log->log_print('LOG_INFO', "$USER_NAME", "Can't send: '$text' $!",
@@ -364,16 +363,14 @@ sub telnet_cmd2 {
   my ($host, $commands, $attr) = @_;
   my $port = 23;
 
-  if ($host =~ /:/) {
-    ($host, $port) = split(/:/, $host, 2);
+  if ($host =~ m/:/x) {
+    ($host, $port) = split(':', $host, 2);
   }
 
   if(! $Log) {
     $Log = Log->new($db, $CONF);
   }
 
-  use IO::Socket;
-  use IO::Select;
   my $res;
 
   my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
@@ -392,7 +389,7 @@ sub telnet_cmd2 {
   $Log->log_print('LOG_DEBUG', '', "Connected to $host:$port");
 
   foreach my $line (@{$commands}) {
-    my ($waitfor, $sendtext) = split(/\t/, $line, 2);
+    my ($waitfor, $sendtext) = split(/\t/x, $line, 2);
 
     $Log->log_print('LOG_DEBUG', "$USER_NAME", " Wait for: '$waitfor' Send: '$sendtext'", { ACTION => 'CMD' });
 
@@ -426,8 +423,8 @@ sub telnet_cmd3 {
   my ($hostname, $commands, $attr) = @_;
   my $port = 23;
 
-  if ($hostname =~ /:/) {
-    ($hostname, $port) = split(/:/, $hostname, 2);
+  if ($hostname =~ m/:/x) {
+    ($hostname, $port) = split(':', $hostname, 2);
   }
 
   if ($attr->{LOG}) {
@@ -452,10 +449,7 @@ sub telnet_cmd3 {
 
   my $MAXBUF = 512;
   my $input = '';
-  #my $len    = 0;
-  #my $text   = '';
   my $inbuf = '';
-  #my $res    = '';
 
   my $old_fh = select($SH);
   $| = 1;
@@ -464,7 +458,7 @@ sub telnet_cmd3 {
   $SH->autoflush(1);
   my $i = 0;
   foreach my $line (@{$commands}) {
-    my ($waitfor, $sendtext) = split(/\t/, $line, 2);
+    my ($waitfor, $sendtext) = split(/\t/x, $line, 2);
     $input = '';
     $i++;
 
@@ -489,7 +483,7 @@ sub telnet_cmd3 {
         last;
       }
 
-      if ($input =~ /$waitfor/g) {
+      if ($input =~ m/$waitfor/g) {
         last;
       }
       $i++
@@ -508,79 +502,6 @@ sub telnet_cmd3 {
   return $input;
 }
 
-
-# #***********************************************************
-# =head2 stats_pm25($NAS, $PORT) - Get stats from Livingston Portmaster
-#
-# =cut
-# #***********************************************************
-# sub stats_pm25 {
-#   my ($NAS, $attr) = @_;
-#
-#   my %stats = (
-#     in  => 0,
-#     out => 0
-#   );
-#
-#   my $PORT = $attr->{PORT};
-#   my $PM25_PORT = $PORT + 2;
-#   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
-#
-#   my ($in) = snmpget($SNMP_COM . '@' . $NAS->{NAS_IP}, ".1.3.6.1.2.1.2.2.1.10.$PM25_PORT");
-#   my ($out) = snmpget($SNMP_COM . '@' . $NAS->{NAS_IP}, ".1.3.6.1.2.1.2.2.1.16.$PM25_PORT");
-#
-#   if (!defined($in)) {
-#     $stats{error} = 1;
-#   }
-#   elsif (int($in) + int($out) > 0) {
-#     $stats{in} = int($in);
-#     $stats{out} = int($out);
-#   }
-#
-#   return %stats;
-# }
-
-# #***********************************************************
-# # HANGUP pm25
-# # hangup_pm25($SERVER, $PORT)
-# #***********************************************************
-# sub hangup_pm25 {
-#   my ($NAS, $attr) = @_;
-#
-#   my $PORT = $attr->{PORT};
-#   my @commands = ();
-#   push @commands, "login:\t$NAS->{NAS_MNG_USER}";
-#   push @commands, "Password:\t$NAS->{NAS_MNG_PASSWORD}";
-#   push @commands, ">\treset S$PORT";
-#   push @commands, ">exit";
-#
-#   my $result = telnet_cmd("$NAS->{NAS_IP}", \@commands);
-#   print $result;
-#
-#   return 0;
-# }
-
-#***********************************************************
-=head2 stats_usrns($NAS, $PORT) - Get stats from USR Netserver 8/16
-
-=cut
-#***********************************************************
-# sub stats_usrns {
-#   my ($NAS, $attr) = @_;
-#
-#   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
-#   my $PORT = $attr->{PORT};
-#   my %stats = ();
-#   #USR trafic taker
-#   my $in = snmpget("$SNMP_COM\@$NAS->{NAS_IP}", "interfaces.ifTable.ifEntry.ifInOctets.$PORT");
-#   my $out = snmpget("$SNMP_COM\@$NAS->{NAS_IP}", "interfaces.ifTable.ifEntry.ifOutOctets.$PORT");
-#
-#   $stats{in} = int($in);
-#   $stats{out} = int($out);
-#
-#   return %stats;
-# }
-
 ####################################################################
 =head2 stats_ppp($NAS)
 
@@ -595,11 +516,10 @@ sub telnet_cmd3 {
 sub stats_ppp {
   my ($NAS) = @_;
 
-  use IO::Socket;
   my $port = 30006;
 
   my %stats = ();
-  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+  my ($ip, $mng_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
   $port = $mng_port || 0;
 
   my $remote = IO::Socket::INET->new(
@@ -609,7 +529,7 @@ sub stats_ppp {
   ) or print "cannot connect to pppcons port at $NAS->{NAS_IP}:$port $!\n";
 
   while (<$remote>) {
-    my ($radport, $in, $out, $tun) = split(/ +/, $_);
+    my ($radport, $in, $out, $tun) = split(/\s+/x, $_);
     $stats{ $NAS->{NAS_IP} }{$radport}{in} = $in;
     $stats{ $NAS->{NAS_IP} }{$radport}{out} = $out;
     $stats{ $NAS->{NAS_IP} }{$radport}{tun} = $tun;
@@ -661,8 +581,7 @@ sub hangup_snmp {
 =cut
 #***********************************************************
 sub radius_request {
-  my $self = shift;
-  my ($NAS, $attr) = @_;
+  my ($self, $NAS, $attr) = @_;
 
   my $USER = $attr->{USER} || q{};
   if (!$NAS->{NAS_MNG_IP_PORT}) {
@@ -672,7 +591,7 @@ sub radius_request {
     return 'ERR:';
   }
 
-  my ($ip, $mng_port, undef) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+  my ($ip, $mng_port, undef) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
 
   if (!$ip) {
     my $message = "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
@@ -698,7 +617,11 @@ sub radius_request {
   $CONF->{'dictionary'} = $base_dir . '/lib/dictionary' if (!$CONF->{'dictionary'});
 
   if (!-f $CONF->{'dictionary'}) {
-    print "Can't find radius dictionary: $CONF->{'dictionary'}";
+    my $message = "Can't find radius dictionary: $CONF->{'dictionary'}";
+    if ($debug > 1) {
+      print $message;
+    }
+    $Log->log_print('LOG_ERR', $USER, $message, { ACTION => 'CMD' });
     return 0;
   }
 
@@ -713,7 +636,7 @@ sub radius_request {
     if ($attr->{SESSION_ID}) {
       $rad_pairs{'Acct-Session-Id'} = $attr->{SESSION_ID} if ($USER);
       if ($USER) {
-        $USER =~ s/^!\s?//;
+        $USER =~ s/^!\s?//x;
         $rad_pairs{'User-Name'} = $USER;
       }
     }
@@ -780,7 +703,7 @@ sub hangup_mikrotik_telnet {
 
   my $result = telnet_cmd2($NAS->{NAS_IP}, \@commands);
 
-  print $result;
+  return $result;
 }
 
 #***********************************************************
@@ -839,7 +762,7 @@ sub hangup_ipoe {
     $num = $attr->{UID} || 0;
   }
   else {
-    my @ip_array = split(/\./, $ip, 4);
+    my @ip_array = split('.', $ip, 4);
     $num = $ip_array[3] || 0;
   }
 
@@ -848,7 +771,7 @@ sub hangup_ipoe {
 
   if ($NAS->{NAS_MNG_IP_PORT}) {
     # ip / hangup / manage / snmp
-    ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(/:/, $NAS->{NAS_MNG_IP_PORT});
+    ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(':', $NAS->{NAS_MNG_IP_PORT});
     $ENV{NAS_MNG_USER} = $NAS->{NAS_MNG_USER};
     $ENV{NAS_MNG_PASSWORD} = $NAS->{NAS_MNG_PASSWORD};
     $ENV{NAS_MNG_IP_PORT} = $NAS->{NAS_MNG_IP_PORT};
@@ -862,13 +785,13 @@ sub hangup_ipoe {
   my $filter_rule = $CONF->{IPN_FILTER} || $CONF->{IPN_FILTER};
   if ($filter_rule) {
     my $cmd = $filter_rule;
-    $cmd =~ s/\%STATUS/HANGUP/g;
-    $cmd =~ s/\%IP/$ip/g;
-    $cmd =~ s/\%LOGIN/$USER_NAME/g;
-    $cmd =~ s/\%FILTER_ID/$FILTER_ID/g;
-    $cmd =~ s/\%UID/$uid/g;
-    $cmd =~ s/\%PORT/$PORT/g;
-    $cmd =~ s/\%MASK/$netmask/g;
+    $cmd =~ s/\%STATUS/HANGUP/xg;
+    $cmd =~ s/\%IP/$ip/xg;
+    $cmd =~ s/\%LOGIN/$USER_NAME/xg;
+    $cmd =~ s/\%FILTER_ID/$FILTER_ID/xg;
+    $cmd =~ s/\%UID/$uid/xg;
+    $cmd =~ s/\%PORT/$PORT/xg;
+    $cmd =~ s/\%MASK/$netmask/xg;
 
     cmd($cmd, {
       COMMENT => "IPoE Filter rule:",
@@ -878,12 +801,12 @@ sub hangup_ipoe {
 
   my $cmd = $CONF->{INTERNET_IPOE_STOP} || $CONF->{IPN_FW_STOP_RULE};
   if ($cmd) {
-    $cmd =~ s/\%IP/$ip/g;
-    $cmd =~ s/\%MASK/$netmask/g;
-    $cmd =~ s/\%NUM/$rule_num/g;
-    $cmd =~ s/\%LOGIN/$USER_NAME/g;
-    $cmd =~ s/\%MASK/$netmask/g;
-    $cmd =~ s/\%OLD_TP_ID/$attr->{OLD_TP_ID}/g;
+    $cmd =~ s/\%IP/$ip/xg;
+    $cmd =~ s/\%MASK/$netmask/xg;
+    $cmd =~ s/\%NUM/$rule_num/xg;
+    $cmd =~ s/\%LOGIN/$USER_NAME/xg;
+    $cmd =~ s/\%MASK/$netmask/xg;
+    $cmd =~ s/\%OLD_TP_ID/$attr->{OLD_TP_ID}/xg;
 
     $Log->log_print('LOG_DEBUG', '', $cmd, { ACTION => 'CMD' });
     if ($debug > 4) {
@@ -925,13 +848,13 @@ sub hangup_openvpn {
   );
 
   my $result = telnet_cmd($NAS->{NAS_MNG_IP_PORT}, \@commands);
-  my @rows = split(/\n/, $result);
+  my @rows = split(/\n/x, $result);
   my $session = q{};
   foreach my $line (@rows) {
-    print "$ip / $line <br>\n" if ($debug);
-    if($line =~ /$ip,client,(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+),/) {
+    print "$ip / $line <br>\n" if ($debug > 1);
+    if($line =~ m/$ip,client,(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+),/x) {
       $session = $1;
-      print ">> $session <<" if ($debug);
+      print ">> $session <<" if ($debug > 1);
     }
   }
 
@@ -968,15 +891,14 @@ sub hangup_openvpn {
 =cut
 #***********************************************************
 sub hangup_cisco_isg {
-  my $self = shift;
-  my ($NAS, $attr) = @_;
+  my ($self, $NAS, $attr) = @_;
 
   my $exec = '';
   my $command = '';
   my $result = q{};
   my $user = $attr->{USER};
 
-  my ($nas_mng_ip, $coa_port, $ssh_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+  my ($nas_mng_ip, $coa_port, $ssh_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
 
   if (!$coa_port) {
     $coa_port = 1700;
@@ -1034,12 +956,13 @@ sub hangup_cisco_isg {
     }
 
     if ($RAD_PAIRS{'Error-Cause'}) {
-      #log_print('LOG_WARNING', "$RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}");
-      print "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}\n";
+      $Log->log_print('LOG_WARNING', "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}");
+      #print "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}\n";
 
       $self->{RESULT}=$result;
-
-      print %RAD_PAIRS;
+      if ($debug > 1) {
+        print %RAD_PAIRS;
+      }
     }
 
     if ($attr->{DEBUG}) {
@@ -1064,15 +987,15 @@ sub hangup_cisco_isg {
 =cut
 #***********************************************************
 sub hangup_cisco {
-  my $self = shift;
-  my ($NAS, $attr) = @_;
+  my ($self, $NAS, $attr) = @_;
+
   my $exec;
-  my $command = '';
+  my $cmd = '';
   my $user = $attr->{USER};
   my $PORT = $attr->{PORT};
 
 
-  my ($nas_mng_ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+  my ($nas_mng_ip, $mng_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
 
   #POD Version
   if ($mng_port) {
@@ -1083,41 +1006,55 @@ sub hangup_cisco {
     my $cisco_user = $NAS->{NAS_MNG_USER};
     if ($PORT > 0) {
       $| = 1;
-      $command = "(/bin/sleep 5; /bin/echo 'y') | /usr/bin/rsh -4 -l $cisco_user $nas_mng_ip clear line $PORT";
-      $Log->log_print('LOG_DEBUG', "$user", "$command", { ACTION => 'CMD' });
-      $exec = `$command`;
+      $cmd = "(/bin/sleep 5; /bin/echo 'y') | /usr/bin/rsh -4 -l $cisco_user $nas_mng_ip clear line $PORT";
+      $Log->log_print('LOG_DEBUG', $user, $cmd, { ACTION => 'CMD' });
+      cmd($cmd, {
+        COMMENT => "hangup_cisco",
+        DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+      });
       return $exec;
     }
 
-    $command = "/usr/bin/rsh -l $cisco_user $nas_mng_ip show users | grep -i \" $user \" ";
+    $cmd = "/usr/bin/rsh -l $cisco_user $nas_mng_ip show users | grep -i \" $user \" ";
 
-    #| awk '{print \$1}';";
-    $Log->log_print('LOG_DEBUG', "$command");
-    my $out = `$command`;
+    $Log->log_print('LOG_DEBUG', $user, $cmd, { ACTION => 'CMD' });
+    my $out = cmd($cmd, {
+      COMMENT => "hangup_cisco",
+      DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+    });
 
     if ($out eq '') {
-      print 'Can\'t get VIRTUALINT. Check permissions';
-      return 'Can\'t get VIRTUALINT. Check permissions';
+      my $message = q{Can\'t get VIRTUALINT. Check permissions};
+      $Log->log_print('LOG_ERR', $user, $message, { ACTION => 'CMD' });
+      return $message;
     }
 
-    my $VIRTUALINT;
+    my $VIRTUALINT=q{};
 
-    if ($out =~ /\s+(\d+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(\S+)/) {
+    if ($out =~ m/\s+(\d+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(\S+)/x) {
       $VIRTUALINT = $1;
       my $tty = $2;
       my $line = $3;
       my $cuser = $4;
       my $chost = $5;
 
-      print "$VIRTUALINT, $tty, $line, $cuser, $chost";
+      if ($debug > 1) {
+        print "$VIRTUALINT, $tty, $line, $cuser, $chost";
+      }
     }
 
-    $command = "echo $VIRTUALINT echo  | sed -e \"s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/\"";
-    $Log->log_print('LOG_DEBUG', "$command");
-    $PORT = `$command`;
-    $command = "/usr/bin/rsh -4 -n -l $cisco_user $nas_mng_ip clear interface Virtual-Access $PORT";
-    $Log->log_print('LOG_DEBUG', $user, "$command", { ACTION => 'CMD' });
-    $exec = `$command`;
+    $cmd = "echo $VIRTUALINT echo  | sed -e \"s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/\"";
+    $Log->log_print('LOG_DEBUG', "$cmd");
+    $PORT = cmd($cmd, {
+      COMMENT => "hangup_cisco",
+      DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+    });
+    $cmd = "/usr/bin/rsh -4 -n -l $cisco_user $nas_mng_ip clear interface Virtual-Access $PORT";
+    $Log->log_print('LOG_DEBUG', $user, "$cmd", { ACTION => 'CMD' });
+    $exec = cmd($cmd, {
+      COMMENT => "hangup_cisco",
+      DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+    });
   }
   else {
     #SNMP version
@@ -1139,19 +1076,18 @@ sub hangup_cisco {
 =cut
 #***********************************************************
 sub hangup_mpd5 {
-  my $self = shift;
-  my ($NAS, $attr) = @_;
+  my ($self, $NAS, $attr) = @_;
 
   my $PORT = $attr->{PORT};
 
   if (!$NAS->{NAS_MNG_IP_PORT}) {
-    print "MPD Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID}\n";
-    return "Error";
+    my $message = "MPD Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID}\n";
+    return $message;
   }
 
   my ($hostname, $radius_port, $telnet_port) = ('127.0.0.1', '3799', '5005');
 
-  ($hostname, $radius_port, $telnet_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 4);
+  ($hostname, $radius_port, $telnet_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 4);
 
   if (!$attr->{LOCAL_HANGUP}) {
     $NAS->{NAS_MNG_IP_PORT} = "$hostname:$radius_port";
@@ -1162,7 +1098,7 @@ sub hangup_mpd5 {
   $telnet_port //= 5005;
   my $ctl_port = "L-$PORT";
   if ($attr->{ACCT_SESSION_ID}) {
-    if ($attr->{ACCT_SESSION_ID} =~ /^\d+\-(.+)/) {
+    if ($attr->{ACCT_SESSION_ID} =~ m/^\d+\-(.+)/x) {
       $ctl_port = $1;
     }
   }
@@ -1198,8 +1134,8 @@ sub hangup_radpppd {
   my $KILL = '/bin/kill';
 
   my $PID_FILE = "$RUN_DIR/PPP$PORT.pid";
-  my $PPP_PID = `$CAT $PID_FILE`;
-  my $res = `$KILL -1 $PPP_PID`;
+  my $PPP_PID = cmd("$CAT $PID_FILE");
+  my $res = cmd("$KILL -1 $PPP_PID");
 
   return $res;
 }
@@ -1254,9 +1190,8 @@ sub hangup_pppd {
   my $IP = $attr->{FRAMED_IP_ADDRESS};
   my $result = '';
 
-  if ($NAS->{NAS_MNG_IP_PORT} =~ /:/) {
-    my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 4);
-    use IO::Socket;
+  if ($NAS->{NAS_MNG_IP_PORT} =~ m/:/x) {
+    my ($ip, $mng_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 4);
 
     my $remote = IO::Socket::INET->new(
       Proto    => "tcp",
@@ -1287,7 +1222,7 @@ sub hangup_pppd {
 sub hangup_pppd_coa {
   my ($NAS, $PORT, $attr) = @_;
 
-  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+  my ($ip, $mng_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
   $Log->log_print('LOG_DEBUG', '', " HANGUP: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}'", { ACTION => 'CMD' });
 
   my $type;
@@ -1368,10 +1303,10 @@ sub setspeed {
 sub hangup_unifi {
   my ($NAS, $attr) = @_;
 
-  my $USER = $attr->{USER};
+  my $user = $attr->{USER};
   if (!$NAS->{NAS_MNG_IP_PORT}) {
-    print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
-    return 'ERR:';
+    my $message = "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $user\n";
+    return $message;
   }
 
   require Unifi::Unifi;
@@ -1412,9 +1347,9 @@ sub rsh_cmd {
   my $mng_port;
   my $mng_user = $attr->{NAS_MNG_USER} || '';
   my $ip;
-  ($ip, undef, $mng_port) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 4);
+  ($ip, undef, $mng_port) = split(':', $attr->{NAS_MNG_IP_PORT}, 4);
 
-  $cmd =~ s/\\\"/\"/g;
+  $cmd =~ s/\\\"/\"/xg;
 
   my $rsh_cmd = ($attr->{RSH_CMD}) ? $attr->{RSH_CMD} : '/usr/bin/rsh -o StrictHostKeyChecking=no';
 
@@ -1428,4 +1363,4 @@ sub rsh_cmd {
   return $result || [];
 }
 
-1
+1;

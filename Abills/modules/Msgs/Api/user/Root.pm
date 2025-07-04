@@ -352,4 +352,32 @@ sub get_user_msgs_attachments_id {
   }
 }
 
+#**********************************************************
+=head2 post_user_msgs_search($path_params, $query_params)
+
+  Endpoint POST /user/msgs/search/
+
+=cut
+#**********************************************************
+sub post_user_msgs_search {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  if (!$query_params->{SEARCH_TEXT}) {
+    return { list => [], total => 0 };
+  }
+
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+  $query_params->{UID} = $path_params->{uid};
+
+  my $list = $Msgs->messages_search($query_params);
+
+  return {
+    list  => $list,
+    total => $Msgs->{TOTAL}
+  }
+}
+
 1;

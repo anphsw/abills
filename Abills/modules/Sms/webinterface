@@ -321,6 +321,10 @@ sub sms_reports {
     print $html->table_header( \@header_arr, { TABS => 1 } );
   }
 
+  $LIST_PARAMS{SMS_STATUS} = $FORM{STATUS} if (defined($FORM{STATUS}));
+  $LIST_PARAMS{SMS_PHONE} = $FORM{PHONE} if (defined($FORM{PHONE}));
+  $LIST_PARAMS{MESSAGE} = "*$FORM{MESSAGE}*" if ($FORM{MESSAGE});
+
   if ($FORM{direct}){
     $pages_qs .= "&direct=1";
 

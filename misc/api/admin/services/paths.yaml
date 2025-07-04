@@ -1,0 +1,4 @@
+/services/statuses/:
+  $ref: "./paths/servicesStatuses.yaml"
+/services/statuses/{id}:
+  $ref: "./paths/servicesStatuses_id.yaml"

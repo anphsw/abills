@@ -430,6 +430,7 @@ sub user_del {
 
   my $uid = $self->{UID} || $attr->{UID};
   $self->query_del('internet_main', $attr, { uid => $uid });
+  $self->{_SERVICE_DELETED} = $self->{AFFECTED};
   $self->query_del('internet_log', undef, { uid => $uid });
 
   $admin->{MODULE}=$MODULE;
@@ -548,6 +549,7 @@ sub user_list {
     ['PAYMENT_TYPE',      'INT', 'tp.payment_type',                        1 ],
     ['INTERNET_PASSWORD', '', '',  "DECODE(internet.password, '$CONF->{secretkey}') AS internet_password" ],
     ['INTERNET_STATUS',   'INT', 'internet.disable', 'internet.disable AS internet_status'   ],
+    ['SERVICE_STATUS',    'INT', 'internet.disable', 'internet.disable AS service_status'   ],
     ['INTERNET_STATUS_ID','INT', 'internet.disable', 'internet.disable AS internet_status_id'],
     ['SERVICE_EXPIRE',    'DATE', 'internet.expire', 'internet.expire AS internet_expire'    ],
     ['INTERNET_EXPIRE',   'DATE', 'internet.expire', 'internet.expire AS internet_expire'    ],
@@ -598,6 +600,17 @@ sub user_list {
   if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
     push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
     $attr->{TAGS} = '_SHOW';
+  }
+
+  if ($attr->{GID} && $attr->{GID} ne '_SHOW' && $attr->{GROUPS_SEARCH_VAL} && $attr->{GROUPS_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.gid NOT IN ($attr->{GID})";
+    $attr->{GID} = '_SHOW';
+  }
+
+  if ($attr->{TP_ID} && $attr->{TP_ID} ne '_SHOW' && $attr->{TP_SEARCH_VAL} && $attr->{TP_SEARCH_VAL} == 2) {
+    $attr->{TP_ID} =~ s/;/,/g;
+    push @WHERE_RULES, "internet.tp_id NOT IN ($attr->{TP_ID})";
+    $attr->{TP_ID} = '_SHOW';
   }
 
   my $WHERE = $self->search_former($attr, \@search_fields, {
@@ -903,6 +916,7 @@ sub report_tp {
       TP_ID
       TP_NUM
       LOGIN
+      PREPAID
 
   Result:
     $list
@@ -922,34 +936,41 @@ sub get_speed {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'tp.tp_id, tt.id';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
+  if ($attr->{PREPAID}) {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{PREPAID}, 'INT', 'tt.prepaid', { EXT_FIELD => 1 }) };
+  }
+
   if ($attr->{SERVICE_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{SERVICE_ID}, 'INT', 'internet.id') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SERVICE_ID}, 'INT', 'internet.id',
+      { EXT_FIELD => 'internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid'  }) };
 
     $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.tp_id = tp.tp_id)
     LEFT JOIN users u ON (internet.uid = u.uid)";
 
-    $self->{SEARCH_FIELDS} = ', internet.speed, u.activate, internet.netmask, internet.join_service, internet.uid';
-    $self->{SEARCH_FIELDS_COUNT} += 3;
+    #$self->{SEARCH_FIELDS} = ', internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid';
+    #$self->{SEARCH_FIELDS_COUNT} += 3;
   }
   elsif ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id',
+      { EXT_FIELD => 'internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid' }) };
     $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.tp_id = tp.tp_id )
     LEFT JOIN users u ON (internet.uid = u.uid )";
 
-    $self->{SEARCH_FIELDS} = ', internet.speed, u.activate, internet.netmask, internet.join_service, internet.uid';
-    $self->{SEARCH_FIELDS_COUNT} += 3;
+    #$self->{SEARCH_FIELDS} = ', internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid';
+    #$self->{SEARCH_FIELDS_COUNT} += 3;
   }
   elsif ($attr->{UID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'STR', 'u.uid') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'STR', 'u.uid',
+      { EXT_FIELD => 'internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid' }) };
     $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.tp_id = tp.tp_id )
     LEFT JOIN users u ON (internet.uid = u.uid )";
 
-    $self->{SEARCH_FIELDS} = ', internet.speed, u.activate, internet.netmask, internet.join_service, internet.uid';
-    $self->{SEARCH_FIELDS_COUNT} += 3;
+    #$self->{SEARCH_FIELDS} = ', internet.speed, internet.activate, internet.netmask, internet.join_service, internet.uid';
+    #$self->{SEARCH_FIELDS_COUNT} += 3;
   }
 
   if ($attr->{BURST}) {
-    $self->{SEARCH_FIELDS} = ', tt.burst_limit_dl, tt.burst_limit_ul, tt.burst_threshold_dl, tt.burst_threshold_ul, tt.burst_time_dl, tt.burst_time_ul';
+    $self->{SEARCH_FIELDS} = 'tt.burst_limit_dl, tt.burst_limit_ul, tt.burst_threshold_dl, tt.burst_threshold_ul, tt.burst_time_dl, tt.burst_time_ul, ';
     $self->{SEARCH_FIELDS_COUNT} += 6;
   }
 
@@ -974,8 +995,8 @@ sub get_speed {
       tt.out_speed,
       tt.net_id,
       tt.expression,
-      intv.id AS interval_id
       $self->{SEARCH_FIELDS}
+      intv.id AS interval_id
     FROM trafic_tarifs tt
     LEFT JOIN intervals intv ON (tt.interval_id = intv.id)
     LEFT JOIN tarif_plans tp ON (tp.tp_id = intv.tp_id)

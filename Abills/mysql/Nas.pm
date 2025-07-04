@@ -7,11 +7,9 @@ package Nas;
 =cut
 
 use strict;
-#use parent 'dbbase';
 use parent 'dbcore';
 my $SECRETKEY = '';
 my $IPV6 = 0;
-my $admin;
 
 #**********************************************************
 =head2 new($db, \%conf, $admin)
@@ -19,10 +17,7 @@ my $admin;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  my $CONF  = shift;
-  $admin    = shift;
+  my ($class, $db, $CONF, $admin) = @_;
 
   $SECRETKEY = (defined($CONF->{secretkey})) ? $CONF->{secretkey} : '';
 
@@ -30,11 +25,12 @@ sub new {
     $IPV6 = 1;
   }
 
-  my $self = {};
+  my $self = {
+    db   => $db,
+    conf => $CONF
+  };
   bless($self, $class);
 
-  $self->{db}    = $db;
-  $self->{conf}  = $CONF;
   $self->{admin} = $admin if ($admin);
 
   $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
@@ -111,7 +107,8 @@ sub list {
   my $ext_fields = '';
 
   if (! $attr->{SHORT}) {
-    $ext_fields = "nas.id AS nas_id,
+    $ext_fields = <<"FIELDS";
+    nas.id AS nas_id,
     nas.name AS nas_name,
     nas.nas_identifier,
     INET_NTOA(nas.ip) AS nas_ip,
@@ -125,24 +122,25 @@ sub list {
     DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password,
     nas.rad_pairs as nas_rad_pairs,
     nas.ext_acct,
-    nas.auth_type,";
+    nas.auth_type,
+FIELDS
   }
 
-  $self->query(
-    "SELECT
-      $ext_fields
-      $self->{SEARCH_FIELDS}
-      nas.mac,
-      nas.id
-    FROM nas
-    LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
-    $EXT_TABLES
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+  SELECT
+  $ext_fields
+  $self->{SEARCH_FIELDS}
+  nas.mac,
+  nas.id
+  FROM nas
+  LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
+  $EXT_TABLES
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
@@ -173,8 +171,7 @@ sub list {
 =cut
 #***************************************************************
 sub info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = '';
 
@@ -292,7 +289,7 @@ sub change {
   );
 
   $attr->{CHANGED} = 1;
-  $admin->{MODULE} = '';
+  $self->{admin}->{MODULE} = '';
 
   if(! $attr->{NAS_MNG_PASSWORD}) {
     delete $attr->{NAS_MNG_PASSWORD};
@@ -302,7 +299,7 @@ sub change {
     require Address;
     Address->import();
 
-    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
 
     $Address->build_add($attr);
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
@@ -333,15 +330,15 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  if($admin && $admin->{DOMAIN_ID}) {
-    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  if($self->{admin} && $self->{admin}->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $self->{admin}->{DOMAIN_ID};
   }
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
     require Address;
     Address->import();
 
-    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
 
     $Address->build_add($attr);
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
@@ -367,7 +364,7 @@ sub add {
     return $self;
   }
 
-  $admin->system_action_add("NAS_ID: $self->{NAS_ID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("NAS_ID: $self->{NAS_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -385,7 +382,7 @@ sub del {
   $self->{nas_deleted} = $self->{AFFECTED};
   $self->query_del('nas_ippools', undef, { nas_id => $id });
 
-  $admin->system_action_add("NAS_ID:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("NAS_ID:$id", { TYPE => 10 });
 
   return $self;
 }
@@ -467,6 +464,7 @@ sub nas_ip_pools_list {
     [ 'SPEED',              'INT', 'pool.speed',                                            1],
     [ 'NAME',               'STR', 'pool.name AS name',                                     1],
     [ 'NAS',                'INT', 'np.nas_id',                                             1],
+    [ 'NAS_ID',             'INT', 'np.nas_id',                                             1],
     [ 'NETMASK',            'IP',  'pool.netmask',                                          1],
     [ 'GATEWAY',            'IP',  'pool.gateway',                                          1],
     [ 'STATIC',             'INT', 'pool.static',                                           1],
@@ -492,14 +490,18 @@ sub nas_ip_pools_list {
 
   my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} pool.id
-    FROM ippools pool
-    LEFT JOIN nas_ippools np ON ($WHERE_NAS)
-    LEFT JOIN nas n ON (n.id=np.nas_id)
-    $WHERE
-      GROUP BY pool.id
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
+  my $sql = <<"SQL";
+   SELECT $self->{SEARCH_FIELDS} pool.id
+   FROM ippools pool
+   LEFT JOIN nas_ippools np ON ($WHERE_NAS)
+   LEFT JOIN nas n ON (n.id=np.nas_id)
+   $WHERE
+   GROUP BY pool.id
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql,
     undef,
     $attr
   );
@@ -508,13 +510,14 @@ sub nas_ip_pools_list {
 
   return [] if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-    FROM ippools pool
-    $WHERE",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<"SQL";
+   SELECT COUNT(*) AS total
+   FROM ippools pool
+   LEFT JOIN nas_ippools np ON ($WHERE_NAS)
+   $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -525,12 +528,11 @@ sub nas_ip_pools_list {
 =cut
 #**********************************************************
 sub nas_ip_pools_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('nas_ippools', $attr, { REPLACE => 1 });
 
-  $admin->system_action_add(
+  $self->{admin}->system_action_add(
     "NAS_IP_POOL_ADD:$self->{INSERT_ID}",
     { TYPE => 1 }
   );
@@ -544,12 +546,11 @@ sub nas_ip_pools_add {
 =cut
 #**********************************************************
 sub nas_ip_pools_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('nas_ippools', undef, $attr);
 
-  $admin->system_action_add(
+  $self->{admin}->system_action_add(
     "NAS_IP_POOL_DELETE:NAS_ID" . ($attr->{NAS_ID} || q{}) . ",POOL_ID" . ($attr->{POOL_ID} || q{}),
     { TYPE => 10 }
   );
@@ -560,29 +561,35 @@ sub nas_ip_pools_del {
 #**********************************************************
 =head2 nas_ip_pools_set($attr) NAS IP Pools
 
+  Arguments:
+    $attr
+
+  Resukts:
+    $self
+
 =cut
 #**********************************************************
 sub nas_ip_pools_set {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  #todo: think what to do with IN, probably parse array and bind each value separately
-  $self->query("DELETE FROM nas_ippools WHERE nas_id = ? AND pool_id IN ($attr->{ids_remove}) ;", 'do', {
+  my $ids = $attr->{ids_remove} || q{};
+  $self->query("DELETE FROM nas_ippools WHERE nas_id = ? AND pool_id IN ($ids);", 'do', {
     Bind => [ $self->{NAS_ID} ]
   });
 
   my @MULTI_QUERY = ();
+  my @ids = split(/,\s?/x, $attr->{ids});
 
-  foreach my $id ( split(/, /, $attr->{ids}) ) {
+  foreach my $id (@ids) {
     push @MULTI_QUERY, [ $id, $attr->{NAS_ID} ] if ($id);
   }
 
   $self->query("INSERT INTO nas_ippools (pool_id, nas_id) VALUES (?, ?);",
-      undef,
-      { MULTI_QUERY =>  \@MULTI_QUERY });
+    undef,
+    { MULTI_QUERY => \@MULTI_QUERY });
 
-  if($admin) {
-    $admin->system_action_add("NAS_ID:$self->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 2 });
+  if ($self->{admin}) {
+    $self->{admin}->system_action_add("NAS_ID:$self->{NAS_ID} POOLS:" . (join(',', @ids)), { TYPE => 2 });
   }
 
   return $self;
@@ -594,9 +601,7 @@ sub nas_ip_pools_set {
 =cut
 #**********************************************************
 sub ip_pools_info {
-  my $self = shift;
-  my $id = shift;
-  my ($attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my $EXT_FIELDS = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
   $EXT_FIELDS .= ', (ippools.counts - (SELECT if(COUNT(*) > ippools.counts, ippools.counts, COUNT(*)) FROM internet_main internet
@@ -620,8 +625,7 @@ sub ip_pools_info {
 =cut
 #**********************************************************
 sub ip_pools_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{STATIC} = ($attr->{STATIC}) ? $attr->{STATIC} : 0;
   $attr->{GUEST} = ($attr->{GUEST}) ? $attr->{GUEST} : 0;
@@ -649,8 +653,7 @@ sub ip_pools_change {
 =cut
 #**********************************************************
 sub ip_pools_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -732,15 +735,15 @@ sub ip_pools_add {
   my $self   = shift;
   my ($attr) = @_;
 
-  $attr->{IPV6_PREFIX}  = undef if (! $IPV6);
+  delete $attr->{IPV6_PREFIX} if (! $IPV6);
 
   $self->query_add('ippools', {
     %$attr,
     NAS => undef,
   });
 
-  if($admin) {
-    $admin->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });
+  if($self->{admin}) {
+    $self->{admin}->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/,\s?/x, $attr->{ids}))), { TYPE => 1 });
   }
 
   return $self;
@@ -757,7 +760,7 @@ sub ip_pools_del {
 
   $self->query_del('ippools', { ID => $id });
 
-  $admin->system_action_add("POOL:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("POOL:$id", { TYPE => 10 });
 
   return $self;
 }
@@ -900,7 +903,7 @@ sub nas_group_add {
 
   $self->query_add('nas_groups', $attr);
 
-  $admin->system_action_add(
+  $self->{admin}->system_action_add(
     "NAS_GROUP_ID:$self->{INSERT_ID}",
     { TYPE => 1 }
   );
@@ -919,7 +922,7 @@ sub nas_group_del {
 
   $self->query_del('nas_groups', { ID => $id });
 
-  $admin->system_action_add(
+  $self->{admin}->system_action_add(
     "NAS_GROUP_ID:$id",
     { TYPE => 10 }
   );
@@ -1230,14 +1233,14 @@ sub nas_cmd_change {
 =cut
 #*******************************************************************
 sub divide_ips{
-  my $self = shift;
-  my ($attr) = (@_);
+  my ($self, $attr) = @_;
 
-  $self->query("INSERT INTO ippools_ips (ip, ippool_id)
-  SELECT
-    (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) SeqValue, ?
-  FROM
-    (SELECT 0 SeqValue UNION ALL SELECT 1 SeqValue) TWO_1
+  my $sql = <<"SQL";
+INSERT INTO ippools_ips (ip, ippool_id)
+SELECT
+  (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) SeqValue, ?
+FROM
+  (SELECT 0 SeqValue UNION ALL SELECT 1 SeqValue) TWO_1
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2 SeqValue) TWO_2
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 4 SeqValue) TWO_4
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 8 SeqValue) TWO_8
@@ -1254,8 +1257,15 @@ sub divide_ips{
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 16384 SeqValue) TWO_16384
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 32768 SeqValue) TWO_32768
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 65536 SeqValue) TWO_65536
-  ORDER BY 1 LIMIT ?;", 'do', {
-    Bind => [$attr->{FIRST}, $attr->{POOL_ID}, $attr->{COUNT}],
+ORDER BY 1 LIMIT ?;
+SQL
+
+  $self->query($sql, 'do', {
+    Bind => [
+      $attr->{FIRST},
+      $attr->{POOL_ID},
+      $attr->{COUNT}
+    ],
   });
 
   return 1;
@@ -1308,8 +1318,7 @@ sub remove_ippools_ips{
 =cut
 #*******************************************************************
 sub ippools_ips_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1325,17 +1334,18 @@ sub ippools_ips_list{
     }
   );
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
       ii.ippool_id,
       ii.ip,
       ii.status
     FROM ippools_ips ii
     $WHERE
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }

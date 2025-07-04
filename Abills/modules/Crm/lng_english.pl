@@ -162,6 +162,10 @@ $lang{CRM_FILE_TOO_LARGE} = 'File is too large. Maximum file size';
 $lang{CRM_MAX_FILES_ALLOWED} = 'Maximum number of files allowed';
 $lang{CRM_REPORT_ON_ATTRACTING_POTENTIAL_CLIENTS} = 'Report on attracting potential clients';
 $lang{CRM_RUN_PLUGIN} = 'Run the plugin';
+$lang{CRM_PROGRESS_MESSAGE_ADDED} = 'Message added to the activity feed';
+$lang{CRM_PROGRESS_MESSAGE_CHANGED} = 'Message updated in the activity feed';
+$lang{CRM_PROGRESS_MESSAGE_DELETED} = 'Message removed from the activity feed';
+$lang{CRM_PROCESSED_LEADS} = 'Processed leads';
 
 $lang{ERR_CRM_BOT_USER_ID_ERROR} = 'Bot user ID error';
 $lang{ERR_CRM_MESSAGE_SOURCE_ERROR} = 'Message source error';

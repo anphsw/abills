@@ -53,7 +53,7 @@ sub new {
 
 #*******************************************************************
 
-=head2 function add_rule() - add rule to table ring_rule
+=head2 function rule_add() - add rule to table ring_rule
 
   Arguments:
     %$attr
@@ -64,7 +64,7 @@ sub new {
     $self object
 
   Examples:
-    $Ring->add_rule({
+    $Ring->rule_add({
       NAME    => $FORM{NAME},
       DATE    => $FORM{DATE},
       COMMENT => $FORM{COMMENT}
@@ -73,7 +73,7 @@ sub new {
 =cut
 
 #*******************************************************************
-sub add_rule {
+sub rule_add {
   my $self = shift;
   my ($attr) = @_;
 
@@ -83,7 +83,7 @@ sub add_rule {
 }
 
 #*******************************************************************
-=head2 function del_rule() - delete rule's information from datebase
+=head2 function rule_del() - delete rule's information from datebase
 
   Arguments:
     $attr
@@ -91,11 +91,11 @@ sub add_rule {
   Returns:
 
   Examples:
-    $Ring->del_rule( {ID => 1} );
+    $Ring->rule_del( {ID => 1} );
 
 =cut
 #*******************************************************************
-sub del_rule {
+sub rule_del {
   my $self = shift;
   my ($attr) = @_;
 
@@ -105,7 +105,7 @@ sub del_rule {
 }
 
 #*******************************************************************
-=head2 function add_rule() - get info about the rule from table ring_rule
+=head2 function rule_select() - get info about the rule from table ring_rule
 
   Arguments:
     %$attr
@@ -114,11 +114,11 @@ sub del_rule {
     $self object
 
   Examples:
-    my $rule_info = $Ring->select_rule({ RULE_ID => 1});
+    my $rule_info = $Ring->rule_select({ RULE_ID => 1});
 
 =cut
 #*******************************************************************
-sub select_rule {
+sub rule_select {
   my $self = shift;
   my ($attr) = @_;
 
@@ -137,7 +137,7 @@ sub select_rule {
 }
 
 #*******************************************************************
-=head2 function change_rule() - change rule's information in datebase
+=head2 function rule_change() - change rule's information in datebase
 
   Arguments:
     $attr
@@ -146,17 +146,13 @@ sub select_rule {
     $self object
 
   Examples:
-    $Megogo->change_rule({
-      ID     => 1,
-      NAME   => 'test',
-    });
-    $Ring->change_rule({
+    $Ring->rule_change({
       %FORM
     });
 
 =cut
 #*******************************************************************
-sub change_rule {
+sub rule_change {
   my $self = shift;
   my ($attr) = @_;
 
@@ -170,7 +166,7 @@ sub change_rule {
 }
 
 #*******************************************************************
-=head2 function list_rule() - get list of rules
+=head2 function rule_list() - get list of rules
 
   Arguments:
     %$attr
@@ -179,11 +175,11 @@ sub change_rule {
     $self object
 
   Examples:
-    $list = $Ring->list_rule( {} );
+    $list = $Ring->rule_list( {} );
 
 =cut
 #*******************************************************************
-sub list_rule {
+sub rule_list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -244,7 +240,7 @@ sub list_rule {
 }
 
 #*******************************************************************
-=head2 function add_users() - add user to table ring_users_filters
+=head2 function user_add() - add user to table ring_users_filters
 
   Arguments:
     %$attr
@@ -256,14 +252,14 @@ sub list_rule {
     $self object
 
   Examples:
-    $Ring->add_rule({
+    $Ring->user_add({
       UID   => 1,
       R_ID  => 1
     });
 
 =cut
 #*******************************************************************
-sub add_user {
+sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
@@ -273,7 +269,7 @@ sub add_user {
 }
 
 #*******************************************************************
-=head2 function rule_users() - get list of users for rule
+=head2 function users_rule() - get list of users for rule
 
   Arguments:
     %$attr
@@ -282,11 +278,11 @@ sub add_user {
     $self object
 
   Examples:
-    $list = $Ring->rule_users( {COLS_NAME => 1} );
+    $list = $Ring->users_rule( {COLS_NAME => 1} );
 
 =cut
 #*******************************************************************
-sub rule_users {
+sub users_rule {
   my $self = shift;
   my ($attr) = @_;
 
@@ -305,6 +301,8 @@ sub rule_users {
     [ 'STATUS',    'INT', 'ruf.status', 1 ],
     [ 'COMMENTS',  'STR', 'ruf.comments', 1 ],
     [ 'AID',       'STR', 'a.name', 'a.name AS a_name' ],
+    [ 'FIO',       'STR', "CONCAT_WS(' ', pi.fio, pi.fio2, pi.fio3) AS fio", 1 ],
+    [ 'PHONE',     'STR', 'ruf.phone',    1 ],
   ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -312,6 +310,7 @@ sub rule_users {
   );
 
   $EXT_TABLES .= 'LEFT JOIN admins a ON (a.aid=ruf.aid)' if ($attr->{AID});
+  $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (pi.uid=ruf.uid)' if ($attr->{FIO});
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
@@ -345,7 +344,7 @@ sub rule_users {
 }
 
 #*******************************************************************
-=head2 function change_user() - change rule's information in datebase
+=head2 function user_change() - change rule's information in datebase
 
   Arguments:
     $attr
@@ -358,7 +357,7 @@ sub rule_users {
     $self object
 
   Examples:
-    $Ring->change_user({
+    $Ring->user_change({
       R_ID => 1,
       UID  => 1,
       STATUS => 2,
@@ -367,7 +366,7 @@ sub rule_users {
 
 =cut
 #*******************************************************************
-sub change_user {
+sub user_change {
   my $self = shift;
   my ($attr) = @_;
 
@@ -383,7 +382,7 @@ sub change_user {
 }
 
 #*******************************************************************
-=head2 function del_user() - delete rule's information from datebase
+=head2 function user_del() - delete rule's information from datebase
 
   Arguments:
     $attr
@@ -391,12 +390,12 @@ sub change_user {
   Returns:
 
   Examples:
-    $Ring->del_user( {UID => 1} );
+    $Ring->user_del( {UID => 1} );
 
 =cut
 
 #*******************************************************************
-sub del_user {
+sub user_del {
   my $self = shift;
   my ($attr) = @_;
 
@@ -406,7 +405,7 @@ sub del_user {
 }
 
 #**********************************************************
-=head2 add_users_by_rule($attr)
+=head2 users_add_by_rule($attr)
 
   Arguments:
      -
@@ -415,7 +414,7 @@ sub del_user {
 
 =cut
 #**********************************************************
-sub add_users_by_rule {
+sub users_add_by_rule {
   my $self = shift;
   my ($attr) = @_;
 

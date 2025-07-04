@@ -2,6 +2,8 @@
   $ref: "./paths/payments.yaml"
 /payments/types:
   $ref: "./paths/types.yaml"
+/payments/types/{id}:
+  $ref: "./paths/paymentsTypesId.yaml"
 /payments/users/{uid}:
   $ref: "./paths/users_uid.yaml"
 /payments/users/{uid}/{id}:

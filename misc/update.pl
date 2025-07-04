@@ -10,8 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.13
-  UPDATED: 20240813
+  VERSION: 0.14
+  UPDATED: 20250403
 
 =head1 SYNOPSIS
 
@@ -36,6 +36,7 @@ use feature 'say';
      --skip_self_update    - skip self update.pl
      --ex_self_update      - EXPERIMENTAL self update
      --ex_ssh_registration - EXPERIMENTAL ssh key registration
+     --log [fix]           - show git log
 =head1 PURPOSES
 
   + Check perl version
@@ -50,7 +51,7 @@ use feature 'say';
 
 =cut
 
-our $VERSION = 0.13;
+our $VERSION = 0.14;
 
 # Core modules from at least Perl 5.6
 use Getopt::Long qw/GetOptions HelpMessage :config auto_help auto_version ignore_case/;
@@ -64,19 +65,21 @@ our (%conf, @MODULES, %OPTIONS);
 
 BEGIN {
   %OPTIONS = (
-    skip_check_sql   => '',
-    skip_backup      => '',
-    clean            => '',
-    renew_license    => '',
-    PREFIX           => '/usr/abills',
-    TEMP_DIR         => '/tmp',
-    GIT_BRANCH       => 'master',
-    SOURCE           => 'git',
-    DEBUG            => 0,
-    GIT_REPO_HOST    => 'git@abills.net.ua',
-    USERNAME         => '',
-    PASSWORD         => '',
-    update_sql       => '',
+    skip_check_sql => '',
+    skip_backup    => '',
+    clean          => '',
+    renew_license  => '',
+    PREFIX         => '/usr/abills',
+    TEMP_DIR       => '/tmp',
+    GIT_BRANCH     => 'master',
+    SOURCE         => 'git',
+    DEBUG          => 0,
+    GIT_REPO_HOST  => 'git@abills.net.ua',
+    USERNAME       => '',
+    PASSWORD       => '',
+    update_sql     => '',
+    log            => '',
+    fix            => ''
   );
 
   GetOptions(
@@ -100,7 +103,9 @@ BEGIN {
     'force'                                   => \$OPTIONS{FORCE_UPDATE},
     'skip_self_update'                        => \$OPTIONS{SKIP_SELF_UPDATE},
     'ex_self_update'                          => \$OPTIONS{EXPERIMENTAL_SELF_UPDATE},
-    'ex_ssh_registration'                     => \$OPTIONS{EXPERIMENTAL_SSH_REGISTRATION}
+    'ex_ssh_registration'                     => \$OPTIONS{EXPERIMENTAL_SSH_REGISTRATION},
+    'log'                                     => \$OPTIONS{LOG},
+    'fix'                                     => \$OPTIONS{FIX}
   ) or die pod2usage();
 
   if (!-d $OPTIONS{PREFIX} && !-d "$OPTIONS{PREFIX}/lib") {
@@ -210,6 +215,16 @@ sub update {
     }
     return 0;
   }
+  elsif($OPTIONS{LOG}) {
+    print "SHOW LOG: $OPTIONS{LOG}\n\n";
+    log_show();
+    return 0;
+  }
+  elsif($OPTIONS{FIX}) {
+    print "SHOW FIX: $OPTIONS{FIX}\n\n";
+    log_show({ FIX => 1 });
+    return 0;
+  }
 
   check_perl_version($recommended_perl_version);
   check_used_perl_modules();
@@ -256,7 +271,7 @@ sub full_update {
     `echo "$version $date" > "$OPTIONS{PREFIX}/VERSION"`;
   }
 
-  print "Success \n";
+  print "\n\e[32mSuccessfully updated\e[0m\n";
 
   return 1;
 }
@@ -556,7 +571,6 @@ sub sources_update {
   my ($type) = @_;
 
   if ($type eq 'git' && check_ssh_access()) {
-
     # Check git is present
     my $git = `which git`;
     chomp($git);
@@ -601,7 +615,6 @@ sub sources_update {
 
       return 0;
     }
-
   }
 
   my $work_copy = $TEMP_DIR . '/abills_rel';
@@ -698,6 +711,9 @@ sub update_sql {
   }
 
   print "Check SQL updates\n";
+  #if ($debug > 3) {
+    print "$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1\n";
+  #}
   `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1`;
 
   return 1;
@@ -1987,6 +2003,48 @@ Host abills.net.ua
     say "Please, contact ABillS Support Team";
     return 0;
   }
+}
+
+
+#**********************************************************
+=head2 log_show($attr)
+
+  Argumnets:
+    $attr
+      FIX
+
+=cut
+#**********************************************************
+sub log_show {
+  my ($attr) = @_;
+
+  my $git = `which git`;
+  my $git_cmd = '';
+  my @git_options = ();
+  my @command_options = ();
+  chomp($git);
+
+  my $temprorary_abills_git_sources_dir = "$TEMP_DIR/abills";
+  if (-d $temprorary_abills_git_sources_dir) {
+    $git_cmd .= 'log --oneline --pretty=format:"%cd %s" --date=short --no-merges --since="6 weeks ago"';
+    push(@git_options, "-C $temprorary_abills_git_sources_dir");
+    if (defined($attr->{FIX})) {
+      push(@command_options, "--grep=fix");
+    }
+  }
+  else {
+    print "No git temporary dir\n";
+    return 0;
+  }
+
+  my $cmd = "$git " . join(' ', @git_options, $git_cmd, @command_options);
+  print "Git update: $cmd \n" if ($DEBUG);
+
+  my $logs = system($cmd);
+
+  print $logs;
+
+  return 1;
 }
 
 1;

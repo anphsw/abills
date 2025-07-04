@@ -1,0 +1,5 @@
+{
+  "name": "USER_STORAGE_INCOMING_ARTICLES_BY_SERIAL",
+  "method": "GET",
+  "path": "user/storage/incoming_articles?serial=123456789"
+}

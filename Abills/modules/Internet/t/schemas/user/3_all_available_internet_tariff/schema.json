@@ -33,6 +33,6 @@
         "type": "number"
       }
     },
-    "required": ["id", "inSpeed", "outSpeed", "tpId", "dayFee", "monthFee", "tpComments", "serviceId", "tpName"]
+    "required": ["id", "tpId", "dayFee", "monthFee", "tpComments", "serviceId", "tpName"]
   }
 }

@@ -18,5 +18,7 @@
   $ref: "./paths/statuses.yaml"
 /msgs/survey/:
   $ref: "./paths/survey.yaml"
+/msgs/search/:
+  $ref: "./paths/search.yaml"
 /msgs/report/dynamics/:
   $ref: "./paths/report_dynamics.yaml"

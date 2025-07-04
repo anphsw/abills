@@ -53,7 +53,7 @@
       "type": "string"
     },
     "extServiceId": {
-      "type": "string"
+
     },
     "feesType": {
       "type": "number"

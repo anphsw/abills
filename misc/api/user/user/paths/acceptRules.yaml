@@ -1,0 +1,21 @@
+post:
+  tags:
+    - user
+  summary: Принять правила использования
+  description: Работает при включенной опции $conf{ACCEPT_RULES}
+  deprecated: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/acceptRulesResponse200.yaml"
+    400:
+      description: Отключена опция $conf{ACCEPT_RULES}
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/acceptRulesResponse400.yaml"
+  security:
+    - USERSID: [ ]

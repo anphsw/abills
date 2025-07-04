@@ -241,6 +241,8 @@ sub crm_lead_by_source {
     EMAIL        => $sender->{EMAIL} || '',
     $uc_source   => $sender->{USER_ID},
     _AVATAR_URL  => $sender->{AVATAR} || '',
+    UID          => $sender->{UID} || '',
+    BUILD_ID     => $sender->{BUILD_ID} || '',
     PRIORITY     => 1,
     CURRENT_STEP => 1
   });

@@ -1,3 +1,16 @@
+get:
+  tags:
+    - internet
+  summary: Информация о тарифном плане
+  parameters:
+    - $ref: "#/components/parameters/pathTpId"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tariff.yaml"
 put:
   tags:
     - internet

@@ -22,8 +22,9 @@ sub new {
     db             => $db,
     admin          => $admin,
     conf           => $conf,
-    lang           => $attr->{lang},
+    lang           => $attr->{lang} || {},
     module         => $attr->{module},
+    parent         => $attr->{parent}, # For object
     language       => $attr->{language},
     is_lazy_loaded => 0,
   };
@@ -41,6 +42,7 @@ sub new {
     $attr: obj
       errstr?: str - predefined of errstr without search of it
       lang_vars:? obj - params for lang key of error
+      UID
 
   Returns:
     $obj
@@ -65,6 +67,15 @@ sub throw_error {
 
   return \%response if (!is_number($errno));
 
+  if ($self->{parent}) {
+    $self->{parent}->{error}  = $response{errno};
+    $self->{parent}->{errno}  = $response{errno};
+    $self->{parent}->{errstr} = $response{errstr};
+    if ($attr->{errextra}) {
+      $self->{parent}->{errextra} = $attr->{errextra};
+    }
+  }
+
   my $module_name = $self->{module};
 
   if ($attr && $attr->{errstr}) {
@@ -86,6 +97,15 @@ sub throw_error {
   else {
     my $lang_vars = ($attr && $attr->{lang_vars}) ? $attr->{lang_vars} : {};
     $response{errmsg} = vars2lang($self->{lang}->{$response{errstr}}, $lang_vars);
+  }
+
+  if ($self->{parent}) {
+    $self->{parent}->{error}  = $response{errno};
+    $self->{parent}->{errno}  = $response{errno};
+    $self->{parent}->{errstr} = $response{errstr};
+    if ($attr->{errextra}) {
+      $self->{parent}->{errextra} = $attr->{errextra};
+    }
   }
 
   return \%response;

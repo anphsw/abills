@@ -160,14 +160,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelector('.time-count').textContent = `${_TIME}: ${time}`;
 });
 
-const renderChildTooltips = (parentNode, createTooltip) => {
-  const currentNode = cy.getElementById(parentNode.id());
+const renderChildTooltips = (parentNode, createTooltip, visited = new Set()) => {
+  const nodeId = parentNode.id();
+
+  if (visited.has(nodeId)) return;
+  visited.add(nodeId);
+
+  const currentNode = cy.getElementById(nodeId);
   const tooltip = createTooltip(currentNode, currentNode.data().ip);
   tooltipInstances.push(tooltip);
   tooltip.show();
 
-  cy.edges(`[source = '${parentNode.id()}']:visible`)
-    .forEach(edge => renderChildTooltips(edge.target(), createTooltip));
+  cy.edges(`[source = '${nodeId}']:visible`)
+    .forEach(edge => renderChildTooltips(edge.target(), createTooltip, visited));
 };
 
 const createNodeInfoCard = nodeData => {
@@ -240,7 +245,7 @@ const createNodeInfoCard = nodeData => {
     cy.userZoomingEnabled(true);
   });
 
-  sendRequest(`/api.cgi/equipment/nas/${nasId}/ports/?UPLINK&PAGE_ROWS=1000&PORT_COMMENTS&VALN`, {}, 'GET')
+  sendRequest(`/api.cgi/equipment/nas/${nasId}/ports/?UPLINK&PAGE_ROWS=1000&PORT_COMMENTS&VLAN`, {}, 'GET')
     .then(data => {
       if (data?.total < 1) return;
       if (!Array.isArray(data?.list)) return;

@@ -30,6 +30,8 @@ my $argv = parse_arguments(\@ARGV);
 
 my $module = $argv->{MODULE} || '';
 
+$argv->{DEBUG} //= 0;
+
 start();
 
 #*******************************************************************
@@ -60,6 +62,8 @@ sub start {
 sub execute_tests {
   my ($modules) = shift;
 
+  my $is_silent = ($argv->{EXECUTABLE_TESTS} && !$argv->{DEBUG}) ? 1 : 0;
+
   foreach my $mod (sort keys %{$modules}) {
     if ($modules->{$mod}->{own_test}) {
       next if ($argv->{SKIP_OWN_TESTS});
@@ -68,14 +72,20 @@ sub execute_tests {
         ARGV   => 1
       });
 
+      if ($is_silent && $result =~ /Skip test runner, no tests for execute/gm) {
+        next;
+      }
+
       print "------------------RUN TEST $modules->{$mod}->{name}------------------\n";
+      print "________________________COMMAND: perl $modules->{$mod}->{path}Api.t________________________________\n" if ($argv->{DEBUG} > 2);
       print $result;
       print "------------------FINISH TEST $modules->{$mod}->{name}------------------\n\n";
     }
     else {
       test_runner({
-        path => $modules->{$mod}->{path},
-        argv => $argv,
+        path   => $modules->{$mod}->{path},
+        argv   => $argv,
+        silent => $is_silent
       });
     }
   }

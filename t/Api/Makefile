@@ -50,7 +50,7 @@ help:
 	@echo "  DEBUG    Debug mode"
 	@echo "  URL      Test system URL"
 	@echo "  MODULE   Tst only module"
-	@echo "  EXECUTABLE_TESTS Test only one route "
+	@echo "  EXECUTABLE_TESTS Test only one route  (Example: get/user/internet/session/active/) "
 	@echo ""
 	@echo "Examples:"
 	@echo "  make                 Run with default all target"

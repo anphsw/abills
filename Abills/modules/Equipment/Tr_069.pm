@@ -122,10 +122,12 @@ sub tr_069_provisions {
       { class => ($id eq $FORM{'_id'}) ? 'active' : '' });
   }
   my $provisions_data = '';
+  my $del_btn = q{};
 
-  my $del_btn = $html->button($lang{DEL},
+  $del_btn = $html->button($lang{DEL},
     "index=$index&_id=$FORM{_id}&del=1",
-    { MESSAGE => "$lang{DEL} Provision: $FORM{_id}?", class => 'btn btn-danger' }) if $FORM{_id};
+    { MESSAGE => "$lang{DEL} Provision: $FORM{_id}?", class => 'btn btn-danger' }) if ($FORM{_id});
+
   my $script = '';
   if ($FORM{save} && $FORM{script}) {
     $attr->{HTML_CONTENT} = $html->tpl_show(_include('equipment_script', 'Equipment'),
@@ -436,7 +438,7 @@ sub tr_069_get_data {
   my $query = 'query={';
 
   foreach my $key (sort keys %{$attr->{QUERY}}) {
-    if (! $key) {
+    if (!$key) {
       next;
     }
     $query .= '"' . $key . '"%3A"' . $attr->{QUERY}->{$key} . '"';

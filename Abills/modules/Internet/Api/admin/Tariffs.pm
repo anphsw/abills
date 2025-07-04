@@ -107,6 +107,37 @@ sub post_internet_tariff {
 }
 
 #**********************************************************
+=head2 get_internet_tariff_tp_id($path_params, $query_params)
+
+  Endpoint GET /internet/tariff/:tpId/
+
+=cut
+#**********************************************************
+sub get_internet_tariff_tp_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  require Tariffs;
+  Tariffs->import();
+  my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+  $Tariffs->info($path_params->{tpId});
+  return $Tariffs if $Tariffs->{errno};
+
+  my $tariff_gradients = $Tariffs->tp_gradients_list({
+    TP_ID       => $path_params->{tpId},
+    START_VALUE => '_SHOW',
+    PRICE       => '_SHOW'
+  });
+
+  $Tariffs->{GRADIENTS} = ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0) ? $tariff_gradients : [];
+
+  delete @{$Tariffs}{qw/TOTAL list AFFECTED/};
+
+  return $Tariffs;
+}
+
+#**********************************************************
 =head2 put_internet_tariff_tpId($path_params, $query_params)
 
   Endpoint PUT /internet/tariff/:tpId/

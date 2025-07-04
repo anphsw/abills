@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_USERS_STATUSES_CHANGE",
+  "method": "PUT",
+  "path": "users/statuses/100/",
+  "body": {
+    "name": "Contract suspended",
+    "color": "000110",
+    "descr": "update desc poo poo"
+  }
+}

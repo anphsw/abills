@@ -2,7 +2,7 @@ SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
 CREATE TABLE IF NOT EXISTS `events_state` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   PRIMARY KEY `event_state_id` (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `events_state` (
 
 CREATE TABLE IF NOT EXISTS `events_priority` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL,
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `value` SMALLINT(6) NOT NULL DEFAULT 2 COMMENT 'NORMAL',
   PRIMARY KEY `event_priority_id` (`id`)
 )
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `events_priority_send_types` (
 
 CREATE TABLE IF NOT EXISTS `events_privacy` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(40) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `value` SMALLINT(6) NOT NULL DEFAULT 0
 )
   DEFAULT CHARSET = utf8
@@ -39,20 +39,22 @@ CREATE TABLE IF NOT EXISTS `events_privacy` (
 
 CREATE TABLE IF NOT EXISTS `events_group` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(40) NOT NULL DEFAULT '',
-  `modules` TEXT NOT NULL,
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
+  `modules` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY `event_groups_id` (`id`),
-  UNIQUE `event_group_name` (`name`)
+  UNIQUE `event_group_name` (`name`),
+  KEY `modules` (`modules`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Events privacy settings';
 
 CREATE TABLE IF NOT EXISTS `events_admin_group`(
-  `aid` SMALLINT(6) UNSIGNED NOT NULL
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0
   REFERENCES `admins`(`aid`),
-  `group_id` SMALLINT(6) UNSIGNED NOT NULL
+  `group_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0
   REFERENCES `events_group` (`id`),
-  UNIQUE `_aid_group` (`aid`, `group_id`)
+  UNIQUE `_aid_group` (`aid`, `group_id`),
+  KEY `group_id` (`group_id`)
 )
  DEFAULT CHARSET = utf8 COMMENT = 'Events admin group';
 

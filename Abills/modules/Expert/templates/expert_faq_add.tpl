@@ -1,6 +1,7 @@
-<form name='expert_faq' method='POST' class='form-horizontal'>
-  <input type=hidden name='index' value=$index>
-  <input type=hidden name='ID' value=%ID%>
+<form id='expert_faq' name='expert_faq' method='POST' class='form-horizontal'>
+  <input type=hidden name='index' value='%index%'>
+  <input type=hidden name='ID' value='%ID%'>
+  <input type=hidden id='BODY' name='BODY' value=''>
 
   <div class='card card-primary card-outline container col-md-6'>
     <div class='card-header with-border'><h4 class='card-title'>_{FAQ}_ %LNG_ACTION%</h4></div>
@@ -38,22 +39,25 @@
         </div>
       </div-->
 
-      <div class='form-group row'>
+      <!--div class='form-group row'>
         <label class='col-md-3 control-label required' for='news-text'>_{TEXT}_:</label>
         <div class='col-md-9'>
           <textarea class='form-control' required name='BODY' cols=90 rows=15 id='news-text'>%BODY%</textarea>
           <div class='form-group row' style='margin-top: 5px;'>
-            <!--div class='col-md-12' id='editor-controls'>
+            <--div class='col-md-12' id='editor-controls'>
               <button type='button' class='btn btn-xs btn-primary' title='_{BOLD}_' data-tag='b'>_{BOLD}_</button>
               <button type='button' class='btn btn-xs btn-primary' title='_{ITALICS}_' data-tag='i'>_{ITALICS}_</button>
               <button type='button' class='btn btn-xs btn-primary' title='_{UNDERLINED}_' data-tag='u'>
                 _{UNDERLINED}_
               </button>
               <button type='button' class='btn btn-xs btn-primary' title='_{LINK}_' data-tag='link'>_{LINK}_</button>
-            </div-->
+            </div>
           </div>
         </div>
-      </div>
+      </div-->
+
+      %TEXT_EDITOR%
+
     </div>
 
     <div class='col-md-12'>

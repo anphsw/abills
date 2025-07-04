@@ -30,8 +30,8 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  $html = $attr->{HTML} if $attr->{HTML};
-  $lang = $attr->{LANG} if $attr->{LANG};
+  $html = $attr->{HTML} if ($attr->{HTML});
+  $lang = $attr->{LANG} if ($attr->{LANG});
 
   my $self = {};
   $CONF->{ABON_FEES_DSC} //= '%SERVICE_NAME%: %PERIOD% %TP_NAME% (%TP_ID%) %EXTRA%';
@@ -73,10 +73,10 @@ sub abon_docs {
   my %info = ();
   foreach my $line (@{$list}) {
     %info = ();
-    next if !$line->{date};
+    next if (!$line->{date});
 
-    $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100) if $line->{discount} > 0;
-    $line->{price} = $line->{price} * $line->{service_count} if $line->{service_count} > 1;
+    $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100) if ($line->{discount} > 0);
+    $line->{price} = $line->{price} * $line->{service_count} if ($line->{service_count} > 1);
 
     $info{id} = $line->{id};
     $info{tp_name} = $line->{tp_name};
@@ -97,13 +97,13 @@ sub abon_docs {
       push @services, { %info };
     }
     else {
-      $line->{price} = $line->{price} * 30 if $line->{period} == 0;
+      $line->{price} = $line->{price} * 30 if ($line->{period} == 0);
       push @services, "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}" .
         "|$line->{comments} |$line->{price}|$line->{id}|$line->{tp_name}";
     }
   }
 
-  return \%info if $attr->{FEES_INFO};
+  return \%info if ($attr->{FEES_INFO});
 
   return \@services;
 }
@@ -129,20 +129,22 @@ sub abon_quick_info {
   if ($uid) {
     $Abon->user_tariff_summary({ UID => $uid });
     if ($Abon->{LOST_FEE}) {
-      $Abon->{TOTAL_ACTIVE} = '!' . $Abon->{TOTAL_ACTIVE};
+      $Abon->{TOTAL_ACTIVE} = q{!} . $Abon->{TOTAL_ACTIVE};
     }
   }
 
-  return ($Abon->{TOTAL_ACTIVE}) ? $Abon->{TOTAL_ACTIVE} : '';
+  return ($Abon->{TOTAL_ACTIVE}) ? $Abon->{TOTAL_ACTIVE} : q{};
 }
 
 #**********************************************************
-=head2 internet_payments_maked($attr) - Cross module payment maked
+=head2 abon_payments_maked($attr) - Cross module payment maked
 
   Arguments:
     $attr
       USER_INFO
       SUM
+      DATE
+      SERVICE_RECOVERY
 
   Returns:
     TRUE or FALSE
@@ -163,8 +165,8 @@ sub abon_payments_maked {
   $attr->{SERVICE_RECOVERY} = '>0';
 
   if ($Services->abon_service_activate($attr)) {
-    if ($Services->{OPERATION_SUM}) {
-      $html->message('info', $lang->{INFO}, ($Services->{OPERATION_DESCRIBE} || q{}) . " $lang->{SUM}: " . ($Services->{OPERATION_SUM} || 0));
+    if ($Services->{OPERATION_SUM} && $html) {
+      $html->message('info', $lang->{INFO}, ($Services->{OPERATION_DESCRIBE} || q{}) . " $lang->{SUM}: " . ($Services->{OPERATION_TOTAL_SUM} || 0));
     }
   }
 
@@ -190,7 +192,7 @@ sub abon_promotional_tp {
   my @PERIODS = ($lang->{DAY}, $lang->{MONTH}, $lang->{QUARTER}, $lang->{SIX_MONTH}, $lang->{YEAR});
 
   my $promotion_tps = $Abon->tariff_list({
-    PROMOTIONAL     => '!',
+    PROMOTIONAL     => q{!},
     PRICE           => '_SHOW',
     TP_NAME         => '_SHOW',
     PERIOD          => '_SHOW',
@@ -198,7 +200,7 @@ sub abon_promotional_tp {
     MANUAL_ACTIVATE => 1,
     COLS_NAME       => 1
   });
-  my $items = '';
+  my $items = q{};
 
   my $user_activated_tps = $Abon->user_tariff_list($user_info->{UID}, { ACTIVE_ONLY => 1, COLS_NAME => 1 });
   my @activated_tps = ();
@@ -208,11 +210,11 @@ sub abon_promotional_tp {
     next if in_array($tp->{id}, \@activated_tps);
 
     my $price = $tp->{price} || 0;
-    next if ($user_info->{DEPOSIT} + $user_info->{CREDIT} < $price * (100 - $user_info->{REDUCTION}) / 100);
+    next if (($user_info->{DEPOSIT} + $user_info->{CREDIT}) < ($price * (100 - $user_info->{REDUCTION}) / 100));
 
     $items .= $html->tpl_show(::_include('abon_promotion_tp_carousel_item', 'Abon'), {
       TP_NAME => $tp->{tp_name},
-      ACTIVE  => !$items ? 'active' : '',
+      ACTIVE  => !$items ? 'active' : q{},
       PRICE   => $price,
       PERIOD  => '/' . ($PERIODS[$tp->{period}] || $PERIODS[0]),
       HREF    => '?index=' . main::get_function_index('abon_client') . "&add=$tp->{id}",
@@ -222,7 +224,7 @@ sub abon_promotional_tp {
   return if !$items;
 
   $html->message('callout', $html->tpl_show(main::_include('abon_promotion_tp_carousel', 'Abon'),
-    { ITEMS => $items }, { OUTPUT2RETURN => 1 }), '', { class => 'info mb-0 p-0' });
+    { ITEMS => $items }, { OUTPUT2RETURN => 1 }), q{}, { class => 'info mb-0 p-0' });
 }
 
 #*******************************************************************
@@ -256,11 +258,13 @@ sub abon_user_services {
   my Users $user = $attr->{USER_INFO};
 
   my $services = $Abon->user_tariff_list($user->{UID}, {
-    USER_PORTAL  => '>0',
-    SERVICE_LINK => '_SHOW',
-    SERVICE_IMG  => '_SHOW',
-    GID          => $user->{GID} || 0,
-    COLS_NAME    => 1
+    USER_PORTAL       => '>0',
+    SERVICE_LINK      => '_SHOW',
+    SERVICE_IMG       => '_SHOW',
+    DISCOUNT_ACTIVATE => '_SHOW',
+    DISCOUNT_EXPIRE   => '_SHOW',
+    GID               => $user->{GID} || 0,
+    COLS_NAME         => 1
   });
 
   my @service_list = ();
@@ -275,28 +279,40 @@ sub abon_user_services {
     my @periods = ('day', 'month', 'quarter', 'six months', 'year');
 
     my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-    my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : '';
+    my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : q{};
 
     my %tariff = (
-      price                => $service->{price},
+      price                => $service->{price} || 0,
+      original_price       => $service->{price} || 0, #Price without discount
       tp_name              => $service->{tp_name},
       id                   => $service->{id},
       active               => $is_active ? 'true' : 'false',
-      start_date           => $service->{date},
-      end_date             => $service->{next_abon},
-      description          => $service->{user_description} || '',
+      service_status       => $is_active ? 1 : 0,
+      status_name          => $is_active ? 'Active' : 'Disable',
+      start_date           => $service->{date} || '0000-00-00',
+      end_date             => $service->{next_abon} || '0000-00-00',
+      #activate_date        => $service->{date} || '0000-00-00',
+      description          => $service->{user_description} || q{},
       period               => $periods[$service->{period}],
-      period_id            => $service->{period},
+      period_id            => $service->{period} || 0,
       activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
       service_link         => $service->{service_link},
       service_img          => "$base_attach_link/$service->{service_img}",
       personal_description => $service->{personal_description},
       tp_reduction_fee     => $service->{reduction_fee},
+      uid                  => $service->{uid} || 0,
+      tp_id                => $service->{tp_id} || 0,
+      status_name          => q{},
+      month_fee            => 0,
+      discount_expire      => $service->{discount_expire} || '0000-00-00',
+      discount_activate    => $service->{discount_expire} || '0000-00-00',
+      discount             => $service->{discount} || 0,
+      service_count        => $service->{service_count} || 1,
     );
 
     if ($tariff{tp_reduction_fee} && $user->{REDUCTION} && $user->{REDUCTION} > 0) {
-      $tariff{original_price} = $tariff{price};
-      $tariff{price} = $tariff{price} ? $tariff{price} - (($tariff{price} / 100) * $user->{REDUCTION}) : $tariff{price};
+      $tariff{original_price} = $tariff{price} || 0;
+      $tariff{price} = ($tariff{price}) ? $tariff{price} - (($tariff{price} / 100) * $user->{REDUCTION}) : $tariff{price};
     }
 
     if ($date_if && $date_if > 0) {

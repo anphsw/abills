@@ -160,26 +160,26 @@ sub send_message {
     };
   }
 
-  if ($attr->{ATTACHMENTS}) {
-    my @attachments = ();
-    my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-    my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images" : '';
-
-    foreach my $file (@{$attr->{ATTACHMENTS}}) {
-      my $content = $file->{content} || '';
-      next if $content !~ /FILE/ || $content !~ /Abills\/templates/;
-      my ($file_path) = $content =~ /Abills\/templates(\/.+)/;
-
-      push @attachments, {
-        url          => $SELF_URL . $file_path,
-        size         => $file->{content_size},
-        name         => $file->{filename},
-        content_type => $file->{content_type}
-      };
-    }
-
-    $req_params{message}{data}{attachments} = \@attachments;
-  }
+  # if ($attr->{ATTACHMENTS}) {
+  #   my @attachments = ();
+  #   my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  #   my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images" : '';
+  #
+  #   foreach my $file (@{$attr->{ATTACHMENTS}}) {
+  #     my $content = $file->{content} || '';
+  #     next if $content !~ /FILE/ || $content !~ /Abills\/templates/;
+  #     my ($file_path) = $content =~ /Abills\/templates(\/.+)/;
+  #
+  #     push @attachments, {
+  #       url          => $SELF_URL . $file_path,
+  #       size         => $file->{content_size},
+  #       name         => $file->{filename},
+  #       content_type => $file->{content_type}
+  #     };
+  #   }
+  #
+  #   $req_params{message}{data}{attachments} = \@attachments;
+  # }
 
   my $send_result = web_request("https://fcm.googleapis.com/v1/projects/$self->{conf}->{GOOGLE_PROJECT_ID}/messages:send", {
     HEADERS     => [ "Content-Type: application/json", "Authorization: Bearer $result->{access_token}" ],

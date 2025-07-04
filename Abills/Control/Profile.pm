@@ -84,7 +84,7 @@ sub admin_profile {
         REWRITE   => 1
       });
 
-      if($is_uploaded ){
+      if($is_uploaded){
         $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
       }
     }
@@ -173,7 +173,7 @@ sub _form_profile_search {
 
   our @default_search;
   if ($admin->{SETTINGS} && $admin->{SETTINGS}{SEARCH_FIELDS} ) {
-    @default_search = split(/,\s+/, $admin->{SETTINGS}{SEARCH_FIELDS});
+    @default_search = split(/,\s+/x, $admin->{SETTINGS}{SEARCH_FIELDS});
   }
 
   my %search_fields = (
@@ -240,7 +240,7 @@ sub _form_profile_search {
 sub flist {
 
   my %new_hash = ();
-  while ((my ($findex, $hash) = each(%menu_items))) {
+  while (my ($findex, $hash) = each(%menu_items)) {
     while (my ($parent, $val) = each %$hash) {
       $new_hash{$parent}{$findex} = $val;
     }
@@ -252,9 +252,9 @@ sub flist {
   my @menu_sorted = sort { $b <=> $a } keys %$h;
   my %qm = ();
   if ($admin->{SETTINGS} && $admin->{SETTINGS}->{qm}) {
-    my @a = split(/,/, $admin->{SETTINGS}->{qm});
+    my @a = split(/,/x, $admin->{SETTINGS}->{qm});
     foreach my $line (@a) {
-      my ($id, $custom_name) = split(/:/, $line, 2);
+      my ($id, $custom_name) = split(':', $line, 2);
       $qm{$id} = ($custom_name) ? $custom_name : '';
     }
   }
@@ -281,7 +281,7 @@ sub flist {
     $table->addrow("$level:", "$parent >> " . $html->button($html->b($val), "index=$parent") . "<<", '') if ($parent != 0);
 
     if (defined($new_hash{$parent})) {
-      $table->{rowcolor} = undef;
+      delete $table->{rowcolor};
       $level++;
       $prefix .= "&nbsp;&nbsp;&nbsp;";
       label:
@@ -332,8 +332,8 @@ sub flist {
   }
   $admin->{SETTINGS}->{ql} //= '';
   my $i = 1;
-  foreach my $ql (split(/,/, $admin->{SETTINGS}->{ql})) {
-    my ($ql_name, $ql_url) = split(/\|/, $ql, 2);
+  foreach my $ql (split(/,/x, $admin->{SETTINGS}->{ql})) {
+    my ($ql_name, $ql_url) = split(/\|/x, $ql, 2);
     $table->addrow(
       '',
       $html->form_input("ql_url_$i", $ql_url, { OUTPUT2RETURN => 1 }),
@@ -496,7 +496,8 @@ sub _admin_info_change {
     $html->message('info', $lang{SUCCESS});
   }
   if ($FORM{reset_schema}) {
-    use Conf;
+    require Conf;
+    Conf->import();
     my $Config = Conf->new($db, $admin, \%conf);
     my $left_key = 'LSCHEMA_FOR_' . $admin->{AID};
     $Config->config_del($left_key);
@@ -556,7 +557,6 @@ sub _admin_info_change {
       }
     }
     else {
-
       $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(32)), {
         class   => 'btn btn-sm col-md-12 btn-secondary',
         CONFIRM => "$lang{G2FA_ADD}?",
@@ -667,7 +667,7 @@ sub _telegram_button {
   return '' if !$conf{TELEGRAM_TOKEN};
 
   foreach my $contact (@{$contacts_list}) {
-    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} !~ /e\_.*/) {
+    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} !~ m/e\_.*/x) {
       return _make_subscribe_btn('Telegram', 'fa fa-bell-slash', undef, {
         HREF           => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=' . $contact->{id},
         UNSUBSCRIBE    => 1,
@@ -700,7 +700,7 @@ sub _telegram_admin_button {
   return '' if !$conf{TELEGRAM_ADMIN_TOKEN};
 
   foreach my $contact (@{$contacts_list}) {
-    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} =~ /e\_.*/) {
+    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} =~ m/e\_.*/x) {
       return _make_subscribe_btn($lang{TELEGRAM_FOR_ADMINS}, 'fa fa-bell-slash', undef, {
         HREF           => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=' . $contact->{id},
         UNSUBSCRIBE    => 1,

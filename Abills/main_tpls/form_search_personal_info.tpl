@@ -112,6 +112,24 @@
                    placeholder='%PAYMENT_DAYS%' class='form-control' type='text'/>
           </div>
         </div>
+
+        <div class='form-group row'>
+          <label class='col-sm-4 col-md-4 control-label' for='FIN_PERIOD'>_{FIN}_ _{PERIOD}_:</label>
+          <div class='col-sm-8 col-md-8'>
+            <div class='input-group'>
+              <div class='input-group-prepend'>
+              <span class='input-group-text'>
+                <input type='checkbox' id='FIN_PERIOD_' class='form-control-static'
+                       data-input-enables='FIN_PERIOD'/>
+              </span>
+              </div>
+              <input id='FIN_PERIOD' name='FIN_PERIOD' value='%FIN_PERIOD%'
+                     placeholder='%FIN_PERIOD%' class='form-control date_range_picker' type='text'/>
+            </div>
+          </div>
+        </div>
+
+
       </div>
     </div>
 

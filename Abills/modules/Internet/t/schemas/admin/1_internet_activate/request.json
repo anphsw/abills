@@ -1,0 +1,17 @@
+{
+  "name": "ADMIN_INTERNET_USER_SERVICE_ACTIVATE",
+  "method": "POST",
+  "path": "internet/:uid/activate/",
+  "body" : {
+    "tpId" : "{{tpId}}",
+    "status" : 0
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "serviceId",
+        "value": "id"
+      }
+    ]
+  }
+}

@@ -398,7 +398,7 @@ sub iptv_monthly_next_tp {
       iptv_monthly_next_tp_take_fees({
         TP_INFO             => $tp_info,
         STATUS              => $status,
-        USER                => \%user,
+        USER_INFO           => \%user,
         CHANGE_TP_INFO      => $change_tp_info,
         DAY_EQ_START_PERIOD => $d == $START_PERIOD_DAY
       });
@@ -804,7 +804,7 @@ sub iptv_sheduler {
 
   my %info = ();
   my $debug = $attr->{DEBUG} || 0;
-  my ($service_id, $action_) = split(/:/, $action);
+  my ($service_id, $action_) = split(':', $action);
   $Iptv->user_info($service_id);
 
   $info{UID} = $uid;
@@ -823,7 +823,7 @@ sub iptv_sheduler {
     $info{change} = 1;
     $info{TP_ID} = $action_;
     $Iptv->{TP_ID} = $action_;
-    if (iptv_account_action({ %info, CHANGE_TP => 1, SERVICE_ID => $Iptv->{SERVICE_ID} })) {
+    if (iptv_account_action({ %info, CHANGE_TP => 1, SERVICE_ID => $Iptv->{SERVICE_ID}, TP_INFO_OLD => $Iptv->{TP_INFO_OLD} })) {
       _error_show($Iptv);
     }
 
@@ -839,7 +839,7 @@ sub iptv_sheduler {
       return 0;
     }
 
-    my $d = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
+    my $d = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
     my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
     #$FORM{RECALCULATE} = 0;
 
@@ -851,10 +851,11 @@ sub iptv_sheduler {
         $Iptv->{TP_INFO}->{MONTH_FEE} = 0;
       }
       $user = undef;
-      $FORM{RECALCULATE} = 1;
       service_get_month_fee($Iptv, {
         QUITE        => 1,
         SHEDULER     => 1,
+        RECALCULATE  => 1,
+        USER_INFO    => $attr->{USER_INFO},
         SERVICE_NAME => $lang{TV},
         DATE         => $attr->{DATE}
       });
@@ -901,10 +902,13 @@ sub iptv_sheduler {
   Arguments:
     $attr
       TP_INFO,
-      USER,
+      USER_INFO,
       STATUS,
       CHANGE_TP_INFO,
       DAY_EQ_START_PERIOD
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -912,7 +916,7 @@ sub iptv_monthly_next_tp_take_fees {
   my ($attr) = @_;
 
   my $tp_info = $attr->{TP_INFO} || ();
-  my $user = $attr->{USER} || ();
+  my $user = $attr->{USER_INFO} || ();
   my $status = $attr->{STATUS} || '';
 
   if ($tp_info->{change_price} && $tp_info->{change_price} > 0 && $tp_info->{next_tp_id} == $tp_info->{tp_id} && !$status) {
@@ -923,11 +927,13 @@ sub iptv_monthly_next_tp_take_fees {
     %{$Iptv} = %{$attr->{CHANGE_TP_INFO}};
     $Iptv->{TP_INFO}->{MONTH_FEE} = 0 if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION} || $attr->{DAY_EQ_START_PERIOD});
     $user = undef;
-    $FORM{RECALCULATE} = 1;
+    #$FORM{RECALCULATE} = 1;
 
     service_get_month_fee($Iptv, {
       QUITE        => 1,
       SHEDULER     => 1,
+      RECALCULATE  => 1,
+      USER_INFO    => $attr->{USER_INFO},
       SERVICE_NAME => $lang{TV},
       DATE         => $DATE
     });

@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_PAYMENTS_TYPES_DELETE",
+  "method": "DELETE",
+  "path": "payments/types/255",
+  "params": {}
+}

@@ -1,3 +1,38 @@
+post:
+  tags:
+    - storage
+  summary: Добавление установки
+  operationId: storageAddInstall
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            articleId:
+              type: integer
+              example: 164
+            uid:
+              type: integer
+              example: 100
+            status:
+              type: integer
+              example: 1
+            count:
+              type: integer
+              example: 1
+            months:
+              type: integer
+              example: 12
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/storageAddInstallResponse.yaml"
 get:
   tags:
     - storage

@@ -138,12 +138,17 @@ sub iptv_tp{
       MAIN_MENU_ARGV => "chg=". ($tarif_info->{TP_GID} || q{})
     });
 
-    $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
-      SELECTED       => $tarif_info->{FEES_METHOD} || 1,
-      SEL_HASH       => get_fees_types(),
-      NO_ID          => 1,
-      SORT_KEY       => 1,
-      SEL_OPTIONS    => { 0 => '' },
+    # $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+    #   SELECTED       => $tarif_info->{FEES_METHOD} || 1,
+    #   SEL_HASH       => get_fees_types(),
+    #   NO_ID          => 1,
+    #   SORT_KEY       => 1,
+    #   SEL_OPTIONS    => { 0 => '' },
+    #   MAIN_MENU      => get_function_index('form_fees_types'),
+    #   CHECKBOX       => 'create_fees_type',
+    #   CHECKBOX_TITLE => $lang{CREATE}
+    # });
+    $tarif_info->{SEL_METHOD} = sel_fees_methods('FEES_METHOD', $tarif_info->{FEES_METHOD} || 1, {
       MAIN_MENU      => get_function_index('form_fees_types'),
       CHECKBOX       => 'create_fees_type',
       CHECKBOX_TITLE => $lang{CREATE}
@@ -158,22 +163,27 @@ sub iptv_tp{
           "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
       }, { OUTPUT2RETURN => 1 });
 
-      $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select('EXT_BILL_FEES_METHOD', {
-        SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
-        SEL_HASH    => get_fees_types(),
-        NO_ID       => 1,
-        SORT_KEY    => 1,
-        SEL_OPTIONS => { 0 => '' },
-        MAIN_MENU   => get_function_index('form_fees_types'),
-        # CHECKBOX    => 'create_fees_type',
-        # CHECKBOX_TITLE => $lang{CREATE},
-      });
+      # $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select('EXT_BILL_FEES_METHOD', {
+      #   SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
+      #   SEL_HASH    => get_fees_types(),
+      #   NO_ID       => 1,
+      #   SORT_KEY    => 1,
+      #   SEL_OPTIONS => { 0 => '' },
+      #   MAIN_MENU   => get_function_index('form_fees_types'),
+      #   # CHECKBOX    => 'create_fees_type',
+      #   # CHECKBOX_TITLE => $lang{CREATE},
+      # });
+      #
+      # $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
+      #   ID    => 'EXT_BILL_ACCOUNT',
+      #   NAME  => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
+      #   VALUE => $tarif_info->{EXT_BILL_FEES_METHOD},
+      # }, { OUTPUT2RETURN => 1 });
 
-      $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
-        ID    => 'EXT_BILL_ACCOUNT',
-        NAME  => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
-        VALUE => $tarif_info->{EXT_BILL_FEES_METHOD},
-      }, { OUTPUT2RETURN => 1 });
+      $tarif_info->{EXT_BILL_ACCOUNT} = sel_fees_methods('EXT_BILL_FEES_METHOD', $tarif_info->{EXT_BILL_FEES_METHOD} || 1, {
+        LABEL => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
+        ID    => 'EXT_BILL_ACCOUNT'
+      });
 
       if ($conf{BONUS_EXT_FUNCTIONS}) {
         my @BILL_ACCOUNT_PRIORITY = (
@@ -212,7 +222,8 @@ sub iptv_tp{
       SELECT          => 'NEXT_TARIF_PLAN',
       NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
       #SKIP_TP         => $tarif_info->{TP_ID},
-      MODULE          => 'Iptv'
+      MODULE          => 'Iptv',
+      SERVICE_ID      => $tarif_info->{SERVICE_ID} || -1
     });
 
     $tarif_info->{SERVICE_SEL} = tv_services_sel({ %$tarif_info, ALL => 1, EX_PARAMS => '' });

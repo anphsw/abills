@@ -36,7 +36,7 @@ sub form_fees {
   my $Fees = Finance->fees($db, $admin, \%conf);
   my %BILL_ACCOUNTS = ();
 
-  my $FEES_METHODS = get_fees_types();
+  my $FEES_METHODS = get_fees_types({ PARENT_ID => 0 });
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
     $FORM{METHOD} =~ s/,/;/g if $FORM{METHOD};
@@ -72,6 +72,7 @@ sub form_fees {
     $Fees->{UID} = $user->{UID};
     if ($FORM{take} && $FORM{SUM}) {
       $FORM{SUM} =~ s/,/\./g;
+      $FORM{SUM} =~ s/\s+//g;
 
       if ($FORM{ER} && $FORM{ER} > 0) {
         my $er = $Fees->exchange_info($FORM{ER});
@@ -211,11 +212,12 @@ sub form_fees {
       }
 
       $Fees->{SEL_METHOD} = $html->form_select('METHOD', {
-        SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
-        SEL_HASH      => dynamic_types({FEES_METHODS_HASH => $FEES_METHODS}),
-        NO_ID         => 1,
-        SORT_KEY_NUM  => 1,
-        MAIN_MENU     => get_function_index('form_fees_types'),
+        SELECTED     => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
+        SEL_HASH     => dynamic_types({ FEES_METHODS_HASH => $FEES_METHODS }),
+        NO_ID        => 1,
+        SORT_KEY_NUM => 1,
+        EX_PARAMS    => 'data-fees-methods-select=1',
+        MAIN_MENU    => get_function_index('form_fees_types'),
       });
 
       if (!$attr->{REGISTRATION} && $FORM{UID}) {
@@ -426,7 +428,7 @@ sub form_fees_list {
       tax              => $lang{TAX},
       tax_sum          => "$lang{TAX} $lang{SUM}",
       invoice_id       => $lang{INVOICE},
-      ext_bill_deposit => '122'
+      ext_bill_deposit => "$lang{EXTRA} $lang{DEPOSIT}"
     },
     TABLE           => {
       width               => '100%',

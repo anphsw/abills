@@ -59,7 +59,7 @@ sub auth_admin {
     my $res = check_permissions($FORM{user}, $FORM{passwd}, $COOKIES{admin_sid}, \%FORM);
 
     if (! $res) {
-      if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=10/) {
+      if ($FORM{REFERER} && $FORM{REFERER} =~ m/$SELF_URL/x && $FORM{REFERER} !~ m/index=10/x) {
         $html->set_cookies('admin_sid', $admin->{SID}, '', '');
         $COOKIES{admin_sid} = $admin->{SID};
         $admin->online({
@@ -79,7 +79,7 @@ sub auth_admin {
 
         print qq{{"TYPE":"error","errstr":"Access Deny","sid":"$cookie_sid","aid":"$admin_sid","errno":"$res"}};
       }
-      elsif( $FORM{xml}){
+      elsif($FORM{xml}){
         print "Content-Type:application/xml\n\n";
         print qq{<?xml version="1.0" encoding="UTF-8"?>
         <error>
@@ -100,10 +100,8 @@ sub auth_admin {
           if ( $admin->{errno} == 4 ) {
             $err = $lang{ERR_WRONG_PASSWD};
           }
-          else {
-            if ($FORM{user} && $FORM{passwd}) {
-              $err = $admin->{errstr};
-            }
+          elsif ($FORM{user} && $FORM{passwd}) {
+            $err = $admin->{errstr};
           }
         }
 
@@ -134,19 +132,19 @@ sub auth_admin {
   #**********************************************************
   else {
     if (defined($ENV{HTTP_CGI_AUTHORIZATION})){
-      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
-      my ($REMOTE_USER, $REMOTE_PASSWD) = split( /:/, decode_base64( $ENV{HTTP_CGI_AUTHORIZATION} ) );
+      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//ix;
+      my ($REMOTE_USER, $REMOTE_PASSWD) = split(':', decode_base64( $ENV{HTTP_CGI_AUTHORIZATION} ) );
 
       if ( $REMOTE_USER ){
         $REMOTE_USER = substr( $REMOTE_USER, 0, 20 );
-        $REMOTE_USER =~ s/\\//g;
+        $REMOTE_USER =~ s/\\//xg;
       }
       else {
         $REMOTE_USER = q{};
       }
       if ($REMOTE_PASSWD) {
         $REMOTE_PASSWD = substr($REMOTE_PASSWD, 0, 20);
-        $REMOTE_PASSWD=~s/\\//g;
+        $REMOTE_PASSWD=~s/\\//xg;
       }
 
       my $res = check_permissions($REMOTE_USER, $REMOTE_PASSWD);
@@ -275,12 +273,12 @@ sub form_login {
 
   #Make active lang list
   if ($conf{LANGS}) {
-    $conf{LANGS} =~ s/\n//g;
-    my (@lang_arr) = split(/;/, $conf{LANGS});
+    $conf{LANGS} =~ s/\n//xg;
+    my (@lang_arr) = split(';', $conf{LANGS});
     %LANG = ();
     foreach my $l (@lang_arr) {
-      my ($lang, $lang_name) = split(/:/, $l);
-      $lang =~ s/^\s+//;
+      my ($lang, $lang_name) = split(':', $l);
+      $lang =~ s/^\s+//x;
       $LANG{$lang} = $lang_name;
     }
   }
@@ -304,7 +302,7 @@ sub form_login {
 
   $first_page{TITLE} = $lang{AUTH};
 
-  if (! $FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER}  =~ /$SELF_URL/) {
+  if (! $FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER}  =~ m/$SELF_URL/x) {
     $FORM{REFERER} = $ENV{HTTP_REFERER};
   }
 
@@ -329,12 +327,12 @@ sub form_login {
     $first_page{password} = $FORM{password};
   }
 
-  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ /^(\d+)$/) {
+  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ m/^(\d+)$/x) {
     $first_page{DOMAIN_ID}=$FORM{DOMAIN_ID};
   }
-  if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/) {
-    $FORM{REFERER} =~ s/>/&gt;/g;
-    $FORM{REFERER} =~ s/</&lt;/g;
+  if ($FORM{REFERER} && $FORM{REFERER} =~ m/$SELF_URL/x) {
+    $FORM{REFERER} =~ s/>/&gt;/xg;
+    $FORM{REFERER} =~ s/</&lt;/xg;
     $first_page{REFERER} = $FORM{REFERER};
   }
 
@@ -361,9 +359,10 @@ sub form_login {
     1 - Deny
     2 - Disable
     3 - Deny IP
-    4 - Wrong passwd
+    4 - Wrong passwd or bruteforce
     5 - Wrong LDAP Auth
     6 - Deny IP/Time
+    7 - Bruteforce
 
 =cut
 #**********************************************************
@@ -379,8 +378,8 @@ sub check_permissions {
   }
 
   if ($conf{ADMINS_ALLOW_IP}) {
-    $conf{ADMINS_ALLOW_IP} =~ s/ //g;
-    my @allow_ips_arr = split(/,/, $conf{ADMINS_ALLOW_IP});
+    $conf{ADMINS_ALLOW_IP} =~ s/ //xg;
+    my @allow_ips_arr = split(',', $conf{ADMINS_ALLOW_IP});
     my %allow_ips_hash = ();
     foreach my $ip (@allow_ips_arr) {
       $allow_ips_hash{$ip} = 1;
@@ -404,10 +403,10 @@ sub check_permissions {
     $PARAMS{IP} = '0.0.0.1';
   }
 
-  $login    =~ s/"/\\"/g;
-  $login    =~ s/'/\\'/g;
-  $password =~ s/"/\\"/g;
-  $password =~ s/'/\\'/g;
+  $login    =~ s/"/\\"/xg;
+  $login    =~ s/'/\\'/xg;
+  $password =~ s/"/\\"/xg;
+  $password =~ s/'/\\'/xg;
 
   if ($session_sid && ! $login && (! $attr->{API_KEY} && ! $attr->{key})) {
     $admin->online_info({ SID => $session_sid });
@@ -433,6 +432,16 @@ sub check_permissions {
     if($attr->{API_KEY}
       || ($conf{US_API} && $attr->{key})) {
       $PARAMS{API_KEY}   = $attr->{API_KEY} || $attr->{key} || q{123};
+
+      $admin->admin_bruteforce_list({
+        REMOTE_ADDR => $REMOTE_ADDR,
+        CHECK       => 1,
+        %PARAMS
+      });
+
+      if ($admin->{TOTAL} && $admin->{TOTAL} > 5) {
+        return 4;
+      }
     }
     #LDAP auth
     elsif($conf{LDAP_IP}) {
@@ -469,9 +478,29 @@ sub check_permissions {
     }
   }
 
+
+
   $admin->info($admin->{AID}, \%PARAMS);
 
   if ($login && $password) {
+    if ($conf{ADMIN_BRUTE_PERIOD} && $conf{ADMIN_BRUTE_LIMIT}) {
+      # Check brutefarce
+      if(! $admin->{errno}) {
+        $admin->system_action_list({
+          AID        => $admin->{AID},
+          TYPE       => 11,
+          PERIOD     => "<" . $conf{ADMIN_BRUTE_PERIOD},
+          TOTAL_ONLY => 1
+        });
+
+        if ($admin->{TOTAL} && $admin->{TOTAL} > $conf{ADMIN_BRUTE_LIMIT}) {
+          $admin->{errno}  = 4;
+          $admin->{errstr} = 'BRUTEFORCE';
+          return 4;
+        }
+      }
+    }
+
     if (!$FORM{g2fa}) {
       if ($admin->{G2FA}) {
         $FORM{user} = $login;
@@ -507,6 +536,15 @@ sub check_permissions {
       $admin->{errno} = 4;
     }
     elsif ($admin->{errno} == 2) {
+      #TODO add also for admin panel auth with login ad pass
+      if ($PARAMS{API_KEY}) {
+        $admin->admin_bruteforce_add({
+          #TODO think in which format store api key it, directly not hidden not the best choice
+          API_KEY     => 'plug',
+          REMOTE_ADDR => $REMOTE_ADDR
+        });
+      }
+
       return 2;
     }
 
@@ -532,9 +570,9 @@ sub check_permissions {
   }
 
   if ($admin->{WEB_OPTIONS}) {
-    my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS});
+    my @WO_ARR = split(';', $admin->{WEB_OPTIONS});
     foreach my $line (@WO_ARR) {
-      my ($k, $v) = split(/=/, $line, 2);
+      my ($k, $v) = split('=', $line, 2);
       next if(! $k);
       $admin->{SETTINGS}{$k} = $v;
 
@@ -562,9 +600,9 @@ sub check_permissions {
     my $deny = ($admin->{TOTAL}) ? 1 : 0;
     foreach my $line (@$list) {
       my $time       = $TIME;
-      $time          =~ s/://g;
-      $line->{begin} =~ s/://g;
-      $line->{end}   =~ s/://g;
+      $time          =~ s/://xg;
+      $line->{begin} =~ s/://xg;
+      $line->{end}   =~ s/://xg;
       my $wday = (localtime(time))[6];
 
       if ((! $line->{day} || $wday+1 == $line->{day})
@@ -684,7 +722,9 @@ sub auth_user {
   my $Auth;
 
   # request from apple only POST without custom own prop, we dont handle query params in POST request
-  $params->{external_auth} = 'Apple' if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/);
+  if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ m/external_auth=Apple/x) {
+    $params->{external_auth} = 'Apple';
+  }
 
   if ($params->{external_auth}) {
     $Auth = Abills::Auth::Core->new({
@@ -773,7 +813,7 @@ sub auth_user {
     if ($conf{user_portal_debug}) {
       my $total = $user->{TOTAL} // 'N/D';
       $session_id //= q{};
-      $session_id =~ s/\W+//g;
+      $session_id =~ s/\W+//xg;
       my $p = $conf{PASSWORDLESS_ACCESS} || 0;
       `echo "PA: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
     }
@@ -782,7 +822,7 @@ sub auth_user {
       if ($conf{user_portal_debug}) {
         my $total = $user->{TOTAL} // 'N/D';
         $session_id //= q{};
-        $session_id =~ s/\W+//g;
+        $session_id =~ s/\W+//xg;
         my $p = $conf{PASSWORDLESS_ACCESS} || 0;
         `echo "PA ADD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
       }
@@ -792,7 +832,7 @@ sub auth_user {
         if ($conf{user_portal_debug}) {
           my $total = $user->{TOTAL} // 'N/D';
           $session_id //= q{};
-          $session_id =~ s/\W+//g;
+          $session_id =~ s/\W+//xg;
           my $p = $conf{PASSWORDLESS_ACCESS} || 0;
           `echo "PA ADDD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
         }
@@ -811,7 +851,7 @@ sub auth_user {
         if ($conf{user_portal_debug}) {
           my $total = $user->{TOTAL} // 'N/D';
           $session_id //= q{};
-          $session_id =~ s/\W+//g;
+          $session_id =~ s/\W+//xg;
           my $p = $conf{PASSWORDLESS_ACCESS} || 0;
           `echo "PA UPDATE: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
         }
@@ -836,7 +876,7 @@ sub auth_user {
       if ($conf{user_portal_debug}) {
         #$html->message('err', $lang->{ERROR}, $lang->{NOT_LOGINED}, { ID => 9999 });
         my $total = $user->{TOTAL} // 'N/D';
-        $session_id =~ s/\W+//g;
+        $session_id =~ s/\W+//xg;
         my $p = $conf{PASSWORDLESS_ACCESS} || 0;
         `echo "NOT_FOUND_SESSION IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
       }
@@ -867,6 +907,10 @@ sub auth_user {
             $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
             UID                  => $user->{UID}
           });
+
+          if (!$attr->{API}) {
+            $html->message('info', $lang->{INFO}, $lang->{SN_ADDED});
+          }
         }
         else {
           return {
@@ -1134,7 +1178,7 @@ sub auth_sql {
     });
   }
   else {
-    my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+    my @a_method = split(',', $conf{WEB_AUTH_KEY});
     foreach my $auth_param (@a_method) {
       $user->list({
         $auth_param => $user_name,

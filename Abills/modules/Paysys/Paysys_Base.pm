@@ -64,6 +64,7 @@ my @status = ("$lang{UNKNOWN}",    #0
   'UNPAID',                        #15
   'WRONG_SUM',                     #16
   'PAYMENT_SQL_ERROR',             #17
+  "$lang{ERROR} $lang{RECURRENT_PAYMENT}", #18
 );
 
 #**********************************************************

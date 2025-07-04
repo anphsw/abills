@@ -2,6 +2,8 @@
   $ref: "./paths/fees.yaml"
 /fees/types:
   $ref: "./paths/feesTypes.yaml"
+/fees/types/{id}:
+  $ref: "./paths/feesTypesId.yaml"
 /fees/schedules:
   $ref: "./paths/feesSchedules.yaml"
 /fees/users/{uid}:

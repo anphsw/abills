@@ -306,6 +306,14 @@ sub cablecat_cables {
     $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $Cablecat->cables_change({ %FORM });
     show_result($Cablecat, $lang{CHANGED});
+    
+    if (defined $FORM{COMMENTS}) {
+      my $cable = $Cablecat->cables_info($FORM{ID});
+
+      if ($cable->{POINT_ID}) {
+        $Maps->points_change({ ID => $cable->{POINT_ID}, COMMENTS => $FORM{COMMENTS} });
+      }
+    }
   }
   elsif ($FORM{chg}) {
     $sub_create_cable_point->($FORM{chg}) if ($FORM{CREATE_OBJECT});

@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Users;
+use Users_reports;
 use Tariffs;
 use List::Util qw/max min/;
 require Abills::Misc;
@@ -22,7 +22,7 @@ our (
 
 our Abills::HTML $html;
 
-my $Users = Users->new($db, $admin, \%conf);
+my $Users_reports = Users_reports->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 report_new_all_customers() - show chart for new and all customers
@@ -37,7 +37,7 @@ sub report_new_all_customers {
   my ($search_year, undef, undef) = split('-', $DATE);
   $search_year = $FORM{NEXT} || $FORM{PRE} if ($FORM{NEXT} || $FORM{PRE});
 
-  my $all_data = $Users->all_new_report({ COLS_NAME => 1, YEAR => $search_year });
+  my $all_data = $Users_reports->all_new_report({ COLS_NAME => 1, YEAR => $search_year });
   my @new_users = ();
   my @all_users = ();
 
@@ -121,7 +121,7 @@ sub report_new_arpu {
   }
 
   if ($FORM{DEBUG}) {
-    $Users->{debug}=1;
+    $Users_reports->{debug}=1;
   }
 
   my $Tariffs  = Tariffs->new($db, \%conf, $admin);
@@ -135,7 +135,7 @@ sub report_new_arpu {
 
   my $min_tariff_amount = $tp_list->[0]->{month_fee} || 0;
 
-  my $data_for_report = $Users->all_data_for_report({
+  my $data_for_report = $Users_reports->all_data_for_report({
     YEAR      => $search_year,
     COLS_NAME => 1
   });
@@ -317,7 +317,7 @@ sub report_balance_by_status {
 #*******************************************************************
 sub report_users_disabled {
 
-  my $disabled_users_list = $Users->report_users_disabled({
+  my $disabled_users_list = $Users_reports->report_users_disabled({
     COLS_NAME    => 1,
     DISABLE      => '_SHOW',
     DISABLE_DATE => '_SHOW',

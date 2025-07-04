@@ -304,6 +304,8 @@ sub list {
     [ 'CONTRACT_ID', 'INT', 'company.contract_id', 1 ],
     [ 'CONTRACT_DATE', 'DATE', 'company.contract_date', 1 ],
     [ 'CONTRACT_SUFIX', 'STR', 'company.contract_sufix', 1 ],
+    [ 'INDICATION',           'STR', 'company.indication',      1 ],
+    [ 'CONTRACT_EXPIRY',      'STR', 'company.contract_expiry', 1 ],
     [ 'ID', 'INT', 'company.id' ],
     [ 'BILL_ID', 'INT', 'company.bill_id', 1 ],
     [ 'TAX_NUMBER', 'STR', 'company.tax_number', 1 ],
@@ -312,6 +314,7 @@ sub list {
     [ 'COR_BANK_ACCOUNT', 'STR', 'company.cor_bank_account', 1 ],
     [ 'BANK_BIC', 'STR', 'company.bank_bic', 1 ],
     [ 'PHONE', 'STR', 'company.phone', 1 ],
+    [ 'EMAIL', 'STR', 'company.email', 1 ],
     [ 'VAT', 'INT', 'company.vat', 1 ],
     [ 'EXT_BILL_ID', 'INT', 'company.ext_bill_id', 1 ],
     [ 'DOMAIN_ID', 'INT', 'company.domain_id', 1 ],
@@ -383,6 +386,8 @@ sub admins_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
 
+  my $company_field = 'ca.company_id';
+
   if ($attr->{UID}) {
     push @WHERE_RULES, "u.uid='$attr->{UID}'";
   }
@@ -392,6 +397,7 @@ sub admins_list {
   }
 
   if ($attr->{COMPANY_ID}) {
+    $company_field = 'c.id as company_id';
     push @WHERE_RULES, "c.id='$attr->{COMPANY_ID}'";
   }
 
@@ -402,10 +408,10 @@ sub admins_list {
       pi.fio,
       (SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email,
       u.uid,
-      ca.company_id
+      $company_field
     FROM companies  c
     INNER JOIN users u ON (u.company_id=c.id)
-    LEFT JOIN companie_admins ca ON (ca.uid=u.uid)
+    LEFT JOIN companie_admins ca ON (ca.company_id=c.id AND ca.uid=u.uid)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
     $WHERE
     ORDER BY $SORT $DESC
@@ -454,6 +460,154 @@ sub admins_del {
   $self->query_del('companie_admins', undef, { UID => $attr->{UID} || '--' });
 
   return $self;
+}
+
+#**********************************************************
+=head2 bic_add () - add company BIC
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub bic_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('companies_bics', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 bic_info (ID) - Show BIC info
+
+  Arguments:
+    BANK_BIC
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub bic_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM companies_bics WHERE bank_bic = ?;", undef,
+    { INFO => 1,
+      Bind => [ $attr->{BANK_BIC} ]
+    }
+  );
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 bic_change($attr) - change bank name by BIC
+
+  Arguments:
+   $attr
+
+  Returns:
+    $self
+
+=cut
+#*******************************************************************
+sub bic_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'BANK_BIC',
+    TABLE        => 'companies_bics',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2  bic_del(ID) - delete BIC
+
+  Arguments:
+    BANK_BIC
+
+  Returns:
+   $self
+
+=cut
+#*******************************************************************
+sub bic_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('companies_bics', undef, $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2  bic_list($attr) - list of bank BICs
+
+  Arguments:
+    $attr
+      HASH_RETURN - return bics as a hash (BANK_BIC => BANK_NAME)
+
+  Returns:
+    $list or $list_hash
+
+=cut
+
+#*******************************************************************
+sub bic_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+
+  my $WHERE = $self->search_former($attr, [
+      [ 'BANK_NAME',           'STR', 'cb.bank_name',            1 ],
+      [ 'BANK_BIC',            'INT', 'cb.bank_bic',             1 ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query("
+    SELECT *
+    FROM companies_bics cb
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  my $list = $self->{list};
+
+  if ($attr->{HASH_RETURN}){
+    my %list_hash = ();
+    foreach my $line (@$list) {
+      $list_hash{$line->{bank_bic}} = $line->{bank_name};
+    }
+    return \%list_hash;
+  }
+
+  $self->query("
+    SELECT COUNT(*) AS total
+    FROM companies_bics
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
 }
 
 1

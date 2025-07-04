@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS USER API
-  version: 1.38.05
+  version: 1.47.16
   description: |
-    Last modified 2025-01-09 <br>
+    Last modified 2025-06-27 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_user.yaml
     Copy it and upload it to your favorite OPEN API viewer.
@@ -61,6 +61,8 @@ tags:
     description: Работа с Triplay
   - name: voip
     description: Работа с телефонией
+  - name: storage
+    description: Работа с Storage
 paths:
   $ref: "./user/bots/paths.yaml"
   $ref: "./user/config/paths.yaml"
@@ -82,6 +84,7 @@ paths:
   $ref: "../../Abills/modules/Referral/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Triplay/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Voip/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Storage/Api/swagger/user/paths.yaml"
 components:
   parameters:
     desc:

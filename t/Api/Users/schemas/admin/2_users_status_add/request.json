@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_USERS_STATUSES_ADD",
+  "method": "POST",
+  "path": "users/statuses/100/",
+  "body": {
+    "name": "Contract suspended",
+    "color": "000000",
+    "descr": "Status for suspended contracts of users, maybe will return in future"
+  }
+}

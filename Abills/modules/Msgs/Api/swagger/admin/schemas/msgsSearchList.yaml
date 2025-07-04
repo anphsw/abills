@@ -1,0 +1,36 @@
+type: array
+items:
+  type: object
+  properties:
+    subject:
+      type: string
+      example: "456"
+    chapterColor:
+      type: string
+      example: "#FF5733"
+    chapter:
+      type: integer
+      example: 2
+    chapterName:
+      type: string
+      format: date-time
+      example: "2023-11-22T10:00:00Z"
+    date:
+      type: string
+      format: date
+      example: "2023-11-22"
+    state:
+      type: integer
+      example: 1
+    replyId:
+      type: integer
+      example: 2
+    message:
+      type: string
+      example: "This is the content of the message."
+    replyText:
+      type: string
+      example: "This is a reply."
+    responsible:
+      type: integer
+      example: 1

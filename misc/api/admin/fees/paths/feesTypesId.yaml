@@ -1,0 +1,112 @@
+get:
+  tags:
+    - fees
+  summary: Получить тип списания по ID
+  parameters:
+    - in: path
+      name: ID типа списания
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Получить тип списания по ID
+  operationId: getFeesTypesId
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/feesTypesResponse.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - fees
+  summary: Добавить тип списания
+  parameters:
+    - in: path
+      name: ID типа списания
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Добавить тип списание по ID
+  operationId: postFeesTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/feesTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/feesTypesResponse.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - fees
+  summary: Изменить тип списания
+  parameters:
+    - in: path
+      name: ID типа списания
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Изменить тип списание по ID
+  operationId: putFeesTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/feesTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/feesTypesResponse.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - fees
+  summary: Удалить тип списания
+  parameters:
+    - in: path
+      name: ID типа списания
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Удалить тип списание по ID
+  operationId: deleteFeesTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/feesTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/feesTypesDelete200.yaml"
+    400:
+      description: Нет типа списания
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/feesTypesDelete400.yaml"
+  security:
+    - KEY: []

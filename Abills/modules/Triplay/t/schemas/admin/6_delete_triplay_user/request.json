@@ -1,0 +1,5 @@
+{
+  "name": "TRIPLAY_USER_DELETE_SERVICE",
+  "method": "DELETE",
+  "path": "triplay/users/:uid/"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_STATUSES_INFO",
+  "method": "GET",
+  "path": "services/statuses/100/"
+}

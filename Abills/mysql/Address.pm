@@ -262,7 +262,7 @@ sub district_list {
     [ 'PARENT_ID',     'INT',  'd.parent_id',          1 ],
     [ 'TYPE_ID',       'INT',  'd.type_id',            1 ],
     [ 'TYPE_NAME',     'STR',  'at.name AS type_name', 1 ],
-    [ 'DISTRICT_POPULATION', 'INT',  'COUNT(DISTINCT pi.uid) AS district_population',  1 ],
+    [ 'DISTRICT_POPULATION', 'INT',  '(COUNT(DISTINCT u.uid) / d.households) AS district_population',  1 ],
     [ 'POPULATION',    'INT',  'd.population',         1 ],
     [ 'HOUSEHOLDS',    'INT',  'd.households',         1 ],
     [ 'ZIP',           'INT',  'd.zip',                1 ],
@@ -277,6 +277,7 @@ sub district_list {
     $EXT_TABLES .= "LEFT JOIN streets s ON s.district_id = d.id OR s.district_id = dc.id\n";
     $EXT_TABLES .= "LEFT JOIN builds b ON b.street_id = s.id\n";
     $EXT_TABLES .= "LEFT JOIN users_pi pi ON (b.id = pi.location_id)\n";
+    $EXT_TABLES .= "LEFT JOIN users u ON (pi.uid = u.uid AND u.disable = 0)\n";
   }
   else {
     $EXT_TABLES .= 'LEFT JOIN streets s ON (d.id=s.district_id)';
@@ -351,7 +352,7 @@ sub district_change {
 
     if ($current_path ne $old_path) {
       $attr->{PATH} = $current_path;
-      $self->query("UPDATE districts SET path = REPLACE(path, '$old_path', '$current_path') WHERE path LIKE '$old_path%';", 'do')
+      $self->query("UPDATE districts SET path = REPLACE(path, '$old_path', '$current_path') WHERE path = '$old_path' OR path LIKE '$old_path/%';", 'do')
     }
   }
   elsif (defined $attr->{PARENT_ID}) {
@@ -415,7 +416,7 @@ sub district_del {
   $self->district_info({ ID => $id });
   my $path = $self->{PATH};
   if ($path && !$self->{errno}) {
-    $self->query("DELETE FROM districts WHERE path LIKE '$path%';", 'do');
+    $self->query("DELETE FROM districts WHERE path = '$path' OR path LIKE '$path/%';", 'do');
   }
 
   $self->query_del('districts', { ID => $id });
@@ -561,7 +562,24 @@ sub street_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add("streets", $attr);
+  if ($attr->{ADD_ADDRESS_STREET}) {
+    my $streets = $self->street_list({
+      DISTRICT_ID => $attr->{STREET_ID},
+      STREET_NAME => $attr->{ADD_ADDRESS_BUILD},
+      COLS_NAME   => 1,
+      PAGE_ROWS   => 1
+    });
+
+    if ($self->{TOTAL} > 0) {
+      $self->{STREET_ID} = $streets->[0]->{id};
+      return $self;
+    }
+    else {
+      $attr->{NAME} = $attr->{ADD_ADDRESS_STREET};
+    }
+  }
+
+  $self->query_add('streets', $attr);
 
   if(! $self->{errno}) {
     $self->{STREET_ID} = $self->{INSERT_ID};
@@ -756,13 +774,11 @@ sub build_add {
       return $self;
     }
     else {
-      $attr->{NUMBER}=$attr->{ADD_ADDRESS_BUILD};
+      $attr->{NUMBER} = $attr->{ADD_ADDRESS_BUILD};
     }
   }
 
-  $self->query_add('builds', { ADDED => 'NOW()',
-                               %$attr
-                             });
+  $self->query_add('builds', { ADDED => 'NOW()', %$attr });
 
   if (!$self->{errno}) {
     $self->{LOCATION_ID} = $self->{INSERT_ID};

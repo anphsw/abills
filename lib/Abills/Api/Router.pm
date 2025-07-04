@@ -470,6 +470,9 @@ sub parse_request {
         if ($key eq 'SORT') {
           $query_params->{$query_key} = decamelize($query_params->{$query_key});
         }
+        elsif ($key eq 'GROUP_BY') {
+          $query_params{_GROUP_BY} = $query_params->{$query_key};
+        }
       }
       $query_params{$key} = $query_params->{$query_key};
     }

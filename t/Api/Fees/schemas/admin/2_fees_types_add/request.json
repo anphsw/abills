@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_FEES_TYPES_ADD",
+  "method": "POST",
+  "path": "fees/types/255",
+  "body": {
+    "name": "TestPaymentID",
+    "parentId": 1,
+    "defaultDescribe": "Api payment"
+  }
+}

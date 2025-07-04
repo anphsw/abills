@@ -204,6 +204,7 @@
         </div>
       </div>
 
+      %EXT_SERVICE_CONTROL%
 
       <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
         <div class='card-header with-border'>
@@ -342,7 +343,16 @@
 </form>
 
 <script src='/styles/default/js/jquery.maskedinput.min.js'></script>
+<script src='/styles/default/js/modules/internet/internet-tariff-calculator.js'></script>
 <script>
+  const tariffCalculator = new TariffCalculator();
+
+  jQuery(document).ready(() => {
+    tariffCalculator.init().catch(error => {
+      console.error('Failed to initialize TariffCalculator:', error);
+    });
+  });
+
   jQuery('#STATIC_IP_POOL').on('change', function () {
     let pool = jQuery(this);
     if (!pool.val()) return;

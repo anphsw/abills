@@ -1,43 +1,51 @@
-function feelAllCoords() {
-  let searchBtns = jQuery('.search-btn');
+async function feelAllCoords() {
+  let searchBtns = jQuery('.search-btn').toArray();
 
-  searchBtns.each(function () {
-    if (jQuery(this).hasClass('disabled'))
-      return;
+  for (let btn of searchBtns) {
+    if (jQuery(btn).hasClass('disabled')) continue;
 
-    jQuery(this).click();
-  });
+    let onclickAttr = jQuery(btn).attr('onclick');
+    let match = onclickAttr && onclickAttr.match(/findLocation\((\d+)\)/);
+    let buildId = match ? match[1] : null;
+    if (!buildId) continue;
+
+    await findLocation(buildId);
+  }
 }
 
-function findLocation(build_id) {
-  sendRequest(`/api.cgi/builds/?ID=${build_id}&STREET_SECOND_NAME`, {}, 'GET')
-    .then(data => {
-      if (!Array.isArray(data) || data.length === 0) return;
+async function findLocation(build_id) {
+  const data = await sendRequest(`/api.cgi/builds/?ID=${build_id}&STREET_SECOND_NAME`, {}, 'GET');
+  if (!Array.isArray(data) || data.length === 0) return;
 
-      const { id, number, streetName, street_name, districtName,
-        district_name, streetSecondName, street_second_name } = data[0];
-      if (!id) return;
+  const { id, number, streetName, street_name, districtName,
+    district_name, streetSecondName, street_second_name } = data[0];
 
-      const streetUrl = `street=${number}+${streetName || street_name}`;
-      const streetSecondNameUrl = streetSecondName || street_second_name ? `street=${number}+${streetSecondName || street_second_name}` : undefined;
-      const cityUrl = `&city=${districtName || district_name}`;
+  if (!id) return;
 
-      searchBuildLocation(build_id, number, streetUrl, cityUrl, streetSecondNameUrl);
+  const streetUrl = `street=${number}+${streetName || street_name}`;
+  const streetSecondNameUrl = streetSecondName || street_second_name ? `street=${number}+${streetSecondName || street_second_name}` : undefined;
+  const cityUrl = `&city=${districtName || district_name}`;
+
+  await searchBuildLocation(build_id, number, streetUrl, cityUrl, streetSecondNameUrl);
+}
+
+function searchBuildLocation(buildId, number, streetUrl, cityUrl, streetSecondNameUrl = undefined) {
+  return new Promise(resolve => {
+    let url = `https://nominatim.openstreetmap.org/search?${streetUrl}${cityUrl}&format=json&polygon_geojson=1`;
+    const spanElementId = `number_${buildId}`;
+    Spinner.on(spanElementId);
+
+    sendFetch(url, function () {
+      Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
+      resolve();
+    }, function (data) {
+      let result = resultProcessing(data, spanElementId, buildId, number);
+      if (result === -1 && streetSecondNameUrl !== undefined) {
+        searchBuildLocation(buildId, number, streetSecondNameUrl, cityUrl).then(resolve);
+      } else {
+        resolve();
+      }
     });
-}
-
-function searchBuildLocation(buildId, number, streetUrl, cityUrl,  streetSecondNameUrl = undefined) {
-  let url = `https://nominatim.openstreetmap.org/search?${streetUrl}${cityUrl}&format=json&polygon_geojson=1`;
-  const spanElementId = `number_${buildId}`;
-  Spinner.on(spanElementId);
-
-  sendFetch(url, function () {
-    Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
-  }, function (data) {
-    let result = resultProcessing(data, spanElementId, buildId, number);
-    if (result === -1 && streetSecondNameUrl !== undefined) {
-      searchBuildLocation(buildId, number, streetSecondNameUrl, cityUrl);
-    }
   });
 }
 

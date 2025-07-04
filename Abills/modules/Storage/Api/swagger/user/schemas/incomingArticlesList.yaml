@@ -1,0 +1,28 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 456
+        articleName:
+          type: string
+          example: "Splitter 90"
+        articleTypeName:
+          type: string
+          example: "Splitter"
+        serial:
+          type: string
+          example: "11457744689974"
+        siaCount:
+          type: number
+          example: 1
+        siaSum:
+          type: number
+          example: 100
+  total:
+    type: number
+    example: 1

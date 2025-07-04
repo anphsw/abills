@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "color": {
+      "type": "string",
+      "pattern": "^#([A-Fa-f0-9]{6})$"
+    },
+    "defaultPayment": {
+      "type": "integer"
+    },
+    "feesType": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "color",
+    "defaultPayment",
+    "feesType",
+    "name"
+  ]
+}

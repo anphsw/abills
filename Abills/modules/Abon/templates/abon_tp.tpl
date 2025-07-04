@@ -13,7 +13,7 @@
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
             <div class='col-md-8'>
-              <input class='form-control' type='text' id='NAME' name='NAME' value='%NAME%' maxlength='45'/>
+              <input class='form-control' type='text' id='NAME' name='NAME' value='%NAME%' maxlength='100'/>
             </div>
           </div>
 
@@ -90,12 +90,12 @@
             </div>
           </div>
 
-          <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='FEES_TYPES_SEL'>_{FEES}_ _{TYPE}_:</label>
-            <div class='col-md-8'>
+<!--          <div class='form-group row'>-->
+<!--            <label class='col-md-4 col-form-label text-md-right' for='FEES_TYPES_SEL'>_{FEES}_ _{TYPE}_:</label>-->
+<!--            <div class='col-md-8'>-->
               %FEES_TYPES_SEL%
-            </div>
-          </div>
+<!--            </div>-->
+<!--          </div>-->
 
           <div class='form-group row'>
             <label class='col-sm-4 col-md-4 text-right' for='HOT_DEAL'>_{ABON_HOT_DEAL}_:</label>

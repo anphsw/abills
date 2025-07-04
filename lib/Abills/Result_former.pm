@@ -231,7 +231,11 @@ sub result_former {
   my %ACTIVE_TITLES = ();
 
   for (my $i = 0; $i < $base_fields + $search_fields_count; $i++) {
-    next if ($EX_TITLE_ARR[$i] && !$FORM{json} && in_array(uc($EX_TITLE_ARR[$i]), \@hidden_fields));
+    if ($EX_TITLE_ARR[$i] && !$FORM{json} && in_array(uc($EX_TITLE_ARR[$i]), \@hidden_fields)) {
+      # TODO: check storage_incoming_articles_list2 table
+      # $search_fields_count++;
+      next;
+    }
 
     push @title, ($EX_TITLE_ARR[$i] && $SEARCH_TITLES{ $EX_TITLE_ARR[$i] }) ||
       ($cols[$i] && $SEARCH_TITLES{$cols[$i]}) || $EX_TITLE_ARR[$i] || $cols[$i] || "$lang{SEARCH}";
@@ -330,10 +334,11 @@ sub result_former {
     %{$attr->{TABLE}},
     $title_type         => \@title,
     border              => 1,
-    pages               => (!$attr->{SKIP_PAGES}) ? $data->{TOTAL} : undef,
+    pages               => (!$attr->{SKIP_PAGES}) ? ($attr->{TABLE}{CUSTOM_TOTAL_ROWS} || $data->{TOTAL}) : undef,
     FIELDS_IDS          => $data->{COL_NAMES_ARR},
     HAS_FUNCTION_FIELDS => (defined $attr->{FUNCTION_FIELDS} && $attr->{FUNCTION_FIELDS}) ? 1 : 0,
     ACTIVE_COLS         => \%ACTIVE_TITLES,
+    recs_on_page        => $attr->{TABLE}{ITEMS_PER_PAGE}
   });
 
   $table->{COL_NAMES_ARR} = $data->{COL_NAMES_ARR};
@@ -1006,6 +1011,11 @@ sub _get_search_titles {
       credit_date    => "$lang{CREDIT} $lang{DATE}",
       reduction      => $lang{REDUCTION},
       reduction_date => "$lang{REDUCTION} $lang{DATE}",
+
+      payment_sum 	=>  "$lang{PAYMENTS} $lang{SUM}",
+      fees_sum      =>  "$lang{FEES} $lang{SUM}",
+      start_deposit =>  "$lang{START} $lang{DEPOSIT}",
+      end_deposit   =>  "$lang{END} $lang{DEPOSIT}"
     },
     info_fields   => {}
   );
@@ -1049,6 +1059,11 @@ sub _get_search_titles {
   _result_former_data_extra_fields($data, \%SEARCH_TITLES);
 
   my $ext_titles_key = $attr->{TABLE}{EXT_TITLES_LABEL} || $attr->{TABLE}{caption} || 'service';
+
+  if ($attr->{EXT_TITLES} && ref $attr->{EXT_TITLES} eq 'HASH') {
+    map $attr->{EXT_TITLES}{$_} = _translate($attr->{EXT_TITLES}{$_}), keys %{$attr->{EXT_TITLES}};
+  }
+
   if ($attr->{SKIP_USER_TITLE}) {
     %SEARCH_TITLES = ($ext_titles_key => $attr->{EXT_TITLES}) if ($attr->{EXT_TITLES});
   }
@@ -1111,14 +1126,14 @@ sub _result_former_get_total_table {
 =cut
 #**********************************************************
 sub _result_former_get_value {
-  my ($attr, $col_name, $line, $service_status, $service_status_colors) = @_;
+  my ($attr, $col_name, $line, $service_status, $service_status_colors, $list) = @_;
 
   return _get_login_value($attr, $line) if ($col_name eq 'login' && $line->{uid} && defined(&user_ext_menu));
   return _get_filter_cols_value($attr, $line, $col_name) if ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$col_name});
 
   if ($attr->{FILTER_VALUES} && $attr->{FILTER_VALUES}->{$col_name}) {
     if (ref $attr->{FILTER_VALUES}->{$col_name} eq 'CODE') {
-      return $attr->{FILTER_VALUES}->{$col_name}->($line->{$col_name}, $line, $col_name);
+      return $attr->{FILTER_VALUES}->{$col_name}->($line->{$col_name}, $line, $col_name, $list);
     }
     else {
       warn "FILTER_VALUES expects coderef";
@@ -1154,7 +1169,7 @@ sub _result_former_get_value {
     return $value || $line->{$col_name};
   }
 
-  my $val = $line->{ $col_name  } || '';
+  my $val = $line->{ $col_name  } // '';
   my $brake = $html->br();
   $val =~ s/\n/$brake/g;
 
@@ -1193,20 +1208,24 @@ sub _get_login_value {
 =head2 _get_filter_cols_value($attr, $line, $col_name)
 
   Arguments:
+    $attr
+    $line
+    $col_name
 
   Return:
+    $params
 
 =cut
 #**********************************************************
 sub _get_filter_cols_value {
   my ($attr, $line, $col_name) = @_;
 
-  my ($filter_fn, @arr) = split(/:/, $attr->{FILTER_COLS}->{$col_name});
+  my ($filter_fn, @arr) = split(/:/x, $attr->{FILTER_COLS}->{$col_name});
   my %p_values = ();
 
-  if ($arr[1] && $arr[1] =~ /,/) {
-    foreach my $k (split(/,/, $arr[1])) {
-      if ($k =~ /(\S+)=(.*)/) {
+  if ($arr[1] && $arr[1] =~ m/,/x) {
+    foreach my $k (split(/,/x, $arr[1])) {
+      if ($k =~ m/(\S+)=(.*)/x) {
         $p_values{$1} = $2;
       }
       elsif (defined($line->{lc($k)})) {
@@ -1241,14 +1260,14 @@ sub _get_status_value {
     return $val if (!$attr->{STATUS_VALS}{$status // q{}});
 
     my ($status_value, $status_color) = split(':', $attr->{STATUS_VALS}{$status});
-    $val = (defined $status && $status =~ /^\d+$/ && $status >= 0) ? $html->color_mark($status_value, $status_color) :
+    $val = (defined $status && $status =~ m/^\d+$/x && $status >= 0) ? $html->color_mark($status_value, $status_color) :
       (defined $status_value ? $status_value : '');
   }
   else {
     if (!$attr->{SKIP_STATUS_CHECK}) {
-      $val = ($status && $status =~ /^\d+$/ && $status > 0) ? $html->color_mark($service_status->[ $status ],
+      $val = ($status && $status =~ m/^\d+$/x && $status > 0) ? $html->color_mark($service_status->[ $status ],
         $service_status_colors->[ $status ]) :
-        ((defined ($status) && $status =~ /^\d+$/) ? $service_status->[$status] : $status);
+        ((defined ($status) && $status =~ m/^\d+$/x) ? $service_status->[$status] : $status);
     }
   }
 
@@ -1421,7 +1440,8 @@ sub _result_former_make_rows {
 
       next if (!$FORM{json} && in_array(uc($col_name), $attr->{EXT_ATTR}{HIDDEN_FIELDS}));
 
-      $val = _result_former_get_value($attr, $col_name, $line, $attr->{EXT_ATTR}{SERVICE_STATUS}, $attr->{EXT_ATTR}{SERVICE_STATUS_COLORS});
+      $val = _result_former_get_value($attr, $col_name, $line,
+        $attr->{EXT_ATTR}{SERVICE_STATUS}, $attr->{EXT_ATTR}{SERVICE_STATUS_COLORS}, $data->{list});
 
       unshift(@fields_array, $html->form_input($attr->{EXT_ATTR}{MULTISEL_ID}, $line->{$attr->{EXT_ATTR}{MULTISEL_VALUE}}, {
         TYPE    => 'checkbox',
@@ -1451,7 +1471,6 @@ sub _result_former_make_rows {
     if ($attr->{CHARTS} && ref $attr->{CHARTS} eq 'HASH') {
       _result_former_make_chart($attr, $line, $attr->{CHARTS}{DATASET}, $attr->{CHARTS}{PERIOD});
     }
-
     $table->addrow(@fields_array);
   }
 
@@ -1564,18 +1583,16 @@ sub _sort_table {
 sub _save_sort_admin {
   my ($attr) = @_;
 
-  my $str_fields = '';
-  foreach my $field (@{ $attr->{cols} }) {
-    $str_fields .= $field . ', ';
-  }
+  my $str_fields = join(', ', @{ $attr->{cols} });
 
-  unless ($admin->{OBJECT}) {
+  if (! $admin->{OBJECT}) {
     $admin->settings_add({
       OBJECT      => $attr->{name_table},
       SETTING     => $str_fields,
       SORT_TABLE  => "$attr->{sort}|$attr->{desc}",
     });
-  } else {
+  }
+  else {
     $admin->settings_change({
       AID         => $admin->{AID},
       OBJECT      => $attr->{name_table},
@@ -1584,6 +1601,7 @@ sub _save_sort_admin {
     });
   }
 
+  return 1;
 }
 
 1;

@@ -97,3 +97,71 @@ if (abillsBtnGroup) {
   calculateBtnGroup();
   window.addEventListener('resize', calculateBtnGroup, false);
 }
+
+/* 5 */
+function resultFormerFillCheckboxes() {
+  var $ = jQuery;
+  const checkboxParents = $('.abills-checkbox-parent');
+  checkboxParents.children('input[type=checkbox][checked=checked]').parent().addClass('active');
+  checkboxParents.click(function(event) {
+    const _this = $(this);
+    if (event.target.type !== 'checkbox') {
+      const myCheckbox = _this.find('input[type=checkbox]');
+      myCheckbox.click();
+      const isChecked = myCheckbox.prop("checked");
+      if(isChecked) {
+        _this.addClass('active');
+      } else {
+        _this.removeClass('active');
+      }
+    }
+  });
+
+  const checkboxSelectAll = $('.abills-checkbox-select-all');
+
+  checkboxSelectAll.each(function () {
+    const selectAll = $(this);
+    const groupContainer = selectAll.closest('.checkbox-group-container');
+    const childCheckboxes = groupContainer.find('.abills-checkbox-parent input[type="checkbox"]');
+
+    const allChecked = childCheckboxes.length > 0 && childCheckboxes.filter(':checked').length === childCheckboxes.length;
+    selectAll.prop('checked', allChecked);
+  });
+
+  checkboxSelectAll.on('click', function () {
+    const isChecked = $(this).prop('checked');
+
+    const childCheckboxes = $(this)
+      .closest('.checkbox-group-container')
+      .find('.abills-checkbox-parent input[type="checkbox"]');
+
+    childCheckboxes.prop('checked', isChecked);
+  });
+}
+
+/* 6 */
+function resultFormerCheckboxSearch() {
+  var $ = jQuery;
+  const checkboxParents = $('.abills-checkbox-parent');
+
+  $('#resultFormSearch').on('input', function () {
+    const searchValue = this.value.toLowerCase();
+    if (searchValue) {
+      checkboxParents.css('display', 'none');
+      checkboxParents.filter(function () {
+        return this.textContent.toLowerCase().includes(searchValue)
+      }).css('display', 'block');
+    } else {
+      checkboxParents.removeAttr('style');
+    }
+  });
+
+  $('.extra-fields-btn').on('click', function() {
+    jQuery(this).toggleClass(['btn-primary', 'btn-outline-primary']);
+    let extraFieldsBlockId = jQuery(this).data('id');
+    jQuery(`#${extraFieldsBlockId}`).toggle('d-none');
+  })
+}
+
+resultFormerFillCheckboxes();
+resultFormerCheckboxSearch();

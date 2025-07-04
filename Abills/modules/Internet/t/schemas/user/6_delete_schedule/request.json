@@ -1,6 +1,6 @@
 {
   "name": "USER_INTERNET_DELETE",
   "method": "DELETE",
-  "path": "user/internet/:id/",
+  "path": "user/internet/:sheduleId/",
   "params": {}
 }

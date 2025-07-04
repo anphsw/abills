@@ -76,5 +76,7 @@ $lang{ABON_ACTIVATION_FROM_USER_PORTAL} = 'Активация только с п
 $lang{PROMOTIONAL_TP} = 'Акционный ТП';
 $lang{ABON_PROMO_PERIOD} = 'Промо-период';
 $lang{ABON_HOT_DEAL} = 'Горячее предложение';
+$lang{ABON_DISCOUNT_ACTIVATE_DATE} = 'Дата активации скидки';
+$lang{ABON_DISCOUNT_EXPIRE_DATE} = 'Дата окончания скидки';
 
 1;

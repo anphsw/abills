@@ -325,7 +325,7 @@ sub internet_payments_maked {
       }
 
       #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
-      $CONF->{MONTH_FEE_TIME} = '01:00:00';
+      $CONF->{MONTH_FEE_TIME} //= '01:00:00';
 
       #Skip month fee before month periodic
       if ($CONF->{MONTH_FEE_TIME}) {
@@ -546,6 +546,7 @@ sub internet_user_services {
       INTERNET_STATUS => '_SHOW',
       INTERNET_EXPIRE => '_SHOW',
       IP              => '_SHOW',
+      PERSONAL_TP     => '_SHOW',
     },
     UPDATE_SERVICE_INFO => sub {
       my ($service_info, $tariff) = @_;
@@ -560,10 +561,10 @@ sub internet_user_services {
       #@deprecated delete in future release
       $tariff->{service_holdup} = (($CONF->{INTERNET_USER_SERVICE_HOLDUP} || $CONF->{HOLDUP_ALL}) && $tariff->{internet_status}) ? 'false' : 'true';
 
-      $tariff->{in_speed} = $speed->[0]->{in_speed};
-      $tariff->{out_speed} = $speed->[0]->{out_speed};
+      $tariff->{in_speed} = $speed->[0]->{in_speed} || 0;
+      $tariff->{out_speed} = $speed->[0]->{out_speed} || 0;
 
-      $tariff->{mac_discovery} = $CONF->{INTERNET_MAC_DICOVERY} && $tariff->{cid} ? 'true' : 'false';
+      $tariff->{mac_discovery} = ($CONF->{INTERNET_MAC_DICOVERY} && $tariff->{cid}) ? 'true' : 'false';
 
       $tariff->{ip} = int2ip($tariff->{ip_num});
 

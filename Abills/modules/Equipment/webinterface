@@ -1424,6 +1424,9 @@ sub equipment_fdb {
   my ($attr) = @_;
 
   if ($FORM{mac_info}) {
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('get_oui_info');
+
     my $result = get_oui_info($FORM{mac_info});
     $html->message('info', $lang{INFO}, "MAC: $FORM{mac_info}\n $result");
   }
@@ -1591,6 +1594,9 @@ sub equipment_arp {
   my $arp_parser = $snmp_template->{ARP_PARSER} || 'snmp_hash';
 
   if ($FORM{mac_info}) {
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('get_oui_info');
+
     my $result = get_oui_info($FORM{mac_info});
     $html->message('info', $lang{INFO}, "MAC: $FORM{mac_info}\n $result");
   }
@@ -2716,6 +2722,12 @@ sub equipment_change_port_status_ajax {
           VERSION         => $Nas_info->{snmp_version},
           DEBUG           => $FORM{DEBUG}
         });
+
+        if ($result){
+          my $port_status = ($FORM{PORT_STATUS} && $FORM{PORT_STATUS} == 1) ? 'Up' : 'Down';
+          $admin->{MODULE}='Equipment';
+          $admin->action_add($FORM{UID}, "PORT:$FORM{PORT}, STATUS: $port_status", { TYPE => 2 });
+        }
 
         $error   = ($result) ? 0 : 1;
         $comment = ($result) ? $lang{PORT_STATUS_CHANGING_SUCCESS} : $lang{SNMP_ERROR};

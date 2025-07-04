@@ -278,6 +278,22 @@
         </div>
       </div>
 
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
+        <div class='card-header with-border text-center'>
+          <h3 class='card-title'>_{INTERNET_TARIFF_PLAN_GRADIENTS}_</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+        <div class='card-body'>
+
+          %TARIFF_PLAN_GRADIENTS_FORM%
+
+        </div>
+      </div>
+
     </div>
 
     <div class='col-md-6'>
@@ -399,12 +415,12 @@
             </div>
           </div>
 
-          <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='METHOD'>_{FEES}_ _{TYPE}_:</label>
-            <div class='col-sm-8 col-md-8'>
+<!--          <div class='form-group row'>-->
+<!--            <label class='col-sm-4 col-md-4 control-label' for='METHOD'>_{FEES}_ _{TYPE}_:</label>-->
+<!--            <div class='col-sm-8 col-md-8'>-->
               %SEL_METHOD%
-            </div>
-          </div>
+<!--            </div>-->
+<!--          </div>-->
 
           %EXT_BILL_ACCOUNT%
 

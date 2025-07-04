@@ -1,0 +1,93 @@
+[
+  {
+    "COMMENTS": "11 2025-05-01 to 2025-05-15",
+    "REQUEST": {
+      "TP_INFO": {
+        "TP_ID": 10,
+        "TP_NAME": "Test Plan",
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "UID": 1,
+      "SERVICE_ACTIVATE": "2025-05-01",
+      "END_DATE": "2025-05-15"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f',  1000 / 31 *  15)",
+      "DAYS": 15
+    }
+  },
+  {
+    "COMMENTS": "12 2025-05-01 to 2025-05-04",
+    "REQUEST": {
+      "TP_INFO": {
+        "TP_ID": 10,
+        "TP_NAME": "Test Plan",
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "UID": 1,
+      "SERVICE_ACTIVATE": "2025-05-01",
+      "END_DATE": "2025-05-04"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f', 1000 / 31 * 4)",
+      "DAYS": 4
+    }
+  },
+  {
+    "COMMENTS": "13 2025-05-05 - 2025-05-20",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-05-05",
+      "END_DATE": "2025-05-20"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f', 1000 / 31 * 16)",
+      "DAYS": 16
+    }
+  },
+  {
+    "COMMENTS": "14 2025-05-05 - 2025-05-31",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-05-05",
+      "END_DATE": "2025-05-31"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f', 1000 / 31 * 27)",
+      "DAYS": 27
+    }
+  },
+  {
+    "COMMENTS": "15 2025-05-05 - 2025-05-20",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 1000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-05-05",
+      "END_DATE": "2025-05-20"
+    },
+    "RESULT": {
+      "SUM": "sprintf('%.2f', 1000 / 31 * 16)",
+      "DAYS": 16
+    }
+  }
+]

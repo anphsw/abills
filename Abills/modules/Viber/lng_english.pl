@@ -25,7 +25,6 @@ $lang{ENABLED_CREDIT} = "Credit Enabled";
 $lang{CREDIT_SUCCESS} = "Credit set";
 $lang{CREDIT_NOT_EXIST} = "Credit not available";
 $lang{ABOUT} = "About Company";
-$lang{COMPANY_NAME} = "Company Name";
 $lang{ADDRESS} = "Address";
 $lang{PHONE} = "Phone";
 $lang{EMAIL} = "Email";
@@ -121,5 +120,11 @@ $lang{CARD_PAY_SUCCESS} = "Success!\n\nTop up amount: %SUM%\n\nDeposit: %DEPOSIT
 $lang{VIBER_LINK_AND_INVITE} = 'To invite your friend — share the bot link below';
 $lang{AN_ERROR_OCCURRED_WHILE_APPLYING} = 'An error occurred while applying';
 $lang{APPLICATION_SENT} = 'Application sent';
+
+$lang{VIBER_OPERATOR_HELP} = 'Operator help';
+$lang{VIBER_RETURN_TO_MAIN_MENU} = 'Return to main menu';
+$lang{VIBER_DESCRIBE_YOUR_ISSUE} = 'Please describe your issue. The operator will contact you shortly.';
+$lang{VIBER_MESSAGE_SENT} = 'Message sent';
+$lang{VIBER_MESSAGE_SEND_ERROR} = 'Error sending message';
 
 1;

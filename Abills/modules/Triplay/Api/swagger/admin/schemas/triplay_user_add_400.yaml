@@ -1,0 +1,28 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: "Validation failed\nRequired parameter to be filled tpId\n"
+  errno:
+    type: integer
+    example: 9
+  errstr:
+    type: string
+    example: "VALIDATION_FAILED"
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 20
+        errstr:
+          type: string
+          example: "ERR_REQUIRED_PARAMETER"
+        param:
+          type: string
+          example: "tpId"
+        required:
+          type: boolean
+          example: true

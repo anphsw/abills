@@ -188,6 +188,23 @@ sub iptv_users_list {
     HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE,TAGS_COLORS,PRIORITY,ACTIVE_DAYS',
     FUNCTION_FIELDS => ($FORM{UID}) ? $function_fields : 'form_payments',
     MULTISELECT     => ($permissions{0}{7}) ? 'IDS:id:iptv_users_list' : '',
+    FILTER_VALUES   => {
+      active_days => sub {
+        my $input_days = shift;
+
+        return $input_days || '' if !$conf{IPTV_LIMIT_ACTIVE_DAYS_TO_CURRENT_DAY};
+
+        my (undef, undef, $current_day_of_month) = split('-', $DATE);
+
+        if ($current_day_of_month && $current_day_of_month < $input_days) {
+          $current_day_of_month =~ s/^0+//;
+          return $current_day_of_month;
+        }
+
+        $input_days =~ s/^0+//;
+        return $input_days || '';
+      }
+    },
     EXT_TITLES      => {
       id              => 'ID',
       port            => $lang{PORT},
@@ -278,7 +295,7 @@ sub iptv_users_list {
   }
   else {
     print $html->form_main({
-      CONTENT => $table,
+      CONTENT => ref $table ne '' ? $table->show() : $table,
       HIDDEN  => { index => get_function_index('iptv_users_list') },
       NAME    => 'iptv_users_list',
       class   => 'hidden-print',
@@ -474,7 +491,10 @@ sub iptv_online {
   my $message;
 
   if ($FORM{ping}) {
-    host_diagnostic($FORM{ping});
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_diagnostic');
+    my $result = host_diagnostic($FORM{ping});
+    $html->message('info', $lang{INFO}, $result);
   }
   elsif ($FORM{hangup}) {
     my (undef, $acct_session_id) = split('\s', $FORM{hangup});
@@ -1684,14 +1704,17 @@ sub iptv_user_activate {
       && $Iptv_info->{TP_AGE} ? $Iptv_info->{TP_CHANGE_PRICE} : $service->{SUM};
     $sum = ($user->{REDUCTION} && $user->{REDUCTION} > 0) ? $sum * (100 - $user->{REDUCTION}) / 100 : $sum;
 
-    if ($Iptv_info->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month();
-      $sum = sprintf("%.6f", $sum / $days_in_month);
+    if ($attr->{FULL_MONTH_FEE}) {
+
     }
-    elsif ($Iptv_info->{PERIOD_ALIGNMENT}) {
+    elsif ($Iptv_info->{PERIOD_ALIGNMENT} && !$Iptv_info->{ABON_DISTRIBUTION}) {
       my $days_in_month = days_in_month({ DATE => $DATE });
       $sum = sprintf("%.6f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
       $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+    }
+    if ($Iptv_info->{ABON_DISTRIBUTION}) {
+      my $days_in_month = days_in_month();
+      $sum = sprintf("%.6f", $sum / $days_in_month);
     }
 
     push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
@@ -2369,6 +2392,13 @@ sub _iptv_get_fees_mandatory_channels {
 =head2 _iptv_channels_change_now($attr)
 
   Arguments:
+    ID
+    TP_ID
+    MANDATORY_ARR
+    channels
+    MANDATORY_CHANNELS
+    UID
+    IPTV_
 
   Return:
 
@@ -2380,6 +2410,8 @@ sub _iptv_channels_change_now {
   my DBI $db_ = $Iptv->{db}{db};
   $db_->{AutoCommit} = 0;
 
+  my $service_id = $attr->{ID} || $Iptv->{ID};
+  my $tp_id      = $attr->{TP_ID} || $Iptv->{TP_ID};
   my $select_channels = $attr->{SELECT_CHANNELS} || ();
   my @new_arr = ();
   my @ids_arr = split(/,\s?/, $FORM{IDS} || '');
@@ -2416,7 +2448,7 @@ sub _iptv_channels_change_now {
           MONTH_FEE           => $line->{month_price},
           DAY_FEE             => $line->{day_price},
           NAME                => $line->{name} || '',
-          TP_ID               => $Iptv->{TP_ID},
+          TP_ID               => $tp_id,
           ABON_DISTRIBUTION   => $Iptv->{ABON_DISTRIBUTION},
           REDUCTION_FEE       => $Iptv->{REDUCTION_FEE},
           INTERVAL_CHANNEL_ID => $line->{interval_channel_id},
@@ -2447,8 +2479,8 @@ sub _iptv_channels_change_now {
   push @add_arr, @{$attr->{MANDATORY_ARR}} if $attr->{MANDATORY_ARR} && ref $attr->{MANDATORY_ARR} eq 'ARRAY';
 
   $Iptv->user_channels({
-    ID    => $Iptv->{ID},
-    TP_ID => $Iptv->{TP_ID},
+    ID    => $service_id,
+    TP_ID => $tp_id,
     IDS   => join(',', @add_arr)
   });
 

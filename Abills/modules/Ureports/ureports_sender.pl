@@ -31,7 +31,7 @@ BEGIN {
   # }
 }
 
-my $version = 0.81;
+my $version = 0.82;
 my $debug = 0;
 our (
   $db,
@@ -45,7 +45,7 @@ our (
 );
 
 use Abills::Defs;
-use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff gen_time);
+use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff gen_time next_month date_format);
 use Abills::Templates;
 use Abills::Misc;
 use Abills::Loader qw(load_plugin);
@@ -143,7 +143,7 @@ sub ureports_periodic_reports {
   $LIST_PARAMS{TP_ID} = $argv->{TP_IDS} if ($argv->{TP_IDS});
 
   if ($argv->{REPORT_IDS}) {
-    $argv->{REPORT_IDS} =~ s/,/;/g;
+    $argv->{REPORT_IDS} =~ s/,/;/xg;
     $SERVICE_LIST_PARAMS{REPORT_ID} = $argv->{REPORT_IDS} if ($argv->{REPORT_IDS});
   }
 
@@ -163,7 +163,7 @@ sub ureports_periodic_reports {
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
-  my ($Y, $M, $D) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my ($Y, $M, $D) = split('-', $ADMIN_REPORT{DATE}, 3);
   #my $reports_type = 0;
   my $sended_messages = 0;
 
@@ -206,7 +206,7 @@ sub ureports_periodic_reports {
       my $internet_status = $user->{INTERNET_STATUS} || 0;
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
-      $user->{VALUE} =~ s/,/\./s;
+      $user->{VALUE} =~ s/,/\./xs;
 
       if (!$user->{DESTINATION_ID}) {
         _log('LOG_ERR', "LOGIN: $user->{LOGIN} Not defined destination id. Check sending information");
@@ -298,8 +298,8 @@ sub ureports_periodic_reports {
           %PARAMS = (
             DESCRIBE        => "$lang{REPORTS} ($user->{REPORT_ID}) ",
             MESSAGE         => "$lang{DEPOSIT}: $user->{DEPOSIT}",
-            MESSAGE_SUBJECT => $lang{DEPOSIT_BELOW}
-            # SUBJECT  => "$lang{DEPOSIT_BELOW}"
+            # MESSAGE_SUBJECT => $lang{DEPOSIT_BELOW}
+            SUBJECT => $lang{DEPOSIT_BELOW}
           );
         }
         else {
@@ -313,7 +313,7 @@ sub ureports_periodic_reports {
           %PARAMS = (
             DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
             MESSAGE  => "$lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}",
-            SUBJECT  => "$lang{DEPOSIT_CREDIT_BELOW}"
+            SUBJECT  => $lang{DEPOSIT_CREDIT_BELOW}
           );
         }
         else {
@@ -326,7 +326,7 @@ sub ureports_periodic_reports {
         if ($Sessions->prepaid_rest({ UID => $user->{UID}, })) {
           %PARAMS = (
             DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-            SUBJECT  => "$lang{PREPAID_TRAFFIC_BELOW}"
+            SUBJECT  => $lang{PREPAID_TRAFFIC_BELOW}
           );
 
           $list = $Sessions->{INFO_LIST};
@@ -372,9 +372,7 @@ sub ureports_periodic_reports {
 
         %PARAMS = (
           DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-          MESSAGE  =>
-            "$lang{MONTH}:\n $lang{DEPOSIT}: $user->{DEPOSIT}\n $lang{CREDIT}: $user->{CREDIT}\n $lang{TRAFFIC}: $lang{RECV}: " . int2byte($traffic_in) . " $lang{SEND}: " . int2byte($traffic_out) . " \n  $lang{SUM}: " . int2byte($traffic_sum) . " \n"
-            ,
+          MESSAGE  => "$lang{MONTH}:\n $lang{DEPOSIT}: $user->{DEPOSIT}\n $lang{CREDIT}: $user->{CREDIT}\n $lang{TRAFFIC}: $lang{RECV}: " . int2byte($traffic_in) . " $lang{SEND}: " . int2byte($traffic_out) . " \n  $lang{SUM}: " . int2byte($traffic_sum) . " \n",
           SUBJECT  => "$lang{MONTH}: $lang{DEPOSIT} / $lang{CREDIT} / $lang{TRAFFIC}",
         );
       }
@@ -428,9 +426,7 @@ sub ureports_periodic_reports {
         if ($user->{RECOMMENDED_PAYMENT} * $reduction_division > 0) {
           %PARAMS = (
             DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-            MESSAGE             =>
-              "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN}: $user->{TP_MONTH_FEE} $lang{RECOMMENDED_PAYMENT}: $user->{RECOMMENDED_PAYMENT}"
-              ,
+            MESSAGE             => "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN}: $user->{TP_MONTH_FEE} $lang{RECOMMENDED_PAYMENT}: $user->{RECOMMENDED_PAYMENT}",
             SUBJECT             => $lang{ERR_SMALL_DEPOSIT},
             RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
           );
@@ -459,7 +455,7 @@ sub ureports_periodic_reports {
         _log('LOG_DEBUG', "(Day fee: $total_daily_fee / $expire_days -> $user->{VALUE}");
 
         if ($expire_days <= $user->{VALUE} && $expire_days >= 0 && $user->{RECOMMENDED_PAYMENT} > 0) {
-          $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $expire_days /;
+          $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $expire_days /x;
           %PARAMS = (
             DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
             MESSAGE             => "",
@@ -522,7 +518,7 @@ sub ureports_periodic_reports {
         %PARAMS = (
           DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
           MESSAGE  => "$message",
-          SUBJECT  => "$lang{ALL_SERVICE_EXPIRE}",
+          SUBJECT  => $lang{ALL_SERVICE_EXPIRE},
         );
       }
       #Custom reports
@@ -577,7 +573,7 @@ sub ureports_periodic_reports {
       next if (scalar keys %PARAMS <= 0);
 
       if ($attr->{SEND_TYPE}) {
-        if ($user->{DESTINATION_TYPE} =~ /$attr->{SEND_TYPE},?|$attr->{SEND_TYPE}$/) {
+        if ($user->{DESTINATION_TYPE} =~ m/$attr->{SEND_TYPE},?|$attr->{SEND_TYPE}$/x) {
           my @types = split(',\s?', $user->{DESTINATION_TYPE});
           my @destinations = split(',\s?', $user->{DESTINATION_ID});
 
@@ -597,28 +593,38 @@ sub ureports_periodic_reports {
       $user->{DESTINATION_TYPE} //= q{};
       $user->{DESTINATION_ID} //= q{};
 
+      $PARAMS{DATE}=$DATE;
+      $PARAMS{NEXT_MONTH}=next_month({ DATE => $DATE });
+
+      if ($conf{DATE_FORMAT}) {
+        $PARAMS{DATE}=date_format($PARAMS{DATE}, $conf{DATE_FORMAT});
+        $PARAMS{NEXT_MONTH}=date_format($PARAMS{NEXT_MONTH}, $conf{DATE_FORMAT});
+      }
+
+      my %ext_params = (
+        %{$user},
+        %PARAMS,
+        SUBJECT         => $PARAMS{SUBJECT},
+        MESSAGE_SUBJECT => $PARAMS{MESSAGE_SUBJECT},
+        REPORT_ID       => $user->{REPORT_ID},
+        UID             => $user->{UID},
+        TP_ID           => $user->{TP_ID},
+        MESSAGE         => $PARAMS{MESSAGE},
+        DATE            => "$PARAMS{DATE} $TIME",
+        METHOD          => 1,
+        MESSAGE_TEPLATE => $PARAMS{MESSAGE_TEPLATE},
+        DEBUG           => $debug,
+        Y               => $Y,
+        M               => $M,
+        D               => $D
+      );
+
       #Send reports section
       my $send_status = $Ureports_base->ureports_send_reports(
         $user->{DESTINATION_TYPE},
         $user->{DESTINATION_ID},
         $PARAMS{MESSAGE},
-        {
-          %{$user},
-          %PARAMS,
-          SUBJECT         => $PARAMS{SUBJECT},
-          MESSAGE_SUBJECT => $PARAMS{MESSAGE_SUBJECT},
-          REPORT_ID       => $user->{REPORT_ID},
-          UID             => $user->{UID},
-          TP_ID           => $user->{TP_ID},
-          MESSAGE         => $PARAMS{MESSAGE},
-          DATE            => "$ADMIN_REPORT{DATE} $TIME",
-          METHOD          => 1,
-          MESSAGE_TEPLATE => $PARAMS{MESSAGE_TEPLATE},
-          DEBUG           => $debug,
-          Y               => $Y,
-          M               => $M,
-          D               => $D
-        }
+        \%ext_params
       );
 
       $sended_messages++ if ($send_status);

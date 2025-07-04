@@ -309,43 +309,10 @@ sub form_payment_add {
     }
 
     if( in_array('Employees', \@MODULES)){
-      require Employees::Salary;
-      Employees->import();
-      my $Employees = Employees->new($db, $admin, \%conf);
-
-      my $admin_cash = $attr->{USER_INFO}{admin}{AID};
-      my $employees_cash_all;
-      if($conf{EMPLOYEES_CASHBOX_ALL}){
-        my @cash_all = split(',',$attr->{USER_INFO}{conf}{EMPLOYEES_CASHBOX_ALL});
-        if(in_array("$admin_cash", \@cash_all)) {
-          $employees_cash_all = $Employees->employees_payments_cashbox({ COLS_NAME => 1 });
-        }
-      }
-      my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash});
-
-      #  get default cash for current admin
-      my $cashbox_id = '';
-      for my $key (@$employees_cash){
-        if ($key->{aid_default} == $admin_cash){
-          $cashbox_id = $key->{id};
-        }
-      }
-
-      my %params = ("" => "");
-
-      if ($Employees->{TOTAL} == 1) {
-        %params = (REQUIRED => 1);
-      }
-
-      $attr->{CASHBOX_SELECT} = $html->form_select('CASHBOX_ID', {
-        SELECTED  => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID} || $cashbox_id,
-        SEL_LIST  => $employees_cash_all || $employees_cash,
-        SEL_KEY   => 'id',
-        SEL_VALUE => 'name',
-        NO_ID     => 1,
-        MAIN_MENU => get_function_index('employees_cashbox_main'),
-        %params
-      });
+      load_module('Employees', $html);
+      my $cashbox_lists = employees_cashbox_admin_payment($attr);
+      $attr->{CASHBOX_SELECT} = $cashbox_lists->{CASHBOX_SELECT} || '';
+      $attr->{CASHBOX_COMING_TYPE_SELECT} = $cashbox_lists->{CASHBOX_COMING_TYPE_SELECT} || '';
     }
     else {
       $attr->{CASHBOX_HIDDEN} = 'hidden'
@@ -440,6 +407,7 @@ sub payment_add {
   my $user = $attr->{USER_INFO};
   #$Payments->{AUTOFOCUS}  = '';
   $FORM{SUM} =~ s/,/\./g;
+  $FORM{SUM} =~ s/\s+//g;
 
   $db->{TRANSACTION}=1;
   my DBI $db_ = $db->{db};
@@ -521,7 +489,7 @@ sub payment_add {
             DATE           => $FORM{DATE} || $DATE,
             AMOUNT         => $FORM{SUM},
             CASHBOX_ID     => $FORM{CASHBOX_ID},
-            COMING_TYPE_ID => $id_type,
+            COMING_TYPE_ID => $FORM{COMING_TYPE_ID} || $id_type,
             COMMENTS       => $FORM{DESCRIBE},
             AID            => $admin->{AID},
             UID            => $user->{UID},

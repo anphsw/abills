@@ -14,9 +14,11 @@ use warnings FATAL => 'all';
 
 use Control::Errors;
 use Storage;
+use Storage::Installation;
 
 my Storage $Storage;
 my Control::Errors $Errors;
+my Storage::Installation $Installation;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -38,6 +40,7 @@ sub new {
   bless($self, $class);
 
   $Storage = Storage->new($db, $admin, $conf);
+  $Installation = Storage::Installation->new($db, $admin, $conf, { lang => $self->{lang} });
   $Storage->{debug} = $self->{debug};
 
   $Errors = $self->{attr}->{Errors};
@@ -66,4 +69,17 @@ sub get_storage_installation {
   });
 }
 
+#**********************************************************
+=head2 post_storage_installation($path_params, $query_params)
+
+  Endpoint POST /storage/installation/
+
+=cut
+#**********************************************************
+sub post_storage_installation {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return $Installation->storage_add_installation($query_params);
+}
 1;

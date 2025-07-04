@@ -199,8 +199,19 @@ $lang{STORAGE_PURCHASE_REPORT} = 'Отчет о покупках';
 $lang{STORAGE_ACCESS_LEVEL} = 'Уровень доступа';
 $lang{STORAGE_VIEW_ONLY} = 'Только просмотр';
 $lang{STORAGE_MANAGEMENT} = 'Управление';
+$lang{STORAGE_NOT_ACTIVATED_INSTALLMENT} = 'Не активирована рассрочка';
+$lang{STORAGE_NOT_ACTIVATED_RENT} = 'Не активирована аренда';
+$lang{STORAGE_IDENT} = 'Доп. идентификатор %IDENT%';
+$lang{STORAGE_INSTALLATION_SOURCE} = 'Источник установки оборудования';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'Количество товаров указано неверно';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'Отсутствие прав на управление складом';
+$lang{ERR_STORAGE_SERIAL_DUPLICATE} = 'Серийный номер дублируется';
+$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'Некорректная входящая позиция';
+$lang{ERR_STORAGE_INSTALLATION} = 'Не указан объект установки';
+$lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Не указан получатель установки';
+$lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Установленное оборудование не найдено';
+
+$lang{RETURN} = 'Возврат';
 
 1;

@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS `confcontrol_stats`;
 
 CREATE TABLE IF NOT EXISTS `confcontrol_controlled_files` (
   `id` SMALLINT(6) AUTO_INCREMENT PRIMARY KEY,
-  `path` VARCHAR(50) NOT NULL,
+  `path` VARCHAR(80) NOT NULL,
   `name` VARCHAR(50) NOT NULL,
   `comments` TEXT NOT NULL,
   UNIQUE (`path`, `name`)

@@ -123,9 +123,16 @@ sub internet_users_search {
   }
 
   $Internet_->{TP_SEL} = sel_tp({
-    MODULE => 'Dv;Internet',
+    MODULE    => 'Dv;Internet',
     SELECT    => 'TP_ID',
     EX_PARAMS => 'multiple="multiple"'
+  });
+
+  $Internet->{TP_SEARCH_VAL} = $html->form_select('TP_SEARCH_VAL', {
+    ID          => 'TP_SEARCH_VAL',
+    SELECTED    => $FORM{TP_SEARCH_VAL} || 0,
+    NO_ID       => 1,
+    SEL_OPTIONS => { 0 => $lang{OR}, 2 => $lang{NOT} },
   });
 
   $Internet_->{NAS_SEL}=$html->form_select(
@@ -200,7 +207,7 @@ sub internet_users_search {
     });
 
   $Internet_->{INFO_FIELDS} = form_info_field_tpl({ SKIP_DATA_RETURN => 1, SKIP_REQUIRED => 1 });
-  my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
+  my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %FORM, %$Internet_ }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_users'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
 
@@ -224,7 +231,7 @@ sub internet_users_search {
 sub internet_multiuser {
   my ($ids) = @_;
 
-  my @multiuser_arr = split(/, /, $ids || q{});
+  my @multiuser_arr = split(/,\s/x, $ids || q{});
   my @multiuser_no_error;
   my %params = ();
 
@@ -268,7 +275,7 @@ sub internet_multiuser {
     return 1;
   }
   elsif ($FORM{MU_TP} && $FORM{TP_SHEDULE} ne '0000-00-00') {
-    my ($year, $month, $day) = split(/-/, $FORM{TP_SHEDULE}, 3);
+    my ($year, $month, $day) = split('-', $FORM{TP_SHEDULE}, 3);
     foreach my $id (@multiuser_arr) {
       $Internet->user_info($uid_hash->{$id}, { ID => $id });
       $Shedule->add({
@@ -304,11 +311,11 @@ sub internet_multiuser {
       my $uid_hex = sprintf("%x", $uid_hash->{$id});
       my $id_hex  = sprintf("%x", $id);
       my $ipv6    = $Ip_pool->{IPV6_TEMPLATE} || '';
-      $ipv6       =~ s/\{UID\}/$uid_hex/g;
-      $ipv6       =~ s/\{ID\}/$id_hex/g;
+      $ipv6       =~ s/\{UID\}/$uid_hex/xg;
+      $ipv6       =~ s/\{ID\}/$id_hex/xg;
       my $ipv6_pd = $Ip_pool->{IPV6_PD_TEMPLATE} || '';
-      $ipv6_pd    =~ s/\{UID\}/$uid_hex/g;
-      $ipv6_pd    =~ s/\{ID\}/$id_hex/g;
+      $ipv6_pd    =~ s/\{UID\}/$uid_hex/xg;
+      $ipv6_pd    =~ s/\{ID\}/$id_hex/xg;
 
       $Internet->user_change({
         ID               => $id,
@@ -530,15 +537,15 @@ sub internet_users_list {
   if ($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/) {
     $LIST_PARAMS{TP_ID} =~ s/,\s?/;/g;
   }
-  if ($LIST_PARAMS{INTERNET_STATUS} && $LIST_PARAMS{INTERNET_STATUS} =~ /,/) {
-    $LIST_PARAMS{INTERNET_STATUS} =~ s/,\s?/;/g;
+  if ($LIST_PARAMS{INTERNET_STATUS} && $LIST_PARAMS{INTERNET_STATUS} =~ m/,/x) {
+    $LIST_PARAMS{INTERNET_STATUS} =~ s/,\s?/;/xg;
   }
 
   # To prevent duplicating INTERNET_STATUS field in URL, should cut it from original $qs
   my $clear_qs = $pages_qs || q{};
-  $clear_qs =~ s/\&INTERNET_STATUS=\d+//;
+  $clear_qs =~ s/\&INTERNET_STATUS=\d+//x;
 
-  my $current_status = (defined $FORM{INTERNET_STATUS} && $FORM{INTERNET_STATUS} =~ /^\d+$/)
+  my $current_status = (defined $FORM{INTERNET_STATUS} && $FORM{INTERNET_STATUS} =~ m/^\d+$/x)
     ? $FORM{INTERNET_STATUS}
     : undef;
   my @status_bar     = "$lang{ALL}:index=$index$clear_qs";
@@ -546,7 +553,7 @@ sub internet_users_list {
   my $service_status = sel_status({ HASH_RESULT => 1 });
   foreach my $i (sort keys %$service_status) {
     my $active         = '';
-    my ($name) = split(/:/, $service_status->{$i}, 2);
+    my ($name) = split(/:/x, $service_status->{$i}, 2);
 
     if (defined $current_status && $current_status == $i) {
       $LIST_PARAMS{INTERNET_STATUS} = $FORM{INTERNET_STATUS};
@@ -557,9 +564,9 @@ sub internet_users_list {
     push @status_bar, "$name:index=$index&INTERNET_STATUS=$i$clear_qs";
   }
 
-  if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
+  if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/x) {
     my $search = $FORM{SERVICES};
-    if ($search !~ m/^[<>]/) {
+    if ($search !~ m/^[<>]/x) {
       $search = "=$search";
     }
     $LIST_PARAMS{SERVICE_COUNT}=$FORM{SERVICES};
@@ -583,6 +590,7 @@ sub internet_users_list {
 
   my %internet_extra_fields = (
     'ip_num'                => 'IP',
+    'uid'                   => 'UID',
     'netmask'               => 'NETMASK',
     'speed'                 => $lang{SPEED},
     'port'                  => $lang{PORT},
@@ -624,9 +632,9 @@ sub internet_users_list {
     INPUT_DATA      => $Internet,
     FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,INTERNET_STATUS,ID,TP_ID',
-    HIDDEN_FIELDS   => 'PRIORITY',
-    APPEND_FIELDS   =>  'UID',
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,UID,CREDIT,TP_NAME,INTERNET_STATUS,ID,TP_ID',
+    HIDDEN_FIELDS   => 'PRIORITY,TAGS_COLORS',
+    # APPEND_FIELDS   =>  'UID',
     FUNCTION_FIELDS => 'form_payments,internet_stats',
     %EXT_PARAM_FORMER,
     MAP_FILTERS     => { id => 'search_link:form_users:UID'
@@ -690,6 +698,7 @@ sub internet_users_list {
     print $table;
   }
   elsif ( $Internet->{TOTAL} > 1) {
+
     if ($permissions{0}{7}) {
       $html->{FORM_ID} = 'internet_users_list';
       $Internet->{MU_TP_SELECT} = $html->tpl_show(_include('internet_tp_shedule', 'Internet'), {
@@ -755,17 +764,15 @@ sub internet_users_list {
       });
     }
     else {
-      print $html->form_main(
-        {
-          CONTENT => $table,
-          HIDDEN  => {
-            index => get_function_index('internet_users_list'),
-          },
-          NAME    => 'internet_users_list',
-          class   => 'hidden-print',
-          ID      => 'internet_users_list',
-        }
-      );
+      print $html->form_main({
+        CONTENT => $table,
+        HIDDEN  => {
+          index => get_function_index('internet_users_list'),
+        },
+        NAME    => 'internet_users_list',
+        class   => 'hidden-print',
+        ID      => 'internet_users_list',
+      });
     }
   }
 
@@ -1379,7 +1386,7 @@ sub internet_registration {
                 STATUS => 0
               });
 
-              service_get_month_fee($Internet, { QUITE => 1 });
+              service_get_month_fee($Internet, { QUITE => 1, USER_INFO => $users });
             }
           }
 
@@ -1554,46 +1561,6 @@ sub internet_traffic_names {
 
   return \%TRAFFIC_NAMES;
 }
-
-
-#**********************************************************
-=head set_tags_users($ids, {$attr})
-
-  Arguments:
-    $ids    - Select users array sevice id
-    $attr
-      TAGS  - Tags array id
-
-  Returns:
-    -
-
-=cut
-#**********************************************************
-# sub set_tags_users {
-#   my ($ids, $attr) = @_;
-#
-#   if (!$attr->{TAGS}) {
-#     $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_TAG}");
-#
-#     return 1;
-#   }
-#   my $tags_users = $Internet->user_list({
-#     COLS_NAME => 1,
-#   });
-#
-#   my %hash = map { $_ => $_ } split(', ', $ids);
-#
-#   foreach my $user_ids (@$tags_users) {
-#     if ($hash{ $user_ids->{id} }) {
-#       tags_user_add({
-#         UID => $user_ids->{uid},
-#         IDS => $attr->{TAGS}
-#       });
-#     }
-#   }
-#
-#   return 1;
-# }
 
 #**********************************************************
 =head2 internet_service_activate($attr)

@@ -1,0 +1,1 @@
+ALTER TABLE `storage_installation` ADD COLUMN `installation_source` VARCHAR(100) NOT NULL DEFAULT '';

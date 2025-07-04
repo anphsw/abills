@@ -1,0 +1,5 @@
+{
+  "name": "TRIPLAY_USERS",
+  "method": "GET",
+  "path": "triplay/users"
+}

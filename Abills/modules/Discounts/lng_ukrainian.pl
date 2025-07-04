@@ -10,4 +10,11 @@ $lang{DISCOUNT_NOT_DELETED}='Знижка не видалена';
 $lang{CARD_ABON}='Картка Абонента';
 $lang{WARR_DEPOSIT}='Для використання карти потрібно бути нашим абонентом. Будь ласка, поповніть Ваш рахунок';
 
+$lang{DISCOUNT_PROMOTIONAL} = 'Акційний';
+$lang{DISCOUNT_EXCLUSIVE} = 'Ексклюзивний';
+$lang{DATE_OF_CREATION} = 'Дата створення';
+$lang{DISCOUNTS_QUANTITY} = 'Кількість знижок';
+$lang{DISCOUNTS_TYPE} = 'Тип знижки';
+
+
 1

@@ -9,15 +9,11 @@ package Users;
 use strict;
 use parent 'dbcore';
 use Conf;
+use Abills::Filters qw(email_valid) ;
 
 my $admin;
 my $CONF;
-my $SORT = 1;
-my $DESC = '';
-my $PG   = 1;
-my $PAGE_ROWS = 25;
 
-my $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$";    # configurable;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -40,10 +36,6 @@ sub new {
   };
 
   bless($self, $class);
-
-  if (defined($CONF->{USERNAMEREGEXP})) {
-    $usernameregexp = $CONF->{USERNAMEREGEXP};
-  }
 
   return $self;
 }
@@ -192,7 +184,7 @@ sub pi_add {
   $self->_space_trim($attr);
 
   if ($attr->{EMAIL} && ! $attr->{SKIP_EMAIL_CHECK}) {
-    if ($attr->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
+    if (! email_valid($attr->{EMAIL})) {
       $self->{errno}  = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
       return $self;
@@ -207,8 +199,19 @@ sub pi_add {
   $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
 
   if ($attr->{CONTRACT_TYPE}) {
-    my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    my (undef, $sufix) = split(/\|/x, $attr->{CONTRACT_TYPE});
     $attr->{CONTRACT_SUFIX} = $sufix || $attr->{CONTRACT_TYPE};
+  }
+
+  if ($attr->{DISTRICT_ID}  && $attr->{ADD_ADDRESS_STREET}) {
+    require Address;
+    Address->import();
+    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+    $Address->street_add({
+      %$attr,
+      COMMENTS => q{}
+    });
+    $attr->{STREET_ID} = $Address->{STREET_ID};
   }
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
@@ -270,12 +273,13 @@ sub pi {
   my @search_fields = ();
   my $ext_tables = '';
 
+  #@Fixit
   my $info_fields_list = $self->{INFO_FIELDS_LIST} || $self->config_list({ PARAM => 'ifu*', SORT => 2 });
   if ($info_fields_list && ref $info_fields_list eq 'ARRAY' && scalar(@$info_fields_list)) {
     foreach my $line (@{$info_fields_list}) {
-      if ($line->[0] =~ /ifu(\S+)/) {
+      if ($line->[0] =~ m/ifu(\S+)/x) {
         my $field_name = $1;
-        my (undef, $type, undef) = split(/:/, $line->[1]);
+        my (undef, $type, undef) = split(':', $line->[1]);
 
         next if $type ne '2';
         push (@search_fields,
@@ -342,9 +346,10 @@ sub pi {
 
     if ($CONF->{ADDRESS_FORMAT}) {
       my $address = $CONF->{ADDRESS_FORMAT};
-      while($address =~ /\%([A-Z\_0-9]+)\%/g) {
-        my $pattern = $1;
-        $address =~ s/\%$pattern\%/$self->{$pattern}/g;
+      while($address =~ m/\%([A-Z\_0-9]+)\%/xg) {
+        my $pattern = $1 || q{};
+        my $change_val = $self->{$pattern} || q{};
+        $address =~ s/\%$pattern\%/$change_val/xg;
       }
 
       $self->{ADDRESS_FULL} = $address;
@@ -425,6 +430,17 @@ sub pi_change {
     return $self;
   }
 
+  if ($attr->{DISTRICT_ID}  && $attr->{ADD_ADDRESS_STREET}) {
+    require Address;
+    Address->import();
+    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+    $Address->street_add({
+      %$attr,
+      COMMENTS => q{}
+    });
+    $attr->{STREET_ID} = $Address->{STREET_ID};
+  }
+
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
     require Address;
     Address->import();
@@ -433,7 +449,7 @@ sub pi_change {
       %$attr,
       COMMENTS => q{}
     });
-    $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
+    $attr->{LOCATION_ID} = $Address->{LOCATION_ID};
   }
 
   if (!$attr->{SKIP_INFO_FIELDS}) {
@@ -449,7 +465,7 @@ sub pi_change {
 
   $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
   if ($attr->{CONTRACT_TYPE}) {
-    my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    my (undef, $sufix) = split(/\|/x, $attr->{CONTRACT_TYPE});
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
@@ -509,8 +525,8 @@ sub groups_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my @WHERE_RULES = ();
   delete $self->{COL_NAMES_ARR};
 
@@ -518,8 +534,8 @@ sub groups_list {
   if ($attr->{GIDS} || $admin->{GIDS}) {
     if ($admin->{GIDS}) {
       my @result_gids = ();
-      my @admin_gids  = split(/, /, $admin->{GIDS});
-      my @attr_gids   = split(/, /, $attr->{GIDS} || q{});
+      my @admin_gids  = split(', ', $admin->{GIDS});
+      my @attr_gids   = split(', ', $attr->{GIDS} || q{});
 
       foreach my $attr_gid ( @attr_gids ) {
         foreach my $admin_gid (@admin_gids)  {
@@ -535,8 +551,8 @@ sub groups_list {
 
     push @WHERE_RULES, "g.gid IN ($attr->{GIDS})";
   }
-  elsif (defined($attr->{GID}) && $attr->{GID} =~ /\d+/) {
-    $attr->{GID} =~ s/,/;/g;
+  elsif (defined($attr->{GID}) && $attr->{GID} =~ m/\d+/x) {
+    $attr->{GID} =~ s/,/;/gx;
     push @WHERE_RULES,  @{ $self->search_expr($attr->{GID}, 'INT', 'g.gid') };
   }
   elsif ($admin->{GIDS}) {
@@ -545,7 +561,7 @@ sub groups_list {
 
   my $USERS_WHERE = '';
   if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/,/;/g;
+    $admin->{DOMAIN_ID} =~ s/,/;/xg;
     $USERS_WHERE = "AND (". join('AND', @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) }) .')';
   }
 
@@ -648,7 +664,8 @@ sub group_add {
 
   $self->query_add('groups', { %$attr, DOMAIN_ID => $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID} });
 
-  $admin->system_action_add("GID:$attr->{GID}", { TYPE => 1 });
+  $admin->system_action_add("GID:$attr->{GID};NAME:$attr->{NAME};DESCRIBE:$attr->{DESCR};CREDIT:$attr->{ALLOW_CREDIT};
+ DISABLE ACCESS:$attr->{DISABLE_ACCESS};SMS_GATEWAY:$attr->{SMS_SERVICE}", { TYPE => 1 });
 
   return $self;
 }
@@ -662,9 +679,9 @@ sub group_del {
   my $self = shift;
   my ($id) = @_;
 
+  $self->group_info($id);
   $self->query_del('groups', undef, { gid=> $id });
-
-  $admin->system_action_add("GID:$id", { TYPE => 10 });
+  $admin->system_action_add("GID:$id;NAME:$self->{NAME}", { TYPE => 10 });
   return $self;
 }
 
@@ -683,12 +700,14 @@ sub list {
   my $self   = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
+  my $GROUP_BY = q{};
+
   if ($attr->{UNIVERSAL_SEARCH}) {
     $attr->{SKIP_DEL_CHECK} = 1;
     $attr->{_MULTI_HIT}     = 1;
@@ -706,6 +725,11 @@ sub list {
   elsif ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
     push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
     $attr->{TAGS} = '_SHOW';
+  }
+
+  if ($attr->{GID} && $attr->{GID} ne '_SHOW' && $attr->{GROUPS_SEARCH_VAL} && $attr->{GROUPS_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.gid NOT IN ($attr->{GID})";
+    $attr->{GID} = '_SHOW';
   }
 
   my @ext_fields = (
@@ -774,7 +798,7 @@ sub list {
   }
 
   if($attr->{REGISTRATION_FROM_REGISTRATION_TO}){
-    my ($from, $to) = split '/', $attr->{REGISTRATION_FROM_REGISTRATION_TO};
+    my ($from, $to) = split('/', $attr->{REGISTRATION_FROM_REGISTRATION_TO});
     push @WHERE_RULES, "u.registration >= '$from'";
     push @WHERE_RULES, "u.registration <= '$to'";
   }
@@ -803,8 +827,16 @@ sub list {
     push @WHERE_RULES, "p.date IS NULL";
   }
 
+  my $pre_query = '';
+  if ($attr->{FIN_PERIOD}) {
+    my ($pre_query_, $ext_tables, $group_by) = $self->fin_period($attr);
+    $pre_query = $pre_query_;
+    $EXT_TABLES .= $ext_tables;
+    $GROUP_BY = $group_by;
+  }
+
   #Show last
-  if ($attr->{PAYMENTS} || ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ /[0-9\s,<>=]+/)) {
+  if ($attr->{PAYMENTS} || ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ m/[0-9\s,<>=]+/x)) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{PAYMENTS}) {
       my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
@@ -814,13 +846,13 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
     elsif ($attr->{PAYMENT_DAYS}) {
-      my @params = split(/,/, $attr->{PAYMENT_DAYS});
+      my @params = split(',', $attr->{PAYMENT_DAYS});
 
       my @where_ = ();
       my @having_ = ();
       foreach my $payment_days (@params) {
         my $value = "NOW() - INTERVAL $payment_days DAY";
-        $value =~ s/([<>=]{1,2})//g;
+        $value =~ s/([<>=]{1,2})//xg;
         my $comparison = $1 || '=';
         $value = $comparison . $value;
         push @where_, "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
@@ -834,12 +866,12 @@ sub list {
     }
 
     if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
-      if ($self->{SEARCH_FIELDS} !~ /deposit/) {
+      if ($self->{SEARCH_FIELDS} !~ m/deposit/x) {
         $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
         $self->{SEARCH_FIELDS_COUNT}++;
       }
       foreach my $rule (@HAVING_RULES) {
-        $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
+        $rule =~ s/IF\(company\.id\s+IS\s+NULL,\s+b\.deposit,\s+cb\.deposit\)/deposit/x;
       }
     }
 
@@ -878,17 +910,19 @@ sub list {
     # Total Records
     if ($self->{TOTAL} > 0) {
       if ($attr->{PAYMENT}) {
-        $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'p.date') };
+        my $num = $#WHERE_RULES || 0;
+        $WHERE_RULES[$num] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'p.date') };
       }
-      elsif ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ /[0-9\s,<>=]+/) {
-        my @params = split(/,/, $attr->{PAYMENT_DAYS});
+      elsif ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ m/[0-9\s,<>=]+/x) {
+        my @params = split(',', $attr->{PAYMENT_DAYS});
 
         foreach my $payment_days (@params) {
           my $value = "NOW() - INTERVAL $payment_days DAY";
-          $value =~ s/([<>=]{1,2})//g;
+          $value =~ s/([<>=]{1,2})//xg;
           my $comparison = $1 || '=';
           $value = $comparison . $value;
-          $WHERE_RULES[$#WHERE_RULES] = "p.date$value";
+          my $num = $#WHERE_RULES || 0;
+          $WHERE_RULES[$num] = "p.date$value";
         }
       }
 
@@ -909,7 +943,7 @@ sub list {
   }
 
   #Show last fees
-  if ($attr->{FEES} || ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ /[0-9\s,<>=]+/)) {
+  if ($attr->{FEES} || ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ m/[0-9\s,<>=]+/x)) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{FEES}) {
       my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
@@ -919,11 +953,11 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
     elsif ($attr->{FEES_DAYS}) {
-      my @params = split(/,/, $attr->{FEES_DAYS});
+      my @params = split(',', $attr->{FEES_DAYS});
 
       foreach my $operation_days (@params) {
         my $value = "NOW() - INTERVAL $operation_days DAY";
-        $value =~ s/([<>=]{1,2})//g;
+        $value =~ s/([<>=]{1,2})//gx;
         my $comparison = $1 || '=';
         $value = $comparison . $value;
         push @WHERE_RULES,  "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
@@ -935,13 +969,13 @@ sub list {
     }
 
     if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
-      if ($self->{SEARCH_FIELDS} !~ /deposit/) {
+      if ($self->{SEARCH_FIELDS} !~ m/deposit/x) {
         $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
         $self->{SEARCH_FIELDS_COUNT}++;
       }
 
       foreach my $rule (@HAVING_RULES) {
-        $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
+        $rule =~ s/IF\(company\.id\s+IS NULL,\s+b\.deposit,\s+cb\.deposit\)/deposit/x;
       }
     }
 
@@ -968,7 +1002,8 @@ sub list {
       $EXT_TABLES
       GROUP BY u.uid
       $HAVING
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
     );
@@ -978,16 +1013,18 @@ sub list {
 
     if ($self->{TOTAL} > 0) {
       if ($attr->{FEES}) {
-        $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'f.date') };
+        my $num = $#WHERE_RULES || 0;
+        $WHERE_RULES[$num] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'f.date') };
       }
-      elsif ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ /[0-9\s,<>=]+/) {
-        my @params = split(/,/, $attr->{FEES_DAYS});
+      elsif ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ m/[0-9\s,<>=]+/x) {
+        my @params = split(',', $attr->{FEES_DAYS});
         foreach my $operation_days (@params) {
           my $value = "CURDATE() - INTERVAL $operation_days DAY";
-          $value =~ s/([<>=]{1,2})//g;
+          $value =~ s/([<>=]{1,2})//gx;
           my $comparison = $1 || '=';
           $value = $comparison . $value;
-          $WHERE_RULES[$#WHERE_RULES] = "f.date$value";
+          my $num = $#WHERE_RULES || 0;
+          $WHERE_RULES[$num] = "f.date$value";
         }
       }
 
@@ -1024,7 +1061,7 @@ sub list {
   }
 
   if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
+    $admin->{DOMAIN_ID} =~ s/;/,/xg;
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
@@ -1037,7 +1074,6 @@ sub list {
     $SORT=$self->{SORT_BY};
   }
 
-  my $GROUP_BY = q{};
   if($attr->{TAGS}) {
     if($attr->{TAG_SEARCH_VAL} == 1){
       my $tags_c = split(',', $attr->{TAGS});
@@ -1056,7 +1092,9 @@ sub list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
-  $self->query("SELECT u.id AS login,
+  $self->query(
+    "$pre_query
+     SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
       u.uid
     FROM users u
@@ -1073,7 +1111,9 @@ sub list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST}) {
-    $self->query("SELECT COUNT(DISTINCT u.uid) AS total,
+    $self->query(
+      "$pre_query
+      SELECT COUNT(DISTINCT u.uid) AS total,
       SUM(IF(u.expire<CURDATE() AND u.expire>'0000-00-00', 1, 0)) AS total_expired,
       COUNT( DISTINCT IF(u.disable=1, u.uid, 0)) - 1 AS total_disabled,
       COUNT( DISTINCT IF(u.deleted=1, u.uid, 0)) - 1 AS total_deleted
@@ -1106,6 +1146,11 @@ sub add {
 
   $self->_space_trim($attr);
 
+  my $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$";    # configurable;
+  if (defined($CONF->{USERNAMEREGEXP})) {
+    $usernameregexp = $CONF->{USERNAMEREGEXP};
+  }
+
   delete $self->{PRE_ADD};
   if (! $self->check_params()) {
     return $self;
@@ -1133,13 +1178,14 @@ sub add {
     return $self;
   }
   #ERROR_SHORT_PASSWORD
-  elsif ($attr->{LOGIN} !~ /$usernameregexp/) {
+  elsif ($attr->{LOGIN} !~ m/$usernameregexp/x) {
     $self->{errno}  = 10;
     $self->{errstr} = 'ERROR_WRONG_NAME';
     return $self;
   }
   elsif ($attr->{EMAIL} && $attr->{EMAIL} ne '') {
-    if ($attr->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
+
+    if (! email_valid($attr->{EMAIL})) {
       $self->{errno}  = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
       return $self;
@@ -1206,13 +1252,13 @@ sub login_create {
   my $result = '';
 
   my $control_num1 = '2 4 10 2 5';
-  my @control_arr = split(/ /, $control_num1);
-  my @main_arr = split(//, $self->{UID});
+  my @control_arr = split(' ', $control_num1);
+  my @main_arr = split('', $self->{UID});
   my $sum = 0;
   for(my $i=0; $i<=$#main_arr; $i++) {
     $sum += $main_arr[$i] * $control_arr[$i];
   }
-  ($result) = split(//, $sum - int($sum/11)*11);
+  ($result) = split('', $sum - int($sum/11)*11);
 
   return $self->{UID}.$result;
 }
@@ -1528,10 +1574,10 @@ sub bruteforce_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP = 'GROUP BY login';
   my $count = 'COUNT(login) AS count';
@@ -1757,10 +1803,10 @@ sub web_sessions_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP = 'GROUP BY login';
   my $count = 'count(login) AS count';
@@ -1794,14 +1840,15 @@ sub web_sessions_list {
     FROM web_users_sessions
       $WHERE
       $GROUP
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
     );
     $list = $self->{list};
   }
 
-  $self->query("SELECT count(DISTINCT login) AS total FROM web_users_sessions $WHERE;", undef, {INFO => 1 });
+  $self->query("SELECT COUNT(DISTINCT login) AS total FROM web_users_sessions $WHERE;", undef, {INFO => 1 });
 
   return $list;
 }
@@ -1851,46 +1898,6 @@ sub web_session_find {
     });
 
   return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
-}
-
-#**********************************************************
-=head2 report_users_summary($attr)
-
-=cut
-#**********************************************************
-sub report_users_summary {
-  my $self = shift;
-  #my ($attr) = @_;
-
-  my @WHERE_RULES = ();
-  if ($admin->{GID}) {
-    $admin->{GID}=~s/,/;/g;
-    push @WHERE_RULES,  @{ $self->search_expr($admin->{GID}, 'INT', 'u.gid') };
-  }
-
-  if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES,  @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'u.domain_id') };
-  }
-
-  my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' AND ', @WHERE_RULES) : '';
-
-  $self->query("SELECT COUNT(*) AS total_users,
-      SUM(IF(u.disable>0, 1, 0)) AS disabled_users,
-      SUM(IF(u.credit>0, 1, 0)) AS creditors_count,
-      SUM(IF(u.credit>0, u.credit, 0)) AS creditors_sum,
-      SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, 1, 0)) AS debetors_count,
-      SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, b.deposit, 0)) AS debetors_sum
-    FROM users u
-      LEFT JOIN bills b ON (u.bill_id = b.id)
-      LEFT JOIN companies company ON  (u.company_id=company.id)
-      LEFT JOIN bills cb ON (company.bill_id=cb.id)
-    WHERE u.deleted=0 $WHERE
-    ;",
-    undef,
-    { INFO => 1 }
-  );
-
-  return $self;
 }
 
 #**********************************************************
@@ -1980,13 +1987,13 @@ sub contacts_migrate {
 
   foreach my $user_pi ( @{$self->{list}} ) {
     if ( $user_pi->{phone} ) {
-      my @phones = split(',\s?', $user_pi->{phone});
+      my @phones = split(/,\s?/x, $user_pi->{phone});
       map {
         push @contacts_to_add, [ $user_pi->{uid}, $old_type_to_new{PHONE}, $_ ];
       } @phones;
     }
     if ( $user_pi->{email} ) {
-      my @emails = split(',\s?', $user_pi->{email});
+      my @emails = split(/,\s?/x, $user_pi->{email});
       map {
         push @contacts_to_add, [ $user_pi->{uid}, $old_type_to_new{EMAIL}, $_ ];
       } @emails;
@@ -2017,7 +2024,6 @@ sub contacts_migrate {
 
   $db_->commit();
   $db_->{AutoCommit} = 1;
-
 
   # If insert was successful, can remove old info
   $self->query("UPDATE users_pi SET phone='', email='';", 'do');
@@ -2282,108 +2288,6 @@ sub contracts_type_del {
 }
 
 #**********************************************************
-=head2 all_data_for_report($attr) - get all data per month
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub all_data_for_report {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("SELECT
-    months.month  as month,
-    IFNULL((SELECT COUNT(u.uid)
-      FROM users u
-      WHERE DATE_FORMAT(u.registration, '%Y-%m') <= CONCAT(?,'-', months.month)),0) AS count_all_users,
-    IFNULL((SELECT COUNT(u.uid)
-      FROM users u
-      WHERE DATE_FORMAT(u.registration, '%Y-%m') = CONCAT(?,'-', months.month)),0)  AS count_new_users,
-    IFNULL((SELECT SUM(p.sum)
-      FROM payments p
-      WHERE DATE_FORMAT(p.date, '%Y-%m') = CONCAT(?, '-', months.month)
-      AND NOT p.method = '4'), 0)                AS payments_for_every_month,
-    IFNULL((SELECT COUNT(distinct internet.uid)
-      FROM internet_main internet
-      WHERE DATE_FORMAT(internet.registration, '%Y-%m') <= CONCAT(?, '-', months.month)), 0) AS count_activated_users,
-    IFNULL((SELECT SUM(f.sum)
-      FROM  fees f
-      WHERE (DATE_FORMAT(f.date, '%Y-%m')=CONCAT(?, '-', months.month))),0) as fees_sum,
-    IFNULL(( SELECT COUNT(internet2.id)
-      FROM internet_main internet2
-      JOIN tarif_plans tr ON internet2.tp_id=tr.tp_id
-      WHERE (DATE_FORMAT(internet2.registration, '%Y-%m')<=CONCAT(?, '-', months.month) AND internet2.disable=0)),0) AS total_active_services,
-    IFNULL(( SELECT SUM(tr.month_fee)
-      FROM internet_main internet2
-      JOIN tarif_plans tr ON internet2.tp_id=tr.tp_id
-      WHERE (DATE_FORMAT(internet2.registration, '%Y-%m')<=CONCAT(?, '-', months.month) AND internet2.disable=0)),0) AS month_fee_sum
-    FROM (SELECT '01' AS month
-      UNION SELECT '02' AS month
-      UNION SELECT '03' AS month
-      UNION SELECT '04' AS month
-      UNION SELECT '05' AS month
-      UNION SELECT '06' AS month
-      UNION SELECT '07' AS month
-      UNION SELECT '08' AS month
-      UNION SELECT '09' AS month
-      UNION SELECT '10' AS month
-      UNION SELECT '11' AS month
-      UNION SELECT '12' AS month) as months
-    GROUP BY month;",
-    undef,
-    { %{$attr}, Bind => [ $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR} ] }
-  );
-
-  return $self->{list} || {};
-}
-
-#**********************************************************
-=head2 all_new_report($attr) - get all data per month
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub all_new_report {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("SELECT
-    months.month  as month,
-    IFNULL((SELECT COUNT(u.uid)
-      FROM users u
-      WHERE DATE_FORMAT(u.registration, '%Y-%m') <= CONCAT(?,'-', months.month)),0) AS count_all_users,
-    IFNULL((SELECT COUNT(u.uid)
-      FROM users u
-      WHERE DATE_FORMAT(u.registration, '%Y-%m') = CONCAT(?,'-', months.month)),0)  AS count_new_users
-    FROM (SELECT '01' AS month
-      UNION SELECT '02' AS month
-      UNION SELECT '03' AS month
-      UNION SELECT '04' AS month
-      UNION SELECT '05' AS month
-      UNION SELECT '06' AS month
-      UNION SELECT '07' AS month
-      UNION SELECT '08' AS month
-      UNION SELECT '09' AS month
-      UNION SELECT '10' AS month
-      UNION SELECT '11' AS month
-      UNION SELECT '12' AS month) as months
-    GROUP BY month;",
-    undef,
-    { %{$attr}, Bind => [ $attr->{YEAR}, $attr->{YEAR} ] }
-  );
-
-  return $self->{list} || {};
-}
-
-#**********************************************************
 =head2 contacts_validation($attr)
 
   Status:
@@ -2403,8 +2307,8 @@ sub user_contacts_validation {
   my ($attr) = @_;
 
   if ($attr->{PHONE} && $self->{conf}{PHONE_FORMAT}) {
-    foreach my $item (split(/,\s?/, $attr->{PHONE})) {
-      if ($item !~ /$self->{conf}{PHONE_FORMAT}/) {
+    foreach my $item (split(/,\s?/x, $attr->{PHONE})) {
+      if ($item !~ m/$self->{conf}{PHONE_FORMAT}/x) {
         $self->{errno} = 21;
         $self->{errstr} = "WRONG_PHONE" . " " . $item . '. ';
         return 0;
@@ -2413,8 +2317,8 @@ sub user_contacts_validation {
   }
 
   if ($attr->{CELL_PHONE} && $self->{conf}{CELL_PHONE_FORMAT}) {
-    foreach my $item (split(/,\s?/, $attr->{CELL_PHONE})) {
-      if ($item !~ /$self->{conf}{CELL_PHONE_FORMAT}/) {
+    foreach my $item (split(/,\s?/x, $attr->{CELL_PHONE})) {
+      if ($item !~ m/$self->{conf}{CELL_PHONE_FORMAT}/x) {
         $self->{errno} = 21;
         $self->{errstr} = "WRONG_CELL_PHONE" . " " . $item . '. ';
         return 0;
@@ -2423,7 +2327,7 @@ sub user_contacts_validation {
   }
 
   if ($attr->{EMAIL}) {
-    if ($attr->{EMAIL} !~ /$Abills::Filters::EMAIL_EXPR/) {
+    if (! email_valid($attr->{EMAIL})) {
       $self->{errno} = 11;
       $self->{errstr} = "WRONG_EMAIL" . " " . $attr->{EMAIL} . '. ';
       return 0;
@@ -2508,28 +2412,30 @@ sub phone_pin_del {
 sub _change_having {
   my ($HAVING) = @_;
 
-  if ($HAVING && $HAVING =~ /CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/) {
-    $HAVING =~ s/CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/fio/g;
+  $HAVING //= q{};
+
+  if ($HAVING =~ m/CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/x) {
+    $HAVING =~ s/CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/fio/xg;
   }
 
-  if ($HAVING && $HAVING =~ /IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/) {
-    $HAVING =~ s/IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/contract_id/g;
+  if ($HAVING =~ m/IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/x) {
+    $HAVING =~ s/IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/contract_id/xg;
   }
 
-  if ($HAVING && $HAVING =~ /IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/) {
-    $HAVING =~ s/IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/credit/g;
+  if ($HAVING =~ m/IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/x) {
+    $HAVING =~ s/IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/credit/xg;
   }
 
-  if ($HAVING && $HAVING =~ /IF\(company.id IS NULL,b.id,cb.id\)/) {
-    $HAVING =~ s/IF\(company.id IS NULL,b.id,cb.id\)/bill_id/g;
+  if ( $HAVING =~ m/IF\(company.id IS NULL,b.id,cb.id\)/x) {
+    $HAVING =~ s/IF\(company.id IS NULL,b.id,cb.id\)/bill_id/gx;
   }
 
-  if ($HAVING && $HAVING =~ /CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/) {
-    $HAVING =~ s/CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/address_full/g;
+  if ($HAVING =~ m/CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/x) {
+    $HAVING =~ s/CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/address_full/xg;
   }
 
-  if ($HAVING && $HAVING =~ /pi.location_id/) {
-    $HAVING =~ s/pi.location_id/builds.id/g;
+  if ($HAVING =~ m/pi.location_id/x) {
+    $HAVING =~ s/pi.location_id/builds.id/xg;
   }
 
   return $HAVING;
@@ -2558,13 +2464,11 @@ sub user_status_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_status',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'users_status',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2649,55 +2553,6 @@ sub user_status_info{
 }
 
 #**********************************************************
-=head2 report_users_disabled($attr) - report for users disabled
-
-  Arguments:
-    $attr
-  Returns:
-    $self
-
-=cut
-#**********************************************************
-sub report_users_disabled {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
-
-  my @WHERE_RULES = ("u.disable <> 0");
-
-  my $WHERE = $self->search_former($attr, [
-    [ 'ID',           'INT',  'u.id',           1 ],
-    [ 'DISABLE',      'INT',  'u.disable',      1 ],
-    [ 'DISABLE_DATE', 'DATE', 'u.disable_date', 1 ],
-  ],
-    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
-  );
-
-  $self->query("
-    SELECT
-      DATE_FORMAT(u.disable_date, '%Y-%m') AS disable_date,
-      SUM(IF(u.disable=1, 1, 0)) as disable,
-      SUM(IF(u.disable=2, 1, 0)) as not_active,
-      SUM(IF(u.disable=3, 1, 0)) as hold_up,
-      SUM(IF(u.disable=4, 1, 0)) as non_payment,
-      SUM(IF(u.disable=5, 1, 0)) as err_small_deposit
-    FROM users u
-    $WHERE
-    GROUP BY disable_date
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
-
-  return $self->{list} || [];
-}
-
-#**********************************************************
 =head2 registration_pin_info($attr)
 
 =cut
@@ -2739,6 +2594,13 @@ sub registration_pin_change {
 #**********************************************************
 =head2 registration_pin_add($attr)
 
+  Arguments:
+    $attr
+      PIN_CODE
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub registration_pin_add {
@@ -2746,12 +2608,151 @@ sub registration_pin_add {
   my ($attr) = @_;
 
   if ($attr->{PIN_CODE}) {
-    $attr->{PIN_CODE} = "ENCODE('$attr->{PIN_CODE}', '$self->{conf}->{secretkey}')",
+    $attr->{PIN_CODE} = "ENCODE('$attr->{PIN_CODE}', '$self->{conf}->{secretkey}')";
   }
 
   $self->query_add('users_registration_pin', $attr);
 
   return $self;
+}
+
+#**********************************************************
+=head2 fin_period($attr)
+
+  Arguments:
+    $attr
+      FIN_PERIOD
+
+  Results:
+    $pre_query, $ext_tables, $group_by
+
+=cut
+#**********************************************************
+sub fin_period {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $ext_tables = q{};
+  my $pre_query = q{};
+  my $group_by = q{};
+
+  my ($start_date, $end_date) = split('/', $attr->{FIN_PERIOD}, 2);
+#mysql 5.7
+#  my $db_version = $self->db_version();
+#  $attr->{OLD}=1;
+#  if ($self->{FULL_VERSION} !~ /Maria/ || $attr->{OLD}) {
+  $self->{SEARCH_FIELDS} .= qq{
+    \@payments := (SELECT SUM(sum) FROM payments p WHERE p.uid=u.uid AND p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59' ) AS payment_sum,
+    \@fees := (SELECT SUM(sum) FROM fees f WHERE uid=u.uid AND f.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59' )  AS fees_sum,
+    if((SELECT IF(type = '1payment', last_deposit, last_deposit)
+        FROM (SELECT '1payment' AS type, date, last_deposit, sum AS amount, uid
+              FROM payments p
+              WHERE p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              UNION ALL
+              SELECT 'fees' AS type, reg_date AS date, last_deposit, sum AS amount, uid
+              FROM fees f
+              WHERE f.reg_date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              ) AS fin_history
+        WHERE fin_history.uid=u.uid ORDER BY date, type LIMIT 1) IS NULL,
+        IF(company.id IS NULL, b.deposit, cb.deposit),
+               (SELECT IF(type = '1payment', last_deposit, last_deposit)
+        FROM (SELECT '1payment' AS type, date, last_deposit, sum AS amount, uid
+              FROM payments p
+              WHERE p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              UNION ALL
+              SELECT 'fees' AS type, reg_date AS date, last_deposit, sum AS amount, uid
+              FROM fees f
+              WHERE f.reg_date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              ) AS fin_history
+        WHERE fin_history.uid=u.uid ORDER BY date, type LIMIT 1)
+        ) AS start_deposit,
+
+    IF((SELECT IF(type = '1payment', last_deposit+amount, last_deposit - amount)
+        FROM (SELECT '1payment' AS type, date, last_deposit, sum AS amount, uid
+              FROM payments p
+              WHERE p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              UNION ALL
+              SELECT '2fees' AS type, reg_date AS date, last_deposit, sum AS amount, uid
+              FROM fees f
+              WHERE f.reg_date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              ) AS fin_history
+        WHERE fin_history.uid=u.uid ORDER BY date DESC, type DESC LIMIT 1) IS NULL,
+        IF(company.id IS NULL, b.deposit, cb.deposit) ,
+         (SELECT IF(type = '1payment', last_deposit+amount, last_deposit - amount)
+        FROM (SELECT '1payment' AS type, date, last_deposit, sum AS amount, uid
+              FROM payments p
+              WHERE p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              UNION ALL
+              SELECT '2fees' AS type, reg_date AS date, last_deposit, sum AS amount, uid
+              FROM fees f
+              WHERE f.reg_date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+              ) AS fin_history
+        WHERE fin_history.uid=u.uid ORDER BY date DESC, type DESC LIMIT 1)
+        )                           AS end_deposit,
+};
+
+    $self->{SEARCH_FIELDS_COUNT} += 4;
+    $group_by = 'GROUP BY u.uid';
+#   }
+#   else {
+#
+#     #MariaDB
+#     $pre_query = qq{
+#     WITH all_activity AS (
+#     SELECT
+#         uid,
+#         date,
+#         last_deposit + sum AS final_deposit,
+#         last_deposit AS base_deposit,
+#         'payment' AS type,
+#         ROW_NUMBER() OVER (PARTITION BY uid ORDER BY date ASC) AS rn_start,
+#         ROW_NUMBER() OVER (PARTITION BY uid ORDER BY date DESC) AS rn_end
+#     FROM payments
+#     WHERE date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+#
+#     UNION ALL
+#
+#     SELECT
+#         uid,
+#         date,
+#         last_deposit - sum AS final_deposit,
+#         last_deposit AS base_deposit,
+#         'fee' AS type,
+#         ROW_NUMBER() OVER (PARTITION BY uid ORDER BY date ASC) AS rn_start,
+#         ROW_NUMBER() OVER (PARTITION BY uid ORDER BY date DESC) AS rn_end
+#     FROM fees
+#     WHERE date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'
+# ),
+#
+# -- Last operation
+#      latest_activity AS (
+#          SELECT * FROM all_activity WHERE rn_end = 1
+#      ),
+#
+# -- first operation
+#      first_activity AS (
+#          SELECT * FROM all_activity WHERE rn_start = 1
+#      )
+#     };
+#
+#     $ext_tables = qq{LEFT JOIN payments p ON (p.uid=u.uid AND p.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59')
+#       LEFT JOIN fees f ON (f.uid=u.uid AND f.date BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59')
+#       LEFT JOIN latest_activity la ON (la.uid = u.uid)
+#       LEFT JOIN first_activity fa ON (fa.uid = u.uid)
+#     };
+#
+#     $self->{SEARCH_FIELDS} .= qq{
+#     SUM(p.sum) AS payment_sum,
+#     SUM(f.sum) AS fees_sum,
+#     fa.base_deposit AS start_deposit,
+#     la.final_deposit AS end_deposit,
+#     };
+#
+#     $self->{SEARCH_FIELDS_COUNT} += 4;
+#     $group_by = 'GROUP BY u.uid';
+#   }
+
+  return $pre_query, $ext_tables, $group_by;
 }
 
 1;

@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_FEES_TYPES_LIST",
+  "method": "GET",
+  "path": "fees/types/",
+  "params": {}
+}

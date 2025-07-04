@@ -34,6 +34,33 @@ my $Api = Api->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub api_log_list {
+
+  if ($FORM{search_form}) {
+    if ($FORM{FROM_DATE_TO_DATE}) {
+      ($FORM{FROM_DATE}, $FORM{TO_DATE}) = $FORM{"FROM_DATE_TO_DATE"} =~ /(.+)\/(.+)/;
+    }
+    my %info = ();
+
+    $info{HTTP_METHOD_SEL} = $html->form_select('HTTP_METHOD', {
+      SELECTED    => $FORM{HTTP_METHOD} || '',
+      SEL_ARRAY   => [ 'GET', 'POST', 'DELETE', 'PUT', 'PATCH', 'HEAD' ],
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => $lang{ALL} }
+    });
+
+    $info{DATERANGE_PICKER} = $html->form_daterangepicker({
+      NAME  => 'FROM_DATE/TO_DATE',
+      VALUE => $FORM{'FROM_DATE_TO_DATE'},
+    });
+
+    form_search({
+      SEARCH_FORM   => $html->tpl_show(_include('api_search_log', 'Api'),
+        { %info, %FORM }, { OUTPUT2RETURN => 1
+        }),
+      ARCHIVE_TABLE => 'api_log'
+    });
+  }
+
   my ($table, undef) = result_former({
     INPUT_DATA      => $Api,
     FUNCTION        => 'list',

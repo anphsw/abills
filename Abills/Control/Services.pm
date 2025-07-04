@@ -9,13 +9,14 @@ use warnings FATAL => 'all';
 
 use Tariffs;
 use Abills::Base qw(days_in_month);
+require Abills::Misc;
 
 our (
   $db,
   $admin,
   %conf,
   $html,
-  %lang,
+#  %lang,
   $DATE,
   %FORM,
   $base_dir,
@@ -23,120 +24,7 @@ our (
 );
 
 #**********************************************************
-=head sel_tp($tp_id)
-
-  Arguments:
-    MODULE
-    TP_ID    - SHow tp name for tp_id
-    SELECT   - Select element
-    SKIP_TP  - Skip show tp
-    SHOW_ALL - Show all tps
-    SEL_OPTIONS - Extra sel options (items)
-    EX_PARAMS   - Extra sell options
-    SERVICE_ID  - TP SErvice ID
-    SMALL_DEPOSIT_ACTION
-    USER_INFO -
-    DOMAIN_ID
-    MAIN_MENU -
-
-  Returns:
-    \%tp_hash (tp_id => name)
-
-=cut
-#**********************************************************
-sub sel_tp {
-  my ($attr) = @_;
-
-  my $Tariffs = Tariffs->new($db, \%conf, $admin);
-  my %params = (MODULE => 'Dv;Internet');
-  $params{MODULE} = $attr->{MODULE} if $attr->{MODULE};
-
-  my $users = $attr->{USER_INFO};
-
-  my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
-    tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
-
-  if ($attr->{TP_ID}) {
-    $attr->{TP_ID} = $1 if $attr->{TP_ID} =~ /:(\d+)/;
-    $params{INNER_TP_ID} = $attr->{TP_ID} if !$attr->{SHOW_ALL};
-  }
-
-  $params{SERVICE_ID} = $attr->{SERVICE_ID} if $attr->{SERVICE_ID};
-
-  my $list = $Tariffs->list({
-    NEW_MODEL_TP  => 1,
-    DOMAIN_ID     => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID},
-    COLS_NAME     => 1,
-    STATUS        => '0',
-    TP_GID        => $tp_gids || '_SHOW',
-    MONTH_FEE     => '_SHOW',
-    DAY_FEE       => '_SHOW',
-    COMMENTS      => '_SHOW',
-    TP_GROUP_NAME => '_SHOW',
-    DESCRIBE_AID  => '_SHOW',
-    %params
-  });
-
-  if ($attr->{TP_ID} && !$attr->{EX_PARAMS}) {
-    return "$list->[0]->{id} : $list->[0]->{name}" if $Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0;
-
-    return $attr->{TP_ID};
-  }
-
-  my %tp_list = ();
-
-  foreach my $line (@$list) {
-    next if ($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
-    next if (!$attr->{SHOW_ALL} && $line->{status});
-
-    my $describe_for_aid = ($line->{describe_aid}) ? ('[' . $line->{describe_aid} . ']') : '';
-
-    if ($attr->{GROUP_SORT}) {
-      my $small_deposit = q{};
-      if ($users) {
-        my $deposit = (defined($users->{DEPOSIT}) && $users->{DEPOSIT} =~ /^[\-0-9,\.\/]+$/) ? $users->{DEPOSIT} : 0;
-        $small_deposit = ($deposit + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
-          ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
-      }
-
-      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name} $describe_for_aid " . $small_deposit;
-    }
-    else {
-      $tp_list{$line->{tp_id}} = $line->{id} . ' : ' . $line->{name} . ' ' . $describe_for_aid;
-    }
-  }
-
-  if ($attr->{SELECT}) {
-    my %EX_PARAMS = ();
-
-    my $element_name = $attr->{SELECT};
-    my %extra_options = ('' => '--');
-    %extra_options = %{$attr->{SEL_OPTIONS}} if $attr->{SEL_OPTIONS};
-
-    if ($attr->{EX_PARAMS}) {
-      %EX_PARAMS = (ref $attr->{EX_PARAMS} eq 'HASH') ? %{$attr->{EX_PARAMS}} : (EX_PARAMS => $attr->{EX_PARAMS});
-    }
-
-    if ($attr->{MAIN_MENU}) {
-      $EX_PARAMS{MAIN_MENU} = get_function_index($attr->{MAIN_MENU});
-      $EX_PARAMS{MAIN_MENU_ARGV} = "chg=" . ($attr->{$element_name} // $FORM{$element_name} || ''),
-    }
-
-    return $html->form_select($element_name, {
-      SELECTED    => $attr->{$element_name} // $FORM{$element_name},
-      SEL_HASH    => \%tp_list,
-      SEL_OPTIONS => \%extra_options,
-      NO_ID       => 1,
-      SORT_KEY    => 1,
-      %EX_PARAMS
-    });
-  }
-
-  return \%tp_list;
-}
-
-#**********************************************************
-=head get_services($user_info) - Get all user services and info
+=head get_services($user_info, $attr) - Get all user services and info
 
   Arguments:
     $user_info
@@ -145,6 +33,7 @@ sub sel_tp {
     $attr
       ACTIVE_ONLY
       SKIP_MODULES
+      MODULES
 
   Returns:
     \%services
@@ -177,11 +66,12 @@ sub get_services {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
       next if ($#{$cross_modules_return->{$module}} == -1);
       foreach my $service_info (@{$cross_modules_return->{$module}}) {
+
         if (ref $service_info eq 'HASH') {
           $service_info->{month} //= 0;
           $service_info->{day} //= 0;
           my $status = $service_info->{status} || 0;
-          if ($attr->{ACTIVE_ONLY} && $status) {
+          if ($attr->{ACTIVE_ONLY} && $status && ! in_array($status, [ 5 ])) {
             next;
           }
 
@@ -405,61 +295,6 @@ sub get_user_services {
   }
 
   return $result;
-}
-
-#**********************************************************
-=head2 sel_plugins($module, $attr) - Select available plugins for a module
-
-  Arguments:
-    $module - Name of the module to search for plugins
-    $attr   - Extra attributes
-       SELECT     - Flag to determine if HTML select should be returned; also serves as the name of the select element
-       SELECT_ID  - ID for the HTML select element (optional)
-       SELECTED   - Default selected plugin (optional)
-       PLUGIN     - Plugin name to be selected by default (optional)
-       EX_PARAMS  - Additional parameters for the HTML select element (optional)
-
-  Returns:
-   Hash reference of available plugins or HTML select element
-
-  Example:
-
-    # To get a hash reference of plugins
-    my $plugins = sel_plugins('Iptv');
-
-    # To get an HTML select element
-    my $html_select = sel_plugins('Iptv', { SELECT => 'PLUGIN' });
-
-=cut
-#**********************************************************
-sub sel_plugins {
-  my $module = shift;
-  my ($attr) = @_;
-
-  return '' if !$module;
-
-  my $plugins_folder = "$base_dir" . 'Abills/modules/' . $module . '/Plugins/';
-  return '' if (!-d $plugins_folder);
-
-  opendir(my $folder, $plugins_folder) or return '';
-  my @plugin_files = grep(/\.pm$/, readdir($folder));
-  closedir $folder;
-
-  my %plugins_hash = map { $_ =~ /(.+)\.pm/; $1 => $1 } @plugin_files;
-  return \%plugins_hash if !$attr->{SELECT};
-
-  return $html->form_select($attr->{SELECT}, {
-    ID          => $attr->{SELECT_ID} || (uc($module) . '_PLUGIN'),
-    SELECTED    => $attr->{SELECTED} || $attr->{PLUGIN},
-    SEL_HASH    => \%plugins_hash,
-    SEL_OPTIONS => { '' => '--' },
-    NO_ID       => 1,
-    EX_PARAMS   => $attr->{EX_PARAMS}
-      ? ((ref $attr->{EX_PARAMS} eq 'HASH')
-        ? %{$attr->{EX_PARAMS}}
-        : (EX_PARAMS => $attr->{EX_PARAMS}))
-      : {},
-  });
 }
 
 1;

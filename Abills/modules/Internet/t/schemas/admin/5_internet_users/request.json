@@ -1,0 +1,5 @@
+{
+   "method": "GET",
+   "name": "ADMIN_INTERNET_USERS_LIST",
+   "path": "users/internet/all/"
+}

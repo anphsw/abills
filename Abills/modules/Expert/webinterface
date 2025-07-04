@@ -358,9 +358,9 @@ sub expert_faq {
     $FORM{add_form}=1;
 
     my $faq_info = $Expert->faq_list({
-      ID               => $FORM{chg},
-      SHOW_ALL_COLUMNS => 1,
-      COLS_UPPER       => 1,
+      ID                => $FORM{chg},
+      _SHOW_ALL_COLUMNS => 1,
+      COLS_UPPER        => 1,
     });
 
     %extra_params = (%extra_params, %{$faq_info->[0] || {}});
@@ -382,8 +382,18 @@ sub expert_faq {
       ID          => 'FAQ_TYPES',
     });
 
+    require Abills::TextFormat;
+    Abills::TextFormat->import();
+    my $TextFormat = Abills::TextFormat->new(\%conf, $html);
+    my $text_editor = $TextFormat->text_editor({
+      INPUT_ID => 'BODY',
+      TEXT       => $extra_params{BODY} || '',
+      FORM_ID  => 'expert_faq',
+    });
+
     $html->tpl_show(_include('expert_faq_add', 'Expert'), {
-      FAQ_TYPES => $faq_types,
+      FAQ_TYPES   => $faq_types,
+      TEXT_EDITOR => $text_editor,
       %extra_params
     });
   }

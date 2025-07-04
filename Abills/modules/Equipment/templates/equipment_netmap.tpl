@@ -77,7 +77,7 @@
   var _COMMENTS = '_{COMMENTS}_' || 'Comments';
   var _CHANGE = '_{CHANGE}_' || 'Change';
   var _EQUIPMENT_ADD_NEW_EQUIPMENT = '_{EQUIPMENT_ADD_NEW_EQUIPMENT}_' || 'Add new equipment';
-  var _EQUIPMENT_ADD_PORT_BINDING = '_{EQUIPMENT_ADD_PORT_BINDING}_' || 'Add port binding';
+  var _EQUIPMENT_ADD_PORT_BINDING = "_{EQUIPMENT_ADD_PORT_BINDING}_" || 'Add port binding';
 
   const EQUIPMENT_ADD_FORM = document.getElementById('EQUIPMENT_ADD_FORM');
   EQUIPMENT_ADD_FORM.remove();

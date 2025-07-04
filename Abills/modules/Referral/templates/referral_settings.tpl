@@ -9,10 +9,10 @@
       %CHANGE%
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
+        <label class='control-label col-md-3 required' for='NAME'>_{NAME}_</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' name='NAME' value='%NAME%'
-                 id='NAME'/>
+                 id='NAME' required/>
         </div>
       </div>
 

@@ -140,7 +140,7 @@ sub controlled_files_info {
 
   my $info = $self->{list};
 
-  return undef if !defined $info;
+  return 0 if (!defined $info);
   return $info->[0];
 }
 

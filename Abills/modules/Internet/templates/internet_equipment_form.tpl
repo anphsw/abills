@@ -37,7 +37,7 @@
 
   let equipment_set_info_url = '$SELF_URL?header=2&get_index=equipment_user_info_ajax';
 
-  let equipment_change_port_status_url = '$SELF_URL?header=2&get_index=equipment_change_port_status_ajax' + '&NAS_ID=' + nasId + '&PORT=' + port;
+  let equipment_change_port_status_url = '$SELF_URL?header=2&get_index=equipment_change_port_status_ajax' + '&NAS_ID=' + nasId + '&PORT=' + port + '&UID=' + uid;
   let equipment_get_fields_url     = '?header=2&get_index=equipment_user_info_fields&GET_FIELDS=1';
   let equipment_change_fields_url  = '?header=2&get_index=equipment_user_info_fields&CHANGE=1';
   let equipment_default_fields_url = '?header=2&get_index=equipment_user_info_fields&DEFAULT=1';

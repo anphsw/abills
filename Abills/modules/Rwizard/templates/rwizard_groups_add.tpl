@@ -2,23 +2,23 @@
 <input type='hidden' name='index' value=$index>
 <input type='hidden' name='ID' value=%ID%>
 
-  <div class='card box-form box-primary'>
+  <div class='card card-primary card-outline container'>
     <div class='card-header with-border'>_{GROUPS}_</div>
     <div class='card-body'>
       <div class='form-group'>
         <label class='control-element col-md-3'>_{GROUP}_</label>
-        <div class='col-md-9'>
+        <div class='col-md-12'>
           <input class='form-control' name='NAME' value='%NAME%'>
         </div>
       </div>
       <div class='form-group'>
         <label class='control-element col-md-3'>_{COMMENTS}_</label>
-        <div class='col-md-9'>
+        <div class='col-md-12'>
           <textarea class='form-control' name='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>
       <div class='form-group'>
-        <label class='control-label col-md-3' for='ADMINS'>_{ADMINS}_</label>
+        <label class='control-element col-md-3' for='ADMINS'>_{ADMINS}_</label>
         <div class='col-md-9'>
           <input type='hidden' id='ADMINS' name='ADMINS' value=''>
           <button type='button' class='btn btn-primary float-left' data-toggle='modal' data-target='#myModal'

@@ -1,0 +1,4 @@
+/info-fields:
+  $ref: "./paths/info_fields.yaml"
+/info-fields/{id}:
+  $ref: "./paths/info_field_id.yaml"

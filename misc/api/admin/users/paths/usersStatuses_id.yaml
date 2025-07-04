@@ -1,0 +1,103 @@
+get:
+  tags:
+    - users
+  summary: Получить статус пользователя по ID
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/statusSingle.yaml"
+  security:
+    - KEY: []
+
+post:
+  tags:
+    - users
+  summary: Добавить новый статус пользователя
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addStatusRequest.yaml"
+  responses:
+    200:
+      description: Статус создан
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/statusSingle.yaml"
+    400:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addStatusResponse400.yaml"
+  security:
+    - KEY: []
+
+put:
+  tags:
+    - users
+  summary: Изменить статус пользователя
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addStatusRequest.yaml"
+  responses:
+    200:
+      description: Статус изменен
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/statusSingle.yaml"
+  security:
+    - KEY: []
+
+delete:
+  tags:
+    - users
+  summary: Удалить статус пользователя
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Статус удален
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponseMessage200"
+    400:
+      description: Статуса нет в системе
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteStatus400.yaml"
+  security:
+    - KEY: []

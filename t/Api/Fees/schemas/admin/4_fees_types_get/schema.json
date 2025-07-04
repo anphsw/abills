@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "defaultDescribe": {
+      "type": "string"
+    },
+    "id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "name": {
+      "type": "string"
+    },
+    "parentId": {
+      "type": "integer"
+    },
+    "sum": {
+      "type": "number"
+    },
+    "tax": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "defaultDescribe",
+    "id",
+    "name",
+    "parentId",
+    "sum",
+    "tax"
+  ]
+}

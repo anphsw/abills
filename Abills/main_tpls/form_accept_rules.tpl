@@ -7,9 +7,9 @@
       <div class='modal-content'>
         <div class='modal-header'><h4>_{RULES}_</h4></div>
         <div class='modal-body'>
-          <br>Уважаемый, <b>%FIO%</b>.
-          <p>Вы соглашаетесь с правилам пользования нашими услугами.</p>
-          <p>Здесь пишите правила.</p>
+          <br>_{DEAR}_, <b>%FIO%</b>.
+          <p>_{USER_AGREEMENT}_.</p>
+          <p>_{WRITE_RULES_HERE}_.</p>
           <div class='checkbox'>
             <label class='control-label'>
               <input type='checkbox' name='ACCEPT' value=1 %CHECKBOX% %HIDDEN%> _{ACCEPT_RULES}_

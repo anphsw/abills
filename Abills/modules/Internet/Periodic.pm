@@ -16,7 +16,12 @@ our(
   %conf,
   %ADMIN_REPORT,
   %lang,
-  $html
+  $html,
+  $DEBUG,
+  $DATE,
+  $TIME,
+  %LIST_PARAMS,
+  @MODULES
 );
 
 my $Internet = Internet->new($db, $admin, \%conf);
@@ -581,7 +586,7 @@ sub internet_monthly_next_tp {
     });
 
     foreach my $u (@$internet_list) {
-      my %user = (
+      my %user_info = (
         ID         => $u->{id},
         LOGIN      => $u->{login},
         UID        => $u->{uid},
@@ -598,12 +603,12 @@ sub internet_monthly_next_tp {
       );
 
       my $expire = undef;
-      if (!$CHANGED_TPS{ $user{UID} }
-        && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user{ACTIVATE} ne '0000-00-00')
-        || ($tp_info->{age} && $user{EXPIRE} eq $ADMIN_REPORT{DATE}) )) {
+      if (!$CHANGED_TPS{ $user_info{UID} }
+        && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user_info{ACTIVATE} ne '0000-00-00')
+        || ($tp_info->{age} && $user_info{EXPIRE} eq $ADMIN_REPORT{DATE}) )) {
 
-        if($user{EXPIRE} ne '0000-00-00') {
-          if($user{EXPIRE} eq $ADMIN_REPORT{DATE}) {
+        if($user_info{EXPIRE} ne '0000-00-00') {
+          if($user_info{EXPIRE} eq $ADMIN_REPORT{DATE}) {
             # if (!$tp_ages{$tp_info->{tp_id}}) {
             #   $expire = '0000-00-00';
             # }
@@ -623,16 +628,16 @@ sub internet_monthly_next_tp {
             next;
           }
         }
-        elsif ($user{ACTIVATE} ne '0000-00-00') {
-          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+        elsif ($user_info{ACTIVATE} ne '0000-00-00') {
+          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user_info{ACTIVATE}, 3);
           my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
           if ($date_unixtime - $active_unixtime < 31 * 86400) {
             next;
           }
         }
 
-        $debug_output .= " Login: $user{LOGIN} ($user{UID}) ACTIVATE $user{ACTIVATE} TP_ID: $tp_info->{tp_id} -> $tp_info->{next_tp_id}\n";
-        $CHANGED_TPS{ $user{UID} } = 1;
+        $debug_output .= " Login: $user_info{LOGIN} ($user_info{UID}) ACTIVATE $user_info{ACTIVATE} TP_ID: $tp_info->{tp_id} -> $tp_info->{next_tp_id}\n";
+        $CHANGED_TPS{ $user_info{UID} } = 1;
 
         my $status = 0;
         if($conf{INTERNET_CUSTOM_PERIOD} && $u->{deposit} < $tp_info->{change_price}) {
@@ -642,8 +647,8 @@ sub internet_monthly_next_tp {
 
         if($debug < 8) {
           $Internet->user_change({
-            ID             => $user{ID},
-            UID            => $user{UID},
+            ID             => $user_info{ID},
+            UID            => $user_info{UID},
             STATUS         => $status,
             TP_ID          => $tp_info->{next_tp_id},
             SERVICE_EXPIRE => $expire
@@ -654,7 +659,7 @@ sub internet_monthly_next_tp {
           && $tp_info->{change_price} > 0
           && $tp_info->{next_tp_id} == $tp_info->{tp_id}
           && ! $status) {
-          $Fees->take(\%user, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+          $Fees->take(\%user_info, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
           if($Fees->{errno}) {
             print "Error: $Fees->{errno} $Fees->{errstr}\n";
           }
@@ -663,7 +668,7 @@ sub internet_monthly_next_tp {
           $Tariffs->info(0, { TP_ID => $tp_info->{next_tp_id} });
           if ($Tariffs->{MONTH_FEE} && $Tariffs->{MONTH_FEE} > 0
              && $d > 1
-             && $user{ACTIVATE} eq '0000-00-00'
+             && $user_info{ACTIVATE} eq '0000-00-00'
              && ! $Internet->{TP_INFO}->{ABON_DISTRIBUTION}) {
 
             $Internet->{TP_INFO}->{MONTH_FEE} = $Tariffs->{MONTH_FEE};
@@ -674,7 +679,7 @@ sub internet_monthly_next_tp {
               #SHEDULER    => 1,
               DATE        => $ADMIN_REPORT{DATE},
               #RECALCULATE => 1,
-              USER_INFO   => $user
+              USER_INFO   => \%user_info
             });
           }
         }
@@ -728,7 +733,7 @@ sub internet_monthly_fees {
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
 
-  $users = Users->new($db, $admin, \%conf);
+  my $users = Users->new($db, $admin, \%conf);
   $Tariffs->{debug} = 1 if ($debug > 6);
   my $list = $Tariffs->list({
     %LIST_PARAMS,
@@ -1583,6 +1588,8 @@ sub internet_sheduler {
   $action //= q{};
   my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
   my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
+
+  my $users = Users->new($db, $admin, \%conf);
 
   my $user = $users->info($uid);
 

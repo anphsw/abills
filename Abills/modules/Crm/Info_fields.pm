@@ -896,6 +896,26 @@ sub crm_lead_fields {
         return $span . $user_btn;
       }
     },
+    {
+      key   => 'TAG_IDS',
+      lang  => $lang{TAGS},
+      label => sub {
+        my $tags = shift;
+
+        return _crm_base_label(_crm_tags_name($tags) || $lang{NOT_EXIST}, $lang{TAGS});
+      },
+      input => sub {
+        my $tags = shift;
+
+        if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{'Tags'})) {
+          load_module('Tags', $html);
+          my $span = $html->element('span', $lang{TAGS}, { class => 'text-muted' });
+
+          return $span . tags_sel({ NAME => 'TAG_IDS', TAGS => $tags });
+        }
+        return '';
+      }
+    },
   ];
 
   @{$fields} = (@{$fields}, @{crm_lead_info_fields()});
@@ -1032,9 +1052,9 @@ sub _crm_form_section_fields {
       my $key_lang = $field->{lang};
       # next if !defined $value;
 
-      $template_info->{'LABEL'} .= $field->{label} ? $field->{label}->($value, $key_lang) :
+      $template_info->{'LABEL'} .= $field->{label} ? ($field->{label}->($value, $key_lang) || '') :
         _crm_base_label($value, $key_lang);
-      $template_info->{'INPUT'} .= $field->{input} ? $field->{input}->($value, $key_lang) :
+      $template_info->{'INPUT'} .= $field->{input} ? ($field->{input}->($value, $key_lang) || '') :
         _crm_base_input($value, $key, $key_lang);
     }
     $result->{SECTIONS} .= $html->tpl_show($Templates->_include('crm_section', 'Crm'), $template_info, { OUTPUT2RETURN => 1 });

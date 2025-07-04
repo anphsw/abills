@@ -1,5 +1,7 @@
 _{DEAR}_, %FIO%
 
+%SUBJECT%
+
 %MESSAGE%
 
 _{DEPOSIT}_: %DEPOSIT%

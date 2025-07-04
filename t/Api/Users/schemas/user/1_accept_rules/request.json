@@ -1,0 +1,5 @@
+{
+  "name": "USER_ACCEPT_RULES",
+  "method": "POST",
+  "path": "user/accept-rules/"
+}

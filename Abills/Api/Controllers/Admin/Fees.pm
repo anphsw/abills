@@ -75,6 +75,7 @@ sub get_fees {
   $query_params->{TO_DATE} = ($query_params->{FROM_DATE} && !$query_params->{TO_DATE}) ? '_SHOW' : $query_params->{TO_DATE} ? $query_params->{TO_DATE} : undef;
 
   $Fees->list({
+    FIO => '_SHOW',
     %{$query_params},
     COLS_NAME => 1
   });
@@ -254,16 +255,120 @@ sub get_fees_types {
   return {
     errno  => 10,
     errstr => 'Access denied'
-  } if !$self->{admin}->{permissions}{2}{3};
+  } if (!$self->{admin}->{permissions}{2}{0} && !$self->{admin}->{permissions}{2}{3});
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
   $Fees->fees_type_list({
+    PARENT_ID => '_SHOW',
+    TAX       => '_SHOW',
     %$query_params,
     COLS_NAME => 1
   });
+}
+
+#**********************************************************
+=head2 get_fees_types_id($path_params, $query_params)
+
+  GET /fees/types/:id/
+
+=cut
+#**********************************************************
+sub get_fees_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  $Fees->fees_type_info({ ID => $path_params->{id} });
+
+  delete @{$Fees}{qw/TOTAL list AFFECTED/};
+
+  return $Fees;
+}
+
+#**********************************************************
+=head2 post_fees_types_id($path_params, $query_params)
+
+  POST /fees/types/:id/
+
+=cut
+#**********************************************************
+sub post_fees_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Fees->fees_type_add({ %$query_params, ID => $path_params->{id} });
+
+  return $Fees if $Fees->{errno};
+
+  $Fees->fees_type_info({ ID => $path_params->{id} });
+
+  delete @{$Fees}{qw/TOTAL list AFFECTED INSERT_ID/};
+
+  return $Fees;
+}
+
+#**********************************************************
+=head2 put_fees_types_id($path_params, $query_params)
+
+  PUT /fees/types/:id/
+
+=cut
+#**********************************************************
+sub put_fees_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Fees->fees_type_change({ %$query_params, ID => $path_params->{id} });
+
+  return $Fees if $Fees->{errno};
+
+  $Fees->fees_type_info({ ID => $path_params->{id} });
+
+  delete @{$Fees}{qw/TOTAL list AFFECTED/};
+
+  return $Fees;
+}
+
+#**********************************************************
+=head2 delete_fees_types_id($path_params, $query_params)
+
+  DELETE /fees/types/:id/
+
+=cut
+#**********************************************************
+sub delete_fees_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Fees->fees_type_del($path_params->{id});
+
+  return $Fees if $Fees->{errno};
+
+  if ($Fees->{AFFECTED} && $Fees->{AFFECTED} =~ /^[0-9]$/) {
+    return {
+      result => 'Successfully deleted',
+      id     => $path_params->{id},
+    };
+  }
+
+  return $Errors->throw_error(1001040, { errstr => "Fee type with id $path_params->{id} not exists" });
 }
 
 #**********************************************************

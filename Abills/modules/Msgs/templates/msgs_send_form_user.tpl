@@ -1,8 +1,8 @@
 <div class='d-print-none' id='form_msg_add'>
 
-  <form action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='MsgSendForm' id='MsgSendForm'>
-    <input type='hidden' name='index' value='$index'/>
-    <input type='hidden' name='sid' value='$sid'/>
+  <form action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='MsgSendForm' id='MsgSendForm'>
+    <input type='hidden' name='index' value='%index%'/>
+    <input type='hidden' name='sid' value='%sid%'/>
     <input type='hidden' name='ID' value='%ID%'/>
     <input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
 
@@ -58,12 +58,6 @@
                       required>%MESSAGE%</textarea>
           </div>
         </div>
-<!--        <div class='form-group row'>-->
-<!--          <label class='col-md-4 col-form-label text-md-right'>_{STATE}_:</label>-->
-<!--          <div class='col-md-8'>-->
-<!--            %STATE_SEL%-->
-<!--          </div>-->
-<!--        </div>-->
         <div class='form-group row'>
           <label class='col-md-4 col-form-label text-md-right'>_{PRIORITY}_:</label>
           <div class='col-md-8'>
@@ -79,6 +73,12 @@
             </div>
           </div>
         </div>
+        <div class='form-group row'>
+          <label class='col-sm-4 col-md-4 col-form-label text-md-right' for='CLIENT_RESPONSIBLE'>_{MSGS_RESPONSIBLE_PERSON}_:</label>
+          <div class='col-sm-8 col-md-8'>
+            <input id='CLIENT_RESPONSIBLE' name='CLIENT_RESPONSIBLE' class='form-control' type='text'>
+          </div>
+        </div>
       </div>
       <div class='card-footer'>
         <input type='submit' name='send' value='_{SEND}_' id='go' class='btn btn-primary double_click_check'>
@@ -86,6 +86,7 @@
     </div>
   </form>
 </div>
+<script src='/styles/default/js/draganddropfile.js'></script>
 <script>
   jQuery('form#MsgSendForm').on('submit', function () {
     jQuery('#go').on('click', function (click_event) {
@@ -99,8 +100,6 @@
   jQuery(function () {
     var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
     if (MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
-    initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+    initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT, 'MESSAGE');
   }());
 </script>
-
-<script src='/styles/default/js/draganddropfile.js'></script>

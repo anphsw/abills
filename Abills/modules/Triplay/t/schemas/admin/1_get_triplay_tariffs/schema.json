@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "abonDistribution": {
+            "type": "integer"
+          },
+          "abonName": {
+            "type": "string"
+          },
+          "activatePrice": {
+            "type": "number"
+          },
+          "activeDayFee": {
+            "type": "number"
+          },
+          "age": {
+            "type": "integer"
+          },
+          "changePrice": {
+            "type": "number"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "creditTresshold": {
+            "type": "number"
+          },
+          "dayFee": {
+            "type": "number"
+          },
+          "dayTimeLimit": {
+            "type": "integer"
+          },
+          "dayTrafLimit": {
+            "type": "integer"
+          },
+          "describeAid": {
+            "type": "string"
+          },
+          "domainId": {
+            "type": "integer"
+          },
+          "extBillAccount": {
+            "type": "integer"
+          },
+          "feesMethod": {
+            "type": "integer"
+          },
+          "filterId": {
+            "type": "string"
+          },
+          "fine": {
+            "type": "number"
+          },
+          "fixedFeesDay": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "innerTpId": {
+            "type": "integer"
+          },
+          "internetName": {
+            "type": "string"
+          },
+          "iptvName": {
+            "type": "string"
+          },
+          "maxSessionDuration": {
+            "type": "integer"
+          },
+          "minSessionCost": {
+            "type": "number"
+          },
+          "module": {
+            "type": "string"
+          },
+          "monthFee": {
+            "type": "number"
+          },
+          "monthTimeLimit": {
+            "type": "integer"
+          },
+          "monthTrafLimit": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextTpId": {
+            "type": "integer"
+          },
+          "paymentType": {
+            "type": "integer"
+          },
+          "periodAlignment": {
+            "type": "integer"
+          },
+          "postpaidDailyFee": {
+            "type": "number"
+          },
+          "postpaidMonthlyFee": {
+            "type": "number"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "reductionFee": {
+            "type": "number"
+          },
+          "serviceId": {
+            "type": "integer"
+          },
+          "serviceName": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "smallDepositAction": {
+            "type": "integer"
+          },
+          "tpGid": {
+            "type": "integer"
+          },
+          "tpId": {
+            "type": "integer"
+          },
+          "trafficTransferPeriod": {
+            "type": "integer"
+          },
+          "voipName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "abonDistribution",
+          "abonName",
+          "activatePrice",
+          "activeDayFee",
+          "age",
+          "changePrice",
+          "comment",
+          "comments",
+          "credit",
+          "creditTresshold",
+          "dayFee",
+          "describeAid",
+          "domainId",
+          "extBillAccount",
+          "feesMethod",
+          "filterId",
+          "fine",
+          "fixedFeesDay",
+          "id",
+          "innerTpId",
+          "internetName",
+          "iptvName",
+          "logins",
+          "module",
+          "monthFee",
+          "name",
+          "nextTpId",
+          "paymentType",
+          "periodAlignment",
+          "postpaidDailyFee",
+          "postpaidMonthlyFee",
+          "priority",
+          "reductionFee",
+          "serviceId",
+          "serviceName",
+          "smallDepositAction",
+          "tpGid",
+          "tpId",
+          "voipName"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

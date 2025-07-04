@@ -9,6 +9,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Api::Validations::Contracts qw(POST_USERS_CONTRACTS PUT_USERS_CONTRACTS);
+use Api::Validations::Statuses qw(POST_USERS_STATUSES PUT_USERS_STATUSES);
 
 #**********************************************************
 =head2 admin_routes() - Returns available API paths
@@ -75,7 +76,7 @@ sub admin_routes {
       controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
       credentials => [
-        'ADMIN', 'ADMINBOT'
+        'ADMIN', 'ADMINBOT', 'ADMINSID'
       ]
     },
     {
@@ -167,7 +168,7 @@ sub admin_routes {
       controller  => 'Api::Controllers::Admin::Users::Internet',
       endpoint    => \&Api::Controllers::Admin::Users::Internet::get_users_uid_internet_id,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
@@ -299,6 +300,43 @@ sub admin_routes {
       credentials => [
         'ADMIN'
       ]
+    },
+    {
+      method      => 'GET',
+      path        => '/users/statuses/',
+      controller  => 'Api::Controllers::Admin::Users::Statuses',
+      endpoint    => \&Api::Controllers::Admin::Users::Statuses::get_users_statuses,
+      credentials => [ 'ADMIN' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/users/statuses/:id/',
+      params      => POST_USERS_STATUSES,
+      controller  => 'Api::Controllers::Admin::Users::Statuses',
+      endpoint    => \&Api::Controllers::Admin::Users::Statuses::post_users_statuses,
+      credentials => [ 'ADMIN' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/users/statuses/:id/',
+      params      => PUT_USERS_STATUSES,
+      controller  => 'Api::Controllers::Admin::Users::Statuses',
+      endpoint    => \&Api::Controllers::Admin::Users::Statuses::put_users_statuses_id,
+      credentials => [ 'ADMIN' ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/users/statuses/:id/',
+      controller  => 'Api::Controllers::Admin::Users::Statuses',
+      endpoint    => \&Api::Controllers::Admin::Users::Statuses::delete_users_statuses_id,
+      credentials => [ 'ADMIN' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/users/statuses/:id/',
+      controller  => 'Api::Controllers::Admin::Users::Statuses',
+      endpoint    => \&Api::Controllers::Admin::Users::Statuses::get_users_statuses_id,
+      credentials => [ 'ADMIN' ]
     },
   ];
 }

@@ -14,6 +14,12 @@
         <label class='col-md-4 col-form-label text-md-right required' for='SUM'>_{SUM}_:</label>
         <div class='col-md-4'><input type=text name=SUM value='%SUM%' id='SUM' class='form-control' required> </div>
       </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
+        <div class='col-md-4'>
+          <textarea class='form-control' rows='3' id="COMMENTS" name='COMMENTS' value='%COMMENTS%' maxlength='70' >%COMMENT%</textarea>
+        </div>
+      </div>
     </div>
     <div class='card-footer'>
       <input type=submit name=s2 value='_{SEND}_' class='btn btn-primary'>

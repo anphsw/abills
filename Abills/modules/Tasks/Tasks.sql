@@ -1,102 +1,115 @@
-SET SQL_MODE='NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
-CREATE TABLE IF NOT EXISTS `tasks_main` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(60) NOT NULL DEFAULT '',
-  `task_type` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
-  `descr` TEXT NOT NULL,
-  `state` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `plan_date` DATE NOT NULL DEFAULT '0000-00-00',
-  `closed_date` DATE NOT NULL DEFAULT '0000-00-00',
-  `control_date` DATE NOT NULL DEFAULT '0000-00-00',
-  `additional_values` TEXT NOT NULL,
-  `comments` TEXT NOT NULL,
-  `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
-  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
-  `deal_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
-  `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
-  `path` VARCHAR(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  KEY `aid` (`aid`)
+CREATE TABLE IF NOT EXISTS `tasks_main`
+(
+    `id`                INT(10) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `name`              VARCHAR(60)          NOT NULL DEFAULT '',
+    `task_type`         TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
+    `descr`             TEXT                 NOT NULL,
+    `state`             TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
+    `aid`               SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `responsible`       SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `plan_date`         DATE                 NOT NULL DEFAULT '0000-00-00',
+    `closed_date`       DATE                 NOT NULL DEFAULT '0000-00-00',
+    `control_date`      DATE                 NOT NULL DEFAULT '0000-00-00',
+    `additional_values` TEXT                 NOT NULL,
+    `comments`          TEXT                 NOT NULL,
+    `msg_id`            INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+    `step_id`           INT UNSIGNED         NOT NULL DEFAULT 0,
+    `lead_id`           INT UNSIGNED         NOT NULL DEFAULT 0,
+    `deal_id`           INT(10) UNSIGNED     NOT NULL DEFAULT 0,
+    `parent_id`         INT(10) UNSIGNED     NOT NULL DEFAULT 0,
+    `path`              VARCHAR(255)         NOT NULL DEFAULT '',
+    PRIMARY KEY (`id`),
+    KEY `aid` (`aid`),
+    KEY `responsible` (`responsible`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks';
 
-CREATE TABLE IF NOT EXISTS `tasks_type` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(60) NOT NULL DEFAULT '',
-  `hidden` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_type`
+(
+    `id`     INT(10) UNSIGNED    NOT NULL AUTO_INCREMENT,
+    `name`   VARCHAR(60)         NOT NULL DEFAULT '',
+    `hidden` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks type';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks type';
 
-CREATE TABLE IF NOT EXISTS `tasks_type_fields` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `task_type_id` INT(10) UNSIGNED NOT NULL,
-  `label` VARCHAR(60) NOT NULL,
-  `name` VARCHAR(60) NOT NULL,
-  `type` VARCHAR(20) NOT NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_type_fields`
+(
+    `id`           INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `task_type_id` INT(10) UNSIGNED NOT NULL,
+    `label`        VARCHAR(60)      NOT NULL,
+    `name`         VARCHAR(60)      NOT NULL,
+    `type`         VARCHAR(20)      NOT NULL,
+    PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks type fields';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks type fields';
 
-CREATE TABLE IF NOT EXISTS `tasks_type_plugins` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `task_type_id` INT(10) UNSIGNED NOT NULL,
-  `plugin_name` VARCHAR(60) NOT NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_type_plugins`
+(
+    `id`           INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `task_type_id` INT(10) UNSIGNED NOT NULL,
+    `plugin_name`  VARCHAR(60)      NOT NULL,
+    PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks type plugins';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks type plugins';
 
-CREATE TABLE IF NOT EXISTS `tasks_type_admins` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `task_type_id` INT(10) UNSIGNED NOT NULL,
-  `aid` INT(10) UNSIGNED NOT NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_type_admins`
+(
+    `id`           INT(10) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `task_type_id` INT(10) UNSIGNED     NOT NULL,
+    `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `aid` (`aid`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks type admins';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks type admins';
 
-CREATE TABLE IF NOT EXISTS `tasks_type_participants` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `task_type_id` INT(10) UNSIGNED NOT NULL,
-  `aid` INT(10) UNSIGNED NOT NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_type_participants`
+(
+    `id`           INT(10) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `task_type_id` INT(10) UNSIGNED     NOT NULL,
+    `aid`          SMALLINT(6) UNSIGNED NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `aid` (`aid`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks type participants';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks type participants';
 
 
-CREATE TABLE IF NOT EXISTS `tasks_admins` (
-  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `responsible` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  `admin` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  `sysadmin` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`aid`)
+CREATE TABLE IF NOT EXISTS `tasks_admins`
+(
+    `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `responsible` TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
+    `admin`       TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
+    `sysadmin`    TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
+    PRIMARY KEY (`aid`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks admins';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks admins';
 
-CREATE TABLE IF NOT EXISTS `tasks_partcipiants` (
-  `id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (id,aid)
+CREATE TABLE IF NOT EXISTS `tasks_partcipiants`
+(
+    `id`  INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (id, aid),
+    KEY `aid` (`aid`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks partcipiants';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks partcipiants';
 
-CREATE TABLE IF NOT EXISTS `tasks_plugins` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `enable` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `name` VARCHAR(60) NOT NULL DEFAULT '',
-  `descr` TEXT NOT NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE IF NOT EXISTS `tasks_plugins`
+(
+    `id`     INT(10) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `enable` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `name`   VARCHAR(60)          NOT NULL DEFAULT '',
+    `descr`  TEXT                 NOT NULL,
+    PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Tasks plugins';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Tasks plugins';

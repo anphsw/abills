@@ -11,6 +11,7 @@ use Paysys;
 use Payments;
 use Users;
 use Paysys::Init;
+use Paysys::Statements;
 
 require Paysys::Configure;
 
@@ -23,7 +24,9 @@ our (
   %lang
 );
 
+my $Paysys_Statements = Paysys::Statements->new($db, $admin, \%conf);
 my $Paysys = Paysys->new($db, $admin, \%conf);
+
 #my $Payments = Finance->payments($db, $admin, \%conf);
 
 #**********************************************************
@@ -65,6 +68,7 @@ sub paysys_periodic_new {
       if ($debug > 2) {
         print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";
       }
+
       my $Paysys_module = $Module->new($db, $admin, \%conf, {
         USER        => $users,
         NAME        => $name,
@@ -72,6 +76,13 @@ sub paysys_periodic_new {
         NAME        => $connected_system->{name},
         CUSTOM_NAME => $connected_system->{name},
         CUSTOM_ID   => $connected_system->{paysys_id},
+      });
+
+      $attr->{REG_PAYMENTS} = $Paysys_Statements->paysys_get_reg_payments({
+        DATE_FROM            => $attr->{DATE_FROM},
+        DATE_TO              => $attr->{DATE_TO} || '',
+        TRANSACTION_PREFIXES => ($Paysys_module->{TRANSACTION_PREFIXES}) ? join(':*,', @{$Paysys_module->{TRANSACTION_PREFIXES}}) . ':*' : '',
+        EXT_ID               => $Paysys_module->{SHORT_NAME}
       });
 
       $debug_output .= $Paysys_module->periodic($attr);
@@ -130,31 +141,35 @@ sub paysys_monthly_new {
     STATUS           => 1,
     COLS_NAME        => 1,
     PAYSYS_ID        => $attr->{PAYSYS_ID} ? $attr->{PAYSYS_ID} : '_SHOW',
+    PAGE_ROWS        => 50,
   });
 
+  # make recurrent payments
   foreach my $connected_system (@$connected_systems_list) {
     my $module = $connected_system->{module};
     my $name = $connected_system->{name};
 
     my $Module = _configure_load_payment_module($module, 0, \%conf);
-    if ($Module->can('subscribe_pay')) {
-      if ($debug > 2) {
-        print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";
-      }
-      my $Paysys_module = $Module->new($db, $admin, \%conf, {
-        USER  => $users,
-        NAME  => $name,
-        DEBUG => $attr->{DEBUG}
-      });
 
-      my $paysys_user_list = $Paysys->user_list({
-        PAYSYS_ID => $connected_system->{paysys_id},
-        GID       => '_SHOW',
-        DEPOSIT   => '_SHOW',
-        %USERS_LIST_PARAMS,
-        PAGE_ROWS => 100000,
-        COLS_NAME => 1
-      });
+    next if (!$Module->can('subscribe_pay'));
+
+    if ($debug > 2) {
+      print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";
+    }
+    my $Paysys_module = $Module->new($db, $admin, \%conf, {
+      USER  => $users,
+      NAME  => $name,
+      DEBUG => $attr->{DEBUG}
+    });
+
+    my $paysys_user_list = $Paysys->user_list({
+      PAYSYS_ID => $connected_system->{paysys_id},
+      GID       => '_SHOW',
+      DEPOSIT   => '_SHOW',
+      %USERS_LIST_PARAMS,
+      PAGE_ROWS => 100000,
+      COLS_NAME => 1
+    });
 
     foreach my $paysys_user (@$paysys_user_list) {
       my $token = $paysys_user->{token};
@@ -164,81 +179,24 @@ sub paysys_monthly_new {
 
       print "UID: $paysys_user->{uid} PAYSYS_ID: $paysys_id SUM: $sum\n" if ($debug > 0);
 
-
-        $Paysys_module->subscribe_pay({
-          USER     => $paysys_user,
-          SUM      => $sum,
-          ORDER_ID => $order_id,
-          TOKEN    => $token,
-          PAYSYS   => $Paysys,
-          DEBUG    => $debug
-        });
+      $Paysys_module->subscribe_pay({
+        USER     => $paysys_user,
+        SUM      => $sum,
+        ORDER_ID => $order_id,
+        TOKEN    => $token,
+        PAYSYS   => $Paysys,
+        DEBUG    => $debug
+      });
     }
 
-      if($Paysys_module->{errno}) {
-        print "ERROR: $Paysys_module->{errno} $Paysys_module->{errstr}\n";
-      }
+    if ($Paysys_module->{errno}) {
+      print "ERROR: $Paysys_module->{errno} $Paysys_module->{errstr}\n";
     }
 
+    print "END OF REGULAR PAYMENTS $name\n\n" if ($debug);
   }
 
   $DEBUG .= $debug_output;
-  return $debug_output;
-}
-
-#**********************************************************
-=head paysys_periodic_electrum($attr) - P24 API
-
-=cut
-#**********************************************************
-sub paysys_periodic_electrum {
-  my ($attr) = @_;
-
-  #my $debug = $attr->{DEBUG} || 0;
-  my $debug_output = '';
-
-  my $payment_system_id = 125;
-  my $payment_system = 'Electrum';
-
-  require Paysys::systems::Electrum;
-  Paysys::systems::Electrum->import();
-  my $Electrum = Paysys::systems::Electrum->new(\%conf);
-
-  my $list = $Paysys->list({
-    PAYMENT_SYSTEM => $payment_system_id,
-    ID             => '_SHOW',
-    SUM            => '_SHOW',
-    TRANSACTION_ID => '_SHOW',
-    STATUS         => 1,
-    LIST2HASH      => 'transaction_id,status'
-  });
-
-  my $list2hash = $Paysys->{list_hash};
-
-  my $list_requests = $Electrum->list_requests();
-
-  foreach my $request (@$list_requests) {
-    if ($list2hash->{"$payment_system:$request->{id}"}) {
-      if ($request->{status} eq 'Paid') {
-        my $paysys_status = paysys_pay(
-          {
-            PAYMENT_SYSTEM    => $payment_system,
-            PAYMENT_SYSTEM_ID => $payment_system_id,
-            #CHECK_FIELD       => $conf{PAYSYS_YANDEX_KASSA_ACCOUNT_KEY},
-            #USER_ID           => $FORM{customerNumber},
-            SUM               => ($request->{amount} / 100000000),
-            ORDER_ID          => "$payment_system:$request->{id}",
-            EXT_ID            => $request->{id},
-            # REGISTRATION_ONLY => 1,
-            DATA              => $request,
-            MK_LOG            => 1,
-            DEBUG             => 1,
-          }
-        );
-      }
-    }
-  }
-
   return $debug_output;
 }
 

@@ -1,0 +1,13 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 456
+  total:
+    type: number
+    example: 1

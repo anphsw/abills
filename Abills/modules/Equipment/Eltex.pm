@@ -502,7 +502,7 @@ sub _eltex_convert_power {
 sub _eltex_convert_video_power {
   my ($power) = @_;
 
-  return undef if ( !defined($power) || $power == 32767 );
+  return 0 if ( !defined($power) || $power == 32767 );
 
   $power = $power * 0.001 if ($power);
 
@@ -517,7 +517,7 @@ sub _eltex_convert_video_power {
 sub _eltex_convert_rf_port_status {
   my ($status_code) = @_;
 
-  return undef if (!$status_code);
+  return 0 if (!$status_code);
 
   my %status = (
     1   => 'on:text-green',

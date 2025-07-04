@@ -110,6 +110,15 @@ sub user_routes {
       ],
       content_type => 'undefined',
     },
+    {
+      method      => 'POST',
+      path        => '/user/msgs/search/',
+      controller  => 'Msgs::Api::user::Root',
+      endpoint    => \&Msgs::Api::user::Root::post_user_msgs_search,
+      credentials => [
+        'USER'
+      ]
+    }
   ]
 }
 
@@ -166,7 +175,7 @@ sub admin_routes {
       controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_statuses,
       credentials => [
-        'ADMIN', 'ADMINBOT'
+        'ADMIN', 'ADMINBOT', 'ADMINSID'
       ]
     },
     {
@@ -276,6 +285,15 @@ sub admin_routes {
       path        => '/msgs/survey/',
       controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_survey,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/search/',
+      controller  => 'Msgs::Api::admin::Root',
+      endpoint    => \&Msgs::Api::admin::Root::get_msgs_search,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]

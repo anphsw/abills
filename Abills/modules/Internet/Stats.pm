@@ -101,7 +101,7 @@ sub internet_stats {
     }
 
     my ($session_id, $nas_id);
-    ($uid, $session_id, $nas_id) = split(/ /, $FORM{del}, 7);
+    ($uid, $session_id, $nas_id) = split(' ', $FORM{del}, 7);
 
     my $list = $Sessions->list({
       LOGIN      => '_SHOW',
@@ -785,7 +785,7 @@ sub internet_sessions {
     my @fields_array = ();
     for (my $i = 0; $i < $sessions->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $sessions->{COL_NAMES_ARR}->[$i];
-      if ($field_name =~ /sent|recv/) {
+      if ($field_name =~ m/sent|recv/x) {
         $line->{$field_name} = int2byte($line->{$field_name}, { DIMENSION => $FORM{DIMENSION} });
       }
       elsif ($field_name eq 'login' && $line->{uid}) {
@@ -880,7 +880,8 @@ sub internet_terminate_causes {
 sub internet_get_chart_iframe {
   my ($query, $periods) = @_;
 
-  my $frameopts = "class='themed-iframe rounded-lg' width='100%' height='" . $chart_height * 1.4 . "px' frameborder='0' seamless='seamless' scrolling='false'";
+  my $frameopts = "class='themed-iframe rounded-lg' width='100%' height='" . ($chart_height * 1.4) ;
+  $frameopts .=  "px' frameborder='0' seamless='seamless' scrolling='false'";
   my $chart_query  = internet_get_chart_query($query, $periods);
 
   if ($FORM{xml}){return 1};
@@ -906,7 +907,7 @@ sub internet_get_chart_query {
 }
 
 #**********************************************************
-=head2 internet_user_add($attr)
+=head2 internet_payment_message($Internet_, $users_, $attr)
 
   Arguments:
     $Internet_
@@ -926,8 +927,7 @@ sub internet_payment_message {
   }
 
   my $uid = $users_->{UID} || 0;
-
-  if ($Internet_->{STATUS} && $total_fee > $users_->{DEPOSIT}) {
+  if ($Internet_->{STATUS} && $total_fee > 0 && $total_fee > $users_->{DEPOSIT}) {
     my $sum = 0;
     if ($Internet_->{ABON_DISTRIBUTION} && !$conf{INTERNET_FULL_MONTH}) {
       my $days_in_month = days_in_month({ DATE => $DATE });
@@ -955,6 +955,8 @@ sub internet_payment_message {
       $Internet_->{HAS_PAYMENT_MESSAGE} = 1;
     }
   }
+
+  return 1;
 }
 
 

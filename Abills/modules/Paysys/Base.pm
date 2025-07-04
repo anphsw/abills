@@ -150,4 +150,30 @@ sub paysys_payment_del {
   return $self;
 }
 
+#**********************************************************
+=head paysys_quick_info($attr) - Quick information
+
+  Arguments:
+    $attr
+      UID
+
+  Return:
+
+=cut
+#**********************************************************
+sub paysys_quick_info {
+  shift;
+  my ($attr) = @_;
+
+  my $form = $attr->{FORM} || {};
+  my $uid = $form->{UID};
+
+  $Paysys->user_list({
+    UID             => $uid,
+    ONLY_SUBSCRIBES => 1
+  });
+
+  return ($Paysys->{TOTAL}) ? $Paysys->{TOTAL} : '';
+}
+
 1;

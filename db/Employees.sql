@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `employees_rfid_log`
     `id`       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     `datetime` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `rfid`     VARCHAR(15) NOT NULL DEFAULT '',
-    `aid`      SMALLINT(6) NOT NULL DEFAULT 0,
+    `aid`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     KEY `aid` (`aid`)
 )
     COMMENT = 'All registered RFID entries';
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS `employees_duty`
 CREATE TABLE IF NOT EXISTS `employees_department`
 (
     `id`        SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name`      char(60)          NOT NULL DEFAULT '',
+    `name`      char(80)          NOT NULL DEFAULT '',
     `comments`  TEXT,
     `positions` varchar(25)       NOT NULL DEFAULT '',
     PRIMARY KEY (`id`)
@@ -154,8 +154,8 @@ CREATE TABLE IF NOT EXISTS `employees_mobile_reports`
 CREATE TABLE IF NOT EXISTS `employees_cashboxes`
 (
     `id`       SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`     CHAR(40)                         NOT NULL,
-    `aid`      INT(11) UNSIGNED                 NOT NULL DEFAULT 0,
+    `name`     CHAR(80)                         NOT NULL,
+    `aid`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     `comments` TEXT,
     PRIMARY KEY (`id`)
 )
@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS `employees_spending`
 CREATE TABLE IF NOT EXISTS `employees_spending_types`
 (
     `id`       SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`     CHAR(40)                         NOT NULL,
+    `name`     CHAR(80)                         NOT NULL,
     `comments` TEXT,
     PRIMARY KEY (`id`)
 )
@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS `employees_coming`
 CREATE TABLE IF NOT EXISTS `employees_coming_types`
 (
     `id`             SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`           CHAR(40)                         NOT NULL,
+    `name`           CHAR(80)                         NOT NULL,
     `default_coming` TINYINT(3) UNSIGNED              NOT NULL DEFAULT 0,
     `comments`       TEXT,
     PRIMARY KEY (`id`)
@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS `employees_salaries_payed`
 CREATE TABLE IF NOT EXISTS `employees_reference_works`
 (
     `id`       INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-    `name`     CHAR(60)      NOT NULL DEFAULT '',
+    `name`     CHAR(80)      NOT NULL DEFAULT '',
     `time`     INT UNSIGNED  NOT NULL DEFAULT 0,
     `units`    CHAR(40)      NOT NULL DEFAULT '',
     `sum`      DOUBLE(10, 2) NOT NULL DEFAULT 0.00,
@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS `employees_works`
 CREATE TABLE IF NOT EXISTS `employees_bonus_types`
 (
     `id`       SMALLINT UNSIGNED     NOT NULL AUTO_INCREMENT,
-    `name`     char(60)              NOT NULL DEFAULT '',
+    `name`     char(80)              NOT NULL DEFAULT '',
     `amount`   DOUBLE(6, 2) UNSIGNED NOT NULL DEFAULT '0.00',
     `comments` TEXT,
     PRIMARY KEY (`id`)
@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS `employees_cashboxes_moving`
 CREATE TABLE IF NOT EXISTS `employees_moving_types`
 (
     `id`       SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`     CHAR(40)                 NOT NULL DEFAULT '',
+    `name`     CHAR(80)                 NOT NULL DEFAULT '',
     `spending_type` TINYINT(4) UNSIGNED NOT NULL DEFAULT 0,
     `coming_type` TINYINT(4) UNSIGNED   NOT NULL DEFAULT 0,
     `comments` TEXT,

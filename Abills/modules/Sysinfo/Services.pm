@@ -69,11 +69,11 @@ sub sysinfo_get_defined_restart_programs {
   while (my ($key, $value) = each %$startup_files){
     next unless ($key && $value);
     if ($attr->{SERVICE_NAME_CMD_HASH}){
-      next unless $key =~ /RESTART/ && -f $value;
-      my ($service_name) = $value =~ /.*\/(.*)$/;
+      next unless $key =~ m/RESTART/x && -f $value;
+      my ($service_name) = $value =~ m/.*\/(.*)$/x;
       $restart{$service_name} = $value;
     }
-    elsif (( ($key =~ /RESTART/ && -f $value) || $attr->{ALL} ) ) {
+    elsif (( ($key =~ m/RESTART/x && -f $value) || $attr->{ALL} ) ) {
       $restart{$key} = $value;
     }
   }
@@ -117,12 +117,12 @@ sub _sysinfo_restart_service {
   
   my $error = file_op({
     FILENAME => 'web_errors',
-    PATH   => '/tmp/'
+    PATH     => '/tmp/'
   });
   
   unlink '/tmp/web_errors';
   
-  if ( $error && $error !~ /not running\?/) {
+  if ( $error && $error !~ m/not\s+running\?/x) {
     $admin->system_action_add("SI:ERROR $name", { TYPE => 70 });
     $html->message( 'err', $lang{ERROR}, $error );
     return 0;

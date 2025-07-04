@@ -138,4 +138,44 @@ sub pop3_import {
   return $result;
 }
 
+#**********************************************************
+=head2 decode_quoted_printable($text) - Decode quoted printable text
+
+   Attributes:
+     $text - Text to decode
+
+  Returns:
+    Decoded text
+
+  Examples:
+     convert('=D0=9F=D1=80=D0=B8=D0=B2=D1=96=D1=82')
+     # Returns 'Привіт'
+
+=cut
+#**********************************************************
+sub decode_quoted_printable {
+  my $text = shift;
+
+  $text =~ s/\r\n/\n/g;
+  $text =~ s/[ \t]+\n/\n/g;
+  $text =~ s/=\n//g;
+
+  if (ord('A') == 193) { # EBCDIC style machine
+    if (ord('[') == 173) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp1047',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+    elsif (ord('[') == 187) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('posix-bc',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+    elsif (ord('[') == 186) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp37',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+  }
+  else { # ASCII style machine
+    $text =~ s/=([\da-fA-F]{2})/pack("C", hex($1))/ge;
+  }
+  $text;
+}
+
+
 1;

@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^[0-9A-Fa-f]{6}$"
+          },
+          "descr": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "localeName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "color",
+          "descr",
+          "id",
+          "localeName",
+          "name"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

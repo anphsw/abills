@@ -347,18 +347,19 @@ sub _paysys_pay_error {
     my ($merchant_id, undef, undef) = @{$params}{qw/merchant_id method inner_describe/};
 
     $Paysys->add({
-      SYSTEM_ID      => $attr->{PAYMENT_SYSTEM_ID},
-      DATETIME       => $attr->{DATE} || "$main::DATE $main::TIME",
-      SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : $attr->{AMOUNT},
-      UID            => $attr->{UID},
-      IP             => $attr->{IP},
-      TRANSACTION_ID => "$attr->{PAYMENT_SYSTEM}:$attr->{EXT_ID}",
-      INFO           => $attr->{_EXT_INFO},
-      USER_INFO      => $attr->{USER_INFO},
-      PAYSYS_IP      => $self->{REMOTE_ADDR},
-      STATUS         => $attr->{ERROR},
-      DOMAIN_ID      => $ENV{DOMAIN_ID} || 0,
-      MERCHANT_ID    => $merchant_id,
+      SYSTEM_ID         => $attr->{PAYMENT_SYSTEM_ID},
+      DATETIME          => $attr->{DATE} || "$main::DATE $main::TIME",
+      SUM               => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : $attr->{AMOUNT},
+      UID               => $attr->{UID},
+      IP                => $attr->{IP},
+      TRANSACTION_ID    => "$attr->{PAYMENT_SYSTEM}:$attr->{EXT_ID}",
+      INFO              => $attr->{_EXT_INFO},
+      USER_INFO         => $attr->{USER_INFO},
+      PAYSYS_IP         => $self->{REMOTE_ADDR},
+      STATUS            => $attr->{ERROR},
+      DOMAIN_ID         => $ENV{DOMAIN_ID} || 0,
+      MERCHANT_ID       => $merchant_id,
+      RECURRENT_PAYMENT => $attr->{RECURRENT_PAYMENT} ? 1 : 0,
     });
 
     $self->{paysys_id} = $Paysys->{errno} ? 0 : $Paysys->{INSERT_ID};
@@ -458,7 +459,7 @@ sub _paysys_pay_payment_process {
   }
 
   my $params = $self->_paysys_pay_conf($attr);
-  my ($merchant_id, $method, $inner_describe) = @{$params}{qw/merchant_id method inner_describe/};
+  my ($merchant_id, $method, $inner_describe, $payment_describe) = @{$params}{qw/merchant_id method inner_describe payment_describe/};
 
   #Sucsess
   if (!$self->{conf}->{PAYMENTS_POOL}) {
@@ -481,7 +482,7 @@ sub _paysys_pay_payment_process {
   $Payments->add($user, {
     SUM            => $amount,
     DATE           => $attr->{DATE},
-    DESCRIBE       => $attr->{PAYMENT_DESCRIBE} || $payment_system,
+    DESCRIBE       => $attr->{PAYMENT_DESCRIBE} || $payment_describe || "$payment_system:$ext_id",
     INNER_DESCRIBE => $inner_describe || '',
     METHOD         => $method || 2,
     EXT_ID         => "$payment_system:$ext_id",
@@ -618,17 +619,18 @@ sub _paysys_pay_payments_made {
 
   if ($attr->{_TRANSACTION_REGISTRATION}) {
     $Paysys->add({
-      SYSTEM_ID      => $payment_system_id,
-      DATETIME       => $attr->{DATE} || "$main::DATE $main::TIME",
-      SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : ($payment_sum || $amount),
-      UID            => $user->{UID},
-      TRANSACTION_ID => "$payment_system:$ext_id",
-      INFO           => $ext_info,
-      PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
-      STATUS         => 2,
-      USER_INFO      => $attr->{USER_INFO},
-      MERCHANT_ID    => $merchant_id,
-      DOMAIN_ID      => $ENV{DOMAIN_ID} || 0,
+      SYSTEM_ID         => $payment_system_id,
+      DATETIME          => $attr->{DATE} || "$main::DATE $main::TIME",
+      SUM               => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : ($payment_sum || $amount),
+      UID               => $user->{UID},
+      TRANSACTION_ID    => "$payment_system:$ext_id",
+      INFO              => $ext_info,
+      PAYSYS_IP         => $ENV{'REMOTE_ADDR'},
+      STATUS            => 2,
+      USER_INFO         => $attr->{USER_INFO},
+      MERCHANT_ID       => $merchant_id,
+      DOMAIN_ID         => $ENV{DOMAIN_ID} || 0,
+      RECURRENT_PAYMENT => $attr->{RECURRENT_PAYMENT} ? 1 : 0,
     });
 
     $self->{paysys_id} = $Paysys->{INSERT_ID};
@@ -714,6 +716,7 @@ sub _paysys_pay_conf {
   my $method = $attr->{PAYMENT_METHOD} || 0;
   my $merchant_id = $attr->{MERCHANT_ID} || 0;
   my $inner_describe = $attr->{PAYMENT_INNER_DESCRIBE} || '';
+  my $payment_describe = $attr->{PAYMENT_DESCRIBE} || '';
   my $user = $attr->{_USER_INFO};
   my $payment_system_id = $attr->{PAYMENT_SYSTEM_ID};
 
@@ -733,6 +736,9 @@ sub _paysys_pay_conf {
       elsif (!$attr->{PAYMENT_INNER_DESCRIBE} && $param->{param} =~ /INNER_DESCRIPTION/) {
         $inner_describe = $param->{value};
       }
+      elsif (!$attr->{PAYMENT_DESCRIBE} && $param->{param} =~ /PAYSYS\_[a-zA-Z0-9]+\_DESCRIPTION/ && $param->{value}) {
+        $payment_describe = $self->desc_former($param->{value}, $user->{UID});
+      }
     }
   }
 
@@ -747,9 +753,10 @@ sub _paysys_pay_conf {
   }
 
   return {
-    method         => $method,
-    merchant_id    => $merchant_id,
-    inner_describe => $inner_describe,
+    method           => $method,
+    merchant_id      => $merchant_id,
+    inner_describe   => $inner_describe,
+    payment_describe => $payment_describe
   };
 }
 
@@ -1024,7 +1031,6 @@ sub paysys_pay_cancel {
 sub paysys_pay_check {
   my $self = shift;
   my ($attr) = @_;
-  my $result = 0;
 
   my $paysys_list = $Paysys->list({
     ID             => $attr->{PAYSYS_ID} || '_SHOW',
@@ -1043,7 +1049,7 @@ sub paysys_pay_check {
     return $paysys_list->[0]->{id}, $paysys_list->[0]->{status}, $paysys_list->[0];
   }
 
-  return $result, 0;
+  return 0, 0, {};
 }
 
 #**********************************************************
@@ -1598,7 +1604,8 @@ sub _paysys_extra_check_user {
         DOMAIN_ID              => defined($ENV{DOMAIN_ID}) ? $ENV{DOMAIN_ID} : '_SHOW',
         DISABLE_PAYSYS         => '_SHOW',
         GROUP_NAME             => '_SHOW',
-        DISABLE                => '_SHOW',
+        DISABLE                => ($self->{conf}->{PAYSYS_SKIP_USERS_STATUS})
+          ? join(',', map { "!$_" } split(',', $self->{conf}->{PAYSYS_SKIP_USERS_STATUS})) : '_SHOW',
         CONTRACT_ID            => '_SHOW',
         ACTIVATE               => '_SHOW',
         REDUCTION              => '_SHOW',
@@ -1611,7 +1618,15 @@ sub _paysys_extra_check_user {
       });
 
       delete $Users->{errno} if ($Users->{errno} && $CHECK_FIELD ne $check_fields[-1]);
-      last if ($Users->{TOTAL} && $Users->{TOTAL} > 0);
+      if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
+        if (!$list->[0]->{lc($CHECK_FIELD)}) {
+          $Users->{TOTAL} = 0;
+          $list = [];
+        }
+        else {
+          last;
+        }
+      }
     }
 
     delete $Users->{errno} if ($Users->{errno} && $params->{CHECK_FIELD} ne $params_array[-1]->{CHECK_FIELD});

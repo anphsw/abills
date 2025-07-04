@@ -140,10 +140,11 @@ sub dom_info {
       {STYLE => "style=\"background-color: #$status_color;\""}).' ' if ($status_name);
   }
 
+  $build_info->{COMMENTS} ||= '';
   $info{BTN_COMMENT} = $html->button('', undef, {
     class          => 'info',
-    title          =>  $build_info->{COMMENTS} || '',
-    ex_params      => qq/onclick=loadToModal('?qindex=$index&location_chg=1&LOCATION_ID=$FORM{LOCATION_ID}') class='ml-3 cursor-pointer'/,
+    ex_params      => qq/onclick=loadToModal('?qindex=$index&location_chg=1&LOCATION_ID=$FORM{LOCATION_ID}')
+    class='ml-3 cursor-pointer' data-tooltip='$build_info->{COMMENTS}'/,
     NO_LINK_FORMER => 1,
     SKIP_HREF      => 1,
   });
@@ -187,7 +188,13 @@ sub _dom_get_users {
     $user->{fio} =~ s/\'/&#39;/g;
     $user->{color} = _dom_user_color($user);
     $user->{info} = "$lang{ADDRESS_FLAT} $user->{address_flat} </br> $user->{fio}";
-    $user_by_flat{ $user->{address_flat} } = $user;
+
+    if ($user_by_flat{$user->{address_flat}}->{address_flat} && $user_by_flat{$user->{address_flat}}->{disable} == 0) {
+    }
+    else {
+      $user_by_flat{ $user->{address_flat} } = $user;
+    }
+    
     if ($user->{address_flat} > $attr->{FLATS_SUM_WITH_NON_DB_INFO}) {
       $info{USER_SUM_WITH_NO_ROOM}++;
 

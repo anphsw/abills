@@ -1204,12 +1204,20 @@ sub employees_coming_select {
 
   my $list = $Employees->employees_list_coming_type({ COLS_NAME => 1 });
 
+  my $default_type = 0;
+  foreach my $type (@$list) {
+    if ( $type->{default_coming} == 1){
+      $default_type = $type->{id};
+      last;
+    };
+  }
+
   push(@$list, { 'id' => '!0', name => "$lang{NO_TYPE}" });
 
   my $coming_type_select = $html->form_select(
     'COMING_TYPE_ID',
     {
-      SELECTED    => $FORM{COMING_TYPE_ID} || $attr->{ID},
+      SELECTED    => $FORM{COMING_TYPE_ID} || $attr->{ID} || $default_type,
       SEL_LIST    => $list,
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
@@ -2593,17 +2601,16 @@ sub employees_moving_between_cashboxes {
 
   if ($FORM{moving}) {
 
-    my $list = $Employees->employees_list_moving_type({ COLS_NAME => 1});
-    foreach my $line (@$list) {
-      my $spend_id = $line->{spending_id};
-      my $com_id = $line->{coming_id};
+    my $list = $Employees->employees_list_moving_type({ ID => $FORM{MOVING_TYPE_ID} || '_SHOW', COLS_NAME => 1});
 
-      my $coming = $Employees->employees_add_coming({%FORM, CASHBOX_ID => $FORM{CASHBOX_COMING}, AID => $admin->{AID}, COMING_TYPE_ID => $com_id });
-      $coming_id = $coming->{INSERT_ID};
+    my $com_id   = ($FORM{MOVING_TYPE_ID} && $list->[0]->{coming_id}) ? $list->[0]->{coming_id} : 0;
+    my $spend_id = ($FORM{MOVING_TYPE_ID} && $list->[0]->{spending_id}) ?  $list->[0]->{spending_id} : 0;
 
-      my $spending = $Employees->employees_add_spending({ %FORM, CASHBOX_ID => $FORM{CASHBOX_SPENDING}, AID => $admin->{AID}, SPENDING_TYPE_ID => $spend_id });
-      $spending_id = $spending->{INSERT_ID};
-    }
+    my $coming = $Employees->employees_add_coming({%FORM, CASHBOX_ID => $FORM{CASHBOX_COMING}, AID => $admin->{AID}, COMING_TYPE_ID => $com_id });
+    $coming_id = $coming->{INSERT_ID};
+
+    my $spending = $Employees->employees_add_spending({ %FORM, CASHBOX_ID => $FORM{CASHBOX_SPENDING}, AID => $admin->{AID}, SPENDING_TYPE_ID => $spend_id });
+    $spending_id = $spending->{INSERT_ID};
 
     $Employees->employees_add_moving({ %FORM, AID => $admin->{AID}, ID_SPENDING => $spending_id, ID_COMING => $coming_id, });
 

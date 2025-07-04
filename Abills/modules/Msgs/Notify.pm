@@ -218,6 +218,7 @@ sub notify_admins {
 sub notify_user {
   my $self = shift;
   my ($attr) = @_;
+
   return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG});
 
   if ($attr->{MESSAGES_BATCH} && ref $attr->{MESSAGES_BATCH}) {
@@ -312,6 +313,17 @@ sub notify_user {
     $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}") if $Sender->{errno};
   }
 
+  if ($message_params->{RESPONSIBLE_CLIENT_EMAIL}) {
+    $Sender->send_message({
+      TO_ADDRESS  => $message_params->{RESPONSIBLE_CLIENT_EMAIL},
+      MESSAGE     => $message,
+      SENDER_TYPE => 'Mail',
+      SUBJECT     => $subject,
+      QUITE       => 1,
+      UID         => $attr->{UID} || $uid
+    });
+  }
+
   return 1;
 }
 
@@ -338,6 +350,7 @@ sub _msgs_notify_user_collect_message_content {
     ? $msgs_status->{$attr->{STATE_ID}}
     : ''
   );
+  my $responsible_client_email = '';
 
   my $responsible_name = $attr->{RESPOSIBLE_ADMIN_LOGIN};
 
@@ -370,6 +383,7 @@ sub _msgs_notify_user_collect_message_content {
 
     $subject = $msg->{SUBJECT};
     $message = $msg->{MESSAGE};
+    $responsible_client_email = $msg->{CLIENT_RESPONSIBLE};
     $uid = $msg->{UID};
     $state = ($msg->{STATE} && $msgs_status->{$msg->{STATE}}
       ? $msgs_status->{$msg->{STATE}}
@@ -419,11 +433,12 @@ sub _msgs_notify_user_collect_message_content {
   }
 
   return {
-    MESSAGE    => $message,
-    SUBJECT    => $subject,
-    STATE      => $state,
-    RESPOSIBLE => $responsible_name,
-    UID        => $uid,
+    MESSAGE                  => $message,
+    SUBJECT                  => $subject,
+    STATE                    => $state,
+    RESPOSIBLE               => $responsible_name,
+    UID                      => $uid,
+    RESPONSIBLE_CLIENT_EMAIL => Abills::Filters::email_valid($responsible_client_email) ? $responsible_client_email : ''
   };
 }
 

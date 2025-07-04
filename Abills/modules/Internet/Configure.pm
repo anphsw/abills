@@ -8,6 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd in_array vars2lang);
 use Abills::Radius_Pairs;
+use Admins;
 require Control::System;
 
 our(
@@ -16,6 +17,9 @@ our(
   $admin,
   %lang,
   %permissions,
+  @MODULES,
+  $DATE,
+  $TIME
 );
 
 our Abills::HTML $html;
@@ -81,6 +85,7 @@ sub internet_tp {
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{NAME}: $FORM{NAME}\n".
           $html->button($lang{INTERVALS}, 'index='. get_function_index('form_intervals')."&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 2 }));
+      _internet_tariff_plan_gradients_action($Tariffs->{INSERT_ID}, \%FORM);
     }
   }
   elsif (defined($FORM{TP_ID})) {
@@ -156,6 +161,7 @@ sub internet_tp {
 
       $Tariffs->change($FORM{TP_ID}, \%FORM);
       if (!$Tariffs->{errno}) {
+        _internet_tariff_plan_gradients_action($FORM{TP_ID}, \%FORM);
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED} $Tariffs->{ID}");
       }
     }
@@ -432,7 +438,7 @@ sub internet_tp_form {
     SEL_OPTIONS    => { '' => '' },
   });
 
-  my $Nas      = Nas->new($db, \%conf, $admin);
+  my $Nas = Nas->new($db, \%conf, $admin);
   my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
 
   $tarif_info->{IP_POOLS_SEL} = $html->form_select('IPPOOL', {
@@ -466,15 +472,20 @@ sub internet_tp_form {
   $tarif_info->{STATUS}             = ($tarif_info->{STATUS})             ? 'checked' : '';
   $tarif_info->{POPULAR}            = ($tarif_info->{POPULAR})            ? 'checked' : '';
 
-  $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
-    SELECTED       => $tarif_info->{FEES_METHOD} || 1,
-    SEL_HASH       => get_fees_types(),
-    NO_ID          => 1,
-    SORT_KEY       => 1,
-    SEL_OPTIONS    => { 0 => '' },
-    MAIN_MENU      => get_function_index('form_fees_types'),
+  # $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+  #   SELECTED       => $tarif_info->{FEES_METHOD} || 1,
+  #   SEL_HASH       => get_fees_types({ PARENT_ID => 0 }),
+  #   NO_ID          => 1,
+  #   SORT_KEY       => 1,
+  #   SEL_OPTIONS    => { 0 => '' },
+  #   MAIN_MENU      => get_function_index('form_fees_types'),
+  #   CHECKBOX       => 'create_fees_type',
+  #   EX_PARAMS      => 'data-fees-methods-select=1',
+  #   CHECKBOX_TITLE => $lang{CREATE},
+  # });
+  $tarif_info->{SEL_METHOD} = sel_fees_methods('FEES_METHOD', $tarif_info->{FEES_METHOD} || 1, {
     CHECKBOX       => 'create_fees_type',
-    CHECKBOX_TITLE => $lang{CREATE},
+    CHECKBOX_TITLE => $lang{CREATE}
   });
 
   $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = sel_tp({
@@ -499,22 +510,10 @@ sub internet_tp_form {
         "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
     }, { OUTPUT2RETURN => 1 });
 
-    $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select('EXT_BILL_FEES_METHOD', {
-      SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
-      SEL_HASH    => get_fees_types(),
-      NO_ID       => 1,
-      SORT_KEY    => 1,
-      SEL_OPTIONS => { 0 => '' },
-      MAIN_MENU   => get_function_index('form_fees_types'),
-      # CHECKBOX    => 'create_fees_type',
-      # CHECKBOX_TITLE => $lang{CREATE},
+    $tarif_info->{EXT_BILL_ACCOUNT} = sel_fees_methods('EXT_BILL_FEES_METHOD', $tarif_info->{EXT_BILL_FEES_METHOD} || 1, {
+      LABEL => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
+      ID    => 'EXT_BILL_ACCOUNT'
     });
-
-    $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
-      ID    => 'EXT_BILL_ACCOUNT',
-      NAME  => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
-      VALUE => $tarif_info->{EXT_BILL_FEES_METHOD},
-    }, { OUTPUT2RETURN => 1 });
 
     if ($conf{BONUS_EXT_FUNCTIONS}) {
       my @BILL_ACCOUNT_PRIORITY = (
@@ -538,7 +537,7 @@ sub internet_tp_form {
 
   $tarif_info->{NAME}=~ s/\\+/\\/g if $tarif_info->{NAME};
 
-  if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
+  if (in_array('Multidoms', \@MODULES) && $permissions{10}) {
     $tarif_info->{FORM_DOMAINS} = $html->tpl_show(templates('form_row'), {
       ID    => '',
       NAME  => $lang{DOMAINS},
@@ -553,15 +552,37 @@ sub internet_tp_form {
     LOAD_TO_MODAL => 1
   });
 
-  $tarif_info->{RAD_PAIRS_FORM} = $html->tpl_show(
-    templates('form_radius_pairs'),
-    {
-      RAD_PAIRS => Abills::Radius_Pairs::parse_radius_params_string($tarif_info->{RAD_PAIRS}),
-      SAVE_INDEX => get_function_index('tp_radius_pairs_save'),
-      ID => $tarif_info->{TP_ID}
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  $tarif_info->{RAD_PAIRS_FORM} = $html->tpl_show(templates('form_radius_pairs'), {
+    RAD_PAIRS  => Abills::Radius_Pairs::parse_radius_params_string($tarif_info->{RAD_PAIRS}),
+    SAVE_INDEX => get_function_index('tp_radius_pairs_save'),
+    ID         => $tarif_info->{TP_ID}
+  }, { OUTPUT2RETURN => 1 });
+
+  my $gradients_table = $html->table({
+    title_plain   => [ '#', $lang{SPEED} . ' (kb)', $lang{PRICE} ],
+    class   => 'table table-bordered',
+    width   => '100%',
+  });
+
+  if ($tarif_info->{TP_ID}) {
+    $tarif_info->{GRADIENTS} = $Tariffs->tp_gradients_list({
+      TP_ID       => $tarif_info->{TP_ID},
+      START_VALUE => '_SHOW',
+      PRICE       => '_SHOW',
+      SORT        => 'start_value',
+      COLS_NAME   => 1
+    });
+  }
+  
+  for (0 .. 5) {
+    my $gradient = $tarif_info->{GRADIENTS} && ref $tarif_info->{GRADIENTS} eq 'ARRAY' ? shift(@{$tarif_info->{GRADIENTS}}) : {};
+    $gradient->{start_value} = defined $gradient->{start_value} ? ($gradient->{start_value} || 0) : '';
+    my $gradient_id = $_ + 1;
+    my $speed_input = $html->form_input('START_VALUE_' . $gradient_id, $gradient->{start_value}, { class => 'form-control', placeholder => $lang{SPEED} });
+    my $price_input = $html->form_input('PRICE_' . $gradient_id, $gradient->{price} || '', { class => 'form-control', placeholder => $lang{PRICE} });
+    $gradients_table->addrow($gradient_id, $speed_input, $price_input);
+  }
+  $tarif_info->{TARIFF_PLAN_GRADIENTS_FORM} = $gradients_table->show();
 
   $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP', ID => 'internet_tp' });
 
@@ -1117,6 +1138,48 @@ sub _internet_tp_clone_add_tp {
 
   $html->message('info', "$lang{TARIF_PLAN} $lang{SUCCESSFULLY_CLONED}");
   return;
+}
+
+#**********************************************************
+=head2 _internet_tariff_plan_gradients_action($tp_id, $attr)
+
+  Arguments:
+    $tp_id - Tariff plan identifier
+    $attr
+       PRICE_X       - Price for gradient X
+       START_VALUE_X - Starting value for gradient X
+
+  Example:
+
+    _internet_tariff_plan_gradients_action(123, { PRICE_1 => 10, START_VALUE_1 => 5 });
+
+=cut
+#**********************************************************
+sub _internet_tariff_plan_gradients_action {
+  my $tp_id = shift;
+  my ($attr) = @_;
+
+  return if !$tp_id;
+
+  my @gradients = ();
+
+  for (0 .. 5) {
+    my $gradient_id = $_ + 1;
+    if (!$attr->{'PRICE_' . $gradient_id} || !defined $attr->{'START_VALUE_' . $gradient_id}) {
+      next;
+    }
+
+    push @gradients, {
+      START_VALUE => $attr->{'START_VALUE_' . $gradient_id} || 0,
+      PRICE       => $attr->{'PRICE_' . $gradient_id}
+    };
+  }
+  return if scalar(@gradients < 1);
+
+  $Tariffs->tp_gradients_change({
+    TP_ID                 => $tp_id,
+    TARIFF_PLAN_GRADIENTS => \@gradients
+  });
 }
 
 1;

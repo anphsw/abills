@@ -2,21 +2,22 @@ SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
 CREATE TABLE IF NOT EXISTS `paysys_log`
 (
-  `id`             INT(11) UNSIGNED       NOT NULL AUTO_INCREMENT,
-  `system_id`      TINYINT(4) UNSIGNED    NOT NULL DEFAULT '0' COMMENT 'paysys_connect.id',
-  `datetime`       DATETIME               NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00' COMMENT 'sum of payment if not successful transaction can be changed',
-  `commission`     DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `uid`            INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'users.uid',
-  `transaction_id` VARCHAR(50)            NOT NULL DEFAULT '' COMMENT 'ID which received from payment system',
-  `info`           TEXT                   NOT NULL COMMENT 'Request body hash',
-  `ip`             INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'User ip if did in user portal',
-  `code`           BLOB                   NOT NULL,
-  `paysys_ip`      INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'The IP address from which the transaction request was made.',
-  `domain_id`      SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0' COMMENT 'domains.id',
-  `status`         TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0' COMMENT 'internal status of transaction ex 2 - successful',
-  `user_info`      VARCHAR(120)                    DEFAULT NULL,
-  `merchant_id`    TINYINT UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'paysys_merchant_settings.id',
+  `id`                INT(11) UNSIGNED       NOT NULL AUTO_INCREMENT,
+  `system_id`         TINYINT(4) UNSIGNED    NOT NULL DEFAULT '0' COMMENT 'paysys_connect.id',
+  `datetime`          DATETIME               NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sum`               DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00' COMMENT 'sum of payment if not successful transaction can be changed',
+  `commission`        DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `uid`               INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'users.uid',
+  `transaction_id`    VARCHAR(50)            NOT NULL DEFAULT '' COMMENT 'ID which received from payment system',
+  `info`              TEXT                   NOT NULL COMMENT 'Request body hash',
+  `ip`                INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'User ip if did in user portal',
+  `code`              BLOB                   NOT NULL,
+  `paysys_ip`         INT(11) UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'The IP address from which the transaction request was made.',
+  `domain_id`         SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0' COMMENT 'domains.id',
+  `status`            TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0' COMMENT 'internal status of transaction ex 2 - successful',
+  `user_info`         VARCHAR(120)                    DEFAULT NULL,
+  `merchant_id`       TINYINT UNSIGNED       NOT NULL DEFAULT '0' COMMENT 'paysys_merchant_settings.id',
+  `recurrent_payment` TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0' COMMENT 'Is payment created as regular payment',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `system_id` (`system_id`),
@@ -42,9 +43,10 @@ CREATE TABLE IF NOT EXISTS `paysys_main`
   `recurrent_id`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `recurrent_cron`       VARCHAR(25)          NOT NULL DEFAULT '',
   `recurrent_module`     VARCHAR(25)          NOT NULL DEFAULT '',
-  `order_id`             varchar(24)          NOT NULL DEFAULT '',
+  `order_id`             VARCHAR(50)          NOT NULL DEFAULT '',
   `subscribe_date_start` DATE                 NOT NULL DEFAULT '0000-00-00',
   `domain_id`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0' COMMENT 'domains.id',
+  `info`                 VARCHAR(100)         NOT NULL DEFAULT '',
   UNIQUE (`uid`, `paysys_id`)
 )
   CHARSET = 'utf8'
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `paysys_terminals`
 CREATE TABLE IF NOT EXISTS `paysys_terminals_types`
 (
   `id`      INT(3) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`    VARCHAR(40)     NOT NULL DEFAULT '' COMMENT 'Internal name of terminal',
+  `name`    VARCHAR(80)     NOT NULL DEFAULT '' COMMENT 'Internal name of terminal',
   `comment` TEXT COMMENT 'Internal comment of terminal',
   PRIMARY KEY `id` (`id`)
 )
@@ -94,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `paysys_connect`
   `id`             TINYINT(4) UNSIGNED NOT NULL AUTO_INCREMENT,
   `paysys_id`      TINYINT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'ID of payment system inside payment plugin',
   `subsystem_id`   TINYINT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'ID of inheritance module',
-  `name`           VARCHAR(40)         NOT NULL DEFAULT '' COMMENT 'Name of plugin module',
+  `name`           VARCHAR(80)         NOT NULL DEFAULT '' COMMENT 'Name of plugin module',
   `module`         VARCHAR(40)         NOT NULL DEFAULT '' COMMENT 'Local redefined plugin name',
   `status`         TINYINT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Status of plugin 1 enabled 0 disabled',
   `paysys_ip`      TEXT                NOT NULL COMMENT 'IP list of allowed for payments',

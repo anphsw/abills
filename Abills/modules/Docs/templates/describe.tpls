@@ -21,5 +21,6 @@ docs_search.tpl:russian:Форма поискад окументов
 docs_tax_export.tpl:russian:Форма експорта налоговых накладных в електнонном виде
 docs_tax_invoice.tpl:russian:Печатная форма налоговой
 docs_user.tpl:russian:Форма управления настройками пользователя
+docs_contract_termination.tpl:Печатная форма заявление на разрыв договора
 
 

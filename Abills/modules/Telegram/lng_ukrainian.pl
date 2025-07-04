@@ -24,7 +24,6 @@ $lang{ENABLED_CREDIT} = 'Включення кредита';
 $lang{CREDIT_SUCCESS} = 'Кредит встановлений';
 $lang{CREDIT_NOT_EXIST} = 'Кредит недоступний';
 $lang{ABOUT} = 'Про компанію';
-$lang{COMPANY_NAME} = 'Назва компанії';
 $lang{ADDRESS} = 'Адреса';
 $lang{PHONE} = 'Телефон';
 $lang{EMAIL} = 'Електронна пошта';

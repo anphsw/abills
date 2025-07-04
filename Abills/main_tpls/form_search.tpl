@@ -44,8 +44,13 @@
 
             <div class='form-group row' style='%DISPLAY_GROUP%'>
               <label class='col-md-4 col-form-label text-md-right'>_{GROUP}_:</label>
-              <div class='col-md-8'>
-                %GROUPS_SEL%
+              <div class='col-md-8 row'>
+                <div class='col-md-8'>
+                  %GROUPS_SEL%
+                </div>
+                <div class='col-md-4'>
+                  %GROUPS_SEARCH_VAL%
+                </div>
               </div>
             </div>
 

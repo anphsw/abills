@@ -98,8 +98,7 @@ my %button_class_icons = (
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($attr) = @_;
+  my ($class, $attr) = @_;
 
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if ($attr->{CONF});
@@ -126,7 +125,7 @@ sub new {
   $self->{OUTPUT} = '';
   %FORM = form_parse();
   #@experimental
-  if ($attr->{USER_PORTAL} && !$FORM{PARSE_QUERY_PARAMS} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /PARSE_QUERY_PARAMS=1/g) {
+  if ($attr->{USER_PORTAL} && !$FORM{PARSE_QUERY_PARAMS} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ m/PARSE_QUERY_PARAMS=1/xg) {
     my %_FORM = form_parse({ PARSE_QUERY_PARAMS => 1 });
     %FORM = (%_FORM, %FORM);
   }
@@ -204,29 +203,29 @@ sub new {
   );
 
   $index = 0;
-  if ($FORM{index} && $FORM{index} =~ /^\d+$/) {
+  if ($FORM{index} && $FORM{index} =~ m/^\d+$/x) {
     $index = $FORM{index};
   }
 
   $self->{index} = $index;
 
-  if ($ENV{REQUEST_URI} && $ENV{REQUEST_URI} =~ /(.*)\//) {
+  if ($ENV{REQUEST_URI} && $ENV{REQUEST_URI} =~ m/(.*)\//x) {
     $self->{web_path} = $1;
-    $self->{web_path} .= '/' if ($self->{web_path} !~ /\/$/);
+    $self->{web_path} .= '/' if ($self->{web_path} !~ m/\/$/x);
   }
 
   if ($attr->{language}) {
     $self->{language} = $attr->{language};
   }
-  elsif ($FORM{language} && $FORM{language} =~ /^[a-z\_]+$/) {
+  elsif ($FORM{language} && $FORM{language} =~ m/^[a-z\_]+$/x) {
     $self->{language} = $FORM{language};
     $self->set_cookies($FORM{login_page} ? 'user_language' : 'language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", '/');
   }
-  elsif ($attr->{USER_PORTAL} && $COOKIES{user_language} && $COOKIES{user_language} =~ /^[a-z\_]+$/) {
+  elsif ($attr->{USER_PORTAL} && $COOKIES{user_language} && $COOKIES{user_language} =~ m/^[a-z\_]+$/x) {
     $self->{language} = $COOKIES{user_language};
     $FORM{language} = $self->{language};
   }
-  elsif ($COOKIES{language} && $COOKIES{language} =~ /^[a-z\_]+$/) {
+  elsif ($COOKIES{language} && $COOKIES{language} =~ m/^[a-z\_]+$/x) {
     $self->{language} = $COOKIES{language};
     $FORM{language} = $self->{language};
   }
@@ -361,25 +360,25 @@ sub form_parse {
     read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   }
 
-  if (($self && $self->{PARSE_QUERY_PARAMS}) || !defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/) {
-    @pairs = split(/&/, $buffer || '');
+  if (($self && $self->{PARSE_QUERY_PARAMS}) || !defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ m/boundary/x) {
+    @pairs = split(/&/x, $buffer || '');
     $_FORM{__BUFFER} = $buffer if ($#pairs > -1);
 
     foreach my $pair (@pairs) {
-      my ($side, $value) = split(/=/, $pair, 2);
+      my ($side, $value) = split('=', $pair, 2);
       if (defined($value)) {
         $value =~ tr/+/ /;
-        $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-        $value =~ s/<!--(.|\n)*-->//g;
+        $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg;
+        $value =~ s/<!--(.|\n)*-->//xg;
         #$value =~ s/<([^>]|\n)*>//g;
 
         if (!$self->{SKIP_QUOTE}) {
           #Check quotes
           #TODO: replace with escape_for_sql?
-          $value =~ s/\\/\\\\/g;
-          $value =~ s/\"/\\\"/g;
-          $value =~ s/\'/\\\'/g;
-          $value =~ s/&rsquo;/\\\'/g;
+          $value =~ s/\\/\\\\/xg;
+          $value =~ s/\"/\\\"/xg;
+          $value =~ s/\'/\\\'/xg;
+          $value =~ s/&rsquo;/\\\'/xg;
         }
       }
       else {
@@ -395,46 +394,46 @@ sub form_parse {
     }
   }
   else {
-    ($boundary = $ENV{CONTENT_TYPE}) =~ s/^.*boundary=(.*)$/$1/;
+    ($boundary = $ENV{CONTENT_TYPE}) =~ s/^.*boundary=(.*)$/$1/x;
 
     $_FORM{__BUFFER} = $buffer;
-    @pairs = split(/--$boundary/, $buffer);
+    @pairs = split(/--$boundary/x, $buffer);
     @pairs = splice(@pairs, 1, $#pairs - 1);
     for my $part (@pairs) {
-      $part =~ s/[\r]\n$//g;
-      my (undef, $firstline, $datas) = split(/[\r]\n/, $part, 3);
+      $part =~ s/[\r]\n$//xg;
+      my (undef, $firstline, $datas) = split(/[\r]\n/x, $part, 3);
 
-      next if $firstline =~ /filename=\"\"/;
-      $firstline =~ s/^Content-Disposition: form-data; //i;
-      my (@columns) = split(/;\s+/, $firstline);
+      next if ($firstline =~ m/filename=\"\"/x);
+      $firstline =~ s/^Content-Disposition:\s+form-data;\s+//xi;
+      my (@columns) = split(/;\s+/x, $firstline);
 
-      ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/g;
+      ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/xg;
       my $blankline;
       if ($#columns > 0) {
-        if ($datas =~ /^Content-Type:/i) {
-          ($_FORM{"$name"}->{'Content-Type'}, $blankline, $datas) = split(/[\r]\n/, $datas, 3);
-          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/gi;
+        if ($datas =~ m/^Content-Type:/xi) {
+          ($_FORM{"$name"}->{'Content-Type'}, $blankline, $datas) = split(/[\r]\n/x, $datas, 3);
+          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/xgi;
         }
         else {
-          ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+          ($blankline, $datas) = split(/[\r]\n/x, $datas, 2);
           $_FORM{"$name"}->{'Content-Type'} = "application/octet-stream";
         }
       }
       else {
-        if ($datas =~ /Content-Length: \d+/i) {
-          (undef, $blankline, $datas) = split(/[\r]\n/, $datas, 3);
+        if ($datas =~ m/Content-Length:\s+\d+/xi) {
+          (undef, $blankline, $datas) = split(/[\r]\n/x, $datas, 3);
         }
         else {
-          ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+          ($blankline, $datas) = split(/[\r]\n/x, $datas, 2);
         }
 
         #TODO: replace with escape_for_sql?
-        $datas =~ s/\\/\\\\/g;
-        $datas =~ s/\"/\\\"/g;
-        $datas =~ s/\'/\\\'/g;
-        $datas =~ s/&rsquo;/\\\'/g;
+        $datas =~ s/\\/\\\\/xg;
+        $datas =~ s/\"/\\\"/xg;
+        $datas =~ s/\'/\\\'/xg;
+        $datas =~ s/&rsquo;/\\\'/xg;
 
-        if (grep (/^$name$/, keys(%_FORM))) {
+        if (grep(m/^$name$/x, keys(%_FORM))) {
           if (defined($_FORM{$name})) {
             $_FORM{$name} .= ", $datas";
           }
@@ -443,7 +442,7 @@ sub form_parse {
           }
           else {
             my $arrvalue = $_FORM{$name};
-            undef $_FORM{$name};
+            delete $_FORM{$name};
             $_FORM{$name}[0] = $arrvalue;
             push(@{$_FORM{$name}}, $datas);
           }
@@ -454,10 +453,10 @@ sub form_parse {
         next;
       }
       for my $currentColumn (@columns) {
-        my ($currentHeader, $currentValue) = $currentColumn =~ /^([^=]+)="([^\"]+)"$/;
+        my ($currentHeader, $currentValue) = $currentColumn =~ m/^([^=]+)="([^\"]+)"$/x;
         next if (! defined $currentHeader);
         if ($currentHeader eq 'filename') {
-          if ($currentValue =~ /(\S+)\\(\S+)$/) {
+          if ($currentValue =~ m/(\S+)\\(\S+)$/x) {
             $currentValue = $2;
           }
         }
@@ -479,7 +478,7 @@ sub form_parse {
     $name
     $value
     $attr
-      EX_PARAMS
+      EX_PARAMS - Extra options
       TYPE      - Input type (submit, hidden, checkbox)
       STATE     - State for checkbox
       FORM_ID   - Main form ID
@@ -507,10 +506,10 @@ sub form_input {
   if ($attr->{class}) {
     $css_class = " class='$attr->{class}'";
   }
-  elsif ($type =~ /text/i) {
+  elsif ($type =~ m/text/xi) {
     $css_class = " class='form-control'";
   }
-  elsif ($type =~ /submit/i) {
+  elsif ($type =~ m/submit/xi) {
     $css_class = " class='btn btn-" . (($attr->{SUCCESS}) ? 'success' : 'primary') . "'";
   }
 
@@ -534,7 +533,7 @@ sub form_input {
   $name //= q{};
   my $id = $attr->{ID} || $name;
   $value //= '';
-  $value =~ s/\\\"/\&#34;/g;
+  $value =~ s/\\\"/\&#34;/xg;
   $self->{FORM_INPUT} = "<input type='$type' name='$name' value=\"" . $value . "\"$state$size$css_class $ex_params$form ID='$id'/>";
 
   if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
@@ -626,9 +625,7 @@ sub form_textarea {
 #**********************************************************
 
 sub short_form {
-  my $self = shift;
-  my ($attr) = @_;
-
+  my ($self, $attr) = @_;
 
   my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
 
@@ -695,7 +692,9 @@ sub short_form {
     $self->{FORM} = '';
   }
 
-  print $self->{FORM}
+  print $self->{FORM};
+
+  return q{};
 }
 #**********************************************************
 =head2 form_main($attr) - Create input form container
@@ -726,8 +725,7 @@ sub short_form {
 =cut
 #**********************************************************
 sub form_main {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne ($attr->{ID} || q{})) {
     return '';
@@ -760,9 +758,7 @@ sub form_main {
   }
 
   if (defined($attr->{CONTENT})) {
-    #    $self->{FORM} .= $attr->{INP_GROUP}? " <div class='input-group' style='width: $attr->{IN_WIDTH}'>" : '';
     $self->{FORM} .= $attr->{CONTENT};
-    #    $self->{FORM} .= $attr->{INP_GROUP}? " </div>" : '';
   }
 
   if ($attr->{SUBMIT}) {
@@ -839,8 +835,7 @@ sub form_main {
 =cut
 #**********************************************************
 sub form_select {
-  my $self = shift;
-  my ($name, $attr) = @_;
+  my ($self, $name, $attr) = @_;
 
   if ($attr->{POPUP_WINDOW}) {
     return $self->form_window($name, $attr);
@@ -886,8 +881,8 @@ sub form_select {
   }
 
   my @multiselect = ();
-  if ($attr->{SELECTED} && $attr->{SELECTED} =~ /,\s?/) {
-    @multiselect = split(',\s?', $attr->{SELECTED});
+  if ($attr->{SELECTED} && $attr->{SELECTED} =~ m/,\s?/x) {
+    @multiselect = split(/,\s?/x, $attr->{SELECTED});
   }
 
   require Abills::Base;
@@ -901,7 +896,7 @@ sub form_select {
       my $id = (($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
       if ($attr->{STYLE}) {
-        if ($attr->{STYLE}->[$i] && $attr->{STYLE}->[$i] =~ /#/) {
+        if ($attr->{STYLE}->[$i] && $attr->{STYLE}->[$i] =~ m/\#/x) {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$i];' ";
         }
         elsif ($attr->{STYLE}->[$i]) {
@@ -928,7 +923,7 @@ sub form_select {
     my @SEL_VALUE_PREFIX = ();
 
     if ($attr->{SEL_VALUE_PREFIX}) {
-      @SEL_VALUE_PREFIX = split(/,/, $attr->{SEL_VALUE_PREFIX});
+      @SEL_VALUE_PREFIX = split(/,/x, $attr->{SEL_VALUE_PREFIX});
     }
 
     my $add_data_to_option = $attr->{WRITE_TO_DATA};
@@ -955,8 +950,8 @@ sub form_select {
       #Value
       $self->{SELECT} .= ' ' . ((ref $v eq 'HASH' && $v->{$key}) || '') . ' ' if (!$attr->{NO_ID});
 
-      if ($value =~ /,/) {
-        my @values = split(/,/, $value);
+      if ($value =~ m/,/x) {
+        my @values = split(/,/x, $value);
         my @values_arr = ();
         for (my $key_num = 0; $key_num <= $#values; $key_num++) {
           my $val_keys = $values[$key_num] || '';
@@ -1036,7 +1031,7 @@ sub form_select {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$val];' " if ($attr->{STYLE} && $attr->{STYLE}->[$val]);
 
           if ($attr->{STYLE} && $attr->{STYLE}->[$val]) {
-            if ($attr->{STYLE}->[$val] =~ /^#/) {
+            if ($attr->{STYLE}->[$val] =~ m/^#/x) {
               $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$val];' ";
             }
             else {
@@ -1064,14 +1059,15 @@ sub form_select {
       else {
         $self->{SELECT} .= "<option value='$k'";
         my $value = $attr->{SEL_HASH}{$k} || 0;
-        if (defined $k && $attr->{STYLE} && $attr->{STYLE}->[$k]) {
+        if (defined $k && $k =~ m/^\d+$/x && $attr->{STYLE} && $attr->{STYLE}->[$k]) {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$k];' ";
         }
         elsif ($attr->{USE_COLORS}) {
-          my @arr = split(/:/, $value);
+          my @arr = split(':', $value);
           $value = $arr[0] || q{};
-          my $color = $arr[$#arr] || q{};
-          if ($color =~ /^#?([A-F0-9]+)$/i) {
+          my $num = $#arr+1;
+          my $color = $arr[$num] || q{};
+          if ($color =~ m/^\#?([A-F0-9]{6})$/xi) {
             $color = '#' . $1;
           }
           $self->{SELECT} .= " data-style='color:$color;' ";
@@ -1136,13 +1132,14 @@ sub form_select {
     </div>";
   }
   elsif ($attr->{EXT_BUTTON}) {
-    $self->{SELECT} = "
+    $self->{SELECT} =<< "[HTML]";
     <div class='d-flex bd-highlight'>
       <div class='flex-fill bd-highlight overflow-hidden select2-border'>
          <div class='input-group-append select2-append'>
             $self->{SELECT}
          </div>
-      </div>";
+      </div>
+[HTML]
 
     $self->{SELECT} .= _form_select_ext_buttons($ext_button) . "</div>";
   }
@@ -1167,11 +1164,15 @@ sub _form_select_single_ext_button {
     $button = "<div class='input-group-text p-0 px-1 rounded-left-0'>$button</div>"
   }
 
-  return "<div class='bd-highlight'>
-      <div class='input-group-append h-100'>
-        $button
-      </div>
-    </div>"
+  my $result = << "[END]";
+  <div class='bd-highlight'>
+     <div class='input-group-append h-100'>
+       $button
+     </div>
+  </div>
+[END]
+
+  return $result;
 }
 
 #**********************************************************
@@ -1187,7 +1188,7 @@ sub _form_select_single_ext_button {
 sub _form_select_ext_buttons {
   my $ext_button = shift;
 
-  return '' if !$ext_button;
+  return '' if (!$ext_button);
 
   if (ref $ext_button ne 'ARRAY') {
     return _form_select_single_ext_button($ext_button)
@@ -1217,10 +1218,7 @@ sub form_window {
   my $self = shift;
   my ($name, $attr) = @_;
 
-  #my $ex_params = (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
-
   my $action = $attr->{ACTION} || $SELF_URL;
-  #my $form_id      = $attr->{FORM_ID}  || 'FormModal';
   my $window_type = $attr->{POPUP_WINDOW_TYPE} || 'search';
   my $searchString = $attr->{SEARCH_STRING} || '';
   my $js_script = $attr->{JS} || 'search';
@@ -1299,10 +1297,9 @@ sub form_window {
 =cut
 #**********************************************************
 sub set_cookies {
-  my $self = shift;
-  my ($name, $value, $expiration, $path, $attr) = @_;
+  my ($self, $name, $value, $expiration, $path, $attr) = @_;
 
-  if ($name eq 'DOMAIN_ID' && $path =~ /^\/admin\/$/) {
+  if ($name eq 'DOMAIN_ID' && $path =~ m/^\/admin\/$/x) {
     chop($path);
   }
 
@@ -1331,6 +1328,8 @@ sub set_cookies {
   }
 
   print $cookie . "\n";
+
+  return 1;
 }
 
 #**********************************************************
@@ -1350,9 +1349,9 @@ sub get_cookies {
   #my $self = shift;
 
   if (defined($ENV{'HTTP_COOKIE'})) {
-    my (@rawCookies) = split(/; /, $ENV{'HTTP_COOKIE'});
+    my (@rawCookies) = split(/;\s+/x, $ENV{'HTTP_COOKIE'});
     foreach (@rawCookies) {
-      my ($key, $val) = split(/=/, $_);
+      my ($key, $val) = split(/=/x, $_);
       $COOKIES{$key} = $val;
     }
   }
@@ -1403,12 +1402,12 @@ sub menu {
       if (defined($menu_args->{$ID}) && $menu_args->{$ID} ne 'defaultindex') {
         my @args = ($menu_args->{$ID});
 
-        if ($menu_args->{$ID} =~ /,/) {
+        if ($menu_args->{$ID} =~ m/,/x) {
           @args = split(',', $menu_args->{$ID});
         }
 
         foreach my $arg (@args) {
-          if (!(defined($FORM{ $arg }) || $arg =~ /=/)) {
+          if (!(defined($FORM{ $arg }) || $arg =~ m/=/x)) {
             $push_to_menu = 0;
             last;
           }
@@ -1431,7 +1430,7 @@ sub menu {
   my %main_ids = ();
 
   foreach my $line (@{$menu{$parent}}) {
-    my ($ID, undef) = split(/:/, $line, 2);
+    my ($ID, undef) = split(':', $line, 2);
     $main_ids{ "sub" . $ID } = 1;
   }
 
@@ -1439,15 +1438,16 @@ sub menu {
   $sub_menu_array = \@{$menu{$parent}};
 
   while (my $sm_item = pop @$sub_menu_array) {
-    my ($ID, $name_menu) = split(/:/, $sm_item, 2);
+    my ($ID, $name_menu) = split(':', $sm_item, 2);
     my $subID = 'sub'. $ID;
     my $tree_id = 0;
     my $id = 0;
 
-    if ($ID =~ /^sub([0-9]+)/) {
+    if ($ID =~ m/^sub([0-9]+)/x) {
       $id = $1;
       $tree_id = $id;
-    } else {
+    }
+    else {
       $id = $ID;
     };
 
@@ -1471,12 +1471,12 @@ sub menu {
 
     if (defined($menu_args->{$id}) && $menu_args->{$id} ne 'defaultindex') {
       my @menu_args_list = ($menu_args->{$id});
-      if ($menu_args->{$id} =~ /,/) {
+      if ($menu_args->{$id} =~ m/,/x) {
         @menu_args_list = split(',', $menu_args->{$id});
       }
 
       foreach my $menu_arg (@menu_args_list) {
-        $ext_args .= ($menu_arg =~ /=/) ? "&$menu_arg" : "&$menu_arg=$FORM{$menu_arg}";
+        $ext_args .= ($menu_arg =~ m/=/x) ? "&$menu_arg" : "&$menu_arg=$FORM{$menu_arg}";
       }
     }
     if ($menu{$ID} && $fl->{$ID} ne 'null') {
@@ -1492,14 +1492,15 @@ sub menu {
 
     if ($menu{$ID}) {
       my $icon = q{<i class='right fa fa-angle-left'></i>};
-      if ($name_menu !~ /<p/) {
+      if ($name_menu !~ m/<p/x) {
         $name_menu = '<p>' . $name_menu . $icon . '</p>';
-      } else {
+      }
+      else {
         my $position = length($name_menu) - 4;
         $name_menu = substr($name_menu, 0, $position) . $icon . substr($name_menu, $position);
       }
     }
-    elsif ($name_menu !~ /<p/) {
+    elsif ($name_menu !~ m/<p/x) {
       $name_menu = '<p>' . $name_menu . '</p>';
     }
 
@@ -1592,12 +1593,12 @@ sub breadcrumb {
       my $ex_params = '';
       if (defined($menu_args->{$root_index}) && $menu_args->{$root_index} ne 'defaultindex') {
         my @menu_args_list = ($menu_args->{$root_index});
-        if ($menu_args->{$root_index} =~ /,/) {
+        if ($menu_args->{$root_index} =~ m/,/x) {
           @menu_args_list = split(',', $menu_args->{$root_index});
         }
 
         foreach my $menu_arg (@menu_args_list) {
-          $ex_params .= ($menu_arg =~ /=/) ? "&$menu_arg" : "&$menu_arg=" . ($FORM{$menu_arg} // '');
+          $ex_params .= ($menu_arg =~ m/=/x) ? "&$menu_arg" : "&$menu_arg=" . ($FORM{$menu_arg} // '');
         }
       }
 
@@ -1640,26 +1641,28 @@ sub breadcrumb {
 =cut
 #**********************************************************
 sub menu_right {
-  my $self = shift;
-  my ($menu_item_name, $menu_item_id, $menu_content, $attr) = @_;
+  my ($self, $menu_item_name, $menu_item_id, $menu_content, $attr) = @_;
+
   my $right_menu_html = '';
   my $menu_item_title = $attr->{TITLE} || '';
-  my $menu_item = $self->li("<a href='#$menu_item_id' id='$menu_item_id\_btn' class='nav-link active' title='$menu_item_title' data-toggle='tab' aria-expanded='false'>$menu_item_name</a>", { class => 'nav-item' });
+  my $menu_item = $self->li("<a href='#" . $menu_item_id ."' id='$menu_item_id\_btn' class='nav-link active' title='$menu_item_title' data-toggle='tab' aria-expanded='false'>$menu_item_name</a>",
+    { class => 'nav-item' });
 
   if (!$attr->{HTML}) {
     $right_menu_html = "<aside class='control-sidebar control-sidebar-dark h-100 elevation-4' style='bottom: 0px !important;'>\n";
     $right_menu_html .= "<div class='control-sidebar-content'>";
     $right_menu_html .= "<ul class='nav nav-tabs nav-justified control-sidebar-tabs'>\n</ul>\n<div class='tab-content'>\n</div>\n";
   }
+
   if (!defined($menu_content)) {
     $menu_content = '';
   }
 
   $right_menu_html = $attr->{HTML} if ($attr->{HTML});
-  $right_menu_html =~ s/class='active'//g;
-  $right_menu_html =~ s/ active//g;
-  $right_menu_html =~ s/(<ul class='nav nav-tabs nav-justified control-sidebar-tabs'>\n)/$1$menu_item \n/g;
-  $right_menu_html =~ s/(<div class='tab-content'>\n)/$1<div class='tab-pane active' id='$menu_item_id'>\n$menu_content<\/div>\n/g;
+  $right_menu_html =~ s/class='active'//xg;
+  $right_menu_html =~ s/\s+active//xg;
+  $right_menu_html =~ s/(<ul\s+class='nav\s+nav-tabs\s+nav-justified\s+control-sidebar-tabs'>\n)/$1$menu_item \n/xg;
+  $right_menu_html =~ s/(<div\s+class='tab-content'>)/$1<div class='tab-pane active' id='$menu_item_id'>$menu_content<\/div>/xg;
 
   if (!$attr->{HTML}) {
     $right_menu_html .= "</div>";
@@ -1668,16 +1671,6 @@ sub menu_right {
 
   return $right_menu_html;
 }
-
-#**********************************************************
-=head2 menu2($menu_items, $menu_args, $permissions, $attr) - User portal menu
-
-=cut
-#**********************************************************
-# sub menu2 {
-#   my $self = shift;
-#   return $self->menu(@_);
-# }
 
 #**********************************************************
 =head2 header() - header of main page
@@ -1696,8 +1689,7 @@ sub menu_right {
 =cut
 #**********************************************************
 sub header {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->{header} = "Content-Type: text/html\n";
   $self->{header} .= "Access-Control-Allow-Origin: *"
@@ -1726,7 +1718,7 @@ sub header {
 
   if ($FORM{REFRESH}) {
     my $text = $ENV{REQUEST_URI};
-    $text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
+    $text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/xseg;
     $info{REFRESH} = "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$text\"/>\n";
   }
 
@@ -1847,9 +1839,8 @@ sub table {
   my $proto = shift;
   my $class = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
-  my $self;
 
-  $self = {};
+  my $self = {};
   bless($self, $class);
 
   $self->{MAX_ROWS} = $parent->{MAX_ROWS};
@@ -1942,9 +1933,9 @@ sub table {
       push @menu_buttons, @{$attr->{MENU}};
     }
     else {
-      my @menu_arr = split(/;/, $attr->{MENU});
+      my @menu_arr = split(';', $attr->{MENU});
       foreach my $line (@menu_arr) {
-        my ($name, $ext_attr, $css_class) = split(/:/, $line);
+        my ($name, $ext_attr, $css_class) = split(':', $line);
         push @menu_buttons, $self->button($name, $ext_attr, { class => $css_class, ex_params => "class='ml-3'" }) . "\n";
 
       }
@@ -1966,7 +1957,7 @@ sub table {
     my $idx = $FORM{index} || $FORM{qindex} || $index || '';
     my $op = $idx ? "qindex=$idx" : '';
 
-    eval {require Spreadsheet::WriteExcel;};
+    eval { require Spreadsheet::WriteExcel; };
     if (!$@) {
       push @export_formats, 'xls';
     }
@@ -1984,11 +1975,11 @@ sub table {
     #Fill dropdown list with items
     foreach my $export_name (@export_formats) {
       my $params = "&$export_name=1";
-      if ($attr->{qs} !~ /PAGE_ROWS\=/) {
+      if ($attr->{qs} !~ m/PAGE_ROWS\=/x) {
         $params .= "&PAGE_ROWS=1000000";
       }
       else {
-        $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
+        $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/x;
       }
 
       $export_obj .= $self->button($export_name, "$op$attr->{qs}"
@@ -2290,14 +2281,14 @@ sub _form_table_ext_cols {
 
     $hidden_inputs .= $self->form_input($param_name, $FORM{$param_name}, {
       TYPE    => 'hidden',
-      FORM_ID => $ext_cols_form_name,
+      FORM_ID => $ext_cols_form_name, OUTPUT2RETURN => 1
     });
   }
 
   if ($attr->{SHOW_COLS_HIDDEN}) {
     foreach my $key (keys %{$attr->{SHOW_COLS_HIDDEN}}) {
       $hidden_inputs .= $self->form_input($key, $attr->{SHOW_COLS_HIDDEN}->{$key} || '', {
-        TYPE => 'hidden',
+        TYPE => 'hidden', OUTPUT2RETURN => 1
       });
     }
   }
@@ -2305,7 +2296,7 @@ sub _form_table_ext_cols {
   my @fields_row = ();
   my @fields_groups = ();
   my $field_index = 0;
-  foreach my $fields_key (reverse sort keys %{$attr->{SHOW_COLS}}) {
+  foreach my $fields_key (sort keys %{$attr->{SHOW_COLS}}) {
     my $fields = $attr->{SHOW_COLS}{$fields_key};
     next if ref $fields ne 'HASH';
     next if scalar(keys(%{$fields})) < 1;
@@ -2318,28 +2309,52 @@ sub _form_table_ext_cols {
       NO_LINK_FORMER => 1,
       ex_params      => "data-id='extra-fields-$field_index'"
     });
-    my $label_group = $self->element('div', $self->element('h5', $lang->{uc $fields_key} || $fields_key) .
-      $self->element('hr', '', { class => 'mt-0' }), { class => 'col-12' });
+
+    my $select_all_checkbox = $self->element('input', '', {
+      class => 'mr-1 abills-checkbox-select-all',
+      type  => 'checkbox',
+      id    => "EXTRA-GROUP-$field_index", OUTPUT2RETURN => 1
+    });
+
+    my $select_all_wrapper = $self->element('div',
+      $select_all_checkbox . $self->element('label', $lang->{SELECT_ALL}, {
+        for => "EXTRA-GROUP-$field_index", OUTPUT2RETURN => 1
+      }),
+      { class => 'abills-checkbox-parent-select-all mb-0', OUTPUT2RETURN => 1 }
+    );
+
+    my $extra_title_group_header = $self->element('div',
+      $self->element('h5', $lang->{uc $fields_key} || $fields_key, {
+        class => 'mb-0', OUTPUT2RETURN => 1
+      }) . $select_all_wrapper,
+      { class => 'd-flex justify-content-between align-items-center', OUTPUT2RETURN => 1 }
+    );
+
+    my $label_group = $self->element('div',
+      $extra_title_group_header . $self->element('hr', '', { class => 'mt-2 mb-3', OUTPUT2RETURN => 1 }),
+      { class => 'col-12', OUTPUT2RETURN => 1 }
+    );
 
     my @checkboxes = ();
 
-    foreach my $key (keys(%{$fields})) {
+    foreach my $key (sort keys(%{$fields})) {
       if ($key eq 'uid' && ($FORM{UID} && $FORM{UID} ne '_SHOW')) {
-        $hidden_inputs .= $self->form_input('UID', $FORM{UID}, { TYPE => 'hidden' });
+        $hidden_inputs .= $self->form_input('UID', $FORM{UID}, { TYPE => 'hidden', OUTPUT2RETURN => 1 });
         next;
       }
 
       my $upper_key = uc($key);
-      my $label = $self->element('label', $fields->{$key} || '', { FOR => uc($key) });
+      my $label = $self->element('label', $fields->{$key} || '', { FOR => uc($key), OUTPUT2RETURN => 1 });
       my $checkbox = $self->element('input', '', {
-        type  => 'checkbox',
-        name  => 'show_columns',
-        value => $upper_key,
-        id    => $upper_key,
-        class => 'mr-1',
+        type          => 'checkbox',
+        name          => 'show_columns',
+        value         => $upper_key,
+        id            => $upper_key,
+        class         => 'mr-1',
+        OUTPUT2RETURN => 1,
         $attr->{ACTIVE_COLS}->{$key} ? (checked => 'checked') : ()
       });
-      my $checkbox_parent = $self->element('div', $checkbox . $label, { class => 'abills-checkbox-parent' });
+      my $checkbox_parent = $self->element('div', $checkbox . $label, { class => 'abills-checkbox-parent', OUTPUT2RETURN => 1 });
 
       push @checkboxes, $checkbox_parent;
     }
@@ -2356,38 +2371,42 @@ sub _form_table_ext_cols {
       my $end_index = $start_index + ($fields_in_col - 1);
       $end_index = $count_checkboxes - 1 if ($count_checkboxes - 1) < $end_index;
 
-      push @cols, $self->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size" });
+      push @cols, $self->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size", OUTPUT2RETURN => 1 });
     }
 
-    push @fields_row, $self->element('div', $label_group . join('', @cols), { class => 'row mb-4', id => "extra-fields-$field_index" });
+    push @fields_row, $self->element('div', $label_group . join('', @cols), { OUTPUT2RETURN => 1, class => 'row mb-4 checkbox-group-container', id => "extra-fields-$field_index" });
   }
 
   my $fields = $hidden_inputs . join('', @fields_row);
-  my $search_btn = $self->element('a', $self->element('i', '', { class => 'fa fa-search fa-fw' }), { class => 'btn input-group-button' });
-  my $search_btn_input_group = $self->element('div', $search_btn, { class => 'input-group-append' });
+  my $search_btn = $self->element('a', $self->element('i', '', { class => 'fa fa-search fa-fw', OUTPUT2RETURN => 1 }), { class => 'btn input-group-button', OUTPUT2RETURN => 1 });
+  my $search_btn_input_group = $self->element('div', $search_btn, { class => 'input-group-append', OUTPUT2RETURN => 1 });
   my $input_search = $self->form_input('', '', {
-    class       => 'form-control',
-    ID          => 'resultFormSearch',
-    EX_PARAMS   => "placeholder='$lang->{SEARCH}...'"
+    class         => 'form-control',
+    ID            => 'resultFormSearch',
+    EX_PARAMS     => "placeholder='$lang->{SEARCH}...'",
+    OUTPUT2RETURN => 1
   });
-  my $search_input_group = $self->element('div', $input_search . $search_btn_input_group, { class => 'input-group col-12 col-md-6' });
-  my $search_block = $self->element('div', $search_input_group, { class => 'abills-result-former-bar' });
-  my $field_group_block = $self->element('div', join('', @fields_groups), { class => 'd-flex flex-wrap justify-content-center mb-2' });
+  my $search_input_group = $self->element('div', $input_search . $search_btn_input_group, { class => 'input-group col-12 col-md-6', OUTPUT2RETURN => 1 });
+  my $search_block = $self->element('div', $search_input_group, { class => 'abills-result-former-bar', OUTPUT2RETURN => 1 });
+  my $field_group_block = $self->element('div', join('', @fields_groups), { class => 'd-flex flex-wrap justify-content-center mb-2', OUTPUT2RETURN => 1 });
 
   if (!$attr->{SKIP_FORM}) {
     my $show_cols_btn = $self->form_input('show_cols', $lang->{SAVE}, {
-      TYPE        => 'submit',
-      class       => 'btn btn-primary',
-      ID          => 'show_cols',
+      TYPE          => 'submit',
+      class         => 'btn btn-primary',
+      ID            => 'show_cols',
+      OUTPUT2RETURN => 1
     });
     my $del_cols_btn = $self->form_input('del_cols', $lang->{DEFAULT}, {
-      TYPE        => 'submit',
-      class       => 'btn btn-default',
-      ID          => 'del_cols',
+      TYPE          => 'submit',
+      class         => 'btn btn-default',
+      ID            => 'del_cols',
+      OUTPUT2RETURN => 1
     });
     my $form_buttons = $self->element('div', $del_cols_btn . $show_cols_btn,
-      { class => 'abills-form-main-buttons justify-content-between' });
+      { class => 'abills-form-main-buttons justify-content-between', OUTPUT2RETURN => 1 });
 
+    $attr->{ID} //= q{};
     $form_buttons .= qq{
       <script>
         let modal = jQuery('#$attr->{ID}_cols_modal');
@@ -2402,33 +2421,36 @@ sub _form_table_ext_cols {
     $fields = $self->form_main({
       NAME    => $ext_cols_form_name,
       ID      => $ext_cols_form_name,
-      CONTENT => $fields . $self->element('hr',) . $form_buttons
+      CONTENT => $fields . $self->element('hr',) . $form_buttons,
+      OUTPUT2RETURN => 1
     })
   }
 
-  my $modal_title = $self->element('h4', $lang->{EXTRA_FIELDS}, { class => 'modal-title' });
+  my $modal_title = $self->element('h4', $lang->{EXTRA_FIELDS}, { class => 'modal-title', OUTPUT2RETURN => 1 });
   my $close_button = $self->element('button', '&times;', {
     class          => 'close',
     'data-dismiss' => 'modal',
-    'aria-hidden'  => 'true'
+    'aria-hidden'  => 'true',
+    OUTPUT2RETURN  => 1
   });
 
-  my $modal_header = $self->element('div', $modal_title . $close_button, { class => 'modal-header' });
+  my $modal_header = $self->element('div', $modal_title . $close_button, { class => 'modal-header', OUTPUT2RETURN => 1 });
 
   my $modal_body = $self->element('div', $search_block . $field_group_block . $fields, {
     class => 'modal-body text-left',
-    ID    => 'abillsResultFormerBody'
+    ID    => 'abillsResultFormerBody', OUTPUT2RETURN => 1
   });
 
-  my $modal_content = $self->element('div', $modal_header . $modal_body, { class => 'modal-content' });
-  my $modal_dialog = $self->element('div', $modal_content, { class => "modal-dialog modal-$modal_size" });
+  my $modal_content = $self->element('div', $modal_header . $modal_body, { class => 'modal-content', OUTPUT2RETURN => 1 });
+  my $modal_dialog = $self->element('div', $modal_content, { class => "modal-dialog modal-$modal_size", OUTPUT2RETURN => 1 });
 
   return $self->element('div', $modal_dialog, {
     class         => 'modal fade',
     ID            => ($attr->{ID} || q{}) . '_cols_modal',
     tabindex      => '-1',
     role          => 'dialog',
-    'aria-hidden' => 'true'
+    'aria-hidden' => 'true',
+    OUTPUT2RETURN => 1
   });
 }
 
@@ -2535,7 +2557,7 @@ sub addfooter{
   if($self->{COL_NAMES_ARR} && ref $row[0] eq 'HASH') {
     my $footer_info = $row[0];
     foreach my $element (@{ $self->{COL_NAMES_ARR} }) {
-      $self->{footer} .= "<th>$footer_info->{$element}</th>";
+      $self->{footer} .= "<th>". ($element && $footer_info->{$element}) ? $footer_info->{$element} : q{} ."</th>";
     }
   }
   else {
@@ -2587,7 +2609,7 @@ sub addtd {
 
   my $css_class = '';
   if ($self->{rowcolor}) {
-    if ($self->{rowcolor} =~ /^#/) {
+    if ($self->{rowcolor} =~ m/^\#/x) {
       $css_class = "' bgcolor='$self->{rowcolor}'";
     }
     else {
@@ -2603,7 +2625,7 @@ sub addtd {
   $row_number++;
   $self->{rows} .= '<tr class=\'' . $css_class . '\' ' . $row_extra . '>';
   foreach my $val (@row) {
-    $val = $self->td($val) if $val !~ /^\<TD/;
+    $val = $self->td($val) if $val !~ m/^\<TD/x;
     $self->{rows} .= $val;
   }
 
@@ -2702,7 +2724,7 @@ sub table_header {
 
   my $header = '';
   my $qs = $ENV{QUERY_STRING};
-  $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+  $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg;
   my $drop_down = '';
 
   my $elements_before_dropdown = $attr->{SHOW_ONLY} || 5;
@@ -2711,7 +2733,7 @@ sub table_header {
 
   my $i = 0;
   foreach my $element (@{$header_arr}) {
-    my ($name, $url, $extra) = split(/:/, $element, 3);
+    my ($name, $url, $extra) = split(':', $element, 3);
     my $active = '';
     if (!$url) {
       $active = 'active';
@@ -2723,10 +2745,10 @@ sub table_header {
       $active = 'active';
     }
     else {
-      my @url_argv = split(/&/, $url);
+      my @url_argv = split('&', $url);
       my %params_hash = ();
       foreach my $line (@url_argv) {
-        my ($k, $v) = split(/=/, $line);
+        my ($k, $v) = split('=', $line);
         $params_hash{($k || '')} = $v;
       }
 
@@ -2738,17 +2760,17 @@ sub table_header {
     my %url_params = ();
 
     if ($extra) {
-      if ($extra =~ /MESSAGE=(.+)/) {
+      if ($extra =~ m/MESSAGE=(.+)/x) {
         $url_params{MESSAGE} = $1;
       }
 
-      if ($extra =~ /class=(.+)/) {
+      if ($extra =~ m/class=(.+)/x) {
         $url_params{class} = $1;
       }
     }
 
     if ($attr->{TABS} || $attr->{NAV}) {
-      if ($url =~ /^#/) {
+      if ($url =~ m{^\#}x) {
         $url_params{ex_params} = $extra;
         $url_params{GLOBAL_URL} = $url;
       }
@@ -2766,7 +2788,7 @@ sub table_header {
       }
       else {
         $url_params{class} = "nav-link $active";
-        $header .= $self->li($self->button($name, $url, \%url_params,), { class => 'nav-item' });
+        $header .= $self->li($self->button($name, $url, \%url_params), { class => 'nav-item' });
       }
     }
     elsif ($i == $elements_before_dropdown && $#{$header_arr} > $elements_before_dropdown) {
@@ -2849,7 +2871,7 @@ sub table_title {
     $desc = '';
   }
 
-  if ($sort && $sort =~ /^(\d+)/) {
+  if ($sort && $sort =~ m/^(\d+)/x) {
     $sort = $1;
   }
   else {
@@ -2886,14 +2908,6 @@ sub table_title {
       if ($url_index) {
         $op = "index=$url_index";
       }
-
-      # my $admin_subf = '';
-      # if ($FORM{AID}) {
-      #   $admin_subf = "&AID=$FORM{AID}";
-      # }
-      # elsif ($FORM{subf}) {
-      #   #$admin_subf .= "&subf=$FORM{subf}";
-      # }
 
       $self->{table_title} .= $self->button($line, "$op$qs&pg=$pg&sort=$i&desc=$desc" );
       $self->{table_title} .= " <span class='fas $img'></span>" if ($img);
@@ -2957,7 +2971,7 @@ sub table_title_plain {
 sub table_select_all_checkbox {
   my ($self, $options_string) = @_;
 
-  my (undef, $element_name, undef) = split(/:/, $options_string);
+  my (undef, $element_name, undef) = split(':', $options_string);
   $element_name ||= 'IDS';
   return qq{
     <script>
@@ -3082,8 +3096,7 @@ sub table_actions_panel {
 =cut
 #**********************************************************
 sub show {
-  my $self = shift;
-  my ($attr) = shift;
+  my ($self, $attr) = shift;
 
   return '' if $FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID};
 
@@ -3127,18 +3140,17 @@ sub show {
 =cut
 #**********************************************************
 sub link_former {
-  my ($self) = shift;
-  my ($text, $attr) = @_;
+  my ($self, $text, $attr) = @_;
 
   return $text if (!$text);
 
-  $text =~ s/ /+/g if (!$attr->{SKIP_SPACE});
-  $text =~ s/&/&amp;/g;
-  $text =~ s/>/&gt;/g;
-  $text =~ s/</&lt;/g;
-  $text =~ s/\'/&#39;/g;
-  $text =~ s/\"/&quot;/g;
-  $text =~ s/\*/&#42;/g;
+  $text =~ s/\s/+/xg if (!$attr->{SKIP_SPACE});
+  $text =~ s/&/&amp;/xg;
+  $text =~ s/>/&gt;/xg;
+  $text =~ s/</&lt;/xg;
+  $text =~ s/\'/&#39;/xg;
+  $text =~ s/\"/&quot;/xg;
+  $text =~ s/\*/&#42;/xg;
 
   return $text;
 }
@@ -3156,13 +3168,16 @@ sub link_former {
   Returns:
     Image object
 
+  Exapmle:
+    $html->img('/img/admin.jpeg');
+
 =cut
 #**********************************************************
 sub img {
   my $self = shift;
   my ($img, $name, $attr) = @_;
 
-  my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
+  my $img_path = ($img =~ s/^://x) ? "$IMG_PATH/" : '';
 
   my $class = $attr->{class} || 'img-fluid';
   my $ex_params = $attr->{EX_PARAMS} || '';
@@ -3212,8 +3227,8 @@ sub img {
 =cut
 #**********************************************************
 sub button {
-  my $self = shift;
-  my ($name, $params, $attr) = @_;
+  my ($self, $name, $params, $attr) = @_;
+
   my $ex_attr = ($attr->{ex_params}) ? " $attr->{ex_params}" : '';
 
   my $confirmation = '-';
@@ -3229,7 +3244,7 @@ sub button {
     my $x = 640;
     my $y = 480;
     if ($attr->{NEW_WINDOW_SIZE}) {
-      ($x, $y) = split(/:/, $attr->{NEW_WINDOW_SIZE});
+      ($x, $y) = split(':', $attr->{NEW_WINDOW_SIZE});
     }
     $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
             'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
@@ -3239,20 +3254,19 @@ sub button {
   }
 
   if ($attr->{IMG_BUTTON}) {
-    my $img_path = ($attr->{IMG} && $attr->{IMG} =~ s/^://) ? "$IMG_PATH/" : '';
+    my $img_path = ($attr->{IMG} && $attr->{IMG} =~ s/^://x) ? "$IMG_PATH/" : '';
     $name = "<img alt='$name' src='$img_path$attr->{IMG_BUTTON}'>";
   }
   elsif ($attr->{IMG}) {
-    my $img_path = ($attr->{IMG} =~ s/^://) ? "$IMG_PATH/" : '';
+    my $img_path = ($attr->{IMG} =~ s/^://x) ? "$IMG_PATH/" : '';
     my $alt = ($attr->{IMG_ALT}) ? $attr->{IMG_ALT} : 'image';
     $name = "<img alt='$alt' src='$img_path$attr->{IMG}'> $name";
   }
 
   if ($attr->{COPY}) {
-
-    $attr->{COPY} =~ s/'/\\\'/g;
-    $attr->{COPY} =~ s/"/\\\'/g;
-    $attr->{COPY} =~ s/\n/ /g;
+    $attr->{COPY} =~ s/'/\\\'/xg;
+    $attr->{COPY} =~ s/"/\\\'/xg;
+    $attr->{COPY} =~ s/\n/ /xg;
 
     $ex_attr .= qq/ onclick="copyToBuffer('$attr->{COPY}', true)" /;;
     $attr->{SKIP_HREF} = 1;
@@ -3267,10 +3281,10 @@ sub button {
 
     my $ajax_params = $attr->{AJAX} || '';
 
-    $text_message =~ s/'/\\\'/g;
-    $text_message =~ s/"/\\\'/g;
-    $text_message =~ s/\n/<br>/g;
-    $text_message =~ s/\r//g;
+    $text_message =~ s/'/\\\'/xg;
+    $text_message =~ s/"/\\\'/xg;
+    $text_message =~ s/\n/<br>/xg;
+    $text_message =~ s/\r//xg;
 
     # title, link, attr_json;
     my $onclick_str = q/onClick="cancelEvent(event);/
@@ -3293,7 +3307,7 @@ sub button {
   }
   elsif ($attr->{class}) {
     $css_class = $attr->{class};
-    $name_text = $name if ($name && $name !~ /\'|\"/);
+    $name_text = $name if ($name && $name !~ m/\'|\"/x);
 
     if ($button_class_icons{$css_class}) {
       $name = " <span class='fa $button_class_icons{$css_class} p-1'></span>";
@@ -3302,7 +3316,7 @@ sub button {
       $name = " <span class='" . ($CONF->{CURRENCY_ICON} || 'fas fa-euro-sign') . " p-1'></span>";
       $css_class = " class='d-print-none'";
     }
-    elsif ($css_class =~ /show/) {
+    elsif ($css_class =~ m/show/x) {
       $css_class = '';
       $name = " <span class='fa fa-list-alt p-1'></span>";
     }
@@ -3337,7 +3351,7 @@ sub button {
   elsif ($name_text) {
     $title = " title=\"$name_text\"";
   }
-  elsif ($name && $name !~ /[<#]/) {
+  elsif ($name && $name !~ m/[<#]/x) {
     $title = " title=\"$name\"";
   }
 
@@ -3405,8 +3419,7 @@ sub button {
 =cut
 #**********************************************************
 sub dropdown {
-  my $self = shift;
-  my ($button_name, $button_attr, $dropdown_items) = @_;
+  my ($self, $button_name, $button_attr, $dropdown_items) = @_;
 
   $button_attr->{ID} //= 'dropdown_menu_button';
 
@@ -3452,8 +3465,7 @@ sub dropdown {
 =cut
 #**********************************************************
 sub message {
-  my $self = shift;
-  my ($type, $caption, $message, $attr) = @_;
+  my ($self, $type, $caption, $message, $attr) = @_;
 
   $caption .= ': ' . $attr->{ID} if ($attr->{ID});
   my $icon = '';
@@ -3484,12 +3496,10 @@ sub message {
     $message = '';
   }
   else {
-    $message =~ s/\n/<br>/g;
+    $message =~ s/\n/<br>/xg;
   }
 
-  my $output = qq{
-    <div class=" $class text-left">
-  };
+  my $output = qq{ <div class=" $class text-left"> };
 
   if ($caption) {
     $output .= "<h4>$icon $caption</h4>";
@@ -3538,15 +3548,14 @@ sub message {
 =cut
 #**********************************************************
 sub color_mark {
-  my $self = shift;
-  my ($text, $color, $attr) = @_;
+  my ($self, $text, $color, $attr) = @_;
 
   my $output = '';
 
   if ($color && $color eq 'code') {
     $output = "<code>$text</code>";
   }
-  elsif ($color && $color !~ m/[0-9A-F]{3,6}/i) {
+  elsif ($color && $color !~ m/[0-9A-F]{3,6}/xi) {
     my $id = '';
     if(defined($attr->{ID})) {
       $id = "id='$attr->{ID}'";
@@ -3556,7 +3565,7 @@ sub color_mark {
   elsif ($color) {
     $output = (defined($text)) ? "<font color=$color>$text</font>" : q{};
   }
-  elsif (!$color && $text && $text =~ /(.+):([#A-F0-9]{3,10})$/i) {
+  elsif (!$color && $text && $text =~ m/(.+):([#A-F0-9]{3,10})$/xi) {
     $output = "<font color=$2>$1</font>";
   }
   else {
@@ -3581,16 +3590,15 @@ sub color_mark {
 =cut
 #**********************************************************
 sub pages {
-  my $self = shift;
-  my ($count, $argument, $attr) = @_;
+  my ($self, $count, $argument, $attr) = @_;
 
   return '' if ($self->{MAX_ROWS});
 
-  if (defined($attr->{recs_on_page}) && $attr->{recs_on_page} =~ /\d+/) {
+  if (defined($attr->{recs_on_page}) && $attr->{recs_on_page} =~ m/\d+/x) {
     $PAGE_ROWS = $attr->{recs_on_page};
   }
 
-  if ($PG !~ /^\d+$/) {
+  if ($PG !~ m/^\d+$/x) {
     $PG = 0;
   }
 
@@ -3678,8 +3686,7 @@ sub pages {
 =cut
 #**********************************************************
 sub date_fld2 {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
+  my ($self, $base_name, $attr) = @_;
 
   my $form_name = ($attr->{FORM_NAME}) ? "form='$attr->{FORM_NAME}' " : '';
   my $date = '';
@@ -3705,10 +3712,10 @@ sub date_fld2 {
     $year = $curyear + 1900;
     $day = $mday;
 
-    if ($base_name =~ /to/i) {
+    if ($base_name =~ m/to/xi) {
       $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
     }
-    elsif ($base_name =~ /from/i && !$attr->{NEXT_DAY}) {
+    elsif ($base_name =~ m/from/xi && !$attr->{NEXT_DAY}) {
       $day = 1;
     }
     $date = sprintf("%d-%.2d-%.2d", $year, $month, $day);
@@ -3725,12 +3732,19 @@ sub date_fld2 {
 #**********************************************************
 =head2 log_print($level, $text) - Print log
 
+  Arguments:
+    $level
+    $test
+
+  Returns:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub log_print {
-  my $self = shift;
-  my ($level, $text) = @_;
-  my %log_levels;
+  my ($self, $level, $text) = @_;
+
+  my %log_levels = ();
 
   if ($self->{debug} && $self->{debug} < $log_levels{$level}) {
     return 0;
@@ -3784,8 +3798,7 @@ $text
 =cut
 #**********************************************************
 sub tpl_show {
-  my $self = shift;
-  my ($tpl, $variables_ref, $attr) = @_;
+  my ($self, $tpl, $variables_ref, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne ($attr->{ID} || q{})) {
     return '';
@@ -3796,7 +3809,7 @@ sub tpl_show {
 
     if ($attr->{HELP}) {
       my $help_template = $self->get_tpl($attr->{TPL} . '_help', $attr->{MODULE});
-      if ($help_template && $help_template !~ /^No such/) {
+      if ($help_template && $help_template !~ m/^No such/x) {
         $tpl .= $self->element('div', $help_template, {
           class => 'help-template hidden',
           style => 'display : none;'
@@ -3811,38 +3824,38 @@ sub tpl_show {
     $variables_ref->{SELF_URL} //= $SELF_URL;
     $variables_ref->{index} ||= $index;
 
-    while ($tpl =~ /\%(\w{1,60})(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
+    while ($tpl =~ m/\%(\w{1,60})(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/xg) {
       my $var = $1;
       my $delimiter = $2;
       my $default = $3;
 
       if (defined($variables_ref->{$var})) {
-        $variables_ref->{$var} =~ s/\%$var\%//g;
+        $variables_ref->{$var} =~ s/\%$var\%//xg;
       }
       else {
         $variables_ref->{$var} = q{};
       }
 
-      if ($attr->{SKIP_VARS} && $attr->{SKIP_VARS} =~ /$var/) {
+      if ($attr->{SKIP_VARS} && $attr->{SKIP_VARS} =~ m/$var/x) {
       }
-      elsif ($default && $default =~ /expr:(.*)/) {
-        my @expr_arr = split(/\//, $1, 2);
+      elsif ($default && $default =~ m/expr:(.*)/x) {
+        my @expr_arr = split(/\//x, $1, 2);
         if ($#expr_arr > 0) {
-          $variables_ref->{$var} =~ s/$expr_arr[0]/$expr_arr[1]/g;
+          $variables_ref->{$var} =~ s/$expr_arr[0]/$expr_arr[1]/xg;
         }
-        $default =~ s/\//\\\//g;
-        $default =~ s/\[/\\\[/g;
-        $default =~ s/\]/\\\]/g;
-        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
+        $default =~ s/\//\\\//xg;
+        $default =~ s/\[/\\\[/xg;
+        $default =~ s/\]/\\\]/xg;
+        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/xg;
       }
       elsif (defined($variables_ref->{$var})) {
-        if ($variables_ref->{$var} !~ /\=\'|\' | \'/ && !$attr->{SKIP_QUOTE}) {
-          $variables_ref->{$var} =~ s/\'/&#39;/g;
+        if ($variables_ref->{$var} !~ m/\=\'|\'\s+|\s+\'/x && !$attr->{SKIP_QUOTE}) {
+          $variables_ref->{$var} =~ s/\'/&#39;/xg;
         }
-        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
+        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/xg;
       }
       else {
-        $tpl =~ s/\%$var$delimiter$default\%/$default/g;
+        $tpl =~ s/\%$var$delimiter$default\%/$default/xg;
       }
     }
   }
@@ -3975,9 +3988,9 @@ sub get_tpl {
   }
 
   if ($attr->{SUFIX}) {
-    $tpl =~ /\/([a-z0-9\_\.\-]+)$/i;
+    $tpl =~ m/\/([a-z0-9\_\.\-]+)$/xi;
     $tpl = $1;
-    $tpl =~ s/_$attr->{SUFIX}$//;
+    $tpl =~ s/_$attr->{SUFIX}$//x;
     delete $attr->{SUFIX};
     goto start;
   }
@@ -3996,19 +4009,19 @@ sub tpl_content {
 
   open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
   while (<$fh>) {
-    if (/\$/) {
+    if (m/\$/x) {
       my $res = $_;
       if ($res) {
-        $res =~ s/\_\{(\w+)\}\_/$lang->{$1}/sg;
-        $res =~ s/\{secretkey\}//g;
-        $res =~ s/\{dbpasswd\}//g;
-        $res = eval " \"$res\" " if ($res !~ /\`/);
+        $res =~ s/\_\{(\w+)\}\_/$lang->{$1}/xsg;
+        $res =~ s/\{secretkey\}//xg;
+        $res =~ s/\{dbpasswd\}//xg;
+        $res = eval " \"$res\" " if ($res !~ m/\`/x);
         $tpl_content .= $res || q{};
       }
     }
     else {
       # Old
-      s/\_\{(\w+)\}\_/$lang->{$1}/sg;
+      s/\_\{(\w+)\}\_/$lang->{$1}/xsg;
       $tpl_content .= $_;
       #        # New check speed
       #        my $row = $_;
@@ -4066,17 +4079,17 @@ sub test {
   while (my ($k, $v) = each %FORM) {
     $output .= "&nbsp&nbsp$k : " . ($v || q{''}) . ",<br/>";
   }
-  $output =~ s/,$//g;
+  $output =~ s/,$//xg;
 
   $output .= "}<br/>COOKIES : {<br/>";
   while (my ($k, $v) = each %COOKIES) {
     $output .= "&nbsp&nbsp$k : " . ($v || q{''}) . ",<br/>";
   }
-  $output =~ s/,$//g;
+  $output =~ s/,$//xg;
   $output .= "}\n";
 
   my $output_html = $output;
-  $output =~ s/\&nbsp|\<br\/\>//gm;
+  $output =~ s/\&nbsp|\<br\/\>//xgm;
   print qq{<div class='main-footer' id=test><p ><a href='#' data-tooltip="$output_html" data-tooltip-position='top' class='d-print-none'>Debug</a> $output </p></div>\n};
 
   return 1;
@@ -4103,7 +4116,7 @@ sub letters_list {
   }
 
   $pages_qs = $attr->{pages_qs} = ($attr->{pages_qs}) ? $attr->{pages_qs} : '';
-  $pages_qs =~ s/letter=\S+//g;
+  $pages_qs =~ s/letter=\S+//xg;
   my @alphabet = ('0-9', 'a-z');
 
   if ($attr->{EXPR}) {
@@ -4115,12 +4128,12 @@ sub letters_list {
   foreach my $line (@alphabet) {
     my $first = '';
     my $last = '';
-    if ($line =~ /(\d)\-(\d)/) {
+    if ($line =~ m/(\d)\-(\d)/x) {
       $first = $1;
       $last = $2;
     }
     else {
-      $line =~ /(\S)-(\S)/;
+      $line =~ m/(\S)-(\S)/x;
       $first = ord($1);
       $last = ord($2);
     }
@@ -4533,8 +4546,7 @@ sub br {
 =cut
 #**********************************************************
 sub li {
-  my $self = shift;
-  my ($item, $attr) = @_;
+  my ($self, $item, $attr) = @_;
 
   my $class = ($attr->{class}) ? ' class=\'' . $attr->{class} . '\'' : '';
   my $id_val = ($attr->{id}) ? ' id=\'' . $attr->{id} . '\'' : '';
@@ -4546,7 +4558,6 @@ sub li {
 =head2 pre($message, $attr) - Make HTML <pre> element
 
   Arguments:
-
     $text     - Text
     $attr     - $attr
 
@@ -4557,8 +4568,7 @@ sub li {
 =cut
 #**********************************************************
 sub pre {
-  my $self = shift;
-  my ($text, $attr) = @_;
+  my ($self, $text, $attr) = @_;
 
   if (!defined($text)) {
     $text = q{};
@@ -4575,6 +4585,8 @@ sub pre {
   else {
     print $output;
   }
+
+  return q{};
 }
 
 #**********************************************************
@@ -4592,7 +4604,7 @@ sub pre {
 =cut
 #**********************************************************
 sub b {
-  my $self = shift;
+  shift;
   my ($text) = @_;
 
   my $output = (defined($text)) ? "<b>$text</b>" : '';
@@ -4619,8 +4631,7 @@ sub b {
 =cut
 #**********************************************************
 sub element {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $params = '';
   if (ref $attr eq 'HASH') {
@@ -4659,7 +4670,7 @@ sub element {
 =cut
 #***********************************************************
 sub badge {
-  my $self = shift;
+  shift;
   my ($text, $attr) = @_;
 
   my $type = ($attr->{TYPE}) ? "$attr->{TYPE}" : 'badge-info';
@@ -4706,9 +4717,9 @@ sub progress_bar {
   my $complete = 0;
   my $one_percent = 0;
 
-  if ($attr->{TOTAL} && $attr->{TOTAL} =~ /\d+/ && $attr->{COMPLETE}) {
+  if ($attr->{TOTAL} && $attr->{TOTAL} =~ m/\d+/x && $attr->{COMPLETE}) {
     $one_percent = $attr->{TOTAL} / 100;
-    $attr->{COMPLETE} =~ s/\%//;
+    $attr->{COMPLETE} =~ s/\%//x;
     $complete = ($one_percent > 0) ? sprintf('%.f', $attr->{COMPLETE} / $one_percent) : 0;
   }
   my ($first_step, $second_step, $third_step) = ($complete, 0, 0);
@@ -4900,8 +4911,7 @@ EXAMPLES:
 =cut
 #***********************************************************
 sub short_info_panels_row {
-  my $self = shift;
-  my ($panels, $attr) = @_;
+  my ($self, $panels, $attr) = @_;
 
   unless (ref $panels eq 'ARRAY') {
     $panels = [ $panels ];
@@ -5189,8 +5199,7 @@ sub fetch {
 =cut
 #**********************************************************
 sub form_datepicker {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $input = $self->form_input($name, $value, { class => 'form-control datepicker', %{$attr // {}} });
   my $group_text = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-text', %{$attr // {}} });
@@ -5224,8 +5233,7 @@ sub form_datepicker {
 =cut
 #**********************************************************
 sub form_daterangepicker {
-  my ($self) = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $name = $attr->{NAME} || return '';
   my $value = $attr->{VALUE} || $FORM{$name} || '';
@@ -5301,8 +5309,7 @@ sub form_daterangepicker {
 =cut
 #**********************************************************
 sub form_timepicker {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $input = $self->form_input($name, $value, { class => 'form-control timepicker', %{$attr // {}} });
   my $group_text = $self->element('div', '<i class="far fa-clock"></i>', { class => 'input-group-text', %{$attr // {}} });
@@ -5310,55 +5317,6 @@ sub form_timepicker {
 
   return $self->element('div', $input . $addon, { class => 'input-group bootstrap-timepicker', %{$attr ? $attr : {}} });
 }
-
-# #**********************************************************
-# =head2 form_datetimepicker2($name, $attr)
-#
-#   Arguments:
-#     $name
-#       $attr
-#         EX_PARAMS - Hash of parameters (See docs http://eonasdan.github.io/bootstrap-datetimepicker/Options/ )
-#   Returns:
-#     html
-#
-# =cut
-# #**********************************************************
-#
-# sub form_datetimepicker2 {
-#   my ($self, $name, $attr) = @_;
-#   my $result;
-#
-#   $attr->{EX_PARAMS}->{locale} = $self->{content_language};
-#   $attr->{EX_PARAMS}->{maxDate} = localtime(time);
-#   $attr->{EX_PARAMS}->{format} = 'YYYY-MM-DD HH:mm' if !$attr->{EX_PARAMS}->{format};
-#
-#   my $ATTR = JSON->new->encode($attr->{EX_PARAMS});
-#
-#   if ($attr->{ICON}) {
-#     $result = qq(
-#                   <div class='input-group date' id='$name'>
-#                       <input type='text' class='form-control' name='$name' />
-#                       <div class='input-group-append'>
-#                         <div class='input-group-text'>
-#                           <i class='fa fa-calendar'></i>
-#                         </div>
-#                       </div>
-#                   </div>
-#   				);
-#   }
-#   else {
-#     $result = $self->form_input($name, $name);
-#   }
-#   $result .= qq(
-#           <script type="text/javascript">
-#               \$(function () {
-#                   \$('#$name').datetimepicker($ATTR);
-#               });
-#           </script>
-#   );
-#
-#   return $result;
-# }
 
 #**********************************************************
 =head2 form_datetimepicker($name, $value, $attr) - simple datetime chooser
@@ -5379,8 +5337,7 @@ sub form_timepicker {
 =cut
 #**********************************************************
 sub form_datetimepicker {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $result = '';
 
@@ -5687,8 +5644,7 @@ sub form_blocks_togglable {
 =cut
 #**********************************************************
 sub chart {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $result = qq{<script src="/styles/$self->{HTML_STYLE}/plugins/chartjs/Chart.min.js"></script>};;
   my $canvas_id = "canvas";
@@ -5801,13 +5757,13 @@ sub chart {
 =cut
 #**********************************************************
 sub html_tree {
-  my $self = shift;
+  shift;
   my ($list, $keys, $attr) = @_;
 
   my $DATA = Abills::Base::json_former($list);
   $attr = Abills::Base::json_former($attr);
 
-  my $result .= qq(
+  my $result = qq(
     <div id="show_tree" style="text-align: left;" class="form-group container"> </div>
     <link rel='stylesheet' href='/styles/default/css/new_tree.css'>
     <script type='text/javascript' src='/styles/default/js/tree/tree.js'></script>
@@ -5874,10 +5830,10 @@ sub _make_perm_clases {
   $style_str .= "$class_list {display: none;}\n";
   $style_str .= "</style>\n";
 
-  $class_list =~ s/h/r/g;
+  $class_list =~ s/h/r/xg;
   $style_str .= "<script>\n";
   $style_str .= "var roClases='$class_list'\n";
-  $class_list =~ s/r/d/g;
+  $class_list =~ s/r/d/xg;
   $style_str .= "var diClases='$class_list'\n";
   $style_str .= "</script>\n";
 

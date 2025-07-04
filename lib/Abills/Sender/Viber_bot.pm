@@ -113,6 +113,8 @@ sub send_message {
     };
   }
 
+  $message->{text} =~ s/\\\'/\'/g;
+  $message->{text} =~ s/\\\\"/\"/g;
   my $result = $self->send_request($message, $callback);
   if ($result->{status}) {
     $result->{errno} = $status_compare{$result->{status}} || $result->{status};
@@ -160,10 +162,10 @@ sub send_request {
   my $url = $self->{api_url} . 'send_message';
 
   my @header = ('Content-Type: application/json', 'X-Viber-Auth-Token: ' . $self->{token});
-  $json_str =~ s/\"/\\\"/g;
 
   my $result = web_request($url, {
-    POST         => $json_str,
+    # POST         => $json_str,
+    JSON_BODY    => $attr,
     HEADERS      => \@header,
     CURL         => 1,
     CURL_OPTIONS => '-XPOST',

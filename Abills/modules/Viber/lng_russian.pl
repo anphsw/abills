@@ -24,7 +24,6 @@ $lang{ENABLED_CREDIT} = "Включение кредита";
 $lang{CREDIT_SUCCESS} = "Кредит установленный";
 $lang{CREDIT_NOT_EXIST} = "Кредит недоступен";
 $lang{ABOUT} = "О компании";
-$lang{COMPANY_NAME} = "Название компании";
 $lang{ADDRESS} = "Адрес";
 $lang{PHONE} = "Телефон";
 $lang{EMAIL} = "Электронная почта";
@@ -121,5 +120,11 @@ $lang{CARD_PAY_SUCCESS} = "Успешно!\n\nСумма пополнения: %
 $lang{VIBER_LINK_AND_INVITE} = 'Для того, чтобы пригласить своего друга — поделитесь ссылкой на бота ниже';
 $lang{AN_ERROR_OCCURRED_WHILE_APPLYING} = 'Произошла ошибка при подаче заявки';
 $lang{APPLICATION_SENT} = 'Заявка отправлена';
+
+$lang{VIBER_OPERATOR_HELP} = 'Помощь оператора';
+$lang{VIBER_RETURN_TO_MAIN_MENU} = 'Вернуться в главное меню';
+$lang{VIBER_DESCRIBE_YOUR_ISSUE} = 'Пожалуйста, опишите ваш вопрос. Оператор свяжется с вами в ближайшее время.';
+$lang{VIBER_MESSAGE_SENT} = 'Сообщение отправлено';
+$lang{VIBER_MESSAGE_SEND_ERROR} = 'Ошибка при отправке сообщения';
 
 1;

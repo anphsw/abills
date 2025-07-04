@@ -85,6 +85,7 @@
   </div>
 </form>
 
+<script src='/styles/default/js/draganddropfile.js'></script>
 <script>
   let attachments = [];
 
@@ -134,6 +135,5 @@
   var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
   if (!MAX_FILES_COUNT || MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
 
-  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT, 'TEXT');
 </script>
-<script src='/styles/default/js/draganddropfile.js'></script>

@@ -314,7 +314,9 @@ sub list {
       ['LAST_DEPOSIT',   'INT', 'f.last_deposit',                  1 ],
       ['METHOD',         'INT', 'f.method',                        1 ],
       ['METHOD_ID',      'INT', 'f.method', 'f.method AS method_id'  ],
+      ['METHOD_NAME',    'STR', 'ft.name',  'ft.name AS method_name' ],
       ['COMPANY_ID',     'INT', 'u.company_id',                      ],
+      ['EDRPOU',         'STR', 'c.edrpou',                        1 ],
       ['A_LOGIN',        'STR', 'a.id', 'a.id as a_login',         1 ],
       # ['ADMIN_NAME',     'STR', 'a.id'                               ],
       ['ADMIN_NAME',     'STR', 'a.name', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name" ],
@@ -350,8 +352,8 @@ sub list {
 ';
   }
 
-  if($attr->{TAX} || $attr->{TAX_SUM}) {
-    $EXT_TABLES  .= " LEFT JOIN fees_types ft ON (ft.id=f.method)";
+  if ($self->{SEARCH_FIELDS} =~ /ft\./ || $WHERE =~ /ft\./) {
+    $EXT_TABLES .= " LEFT JOIN fees_types ft ON (ft.id=f.method)";
   }
 
   if($self->{SEARCH_FIELDS} =~ /u\.|pi\./ || $WHERE =~ /u\.|pi\./) {
@@ -360,6 +362,10 @@ sub list {
 
   if($self->{SEARCH_FIELDS} =~ /a\./ || $WHERE =~ /a\./) {
     $EXT_TABLES = 'LEFT JOIN admins a ON (a.aid=f.aid) ' . $EXT_TABLES;
+  }
+
+  if($self->{SEARCH_FIELDS} =~ /c\./ || $WHERE =~ /c\./) {
+    $EXT_TABLES  .= " LEFT JOIN companies c ON (c.id=u.company_id)";
   }
 
   #TODO we really need in default params inner_describe
@@ -570,9 +576,10 @@ sub fees_type_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
-      ['ID',           'INT', 'id'      ],
-      ['NAME',         'STR', 'name'    ],
-      ['TAX',          'INT', 'tax',   1],
+      [ 'ID',        'INT', 'id'           ],
+      [ 'NAME',      'STR', 'name'         ],
+      [ 'TAX',       'INT', 'tax',       1 ],
+      [ 'PARENT_ID', 'INT', 'parent_id', 1 ],
     ],
   { WHERE => 1, });
 
@@ -605,10 +612,10 @@ sub fees_type_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT * FROM fees_types WHERE id = ? ;",
-  undef,
-  { INFO => 1,
-    Bind => [ $attr->{ID} ] });
+  $self->query("SELECT * FROM fees_types WHERE id = ? ;", undef, {
+    INFO => 1,
+    Bind => [ $attr->{ID} ]
+  });
 
   return $self;
 }

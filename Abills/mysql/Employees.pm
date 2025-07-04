@@ -4211,4 +4211,47 @@ sub employees_cashbox_admins_del {
   return $self;
 }
 
+#*******************************************************************
+
+=head2 employees_total_balance() - get total balances with coming and spending
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Employees->employees_total_balance({ CASHBOX_IDS => '1;2', COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub employees_total_balance {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'CASHBOX_IDS',        'INT',  'ec.id',         1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT
+    ec.id, ec.name,
+    (SELECT SUM(amount) FROM employees_coming WHERE cashbox_id=ec.id) AS total_coming,
+    (SELECT SUM(amount) FROM employees_spending WHERE cashbox_id=ec.id) AS total_spending
+    FROM employees_cashboxes ec
+    $WHERE
+    GROUP BY ec.id
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr,
+  );
+
+  return $self->{list} || [];
+}
+
+
 1;

@@ -4,16 +4,15 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db, $msgs_permissions);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Msgs;
+my Msgs $Msgs;
 
 use Abills::Base qw/in_array/;
 
 require Users;
 Users->import();
-my $users;
+my Users $users;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -79,7 +78,10 @@ sub plugin_show {
   my ($attr) = @_;
 
   if ($attr->{ping}) {
-    ::host_diagnostic($attr->{ping});
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_diagnostic');
+    my $result = ::host_diagnostic($attr->{ping});
+    $html->message('info', $lang->{INFO}, $result);
     return { RETURN_VALUE => 1 };
   }
 
@@ -159,7 +161,7 @@ sub _get_main_info {
 #**********************************************************
 sub _get_plan_date_input {
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $plan_date = $Msgs->{PLAN_DATE} && $Msgs->{PLAN_DATE} ne '0000-00-00' ? $Msgs->{PLAN_DATE} : '';
   my $plan_time = $Msgs->{PLAN_DATE} && $Msgs->{PLAN_TIME} && $Msgs->{PLAN_TIME} ne '00:00:00' ? $Msgs->{PLAN_TIME} : '';
@@ -190,7 +192,7 @@ sub _get_plan_date_input {
 #**********************************************************
 sub _get_responsible_select {
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   return '' if !$msgs_permissions->{1}{16};
 
@@ -219,7 +221,7 @@ sub _get_responsible_select {
 #**********************************************************
 sub _get_watchers_select {
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   return '' if !$msgs_permissions->{1}{17};
 

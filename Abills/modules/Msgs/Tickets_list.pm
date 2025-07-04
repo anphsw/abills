@@ -10,25 +10,23 @@ use Abills::Base qw(convert in_array);
 
 our ($db,
   %lang,
-  $html,
   $admin,
   %conf,
   %permissions,
   %msgs_permissions
 );
 
+our Abills::HTML $html;
+
 my @priority_lit = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
-my @priority = ();
-if ($html) {
-  @priority = (
-    $html->element('span', '', { class => 'fa fa-thermometer-empty',          OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-quarter',        OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-half',           OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-three-quarters', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-full',           OUTPUT2RETURN => 1 })
-  );
-}
+my @priority = (
+    $html->element('span', '', { class => 'fa fa-thermometer-empty',   title => $priority_lit[0],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-quarter', title => $priority_lit[1],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-half',    title => $priority_lit[2],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-three-quarters', title => $priority_lit[3], OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-full',    title => $priority_lit[4],   OUTPUT2RETURN => 1 })
+);
 
 $_COLORS[6] //= 'red';
 $_COLORS[8] //= '#FFFFFF';
@@ -184,12 +182,50 @@ sub msgs_list {
     $FORM{sort} = '1';
     $FORM{desc} = 'DESC';
   }
+
+  my $ext_titles = {
+    'id'                     => $lang{NUM},
+    'client_id'              => $lang{USER},
+    'subject'                => $lang{SUBJECT},
+    'chapter_name'           => $lang{CHAPTERS},
+    'datetime'               => $lang{DATE},
+    'state'                  => $lang{STATE},
+    'closed_date'            => $lang{CLOSED},
+    'resposible_admin_login' => $lang{RESPOSIBLE},
+    'admin_login'            => $lang{ADMIN},
+    'priority_id'            => $lang{PRIORITY},
+    'plan_date_time'         => $lang{EXECUTION},
+    'run_time'               => $lang{RUN_TIME},
+    'soft_deadline'          => 'Soft deadline',
+    'hard_deadline'          => 'Hard deadline',
+    'user_read'              => $lang{USER_READ},
+    'admin_read'             => $lang{ADMIN_READ},
+    'replies_counts'         => "replies_counts",
+    'dispatch_id'            => $lang{DISPATCH},
+    'message'                => $lang{MESSAGE},
+    'ip'                     => 'IP',
+    'msg_phone'              => "CALL $lang{PHONE}",
+    'last_replie_date'       => $lang{LAST_ACTIVITY},
+    'rating'                 => $lang{RATING},
+    'chg_msgs'               => $lang{NUM},
+    'del_msgs'               => $lang{NUM},
+    'uid'                    => 'UID',
+    'downtime'               => $lang{DOWNTIME},
+    'performers'             => $lang{PERFORMERS},
+    'msgs_tags_ids'          => $lang{MSGS_TAGS},
+    'closed_admin'           => $lang{CLOSED_THE_TICKET},
+    'watchers'               => $lang{WATCHERS},
+    'replies_counts'         => $lang{REPLYS},
+    'client_responsible'     => $lang{MSGS_RESPONSIBLE_PERSON_CLIENT_SIDE},
+  };
+
+  my $replies = {};
   ($table, $list) = result_former({
     INPUT_DATA        => $Msgs,
     BASE_FIELDS       => 0,
     DEFAULT_FIELDS    => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
-    HIDDEN_FIELDS     => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS,TEAM_ID',
+    HIDDEN_FIELDS     => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,CLIENT_RESPONSIBLE,' .
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS,TEAM_ID,REPLIES_COUNTS',
     APPEND_FIELDS     => 'UID',
     FUNCTION          => 'messages_list',
     FUNCTION_FIELDS   => join(',', @function_fields),
@@ -243,14 +279,48 @@ sub msgs_list {
       },
       priority_id            => sub {
         my ($priority_id) = @_;
-        $priority_id //= 3; # Normal
-        $priority_id = 3 if !$priority[$priority_id];
-        my $icon = $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
-        $html->element('span', $icon, { "data-tooltip" => "$priority_lit[$priority_id]" || "", "data-tooltip-position" => 'top' });
+        $priority_id ||= 3; # Normal
+        $priority_id = 3 if (!defined($priority[$priority_id]));
+        return $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
+      },
+      replies_counts         => sub {
+        my ($priority_id, $line, $col_name, $list) = @_;
+
+        if (scalar(keys %{$replies}) < 1 && scalar(@{$list}) > 0) {
+          my $ids = join(';', map { $_->{id} } @{$list});
+          my $Temp_msgs = Msgs->new($db, $admin, \%conf);
+          my $replies_list = $Temp_msgs->messages_reply_list({
+            MSG_ID    => $ids,
+            UID       => '_SHOW',
+            INNER_MSG => 0,
+            COLS_NAME => '_SHOW',
+            DESC      => 'DESC',
+            PAGE_ROWS => 1000000
+          });
+
+          foreach my $reply (@{$replies_list}) {
+            push @{$replies->{$reply->{main_msg}}}, {
+              text    => convert($reply->{text} || '', { text2html => ($FORM{xml}) ? undef : 1, json => $FORM{json} }),
+              creator => $reply->{creator_fio} || $reply->{creator_id} || '',
+              date    => $reply->{datetime} || '',
+              aid     => $reply->{aid}
+            };
+          }
+        }
+
+        return '' unless $replies->{$line->{id}};
+
+        if ($html && $html->{TYPE} eq 'html') {
+          return _msgs_generate_replies_html($replies->{$line->{id}});
+        }
+
+        return join("\n\n", map {
+          "$_->{creator}\n$_->{date}\n$_->{text}"
+        } @{$replies->{$line->{id}}});
       },
       deposit                => sub {
         my ($deposit, $line) = @_;
-        ($permissions{0} && !$permissions{0}{12})
+        return ($permissions{0} && !$permissions{0}{12})
           ? '--'
           : (($deposit || 0) + ($line->{credit} || 0) < 0)
           ? $html->color_mark($deposit, 'text-danger')
@@ -279,43 +349,12 @@ sub msgs_list {
       disable        => "_msgs_list_status_form::FUNCTION=msgs_list",
       msgs_tags_ids  => '_msgs_message_tags_name::MSGS_TAGS_IDS'
     },
-    EXT_TITLES        => {
-      'id'                     => $lang{NUM},
-      'client_id'              => $lang{USER},
-      'subject'                => $lang{SUBJECT},
-      'chapter_name'           => $lang{CHAPTERS},
-      'datetime'               => $lang{DATE},
-      'state'                  => $lang{STATE},
-      'closed_date'            => $lang{CLOSED},
-      'resposible_admin_login' => $lang{RESPOSIBLE},
-      'admin_login'            => $lang{ADMIN},
-      'priority_id'            => $lang{PRIORITY},
-      'plan_date_time'         => $lang{EXECUTION},
-      'run_time'               => $lang{RUN_TIME},
-      'soft_deadline'          => 'Soft deadline',
-      'hard_deadline'          => 'Hard deadline',
-      'user_read'              => $lang{USER_READ},
-      'admin_read'             => $lang{ADMIN_READ},
-      'replies_counts'         => "replies_counts",
-      'dispatch_id'            => $lang{DISPATCH},
-      'message'                => $lang{MESSAGE},
-      'ip'                     => 'IP',
-      'msg_phone'              => "CALL $lang{PHONE}",
-      'last_replie_date'       => $lang{LAST_ACTIVITY},
-      'rating'                 => $lang{RATING},
-      'chg_msgs'               => $lang{NUM},
-      'del_msgs'               => $lang{NUM},
-      'uid'                    => 'UID',
-      'downtime'               => $lang{DOWNTIME},
-      'performers'             => $lang{PERFORMERS},
-      'msgs_tags_ids'          => $lang{MSGS_TAGS},
-      'closed_admin'           => $lang{CLOSED_THE_TICKET},
-      'watchers'               => $lang{WATCHERS},
-    },
+    EXT_TITLES        => $ext_titles,
     TABLE             => {
       MULTISELECT_ACTIONS => \@MULTISELECT_ACTIONS,
       width               => '100%',
       caption             => $lang{MESSAGES},
+      SKIP_LINK           => 0,
       qs                  => $pages_qs
         . (defined($FORM{CHAPTER}) && $FORM{CHAPTER} ne '_SHOW' ? "&CHAPTER=$FORM{CHAPTER}" : '')
         . (!$FORM{UID} ? '&UID=' : ''),
@@ -391,10 +430,16 @@ sub msgs_list {
   });
 
   my ($status_field, $status_btn) = _msgs_status_update();
+
   $html->tpl_show(_include('msgs_actions', 'Msgs'), {
     %actions_msgs,
     STATUS_MSGS => $status_field,
     STATUS_BTN  => $status_btn
+  });
+
+  $html->tpl_show(_include('msgs_search_view', 'Msgs'), {
+    TABLE_TITLES => Abills::Base::json_former($ext_titles),
+    STATUSES     => Abills::Base::json_former(msgs_sel_status({ HASH_RESULT => 1 }))
   });
 
   # Quick message preview
@@ -672,6 +717,65 @@ sub _msgs_message_tags_name {
   }
 
   return $tags_name;
+}
+
+#**********************************************************
+=head2 _msgs_generate_replies_html($$replies)
+
+=cut
+#**********************************************************
+sub _msgs_generate_replies_html {
+  my ($replies) = @_;
+
+  my $messages = '';
+  foreach my $reply (@{$replies}) {
+    my $direct_chat_text = $html->element('div', $reply->{text}, { class => 'direct-chat-text' });
+    my $chat_info = '';
+    my $msg_class = 'direct-chat-msg';
+
+    if ($reply->{aid}) {
+      my $sender = $html->element('span', $reply->{creator}, { class => 'direct-chat-name float-left' });
+      my $date   = $html->element('span', $reply->{date}, { class => 'direct-chat-timestamp float-right' });
+      $chat_info = $html->element('div', $sender . $date, { class => 'direct-chat-infos clearfix' });
+    }
+    else {
+      $msg_class .= ' right';
+      my $sender = $html->element('span', $reply->{creator}, { class => 'direct-chat-name float-right' });
+      my $date   = $html->element('span', $reply->{date}, { class => 'direct-chat-timestamp float-left' });
+      $chat_info = $html->element('div', $sender . $date, { class => 'direct-chat-infos clearfix' });
+    }
+
+    $messages .= $html->element('div', $chat_info . $direct_chat_text, { class => $msg_class });
+  }
+
+  my $card_body = $html->element(
+    'div',
+    $html->element('div', $messages, { class => 'direct-chat-messages' }),
+    { class => 'card-body' }
+  );
+
+  my $collapse_button = $html->element(
+    'button',
+    $html->element('i', '', { class => 'fas fa-plus' }),
+    {
+      type => 'button',
+      class => 'btn btn-tool',
+      'data-card-widget' => 'collapse',
+    }
+  );
+
+  my $card_header = $html->element(
+    'div',
+    $html->element('h3', $lang{REPLYS}, { class => 'card-title' }) .
+      $html->element('div', $collapse_button, { class => 'card-tools' }),
+    { class => 'card-header' }
+  );
+
+  return $html->element(
+    'div',
+    $card_header . $card_body,
+    { class => 'card card-primary card-outline direct-chat direct-chat-primary collapsed-card' }
+  );
 }
 
 1;

@@ -140,8 +140,8 @@ sub form_admins {
 
       $FORM{G2FA} = '' if ($FORM{g2fa_remove} || !$FORM{G2FA});
 
-      $admin_form->change({ %FORM });
-      if (!$admin_form->{errno}) {
+      $admin->change({ %FORM });
+      if (!$admin->{errno}) {
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ");
       }
     }
@@ -298,37 +298,38 @@ sub form_admins {
   }
 
   my %EXT_TITLES = (
-    login            => $lang{LOGIN},
-    name             => $lang{FIO},
-    position         => $lang{POSITION},
-    regdate          => $lang{REGISTRATION},
-    disable          => $lang{STATUS},
-    aid              => '#',
-    g_name           => $lang{GROUPS},
-    domain_name      => 'Domain',
-    start_work       => $lang{BEGIN},
-    gps_imei         => 'GPS IMEI',
-    birthday         => $lang{BIRTHDAY},
-    api_key          => 'API_KEY',
-    telegram_id      => 'Telegram ID',
-    rfid_number      => "RFID $lang{NUMBER}",
-    department_name  => $lang{DEPARTMENT},
-    pasport_num      => "$lang{PASPORT} $lang{NUM}",
-    pasport_date     => "$lang{PASPORT} $lang{DATE}",
-    pasport_grant    => "$lang{PASPORT} $lang{GRANT}",
-    inn              => $lang{INN},
-    max_rows         => $lang{MAX_ROWS},
-    min_search_chars => $lang{MIN_SEARCH_CHARS},
-    max_credit       => "$lang{MAX} $lang{CREDIT}",
-    credit_days      => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
-    comments         => $lang{COMMENTS},
-    phone            => $lang{PHONE},
+    login               => $lang{LOGIN},
+    name                => $lang{FIO},
+    position            => $lang{POSITION},
+    regdate             => $lang{REGISTRATION},
+    disable             => $lang{STATUS},
+    aid                 => '#',
+    g_name              => $lang{GROUPS},
+    domain_name         => 'Domain',
+    start_work          => $lang{BEGIN},
+    gps_imei            => 'GPS IMEI',
+    birthday            => $lang{BIRTHDAY},
+    api_key             => 'API_KEY',
+    telegram_id         => 'Telegram ID',
+    rfid_number         => "RFID $lang{NUMBER}",
+    department_name     => $lang{DEPARTMENT},
+    pasport_num         => "$lang{PASPORT} $lang{NUM}",
+    pasport_date        => "$lang{PASPORT} $lang{DATE}",
+    pasport_grant       => "$lang{PASPORT} $lang{GRANT}",
+    inn                 => $lang{INN},
+    max_rows            => $lang{MAX_ROWS},
+    min_search_chars    => $lang{MIN_SEARCH_CHARS},
+    max_credit          => "$lang{MAX} $lang{CREDIT}",
+    credit_days         => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
+    comments            => $lang{COMMENTS},
+    phone               => $lang{PHONE},
     # cell_phone       => $lang{CELL_PHONE},
-    email            => 'Email',
-    sip_number       => 'SIP',
-    avatar_link      => $lang{AVATAR},
-    g2fa             => 'G2FA',
+    email               => 'Email',
+    sip_number          => 'SIP',
+    avatar_link         => $lang{AVATAR},
+    g2fa                => 'G2FA',
     availability_period => $lang{AVAILABILITY_PERIOD},
+    status_date         => "$lang{STATUS} $lang{DATE}"
   );
 
   if ($conf{ADMIN_NEW_ADDRESS_FORM}) {
@@ -339,6 +340,8 @@ sub form_admins {
     $EXT_TITLES{address} = $lang{ADDRESS};
   }
 
+  my $admin_extended_fields = _admin_get_extended_fields();
+
   my Abills::HTML $table;
   my $admins_list;
   ($table, $admins_list) = result_former({
@@ -347,12 +350,13 @@ sub form_admins {
     BASE_FIELDS     => $base_fields,
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
-    EXT_TITLES      => \%EXT_TITLES,
+    EXT_TITLES      => { %EXT_TITLES, %{$admin_extended_fields->{ADMIN_EXT_TITLES} || {}} },
     TABLE           => {
       width          => '100%',
       caption        => $lang{ADMINS},
       qs             => $pages_qs,
       ID             => 'ADMINS_LIST',
+      SHOW_COLS      => { ADMINS => \%EXT_TITLES, %{$admin_extended_fields->{ADMIN_EXT_GROUP_TITLES} || {}} },
       SHOW_FULL_LIST => 1,
       header         => \@status_bar,
       EXPORT         => 1,
@@ -361,32 +365,54 @@ sub form_admins {
   });
   my $count = $admin->{TOTAL};
 
+  my $Admin_ = Admins->new($db, \%conf);
+  my $admins_modules = { $admin->{AID} => $admin->{MODULES} };
+  my $admins_permissions = { $admin->{AID} => $admin->{permissions} };
+
   foreach my $line (@$admins_list) {
     my @fields_array = ();
+    
+    if (!exists $admins_modules->{$line->{aid}}) {
+      $Admin_->{AID} = $line->{aid};
+      $Admin_->get_permissions();
+      $admins_modules->{$line->{aid}} = $Admin_->{MODULES};
+      $admins_permissions->{$line->{aid}} = $Admin_->{permissions};
+    }
+
     for (my $i = 0; $i < $base_fields + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $admin->{COL_NAMES_ARR}->[$i] || '';
 
       if ($field_name eq 'g2fa') {
         $line->{g2fa} = $line->{g2fa} ? $lang{ENABLED} : $lang{DISABLED};
       }
-      if ($field_name eq 'avatar_link'){
+      elsif ($field_name eq 'avatar_link'){
         my $avatar = ($line->{avatar_link}) ? "/images/$line->{avatar_link}" : '/styles/default/img/admin/avatar5.png';
         $line->{avatar_link} = "<img src='$avatar' class='img-circle ' alt='User Image' style='width: 40px;'>";
       }
-      elsif ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
+      elsif ($field_name eq 'disable' && $line->{disable} =~ m/\d+/x) {
         my %disable_status = (
           '0'  => "$lang{ACTIV}:text-success",
           '1'  => "$lang{DISABLE}:text-danger",
           '2'  => "$lang{FIRED}:text-warning",
         );
-        my($value, $color) = split(/:/, $disable_status{$line->{disable}} || ":");
+        my($value, $color) = split(/:/x, $disable_status{$line->{disable}} || ":");
         $line->{disable} = $html->color_mark($value, $color);
       }
       elsif ($field_name eq 'gname') {
         $line->{gname} .= $admin_groups{ $line->{aid} },
       }
-      elsif($field_name eq 'position'){
+      elsif ($field_name eq 'position'){
         $line->{position} = _translate($line->{position});
+      }
+      elsif ($admin_extended_fields->{MODULES} && $admin_extended_fields->{MODULES}{$field_name}) {
+        $line->{$field_name} = !$admins_modules->{$line->{aid}} ||
+          $admins_modules->{$line->{aid}}{$admin_extended_fields->{MODULES}{$field_name}}
+          ? $lang{YES} : $lang{NO};
+      }
+      elsif ($field_name =~ m/^\d+\_\d+$/x) {
+        my ($section, $permit) = split('_', $field_name);
+        $line->{$field_name} = $admins_permissions->{$line->{aid}}{$section} &&
+          $admins_permissions->{$line->{aid}}{$section}{$permit} ? $lang{YES} : $lang{NO};
       }
 
       push @fields_array, $line->{$field_name};
@@ -419,6 +445,58 @@ sub form_admins {
   system_info();
 
   return 1;
+}
+
+#**********************************************************
+=head2 _admin_get_extended_fields()
+
+=cut
+#**********************************************************
+sub _admin_get_extended_fields {
+
+  return {} if !$conf{ADMIN_EXTENDED_RIGHTS_VIEW};
+
+  my %MODULES_EXT_TITLES = map { lc($_) => $_ } @MODULES;
+  my %PERMISSIONS_EXT_TITLES = %MODULES_EXT_TITLES;
+  my %PERMISSIONS_EXT_GROUP_TITLES = (MODULES => { %MODULES_EXT_TITLES });
+
+  my @permissions_group_name = (
+    $lang{CUSTOMERS}, $lang{PAYMENTS}, $lang{FEES}, $lang{REPORT},
+    $lang{CONFIG}, $lang{MONITORING}, $lang{SEARCH}, $lang{MAINTAIN},
+    $lang{PROFILE}, $lang{DOMAINS}
+  );
+
+  my @admin_permissions = _admin_permissions();
+  my $extra_fields = [];
+
+  for my $permission_group_id (0 .. $#admin_permissions) {
+    my $permission_group = $admin_permissions[$permission_group_id];
+    my $group_name = $permissions_group_name[$permission_group_id];
+    my $group_ext_title = "$lang{PERMISSION}: $group_name";
+
+    for my $permission_id (0 .. $#{$permission_group}) {
+      my $permission = $permission_group->[$permission_id];
+      next if (!$permission);
+
+      my $field_name = "${permission_group_id}_${permission_id}";
+      push @{$extra_fields}, [ $field_name, 'INT', "1 AS $field_name", 1 ];
+
+      $PERMISSIONS_EXT_TITLES{$field_name} = "$group_name:$permission";
+      $PERMISSIONS_EXT_GROUP_TITLES{$group_ext_title}{$field_name} = $permission;
+    }
+  }
+
+  foreach my $module (@MODULES) {
+    push @{$extra_fields}, [ uc $module, 'STR', '1 AS ' . lc $module, 1 ];
+  }
+
+  $admin->{EXTRA_SEARCH_COLUMNS} = $extra_fields;
+
+  return {
+    ADMIN_EXT_TITLES       => \%PERMISSIONS_EXT_TITLES,
+    ADMIN_EXT_GROUP_TITLES => \%PERMISSIONS_EXT_GROUP_TITLES,
+    MODULES                => \%MODULES_EXT_TITLES,
+  };
 }
 
 #**********************************************************
@@ -702,6 +780,7 @@ sub form_admins_full_log_analyze {
   $LIST_PARAMS{AID} = $FORM{AID};
   $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
   $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE};
+  $LIST_PARAMS{SHOW_ACTION} = '_SHOW';
 
   if ($FORM{details}) {
     $LIST_PARAMS{FUNCTION_NAME} = $FORM{details};
@@ -746,17 +825,48 @@ sub form_admins_full_log_analyze {
     result_former({
       INPUT_DATA     => $admin_,
       FUNCTION       => 'full_log_list',
-      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP,FUNCTION_INDEX,SID',
+      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP,FUNCTION_INDEX,SID,SHOW_ACTION',
       EXT_TITLES => {
         datetime       => $lang{DATE},
         function_name  => 'function_name',
         function_index => 'function_index',
         ip             => 'IP',
-        sid            => 'SID'
+        sid            => 'SID',
+        show_action    => $lang{ACTION},
       },
       FILTER_COLS    => {
         function_name => '_paranoid_log_function_filter',
         params        => '_paranoid_log_params_filter'
+      },
+      FILTER_VALUES => {
+        show_action => sub {
+          my (undef, $line) = @_;
+          my $badge_name = '';
+          my $badge_type = '';
+
+          if ($line->{params} =~ /info/ || $line->{params} =~ /chg/) {
+            $badge_name = $lang{INFO};
+            $badge_type = 'badge-info';
+          }
+          if ($line->{params} =~ /add/) {
+            $badge_name = $lang{ADDED};
+            $badge_type = 'badge-success';
+          }
+          if ($line->{params} =~ /change/) {
+            $badge_name = $lang{CHANGED};
+            $badge_type = 'badge-warning';
+          }
+          if ($line->{params} =~ /del/) {
+            $badge_name = $lang{DELETED};
+            $badge_type = 'badge-danger';
+          }
+          if ($line->{params} =~ /search/) {
+            $badge_name = $lang{SEARCH};
+            $badge_type = 'badge-light';
+          }
+
+          return $html->badge($badge_name, { TYPE => $badge_type });
+        },
       },
       SKIP_USER_TITLE   => 1,
       TABLE          => {
@@ -925,105 +1035,7 @@ sub form_admins_access {
 sub form_admin_permissions {
   my ($attr) = @_;
 
-  my @actions = (
-    [
-      $lang{INFO},
-      $lang{ADD},
-      $lang{LIST},
-      $lang{PASSWD},
-      $lang{CHANGE},
-      $lang{DEL},
-      $lang{ALL},
-      $lang{MULTIUSER_OP},
-      "$lang{SHOW} $lang{DELETED}",
-      $lang{CREDIT},
-      $lang{TARIF_PLANS},
-      $lang{REDUCTION},
-      "$lang{SHOW} $lang{DEPOSIT}",
-      $lang{WITHOUT_CONFIRM},
-      "$lang{DELETED} $lang{SERVICE}",
-      "$lang{CHANGE} $lang{BILL}",
-      $lang{COMPENSATION},
-      $lang{EXPORT},
-      $lang{STATUS},                 # 18
-      "$lang{ACTIVATE} $lang{DATE}", # 19
-      "$lang{EXPIRE} $lang{DATE}",   # 20
-      $lang{BONUS},
-      $lang{PORT_CONTROL}, # 22
-      $lang{REBOOT},
-      $lang{ADDITIONAL_INFORMATION}, # 24 user extended info form
-      "$lang{PERSONAL} $lang{TARIF_PLAN}",
-      $lang{PERSONAL_INFO},
-      "$lang{CHANGE} $lang{LOGIN}",
-      "$lang{SHOW} $lang{GROUPS}",
-      "", # 29 permission is empty !!!
-      "$lang{SHOW} $lang{LOG}",
-      "$lang{DEL} $lang{COMMENTS}",
-      "$lang{ADD} $lang{SERVICE}",
-      $lang{LAST_LOGIN}, # 33
-      $lang{STREETS},
-      $lang{BUILDS},
-      "$lang{SHOW} $lang{COMPANIES}", # 36
-      "$lang{ADD} $lang{COMPANIES}", # 37
-      "$lang{EDIT} $lang{COMPANIES}", # 38
-      "$lang{DEL} $lang{COMPANIES}", # 39
-      $lang{DISTRICTS}, # 40
-      $lang{MASS_DELETION_PAYMENT}, # 41
-      $lang{MASS_DELETION_FEES}, # 42
-    ],
-    # Users
-    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
-    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                             # Fees
-    [
-      $lang{LIST},
-      $lang{DEL},
-      $lang{PAYMENTS},
-      $lang{FEES},
-      $lang{EVENTS},
-      $lang{SETTINGS},
-      $lang{LAST_LOGIN},
-      $lang{ERROR_LOG},
-      $lang{USERS}
-    ], # reports view
-
-    [
-      $lang{LIST},
-      $lang{ADD},
-      $lang{CHANGE},
-      $lang{DEL},
-      $lang{ADMINS},
-      "$lang{SYSTEM} $lang{LOG}",
-      $lang{DOMAINS},
-      "$lang{TEMPLATES} $lang{CHANGE}",
-      $lang{REBOOT_SERVICE},
-      "$lang{SHOW} PIN $lang{ICARDS}",
-      $lang{MOBILE_PAY},
-      "$lang{SEND} SMS"
-    ], # system management
-
-    [ $lang{MONITORING}, 'ZAP', $lang{HANGUP}, $lang{MONITORING_ALL_SESSIONS} ],
-
-    [ $lang{SEARCH} ], # Search
-
-    [
-      $lang{ALL},
-      $lang{REQUEST_STATUS},
-      "$lang{ADD} CRM $lang{STEP}",
-      $lang{TIME_SHEET},
-      $lang{CRM_SHOW_ALL_LEADS},
-      "$lang{SHOW} $lang{EQUIPMENT}",
-      "$lang{EDIT} $lang{EQUIPMENT}",
-      "$lang{DEL} $lang{EQUIPMENT}",
-      "$lang{SHOW} $lang{SALARY}",
-      "$lang{SHOW} $lang{AND} $lang{ALL_SALARY} $lang{SALARY}",
-      $lang{TAKE_DIALOGUE_FROM_ADMIN},
-      "$lang{BALANCE} $lang{CASHBOX}",   # 11
-      $lang{MOVING_BETWEEN_CASHBOXES},   # 12
-    ], # Modules managments
-
-    [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
-    [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
-  );
+  my @actions = _admin_permissions();
 
   my %permits = ();
 
@@ -1591,7 +1603,7 @@ sub _paranoid_log_params_filter {
   my ($params) = @_;
 
   if ($params) {
-    $params =~ s/\n/&/g;
+    $params =~ s/\n/<br>/g;
   }
 
   return $params;
@@ -1640,5 +1652,119 @@ sub _admins_get_file_version {
 
   return $content || '';
 }
+
+#**********************************************************
+=head2 _admin_permissions();
+
+=cut
+#**********************************************************
+sub _admin_permissions {
+  # my ($attr) = @_;
+
+  my @actions = (
+    [
+      $lang{INFO},
+      $lang{ADD},
+      $lang{LIST},
+      $lang{PASSWD},
+      $lang{CHANGE},
+      $lang{DEL},
+      $lang{ALL},
+      $lang{MULTIUSER_OP},
+      "$lang{SHOW} $lang{DELETED}",
+      $lang{CREDIT},
+      $lang{TARIF_PLANS},
+      $lang{REDUCTION},
+      "$lang{SHOW} $lang{DEPOSIT}",
+      $lang{WITHOUT_CONFIRM},
+      "$lang{DELETED} $lang{SERVICE}",
+      "$lang{CHANGE} $lang{BILL}",
+      $lang{COMPENSATION},
+      $lang{EXPORT},
+      $lang{STATUS},                 # 18
+      "$lang{ACTIVATE} $lang{DATE}", # 19
+      "$lang{EXPIRE} $lang{DATE}",   # 20
+      $lang{BONUS},
+      $lang{PORT_CONTROL}, # 22
+      $lang{REBOOT},
+      $lang{ADDITIONAL_INFORMATION}, # 24 user extended info form
+      "$lang{PERSONAL} $lang{TARIF_PLAN}",
+      $lang{PERSONAL_INFO},
+      "$lang{CHANGE} $lang{LOGIN}",
+      "$lang{SHOW} $lang{GROUPS}",
+      "", # 29 permission is empty !!!
+      "$lang{SHOW} $lang{LOG}",
+      "$lang{DEL} $lang{COMMENTS}",
+      "$lang{ADD} $lang{SERVICE}",
+      $lang{LAST_LOGIN}, # 33
+      $lang{STREETS},
+      $lang{BUILDS},
+      "$lang{SHOW} $lang{COMPANIES}", # 36
+      "$lang{ADD} $lang{COMPANIES}", # 37
+      "$lang{EDIT} $lang{COMPANIES}", # 38
+      "$lang{DEL} $lang{COMPANIES}", # 39
+      $lang{DISTRICTS}, # 40
+      $lang{MASS_DELETION_PAYMENT}, # 41
+      $lang{MASS_DELETION_FEES}, # 42
+      $lang{MANAGING_EXTERNAL_SERVICES}, # 43
+    ],
+    # Users
+    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
+    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                             # Fees
+    [
+      $lang{LIST},
+      $lang{DEL},
+      $lang{PAYMENTS},
+      $lang{FEES},
+      $lang{EVENTS},
+      $lang{SETTINGS},
+      $lang{LAST_LOGIN},
+      $lang{ERROR_LOG},
+      $lang{USERS}
+    ], # reports view
+
+    [
+      $lang{LIST},
+      $lang{ADD},
+      $lang{CHANGE},
+      $lang{DEL},
+      $lang{ADMINS},
+      "$lang{SYSTEM} $lang{LOG}",
+      $lang{DOMAINS},
+      "$lang{TEMPLATES} $lang{CHANGE}",
+      $lang{REBOOT_SERVICE},
+      "$lang{SHOW} PIN $lang{ICARDS}",
+      $lang{MOBILE_PAY},
+      "$lang{SEND} SMS"
+    ], # system management
+
+    [ $lang{MONITORING}, 'ZAP', $lang{HANGUP}, $lang{MONITORING_ALL_SESSIONS} ],
+
+    [ $lang{SEARCH} ], # Search
+
+    [
+      $lang{ALL},
+      $lang{REQUEST_STATUS},
+      "$lang{ADD} CRM $lang{STEP}",
+      $lang{TIME_SHEET},
+      $lang{CRM_SHOW_ALL_LEADS},
+      "$lang{SHOW} $lang{EQUIPMENT}",
+      "$lang{EDIT} $lang{EQUIPMENT}",
+      "$lang{DEL} $lang{EQUIPMENT}",
+      "$lang{SHOW} $lang{SALARY}",
+      "$lang{SHOW} $lang{AND} $lang{ALL_SALARY} $lang{SALARY}",
+      $lang{TAKE_DIALOGUE_FROM_ADMIN},
+      "$lang{BALANCE} $lang{CASHBOX}",   # 11
+      $lang{MOVING_BETWEEN_CASHBOXES},   # 12
+    ], # Modules managments
+
+    [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
+    [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
+  );
+
+
+  return @actions;
+}
+
 
 1

@@ -95,6 +95,16 @@
         </div>
 
         <div class='form-group row'>
+          <label class='col-sm-3 col-md-2 control-label' for='PASPORT_EXPIRE'>_{EXPIRY}_:</label>
+          <div class='col-sm-9 col-md-4'>
+            <div class='input-group'>
+              <input class='form-control datepicker' id='PASPORT_EXPIRE' name='PASPORT_EXPIRE'
+                     type='text' value='%PASPORT_EXPIRE%'>
+            </div>
+          </div>
+        </div>
+
+        <div class='form-group row'>
           <label class='col-sm-3 col-md-2 control-label' for='PASPORT_GRANT'>_{GRANT}_:</label>
           <div class='col-sm-9 col-md-10'>
             <div class='input-group'>

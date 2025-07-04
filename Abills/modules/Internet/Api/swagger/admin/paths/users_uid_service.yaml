@@ -1,0 +1,29 @@
+delete:
+  tags:
+    - internet
+  summary: Удаление тарифного плана Internet пользователю
+  operationId: deleteUserInternetInfo
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+    - name: id
+      in: path
+      description: ID услуги
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешно изменено
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SuccessAction200"
+    400:
+      description: Нет id услуги
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/users_uid_service_delete_400.yaml"
+  security:
+    - KEY: []

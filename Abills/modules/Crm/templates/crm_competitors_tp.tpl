@@ -114,7 +114,7 @@
 
     createOverlay('geolocation-card-container');
 
-    fetch('$SELF_URL?header=2&get_index=crm_tp_geolocation_tree&chg=%ID%&PRINT_JSON=1&COMPETITOR_ID=' + competitor_id)
+    fetch('%SELF_URL%?header=2&get_index=crm_tp_geolocation_tree&chg=%ID%&PRINT_JSON=1&COMPETITOR_ID=' + competitor_id)
       .then(response => {
         if (!response.ok) throw response;
 

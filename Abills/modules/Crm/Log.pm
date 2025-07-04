@@ -20,11 +20,14 @@ our (
 );
 
 my %action_types = (
-  0 => 'Unknown',
+  0 => $lang{UNKNOWN},
   1 => $lang{ADDED},
   2 => $lang{CHANGED},
   3 => $lang{CRM_VIEWING_INFORMATION},
-  4 => $lang{DELETED}
+  4 => $lang{DELETED},
+  5 => $lang{CRM_PROGRESS_MESSAGE_ADDED},
+  6 => $lang{CRM_PROGRESS_MESSAGE_CHANGED},
+  7 => $lang{CRM_PROGRESS_MESSAGE_DELETED}
 );
 
 require Abills::Template;

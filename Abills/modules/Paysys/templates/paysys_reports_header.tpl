@@ -7,3 +7,10 @@
     %BUTTON%
   </div>
 </div>
+
+<div class='form-group row' %IMPORT_HIDDEN%>
+  <label for='TYPE_SEL' class='control-label col-md-1'>_{IMPORT}_ _{FILE}_:</label>
+  <div class='col-md-4'>
+    %IMPORT_BUTTON%
+  </div>
+</div>

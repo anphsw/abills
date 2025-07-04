@@ -1,0 +1,108 @@
+get:
+  tags:
+    - triplay
+  summary: Список пользователей Triplay
+  parameters:
+    - name: abonTpName
+      description: Название тарифного плана Abon
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: internetTp
+      description: ID тарифного плана Internet
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: internetTpName
+      description: Название тарифного плана Internet
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: iptvTp
+      description: ID тарифного плана IPTV
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: iptvTpName
+      description: Название тарифного плана IPTV
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: monthFee
+      description: месячная абон плата
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: personalTp
+      description: Персональная цена для абонента. Работает если больше 0
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: serviceStatus
+      description: Статус услуги.
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      description: ID тарифного плана Triplay
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: tpName
+      description: Название тарифного плана Triplay
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: tpReductionFee
+      description: Скидка в тарифном плане
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: triplayExpire
+      description: Окончание услуги
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: uid
+      description: UID пользователя
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: voipTp
+      description: ID тарифного плана Voip
+      in: query
+      schema:
+        type: boolean
+        default: true
+    - name: voipTpName
+      description: Название тарифного плана Voip
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_users.yaml"
+  security:
+    - KEY: []

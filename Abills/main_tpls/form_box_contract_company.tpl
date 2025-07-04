@@ -10,7 +10,7 @@
   <div class='card-body'>
     %ACCEPT_RULES_FORM%
     <div class='form-group row'>
-      <label class='col-sm-4 col-md-3 col-form-label' for='CONTRACT_ID'>_{CONTRACT_ID}_ %CONTRACT_SUFIX%</label>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right' for='CONTRACT_ID'>_{CONTRACT_ID}_ %CONTRACT_SUFIX%</label>
       <div class='col-sm-8 col-md-9'>
         <div class='input-group'>
           <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
@@ -28,12 +28,43 @@
     </div>
 
     <div class='form-group row'>
-      <label class='col-sm-4 col-md-3 col-form-label' for='CONTRACT_DATE'>_{DATE}_</label>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right' for='CONTRACT_DATE'>_{DATE}_</label>
       <div class='col-sm-8 col-md-9'>
         <div class='input-group'>
           <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE'
                  value='%CONTRACT_DATE%' class='datepicker form-control'>
         </div>
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right' for='STATUS'>_{STATUS}_</label>
+      <div class='col-sm-8 col-md-9'>
+        %CONTRACT_STATUS_SEL%
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right'  for='BANK_NAME'> _{INDICATION}_</label>
+      <div class='input-group col-md-9'>
+        <input class='form-control' id='INDICATION' placeholder='%INDICATION%' name='INDICATION' value='%INDICATION%'>
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right' for='CONTRACT_EXPIRY'>_{EXPIRY}_</label>
+      <div class='col-sm-8 col-md-9'>
+        <div class='input-group'>
+          <input id='CONTRACT_EXPIRY' type='text' name='CONTRACT_EXPIRY'
+                 value='%CONTRACT_EXPIRY%' class='datepicker form-control'>
+        </div>
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-sm-4 col-md-3 col-form-label text-md-right' for='PAYMENT_TYPE_SEL'>_{PAYMENT_METHOD}_</label>
+      <div class='col-sm-8 col-md-9'>
+        %PAYMENT_TYPE_SEL%
       </div>
     </div>
 

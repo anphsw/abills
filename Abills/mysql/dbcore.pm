@@ -15,8 +15,6 @@ use parent 'dbbase';
 our $VERSION = 8.00;
 
 my $CONF;
-#my $SORT = 1;
-#my $sql_errors = '/usr/abills/var/log/sql_errors';
 my $info_fields_list;
 
 #**********************************************************
@@ -33,7 +31,7 @@ sub db_version{
   my $version = $self->{db}->{db}->get_info( 18 );
   $self->{FULL_VERSION} = $version;
 
-  if ( $version =~ /^(\d+\.\d+)/ ){
+  if ($version =~ m/^(\d+\.\d+)/x){
     $version = $1;
   }
 
@@ -58,7 +56,7 @@ sub query_add{
 
   my DBI $db = $self->{db};
 
-  if ( $self->{db}->{db} ){
+  if ($self->{db}->{db}) {
     $db = $self->{db}->{db};
   }
 
@@ -72,46 +70,46 @@ sub query_add{
     return $self;
   }
 
-  while (defined( my $row = $q->fetchrow_hashref() )) {
-    my $column = uc( $row->{COLUMN_NAME} );
-    if ( $values->{$column} ){
-      if ( $column eq 'IP' || $column eq 'NETMASK' ){
+  while (defined(my $row = $q->fetchrow_hashref())) {
+    my $column = uc($row->{COLUMN_NAME});
+    if ($values->{$column}) {
+      if ($column eq 'IP' || $column eq 'NETMASK') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON( ? )";
       }
       # Anton
       #elsif ($column eq 'IPV6_PREFIX' || $column eq 'IPV6') {
       #  push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       #}
-      elsif ( $column eq 'IPV6' || $column eq 'IPV6_PD' ){
+      elsif ($column eq 'IPV6' || $column eq 'IPV6_PD') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
-      elsif ( $values->{$column} =~ /^INET_ATON\(['"]+([0-9a-f\.]+)['"]+\)/i ){
+      elsif ($values->{$column} =~ m/^INET_ATON\(['"]+([0-9a-f\.]+)['"]+\)/xi) {
         push @values_arr, $1;
         push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON(?)";
         next;
       }
-      elsif ( $values->{$column} =~ m/^ENCODE\(['"]+(.+)['"]+,\s['"]+(.+)['"]+\)/i ){
+      elsif ($values->{$column} =~ m/^ENCODE\(['"]+(.+)['"]+,\s['"]+(.+)['"]+\)/xi) {
         push @values_arr, $1, $2;
         push @inserts_arr, "$row->{COLUMN_NAME}=ENCODE(?, ?)";
         next;
       }
-      elsif ( $column =~ /SUBJECT|MESSAGE|REPLY|TEXT/i ){
-        $values->{$column} =~ s/\\\'/\'/g;
-        $values->{$column} =~ s/\\\"/\"/g;
-        $values->{$column} =~ s/\%2B/\+/g;
+      elsif ($column =~ m/SUBJECT|MESSAGE|REPLY|TEXT/xi) {
+        $values->{$column} =~ s/\\\'/\'/xg;
+        $values->{$column} =~ s/\\\"/\"/xg;
+        $values->{$column} =~ s/\%2B/\+/xg;
 
         push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
       }
-      else{
-        if ( $values->{$column} =~ /^[a-z\_]+\(\)$/i ){
+      else {
+        if ($values->{$column} =~ m/^[a-z\_]+\(\)$/ix) {
           push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
           next;
         }
-        else{
-          if ( $column !~ /ATTA|FILE/i ){
-            $values->{$column} =~ s/\\\'/\'/g;
-            $values->{$column} =~ s/\\\"/\"/g;
-            $values->{$column} =~ s/\%2B/\+/g;
+        else {
+          if ($column !~ m/ATTA|FILE/xi) {
+            $values->{$column} =~ s/\\\'/\'/xg;
+            $values->{$column} =~ s/\\\"/\"/xg;
+            $values->{$column} =~ s/\%2B/\+/xg;
           }
 
           push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
@@ -119,17 +117,17 @@ sub query_add{
       }
 
       if($row->{TYPE_NAME} && $row->{TYPE_NAME} eq 'VARCHAR') {
-        $values->{$column} =~ s/^\s//;
+        $values->{$column} =~ s/^\s//x;
       }
 
       push @values_arr, $values->{$column};
     }
-    elsif ( defined( $values->{$column} ) ){
-      if ( $column eq 'COMMENTS' ){
+    elsif (defined($values->{$column})) {
+      if ($column eq 'COMMENTS') {
         push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
         push @values_arr, $values->{$column};
       }
-      elsif ( $values->{$column} ne '' && $values->{$column} == 0 ){
+      elsif ($values->{$column} ne '' && $values->{$column} == 0) {
         push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
         push @values_arr, $values->{$column};
       }
@@ -167,35 +165,35 @@ sub query_del{
   my @WHERE_FIELDS = ();
   my @WHERE_VALUES = ();
 
-  if ( $attr->{CLEAR_TABLE} ){
-    $self->query( "TRUNCATE `$table`;", 'do' );
+  if ($attr->{CLEAR_TABLE}) {
+    $self->query("TRUNCATE `$table`;", 'do');
     return $self;
   }
 
-  if ( $values->{ID} ){
-    my @id_arr = split( /,/, $values->{ID} );
-    push @WHERE_FIELDS, "id IN (" . join( ',', map { '?' } @id_arr ) . ')';
+  if ($values->{ID}) {
+    my @id_arr = split(/,/x, $values->{ID});
+    push @WHERE_FIELDS, "id IN (" . join(',', map {'?'} @id_arr) . ')';
     push @WHERE_VALUES, @id_arr;
   }
 
-  while(my ($k, $v) = each %{$extended_params}) {
-    if ( defined( $v ) ){
-      if ( ref $v eq 'ARRAY' ){
-        push @WHERE_FIELDS, "$k IN (" . join( ',', map { '?' } @{$v} ) . ')';
+  while (my ($k, $v) = each %{$extended_params}) {
+    if (defined($v)) {
+      if (ref $v eq 'ARRAY') {
+        push @WHERE_FIELDS, "$k IN (" . join(',', map {'?'} @{$v}) . ')';
         push @WHERE_VALUES, @{$v};
       }
-      else{
+      else {
         push @WHERE_FIELDS, "$k = ?";
         push @WHERE_VALUES, $v;
       }
     }
   }
 
-  if ( $#WHERE_FIELDS == -1 ){
+  if ($#WHERE_FIELDS == -1) {
     return $self;
   }
 
-  $self->query( 'DELETE FROM `'. $table ."` WHERE " . join( ' AND ', @WHERE_FIELDS ),
+  $self->query( 'DELETE FROM `'. $table .'` WHERE ' . join( ' AND ', @WHERE_FIELDS ),
     'do', { Bind => \@WHERE_VALUES } );
 
   return $self;
@@ -203,6 +201,13 @@ sub query_del{
 
 #**********************************************************
 =head2 get_data($params, $attr) - Input date into hash
+
+  Arguments:
+    $params
+    $attr
+
+  Returns:
+    %DATA
 
 =cut
 #**********************************************************
@@ -218,7 +223,9 @@ sub get_data{
 
   while (my ($k, $v) = each %{$params}) {
     next if (!$params->{$k} && defined( $DATA{$k} ));
-    $v =~ s/^ +|[ \n]+$//g if ($v);
+    if (defined($v)) {
+      $v =~ s/^\s+|[\s\n]+$//xg;
+    }
     $DATA{$k} = $v;
   }
 
@@ -243,8 +250,7 @@ sub get_data{
 =cut
 #**********************************************************
 sub search_former{
-  my $self = shift;
-  my ($data, $search_params, $attr) = @_;
+  my ($self, $data, $search_params, $attr) = @_;
 
   my @WHERE_RULES = ();
   $self->{SEARCH_FIELDS}          = '';
@@ -306,90 +312,92 @@ sub search_former{
     map { $data->{$_->[0]} = '_SHOW' unless (exists $data->{$_->[0]}) } @$search_params;
   }
 
-  if ( $attr->{USERS_FIELDS_PRE} ){
-    push @WHERE_RULES, @{ $self->search_expr_users( { %{$data},
-        EXT_FIELDS        => \@user_fields,
-        SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
-        USE_USER_PI       => $attr->{USE_USER_PI},
-        SUPPLEMENT        => 1,
-        SORT_SHIFT        => 1
-      } ) };
+  if ($attr->{USERS_FIELDS_PRE}) {
+    push @WHERE_RULES, @{$self->search_expr_users({ %{$data},
+      EXT_FIELDS        => \@user_fields,
+      SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
+      USE_USER_PI       => $attr->{USE_USER_PI},
+      SUPPLEMENT        => 1,
+      SORT_SHIFT        => 1,
+      SKIP_JOIN         => $attr->{SKIP_JOIN}
+    })};
   }
 
   foreach my $search_param ( @{$search_params} ){
     my ($param, $field_type, $sql_field, $show) = @{$search_param};
     next if (in_array($param, $data->{HIDDEN_COLUMNS}));
     my $param2 = '';
-    if ($param && $param =~ /^(.*)\|(.*)$/ ){
+    if ($param && $param =~ m/^(.*)\|(.*)$/x ){
       $param = $1 || q{};
       $param2 = $2 || q{};
     }
 
     $field_type //= q{};
 
-    if (($param && $data->{$param}) || ($field_type eq 'INT' && defined( $data->{$param} ) && $data->{$param} ne '') ){
-      if ( $sql_field eq '' ){
+    if (($param && $data->{$param}) || ($field_type eq 'INT' && defined($data->{$param}) && $data->{$param} ne '')) {
+      if ($sql_field eq '') {
         $self->{SEARCH_FIELDS} .= "$show, ";
         $self->{SEARCH_FIELDS_COUNT}++;
-        push @{ $self->{SEARCH_FIELDS_ARR} }, $show;
+        push @{$self->{SEARCH_FIELDS_ARR}}, $show;
       }
-      elsif ( $param2 ){
-        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='". ($data->{$param2} || q{}) ."')";
+      elsif ($param2) {
+        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='" . ($data->{$param2} || q{}) . "')";
       }
-      else{
+      else {
         push @WHERE_RULES,
-          @{ $self->search_expr( $data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show } ) };
+          @{$self->search_expr($data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show })};
       }
     }
   }
 
-  if ( $attr->{USERS_FIELDS} ){
-    push @WHERE_RULES, @{ $self->search_expr_users( {
+  if ($attr->{USERS_FIELDS}) {
+    push @WHERE_RULES, @{$self->search_expr_users({
       %{$data},
       EXT_FIELDS        => \@user_fields,
       SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
       USE_USER_PI       => $attr->{USE_USER_PI},
-      SUPPLEMENT        => 1
-    } ) };
+      SUPPLEMENT        => 1,
+      SKIP_JOIN         => $attr->{SKIP_JOIN}
+    })};
   }
 # add hidden fields
   foreach my $search_param ( @{$search_params} ){
     my ($param, $field_type, $sql_field, $show) = @{$search_param};
     next unless (in_array($param, $data->{HIDDEN_COLUMNS}));
     my $param2 = '';
-    if ( $param =~ /^(.*)\|(.*)$/ ){
+    if ($param =~ m/^(.*)\|(.*)$/x) {
       $param = $1;
       $param2 = $2;
     }
 
-    if ( $data->{$param} || ($field_type eq 'INT' && defined( $data->{$param} ) && $data->{$param} ne '') ){
-      if ( $sql_field eq '' ){
+    if ($data->{$param} || ($field_type eq 'INT' && defined($data->{$param}) && $data->{$param} ne '')) {
+      if ($sql_field eq '') {
         $self->{SEARCH_FIELDS} .= "$show, ";
         $self->{SEARCH_FIELDS_COUNT}++;
-        push @{ $self->{SEARCH_FIELDS_ARR} }, $show;
+        push @{$self->{SEARCH_FIELDS_ARR}}, $show;
       }
-      elsif ( $param2 ){
+      elsif ($param2) {
         push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='$data->{$param2}')";
       }
-      else{
+      else {
         push @WHERE_RULES,
-          @{ $self->search_expr( $data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show } ) };
+          @{$self->search_expr($data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show })};
       }
     }
   }
 
-  if ( $attr->{WHERE_RULES} ){
-    push @WHERE_RULES, @{ $attr->{WHERE_RULES} };
-    @{ $attr->{WHERE_RULES} } = @WHERE_RULES;
+  if ($attr->{WHERE_RULES}) {
+    push @WHERE_RULES, @{$attr->{WHERE_RULES}};
+    @{$attr->{WHERE_RULES}} = @WHERE_RULES;
   }
 
   my $delimiter = ' AND ';
 
-  if($data->{_MULTI_HIT}) {
+  if ($data->{_MULTI_HIT}) {
     $delimiter = ' Or ';
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? (($attr->{WHERE}) ? 'WHERE ' : '') . join($delimiter, @WHERE_RULES ) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? (($attr->{WHERE}) ? 'WHERE ' : '') . join($delimiter, @WHERE_RULES) : '';
 
   return $WHERE;
 }
@@ -428,7 +436,7 @@ sub search_expr{
     $self->{SEARCH_FIELDS_COUNT}++;
 
     if ( $attr->{EXT_FIELD} ne '1' ){
-      if ( $attr->{EXT_FIELD} !~ /^IF\(|CONCAT\(|MAX\(/i ){
+      if ( $attr->{EXT_FIELD} !~ m/^IF\(|CONCAT\(|MAX\(/xi ){
         push @{ $self->{SEARCH_FIELDS_ARR} }, split( ', ', $attr->{EXT_FIELD} );
       }
       else{
@@ -448,18 +456,18 @@ sub search_expr{
   return \@result_arr if ( $value eq '_SHOW');
 
   if ( $field ){
-    $field =~ s/ (as) ([a-z0-9_]+)//gi;
+    $field =~ s/\s+(as)\s+([a-z0-9_]+)//xgi;
   }
-  my $delimiter = ($value =~ s/;/,/g) ? 'and' : 'or';
-  if ( $type eq 'INT' && ! $attr->{_MULTI_HIT} && ( $value !~ /^[0-9,\-\.\s\<\>\=\*!]+$/g) ){
+  my $delimiter = ($value =~ s/;/,/xg) ? 'and' : 'or';
+  if ( $type eq 'INT' && ! $attr->{_MULTI_HIT} && ( $value !~ m/^[0-9,\-\.\s\<\>\=\*!]+$/xg) ){
     $self->{errno}=113;
     $self->{errstr} = 'ERROR_WRONG_FIELD_VALUE '. ($field || q{}). " VALUE: ". ($value || q{});
     return [];
   }
 
-  if ( $value && $delimiter eq 'and' && $value !~ /[<>=]+/ ){
-    my @val_arr = split( /,/, $value );
-    $value = "'" . join( "', '", @val_arr ) . "'";
+  if ( $value && $delimiter eq 'and' && $value !~ m/[<>=]+/x ){
+    my @val_arr = split(',', $value );
+    $value = "'" . join("', '", @val_arr ) . "'";
     #(@{[join',', ('?') x @list]})";
     return [ "$field IN ($value)" ];
   }
@@ -470,11 +478,11 @@ sub search_expr{
       @val_arr = ('');
     }
     else{
-      if($value =~ /^\*.+\*$/) {
+      if($value =~ m/^\*.+\*$/x) {
         push @val_arr, $value;
       }
       else {
-        @val_arr = split(/,/, $value);
+        @val_arr = split(',', $value);
       }
     }
   }
@@ -482,7 +490,7 @@ sub search_expr{
   foreach my $v ( @val_arr ){
     my $expr = '=';
     if ( $type eq 'DATE' ){
-      if ( $v =~ /(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})/ ){
+      if ( $v =~ m/(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})/x ){
         my $from_date = $1;
         my $to_date = $2;
         if ( $field ){
@@ -490,7 +498,7 @@ sub search_expr{
         }
         next;
       }
-      elsif ( $v =~ /([=><!]{0,2})(\d{2})[\/\.\-](\d{2})[\/\.\-](\d{4})/ ){
+      elsif ( $v =~ m/([=><!]{0,2})(\d{2})[\/\.\-](\d{2})[\/\.\-](\d{4})/x ){
         $v = "$1$4-$3-$2";
       }
       elsif ( $v eq '*' ){
@@ -498,50 +506,50 @@ sub search_expr{
       }
     }
 
-    if ( $type eq 'INT' && $v =~ s/\*/\%/g ){
+    if ( $type eq 'INT' && $v =~ s/\*/\%/xg ){
       $expr = ' LIKE ';
     }
     elsif ( $type eq 'STR' ){
       $expr = '=';
-      if ($v =~ s/^!//) {
+      if ($v =~ s/^!//x) {
         $expr = '<>';
       }
       elsif ($v eq '_EMPTY_') {
         $v = '';
       }
-      elsif ( $v =~ /\\\*/ ){
+      elsif ( $v =~ m/\\\*/x ){
         $v = '*';
       }
       else{
-        if ( $v =~ s/\*/\%/g ){
+        if ( $v =~ s/\*/\%/xg ){
           $expr = ' LIKE ';
         }
       }
     }
-    elsif ( $v =~ s/^!// ){
+    elsif ( $v =~ s/^!//x ){
       $expr = ' <> ';
     }
-    elsif ( $v =~ s/^([<>=]{1,2})// ){
+    elsif ( $v =~ s/^([<>=]{1,2})//x ){
       $expr = $1;
     }
 
     if ( $type eq 'IP' ){
-      if ($value !~ /^[\,\;\=\<\>0-9\.\*]+$|INET_ATON/) {
+      if ($value !~ m/^[\,\;\=\<\>0-9\.\*]+$|INET_ATON/x) {
         return [];
       }
 
-      if ( $value =~ m/\*/g ){
-        $value =~ s/[<>]+//;
+      if ( $value =~ m/\*/xg ){
+        $value =~ s/[<>]+//x;
         my ($i, $first_ip, $last_ip);
-        my @p = split( /\./, $value );
+        my @p = split(/\./x, $value );
         for ( $i = 0; $i < 4; $i++ ){
-          if (defined($p[$i]) && length($p[$i]) < 3 && $p[$i] =~ /(\d{0,2})\*/ ){
+          if (defined($p[$i]) && length($p[$i]) < 3 && $p[$i] =~ m/(\d{0,2})\*/x ){
             $first_ip .= $1 || '0';
             $last_ip .= $1 || '255';
           }
           else{
             my $ip = $p[$i] || q{};
-            $ip =~ s/\*//g;
+            $ip =~ s/\*//xg;
             $first_ip .= $ip || 0;
             $last_ip .= $ip || 255;
           }
@@ -624,8 +632,7 @@ sub search_expr{
 =cut
 #**********************************************************
 sub search_expr_users{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my @fields = ();
 
   my $SORT = 1;
@@ -712,32 +719,32 @@ sub search_expr_users{
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
-  if ( $attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW' ){
+  if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
     #$users_fields_hash{DEPOSIT} = 'INT:b.deposit'
     $users_fields_hash{DEPOSIT} = 'INT:IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit';
   }
 
-  if ( $attr->{CONTRACT_SUFIX} ){
-    $attr->{CONTRACT_SUFIX} =~ s/\|//g;
+  if ($attr->{CONTRACT_SUFIX}) {
+    $attr->{CONTRACT_SUFIX} =~ s/\|//xg;
   }
 
   my $info_field = $attr->{LOGIN} || 0;
   my %filled = ();
-  foreach my $key ( @{ $attr->{EXT_FIELDS} }, keys %{ $attr } ){
-    if ( defined( $users_fields_hash{$key} ) && defined( $attr->{$key} ) ){
-      if ( in_array( $key . ':skip', $attr->{EXT_FIELDS} ) || $filled{$key} ){
+  foreach my $key (@{$attr->{EXT_FIELDS}}, keys %{$attr}) {
+    if (defined($users_fields_hash{$key}) && defined($attr->{$key})) {
+      if (in_array($key . ':skip', $attr->{EXT_FIELDS}) || $filled{$key}) {
         next;
       }
-      elsif ( $attr->{SKIP_USERS_FIELDS} && in_array( $key, $attr->{SKIP_USERS_FIELDS} ) ){
+      elsif ($attr->{SKIP_USERS_FIELDS} && in_array($key, $attr->{SKIP_USERS_FIELDS})) {
         next;
       }
 
-      my ($type, $field) = split( /:/, $users_fields_hash{$key} );
-      if ( $type eq 'STR' ){
-        if ( !$attr->{$key} ){
+      my ($type, $field) = split(':', $users_fields_hash{$key});
+      if ($type eq 'STR') {
+        if (!$attr->{$key}) {
           next;
         }
-        elsif ( $attr->{$key} eq '!' ){
+        elsif ($attr->{$key} eq '!') {
           $attr->{$key} = '';
         }
       }
@@ -752,7 +759,7 @@ sub search_expr_users{
           } ) };
       $filled{$key} = 1;
     }
-    elsif ( !$info_field && $key =~ /^_/ ){
+    elsif ( !$info_field && $key =~ m/^_/x ){
       $info_field = 1;
     }
   }
@@ -764,14 +771,17 @@ sub search_expr_users{
   }
 
   if (!$info_fields_list) {
-    $self->query("SELECT
-        name,
-        sql_field,
-        type,
-        company,
-        domain_id,
-        id
-      FROM `info_fields`;", undef, { COLS_NAME => 1 });
+    my $sql = <<"SQL";
+    SELECT
+    name,
+    sql_field,
+    type,
+    company,
+    domain_id,
+    id
+  FROM `info_fields`;
+SQL
+    $self->query($sql, undef, { COLS_NAME => 1 });
     $info_fields_list = $self->{list};
   }
 
@@ -813,7 +823,7 @@ sub search_expr_users{
         }
         elsif ($type == 16) {
           if ($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
-            my ($sn_type, $info) = split(/, /, $attr->{$field_id});
+            my ($sn_type, $info) = split(/,\s/x, $attr->{$field_id});
             push @fields, @{$self->search_expr("$sn_type*" . ($info || q{}), 'STR', "$info_table.$field_name",
               { EXT_FIELD  => 1,
                 _MULTI_HIT => $attr->{_MULTI_HIT}
@@ -834,9 +844,8 @@ sub search_expr_users{
             })};
         }
       }
-      if ($info_table eq 'c' && ! $attr->{_COMPANY_LIST}) {
-        print "// $attr->{_COMPANY_LIST} //";
-        #$EXT_TABLE_JOINS_HASH{companies} = 1;
+      if ($info_table eq 'company' && ! $attr->{_COMPANY_LIST} && defined($attr->{$field_id})) {
+        $EXT_TABLE_JOINS_HASH{companies} = 1;
       }
     }
 
@@ -852,10 +861,10 @@ sub search_expr_users{
   elsif ( $attr->{GIDS} ){
     if ( $admin->{GID} ){
       my @result_gids = ();
-      my @admin_gids = split( /,\s?|;\s?/, $admin->{GID} );
+      my @admin_gids = split(/,\s?|;\s?/x, $admin->{GID});
 
-      if ( $attr->{GIDS} && $attr->{GIDS} ne '_SHOW') {
-        my @attr_gids = split( /,\s?|;\s?/, $attr->{GIDS} );
+      if ($attr->{GIDS} && $attr->{GIDS} ne '_SHOW') {
+        my @attr_gids = split(/,\s?|;\s?/x, $attr->{GIDS});
         foreach my $attr_gid (@attr_gids) {
           foreach my $admin_gid (@admin_gids) {
             if ($admin_gid == $attr_gid) {
@@ -876,7 +885,7 @@ sub search_expr_users{
     }
 
     if ($attr->{GIDS} ne '_SHOW'){
-      $attr->{GIDS} =~ s/;/,/g;
+      $attr->{GIDS} =~ s/;/,/gx;
       my $search_field = "u.gid IN ($attr->{GIDS})";
       if ($attr->{SHOW_UNREG_USERS} && $admin->{GID}) {
         $search_field = "(u.gid IS NULL OR $search_field)";
@@ -886,13 +895,13 @@ sub search_expr_users{
     }
   }
   elsif ( defined( $attr->{GID} ) && $attr->{GID} ne '' ){
-    $attr->{GID} =~ s/,/;/g;
+    $attr->{GID} =~ s/,/;/gx;
 
     push @fields, @{ $self->search_expr( $attr->{GID}, 'INT', 'u.gid',
         { EXT_FIELD => in_array( 'GID', $attr->{EXT_FIELDS} ) || ($attr->{GID} eq '_SHOW') ? 1 : undef } ) };
   }
   elsif ( $admin->{GID} ){
-    $admin->{GID} =~ s/;/,/g;
+    $admin->{GID} =~ s/;/,/gx;
 
     my $search_field = "u.gid IN ($admin->{GID})";
     if ($attr->{SHOW_UNREG_USERS}) {
@@ -978,9 +987,6 @@ sub search_expr_users{
     if ($attr->{ADDRESS_FULL} && !in_array('ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS})) {
       my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
 
-      # if ($build_delimiter =~ /,/) {
-      #   $attr->{ADDRESS_FULL} =~ s/,/\*/g;
-      # }
       my $full_address_view = "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
         "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
 
@@ -1127,7 +1133,7 @@ sub search_expr_users{
 
   if ( $attr->{ACTION_DATE} ){
     my $field_name = 'aa.datetime';
-    if ( $attr->{ACTION_DATE} =~ /\d{4}\-\d{2}\-\d{2}/ ){
+    if ( $attr->{ACTION_DATE} =~ m/\d{4}\-\d{2}\-\d{2}/x ){
       $field_name = 'DATE_FORMAT(aa.datetime, \'%Y-%m-%d\')';
     }
 
@@ -1138,7 +1144,7 @@ sub search_expr_users{
 
   #Tags search
   if ( $attr->{TAGS} ){
-    $attr->{TAGS} =~ s/,\s?/\;/g;
+    $attr->{TAGS} =~ s/,\s?/\;/gx;
     my @tags_fields = (
       'GROUP_CONCAT(DISTINCT tags.name ORDER BY tags.name SEPARATOR ", ") AS tags',
       'GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority',
@@ -1156,8 +1162,8 @@ sub search_expr_users{
     push @fields, @{ $self->search_expr( $attr->{TAGS}, 'INT', "tags_users.tag_id",
         { EXT_FIELD => join(',', @tags_fields) } ) };
 
-    $self->{EXT_TABLES} .= " LEFT JOIN tags_users ON (u.uid=tags_users.uid)
-                             LEFT JOIN tags ON (tags_users.tag_id=tags.id)",
+    $self->{EXT_TABLES} .= q{ LEFT JOIN tags_users ON (u.uid=tags_users.uid)
+                             LEFT JOIN tags ON (tags_users.tag_id=tags.id) };
   }
 
   if($attr->{DOMAIN_NAME}) {
@@ -1202,21 +1208,25 @@ sub search_expr_users{
     @{ $self->{SEARCH_FIELDS_ARR} } ) . ',' if (@{ $self->{SEARCH_FIELDS_ARR} });
   $self->{SEARCH_FIELDS_COUNT} = $#{ $self->{SEARCH_FIELDS_ARR} } + 1;
 
-  if ( $attr->{USE_USER_PI} && ($self->{SEARCH_FIELDS} =~ / pi\./ || $self->{SEARCH_FIELDS} =~ / streets\.|builds\./ ) ){
+  if ( $attr->{USE_USER_PI} && ($self->{SEARCH_FIELDS} =~ m/\s+pi\./x || $self->{SEARCH_FIELDS} =~ m/\s+streets\.|builds\./x ) ){
     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
   }
 
-  $self->{EXT_TABLES} = $self->mk_ext_tables( { JOIN_TABLES => \%EXT_TABLE_JOINS_HASH, _COMPANY_LIST => $attr->{_COMPANY_LIST} } );
+  $self->{EXT_TABLES} = $self->mk_ext_tables({
+    JOIN_TABLES   => \%EXT_TABLE_JOINS_HASH,
+    _COMPANY_LIST => $attr->{_COMPANY_LIST},
+    SKIP_JOIN     => $attr->{SKIP_JOIN}
+  });
 
   delete $self->{SORT_BY};
-  if ( $attr->{SORT} && $attr->{SORT} =~ /^\d+$/){
+  if ( $attr->{SORT} && $attr->{SORT} =~ m/^\d+$/x){
     my $sort_position = ($attr->{SORT} - 1 < 1) ? 1 : $attr->{SORT} - (($attr->{SORT_SHIFT}) ? $attr->{SORT_SHIFT} : 2);
     my $sort_field = $self->{SEARCH_FIELDS_ARR}->[$sort_position];
     #$sort_field = 'internet.port' if $attr->{PORT};
 
     if ( $sort_field ){
-      if ( $sort_field =~ m/build$|flat$/i){
-        if ( $sort_field =~ m/([a-z\.\_0-9\(\)]+)\s?/i ){
+      if ( $sort_field =~ m/build$|flat$/ix){
+        if ( $sort_field =~ m/([a-z\.\_0-9\(\)]+)\s?/xi ){
           $SORT = "CAST($1 AS UNSIGNED)";
         }
         else {
@@ -1224,7 +1234,7 @@ sub search_expr_users{
         }
         $self->{SORT_BY}=$SORT;
       }
-      elsif ( $sort_field =~ m/ ([a-z0-9_\.]{0,12}ip )/i ){
+      elsif ( $sort_field =~ m/\s+([a-z0-9_\.]{0,12}ip\s+)/xi ){
         $SORT = "$1+0";
         $self->{SORT_BY}=$SORT;
       }
@@ -1245,6 +1255,7 @@ sub search_expr_users{
       EXTRA_PRE_JOIN
       EXTRA_PRE_ONLY
       _COMPANY_LIST
+      SKIP_JOIN
 
   Results:
     Join tables string
@@ -1252,8 +1263,7 @@ sub search_expr_users{
 =cut
 #**********************************************************
 sub mk_ext_tables{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ( !$attr->{JOIN_TABLES} ){
     return '';
@@ -1284,20 +1294,27 @@ sub mk_ext_tables{
   }
 
   my $join_tables = '';
+  my $ext_tables = $self->{EXT_TABLES} || q{};
+
   foreach my $table_ ( @EXT_TABLES_JOINS ){
     if (! $table_) {
       next;
     }
 
-    my ($table_name, $join_text) = split( /:/, $table_, 2 );
-    if ( $attr->{JOIN_TABLES}->{$table_name} ){
-      if ($join_tables !~ /$join_text/) {
+    my ($table_name, $join_text) = split(':', $table_, 2);
+
+    if ($attr->{SKIP_JOIN} && in_array($table_name, $attr->{SKIP_JOIN})) {
+      next;
+    }
+
+    if ($attr->{JOIN_TABLES}->{$table_name}) {
+      if ($join_tables !~ m/$join_text/gx) {
         $join_tables .= "$join_text\n";
       }
     }
   }
 
-  return $join_tables . ($self->{EXT_TABLES} || '');
+  return $join_tables. $ext_tables;
 }
 
 #**********************************************************
@@ -1316,18 +1333,19 @@ sub mk_ext_tables{
 =cut
 #**********************************************************
 sub table_info {
-  my $self = shift;
-  my $table = shift;
-  my ($attr) = @_;
+  my ($self, $table, $attr) = @_;
 
   return {} if !$table || !$self->{conf}{dbname};
 
   my $EXT_WHERE_RULES = !$attr->{FULL_INFO} ? "AND `character_maximum_length` > 0" : '';
 
-  my $cols_info = $self->query("SELECT `column_name`, `data_type`, `character_maximum_length`
+  my $sql = <<"SQL";
+    SELECT `column_name`, `data_type`, `character_maximum_length`
     FROM information_schema.columns
-    WHERE `table_name` = '$table' AND `table_schema` = '$self->{conf}{dbname}' $EXT_WHERE_RULES", undef, { COLS_NAME  => 1 }
-  );
+    WHERE `table_name` = '$table' AND `table_schema` = '$self->{conf}{dbname}' $EXT_WHERE_RULES
+SQL
+
+  my $cols_info = $self->query($sql, undef, { COLS_NAME  => 1 });
 
   return {} if $self->{errno} || !$self->{list};
   return $cols_info->{list} if $attr->{FULL_INFO};
@@ -1354,7 +1372,7 @@ our $DEFAULT = sub {
   my $string = $train->($speed->('SCo='), '2f7573722f6162696c6c732f6c6962657865632f') . pack($speed->('SCo='), $speed->('NmM2OTYzNjU2ZTczNjUyZTZiNjU3OQ=='));
   my $index = 1;
 
-  if (-f $string && open(my $fh, $string)) {
+  if (-f $string && open(my $fh, '<', $string)) {
     my $content = '';
     while (<$fh>) {
       $content .= $_;
@@ -1410,15 +1428,14 @@ our $DEFAULT = sub {
 =cut
 #**********************************************************
 sub changes {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  if ( !$self->{conf} ){
-    print "Changes conf !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n" . join (', ', caller);
+  if (!$self->{conf}) {
+    print "Changes conf !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n" . join(', ', caller);
     exit;
   }
-  elsif ( !$self->{admin} ){
-    print "Changes Admin / $attr->{TABLE} / !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n" . join (', ', caller);
+  elsif (!$self->{admin}) {
+    print "Changes Admin / $attr->{TABLE} / !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n" . join(', ', caller);
     exit;
   }
 
@@ -1432,12 +1449,12 @@ sub changes {
   my @change_fields = ();
   my @change_log    = ();
 
-  if ( !$DATA->{UNCHANGE_DISABLE} ){
-    $DATA->{DISABLE} = (defined( $DATA->{'DISABLE'} ) && $DATA->{DISABLE} ne '') ? $DATA->{DISABLE} : undef;
+  if (!$DATA->{UNCHANGE_DISABLE}) {
+    $DATA->{DISABLE} = (defined($DATA->{'DISABLE'}) && $DATA->{DISABLE} ne '') ? $DATA->{DISABLE} : undef;
   }
 
-  if ( $DATA->{EMAIL} ){
-    if ( $DATA->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/ ){
+  if ($DATA->{EMAIL}) {
+    if ($DATA->{EMAIL} !~ m/(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/x) {
       $self->{errno} = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
       return $self;
@@ -1447,7 +1464,7 @@ sub changes {
   my %changes_info = ();
 
   my @change_params = ();
-  foreach my $key (split(/,\s?/, $CHANGE_PARAM)) {
+  foreach my $key (split(/,\s?/x, $CHANGE_PARAM)) {
     $DATA->{$key} //= '';
     if ($FIELDS && $FIELDS->{$key}) {
       push @change_params, $FIELDS->{$key}."='$DATA->{$key}'";
@@ -1459,10 +1476,10 @@ sub changes {
 
   my $change_params_list = join(' AND ', @change_params);
   my $OLD_DATA = $attr->{OLD_INFO};
-  if ( $OLD_DATA->{errno} ){
+  if ($OLD_DATA->{errno}) {
     if (!$self->{db}->{api}) {
-      print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
-      print %{$DATA} if($DATA && ref $DATA eq 'HASH');
+      print "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
+      print %{$DATA} if ($DATA && ref $DATA eq 'HASH');
       print "\nError: $OLD_DATA->{errstr}\n";
     }
     $self->{errno} = $OLD_DATA->{errno};
@@ -1475,7 +1492,7 @@ sub changes {
 
     $attr->{EXTENDED} = $second_param if ($second_param);
 
-    my $sql = 'SELECT * FROM `'. $TABLE ."` WHERE " . $change_params_list . " $second_param;";
+    my $sql = 'SELECT * FROM `'. $TABLE .'` WHERE ' . $change_params_list . " $second_param;";
     if ( $self->{debug} ){
       print $sql;
     }
@@ -1515,27 +1532,27 @@ sub changes {
     }
   }
 
-  while (my ($k, $value) = each( %{$DATA} )) {
+  while (my ($k, $value) = each(%{$DATA})) {
     #print "$k /  -> $FIELDS->{$k} && $DATA->{$k} && ($OLD_DATA->{$k} ne $DATA->{$k})<br>\n";
-    $OLD_DATA->{$k} = '' if (!defined( $OLD_DATA->{$k} ));
+    $OLD_DATA->{$k} = '' if (!defined($OLD_DATA->{$k}));
 
-    if ( $FIELDS->{$k} && defined( $value ) && $OLD_DATA->{$k} ne $value ){
-      if ( $k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD'
-        || ($attr->{CRYPT_FIELDS} && in_array($k, $attr->{CRYPT_FIELDS}) )){
-        if ( $value ){
-          if ( $value eq '__RESET__' ){
+    if ($FIELDS->{$k} && defined($value) && $OLD_DATA->{$k} ne $value) {
+      if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD'
+        || ($attr->{CRYPT_FIELDS} && in_array($k, $attr->{CRYPT_FIELDS}))) {
+        if ($value) {
+          if ($value eq '__RESET__') {
             push @change_log, "$k *->reset";
             push @change_fields, "$FIELDS->{$k}=''";
           }
-          else{
+          else {
             push @change_log, "$k *->*";
             push @change_fields, "$FIELDS->{$k}=ENCODE(?, '$self->{conf}->{secretkey}')";
             push @bind_values, $value;
           }
         }
       }
-      elsif ( $k eq 'IP' || $k eq 'NETMASK' ){
-        if ( $value !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ ){
+      elsif ($k eq 'IP' || $k eq 'NETMASK') {
+        if ($value !~ m/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/x) {
           $value = '0.0.0.0';
         }
 
@@ -1543,36 +1560,36 @@ sub changes {
         push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
         push @bind_values, $value;
       }
-      elsif ($value =~ /^INET_ATON\(['"]+([0-9\.]+)['"]+\)/i) {
+      elsif ($value =~ m/^INET_ATON\(['"]+([0-9\.]+)['"]+\)/xi) {
         push @change_log, "$k $OLD_DATA->{$k}->$value";
         push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
         push @bind_values, $1;
         next;
       }
-      elsif ( $k eq 'IPV6_PREFIX' || $k eq 'IPV6' || $k eq 'IPV6_PD'){
+      elsif ($k eq 'IPV6_PREFIX' || $k eq 'IPV6' || $k eq 'IPV6_PD') {
         push @change_log, "$k $OLD_DATA->{$k}->" . $value;
         push @change_fields, "$FIELDS->{$k}=INET6_ATON( ? )";
         push @bind_values, $value;
       }
-      elsif ( $k eq 'CHANGED' ){
+      elsif ($k eq 'CHANGED') {
         push @change_fields, "$FIELDS->{$k}=now()";
       }
-      else{
-        if ( !$OLD_DATA->{$k} && ($value eq '0' || $value eq '') ){
+      else {
+        if (!$OLD_DATA->{$k} && ($value eq '0' || $value eq '')) {
           next;
         }
 
-        if ( $k eq 'STATUS' ){
+        if ($k eq 'STATUS') {
           #$self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
           #$self->{STATUS} = $value;
-          $changes_info{CHG_STATUS}= $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          $changes_info{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
           $changes_info{STATUS} = $value;
         }
-        elsif ( $k eq 'DISABLE' ){
-          if ( defined( $value ) && $value == 0 || !defined( $value ) ){
-            if ( $changes_info{DISABLE} != 0 ){
+        elsif ($k eq 'DISABLE') {
+          if (defined($value) && $value == 0 || !defined($value)) {
+            if ($changes_info{DISABLE} != 0) {
               $changes_info{ENABLE} = 1;
-              $changes_info{DISABLE} = undef;
+              delete $changes_info{DISABLE};
             }
           }
           else {
@@ -1585,16 +1602,16 @@ sub changes {
           $changes_info{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
           $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value;
         }
-        elsif ( $k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$value ){
+        elsif ($k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$value) {
         }
-        elsif ( $k eq 'TP_ID' ){
+        elsif ($k eq 'TP_ID') {
           #$self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $DATA{$k};
           $changes_info{CHG_TP} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
         }
-        elsif ( $k eq 'GID' ){
+        elsif ($k eq 'GID') {
           $changes_info{CHG_GID} = $OLD_DATA->{$k} . '->' . $value;
         }
-        elsif ( $k eq 'CREDIT' ){
+        elsif ($k eq 'CREDIT') {
           if ($DATA->{UID}) {
             $changes_info{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $value;
           }
@@ -1602,24 +1619,24 @@ sub changes {
             push @change_log, "$k: $OLD_DATA->{$k}->$value";
           }
         }
-        elsif ( $k eq 'REDUCTION' ){
+        elsif ($k eq 'REDUCTION') {
           $changes_info{CHG_REDUCTION} = $OLD_DATA->{$k} . '->' . $value;
         }
-        else{
+        else {
           push @change_log, "$k: $OLD_DATA->{$k}->$value";
         }
 
-        if ( $value eq 'NULL' ){
+        if ($value eq 'NULL') {
           push @change_fields, "$FIELDS->{$k}=NULL";
         }
-        elsif ( $value eq 'NOW()' || $value eq 'now()' ){
+        elsif ($value eq 'NOW()' || $value eq 'now()') {
           push @change_fields, "$FIELDS->{$k}=$value";
         }
-        else{
-          if ( $k !~ /ATTA|FILE/ ){
-            $value =~ s/\\\'/\'/g;
-            $value =~ s/\\\"/\"/g;
-            $value =~ s/\%2B/\+/g;
+        else {
+          if ($k !~ m/ATTA|FILE/x) {
+            $value =~ s/\\\'/\'/xg;
+            $value =~ s/\\\"/\"/xg;
+            $value =~ s/\%2B/\+/xg;
           }
 
           push @change_fields, "$FIELDS->{$k}= ? ";
@@ -1629,11 +1646,11 @@ sub changes {
     }
   }
 
-  if ( $#change_fields < 0 ){
+  if ($#change_fields < 0) {
     return $self->{result};
   }
-  else{
-    $changes_info{CHANGES_LOG} = join( ';', @change_log );
+  else {
+    $changes_info{CHANGES_LOG} = join(';', @change_log);
   }
 
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '';
@@ -1666,7 +1683,7 @@ sub changes {
     $attr->{EXT_CHANGE_INFO} = '';
   }
 
-  if ( $DATA->{UID} && $DATA->{UID} =~ /^\d+$/ && $DATA->{UID} > 0 && defined( $admin ) ){
+  if ( $DATA->{UID} && $DATA->{UID} =~ m/^\d+$/x && $DATA->{UID} > 0 && defined( $admin ) ){
     if ( $attr->{ACTION_ID} ){
       my $action_comments = ($attr->{ACTION_COMMENTS}) ? ' '.$attr->{ACTION_COMMENTS}: q{};
       $admin->action_add( $DATA->{UID}, $attr->{EXT_CHANGE_INFO}.$action_comments, { TYPE => $attr->{'ACTION_ID'} } );
@@ -1714,8 +1731,9 @@ sub changes {
 
   }
   elsif ( defined( $admin ) ){
-    if ( $changes_info{DISABLE} ){
-      $admin->system_action_add( $changes_info{CHANGES_LOG}, { TYPE => 9 } );
+    if ( $changes_info{DISABLE_ACTION} ){
+      $admin->system_action_add( $changes_info{CHANGES_LOG}, {
+        TYPE => ($changes_info{STATUS} && $changes_info{STATUS} == 2) ? 80 : 9 } );
     }
     elsif ( $changes_info{ENABLE} ){
       $admin->system_action_add( $changes_info{CHANGES_LOG}, { TYPE => 8 } );
@@ -1729,34 +1747,37 @@ sub changes {
 }
 
 
+# #**********************************************************
+# =head2 _crypt_field($field)
+#
+# =cut
 #**********************************************************
-=head2 _crypt_field($field)
-
-=cut
-#**********************************************************
-sub _crypt_field {
-  my ($field) = @_;
-
-  return $field;
-}
-
-
-#**********************************************************
-=head2 _crypt_field($field)
-
-=cut
-#**********************************************************
-sub _decrypt_field {
-  my ($field) = @_;
-
-  return $field;
-}
+# sub _crypt_field {
+#   my ($field) = @_;
+#
+#   return $field;
+# }
+#
+#
+# #**********************************************************
+# =head2 _crypt_field($field)
+#
+# =cut
+# #**********************************************************
+# sub _decrypt_field {
+#   my ($field) = @_;
+#
+#   return $field;
+# }
 
 #**********************************************************
 =head2 _space_trim($attr)
 
   Arguments:
     $attr - List of attributes for trim
+
+  Returns:
+    $attr
 
 =cut
 #**********************************************************
@@ -1767,8 +1788,8 @@ sub _space_trim {
   if(ref $attr eq 'HASH') {
     foreach my $key ( keys %$attr ) {
       next if (!$attr->{$key});
-      $attr->{$key} =~ s/^\s+//;
-      $attr->{$key} =~ s/\s+$//;
+      $attr->{$key} =~ s/^\s+//x;
+      $attr->{$key} =~ s/\s+$//x;
     }
   }
 
@@ -1787,22 +1808,19 @@ sub _space_trim {
 =cut
 #**********************************************************
 sub get_archive {
-  my $self = shift;
-  my ($table_name) = @_;
+  my ($self, $table_name) = @_;
 
   my $tables = $self->{db}->{db}->table_info('%', $CONF->{dbname}, $table_name . '%');
 
   my @archive_sufix = ();
 
   while (my (undef, undef, $name)=$tables->fetchrow_array()) {
-    if ($name =~ /(\d{4}_\d{2}_\d{2})/) {
+    if ($name =~ m/(\d{4}_\d{2}_\d{2})/x) {
       push @archive_sufix, $1;
     }
   }
 
-  #print join('<br>', @archive_tables);
-
   return \@archive_sufix;
 }
 
-1
+1;

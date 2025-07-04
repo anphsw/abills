@@ -192,6 +192,8 @@ sub post_crm_leads_social {
   require Crm::Dialogue;
   my $Dialogue = Crm::Dialogue->new($self->{db}, $self->{admin}, $self->{conf}, { SOURCE => $bot_name });
 
+  $query_params->{UID} = $path_params->{uid} if $path_params->{uid};
+
   my $lead_id = $Dialogue->crm_lead_by_source({
     %$query_params,
     USER_ID => $path_params->{user_id},
@@ -200,10 +202,28 @@ sub post_crm_leads_social {
   return $Errors->throw_error(1230007) if (!$lead_id);
   my $dialogue_id = $Dialogue->crm_get_dialogue_id($lead_id);
 
+  my $message_id;
   my $text = '$lang{THE_USER_JOINED_VIA_' . uc($bot_name) . '}';
-  my $message_id = $Dialogue->crm_send_message($text, {
-    INNER_MSG => 1, SKIP_CHANGE => 1, DIALOGUE_ID => $dialogue_id
+
+  my $last_message = $Crm->crm_dialogue_messages_list({
+    MESSAGE     => '_SHOW',
+    DIALOGUE_ID => $dialogue_id,
+    PAGE_ROWS   => 1,
+    DESC        => 'DESC',
+    COLS_NAME   => 1
   });
+  
+  if ($Crm->{TOTAL} && $Crm->{TOTAL} > 0 && $last_message->[0] && $last_message->[0]{message}) {
+    if ($last_message->[0]{message} eq $text) {
+      $message_id = $last_message->[0]{id};
+    }
+  }
+
+  if (!$message_id) {
+    $message_id = $Dialogue->crm_send_message($text, {
+      INNER_MSG => 1, SKIP_CHANGE => 1, DIALOGUE_ID => $dialogue_id
+    });
+  }
 
   return $Errors->throw_error(1230008) if (!$message_id);
 

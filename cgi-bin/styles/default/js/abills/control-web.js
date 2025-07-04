@@ -210,6 +210,27 @@ function resultFormerFillCheckboxes() {
       }
     }
   });
+
+  const checkboxSelectAll = $('.abills-checkbox-select-all');
+
+  checkboxSelectAll.each(function () {
+    const selectAll = $(this);
+    const groupContainer = selectAll.closest('.checkbox-group-container');
+    const childCheckboxes = groupContainer.find('.abills-checkbox-parent input[type="checkbox"]');
+
+    const allChecked = childCheckboxes.length > 0 && childCheckboxes.filter(':checked').length === childCheckboxes.length;
+    selectAll.prop('checked', allChecked);
+  });
+
+  checkboxSelectAll.on('click', function () {
+    const isChecked = $(this).prop('checked');
+
+    const childCheckboxes = $(this)
+      .closest('.checkbox-group-container')
+      .find('.abills-checkbox-parent input[type="checkbox"]');
+
+    childCheckboxes.prop('checked', isChecked);
+  });
 }
 
 /* 6 */

@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_PAYMENTS_TYPES_CHANGE",
+  "method": "PUT",
+  "path": "payments/types/255",
+  "body": {
+    "name": "TestPaymentChange",
+    "color": "#c33e3e"
+  }
+}

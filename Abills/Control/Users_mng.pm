@@ -35,6 +35,21 @@ our Admins $admin;
 
 my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
 
+use constant {
+  FIELD_TYPE_INPUT     => 0,
+  FIELD_TYPE_SELECT    => 2,
+  FIELD_TYPE_TEXTAREA  => 3,
+  FIELD_TYPE_CHECKBOX  => 4,
+  FIELD_TYPE_ICQ       => 8,
+  FIELD_TYPE_URL       => 9,
+  FIELD_TYPE_SKYPE     => 12,
+  FIELD_TYPE_FILE      => 13,
+  FIELD_TYPE_PHOTO     => 15,
+  FIELD_TYPE_SOCIAL    => 16,
+  FIELD_TYPE_LANGUAGE  => 18,
+  FIELD_TYPE_TIMEZONE  => 19,
+  FIELD_TYPE_DATE      => 20,
+};
 
 #**********************************************************
 =head2 form_user_profile($attr) - User account managment form
@@ -221,6 +236,8 @@ sub form_user_banner {
     }
   }
 
+  $pre_info .= ' '. $lang{RECOMMENDED_PAYMENT} .': '. recomended_pay($user_info, { SERVICE_INFO => $service_info });
+
   return (defined $service_info->{total_sum}) ? $html->message('info', '', $pre_info, { OUTPUT2RETURN => 1 }) : q{};
 }
 
@@ -252,7 +269,6 @@ sub form_pay_to {
   my ($Y,$M, $D);
 
   if ($FORM{DATE}) {
-
     my $reduction_days = 0;
     if ($user_info->{REDUCTION_DATE} && $user_info->{REDUCTION_DATE} ne '0000-00-00') {
       $reduction_days = date_diff($FORM{DATE}, $user_info->{REDUCTION_DATE});
@@ -262,7 +278,7 @@ sub form_pay_to {
       }
 
       if ($reduction_days < 0) {
-        ($Y,$M, $D)=split(/\-/, $start_date);
+        ($Y,$M, $D)=split('-', $start_date);
         $info{DISCOUNT_DAYS} = date_diff($start_date, $user_info->{REDUCTION_DATE});
         my $days_in_month = days_in_month({ DATE => $start_date });
         $info{DISCOUNT_MONTHES}= ($info{DISCOUNT_DAYS}+$D > $days_in_month) ? int(($info{DISCOUNT_DAYS} - ($days_in_month-$D)) / 30 + 1) : 0;
@@ -270,7 +286,7 @@ sub form_pay_to {
       }
     }
 
-    ($Y, $M, $D) = split(/\-/, $start_date);
+    ($Y, $M, $D) = split('-', $start_date);
     $info{DAYS} = date_diff($start_date, $FORM{DATE});
     my $days_in_month = days_in_month({ DATE => $start_date });
     $info{MONTHES} = ($info{DAYS} + $D > $days_in_month) ? int(($info{DAYS} - ($days_in_month - $D)) / 30 + 1) : 0;
@@ -485,12 +501,8 @@ sub form_user_info {
     }
 
     if (defined($user_info->{DEPOSIT})) {
-      if ($conf{DEPOSIT_FORMAT}) {
-        $user_info->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $user_info->{DEPOSIT}) if ($user_info->{DEPOSIT} =~ /\d+/);
-      }
-      else {
-        $user_info->{SHOW_DEPOSIT} = sprintf("%.2f", $user_info->{DEPOSIT}) if ($user_info->{DEPOSIT} =~ /\d+/);
-      }
+      #$user_info->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $user_info->{DEPOSIT})
+      $user_info->{SHOW_DEPOSIT} = format_sum($user_info->{DEPOSIT}) if ($user_info->{DEPOSIT} =~ /\d+/);
 
       if ($user_info->{DEPOSIT} =~ /\d+/ && $user_info->{DEPOSIT} > 0) {
         $user_info->{DEPOSIT_MARK} = 'badge badge-success';
@@ -719,6 +731,7 @@ sub form_user_change {
 
   my Users $user_info = $attr->{USER_INFO};
   my $form = $attr->{FORM};
+  $form->{CREDIT} =~ s/\s+//xg if ($form->{CREDIT});
 
   if ((defined $form->{PASSWORD} && !$permissions{0}{4})) {
     $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{PASSWD} : $lang{ERR_ACCESS_DENY}");
@@ -770,12 +783,12 @@ sub form_user_change {
     delete($form->{DISABLE});
   }
 
-  if (!$permissions{0}{13} && $user_info->{DISABLE} =~ /\d+/ && $user_info->{DISABLE} == 2) {
+  if (!$permissions{0}{13} && $user_info->{DISABLE} =~ m/\d+/x && $user_info->{DISABLE} == 2) {
     $form->{DISABLE} = 2;
   }
 
   if ($conf{FIXED_FEES_DAY} && $form->{ACTIVATE} && $form->{ACTIVATE} ne '0000-00-00') {
-    my $d = (split(/-/, $form->{ACTIVATE}))[2];
+    my $d = (split('-', $form->{ACTIVATE}))[2];
     if (in_array($d, [ '1', '01', '29', '30', '31' ])) {
       $html->message('info', $lang{CHANGE}, "$lang{ACTIVATE} $form->{ACTIVATE}->0000-00-00");
       $form->{ACTIVATE} = '0000-00-00';
@@ -890,7 +903,7 @@ sub form_user_add {
   }
 
   if ($conf{FIXED_FEES_DAY} && $FORM{ACTIVATE} && $FORM{ACTIVATE} ne '0000-00-00') {
-    my $d = (split(/-/, $FORM{ACTIVATE}))[2];
+    my $d = (split('-', $FORM{ACTIVATE}))[2];
 
     if (in_array($d, [ 1, 29, 30, 31 ])) {
       $html->message('info', $lang{CHANGE}, "$lang{ACTIVATE} $FORM{ACTIVATE}->0000-00-00");
@@ -899,7 +912,7 @@ sub form_user_add {
   }
 
   if ($conf{AUTH_G2FA} && $conf{G2FA_USER_AUTH}) {
-    $FORM{_G2FA} = unique_token_generate(32);
+    $FORM{_G2FA} = mk_unique_value(33, { SYMBOLS => join('', 'A'..'Z',3) });
   }
 
   my Users $user_info = $users->add({ %FORM });
@@ -1008,6 +1021,7 @@ sub form_users {
     }
   }
   elsif ($FORM{MULTIUSER}) {
+    require Control::Multiusers;
     $attr->{FORM}=\%FORM;
     form_multiuser_actions($attr);
   }
@@ -1138,6 +1152,8 @@ sub _change_bill_id {
   else {
     $html->message('err', $lang{ERROR}, $lang{BILL_LINKED_TO_ANOTHER_USER});
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -1148,7 +1164,7 @@ sub _change_bill_id {
 sub form_social_networks {
   my ($network_info) = @_;
 
-  my ($network, $id) = split(/, /, $network_info);
+  my ($network, $id) = split(/,\s/x, $network_info);
   $html->message('info', $lang{INFO}, $network_info);
   require Abills::Auth::Core;
   Abills::Sender::Core->import();
@@ -1170,7 +1186,7 @@ sub form_social_networks {
       $result = show_hash($Auth->{result}->{$key}, { OUTPUT2RETURN => 1, DELIMITER => $html->br() });
     }
     elsif (ref $Auth->{result}->{$key} eq 'ARRAY') {
-      if ($Auth->{result}->{$key}->[0]->{url} && $Auth->{result}->{$key}->[0]->{url} !~ /.jpg/) {
+      if ($Auth->{result}->{$key}->[0]->{url} && $Auth->{result}->{$key}->[0]->{url} !~ m/\.jpg/x) {
         $result = join($html->br(), @{$Auth->{result}->{$key}});
       }
       else {
@@ -1218,7 +1234,7 @@ sub user_pi {
   }
 
   if ($FORM{REG} && $FORM{ALL_CONTACT_TYPES}) {
-    my @default_types = split(/,/, $FORM{ALL_CONTACT_TYPES});
+    my @default_types = split(/,/x, $FORM{ALL_CONTACT_TYPES});
     require Contacts;
     Contacts->import();
     my $Contacts = Contacts->new($db, $admin, \%conf);
@@ -1226,11 +1242,11 @@ sub user_pi {
     foreach my $contact_type_id (@default_types) {
       my $contact = $FORM{"CONTACT_TYPE_$contact_type_id"};
       if ($contact && $contact ne '') {
-        my @contacts_by_type = split(/,/, $contact);
+        my @contacts_by_type = split(/,/x, $contact);
         foreach my $item (@contacts_by_type) {
-          $item =~ s/"//g;
-          $item =~ s/'//g;
-          $item =~ s/\\//g;
+          $item =~ s/"//xg;
+          $item =~ s/'//xg;
+          $item =~ s/\\//xg;
           $Contacts->contacts_add({
             TYPE_ID => $contact_type_id,
             VALUE   => $item,
@@ -1247,12 +1263,13 @@ sub user_pi {
     form_social_networks($FORM{SOCIAL_INFO});
   }
   elsif ($FORM{PHOTO}) {
-    form_image_mng($user);
+    require Control::Image_mng;
+    form_image_mng({ %FORM, %$user });
     return '';
   }
   elsif ($FORM{ATTACHMENT}) {
     if ($FORM{del}) {
-      if ($FORM{ATTACHMENT} =~ /(.+):(.+)/) {
+      if ($FORM{ATTACHMENT} =~ m/(.+):(.+)/x) {
         $FORM{TABLE} = $1 . '_file';
         $FORM{ATTACHMENT} = $2;
       }
@@ -1271,7 +1288,11 @@ sub user_pi {
       return '';
     }
 
-    form_show_attach({ UID => $user->{UID} });
+    form_show_attach({
+      UID        => $user->{UID},
+      ATTACHMENT => $FORM{ATTACHMENT},
+      TABLE      => $FORM{TABLE}
+    });
     return '';
   }
   elsif ($FORM{add}) {
@@ -1367,15 +1388,15 @@ sub user_pi {
     }
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
-      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
-      my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
+      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//xg;
+      my (@contract_types_list) = split(/;/x, $conf{DOCS_CONTRACT_TYPES});
 
       my %CONTRACTS_LIST_HASH = ();
       $FORM{CONTRACT_SUFIX} = "|$user_pi->{CONTRACT_SUFIX}" if ($user_pi->{CONTRACT_SUFIX});
       $user_pi->{CONTRACT_SUFIX} = "($user_pi->{CONTRACT_SUFIX})" if ($user_pi->{CONTRACT_SUFIX});
       foreach my $line (@contract_types_list) {
-        my ($prefix, $sufix, $name) = split(/:/, $line);
-        $prefix =~ s/ //g;
+        my ($prefix, $sufix, $name) = split(/:/x, $line);
+        $prefix =~ s/\s//xg;
         $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
       }
 
@@ -1450,6 +1471,28 @@ sub user_pi {
   if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
     $user_pi->{FIO_READONLY} = 'disabled';
   }
+
+  $user_pi->{CONTRACT_STATUS_SEL} = $html->form_select('CONTRACT_STATUS',{
+      SELECTED => $FORM{CONTRACT_STATUS} || $user_pi->{CONTRACT_STATUS} || '',
+      SEL_HASH => {
+        0 => $lang{ENABLE},
+        1 => $lang{WAS_CLOSED},
+        2 => "$lang{DISABLED} $lang{NON_PAYMENT}"
+      },
+      SORT_KEY => 1,
+      NO_ID    => 1
+    }, { class => 'form-control' });
+
+  $user_pi->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE',{
+    SELECTED => $FORM{PAYMENT_TYPE} || $user_pi->{PAYMENT_TYPE} || '',
+    SEL_HASH => {
+      1 => $lang{ADVANCE},
+      2 => $lang{CREDIT},
+    },
+    SEL_OPTIONS => {''=>''},
+    SORT_KEY => 1,
+    NO_ID    => 1
+  }, { class => 'form-control' });
 
   if (!$attr->{QUICK_FORM} && ($permissions{0}{24} || ($FORM{index} && $FORM{index} != 15))) {
     my $ext_address = $html->tpl_show(templates('form_ext_address'), { %$user_pi }, { ID => 'ext_address', OUTPUT2RETURN => 1 });
@@ -1608,7 +1651,7 @@ sub user_form {
   }
   elsif (!$attr->{USER_INFO}) {
     if ($conf{REG_SURELY_VALUE}) {
-      map $attr->{$_ . '_REQ'} = 'required', split(/,\s?/, $conf{REG_SURELY_VALUE});
+      map $attr->{$_ . '_REQ'} = 'required', split(/,\s?/x, $conf{REG_SURELY_VALUE});
     }
 
     $user = Users->new($db, $admin, \%conf);
@@ -1687,13 +1730,18 @@ sub user_form {
       $user_info->{confirm} = $user_info->{newpassword};
     }
     $attr->{G2FA_HIDDEN} = 'hidden';
+
+    if ($attr->{COMPANY_ID}) {
+      $attr->{COLLAPSED} = 'collapsed-card';
+    }
+
     $main_account .= $html->tpl_show(templates('form_password'), { %$user_info, %$attr }, { OUTPUT2RETURN => 1 });
 
-    $main_account =~ s/<FORM.+>//ig;
-    $main_account =~ s/<\/FORM>//ig;
-    $main_account =~ s/<input.+type=submit.+>//ig;
-    $main_account =~ s/<input.+index.+>//ig;
-    $main_account =~ s/user_form/users_pi/ig;
+    $main_account =~ s/<FORM.+>//xig;
+    $main_account =~ s/<\/FORM>//xig;
+    $main_account =~ s/<input.+type=submit.+>//xig;
+    $main_account =~ s/<input.+index.+>//xig;
+    $main_account =~ s/user_form/users_pi/xig;
 
     print user_pi({ MAIN_USER_TPL => $main_account, %$attr, CHECK_ADDRESS_FLAT => $conf{REG_CHECK_ADDRESS_FLAT} });
   }
@@ -1712,7 +1760,7 @@ sub user_form {
       exit 0;
     }
     else {
-      my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+      my @a_method = split(/,/x, $conf{WEB_AUTH_KEY});
       my $method = $a_method[0];
 
       my $users_list = $users->list({
@@ -1776,7 +1824,7 @@ sub user_portal_access {
   my ($user_info)=@_;
 
   my $login_url = $conf{USER_PORTAL_URL} || $SELF_URL;
-  $login_url =~ s/admin\//\//;
+  $login_url =~ s/admin\//\//x;
   $conf{WEB_AUTH_KEY} = 'LOGIN' if (!$conf{WEB_AUTH_KEY});
 
   # delete old cookie if present
@@ -1789,7 +1837,7 @@ sub user_portal_access {
     $html->redirect("$login_url?user=$_login&passwd=$_password", { WAIT => 0 });
   }
   else {
-    my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+    my @a_method = split(/,/x, $conf{WEB_AUTH_KEY});
     my $method = $a_method[0];
 
     my $users_list = $users->list({
@@ -1804,7 +1852,7 @@ sub user_portal_access {
     return 0 if (! $info);
 
     if ($method eq "PHONE") {
-      $info =~ s/\+/\%2B/g;
+      $info =~ s/\+/\%2B/xg;
     }
 
     $html->redirect("$login_url?user=$info&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
@@ -2059,7 +2107,7 @@ sub user_right_menu {
   }
 
   foreach my $element (@items_arr) {
-    my ($name, $url, $extra) = split(/:/, $element, 3);
+    my ($name, $url, $extra) = split(/:/x, $element, 3);
     my $active = '';
     if (!$url) {
       $active = 'active';
@@ -2068,10 +2116,10 @@ sub user_right_menu {
       $active = 'active';
     }
     else {
-      my @url_argv = split(/&/, $url);
+      my @url_argv = split(/&/x, $url);
       my %params_hash = ();
       foreach my $line (@url_argv) {
-        my ($k, $v) = split(/=/, $line);
+        my ($k, $v) = split(/=/x, $line);
         $params_hash{($k || '')} = $v;
       }
 
@@ -2083,11 +2131,11 @@ sub user_right_menu {
     my %url_params = ();
 
     if ($extra) {
-      if ($extra =~ /MESSAGE=(.+)/) {
+      if ($extra =~ m/MESSAGE=(.+)/x) {
         $url_params{MESSAGE} = $1;
       }
 
-      if ($extra =~ /class=(.+)/) {
+      if ($extra =~ m/class=(.+)/x) {
         $url_params{class} = $1;
       }
     }
@@ -2129,7 +2177,7 @@ sub user_right_menu {
 
                 if ($services) {
                   my $badget_type = q{};
-                  if ($services =~ s/^!//) {
+                  if ($services =~ s/^!//x) {
                     $badget_type = 'badge-danger';
                   }
                   $info = $html->badge($services, { TYPE => $badget_type });
@@ -2285,7 +2333,7 @@ sub user_info {
   }
 
   my $user_info = $users->info($uid, $attr);
-  my @admin_groups = split(/,s?/, $admin->{GID});
+  my @admin_groups = split(/,\s?/x, $admin->{GID});
 
   if ($uid && $users->{errno}) {
     if (!$attr || !$attr->{QUITE}) {
@@ -2325,7 +2373,7 @@ sub user_info {
 
   my $user_name = '';
   if ($conf{USER_PANEL}) {
-    my @params = split(/,s?/, $conf{USER_PANEL});
+    my @params = split(/,\s?/x, $conf{USER_PANEL});
 
     my %user_list_params = map {$_ => '_SHOW'} @params;
 
@@ -2474,7 +2522,7 @@ sub form_users_list {
   $col_hidden{TYPE_PAGE} = $FORM{type} if ($FORM{type});
 
   if ($FORM{COMPANY_ID} && !$FORM{change}) {
-    $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}" if ($pages_qs !~ /COMPANY_ID/);
+    $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}" if ($pages_qs !~ m/COMPANY_ID/x);
     $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID};
     $col_hidden{COMPANY_ID} = $FORM{COMPANY_ID};
   }
@@ -2506,7 +2554,7 @@ sub form_users_list {
   my $qs = '';
   foreach my $name (@statuses) {
     my $active = '';
-    if (defined($FORM{USERS_STATUS}) && $FORM{USERS_STATUS} =~ /^\d+$/ && $FORM{USERS_STATUS} == $i) {
+    if (defined($FORM{USERS_STATUS}) && $FORM{USERS_STATUS} =~ m/^\d+$/x && $FORM{USERS_STATUS} == $i) {
       $LIST_PARAMS{USER_STATUS} = 1;
       if ($i == 1) {
         $LIST_PARAMS{ACTIVE} = 1;
@@ -2535,14 +2583,14 @@ sub form_users_list {
       elsif ($i == 9) {
         $LIST_PARAMS{DELETED} = 1;
       }
-      $pages_qs =~ s/\&USERS_STATUS=\d//g;
+      $pages_qs =~ s/\&USERS_STATUS=\d//xg;
       $pages_qs .= "&USERS_STATUS=$i";
       $users_status = $i;
       $active = 'active';
     }
     else {
       $qs = $pages_qs;
-      $qs =~ s/\&USERS_STATUS=\d//g;
+      $qs =~ s/\&USERS_STATUS=\d//xg;
     }
 
     push @status_bar_arr, "$name:index=$index&USERS_STATUS=$i$qs";
@@ -2554,7 +2602,7 @@ sub form_users_list {
   if ($FORM{search}) {
     while (my ($k, $v) = each %FORM) {
       if ($v) {
-        if ($k && ($k eq 'PHONE' || $k eq 'CELL_PHONE') && $v !~ m/\*/) {
+        if ($k && ($k eq 'PHONE' || $k eq 'CELL_PHONE') && $v !~ m/\*/x) {
           $v = qq{*$v*};
         }
         next if ($v eq ', ');
@@ -2572,18 +2620,18 @@ sub form_users_list {
 
   if ($FORM{EXPORT_CONTENT}) {
     my $buffer = $FORM{__BUFFER};
-    my (undef, $value) = split(/(UID=([0-9].+;))/, $buffer);
+    my (undef, $value) = split(/(UID=([0-9].+;))/x, $buffer);
 
     if ($value) {
-      $value =~ s/UID=//g;
+      $value =~ s/UID=//xg;
       $LIST_PARAMS{UID} = $value;
     }
   }
 
-  $LIST_PARAMS{_MULTI_HIT} = ' OR ' if ($FORM{UID} && $FORM{UID} =~ /.*\,.*/);
+  $LIST_PARAMS{_MULTI_HIT} = ' OR ' if ($FORM{UID} && $FORM{UID} =~ m/.*\,.*/x);
 
-  my $hidden_fields = 'PRIORITY';
-  $hidden_fields .= ',BUILD_ID' if !in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps});
+  my $hidden_fields = 'PRIORITY,TAGS_COLORS';
+  $hidden_fields .= ',BUILD_ID' if (!in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps}));
 
   my $user_status_list = $users->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', HASH => 1, COLS_NAME => 1 });
 
@@ -2618,7 +2666,7 @@ sub form_users_list {
 
     if (!$FORM{UID}) {
       $FORM{UID} = $list->[0]->{uid};
-      if (!$FORM{LOGIN} || $FORM{LOGIN} =~ /\*/) {
+      if (!$FORM{LOGIN} || $FORM{LOGIN} =~ m/\*/x) {
         delete $FORM{LOGIN};
         $ui = user_info($FORM{UID});
         print $ui->{TABLE_SHOW} if (!$FORM{xml} && $ui && $ui->{TABLE_SHOW});
@@ -2644,7 +2692,7 @@ sub form_users_list {
   my $base_fields = 1;
 
   if ($FORM{UNIVERSAL_SEARCH}) {
-    $FORM{UNIVERSAL_SEARCH} =~ s/\*//g;
+    $FORM{UNIVERSAL_SEARCH} =~ s/\*//xg;
   }
 
   foreach my $line (@$list) {
@@ -2653,9 +2701,9 @@ sub form_users_list {
     my $fees = ($permissions{2}) ? $html->button($lang{FEES}, "index=3&UID=$uid", { class => 'fees' }) : '';
 
     if ($FORM{UNIVERSAL_SEARCH}) {
-      $line->{fio} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/ if ($line->{fio});
-      $line->{login} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/ if ($line->{login});
-      $line->{comments} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/ if ($line->{comments});
+      $line->{fio} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/x if ($line->{fio});
+      $line->{login} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/x if ($line->{login});
+      $line->{comments} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/x if ($line->{comments});
     }
 
     my @fields_array = ();
@@ -2674,7 +2722,7 @@ sub form_users_list {
           ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : ''
         );
       }
-      elsif ($col_name =~ /deposit/) {
+      elsif ($col_name =~ m/deposit/x) {
         if (!$permissions{0}{12}) {
           $line->{$col_name} = '--';
         }
@@ -2691,8 +2739,8 @@ sub form_users_list {
       # }
       elsif ($col_name eq 'tags') {
         if ($line->{tags} && $line->{tags} ne '') {
-          my @tags_name = split(/,/, $line->{tags});
-          my @tags_priority = split(/,/, $line->{priority});
+          my @tags_name = split(/,/x, $line->{tags});
+          my @tags_priority = split(/,/x, $line->{priority});
           $line->{$col_name} = q{};
           for (my $tags_count = 0; $tags_count < scalar @tags_name; $tags_count++) {
             my $priority_color = ($tags_priority[$tags_count] && $priority_colors[$tags_priority[$tags_count]]) ? $priority_colors[$tags_priority[$tags_count]] : q{};
@@ -2702,7 +2750,7 @@ sub form_users_list {
         }
       }
       elsif (($col_name eq 'last_payment' || $col_name eq 'last_fees') && $line->{$col_name}) {
-        my ($date, undef) = split(/ /, $line->{$col_name});
+        my ($date, undef) = split(/\s/x, $line->{$col_name});
 
         if ($date && $DATE eq $date) {
           $line->{$col_name} = $html->color_mark($line->{$col_name}, 'text-danger');
@@ -2713,7 +2761,7 @@ sub form_users_list {
       }
       elsif ($FORM{UNIVERSAL_SEARCH}) {
         if ($FORM{UNIVERSAL_SEARCH} && $line->{$col_name}) {
-          $line->{$col_name} =~ s/(.{0,100})"$FORM{UNIVERSAL_SEARCH}"(.{0,100})/$1$search_color_mark$2/;
+          $line->{$col_name} =~ s/(.{0,100})"$FORM{UNIVERSAL_SEARCH}"(.{0,100})/$1$search_color_mark$2/x;
         }
       }
 
@@ -2770,6 +2818,8 @@ sub form_users_list {
   if ($permissions{0}{7} && !$FORM{EXPORT_CONTENT} && !$FORM{xml}) {
     $attr->{USERS_TABLE}=$table;
     $attr->{USERS_TOTAL_TABLE}=$table2;
+    $attr->{FORM}=\%FORM;
+    require Control::Multiusers;
     form_multiuser($attr);
   }
   else {
@@ -2937,7 +2987,6 @@ sub user_company {
 =cut
 #**********************************************************
 sub form_wizard {
-  #  my ($attr) = @_;
 
   my %steps = ();
 
@@ -2952,7 +3001,7 @@ sub form_wizard {
   }
 
   if ($conf{REG_WIZARD}) {
-    $conf{REG_WIZARD} =~ s/[\r\n]+//g;
+    $conf{REG_WIZARD} =~ s/[\r\n]+//xg;
   }
   else {
     $conf{REG_WIZARD} = "user_form::$lang{ADD} $lang{USER}";
@@ -2968,11 +3017,12 @@ sub form_wizard {
   }
 
   if ($FORM{FIO} && ! $conf{REG_WIZARD_SKIP_FIO_SPLIT}) {
-    my ($last_name, $name, $second_name) = split(/ /, $FORM{FIO});
+    my ($last_name, $name, $second_name) = split(/\s+/x, $FORM{FIO});
     $FORM{FIO1} = $last_name;
     $FORM{FIO2} = $name || '';
     $FORM{FIO3} = $second_name || '';
   }
+  $FORM{CREDIT} =~ s/\s+//xg if ($FORM{CREDIT});
 
   if (in_array('Sms', \@MODULES) && $conf{SMS_REG_GREETING}) {
     load_module('Sms', $html);
@@ -3001,7 +3051,7 @@ sub form_wizard {
     );
     my @empty_fields = ();
 
-    foreach my $field (split(/,\s?/, $conf{REG_SURELY_VALUE})) {
+    foreach my $field (split(/,\s?/x, $conf{REG_SURELY_VALUE})) {
       next if $FORM{$require_parameter_matching{$field} || $field};
       next if ($FORM{ADD_ADDRESS_BUILD} && $field eq 'BUILD');
 
@@ -3014,7 +3064,7 @@ sub form_wizard {
     }
   }
 
-  my @arr = split(/;\s?/, ';' . $conf{REG_WIZARD});
+  my @arr = split(/;\s?/x, ';' . $conf{REG_WIZARD});
   for (my $i = 1; $i <= $#arr; $i++) {
     $steps{$i} = $arr[$i];
   }
@@ -3054,7 +3104,7 @@ sub form_wizard {
 
     my $step = $FORM{step} - 1;
     # $fn, $module, $describe
-    my ($fn, $module, undef) = split(/:/, $steps{$step}, 3);
+    my ($fn, $module, undef) = split(':', $steps{$step}, 3);
     if ($module) {
       load_module($module, $html);
     }
@@ -3102,7 +3152,7 @@ sub form_wizard {
 
   my ($fn, $module);
   if ($FORM{step} && $steps{ $FORM{step} }) {
-    ($fn, $module) = split(/:/, $steps{ $FORM{step} }, 3);
+    ($fn, $module) = split(':', $steps{ $FORM{step} }, 3);
   }
 
   if ($FORM{finish}) {
@@ -3192,7 +3242,7 @@ sub _step_status_registration {
   my $last_step = scalar keys %{$steps};
 
   foreach my $i (sort keys %{$steps}) {
-    my $describe = _translate((split(/:/, $steps->{$i}, 3))[2] || q{});
+    my $describe = _translate((split(/:/x, $steps->{$i}, 3))[2] || q{});
 
     my $disabled = ($i > $FORM{step}) ? 'disabled' : '';
 
@@ -3295,7 +3345,7 @@ sub form_contact_types {
     },
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
-    MODULE          => 'Events',
+    #MODULE          => 'Events',
     TOTAL           => 1
   });
 
@@ -3345,7 +3395,7 @@ sub _build_user_contacts_form {
       SORT_KEY_NUM => 1,
       EX_PARAMS    => "onchange='changeContactType(this)'"
     });
-    $type_select =~ s/\n//g;
+    $type_select =~ s/\n//xg;
 
     return $html->tpl_show(templates('reg_wizard_contacts'), {
       TYPE_SELECT           => $type_select,
@@ -3396,7 +3446,7 @@ sub user_contacts_renew {
   }
 
   my $json = JSON->new()->utf8(1);
-  $FORM{CONTACTS} =~ s/\\"/\"/g;
+  $FORM{CONTACTS} =~ s/\\"/\"/xg;
 
   my $contacts = $json->decode($FORM{CONTACTS});
 
@@ -3489,8 +3539,8 @@ sub form_info_field_tpl {
   my @field_result = ();
   my @name_view_arr = ();
 
-  my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $info_fields_list;
+  #my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
+  #my $info_fields_list;
   require Info_fields;
   Info_fields->import();
   my $Info_fields = Info_fields->new($db, $admin, \%conf);
@@ -3501,140 +3551,161 @@ sub form_info_field_tpl {
     SORT      => 5,
   });
 
-  my $i = 0;
-  foreach my $line (@$fields_list) {
-    if ($attr->{POPUP} && !$attr->{POPUP}->{$line->{SQL_FIELD}}) {
-      next;
-    }
-    $info_fields_list->[$i]->[0] = ($attr->{COMPANY} ? 'ifc' : 'ifu') . $line->{SQL_FIELD};
-    $info_fields_list->[$i]->[1] = join(':',
-      ($line->{PRIORITY} || 0),
-      $line->{TYPE},
-      $line->{NAME},
-      $line->{ABON_PORTAL},
-      $line->{USER_CHG},
-      ($line->{PATTERN} || ''),
-      ($line->{TITLE} || ''),
-      ($line->{PLACEHOLDER} || ''),
-      ($line->{REQUIRED} || ''),
-    );
-    $i++;
-  }
-
+  my $container_args = '';
   my $uid = $FORM{UID} || q{};
   return '' if ($FORM{json} || $FORM{xml});
 
-  my $row_template = templates('form_row');
+  my %field_generators = (
+    FIELD_TYPE_INPUT()    => sub {
+      my ($info_field) = @_;
 
-  foreach my $line (@$info_fields_list) {
-    my $field_id = '';
-    my $container_args = '';
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if (!$field_name);
 
-    if ($line->[0] =~ /$prefix(\S+)/) {
-      $field_id = $1;
-    }
-    my (undef, $type, $name, $user_portal, $can_be_changed_by_user, $pattern, $title, $placeholder, $required) = split(/:/, $line->[1]);
-    next if ($attr->{CALLED_FROM_CLIENT_UI} && !$user_portal);
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name};
+      if ($value) {
+        $value =~ s/\"/\&quot;/xg;
+      }
 
-    $can_be_changed_by_user //= 0;
+      $info_field->{PLACEHOLDER} //= q{};
+      return $html->form_input($field_name, $value, {
+        ID            => $info_field->{SQL_FIELD},
+        EX_PARAMS     => "$info_field->{EX_PARAMS} title='" . ($info_field->{TITLE} || q{})
+          . ($info_field->{PATTERN} ? " pattern='$info_field->{PATTERN}'" : '')
+          . "' placeholder='$info_field->{PLACEHOLDER}'"
+          . (!$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED} ? " required='required'" : ''),
+        OUTPUT2RETURN => 1
+      });
+    },
+    FIELD_TYPE_SELECT()   => sub {
+      my ($info_field) = @_;
 
-    my $input = '';
-    my $field_name = uc($field_id);
-    $type //= 0;
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
 
-    my $disabled_ex_params = ($attr->{READ_ONLY} || ($attr->{CALLED_FROM_CLIENT_UI} && !$can_be_changed_by_user))
-      ? ' disabled="disabled" readonly="readonly"'
-      : '';
-
-    # Select
-    if ($type == 2) {
       my $selected = $FORM{$field_name};
 
       if ($attr->{VALUES} && $attr->{VALUES}->{$field_name}) {
         $selected = $attr->{VALUES}->{uc("$field_name\_id")} || $attr->{VALUES}->{$field_name};
       }
 
-      $input = $html->form_select($field_name, {
+      my $input = $html->form_select($field_name, {
         SELECTED      => $selected,
-        SEL_LIST      => $Info_fields->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 }),
+        SEL_LIST      => $Info_fields->info_lists_list({
+          LIST_TABLE => $info_field->{SQL_FIELD} . '_list',
+          COLS_NAME  => 1,
+        }),
         SEL_OPTIONS   => { '' => '--' },
         NO_ID         => 1,
-        ID            => $field_id,
-        EX_PARAMS     => $disabled_ex_params,
-        REQUIRED      => !$attr->{SKIP_REQUIRED} && $required,
+        ID            => $info_field->{SQL_FIELD},
+        EX_PARAMS     => $info_field->{EX_PARAMS},
+        REQUIRED      => (!$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED}),
+        class         => 'form-control info-fields-select',
         OUTPUT2RETURN => 1
       });
 
-      $attr->{VALUES}->{$field_name .'_SEL'}=$input;
-    }
+      $attr->{VALUES}->{$field_name . '_SEL'} = $input;
+      return $input;
+    },
+    FIELD_TYPE_TEXTAREA() => sub {
+      my ($info_field) = @_;
 
-    #Checkbox
-    elsif ($type == 4 || $type == 14) {
-      $input = $html->form_input($field_name, 1, {
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      return $html->form_textarea($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, {
+        ID            => $info_field->{SQL_FIELD},
+        REQUIRED      => !$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED} ? "$info_field->{EX_PARAMS} required='required'" : $info_field->{EX_PARAMS},
+        OUTPUT2RETURN => 1
+      });
+    },
+    FIELD_TYPE_CHECKBOX() => sub {
+      my ($info_field) = @_;
+
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      return $html->form_input($field_name, 1, {
         TYPE          => 'checkbox',
         STATE         => (($attr->{VALUES} && $attr->{VALUES}->{$field_name}) || $FORM{$field_name}) ? 1 : undef,
-        ID            => $field_id,
-        EX_PARAMS     => $disabled_ex_params . ((!$attr->{SKIP_DATA_RETURN}) ? "data-return='1' " : ''),
-        OUTPUT2RETURN => 1
+        ID            => $info_field->{SQL_FIELD},
+        EX_PARAMS     => ($info_field->{EX_PARAMS} || '') . ((!$attr->{SKIP_DATA_RETURN}) ? "data-return='1' " : ''),
+        OUTPUT2RETURN => 1,
       });
-    }
+    },
+    FIELD_TYPE_ICQ()      => sub {
+      my ($info_field) = @_;
 
-    #'ICQ',
-    elsif ($type == 8) {
-      $input = $html->form_input($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, {
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name};
+      my $field_id = $info_field->{SQL_FIELD};
+
+      my $input = $html->form_input($field_name, $value, {
         SIZE          => 10,
         ID            => $field_id,
-        EX_PARAMS     => $disabled_ex_params,
-        OUTPUT2RETURN => 1
+        EX_PARAMS     => $info_field->{EX_PARAMS},
+        OUTPUT2RETURN => 1,
       });
-      if ($attr->{VALUES}->{$field_name}) {
-        $input .= " <a href=\"http://www.icq.com/people/about_me.php?uin=$attr->{VALUES}->{$field_name}\"><img  src=\"http://status.icq.com/online.gif?icq=$attr->{VALUES}->{$field_name}&img=21\" border='0'></a>";
+      if ($value) {
+        $input .= " <a href=\"http://www.icq.com/people/about_me.php?uin=$value\"><img src=\"http://status.icq.com/online.gif?icq=$value&img=21\" border='0'></a>";
       }
-    }
+      return $input;
+    },
+    FIELD_TYPE_URL()      => sub {
+      my ($info_field) = @_;
 
-    #'URL',
-    elsif ($type == 9) {
-      $input = $html->element(
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name};
+
+      my $input = $html->element(
         'div',
-        $html->form_input($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, {
-          ID            => $field_id,
-          EX_PARAMS     => $disabled_ex_params . (!$attr->{SKIP_REQUIRED} && $required ? " required='required'" : ''),
-          OUTPUT2RETURN => 1
+        $html->form_input($field_name, $value, {
+          ID            => $info_field->{SQL_FIELD},
+          EX_PARAMS     => ($info_field->{EX_PARAMS} || '') . ((!$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED}) ? " required='required'" : ''),
+          OUTPUT2RETURN => 1,
         }) .
-          $html->element('span', $html->button($lang{GO}, "", {
+          $html->element('span', $html->button($lang{GO}, '', {
             class      => 'btn input-group-button',
-            GLOBAL_URL => $attr->{VALUES}->{$field_name},
-            ex_params  => ' target=' . ($attr->{VALUES}->{$field_name} || '_new'),
-          }), { class => 'input-group-append' }), { class => 'input-group' }
+            GLOBAL_URL => $value,
+            ex_params  => " target='" . ($value || '_new') . "'",
+          }), { class => 'input-group-append' }),
+        { class => 'input-group' }
       );
-    }
+      return $input;
+    },
+    FIELD_TYPE_SKYPE()    => sub {
+      my ($info_field) = @_;
 
-    #'PHONE',
-    #'E-Mail'
-    #'SKYPE'
-    elsif ($type == 12) {
-      $input = $html->form_input($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, { SIZE => 20, ID => $field_name, EX_PARAMS => $disabled_ex_params, OUTPUT2RETURN => 1 });
-      if ($attr->{VALUES}->{$field_name}) {
-        $input .=
-          qq{  <script type="text/javascript" src="http://download.skype.com/share/skypebuttons/js/skypeCheck.js"></script><a href="skype:abills.support?call"><img src="http://mystatus.skype.com/smallclassic/$attr->{VALUES}->{$field_name}" style="border: none;" width="114" height="20"/></a>};
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name};
+
+      my $input = $html->form_input($field_name, $value,
+        { SIZE => 20, ID => $field_name, EX_PARAMS => $info_field->{EX_PARAMS}, OUTPUT2RETURN => 1 });
+      if ($value) {
+        $input .= qq{  <script type="text/javascript" src="http://download.skype.com/share/skypebuttons/js/skypeCheck.js"></script><a href="skype:abills.support?call"><img src="http://mystatus.skype.com/smallclassic/$value" style="border: none;" width="114" height="20"/></a>};
       }
-    }
-    elsif ($type == 3) {
-      $input = $html->form_textarea($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name},
-        { ID => $field_id, EX_PARAMS => $disabled_ex_params, REQUIRED => !$attr->{SKIP_REQUIRED} && $required ? "required='required'" : '', OUTPUT2RETURN => 1 });
-    }
-    elsif ($type == 13) {
+      return $input;
+    },
+    FIELD_TYPE_FILE()     => sub {
+      my ($info_field) = @_;
+
+      my $field_id = $info_field->{SQL_FIELD};
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
       require Attach;
       Attach->import();
       my $Attach = Attach->new($db, $admin, \%conf);
       my $file_id = $attr->{VALUES}->{$field_name} || q{};
 
       $Attach->attachment_info({ ID => $file_id, TABLE => $field_id . '_file' });
-
-      my $file_name = q{};
-      if ($Attach->{TOTAL}) {
-        $file_name = $Attach->{FILENAME};
-      }
+      my $file_name = $Attach->{TOTAL} && $Attach->{TOTAL} ? $Attach->{FILENAME} : q{};
 
       my $file_input_content = '';
       my $file_download_url = "?qindex=" . get_function_index('user_pi')
@@ -3644,7 +3715,7 @@ sub form_info_field_tpl {
       my $span = $html->element('span', $html->element('i', '', { class => 'fas fa-paperclip' }), { class => 'btn btn-default', OUTPUT2RETURN => 1 });
       my $file_input = $html->form_input($field_name, '', {
         TYPE          => 'file',
-        EX_PARAMS     => 'style="display: none;"',
+        EX_PARAMS     => ($info_field->{EX_PARAMS} || '') . ' style="display: none;"',
         class         => 'file-hidden',
         OUTPUT2RETURN => 1,
       });
@@ -3657,7 +3728,7 @@ sub form_info_field_tpl {
       my $label = $html->element('label', $span . $file_input, { class => 'input-group-prepend mb-0', OUTPUT2RETURN => 1 });
       $file_input_content .= $label . $file_name_input;
 
-      if (exists $attr->{VALUES}->{$field_name}) {
+      if ($file_id) {
         if ($Attach->{TOTAL} && $Attach->{FILENAME} && $permissions{0}->{5}) {
           $file_input_content .= $html->element('div',
             $html->button('', "index=" . get_function_index('user_pi') . "&ATTACHMENT=$field_id:$file_id&del=1" . (($uid) ? "&UID=$uid" : ''),
@@ -3668,29 +3739,28 @@ sub form_info_field_tpl {
         }
       }
 
-      $input = $html->element('div', $file_input_content, { class => 'input-group file-input' });
-    }
+      return $html->element('div', $file_input_content, { class => 'input-group file-input' });
+    },
+    FIELD_TYPE_PHOTO()    => sub {
+      my ($info_field) = @_;
 
-    #Photo
-    elsif ($type == 15) {
-      $input = $html->button('', "index=$index&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
+      my $input = $html->button('', "index=$index&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
       if (-f "$conf{TPL_DIR}/if_image/" . $uid . '.jpg') {
         $input .= $html->element('span', '', { class => 'fa fa-user' });
       }
-    }
 
-    #Social network
-    #Icons
-    # fab fa-facebook
-    # fab fa-twitter
-    # fab fa-vk
-    # fab fa-google
+      return $input;
+    },
+    FIELD_TYPE_SOCIAL()   => sub {
+      my ($info_field) = @_;
 
-    elsif ($type == 16) {
-      next if ($attr->{CALLED_FROM_CLIENT_UI}); # Social icons already displaying in "Password" tab
+      return '' if $attr->{CALLED_FROM_CLIENT_UI};
 
-      my $values = ($attr->{VALUES} && $attr->{VALUES}->{$field_name}) ? $attr->{VALUES}->{$field_name} : ($FORM{$field_id} || '');
-      my ($k, $val) = split(/, /, $values || q{});
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $values = $attr->{VALUES}->{$field_name} || $FORM{$field_name};
+      my ($k, $val) = split(/,\s?/, $values || q{});
 
       my $select_social = $html->form_select($field_name, {
         SELECTED    => $k,
@@ -3699,7 +3769,7 @@ sub form_info_field_tpl {
       });
 
       my $input_social = $html->form_input($field_name || q{}, $val || q{}, {
-        ID            => $field_id || q{},
+        ID            => $info_field->{SQL_FIELD} || q{},
         class         => 'form-control rounded-right-0 rounded-left-0',
         OUTPUT2RETURN => 1
       });
@@ -3708,7 +3778,7 @@ sub form_info_field_tpl {
       my $info_btn = $val ? $html->button('', "index=" . get_function_index('user_pi') .
         "&UID=$uid&SOCIAL_INFO=$k, $val", { class => 'btn input-group-button rounded-left-0 info', GLOBAL_URL => $global_url, target => '_blank' }) : '';
 
-      $input = "<div class='form-group mb-0 row'>
+      return "<div class='form-group mb-0 row'>
         <div class='col-md-12'>
           <div class='d-flex bd-highlight'>
             <div class='flex-fill bd-highlight'>
@@ -3729,72 +3799,109 @@ sub form_info_field_tpl {
           </div>
         </div>
       </div>";
-    }
+    },
+    FIELD_TYPE_LANGUAGE() => sub {
+      my ($info_field) = @_;
 
-    # language
-    elsif ($type == 18) {
-      my $val = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || 0;
-      $input = _lang_select($field_name, $val);
-    }
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
 
-    # Time zone
-    elsif ($type == 19) {
-      my $val = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || 0;
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || 0;
+      return _lang_select($field_name, $value);
+    },
+    FIELD_TYPE_TIMEZONE() => sub {
+      my ($info_field) = @_;
 
-      $input = $html->element('div', _time_zone_select($field_name, $val), { class => 'col-md-8' });
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || 0;
+
+      my @sel_list = map {{ id => $_, name => "UTC" . sprintf("%+.2d", $_) . ":00" }} (-12 ... 12);
+      my $tz_select = $html->form_select($field_name,{
+        SEL_LIST      => \@sel_list,
+        SELECTED      => $value,
+        NO_ID         => 1,
+        EX_PARAMS     => $info_field->{EX_PARAMS},
+        OUTPUT2RETURN => 1
+      });
+
+      my $input = $html->element('div', $tz_select, { class => 'col-md-8' });
       $container_args = 'row';
       require Time::Piece unless $Time::Piece::VERSION;
       Time::Piece->import(qw(gmtime));
       my Time::Piece $t = Time::Piece::gmtime();
-      $t = $t + 3600 * $val;
+      $t = $t + 3600 * $value;
       $input .= $html->element('label', $t->hms, { class => 'control-label col-md-4' });
-    }
-    # Date field
-    elsif ($type == 20) {
-      my $val = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || '';
-      $input = $html->form_datepicker("$field_name", $val, { EX_PARAMS => !$attr->{SKIP_REQUIRED} && $required ? "required='required'" : '', TITLE => $title, OUTPUT2RETURN => 1 });
-    }
-    else {
-      if ($attr->{VALUES}->{$field_name}) {
-        $attr->{VALUES}->{$field_name} =~ s/\"/\&quot;/g;
-      }
 
-      $pattern //= q{};
-      $title //= q{};
-      $placeholder //= q{};
+      return $input;
+    },
+    FIELD_TYPE_DATE()     => sub {
+      my ($info_field) = @_;
 
-      $input = $html->form_input($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, {
-        ID            => $field_id,
-        EX_PARAMS     => "$disabled_ex_params title='" . ($title || q{})
-          . ($pattern ? " pattern='$pattern'" : '')
-          . "' placeholder='$placeholder'"
-          . (!$attr->{SKIP_REQUIRED} && $required ? " required='required'" : ''),
+      my $field_name = uc $info_field->{SQL_FIELD};
+      return '' if !$field_name;
+
+      my $value = $attr->{VALUES}->{$field_name} || $FORM{$field_name} || '';
+
+      my $input = $html->form_datepicker($field_name, $value, {
+        EX_PARAMS     => !$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED} ? "required='required'" : '',
+        TITLE         => $info_field->{TITLE},
         OUTPUT2RETURN => 1
       });
     }
+  );
+
+  my $row_template = templates('form_row');
+
+  foreach my $info_field (@{$fields_list}) {
+    next if ($attr->{CALLED_FROM_CLIENT_UI} && !$info_field->{ABON_PORTAL});
+
+    if ($info_field->{PARENT_ID}) {
+      $Info_fields->fields_info($info_field->{PARENT_ID});
+      next if !$Info_fields->{TOTAL} || $Info_fields->{TOTAL} < 1;
+      my $parent_value = $attr->{VALUES}->{uc("$Info_fields->{SQL_FIELD}\_id")} || $FORM{uc $Info_fields->{SQL_FIELD}} || 0;
+      if ($parent_value != $info_field->{PARENT_VALUE_ID}) {
+        next;
+      }
+    }
+    my $field_type = $info_field->{TYPE} || 0;
+    $field_type = FIELD_TYPE_CHECKBOX if $field_type == 14;
+    $info_field->{EX_PARAMS} = " data-id='$info_field->{ID}'";
+    $info_field->{EX_PARAMS} .= ($attr->{READ_ONLY} || ($attr->{CALLED_FROM_CLIENT_UI} && !$info_field->{USER_CHG}))
+      ? ' disabled="disabled" readonly="readonly"' : '';
+    $info_field->{EX_PARAMS} .= " data-parent='$info_field->{PARENT_ID}'" if $info_field->{PARENT_ID};
+
+    my $input_html;
+    if (exists $field_generators{$field_type}) {
+      $input_html = $field_generators{$field_type}->($info_field);
+    } else {
+      $input_html = $field_generators{FIELD_TYPE_INPUT()}->($info_field);
+    }
+
+    next if !$input_html;
 
     if ($attr->{RETURN_AS_ARRAY}) {
       push(@name_view_arr, {
-        ID   => $field_id,
-        TYPE => $type,
-        NAME => _translate($name),
-        VIEW => $input
+        ID   => $info_field->{SQL_FIELD},
+        TYPE => $field_type,
+        NAME => _translate($info_field->{NAME}),
+        VIEW => $input_html
       });
       next;
     }
 
-    $attr->{VALUES}->{ 'FORM_' . $field_name } = $input;
-
-    push @field_result,
-      $html->tpl_show($row_template, {
-        ID          => "$field_id",
-        NAME        => (_translate($name)),
-        VALUE       => $input,
-        COLS_LEFT   => $attr->{COLS_LEFT},
-        COLS_RIGHT  => $attr->{COLS_RIGHT},
-        BG_COLOR    => $container_args,
-        LABEL_CLASS => !$attr->{SKIP_REQUIRED} && $required ? 'required' : ''
-      }, { OUTPUT2RETURN => 1, ID => "$field_id" });
+    $attr->{VALUES}->{ 'FORM_' . uc($info_field->{SQL_FIELD}) } = $input_html;
+    push @field_result, $html->tpl_show($row_template, {
+      ID          => $info_field->{SQL_FIELD},
+      NAME        => (_translate($info_field->{NAME})),
+      VALUE       => $input_html,
+      COLS_LEFT   => $attr->{COLS_LEFT},
+      COLS_RIGHT  => $attr->{COLS_RIGHT},
+      BG_COLOR    => $container_args,
+      LABEL_CLASS => !$attr->{SKIP_REQUIRED} && $info_field->{REQUIRED} ? 'required' : ''
+    }, { OUTPUT2RETURN => 1, ID => $info_field->{SQL_FIELD} });
+    $container_args = '';
   }
 
   if ($attr->{RETURN_AS_ARRAY}) {
@@ -3809,6 +3916,15 @@ sub form_info_field_tpl {
 #**********************************************************
 =head2 form_show_attach($attr)
 
+  Arguments:
+    $attr
+      UID
+      ATTACHMENT
+      TABLE
+
+  Results:
+    $file_content
+
 =cut
 #**********************************************************
 sub form_show_attach {
@@ -3819,14 +3935,14 @@ sub form_show_attach {
   my $Attach = Attach->new($db, $admin, \%conf);
   my $uid = $attr->{UID} || $user->{UID};
 
-  if ($FORM{ATTACHMENT} =~ /(.+):(\d+)/) {
-    $FORM{TABLE} = $1 . '_file';
-    $FORM{ATTACHMENT} = $2;
+  if ($attr->{ATTACHMENT} =~ m/(.+):(\d+)/x) {
+    $attr->{TABLE} = $1 . '_file';
+    $attr->{ATTACHMENT} = $2;
   }
 
   $Attach->attachment_info({
-    ID    => $FORM{ATTACHMENT},
-    TABLE => $FORM{TABLE},
+    ID    => $attr->{ATTACHMENT},
+    TABLE => $attr->{TABLE},
     UID   => $uid
   });
 
@@ -3836,7 +3952,7 @@ sub form_show_attach {
     return 0;
   }
 
-  if ($conf{ATTACH2FILE} && $Attach->{CONTENT} =~ /FILE: (.+)/) {
+  if ($conf{ATTACH2FILE} && $Attach->{CONTENT} =~ m/FILE: (.+)/x) {
     my $filepath = $1 || q{};
 
     # $conf{ATTACH2FILE} can be 1;
@@ -3850,11 +3966,12 @@ sub form_show_attach {
     }
 
     # Need to separate filename from full path
-    my ($filename) = $filepath =~ /^.*\/([a-zA-z0-9_.-]+)$/;
+    my ($filename) = $filepath =~ m/^.*\/([a-zA-z0-9_.-]+)$/x;
 
-    if ($filepath =~ /(.*\/)([^\/]+)$/) {
+    if ($filepath =~ m/(.+\/)([^\/]+)$/x) {
       $attach_path = $1;
       $filename = $2;
+      $attach_path =~ s/\s+//xg;
     }
 
     $Attach->{CONTENT} = file_op({
@@ -3863,11 +3980,12 @@ sub form_show_attach {
     });
   }
 
+  #print "Content-Type: text/plain\n\n";
   print "Content-Type: $Attach->{CONTENT_TYPE}; filename=\"$Attach->{FILENAME}\"\n";
-  if ($Attach->{FILENAME} !~ /\.jpg|\.pdf|\.djvu|\.png|\.gif/i) {
-    print "Content-Disposition: attachment; filename=\"$Attach->{FILENAME}\"; size=\"$Attach->{FILESIZE}\";\n"
+  #if ($Attach->{FILENAME} !~ m/\.jpg|\.pdf|\.djvu|\.png|\.gif/xi) {
+  print "Content-Disposition: attachment; filename=\"$Attach->{FILENAME}\"; size=\"$Attach->{FILESIZE}\";\n"
       . "Content-Length: $Attach->{FILESIZE};\n";
-  }
+  #}
   print "\n";
   print $Attach->{CONTENT};
 
@@ -3895,7 +4013,7 @@ sub form_fees_wizard {
     my $i = 0;
     my $message = '';
     while (defined($FORM{ 'METHOD_' . $i }) && $FORM{ 'METHOD_' . $i } ne '') {
-      my ($type_describe, $price) = split(/:/, $FEES_METHODS{ $FORM{ 'METHOD_' . $i } }, 2);
+      my ($type_describe, $price) = split(/:/x, $FEES_METHODS{ $FORM{ 'METHOD_' . $i } }, 2);
 
       if (!$FORM{ 'SUM_' . $i } && $price && $price > 0) {
         $FORM{ 'SUM_' . $i } = $price;
@@ -4026,6 +4144,9 @@ sub users_import {
       if (!$_user->{$main_id}) {
         next;
       }
+
+      $_user->{CREDIT} =~ s/\s+//xg if ($_user->{CREDIT});
+      delete $users->{errno};
       my $list = $users->list({
         LOGIN     => '_SHOW',
         $main_id  => $_user->{$main_id},
@@ -4034,9 +4155,12 @@ sub users_import {
       });
 
       #change exists
-      if ($users->{TOTAL} > 0) {
+      if ($users->{error}) {
+        $html->message('err', $lang{ERROR}, $users->{errstr} .' '. ( $_user->{$main_id} || q{} ));
+      }
+      elsif ($users->{TOTAL} > 0) {
         if ($_user->{DEPOSIT}) {
-          $_user->{DEPOSIT} =~ s/,/\./;
+          $_user->{DEPOSIT} =~ s/,/\./x;
           $Bills->change({ BILL_ID => $list->[0]->{bill_id}, DEPOSIT => $_user->{DEPOSIT} });
         }
 
@@ -4296,7 +4420,7 @@ sub append_comments {
 #**********************************************************
 sub check_login_availability {
   if ($FORM{login_check}) {
-    if ($FORM{login_check} =~ / /) {
+    if ($FORM{login_check} =~ m/\s+/x) {
       print "error";
       return 1;
     }
@@ -4337,7 +4461,7 @@ sub contacts_validation {
   foreach my $item (@$attr) {
     next if (!$item->{VALUE});
     if ($item->{TYPE_ID} == 1 && $conf{CELL_PHONE_FORMAT}) {
-      if ($item->{VALUE} =~ /$conf{CELL_PHONE_FORMAT}/) {
+      if ($item->{VALUE} =~ m/$conf{CELL_PHONE_FORMAT}/x) {
         $result = 1;
       }
       else {
@@ -4347,7 +4471,7 @@ sub contacts_validation {
       }
     }
     elsif ($item->{TYPE_ID} == 2 && $conf{PHONE_FORMAT}) {
-      if ($item->{VALUE} =~ /$conf{PHONE_FORMAT}/) {
+      if ($item->{VALUE} =~ m/$conf{PHONE_FORMAT}/x) {
         $result = 1;
       }
       else {
@@ -4357,7 +4481,7 @@ sub contacts_validation {
       }
     }
     elsif ($item->{TYPE_ID} eq '9') {
-      if ($item->{VALUE} =~ /$Abills::Filters::EMAIL_EXPR/) {
+      if ($item->{VALUE} =~ m/$Abills::Filters::EMAIL_EXPR/x) {
         $result = 1;
       }
       else {
@@ -4369,24 +4493,6 @@ sub contacts_validation {
   }
 
   return $result, $val_message;
-}
-
-#**********************************************************
-=head2 unique_token_generate($attr)
-
-  Arguments:
-
-  Returns:
-
-=cut
-#**********************************************************
-sub unique_token_generate {
-  my ($tokensize) = @_;
-
-  my @alphanumeric = ('A' .. 'Z', 3);
-  my $randtoken = join '', map $alphanumeric[rand @alphanumeric], 0 .. $tokensize;
-
-  return $randtoken;
 }
 
 #**********************************************************
@@ -4464,8 +4570,8 @@ sub form_money_transfer_admin {
   my Users $user = Users->new($db, $admin, \%conf);
   $user->info(int($FORM{UID} || 0));
 
-  if ($conf{MONEY_TRANSFER} && $conf{MONEY_TRANSFER} =~ /:/) {
-    ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
+  if ($conf{MONEY_TRANSFER} && $conf{MONEY_TRANSFER} =~ m/:/x) {
+    ($deposit_limit, $transfer_price, $no_companies) = split(m/:/x, $conf{MONEY_TRANSFER});
 
     if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
@@ -4476,7 +4582,6 @@ sub form_money_transfer_admin {
 
   if ($FORM{s2} || $FORM{transfer}) {
     $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
-
 
     if (!$FORM{SUM}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
@@ -4512,17 +4617,14 @@ sub form_money_transfer_admin {
               return 1;
             }
           }
+          my $comments = $FORM{COMMENTS} ? " $FORM{COMMENTS} " : '';
 
           #Fees
           my $Fees = Finance->fees($db, $admin, \%conf);
-          $Fees->take(
-            $user,
-            $FORM{SUM},
-            {
-              DESCRIBE => "$lang{USER}: $user2->{UID}",
-              METHOD   => 4
-            }
-          );
+          $Fees->take($user, $FORM{SUM}, {
+            DESCRIBE => "$lang{USER}: $user2->{UID}" . $comments,
+            METHOD   => 4
+          });
 
           if (!_error_show($Fees)) {
             $html->message('info', $lang{FEES},
@@ -4530,27 +4632,21 @@ sub form_money_transfer_admin {
             my $Payments = Finance->payments($db, $admin, \%conf);
 
             #Payments
-            $Payments->add(
-              $user2,
-              {
-                DESCRIBE       => "$lang{USER}: $user->{UID}",
+            $Payments->add( $user2, {
+                DESCRIBE       => "$lang{USER}: $user->{UID}" . $comments,
                 INNER_DESCRIBE => "MONEY_TRANSFERFEES: $Fees->{INSERT_ID}",
                 SUM            => $FORM{SUM},
                 METHOD         => 7
-              }
-            );
+            });
 
             if (!_error_show($Payments)) {
               my $message = "$lang{MONEY_TRANSFER}\n #$Payments->{INSERT_ID}\n UID: $user2->{UID}, $lang{SUM}: $FORM{SUM}";
+
               if ($transfer_price > 0) {
-                $Fees->take(
-                  $user,
-                  $transfer_price,
-                  {
+                $Fees->take( $user, $transfer_price, {
                     DESCRIBE => "$lang{USER}: $user2->{UID} $lang{COMMISSION}",
                     METHOD   => 4,
-                  }
-                );
+                });
               }
 
               $html->message('info', $lang{PAYMENTS}, $message);
@@ -4558,7 +4654,6 @@ sub form_money_transfer_admin {
               cross_modules('payments_maked', { USER_INFO => $user2, QUITE => 1 });
             }
           }
-
         }
         elsif ($FORM{s2}) {
           $user2->{COMMISSION} = $transfer_price;
@@ -4708,259 +4803,6 @@ sub _companie_admin {
       }
     }
   }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 form_multiuser_actions($attr) - Multiuser operation
-
-  Arguments:
-    $attr
-      FORM
-
-  Results:
-    TRUE or FALSE
-
-=cut
-#**********************************************************
-sub form_multiuser_actions {
-  my ($attr)=@_;
-
-  my $form = $attr->{FORM};
-  my @multiuser_arr = split(/, /, $form->{IDS} || q{});
-
-  my %CHANGE_PARAMS = (
-    SKIP_STATUS_CHANGE => ($form->{DISABLE}) ? undef : 1
-  );
-
-  if ($form->{MU_COMMENTS}) {
-    append_comments(\@multiuser_arr, $form->{COMMENTS_TEXT});
-    delete($form->{MU_COMMENTS});
-  }
-
-  while (my ($k, undef) = each %{ $form }) {
-    if ($k =~ /^MU_(\S+)/) {
-      my $val = $1;
-      $CHANGE_PARAMS{$val} = $form->{$val};
-    }
-  }
-
-  if (!defined($form->{DISABLE})) {
-    $CHANGE_PARAMS{UNCHANGE_DISABLE} = 1;
-  }
-  else {
-    $CHANGE_PARAMS{DISABLE} = $form->{MU_DISABLE} || 0;
-  }
-
-  if ($#multiuser_arr < 0) {
-    $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
-  }
-  elsif (defined($form->{MU_TAGS} && in_array('Tags', \@MODULES))) {
-    require Tags;
-
-    my $Tags = Tags->new($db, $admin, \%conf);
-
-    foreach my $id (@multiuser_arr) {
-      $Tags->tags_user_change({
-        IDS     => $form->{TAGS_IDS},
-        UID     => $id,
-        REPLACE => $form->{OPT_TAGS_RADIO} && $form->{OPT_TAGS_RADIO} eq 'TAGS_APPEND' ? 1 : 0
-      });
-      $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
-    }
-  }
-  elsif (defined($form->{MU_UREPORTS_TP} && in_array('Ureports', \@MODULES))) {
-    require Ureports::Services;
-    my $Ureports_services = Ureports::Services->new($db, $admin, \%conf);
-    $Ureports_services->ureport_add_multiple_users({
-      %FORM,
-      R_IDS  => $form->{R_IDS},
-      TP_ID  => $form->{UREPORTS_TP},
-      STATUS => $form->{UREPORTS_STATUS},
-      UIDS   => [ split(',\s?', $form->{IDS}) ],
-      TYPE   => [ split(',\s?', $form->{UREPORTS_TYPE}) ]
-    });
-
-    $html->message('err', $lang{INFO}, "$lang{TARIF_PLAN} $lang{NOT} $lang{ADDED} UID:$Ureports_services->{FAILED_USERS}") if ($Ureports_services->{FAILED_USERS});
-    $html->message('info', $lang{INFO}, "$Ureports_services->{TOTAL} $lang{ADDED}") if ($Ureports_services->{TOTAL});
-  }
-  elsif (defined($form->{MU_BONUS} && in_array('Bonus', \@MODULES)) && $form->{MU_BONUS} == 1) {
-    load_module('Bonus', $html);
-    bonus_multi_add($form);
-  }
-  elsif ($form->{MU_DELIVERY} || $form->{DELIVERY_CREATE}) {
-    load_module('Msgs', $html);
-    msgs_mu_delivery_add($form)
-  }
-  elsif (scalar keys %CHANGE_PARAMS < 1) {
-    #$html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
-  }
-  else {
-    foreach my $uid (@multiuser_arr) {
-      if ($form->{DEL} && $form->{MU_DEL}) {
-        my $user_info = $users->info($uid);
-        user_del({ USER_INFO => $user_info });
-
-        _error_show($users);
-      }
-      else {
-        $users->change($uid, { UID => $uid, %CHANGE_PARAMS });
-        if (_error_show($users)) {
-          return 0;
-        }
-      }
-    }
-    $html->message('info', $lang{MULTIUSER_OP}, "$lang{TOTAL}: " . ($#multiuser_arr + 1) . " IDS: $form->{IDS}");
-  }
-
-  return 1;
-}
-
-
-#********************************************************
-=head2 form_multiuser($attr) - Companies amdin
-
-  Arguments:
-    $attr
-      USER_INFO
-      USERS_TABLE
-      USERS_TOTAL_TABLE
-      FORM
-
-  Results:
-    TRUE or FALSE
-
-=cut
-#********************************************************
-sub form_multiuser {
-  my ($attr) = @_;
-
-  my $form = $attr->{FORM};
-  $html->{FORM_ID} = 'users_list';
-
-  my $mu_comments_radio1_input = $html->form_input('optradio', 'append', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio1" checked' }) . "  $lang{APPEND}";
-  my $mu_comments_radio2_input = $html->form_input('optradio', 'change', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="radio2"' }) . "  $lang{CHANGE}";
-  my $mu_comments_radio1_label = $html->element('label', $mu_comments_radio1_input, { class => 'form-check-label', for => 'radio1' });
-  my $mu_comments_radio2_label = $html->element('label', $mu_comments_radio2_input, { class => 'form-check-label', for => 'radio2' });
-  my $mu_comments_radio1 = $html->element('div', $mu_comments_radio1_label, { class => 'form-check' });
-  my $mu_comments_radio2 = $html->element('div', $mu_comments_radio2_label, { class => 'form-check' });
-  my $mu_comments_radio_div = $html->element('div', $mu_comments_radio1 . $mu_comments_radio2, { class => 'col-md-6' });
-  my $mu_comments_textarea = $html->element('textarea', $form->{COMMENTS_TEXT}, { name => "COMMENTS_TEXT", rows => "4", cols => "50", form => "users_list" });
-  my $mu_comments_textarea_div = $html->element('div', $mu_comments_textarea, { class => 'col-md-6' });
-  my $mu_comments_row = $html->element('div', $mu_comments_textarea_div . $mu_comments_radio_div, { class => 'row' });
-
-  my @multi_operation = (
-    [ $html->form_input('MU_GID', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{GROUP},
-      sel_groups({ SKIP_MULTISELECT => 1 }) ],
-    [ $html->form_input('MU_DISABLE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DISABLE},
-      $html->form_input('DISABLE', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
-    [ $html->form_input('MU_DEL', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DEL},
-      $html->form_input('DEL', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
-    [ $html->form_input('MU_ACTIVATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{ACTIVATE},
-      $html->date_fld2('ACTIVATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-    [ $html->form_input('MU_EXPIRE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{EXPIRE},
-      $html->date_fld2('EXPIRE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-    [ $html->form_input('MU_CREDIT', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CREDIT},
-      $html->form_input('CREDIT', $form->{CREDIT}) ],
-    [ $html->form_input('MU_CREDIT_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{CREDIT} $lang{DATE}",
-      $html->date_fld2('CREDIT_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $form->{CREDIT_DATE} }) ],
-    [ $html->form_input('MU_REDUCTION', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{REDUCTION},
-      $html->form_input('REDUCTION', $form->{REDUCTION}, { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }) ],
-    [ $html->form_input('MU_REDUCTION_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{REDUCTION} $lang{DATE}",
-      $html->date_fld2('REDUCTION_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $form->{CREDIT_DATE} }) ],
-    [ $html->form_input('MU_COMMENTS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{COMMENTS}, $mu_comments_row ],
-    [ '', $html->form_input('MULTIUSER', $lang{APPLY}, { TYPE => 'submit' }) ],
-  );
-
-  if (in_array('Msgs', \@MODULES)) {
-    load_module('Msgs', $html);
-    my $delivery_form = msgs_mu_delivery_form();
-    if ($delivery_form) {
-      @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DELIVERY}, $delivery_form ],
-        @multi_operation);
-    }
-  }
-
-  #Ureport muliuser select options
-  if (in_array('Ureports', \@MODULES)) {
-    load_module('Ureports', $html);
-
-    my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('ureports_multiuser_sel') .
-      '&header=2&FORM_ID=users_list', {
-      LOAD_TO_MODAL => 1,
-      class         => 'btn btn-default',
-    });
-
-    @multi_operation = (
-      [
-        $html->form_input('MU_UREPORTS_TP', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{NOTIFICATIONS},
-        $load_to_modal_btn
-      ],
-      @multi_operation,
-    );
-  }
-
-  #Tags muliuser select options
-  if (in_array('Tags', \@MODULES)) {
-    load_module('Tags', $html);
-    my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('tags_multiuser_form') .
-      "&header=2&MULTIUSER_INDEX=$index&FORM_ID=users_list", {
-      LOAD_TO_MODAL => 1,
-      class         => 'btn btn-default',
-    });
-
-    my $mu_tags_radio1_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_APPEND', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-append"' }) . "  $lang{APPEND}";
-    my $mu_tags_radio2_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_CHANGE', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-change" checked' }) . "  $lang{CHANGE}";
-    my $mu_tags_radio1_label = $html->element('label', $mu_tags_radio1_input, { class => 'form-check-label', for => 'radio1' });
-    my $mu_tags_radio2_label = $html->element('label', $mu_tags_radio2_input, { class => 'form-check-label', for => 'radio2' });
-    my $mu_tags_radio1 = $html->element('div', $mu_tags_radio1_label, { class => 'form-check' });
-    my $mu_tags_radio2 = $html->element('div', $mu_tags_radio2_label, { class => 'form-check' });
-    my $mu_tags_radio_div = $html->element('div', $mu_tags_radio1 . $mu_tags_radio2, { class => 'col-md-6' });
-    my $mu_tags_textarea_div = $html->element('div', $load_to_modal_btn, { class => 'col-md-6' });
-    my $mu_tags_row = $html->element('div', $mu_tags_textarea_div . $mu_tags_radio_div, { class => 'row' });
-
-    @multi_operation = (
-      [
-        $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{TAGS},
-        $mu_tags_row
-      ],
-      @multi_operation,
-    );
-  }
-
-  #Bonus muliuser select options
-  if (in_array('Bonus', \@MODULES)) {
-    load_module('Bonus', $html);
-
-    @multi_operation = (
-      [
-        $html->form_input('MU_BONUS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{BONUS},
-        $html->form_input('BONUS', '', { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }),
-      ],
-      @multi_operation,
-    );
-  }
-
-  my Abills::HTML $table3 = $html->table({
-    caption    => $lang{MULTIUSER_OP},
-    HIDE_TABLE => 1,
-    rows       => \@multi_operation,
-    ID         => 'USER_MANAGMENT'
-  });
-
-  print $html->form_main({
-    CONTENT => $attr->{USERS_TABLE}->show({ OUTPUT2RETURN => 1 })
-      . ((!$admin->{MAX_ROWS}) ? $attr->{USERS_TOTAL_TABLE}->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }) : '')
-      . $table3->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }),
-    HIDDEN  => {
-      UID   => $attr->{UID},
-      index => 11,
-    },
-    NAME    => 'users_list',
-    class   => 'hidden-print',
-    ID      => 'users_list',
-  });
 
   return 1;
 }

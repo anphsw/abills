@@ -51,7 +51,6 @@ sub info {
 
   $self->query("SELECT tm.*,
       tt.name as type_name,
-      tt.plugins as plugins,
       r.name as responsible_name,
       a.name as admin_name
       FROM tasks_main tm
@@ -197,7 +196,6 @@ sub list {
       tm.additional_values,
       tm.comments,
       tt.name as type_name,
-      tt.plugins as plugins,
       r.name as responsible_name,
       a.name as admin_name
       FROM tasks_main tm
@@ -298,7 +296,6 @@ sub p_list {
       tm.additional_values,
       tm.comments,
       tt.name as type_name,
-      tt.plugins as plugins,
       r.name as responsible_name,
       a.name as admin_name
       FROM tasks_partcipiants tp

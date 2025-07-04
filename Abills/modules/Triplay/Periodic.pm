@@ -13,7 +13,11 @@ our(
   $admin,
   %ADMIN_REPORT,
   %lang,
-  $html
+  $html,
+  $DATE,
+  $TIME,
+  %LIST_PARAMS,
+  $DEBUG
 );
 
 use Triplay;
@@ -324,7 +328,7 @@ sub triplay_monthly_fees {
         if (! $postpaid && $user{DEPOSIT} + $user{CREDIT} < $sum) {
           #Block services
           $debug_output .= "$user{LOGIN} deactivate";
-          triplay_service_deactivate({
+          _triplay_service_deactivate({
             TP_INFO   => $TP_INFO,
             USER_INFO => \%user,
             DATE      => $date,
@@ -335,7 +339,7 @@ sub triplay_monthly_fees {
 
         if ($user{SERVICE_STATUS} == 5) {
           $debug_output .= "$user{LOGIN} activate";
-          triplay_service_activate({
+          _triplay_service_activate({
             TP_INFO   => $TP_INFO,
             USER_INFO => \%user,
             DEBUG     => $debug
@@ -377,7 +381,7 @@ sub triplay_monthly_fees {
 
 
 #**********************************************************
-=head2 triplay_service_activate($attr)
+=head2 _triplay_service_activate($attr)
 
   Arguments:
     $attr
@@ -392,7 +396,7 @@ sub triplay_monthly_fees {
 
 =cut
 #**********************************************************
-sub triplay_service_activate {
+sub _triplay_service_activate {
   my ($attr)=@_;
 
   my $debug = $attr->{DEBUG} || 0;
@@ -437,7 +441,7 @@ sub triplay_service_activate {
 }
 
 #**********************************************************
-=head2 triplay_service_deactivate($attr)
+=head2 _triplay_service_deactivate($attr)
 
   Arguments:
     $attr
@@ -450,7 +454,7 @@ sub triplay_service_activate {
 
 =cut
 #**********************************************************
-sub triplay_service_deactivate {
+sub _triplay_service_deactivate {
   my ($attr)=@_;
 
   my $debug_output = q{};
@@ -584,20 +588,18 @@ sub triplay_sheduler {
         });
       }
 
-      $Triplay_base->triplay_service_activate_web({ UID => $uid, USER_INFO => $user, TP_ID => $tp_id });
+      $Triplay_base->triplay_service_activate({ UID => $uid, USER_INFO => $user, TP_ID => $tp_id });
     }
   }
   elsif ($type eq 'status') {
-    my $service_id;
 
     if($action =~ /:/) {
-      ($service_id, $action)=split(/:/, $action);
+      (undef, $action)=split(/:/, $action);
     }
 
     $Triplay->user_change({
       UID        => $uid,
-      STATUS     => $action,
-      SERVICE_ID => $service_id
+      STATUS     => $action
     });
 
     #Get fee for holdup service
@@ -610,7 +612,7 @@ sub triplay_sheduler {
       }
 
       if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
-        $active_fees =  (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
+        $active_fees = (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
       }
 
       if ($active_fees && $active_fees > 0) {
@@ -629,19 +631,7 @@ sub triplay_sheduler {
         }
       }
 
-      # if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
-      #   $Triplay->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Triplay->{TP_ID} });
-      #   if ($Triplay->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
-      #     #$Triplay->{TP_INFO}->{MONTH_FEE} = 0;
-      #     service_recalculate($Triplay,
-      #       { RECALCULATE => 1,
-      #         QUITE       => 1,
-      #         SHEDULER    => 1,
-      #         USER_INFO   => $user,
-      #         DATE        => $ADMIN_REPORT{DATE}
-      #       });
-      #   }
-      # }
+      $Triplay_base->triplay_service_activate({ UID => $uid, USER_INFO => $user, STATUS => $action });
 
       if ($action) {
         _external('', { EXTERNAL_CMD => 'Triplay', %{$Triplay} });
@@ -659,7 +649,10 @@ sub triplay_sheduler {
         USER_INFO=> $user
       });
 
-      $Triplay_base->triplay_service_activate_web({ UID => $uid, USER_INFO => $user });
+      $Triplay_base->triplay_service_activate({ UID => $uid, USER_INFO => $user });
+    }
+    else {
+      $Triplay_base->triplay_service_activate({ UID => $uid, USER_INFO => $user, STATUS => $action });
     }
 
     if ($Triplay->{errno} && $Triplay->{errno} == 15) {

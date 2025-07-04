@@ -3,6 +3,7 @@
   <input type='hidden' name='RECIPIENT' value='%RECIPIENT%'>
   <input type='hidden' name='SUM' value='%SUM%'>
   <input type='hidden' name='UID' value='%UID%'>
+  <input type='hidden' name='COMMENTS' value='%COMMENTS%'>
 
   <div class='card card-primary card-outline center-block'>
     <div class='card-header with-border'>

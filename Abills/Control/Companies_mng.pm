@@ -192,13 +192,7 @@ sub form_company_info {
     }
 
     if ($company_deposit =~ /\d+/) {
-      if ($conf{DEPOSIT_FORMAT}) {
-        $Company->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $company_deposit);
-      }
-      else {
-        $Company->{SHOW_DEPOSIT} = sprintf("%.2f", $company_deposit);
-      }
-
+      $Company->{SHOW_DEPOSIT} = format_sum($company_deposit);
     }
     else {
       $Company->{SHOW_DEPOSIT} = $company_deposit;
@@ -221,11 +215,50 @@ sub form_company_info {
           ICON      => 'fa fa-minus',
           ex_params => "data-tooltip='$lang{FEES}' data-tooltip-position='top'" });
     }
+
+    if ($permissions{1}) {
+      $Company->{PRINT_BUTTON} = $html->button('', "qindex=$index&STATMENT_ACCOUNT=$company_id&COMPANY_ID=$company_id&header=2",
+        { ICON => 'fas fa-print', target => '_new', ex_params =>
+          "data-tooltip='$lang{STATMENT_OF_ACCOUNT}' data-tooltip-position='top' class='btn btn-sm btn-secondary'" });
+    }
+
     $Company->{EXDATA} .= $html->tpl_show(templates('form_company_exdata'), $Company, { OUTPUT2RETURN => 1 });
 
     if ($conf{EXT_BILL_ACCOUNT} && $Company->{EXT_BILL_ID}) {
       $Company->{EXDATA} .= $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
     }
+
+    $Company->{CONTRACT_STATUS_SEL} = $html->form_select('CONTRACT_STATUS',{
+      SELECTED => $FORM{CONTRACT_STATUS} || $Company->{CONTRACT_STATUS} || '',
+      SEL_HASH => {
+        0 => $lang{ENABLE},
+        1 => $lang{WAS_CLOSED},
+        2 => "$lang{DISABLED} $lang{NON_PAYMENT}"
+      },
+      SORT_KEY => 1,
+      NO_ID    => 1
+    }, { class => 'form-control' });
+
+    $Company->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE',{
+      SELECTED => $FORM{PAYMENT_TYPE} || $Company->{PAYMENT_TYPE} || '',
+      SEL_HASH => {
+        1 => $lang{ADVANCE},
+        2 => $lang{CREDIT},
+      },
+      SEL_OPTIONS => {''=>''},
+      SORT_KEY => 1,
+      NO_ID    => 1
+    }, { class => 'form-control' });
+
+    $Company->{BANK_BIC_SEL} = $html->form_select('BANK_BIC',{
+      SELECTED  => $FORM{BANK_BIC} || $Company->{BANK_BIC} || '',
+      SEL_HASH  => $Company->bic_list({ COLS_NAME=>1, HASH_RETURN=>1 }),
+      SORT_KEY  => 1,
+      NO_ID     => 1,
+      SEL_OPTIONS => { '' => '--' },
+      MAIN_MENU => get_function_index( 'form_companies_bic' ),
+    }, { class => 'form-control' });
+    $Company->{BANK_BIC_STR} = $Company->{BANK_BIC} if ($Company->{BANK_BIC});
 
     $Company->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract_company'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
@@ -266,7 +299,9 @@ sub form_company_info {
 #**********************************************************
 sub form_company_add {
 
-  my $Company;
+  my $Customer = Customers->new($db, $admin, \%conf);
+  my $Company = $Customer->company();
+
   $Company->{ACTION} = 'add';
   $Company->{LNG_ACTION} = $lang{ADD};
   $Company->{BILL_ID} = $html->form_input('CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 }) . ' ' . $lang{CREATE};
@@ -303,6 +338,36 @@ sub form_company_add {
     }
   }
 
+  $Company->{CONTRACT_STATUS_SEL} = $html->form_select('CONTRACT_STATUS',{
+    SELECTED => $FORM{CONTRACT_STATUS} || $Company->{CONTRACT_STATUS} || '',
+    SEL_HASH => {
+      0 => $lang{ENABLE},
+      1 => $lang{WAS_CLOSED},
+      2 => "$lang{DISABLED} $lang{NON_PAYMENT}"
+    },
+    SORT_KEY => 1,
+    NO_ID    => 1
+  }, { class => 'form-control' });
+
+  $Company->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE',{
+    SELECTED => $FORM{PAYMENT_TYPE} || $Company->{PAYMENT_TYPE} || '',
+    SEL_HASH => {
+      1 => $lang{ADVANCE},
+      2 => $lang{CREDIT},
+    },
+    SEL_OPTIONS => {''=>''},
+    SORT_KEY => 1,
+    NO_ID    => 1
+  }, { class => 'form-control' });
+
+  $Company->{BANK_BIC_SEL} = $html->form_select('BANK_BIC',{
+    SEL_HASH    => $Company->bic_list({ COLS_NAME=>1, HASH_RETURN=>1 }),
+    SORT_KEY    => 1,
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+    MAIN_MENU   => get_function_index( 'form_companies_bic' ),
+  }, { class => 'form-control' });
+
   $Company->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract_company'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(templates('form_company_add'), $Company);
@@ -321,6 +386,14 @@ sub form_companies {
   Customers->import();
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company = $Customer->company();
+
+  if ( $FORM{STATMENT_ACCOUNT} ){
+    load_module('Docs', $html);
+    docs_statement_of_account();
+    exit;
+  }
+
+  $FORM{CREDIT} =~ s/\s+//g if ($FORM{CREDIT});
 
   if ($FORM{add_form}) {
     if ($permissions{0}{37}) {
@@ -479,8 +552,12 @@ sub form_company_list {
     'city'            => $lang{CITY},
     'zip'             => $lang{ZIP},
     'phone'           => $lang{PHONE},
+    'email'           => 'E-mail',
     'edrpou'          => $lang{EDRPOU},
     'comments'        => $lang{COMMENTS},
+    'indication'      => "$lang{CONTRACT} $lang{INDICATION}",
+    'contract_expiry' => "$lang{CONTRACT} $lang{EXPIRY}",
+    'bank_bic'        => $lang{BANK_BIC},
     'company_admin'   => "$lang{COMPANY} $lang{ADMIN}"
   );
 
@@ -493,12 +570,11 @@ sub form_company_list {
     SQL_FIELD => '_SHOW',
     DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
     #SORT      => 5,
-    NOT_ALL_FIELDS => 1,
     COLS_NAME => 1
   });
 
   foreach my $if (@$fields_list) {
-    $companies_ext_fields{$if->{sql_field}}=$if->{name};
+    $companies_ext_fields{$if->{SQL_FIELD}}=$if->{NAME};
   }
 
   $LIST_PARAMS{SKIP_GID} = 1;
@@ -747,6 +823,7 @@ sub form_company_services {
     FIO        => '_SHOW',
     DEPOSIT    => '_SHOW',
     REDUCTION  => '_SHOW',
+    PAGE_ROWS  => 10000,
     COLS_NAME  => 1,
   });
 
@@ -755,12 +832,12 @@ sub form_company_services {
     return;
   }
 
-  my ($sum_total, $sum_for_pay_total) = (0, 0);
+  my ($sum_total, $sum_for_pay_total, $service_quantity) = (0, 0, 0);
 
   my $table = $html->table({
     width       => '100%',
     caption     => "$lang{USERS} $lang{SERVICES}",
-    title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{SUM}, $lang{DEBT}, $lang{MODULE} ],
+    title_plain => [ $lang{LOGIN}, $lang{USER}, $lang{SERVICES}, $lang{SUM}, $lang{DEBT}, $lang{MODULE} ],
     ID          => 'COMPANY_SERVICES_USERS'
   });
 
@@ -771,11 +848,14 @@ sub form_company_services {
     $user_->{fio} =~ s/^\s+//g;
 
     $table->addrow(
-      $html->b($html->button(($user_->{fio} || $user_->{login}), "index=11&UID=$user_->{uid}")) . ', ' . "$lang{SUM}: $service_info->{total_sum}", '', '', '', ''
+      $html->b($html->button($user_->{login}, "index=11&UID=$user_->{uid}")),
+      ($user_->{fio} || '') . ", $lang{SUM}: $service_info->{total_sum}",
+      '','','',''
     );
 
     foreach my $service (@{$service_info->{list}}) {
       $sum_total += $service->{SUM} if $service->{SUM};
+      $service_quantity += 1;
       my $sum_for_pay = 0;
 
       if ($service->{STATUS} && $service->{STATUS} eq '5') {
@@ -786,7 +866,7 @@ sub form_company_services {
         $sum_for_pay_total += $sum_for_pay;
       }
 
-      $table->addrow('',
+      $table->addrow('','',
         $service->{SERVICE_NAME},
         sprintf("%.2f", $service->{SUM}),
         sprintf("%.2f", $sum_for_pay),
@@ -795,7 +875,7 @@ sub form_company_services {
     }
   }
 
-  $table->addfooter("$lang{NUMBER_OF_USERS}: $users->{TOTAL}", '', sprintf("%.2f", $sum_total), sprintf("%.2f", $sum_for_pay_total), '');
+  $table->addfooter("$lang{TOTAL}:", $users->{TOTAL}, $service_quantity, sprintf("%.2f", $sum_total), sprintf("%.2f", $sum_for_pay_total), '');
   print $table->show();
 
   return;
@@ -828,5 +908,74 @@ sub _company_check_edrpou {
   return 0;
 }
 
+
+#**********************************************************
+=head2 form_companies_bic()
+
+=cut
+#**********************************************************
+sub form_companies_bic {
+
+  require Customers;
+  Customers->import();
+  my $Customer = Customers->new($db, $admin, \%conf);
+  my $Company = $Customer->company();
+
+  $Company->{debug} = 1 if ($FORM{DEBUG});
+
+  if ($FORM{add}) {
+    $FORM{BANK_BIC} =~ s/,//g if ($FORM{BANK_BIC});
+    $FORM{BANK_BIC} =~ s/ //g if ($FORM{BANK_BIC});
+    $Company->bic_add(\%FORM);
+    $html->message('success', $lang{ADDED}, "$lang{BANK_BIC}: $FORM{BANK_BIC}" ) if (!_error_show($Company));
+  }
+  elsif ($FORM{change}) {
+    $Company->bic_change(\%FORM);
+    $html->message('success', $lang{CHANGED}, "$lang{BANK_BIC}: $FORM{BANK_BIC}") if (!_error_show($Company));
+  }
+  elsif ($FORM{chg}) {
+    $Company->{BTN_NAME} = 'change';
+    $Company->{BTN_VALUE} = $lang{CHANGE};
+    $Company->{DISABLED} = 'disabled';
+    $Company->bic_info({ BANK_BIC => $FORM{BANK_BIC} });
+  }
+  elsif ($FORM{del}) {
+    $Company->bic_del({ BANK_BIC => $FORM{BANK_BIC} });
+    $html->message('success', $lang{DELETED}, "$lang{BANK_BIC}: $FORM{BANK_BIC}")  if (!_error_show($Company));
+  }
+
+  if ($FORM{add_form} || $FORM{chg} ) {
+    print $html->tpl_show(templates('form_company_bank_bic'), {
+      INDEX => $index,
+      BTN_NAME => 'add',
+      BTN_VALUE => $lang{ADD},
+      %FORM, %$Company
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  result_former({
+    INPUT_DATA      => $Company,
+    FUNCTION        => 'bic_list',
+    DEFAULT_FIELDS  => 'BANK_NAME,BANK_BIC',
+    FUNCTION_FIELDS => ':change:bank_bic&chg=1&,:del:bank_bic:&del=1&',
+    EXT_TITLES      => {
+      bank_name => $lang{BANK_NAME},
+      bank_bic  => $lang{BANK_BIC},
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width            => '100%',
+      caption          => $lang{BANK_BIC},
+      qs               => $pages_qs,
+      ID               => 'COMPANY_BANK_BIC_ID',
+      EXPORT           => 1,
+      MENU             => "$lang{ADD}:index=$index&add_form=1:add",
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+
+  return 1;
+}
 
 1;

@@ -13,7 +13,7 @@ use Abills::Base qw/ip2int load_pmodule/;
 
 require Abills::Misc;
 
-our (%conf, $db, $admin, %permissions, %lang, $base_dir);
+our (%conf, $db, $admin, %lang, $base_dir);
 
 use Sysinfo;
 our Sysinfo $Sysinfo;

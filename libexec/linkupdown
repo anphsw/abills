@@ -33,22 +33,21 @@
 use strict;
 use warnings;
 
+use FindBin '$Bin';
+require $Bin . '/config.pl';
+
+BEGIN {
+  our $dbtype = 'mysql';
+  unshift(@INC, $Bin . '/../lib/', $Bin . "/../Abills/$dbtype");
+}
+
 our (%conf, $DATE, $TIME, $base_dir, @MODULES);
 my $debug = 0;
-
-$debug = 1 if ($#ARGV > -1 && $ARGV[$#ARGV] eq 'debug');
 
 #If not anought arguments
 if ($#ARGV < 3) {
   help();
   exit 0;
-}
-
-use FindBin '$Bin';
-require $Bin . '/config.pl';
-BEGIN {
-  our $dbtype = 'mysql';
-  unshift(@INC, $Bin . '/../lib/', $Bin . "/../Abills/$dbtype");
 }
 
 use Abills::Base qw(check_time parse_arguments ip2int cmd ssh_cmd in_array);
@@ -63,6 +62,10 @@ use Admins;
 my $db = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $OS = $^O;
 my $argv = parse_arguments(\@ARGV);
+
+if (defined($argv->{debug})) {
+  $debug = 1
+}
 
 if ($argv->{OS}) {
   $OS = $argv->{OS};
@@ -79,7 +82,7 @@ my $IPTABLES = '/sbin/iptables';
 my @START_FW = (5000, 3000, 1000);
 
 if ($conf{FW_START_RULES}) {
-  @START_FW = split(/,\s?/, $conf{FW_START_RULES});
+  @START_FW = split(/,\s?/x, $conf{FW_START_RULES});
 }
 
 # Arguments
@@ -100,16 +103,16 @@ elsif ($ARGV[0] eq 'openvpn') {
   $INTERFACE = $ARGV[2];
   $USER = $ARGV[6];
   $CLIENT_IP = $ARGV[5];
-  $inum = (!($INTERFACE =~ s/tap//)) ? 100 + 8 : $INTERFACE + 100;
+  $inum = (!($INTERFACE =~ s/tap//x)) ? 100 + 8 : $INTERFACE + 100;
 }
 elsif ($ARGV[0] eq 'ipn') {
   $ACTION = $ARGV[1];
   $INTERFACE = $ARGV[2];
   $USER = $ARGV[3];
   $CLIENT_IP = $ARGV[4];
-  my (undef, undef, undef, $n4) = split(/\./, $CLIENT_IP, 4);
+  my (undef, undef, undef, $n4) = split(/\./x, $CLIENT_IP, 4);
   $inum = $argv->{PORT} || $n4;
-  if ($INTERFACE =~ /eth/) {
+  if ($INTERFACE =~ m/eth/x) {
     $OS = 'linux';
   }
 }
@@ -143,7 +146,7 @@ if ($INTERFACE eq 'getif') {
 
 if (!$inum) {
   $inum = $INTERFACE;
-  $inum =~ s/[a-z\.]+//g;
+  $inum =~ s/[a-z\.]+//xg;
 }
 
 $conf{SHAPER_CLASSES} = 2 if (!defined($conf{SHAPER_CLASSES}));
@@ -293,6 +296,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
         NETS      => \%nets,
         USER      => $USER,
         CLIENT_IP => $CLIENT_IP,
+        BIT_MASK  => $BIT_MASK,
         %{$user},
       }
     );
@@ -313,7 +317,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
       $speed = $speeds{$traf_type};
     }
 
-    if ($inum =~ /^\d+$/) {
+    if ($inum =~ m/^\d+$/x) {
       $fw_num_in = ($START_FW[$traf_type] + $inum * 2) + $user->{UID};
       $fw_num_out = ($START_FW[$traf_type] + $inum * 2 + 1) + $user->{UID};
     }
@@ -332,8 +336,8 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
 
     my @nets_arr = ();
     if ($nets{$traf_type}) {
-      $nets{$traf_type} =~ s/[\r\n]?//g;
-      @nets_arr = split(/;|,/, $nets{$traf_type});
+      $nets{$traf_type} =~ s/[\r\n]?//xg;
+      @nets_arr = split(/;|,/x, $nets{$traf_type});
     }
     elsif ($traf_type == 0) {
       @nets_arr = ('0.0.0.0/0');
@@ -346,7 +350,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
       my $burst = int($speed_in / 16);
       my $flowid = ($speed_in > 0) ? sprintf("%x", $user->{UID} + $prefix * 2) : '';
 
-      if ($inum =~ /^\d+$/) {
+      if ($inum =~ m/^\d+$/x) {
         $flowid = ($speed_in > 0) ? sprintf("%x", $inum + $prefix * 2) : '';
         $fw_num_in = ($START_FW[$traf_type]) + $inum;
         $fw_num_out = ($START_FW[$traf_type]) + $inum;
@@ -359,7 +363,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
 
       #get id from 2 octets of IP
       if ($conf{LINKUPDOWN_IPN_IP_ID}) {
-        my @ip_arr = split(/\./, $CLIENT_IP, 4);
+        my @ip_arr = split(/\./x, $CLIENT_IP, 4);
         my $id = unpack("N", pack("C4", (0, 0, $ip_arr[2], $ip_arr[3])));
         $fw_num_in = ($START_FW[$traf_type]) + $id;
         $fw_num_out = ($START_FW[$traf_type]) + $id; #($START_FW[$traf_type] + $fw_step) + $user->{UID};
@@ -419,7 +423,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
 
       if ($ACTION eq 'up') {
         foreach my $ip_full (@nets_arr) {
-          if ($ip_full =~ /([!]{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/{0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2}):{0,1}(\S{0,200})/) {
+          if ($ip_full =~ m/([!]{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/{0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2}):{0,1}(\S{0,200})/x) {
             my $ip = $2;
             my $mask = $3;
             push @FW_ACTIONS,
@@ -465,7 +469,7 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
         my $prefix = $conf{ng_car_prefix} || 10000;
         my $ng_id = $user->{UID};
 
-        if ($conf{ng_interface_shaper} && $INTERFACE =~ /ng(\d+)/) {
+        if ($conf{ng_interface_shaper} && $INTERFACE =~ m/ng(\d+)/x) {
           $ng_id = $1;
         }
 
@@ -515,8 +519,8 @@ if ($ACTION eq 'up' || $OS eq 'linux') {
 }
 elsif ($ACTION eq 'down') {
   if ($OS ne 'linux') {
-    $USER =~ s/\./__/g;
-    $USER =~ s/\@/___/g;
+    $USER =~ s/\./__/xg;
+    $USER =~ s/\@/___/xg;
     for (my $i = 0; $i < $conf{SHAPER_CLASSES}; $i++) {
       push @FW_ACTIONS, sprintf("/usr/sbin/ngctl shutdown %s_%s:", 'class' . $i, $USER) if ($conf{ng_car});
       push @FW_ACTIONS, "$IPFW table " . ($users_table_number + $i * 2) . " delete $CLIENT_IP";
@@ -536,13 +540,13 @@ foreach my $line (@FW_ACTIONS) {
   else {
     if (system("$line")) {
       my $error = "$DATE $TIME Error: $?/$! '$line' \n";
-      if ($conf{SHAPER_DEBUG} && $error !~ /shutdown/) {
+      if ($conf{SHAPER_DEBUG} && $error !~ m/shutdown/x) {
         open(my $fh, '>>', '/tmp/linkupdown.log') or print "Can't open file\n";
         print $fh $error;
         close($fh);
       }
     }
-    if ($conf{SHAPER_DEBUG} && $line =~ /delete/) {
+    if ($conf{SHAPER_DEBUG} && $line =~ m/delete/x) {
       open(my $fh, '>>', '/tmp/linkupdown2.log') or print "Can't open file\n";
       print $fh "$DATE $TIME: $USER $line\n";
       close($fh);
@@ -556,6 +560,16 @@ if ($conf{linkupdown_external}) {
 
 #**********************************************************
 =head2  ng_car_shape($user_name, $tablearg_in, $tablearg_out, $shape_type, $speed_in, $speed_out) - ng_car shapper set
+
+  Argumnets:
+    $user_name,
+    $tablearg_in,
+    $tablearg_out,
+    $shape_type,
+    $speed_in,
+    $speed_out
+
+  Results:
 
 =cut
 #**********************************************************
@@ -584,8 +598,8 @@ sub ng_car_shape {
   my $cbs_out = int($speed_out * 1.5 / 8);
   my $ebs_out = 2 * $cbs_out;
 
-  $user_name =~ s/\./__/g;
-  $user_name =~ s/\@/___/g;
+  $user_name =~ s/\./__/gx;
+  $user_name =~ s/\@/___/gx;
 
   push @FW_ACTIONS, sprintf(
     "/usr/sbin/ngctl -f- <<-EOF
@@ -621,6 +635,7 @@ sub ng_car_shape {
       SPEEDS
       NETS
       CLIENT_IP
+      USER
       DEBUG
 
   Returns:
@@ -636,7 +651,7 @@ sub mikrotik {
   }
 
   if ($attr->{NAS_HOST} && !$attr->{NAS_MNG_IP_PORT}) {
-    my @mng_info = split(/:/, $attr->{NAS_HOST});
+    my @mng_info = split(':', $attr->{NAS_HOST});
     $attr->{NAS_MNG_IP_PORT} = $mng_info[0] . ':';
     if ($#mng_info > 1) {
       $attr->{NAS_MNG_IP_PORT} .= ":$mng_info[2]";
@@ -654,6 +669,10 @@ sub mikrotik {
   my $tp_id = $attr->{TP_NUM};
   #my @commands = ();
 
+  if ($attr->{BIT_MASK}) {
+    $attr->{CLIENT_IP} .= '/' . $attr->{BIT_MASK};
+  }
+
   require Abills::Nas::Mikrotik;
   Abills::Nas::Mikrotik->import();
   my $Mikrotik = Abills::Nas::Mikrotik->new(
@@ -661,7 +680,7 @@ sub mikrotik {
     \%conf,
     {
       FROM_WEB         => 1,
-      MESSAGE_CALLBACK => sub { },
+      MESSAGE_CALLBACK => sub {},
       ERROR_CALLBACK   => sub {print('err', 'linkupdown')},
       DEBUG            => $debug || 0,
       API_BACKEND      => $conf{MIKROTIK_API}
@@ -694,7 +713,8 @@ sub mikrotik {
       %list_params = (
         'name'      => $attr->{USER},
         'target'    => $attr->{CLIENT_IP},
-        'max-limit' => "$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000"
+        'max-limit' => "$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000",
+        'comment'   => $attr->{USER}
       );
 
       if ($argv->{MIKROTIK_QUEUES_PREFIX}) {
@@ -723,9 +743,15 @@ sub mikrotik {
     elsif ($ACTION eq 'guest') {
       #push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
       #push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+      mikrotik_drop_ip($Mikrotik, '/queue simple', \%list_params, { USER => $attr->{USER} });
+      mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params, {
+        list_expr => 'CLIENTS_|negative',
+        USER      => $attr->{USER}
+      });
       $list_params{list} = q{negative};
     }
 
+    $attr->{CLIENT_IP} =~ s/\/32//gx;
     $list_params{address} = $attr->{CLIENT_IP};
     my $ip_in_list = mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params,
       { USER => $attr->{USER} });
@@ -812,7 +838,7 @@ sub mikrotik_drop_ip {
   }
 
   foreach my $rule (@rules) {
-    if ($attr->{list_expr} && $rule->{'list'} !~ /$attr->{list_expr}/) {
+    if ($attr->{list_expr} && $rule->{'list'} !~ m/$attr->{list_expr}/x) {
       next;
     }
 
@@ -901,7 +927,7 @@ sub linux_ipn2 {
   my $ruleid_out = $attr->{UID} + 101;
   my $ruleid_in = $attr->{UID} + 5101;
 
-  my @wan = split(/,/, $WAN_IF);
+  my @wan = split(',', $WAN_IF);
   foreach my $line (@wan) {
     print "$line \n" if ($debug);
   }
@@ -924,7 +950,7 @@ sub linux_ipn2 {
       $speeds{ 0 }{OUT} = "$attr->{SPEED}";
     }
 
-    @wan = split(/,/, $WAN_IF);
+    @wan = split(',', $WAN_IF);
 
     foreach my $WANIFACE (@wan) {
       #Download
@@ -942,7 +968,7 @@ sub linux_ipn2 {
   }
   #stop
   else {
-    @wan = split(/,/, $WAN_IF);
+    @wan = split(',', $WAN_IF);
     foreach my $WANIFACE (@wan) {
       #Download
       push @FW_ACTIONS,
@@ -975,7 +1001,7 @@ sub linux_ipn3 {
     chop($WAN_IF);
   }
 
-  my @a = split(/\./, $CLIENT_IP);
+  my @a = split(/\./x, $CLIENT_IP);
   my $ip1 = sprintf("%02x", $a[2]);
   my $ip2 = sprintf("%02x", $a[3]);
   my $ID = "$ip1$ip2";
@@ -1043,7 +1069,8 @@ For IPN
 DEBUG: $debug
 };
 
+  return 1;
 }
 
-1
+1;
 

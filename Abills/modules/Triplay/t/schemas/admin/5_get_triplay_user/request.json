@@ -1,0 +1,5 @@
+{
+  "name": "TRIPLAY_USER_GET_SERVICE",
+  "method": "GET",
+  "path": "triplay/users/:uid/"
+}

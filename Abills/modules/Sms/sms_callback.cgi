@@ -304,7 +304,7 @@ sub send_internet_info {
   $INFO_HASH{STATUS_NAME}  = $status;
 
   require Control::Service_control;
-  my $Service = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   my $warning_info = $Service_control->service_warning({
     UID          => $user->{uid},
@@ -397,7 +397,8 @@ sub start_external_command {
   }
 
   my $user_ip = $online_info->{FRAMED_IP_ADDRESS};
-
+  require Internet::Diagnostic;
+  Internet::Diagnostic->import('host_diagnostic');
   my $ping_result = host_diagnostic($user_ip);
 
   if ($ping_result == 1) {

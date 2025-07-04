@@ -1,5 +1,5 @@
-<form action='$SELF_URL' name='inventory_form' method=POST>
-    <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' name='inventory_form' method=POST>
+    <input type=hidden name=index value=%index%>
     <input type=hidden name=ID value=$FORM{chg}>
 
     <div class='card card-danger card-outline'>

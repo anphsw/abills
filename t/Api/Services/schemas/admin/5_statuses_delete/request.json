@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_STATUSES_DELETE",
+  "method": "DELETE",
+  "path": "services/statuses/100/"
+}

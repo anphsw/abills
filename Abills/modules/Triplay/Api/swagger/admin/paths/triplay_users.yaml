@@ -1,0 +1,84 @@
+get:
+  tags:
+    - triplay
+  summary: Информация о услуге Triplay
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_info.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - triplay
+  summary: Добавить услугу Triplay
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/triplay_user_add_request.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_info.yaml"
+    400:
+      description: Нет поля tpId
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_add_400.yaml"
+  security:
+    - KEY: [ ]
+patch:
+  tags:
+    - triplay
+  summary: Обновить услугу Triplay
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/triplay_user_change_request.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_info.yaml"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - triplay
+  summary: Удалить услугу Triplay
+  parameters:
+    - $ref: "#/components/parameters/pathUid"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_delete_200.yaml"
+    400:
+      description: Услуга не найдена
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/triplay_user_delete_400.yaml"
+  security:
+    - KEY: [ ]

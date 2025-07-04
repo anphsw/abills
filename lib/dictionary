@@ -340,6 +340,7 @@ VENDOR          ERX                             4874
 
 ATTRIBUTE       ERX-Service-Activate    65      string ERX
 ATTRIBUTE       ERX-Service-Deactivate  66      string ERX
+ATTRIBUTE       ERX-Service-Statistics  69      string ERX
 ATTRIBUTE       Authenticator-Field     178     octets ERX
 
 #Mpd 

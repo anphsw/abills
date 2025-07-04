@@ -1,0 +1,100 @@
+get:
+  tags:
+    - storage
+  summary: Список товаров на складе
+  parameters:
+    - name: id
+      in: query
+      description: ID записи
+      schema:
+        type: boolean
+        default: true
+    - name: serial
+      in: query
+      description: Серийный номер оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: ident1
+      in: query
+      description: Доп. идентификатор 1 (IDENT1)
+      schema:
+        type: boolean
+        default: false
+    - name: ident2
+      in: query
+      description: Доп. идентификатор 2 (IDENT2)
+      schema:
+        type: boolean
+        default: false
+    - name: ident3
+      in: query
+      description: Доп. идентификатор 3 (IDENT3)
+      schema:
+        type: boolean
+        default: false
+    - name: article_id
+      in: query
+      description: ID артикула
+      schema:
+        type: boolean
+        default: false
+    - name: article_type
+      in: query
+      description: Тип артикула
+      schema:
+        type: boolean
+        default: false
+    - name: date
+      in: query
+      description: Дата поступления
+      schema:
+        type: boolean
+        default: false
+    - name: sia_count
+      in: query
+      description: Количество товара (SIA_COUNT)
+      schema:
+        type: boolean
+        default: false
+    - name: sell_price
+      in: query
+      description: Цена продажи
+      schema:
+        type: boolean
+        default: false
+    - name: rent_price
+      in: query
+      description: Цена аренды
+      schema:
+        type: boolean
+        default: false
+    - name: in_installments_price
+      in: query
+      description: Цена при покупке в рассрочку
+      schema:
+        type: boolean
+        default: false
+    - name: total_sum
+      in: query
+      description: Общая сумма
+      schema:
+        type: boolean
+        default: false
+    - name: sn_comments
+      in: query
+      description: Комментарий к серийному номеру
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/sort"
+    - $ref: "#/components/parameters/desc"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/incomingArticlesList.yaml"
+  security:
+    - KEY: [ ]

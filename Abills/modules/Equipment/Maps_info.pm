@@ -15,7 +15,7 @@ use strict;
 use warnings FATAL => 'all';
 use parent qw(Exporter);
 
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 
 our (
   $admin,
@@ -24,7 +24,7 @@ our (
   $html,
   $db,
   $Equipment,
-  %FORM,
+  %FORM
 );
 
 use constant {
@@ -38,6 +38,7 @@ our @EXPORT = qw(
 );
 
 my $Auxiliary;
+my $Maps;
 
 #**********************************************************
 =head2 new()
@@ -65,6 +66,10 @@ sub new {
   require Equipment;
   Equipment->import();
   $Equipment = Equipment->new($db, $admin, $CONF);
+
+  require Maps;
+  Maps->import();
+  $Maps = Maps->new($db, $admin, $CONF);
 
   require Maps::Auxiliary;
   Maps::Auxiliary->import();
@@ -103,11 +108,13 @@ sub location_info {
   my $st = 0;
 
   foreach my $equipment (@{$equipment_info_list}) {
+    my $color = defined($equipment->{status}) ? $colors{$equipment->{status}} || $colors{0} : $colors{0};
     $st = $st + $equipment->{status};
     my $link = "<a href='index.cgi?index=$index&NAS_ID=$equipment->{nas_id}'>$equipment->{nas_name}</a>";
-    $tb .= "<div class='panel panel-$colors{$equipment->{status} || 0}'>" .
-      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
-      "<ul class='list-group'>" .
+
+    $tb .= "<div class='card card-$color mb-3'>" .
+      "<div class='card-header'><h5 class='card-title mb-0'>$link</h5></div>" .
+      "<ul class='list-group list-group-flush'>" .
       "<li class='list-group-item'>IP: $equipment->{nas_ip}</li>" .
       "<li class='list-group-item'>$lang->{MODEL}: $equipment->{model_name}</li>" .
       "</ul>" .
@@ -249,7 +256,7 @@ sub pon_maps {
     NAS_ID      => ($attr->{NAS_ID}) ? $attr->{NAS_ID} : '_SHOW',
     OLT_PORT    => ($attr->{OLT_PORT}) ? $attr->{OLT_PORT} : '_SHOW',
     LOCATION_ID => '!',
-    MAPS_COORDS => '!',
+    MAPS_COORDS => '_SHOW',
     LOGIN       => '_SHOW',
     UID         => '_SHOW',
     RX_POWER    => '_SHOW',
@@ -262,6 +269,7 @@ sub pon_maps {
   my @export_arr = ();
   my $count = 0;
   my %builds_info = ();
+  my @builds_without_coords = ();
 
   foreach my $point (@{$equipment_list}) {
     my ($color, $row_color) = _pon_state($point->{rx_power});
@@ -269,7 +277,7 @@ sub pon_maps {
     my @address_info = ();
     push @address_info, $point->{address_street} if $point->{address_street};
     push @address_info, $point->{address_build} if $point->{address_build};
-    push @{$builds_info{$point->{build_id}}}, {
+    $builds_info{$point->{build_id}} = {
       rx_power  => $point->{rx_power},
       color     => $color,
       row_color => $row_color,
@@ -278,12 +286,44 @@ sub pon_maps {
       coordx    => $point->{coordx},
       coordy    => $point->{coordy}
     };
+
+    if (!$point->{coordx} || !$point->{coordy}) {
+      push @builds_without_coords, $point->{build_id};
+    }
   }
 
+  if (scalar(@builds_without_coords) > 0) {
+    my $polygon_points = $Maps->polygon_points_list({
+      COORDX      => '_SHOW',
+      COORDY      => '_SHOW',
+      POLYGON_ID  => '_SHOW',
+      LOCATION_ID => join(';', @builds_without_coords)
+    });
+
+    foreach my $polygon_point (@{$polygon_points}) {
+      next if !$builds_info{$polygon_point->{location_id}};
+
+      push @{$builds_info{$polygon_point->{location_id}}{polygon}}, {
+        coordx => $polygon_point->{coordy},
+        coordy => $polygon_point->{coordx}
+      };
+    }
+  }
+  
   foreach my $build (keys %builds_info) {
-    my $build_info = $builds_info{$build}[0];
+    my $build_info = $builds_info{$build};
+    
+    if ($build_info->{polygon} && (!$build_info->{coordx} || !$build_info->{coordy})) {
+      my $polygon_center = _get_polygon_center($build_info->{polygon});
+
+      if ($polygon_center->{coordx} && $polygon_center->{coordy}) {
+        $build_info->{coordx} = $polygon_center->{coordx};
+        $build_info->{coordy} = $polygon_center->{coordy};
+      }
+    }
+
+    next if (!$build_info->{coordx} || !$build_info->{coordy});
     $build_info->{rx_power} ||= 'N/A';
-    next if !$build_info->{color};
 
     my $marker_info = $Auxiliary->maps_point_info_table($html, $lang, {
       OBJECTS           => $builds_info{$build},
@@ -472,6 +512,30 @@ sub _pon_state {
   return ('bg-warning', 'warning') if ($rx_power > -10 || $rx_power < -27);
 
   return ('bg-success', 'success');
+}
+
+#**********************************************************
+=head2 _get_polygon_center($polygon)
+
+=cut
+#**********************************************************
+sub _get_polygon_center {
+  my ($polygon) = @_;
+
+  my $count = scalar @$polygon;
+  return {} if (!$polygon || $count < 1);
+
+  my ($sum_x, $sum_y) = (0, 0);
+
+  foreach my $point (@$polygon) {
+    $sum_x += $point->{coordx};
+    $sum_y += $point->{coordy};
+  }
+
+  my $center_x = $sum_x / $count;
+  my $center_y = $sum_y / $count;
+
+  return { coordx => $center_x, coordy => $center_y };
 }
 
 1;

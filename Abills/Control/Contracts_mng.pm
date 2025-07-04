@@ -197,7 +197,7 @@ sub _contract_type_table {
             { ICON => 'fa fa-pencil-alt', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
     my $delete_button = $html->button('', "index=" . get_function_index('contracts_type') . "&del=$line->{id}",
             { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
-    $table->addrow($line->{name}, $line->{template}, $edit_button . $delete_button);
+    $table->addrow(($line->{name}) ? _translate($line->{name}) : '', $line->{template}, $edit_button . $delete_button);
   }
 
   my $result = $table->show({OUTPUT2RETURN => 1});
@@ -215,6 +215,12 @@ sub _contract_type_select {
 
   my $list = $users->contracts_type_list({});
 
+  foreach my $item (@$list) {
+    if ($item->{name} =~ /^\$lang\{/ ) {
+      $item->{name} = _translate($item->{name});
+    }
+  }
+
   if ($users->{TOTAL} == 0) {
     my $add_btn = $html->button(
       " $lang{ADD} $lang{TYPE} $lang{CONTRACTS}",
@@ -222,7 +228,6 @@ sub _contract_type_select {
       {
         class => 'btn btn-warning',
         ADD_ICON  => 'fa fa-plus'
-  
       }
     );
     return $add_btn;

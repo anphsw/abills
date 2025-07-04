@@ -1,0 +1,11 @@
+{
+  "name": "ADMIN_STATUSES_CHANGE",
+  "method": "PUT",
+  "path": "services/statuses/100/",
+  "body": {
+    "name": "cclient executed rsh",
+    "color": "FFFFFF",
+    "type": 1,
+    "getFees": 1
+  }
+}

@@ -103,4 +103,43 @@ sub get_user_recommendedPay {
   };
 }
 
+#**********************************************************
+=head2 post_user_acceptRules($path_params, $query_params)
+
+  Endpoint POST /user/accept-rules/
+
+=cut
+#**********************************************************
+sub post_user_acceptRules {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return $Errors->throw_error(1001501) if (!$self->{conf}->{ACCEPT_RULES});
+
+  require Users;
+  Users->import();
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Users->pi({ UID => $path_params->{uid} });
+
+  if ($Users->{ACCEPT_RULES}) {
+    return {
+      result           => 'Already accepted',
+      already_accepted => 1,
+    };
+  }
+
+  $Users->pi_change({
+    UID          => $path_params->{uid},
+    ACCEPT_RULES => 1
+  });
+
+  return $Users if ($Users->{errno});
+
+  return {
+    result   => 'Successfully accepted',
+    accepted => 1,
+  }
+}
+
 1;

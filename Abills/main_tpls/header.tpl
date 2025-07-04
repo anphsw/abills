@@ -24,7 +24,7 @@
         <i class='far fa-envelope'></i>
         <span id='badge_messages-menu' class='icon-label label label-danger hidden'></span>
       </a>
-      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_messages-menu'>
+      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-light' id='dropdown_messages-menu'>
         <span class='dropdown-item dropdown-header' id='header_messages-menu'>
           <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
@@ -76,7 +76,7 @@
         <span id='badge_responsible-menu' class='icon-label label label-danger hidden'></span>
       </a>
 
-      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_responsible-menu'>
+      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-center' id='dropdown_responsible-menu'>
         <span class='dropdown-item dropdown-header' id='header_responsible-menu'>
           <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
@@ -106,7 +106,7 @@
         <span id='badge_events-menu' class='icon-label label label-danger hidden'></span>
       </a>
 
-      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_events-menu'>
+      <div class='dropdown-menu dropdown-menu-lg dropdown-menu-center' id='dropdown_events-menu'>
         <span class='dropdown-item dropdown-header' id='header_events-menu'>
           <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>

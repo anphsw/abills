@@ -79,6 +79,8 @@ sub accident_notify_open {
 
   return 1 if (!$Accident->{TOTAL});
 
+  print "Accident quantity: $Accident->{TOTAL}\nAccident date: $DATE\n" if ($debug);
+
   foreach my $accident (@$accident_list) {
     my $count = 0;
 
@@ -108,6 +110,8 @@ sub accident_notify_open {
         }
       }
     }
+
+    print "Users quantity: $count \n" if ($debug);
 
     $Accident->change({
       ID        => $accident->{id},

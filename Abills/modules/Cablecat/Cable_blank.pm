@@ -6,7 +6,6 @@
 
 use strict;
 use warnings;
-use GD::Simple;
 use utf8;
 use Abills::Base qw(_bp in_array);
 use Cablecat;
@@ -132,6 +131,7 @@ sub show_box {
   }
 
   my $last_page = $PAGES[-1];
+  Abills::Base::load_pmodule('GD::Simple');
   $img = GD::Simple->new($SCHEME_OPTIONS{PAGE_WIDTH} + 5, $last_page->{Y} + $SCHEME_OPTIONS{PAGE_HEIGHT} + 5);
   $img->font('Italic');
   $img->fontsize(10);

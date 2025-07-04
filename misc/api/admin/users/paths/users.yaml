@@ -4,14 +4,18 @@ post:
   summary: Добавить нового пользователя
   operationId: addUser
   description: >
-    Также можно добавлять все информационные поля
-    Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+    Также можно добавлять все информационные поля  
+    Пример: если в БД `_TEST_FIELD` то можно добавить как `__testField`.  
+    Пример загрузки файла на сервер наведен в multipart/form-data.
   requestBody:
     description: Параметры, которые нужно указать
     content:
       application/json:
         schema:
           $ref: "../schemas/addUserRequest.yaml"
+      multipart/form-data:
+        schema:
+          $ref: "../schemas/uploadFile.yaml"
     required: true
   responses:
     200:

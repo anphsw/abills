@@ -17,7 +17,8 @@ use Storage;
 our Abills::HTML $html;
 my $Storage = Storage->new($db, $admin, \%conf);
 
-my @installation_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS}, $lang{RETURNED_STORAGE});
+my @installation_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS}, $lang{RETURNED_STORAGE},
+  $lang{STORAGE_NOT_ACTIVATED_INSTALLMENT}, $lang{STORAGE_NOT_ACTIVATED_RENT});
 
 #**********************************************************
 =head2 storage_main_report($attr)
@@ -752,6 +753,8 @@ sub storage_in_installments_statistics {
   });
 
   foreach my $item (@$in_installments_items){
+    $item->{in_installments_price} //= 0;
+    $item->{sum_price} //= 0;
     my $profit = ($item->{in_installments_price} - $item->{sum_price}) / $item->{total_months} * $item->{payments_count};
     my $admin_sum = $item->{admin_percent} ? $profit / 100 * $item->{admin_percent} : 0;
     $table->addrow(

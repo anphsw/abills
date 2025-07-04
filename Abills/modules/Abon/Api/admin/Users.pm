@@ -72,18 +72,21 @@ sub get_abon_users {
   $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
 
   $Abon->user_list({
-    ABON_ID       => '_SHOW',
-    COMMENTS      => '_SHOW',
-    DATE          => '_SHOW',
-    FEES_PERIOD   => '_SHOW',
-    MANUAL_FEE    => '_SHOW',
-    TP_NAME       => '_SHOW',
-    TP_ID         => '_SHOW',
-    NEXT_ABON     => '_SHOW',
-    PRICE         => '_SHOW',
-    PERIOD        => '_SHOW',
-    SERVICE_COUNT => '_SHOW',
-    %$query_params
+    LOGIN         => '_SHOW',
+    FIO           => '_SHOW',
+    # ABON_ID       => '_SHOW',
+    # COMMENTS      => '_SHOW',
+    # DATE          => '_SHOW',
+    # FEES_PERIOD   => '_SHOW',
+    # MANUAL_FEE    => '_SHOW',
+    # TP_NAME       => '_SHOW',
+    # TP_ID         => '_SHOW',
+    # NEXT_ABON     => '_SHOW',
+    # PRICE         => '_SHOW',
+    # PERIOD        => '_SHOW',
+    # SERVICE_COUNT => '_SHOW',
+    %$query_params,
+    _SHOW_ALL_COLUMNS => 1,
   });
 }
 

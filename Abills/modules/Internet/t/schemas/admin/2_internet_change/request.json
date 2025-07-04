@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_CHANGE_USER_SERVICE",
+  "method": "PUT",
+  "path": "internet/:uid/activate/",
+  "body": {
+    "cid": "aa:aa:aa:aa:aa:00",
+    "id": "{{serviceId}}",
+    "status": 0
+  }
+}

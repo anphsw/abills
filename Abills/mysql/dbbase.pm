@@ -9,6 +9,7 @@ Abills::mysql::dbcore - DB manipulation functions
 use strict;
 use warnings;
 use DBI;
+use Log qw(log_print);
 
 our $VERSION = 1.00;
 my $sql_errors = '/usr/abills/var/log/sql_errors';
@@ -30,9 +31,9 @@ my $sql_errors = '/usr/abills/var/log/sql_errors';
 =cut
 #**********************************************************
 sub connect {
-  my $class = shift;
+  my ($class, $dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
+
   my $self = { };
-  my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
 
   bless( $self, $class );
   #my %conn_attrs = (PrintError => 0, RaiseError => 1, AutoCommit => 1);
@@ -89,7 +90,8 @@ sub connect {
 sub disconnect{
   my $self = shift;
 
-  $self->{db}->disconnect;
+  my DBI $db = $self->{db};
+  $db->disconnect;
 
   return $self;
 }
@@ -170,36 +172,35 @@ sub disconnect{
 
 =cut
 #**********************************************************
-sub query{
-  my $self = shift;
-  my ($query, $type, $attr) = @_;
+sub query {
+  my ($self, $query, $type, $attr) = @_;
 
   my DBI $db = $self->{db};
 
-  if ( $self->{db}->{db} ){
+  if ($self->{db}->{db}) {
     $db = $self->{db}->{db};
 
     $self->{db}->{queries_count}++;
 
-    if ( $self->{db}->{db_debug} ){
-      if ( $self->{db}->{db_debug} > 4 ){
-        $db->trace( 1, '/tmp/sql_trace' );
+    if ($self->{db}->{db_debug}) {
+      if ($self->{db}->{db_debug} > 4) {
+        $db->trace(1, '/tmp/sql_trace');
       }
-      elsif ( $self->{db}->{db_debug} > 3 ){
-        $db->trace( 'SQL', '/tmp/sql_trace' );
+      elsif ($self->{db}->{db_debug} > 3) {
+        $db->trace('SQL', '/tmp/sql_trace');
       }
-      elsif ( $self->{db}->{db_debug} > 2 ){
+      elsif ($self->{db}->{db_debug} > 2) {
         require Log;
-        Log->import( 'log_print' );
+        Log->import('log_print');
         my $arguments = '';
-        if($attr->{Bind}) {
-          $arguments .= join(', ', @{ $attr->{Bind} });
+        if ($attr->{Bind}) {
+          $arguments .= join(', ', @{$attr->{Bind}});
         }
-        Log::log_print( undef, 'LOG_ERR', '', "\n-----". ($self->{queries_count} || q{}) ."------\n$query\n------\n$arguments\n",
-          { NAS => 0, LOG_FILE => "/tmp/sql_debug" } );
+        Log::log_print(undef, 'LOG_ERR', '', "\n-----" . ($self->{queries_count} || q{}) . "------\n$query\n------\n$arguments\n",
+          { NAS => 0, LOG_FILE => "/tmp/sql_debug" });
       }
       #sequence
-      elsif ( $self->{db}->{db_debug} > 1 ){
+      elsif ($self->{db}->{db_debug} > 1) {
         # Usually, library is loaded by default, but since
         # this is a critical script, we will check it just in case.
         # Fact, that is only done during debugging is also not scary for performance.
@@ -218,44 +219,44 @@ sub query{
           $i++;
         }
 
-        push @{ $self->{db}->{queries_list} }, [$query. $caller, 0, $caller];
+        push @{$self->{db}->{queries_list}}, [ $query . $caller, 0, $caller ];
       }
-      else{
+      else {
         #Queries typisation
         $self->{db}->{queries_list}->{$query}++;
       }
     }
   }
 
-  if ( $attr->{DB_REF} ){
+  if ($attr->{DB_REF}) {
     $db = $attr->{DB_REF};
   }
 
   #Query
-  delete( $self->{errstr} );
-  delete( $self->{errno} );
+  delete($self->{errstr});
+  delete($self->{errno});
   $self->{TOTAL} = 0;
 
-  if ( $self->{debug} ){
+  if ($self->{debug}) {
     print "<pre><code>\n$query\n</code></pre>\n" if ($self->{debug});
-    if ( $self->{debug} ne 1 ){
-      $db->trace( 1, $self->{debug} );
+    if ($self->{debug} > 1) {
+      $db->trace(1, $self->{debug});
     }
   }
 
-  if ( !$db || ref $db eq 'HASH' ){
+  if (!$db || ref $db eq 'HASH') {
     require Log;
-    Log->import( 'log_print' );
+    Log->import('log_print');
     $self->{sql_errno} = 0 if (!$self->{sql_errno});
     $self->{sql_errstr} = '' if (!$self->{sql_errstr});
     my $caller = join(', ', caller());
-    Log::log_print( undef, 'LOG_ERR', '',
+    Log::log_print(undef, 'LOG_ERR', '',
       "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db\n$caller",
-      { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
+      { NAS => 0, LOG_FILE => (-w $sql_errors) ? $sql_errors : '/tmp/sql_errors' });
     return $self;
   }
 
-  if ( defined( $attr->{test} ) ){
+  if (defined($attr->{test})) {
     return $self;
   }
 
@@ -266,19 +267,19 @@ sub query{
     $start_query_time = [ Time::HiRes::gettimeofday() ]
   }
 
-  if ( $type && $type eq 'do' ){
-    $self->{AFFECTED} = $db->do( $query, undef, @{ $attr->{Bind} } );
-    if ( $db->{'mysql_insertid'} ){
+  if ($type && $type eq 'do') {
+    $self->{AFFECTED} = $db->do($query, undef, @{$attr->{Bind}});
+    if ($db->{'mysql_insertid'}) {
       $self->{INSERT_ID} = $db->{'mysql_insertid'};
     }
   }
-  else{
-    $q = $db->prepare( $query );
+  else {
+    $q = $db->prepare($query);
 
-    if ( $attr->{MULTI_QUERY} ){
-      foreach my $line ( @{ $attr->{MULTI_QUERY} } ){
-        $q->execute( @{$line} );
-        if ( $db->err ){
+    if ($attr->{MULTI_QUERY}) {
+      foreach my $line (@{$attr->{MULTI_QUERY}}) {
+        $q->execute(@{$line});
+        if ($db->err) {
           $self->{errno} = 3;
           $self->{sql_errno} = $db->err;
           $self->{sql_errstr} = $db->errstr;
@@ -289,29 +290,29 @@ sub query{
 
       if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
         my $elapsed = Time::HiRes::tv_interval($start_query_time);
-        ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
+        ${$self->{db}->{queries_list}}[-1]->[1] = $elapsed;
       };
 
-      $self->{TOTAL} = $#{ $attr->{MULTI_QUERY}  } + 1;
+      $self->{TOTAL} = $#{$attr->{MULTI_QUERY}} + 1;
       return $self;
     }
-    else{
-      $q->execute( @{ $attr->{Bind} } );
+    else {
+      $q->execute(@{$attr->{Bind}});
       $self->{TOTAL} = $q->rows;
     }
   }
 
   if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
     my $elapsed = Time::HiRes::tv_interval($start_query_time);
-    ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
+    ${$self->{db}->{queries_list}}[-1]->[1] = $elapsed;
   }
 
-  if ( $db->err ){
-    if ( $db->err == 1062 ){
+  if ($db->err) {
+    if ($db->err == 1062) {
       $self->{errno} = 7;
       $self->{errstr} = 'ERROR_DUPLICATE';
     }
-    else{
+    else {
       $self->{sql_errno} = $db->err;
       $self->{sql_errstr} = $db->errstr;
       $self->{errno} = 3;
@@ -326,44 +327,43 @@ sub query{
         $caller .= "$filename:$line $subroutine\n";
         $i++;
       }
-      use Log qw(log_print);
       # require Log;
       # Log->import( 'log_print' );
-      Log::log_print( undef, 'LOG_ERR', '',
-        "index:". ($attr->{index} || q{}) ."\n"
-          . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n$caller\n"
-        , { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
+      Log::log_print(undef, 'LOG_ERR', '',
+        "index:" . ($attr->{index} || q{}) . "\n"
+          . ($query || q{}) . "\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n$caller\n"
+        , { NAS => 0, LOG_FILE => (-w $sql_errors) ? $sql_errors : '/tmp/sql_errors' });
     }
     return $self;
   }
 
-  if ( $self->{TOTAL} > 0 ){
+  if ($self->{TOTAL} > 0) {
     my @rows = ();
 
-    if ( $attr->{COLS_NAME} ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} || []};
+    if ($attr->{COLS_NAME}) {
+      push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME} || []};
 
       while (my $row = $q->fetchrow_hashref()) {
-        if ( $attr->{COLS_UPPER} ){
+        if ($attr->{COLS_UPPER}) {
           my $row2;
-          while(my ($k, $v) = each %{$row}) {
-            $row2->{uc( $k )} = $v;
+          while (my ($k, $v) = each %{$row}) {
+            $row2->{uc($k)} = $v;
           }
           $row = { %{$row2}, %{$row} };
         }
         push @rows, $row;
       }
     }
-    elsif ( $attr->{INFO} ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
+    elsif ($attr->{INFO}) {
+      push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME}};
       while (my $row = $q->fetchrow_hashref()) {
-        while(my ($k, $v) = each %{$row} ) {
-          $self->{ uc( $k ) } = $v;
+        while (my ($k, $v) = each %{$row}) {
+          $self->{ uc($k) } = $v;
         }
       }
     }
-    elsif ( $attr->{LIST2HASH} ){
-      my ($key, @val) = split( /,\s?/, $attr->{LIST2HASH} );
+    elsif ($attr->{LIST2HASH}) {
+      my ($key, @val) = split(/,\s?/x, $attr->{LIST2HASH});
       my %list_hash = ();
 
       while (my $row = $q->fetchrow_hashref()) {
@@ -377,26 +377,26 @@ sub query{
 
       $self->{list_hash} = \%list_hash;
     }
-    else{
+    else {
       while (my @row = $q->fetchrow()) {
         push @rows, \@row;
       }
     }
     $self->{list} = \@rows;
   }
-  else{
-    if ( $q && $q->{NAME} && ref $q->{NAME} eq 'ARRAY' ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
+  else {
+    if ($q && $q->{NAME} && ref $q->{NAME} eq 'ARRAY') {
+      push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME}};
     }
 
     delete $self->{list};
-    if ( $attr->{INFO} ){
+    if ($attr->{INFO}) {
       $self->{errno} = 2;
       $self->{errstr} = 'ERROR_NOT_EXIST';
     }
   }
 
-  if ( $attr->{CLEAR_NAMES} ){
+  if ($attr->{CLEAR_NAMES}) {
     delete $self->{COL_NAMES_ARR};
   }
 
@@ -404,4 +404,4 @@ sub query{
   return $self;
 }
 
-1
+1;

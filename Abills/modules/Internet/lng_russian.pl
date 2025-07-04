@@ -51,12 +51,15 @@ $lang{TP_ACTIVE_IN_USERS} = "Тарифный план уже активен у 
 $lang{STATIC_IP} = 'Статический айпи адрес';
 $lang{MAC} = 'MAC-адрес';
 $lang{LOADING_DATA_ONTO_THE_MAP} = 'Пожалуйста, подождите. Загружаются данные на карту.';
+$lang{INTERNET_TARIFF_PLAN_GRADIENTS} = 'Градиенты тарифного плана';
 
 $lang{ERR_TARIFF_EXISTS} = 'Тариф с таким ID уже существует';
-$lang{ERR_WRONG_DATE} = 'Неверная дата';
 $lang{ERR_FAILED_SET_SCHEDULE} = 'Не удалось установить расписание изменения ТП';
 $lang{ERR_CHANGE_TP} = 'Не удалось изменить ТП';
 $lang{ERR_NO_TARIFF} = 'Нет тарифа с таким ID';
+$lang{INTERNET_DATA_LOADING_ERROR} = 'Ошибка загрузки данных';
+$lang{INTERNET_NO_STREETS_IN_THIS_AREA} = 'В этом районе нет улиц';
+$lang{INTERNET_NO_BUILDINGS_ON_THIS_STREET} = 'На этой улице нет зданий';
 
 $lang{ERR_NO_WRONG_PORT_SELECTED} = 'Выбран неправильный порт';
 

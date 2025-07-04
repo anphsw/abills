@@ -30,6 +30,7 @@ use Abills::Base qw(in_array cmd load_pmodule date_diff json_former);
 use Abills::Loader;
 use Abills::Sender::Core qw(load_plugin);
 use Ureports::Base;
+use Abills::Filters qw(email_valid);
 
 our (
   $db,
@@ -131,18 +132,18 @@ sub ureports_users_list {
       ID         => $_,
       ERROR_CODE => 1,
       ERROR_MSG  => ''
-    }) foreach (split /,/, $FORM{USER_SEND_TYPE_IDS});
+    }) foreach (split(',', $FORM{USER_SEND_TYPE_IDS}));
   }
   elsif ($FORM{del} && $FORM{USER_SEND_TYPE_IDS}) {
-    $Ureports->user_send_type_del({ ID => $_ }) foreach (split /,/, $FORM{USER_SEND_TYPE_IDS});
-    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Ureports);
+    $Ureports->user_send_type_del({ ID => $_ }) foreach (split(',', $FORM{USER_SEND_TYPE_IDS}));
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if (!_error_show($Ureports));
   }
 
   $FORM{GROUP_SEL} = sel_groups();
   $FORM{STATUS_SEL} = $html->form_select('STATUS', {
     SELECTED => $FORM{STATUS},
     SEL_HASH => {
-      '' => "$lang{ALL}",
+      '' => $lang{ALL},
       0  => $service_status[0],
       1  => $service_status[1],
       2  => $service_status[2]
@@ -194,8 +195,8 @@ sub ureports_users_list {
       error_code => sub {
         my $error_code = shift;
 
-        return "0 : $lang{UNKNOWN_ERROR}" if !$error_code;
-        return '' if $error_code && $error_code == 1;
+        return "0 : $lang{UNKNOWN_ERROR}" if (!$error_code);
+        return '' if ($error_code && $error_code == 1);
 
         return $error_codes_to_lang{$error_code} ? "$error_code : $error_codes_to_lang{$error_code}" : $error_code;
       },
@@ -298,10 +299,10 @@ sub ureports_user {
       return 0;
     }
 
-    if (in_array(0, \@report_types) && (!$FORM{DESTINATION_9} || $FORM{DESTINATION_9} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
+    if (in_array(0, \@report_types) && ! email_valid($FORM{DESTINATION_9})) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
-    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && (!$FORM{DESTINATION_1} || $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/)) {
+    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && (!$FORM{DESTINATION_1} || $FORM{DESTINATION_1} !~ m/$conf{PHONE_FORMAT}/x)) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else {
@@ -321,10 +322,10 @@ sub ureports_user {
       return 0;
     }
 
-    if (in_array(0, \@report_types) && (!$FORM{DESTINATION_9} || $FORM{DESTINATION_9} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
+    if (in_array(0, \@report_types) && ! email_valid($FORM{DESTINATION_9})) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
     }
-    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/) {
+    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ m/$conf{PHONE_FORMAT}/x) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else {
@@ -389,8 +390,8 @@ sub ureports_user {
 
     foreach my $line (@{$list}) {
       $table->addrow(
-        $html->form_input("IDS", "$line->{report_id}",
-          { TYPE => 'checkbox', STATE => ($line->{date}) ? 1 : undef, OUTPUT2RETURN => 1 }),
+        $html->form_input("IDS", $line->{report_id},
+          { TYPE => 'checkbox', EX_PARAMS=>"title=$line->{report_id}", STATE => ($line->{date}) ? 1 : undef, OUTPUT2RETURN => 1 }),
         ($line->{comments}) ? $line->{comments} : $REPORTS{ $line->{report_id} },
         $html->form_input("VALUE_$line->{report_id}", (($line->{value}) ? $line->{value} : 0),
           { OUTPUT2RETURN => 1, SIZE => 6, EX_PARAMS => 'pattern="[.0-9]+"', TYPE => 'number' }),
@@ -448,11 +449,15 @@ sub ureports_user {
       { class => 'btn bnt-default btn-success' });
   }
 
-  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//gm if ($Ureports->{DESTINATIONS});
-  my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
+  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//xgm if ($Ureports->{DESTINATIONS});
+  my %destinations = ($Ureports->{DESTINATIONS}) ? split /[|,]/x, $Ureports->{DESTINATIONS} : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
   $html->tpl_show(_include('ureports_user', 'Ureports'), { %{$attr}, %{$Ureports} }, { ID => 'ureports_user' });
+
+  if (! $LIST_PARAMS{UID}) {
+    $LIST_PARAMS{UID} = $users->{UID};
+  }
 
   result_former({
     INPUT_DATA      => $Ureports,
@@ -658,7 +663,7 @@ sub ureports_tp {
       elsif ($col_name eq 'payment_type') {
         $line->{payment_type} = $Payment_Types[ $line->{payment_type}  ];
       }
-      elsif ($col_name =~ /time_tarifs|traf_tarifs/) {
+      elsif ($col_name =~ m/time_tarifs|traf_tarifs/x) {
         $line->{$col_name} = $bool_vals[ $line->{$col_name} ];
       }
 
@@ -827,9 +832,9 @@ sub ureports_stats {
 =cut
 #**********************************************************
 sub ureports_user_info {
-  my $report_type = $FORM{TYPE} || 0;
+  #my $report_type = $FORM{TYPE} || 0;
 
-  my @report_types = $FORM{TYPE} ? split(',\s?', $FORM{TYPE}) : (0);
+  my @report_types = ($FORM{TYPE}) ? split(',\s?', $FORM{TYPE}) : (0);
   my @destinations = ();
 
   foreach my $type (@report_types) {
@@ -838,10 +843,10 @@ sub ureports_user_info {
 
   if ($FORM{add}) {
     if (in_array(0, \@report_types)
-      && (!$FORM{DESTINATION} || $FORM{DESTINATION_9} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
+      && (!email_valid($FORM{DESTINATION}))) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
-    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/) {
+    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ m/$conf{PHONE_FORMAT}/x) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     elsif (!$FORM{TP_ID}) {
@@ -862,10 +867,10 @@ sub ureports_user_info {
     }
   }
   elsif ($FORM{set}) {
-    if (in_array(0, \@report_types) && $FORM{DESTINATION_9} && $FORM{DESTINATION_9} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if (in_array(0, \@report_types) && ! email_valid($FORM{DESTINATION_9})) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
-    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/) {
+    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ m/$conf{PHONE_FORMAT}/x) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else {
@@ -973,11 +978,11 @@ sub ureports_user_info {
 
   # Choose destination type and value
   if ($conf{UREPORTS_ALLOWED_TYPES}) {
-    my @types = split(/,\s?/, $conf{UREPORTS_ALLOWED_TYPES});
+    my @types = split(/,\s?/x, $conf{UREPORTS_ALLOWED_TYPES});
     my %rev_service_type = reverse %service_type;
     my %user_types = ();
-    foreach (@types) {
-      $user_types{$_} = $rev_service_type{$_} if ($_);
+    foreach my $type (@types) {
+      $user_types{$type} = $rev_service_type{$type} if ($type);
     }
     %service_type = reverse %user_types;
   }
@@ -1011,8 +1016,8 @@ sub ureports_user_info {
     ARRAY_NUM_ID => 1
   });
 
-  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//gm if ($Ureports->{DESTINATIONS});
-  my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
+  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//xgm if ($Ureports->{DESTINATIONS});
+  my %destinations = $Ureports->{DESTINATIONS} ? split(/[|,]/x, $Ureports->{DESTINATIONS}) : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
   $html->tpl_show(_include('ureports_client_user', 'Ureports'), $Ureports);
@@ -1037,7 +1042,7 @@ sub ureports_daily_resets {
   $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   $Ureports->{debug} = 1 if ($debug > 6);
 
-  my $d = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
+  my $d = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
   if ($d == 1) {
     my $list = $Ureports->tp_user_reports_list({
       REPORT_ID => "13;14;3;11;10;9",
@@ -1106,7 +1111,7 @@ sub ureports_periodic_reports {
   $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
 
   #Reset reports
-  my (undef, undef, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my (undef, undef, $d) = split('-', $ADMIN_REPORT{DATE}, 3);
 
   if ($d == 1) {
     $Ureports->tp_user_reports_reset_date({
@@ -1241,7 +1246,7 @@ sub ureports_extra_reports {
 
   my $contents = _get_files_in($mod_path, { FILTER => '\.pm' });
   foreach my $report_module (@{$contents}) {
-    $report_module =~ s/\.pm//;
+    $report_module =~ s/\.pm//x;
     my $plugin_name = "Ureports::Plugins::$report_module";
 
     my $report = load_plugin($plugin_name, {
@@ -1318,7 +1323,7 @@ sub ureports_tp_reports {
       });
 
       $table->addrow($html->form_input("IDS", $report_id,
-        { TYPE => 'checkbox', STATE => ($TP_REPORTS{$report_id}) ? 1 : undef }) . $report_id,
+        { TYPE => 'checkbox', EX_PARAMS=>"alt=$report_id", STATE => ($TP_REPORTS{$report_id}) ? 1 : undef }) . $report_id,
         $REPORTS{$report_id},
         $html->form_input('COMMENTS_' . $report_id, $TP_REPORTS{$report_id}{COMMENTS}),
         $html->form_input('PRICE_' . $report_id, (($TP_REPORTS{$report_id}) ? $TP_REPORTS{$report_id}{PRICE} : '0.00')),
@@ -1722,7 +1727,7 @@ sub ureports_monthly_periodic {
 
     return 1 if($month_fee <= 0);
 
-    my ($y, $m, undef) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+    my ($y, $m, undef) = split('-', $ADMIN_REPORT{DATE}, 3);
 
     $m-=1;
     if ($m == 0) {
@@ -1733,38 +1738,34 @@ sub ureports_monthly_periodic {
 
     my $DATE = $y."-".$m."-02";
 
-    my $info = $Ureports->tp_info($TP_INFO->{TP_ID},{
-      DATE=>$DATE});
+    my $info = $Ureports->tp_info($TP_INFO->{TP_ID},{ DATE=>$DATE });
 
     if ($info->{LAST_ACTIVE}) {
-
       my $ulist = $Ureports->user_list({
         TP_ID     => $TP_INFO->{TP_ID},
         STATUS    => "_SHOW",
         COLS_NAME => 1,
       });
 
-
       foreach my $u (@{$ulist}) {
-
-        next if($u->{status} != 0);
+        next if ($u->{status} != 0);
 
         my $user = $users->info($u->{uid});
 
-        if(!$postpaid){
+        if (!$postpaid) {
           my $ext = $user->{EXT_DEPOSIT} ? $user->{EXT_DEPOSIT} : 0;
-          if($ext + $user->{DEPOSIT} + $user->{CREDIT} > $month_fee){
+          if ($ext + $user->{DEPOSIT} + $user->{CREDIT} > $month_fee) {
             $Fees->take($user, $month_fee, { %PARAMS });
-          } else {
+          }
+          else {
             $Ureports->user_change({
               UID    => $user->{UID},
               STATUS => 1
             })
           }
-        } else {
-
+        }
+        else {
           $Fees->take($user, $month_fee, { %PARAMS });
-
         }
       }
 
@@ -1779,27 +1780,39 @@ sub ureports_monthly_periodic {
 }
 
 #**********************************************************
-=head2 _ureports_destination_filter()
+=head2 _ureports_destination_filter($destination)
+
+  Argumnets:
+    $destination
+
+  Results:
+    $destination
 
 =cut
 #**********************************************************
 sub _ureports_destination_filter {
   my $destination = shift;
 
-  return '' if !$destination;
-  return join('; ', map($_ || ' ', split(/,\s?/, $destination)));
+  return '' if (!$destination);
+  return join('; ', map($_ || ' ', split(/,\s?/x, $destination)));
 }
 
 #**********************************************************
-=head2 _ureports_type_filter()
+=head2 _ureports_type_filter($type)
+
+  Arguments:
+    $type
+
+  Results:
+    $types
 
 =cut
 #**********************************************************
 sub _ureports_type_filter {
   my $type = shift;
 
-  return '' if !$type;
-  return join('; ', map($service_type{$_} || $_, split(/,\s?/, $type)));
+  return '' if (!$type);
+  return join('; ', map($service_type{$_} || $_, split(/,\s?/x, $type)));
 }
 
 1

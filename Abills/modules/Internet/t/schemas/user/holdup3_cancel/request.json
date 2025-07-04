@@ -2,5 +2,6 @@
   "name": "USER_HOLDUP_CANCEL",
   "method": "DELETE",
   "path": "user/:id/holdup/",
-  "params": {}
+  "params": {},
+  "conf" : "HOLDUP_ALL"
 }

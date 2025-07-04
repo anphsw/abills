@@ -1,3 +1,5 @@
+/internet/sessions/:
+  $ref: "./paths/sessions.yaml"
 /internet/sessions/{uid}:
   $ref: "./paths/sessions_uid.yaml"
 /internet/{uid}/session/hangup:
@@ -6,6 +8,8 @@
   $ref: "./paths/uid_id_warnings.yaml"
 /internet/{uid}/activate:
   $ref: "./paths/uid_activate.yaml"
+/internet/users/{uid}/services/{id}:
+  $ref: "./paths/users_uid_service.yaml"
 /internet/{uid}/:
   $ref: "./paths/uid.yaml"
 /internet/tariffs/:

@@ -16,6 +16,16 @@ our (
   %conf,
   %lang,
   $admin,
+  %FORM,
+  $pages_qs,
+  $index,
+  $users,
+  $SELF_URL,
+  @MODULES,
+  $DATE,
+  @_COLORS,
+  @MONTHES,
+  @WEEKDAYS
 );
 
 our Abills::HTML $html;
@@ -37,7 +47,7 @@ require Control::Services;
 =cut
 #**********************************************************
 sub triplay_users_services {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   triplay_users_search($Triplay);
 
@@ -137,39 +147,6 @@ sub _triplay_abonplata_count {
 }
 
 #**********************************************************
-=head2 triplay_user_add ($attr) - User add
-
-  Arguments:
-    $attr
-
-  Returns:
-    TRUE or FALSE
-
-=cut
-#**********************************************************
-sub triplay_user_add {
-  my ($attr)=@_;
-
-  $Triplay->user_add($attr);
-
-  if (!$Triplay->{errno}) {
-    $Triplay_base->triplay_service_activate_web({
-      %$attr,
-      USER_INFO => $users,
-      TP_INFO   => $Triplay->{TP_INFO}
-    });
-  }
-  else {
-    if ($Triplay->{errno} && $Triplay->{errno} == 3) {
-      $html->message('err', "$lang{WRONG} $lang{TARIF_PLAN}", "$lang{CHOOSE} $lang{TARIF_PLAN}", { ID => 1301 });
-    }
-    return 0;
-  }
-
-  return 1;
-}
-
-#**********************************************************
 =head2 triplay_user($attr) - in menu services
 
   Arguments:
@@ -183,103 +160,60 @@ sub triplay_user {
   my ($attr) = @_;
 
   my $services_info = '';
-  $Triplay->{ACTION} = 'add';
-  $Triplay->{ACTION_LNG} = $lang{ADD};
+
   my $uid = $FORM{UID} || 0;
+  my $Triplay_services = Triplay::Services->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   if ($FORM{TP_ID}) {
     $Triplay->tp_info({ TP_ID => $FORM{TP_ID} });
-    # if ($Triplay->{AGE} && ! $FORM{DISABLE}) {
-    #   my $expire = expire_date($Triplay, $Triplay);
-    #   $FORM{EXPIRE} = $Triplay->{EXPIRE};
-    # }
   }
 
   if ($FORM{add}) {
-    if (triplay_user_add({ %FORM, %{($attr) ? $attr : {}} })) {
+    if ($Triplay_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
       $html->message('info', '3Play', $lang{ADDED});
+      return 1 if ($attr->{REGISTRATION});
     }
   }
   elsif ($FORM{change}) {
-    $Triplay->user_change(\%FORM);
-
-    if (!$Triplay->{errno}) {
-      my $changed = $Triplay->{AFFECTED};
-      $Triplay->user_info({ UID => $uid });
-
-
-      my $service_list = $Triplay->service_list({
-        UID        => $uid,
-        MODULE     => '_SHOW',
-        SERVICE_ID => '_SHOW',
-        COLS_NAME  => 1
-      });
-
-      foreach my $service (@$service_list) {
-        $FORM{uc($service->{module}) . '_SERVICE_ID'} = $service->{service_id} if ($service->{service_id});
-      }
-
-      if ($changed) {
-        $FORM{TP_ID} = $Triplay->{TP_ID};
-        if ($FORM{DISABLE}) {
-          $FORM{STATUS} = $FORM{DISABLE};
-        }
-
-        $Triplay_base->triplay_service_activate_web({
-          %FORM,
-          USER_INFO => $users,
-          TP_INFO   => $Triplay->{TP_INFO}
-        });
-      }
-      $html->message('info', $lang{SUCCESS}, $lang{CHANGED});
-      #service_get_month_fee($Triplay, { SERVICE_NAME => 'Triplay', MODULE => 'Triplay' });
+    if ($Triplay_services->user_change({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+      $html->message('info', '3Play', $lang{CHANGED});
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS} && $admin->{permissions}{0}{18}) {
-    my $del_result = $Triplay_base->triplay_service_del({ %FORM, USER_INFO => $users });
+    my $del_result = $Triplay_services->user_del({ %FORM, USER_INFO => $users });
     $del_result->{message} = $del_result->{errmsg} if $del_result->{errmsg};
-    # $Triplay->user_del({ UID => $uid });
     if (!_error_show($del_result)) {
       $html->message('info', $lang{INFO}, "$lang{USER} $lang{DELETED}");
     }
   }
 
-  _error_show($Triplay, { ID => 1135001 });
+  _error_show($Triplay_services, { ID => 1130000 });
 
-  my $user_info = $Triplay->user_info({ UID => $uid });
+  my $user_info = $Triplay_services->user_info({ UID => $uid });
 
   if ($user_info->{TOTAL} && $user_info->{TOTAL} > 0) {
-    $Triplay->{ACTION_LNG} = $lang{CHANGE};
+    $Triplay->{LNG_ACTION} = $lang{CHANGE};
     $Triplay->{ACTION} = 'change';
 
     # Show tooltip COMMENTS for user and admin
     my $tarif_plan_tooltip = '';
-    if ($Triplay->{TP_ID}) {
+    if ($user_info->{TP_ID}) {
       $tarif_plan_tooltip =
-        $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ': ' . ($Triplay->{COMMENTS} || '') . $html->br()
-          . $html->b($lang{DESCRIBE_FOR_ADMIN}) . ': ' . ($Triplay->{DESCRIBE_AID} || '') . $html->br();
+        $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ': ' . ($user_info->{COMMENTS} || '') . $html->br()
+          . $html->b($lang{DESCRIBE_FOR_ADMIN}) . ': ' . ($user_info->{DESCRIBE_AID} || '') . $html->br();
     }
 
-    $Triplay->{DESCRIBE_AID} = ($Triplay->{DESCRIBE_AID}) ? ('[' . $Triplay->{DESCRIBE_AID} . ']') : '';
+    $user_info->{DESCRIBE_AID} = ($user_info->{DESCRIBE_AID}) ? ('[' . $user_info->{DESCRIBE_AID} . ']') : '';
 
     if ($admin->{permissions}{0}{10}) {
-      $Triplay->{CHANGE_TP_BUTTON} = $html->button('',
+      $user_info->{CHANGE_TP_BUTTON} = $html->button('',
         'ID=' . ($user_info->{ID} || q{}) . '&UID=' . $uid . '&index=' . get_function_index('triplay_chg_tp'),
         { class => 'btn input-group-button hidden-print', TITLE => $lang{CHANGE}, ICON => "fa fa-pencil-alt" });
-      $Triplay->{TARIF_PLAN_TOOLTIP} = "data-tooltip='$tarif_plan_tooltip' data-tooltip-position='top'";
+      $user_info->{TARIF_PLAN_TOOLTIP} = "data-tooltip='$tarif_plan_tooltip' data-tooltip-position='top'";
     }
 
-    my $service_list = $Triplay->service_list({
-      UID        => $uid,
-      MODULE     => '_SHOW',
-      SERVICE_ID => '_SHOW',
-      COLS_NAME  => 1
-    });
+    my $user_services = $Triplay_services->{user_services};
 
-    my %user_services = ();
-    foreach my $service (@$service_list) {
-      $user_services{uc($service->{module}) . '_SERVICE_ID'} = $service->{service_id};
-    }
 
     my $service_status = ::sel_status({ HASH_RESULT => 1 });
     my $services = ::get_services($user_info, {
@@ -290,7 +224,7 @@ sub triplay_user {
     my %real_service = ();
     foreach my $service (sort @{$services->{list}}) {
       if ($service->{ID}) {
-        my ($status_name, $color) = split( /:/, $service_status->{ $service->{STATUS} } );
+        my ($status_name, $color) = split(':', $service_status->{ $service->{STATUS} } );
         my $status = $html->color_mark( $status_name, $color );
         $real_service{$service->{MODULE}} = $service->{SERVICE_NAME} . ' ('. $status .')';
       }
@@ -307,13 +241,23 @@ sub triplay_user {
       IPTV_REAL     =>  ( ( $real_service{Iptv} ) ? $real_service{Iptv} :  q{} ),
       ABON_TP       => ($tp_info->{ABON_NAME} || q{}),
       ABON_REAL     =>  ( ( $real_service{Abon} ) ? $real_service{Abon} :  q{} ),
-      INTERNET_LINK => "$SELF_URL?index=" . get_function_index('internet_user') . "&UID=" . $uid . '&chg=' . ($user_services{INTERNET_SERVICE_ID} || q{}),
-      VOIP_LINK     => in_array('Voip', \@MODULES) ? "$SELF_URL?index=" . get_function_index('voip_user') . "&UID=" . $uid . '&chg=' . ($user_services{VOIP_SERVICE_ID} || q{}) : q{},
-      ABON_LINK     => in_array('Abon', \@MODULES) ? "$SELF_URL?index=" . get_function_index('abon_user') . "&UID=" . $uid . '&chg=' . ($user_services{ABON_SERVICE_ID} || q{}) : q{},
-      IPTV_LINK     => "$SELF_URL?index=" . get_function_index('iptv_user') . "&UID=" . $uid . '&chg=' . ($user_services{IPTV_SERVICE_ID} || q{}),
+      INTERNET_LINK => "$SELF_URL?index=" . get_function_index('internet_user') . "&UID=" . $uid . '&chg=' . ($user_services->{INTERNET_SERVICE_ID} || q{}),
+      VOIP_LINK     => in_array('Voip', \@MODULES) ? "$SELF_URL?index=" . get_function_index('voip_user') . "&UID=" . $uid . '&chg=' . ($user_services->{VOIP_SERVICE_ID} || q{}) : q{},
+      ABON_LINK     => in_array('Abon', \@MODULES) ? "$SELF_URL?index=" . get_function_index('abon_user') . "&UID=" . $uid . '&chg=' . ($user_services->{ABON_SERVICE_ID} || q{}) : q{},
+      IPTV_LINK     => "$SELF_URL?index=" . get_function_index('iptv_user') . "&UID=" . $uid . '&chg=' . ($user_services->{IPTV_SERVICE_ID} || q{}),
     }, { OUTPUT2RETURN => 1 });
   }
   else {
+    if ($attr->{ACTION}) {
+      $Triplay->{ACTION} = $attr->{ACTION};
+      $Triplay->{LNG_ACTION} = $attr->{LNG_ACTION};
+    }
+    else {
+      $Triplay->{ACTION} = 'add';
+      $Triplay->{LNG_ACTION} = $lang{ACTIVATE};
+      #$html->message('warn', $lang{INFO}, "$lang{INTERNET}: $lang{NOT_ACTIVE}", { ID => 1360908 }) unless ($FORM{STATMENT_ACCOUNT});
+    }
+
     my %services_sel = ();
     my @services = ('Internet', 'Iptv', 'Voip');
     foreach my $service (@services) {
@@ -337,6 +281,8 @@ sub triplay_user {
       USER_INFO               => $users,
       MODULE                  => 'Triplay',
       SELECT                  => 'TP_ID',
+      TP_ID                   => $conf{TRIPLAY_DEFAULT_TP},
+      SHOW_ALL => 1,
       GROUP_SORT              => 1,
       EX_PARAMS               => { SORT_KEY => 1 }
     });
@@ -344,14 +290,23 @@ sub triplay_user {
     $Triplay->{TP_DISPLAY_NONE} = "style='display:none'";
   }
 
+  if ($admin->{permissions}{0}{4} && $uid) {
+    $Triplay->{SCHEDULE} = {
+      EXT_BUTTON => $html->button('', "UID=$uid&SCHEDULE=status&get_index=triplay_form_schedule&full=1",{
+        class => 'btn input-group-button hidden-print rounded-left-0',
+        ICON  => 'fa fa-calendar',
+      })
+    };
+  }
+
   $Triplay->{STATUS_SEL} = sel_status({
-    DISABLE   => $Triplay->{DISABLE} || $FORM{DISABLE},
+    DISABLE   => $Triplay->{DISABLE} || $user_info->{DISABLE} || $FORM{DISABLE},
     NAME      => 'DISABLE',
-    EX_PARAMS => (defined($Triplay->{STATUS}) && (!$attr->{REGISTRATION} && !$admin->{permissions}{0}{18})) ? " disabled=disabled" : ''
-  }, $Triplay->{SHEDULE} || {});
+    EX_PARAMS => (defined($Triplay->{STATUS}) && (!$attr->{REGISTRATION} && !$admin->{permissions}{0}{18})) ? " disabled=disabled" : '',
+  }, $Triplay->{SCHEDULE} || {});
 
   if ($Triplay->{DISABLE}) {
-    my $service_status_colors = sel_status({ COLORS => 1 });
+    my $service_status_colors = sel_status({ COLORS => 1 }, $Triplay->{SCHEDULE} || {});
     $Triplay->{STATUS_COLOR} = $service_status_colors->[$Triplay->{DISABLE} || 0];
   }
 
@@ -364,7 +319,9 @@ sub triplay_user {
   }
 
   my $result = $html->tpl_show(_include('triplay_user', 'Triplay'), {
+    %{$attr},
     %{$Triplay},
+    %{$user_info},
     INDEX         => get_function_index('triplay_user'),
     UID           => $uid,
     SERVICES_INFO => $services_info
@@ -424,6 +381,11 @@ sub triplay_chg_tp {
     return 1;
   }
 
+  if (! defined($users->{DEPOSIT})) {
+    $html->message('warn', $lang{ERROR}, $lang{ERR_WRONG_BILL_ID} , { ID => 1130949 });
+    return 1;
+  }
+
   if ($FORM{TP_ID} && $FORM{TP_ID} eq ($Triplay->{TP_ID} || '')) {
     $html->message('warn', '', "$lang{TARIF_PLANS} $lang{EXIST}", { ID => 1130945 });
   }
@@ -440,12 +402,12 @@ sub triplay_chg_tp {
       || ($Triplay->{PAYMENT_TYPE} && $Triplay->{PAYMENT_TYPE} == 1))
   ) {
     if ($Triplay->{ACTIVATE} && $Triplay->{ACTIVATE} ne '0000-00-00') {
-      my ($Y, $M, $D) = split(/-/, $Triplay->{ACTIVATE}, 3);
+      my ($Y, $M, $D) = split('-', $Triplay->{ACTIVATE}, 3);
       $M--;
       $Triplay->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400 + (($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} * 86400 : 0))));
     }
     else {
-      my ($Y, $M, $D) = split(/-/, $DATE, 3);
+      my ($Y, $M, $D) = split('-', $DATE, 3);
       $M++;
       if ($M == 13) {
         $M = 1;
@@ -462,35 +424,24 @@ sub triplay_chg_tp {
     }
   }
 
+  if ($Triplay->{DISABLE}) {
+    my $service_status = ::sel_status({ HASH_RESULT => 1 });
+    my ($status_name, undef) = split(':', $service_status->{ $Triplay->{DISABLE} } );
+    $html->message('err', $lang{ERROR}, $lang{NOT_ACTIVE}. "\n$lang{STATUS}: $status_name", { ID => 1130947 });
+    return 1;
+  }
+
   my $message = '';
   if ($FORM{set}) {
-    #TODO: use if all good
-    # require Internet::Services;
-    # Internet::Services->import();
-    # my $Triplay_services = Internet::Services->new($db, $admin, \%conf, {
-    #   lang        => \%lang,
-    #   permissions => \%permissions
-    # });
-    #
-    # my $result = $Triplay_services->internet_user_chg_tp(\%FORM);
-    # $Triplay->user_info($uid, { ID => $FORM{ID} });
-
-    if ($Triplay->{DISABLE}) {
-      my $service_status = ::sel_status({ HASH_RESULT => 1 });
-      my ($status_name, undef) = split( /:/, $service_status->{ $Triplay->{DISABLE} } );
-      $html->message('err', $lang{ERROR}, $lang{NOT_ACTIVE}. "\n$lang{STATUS}: $status_name", { ID => 1130947 });
-      return 1;
-    }
-
     $Tariffs->info(0, { TP_ID => $FORM{TP_ID} });
 
-    my ($year, $month, $day) = split(/-/, $DATE, 3);
+    my ($year, $month, $day) = split('-', $DATE, 3);
     if ($period > 0) {
       if ($period == 1) {
-        ($year, $month, $day) = split(/-/, $Triplay->{ABON_DATE}, 3);
+        ($year, $month, $day) = split('-', $Triplay->{ABON_DATE}, 3);
       }
       else {
-        ($year, $month, $day) = split(/-/, $FORM{DATE}, 3);
+        ($year, $month, $day) = split('-', $FORM{DATE}, 3);
       }
 
       my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
@@ -530,6 +481,8 @@ sub triplay_chg_tp {
         $FORM{ACTIVATE} = $DATE;
       }
 
+      #Delete next period date
+      delete $FORM{DATE};
       if ($Tariffs->{AGE}) {
         delete $FORM{RECALCULATE};
       }
@@ -543,16 +496,10 @@ sub triplay_chg_tp {
         $FORM{ACTIVE_SERVICE} = 1;
       }
 
-      if (!_error_show($Triplay, { RIZE_ERROR => 1 })) {
+      if (!_error_show($Triplay, { RIZE_ERROR => 1 }) && $Triplay->{AFFECTED}) {
         #Take fees
         $Triplay->user_info({ UID => $uid, ID => $FORM{chg} });
         if (!$Triplay->{STATUS} && $FORM{GET_ABON}) {
-          # service_get_month_fee($Triplay, {
-          #   SERVICE_NAME => 'Triplay',
-          #   MODULE       => 'Triplay',
-          #   RECALCULATE  => $FORM{RECALCULATE}
-          # });
-
           if ($FORM{ACTIVE_SERVICE}) {
             $FORM{STATUS} = 0;
             #$Triplay->user_change(\%FORM);
@@ -563,7 +510,7 @@ sub triplay_chg_tp {
         }
 
         delete $Triplay->{TP_INFO}->{ACTIV_PRICE};
-        $Triplay_base->triplay_service_activate_web({
+        $Triplay_base->triplay_service_activate({
           %FORM,
           USER_INFO   => $users,
           TP_INFO_OLD => $Triplay->{TP_INFO_OLD},
@@ -721,17 +668,17 @@ sub triplay_get_services {
   });
 
   if ($attr->{SELECT}) {
-    my $select_id = $attr->{$attr->{SELECT}} || $FORM{$attr->{SELECT}} || q{};
     return '';
-    $html->form_select($attr->{SELECT},
-      {
-        SELECTED => $select_id,
-        SEL_LIST => $service_list,
-        SEL_KEY  => 'id',
-        SEL_VALUE=> 'tp_name,tp_id',
-        MAIN_MENU => get_function_index(lc($attr->{MODULE}).'_user'),
-        MAIN_MENU_ARGV => ($select_id) ? "chg=$select_id" : ''
-      });
+    #my $select_id = $attr->{$attr->{SELECT}} || $FORM{$attr->{SELECT}} || q{};
+    # $html->form_select($attr->{SELECT},
+    #   {
+    #     SELECTED => $select_id,
+    #     SEL_LIST => $service_list,
+    #     SEL_KEY  => 'id',
+    #     SEL_VALUE=> 'tp_name,tp_id',
+    #     MAIN_MENU => get_function_index(lc($attr->{MODULE}).'_user'),
+    #     MAIN_MENU_ARGV => ($select_id) ? "chg=$select_id" : ''
+    #   });
   }
 
   foreach my $service (@$service_list) {
@@ -842,6 +789,127 @@ sub triplay_users_search{
 
   return 1;
 };
+
+#**********************************************************
+=head2 triplay_form_schedule($attr) - Triplay schedule
+
+=cut
+#**********************************************************
+sub triplay_form_schedule {
+
+  if ($FORM{add} && $admin->{permissions}{0}{18} && defined($FORM{ACTION})) {
+    my ($Y, $M, $D) = split(/-/, ($FORM{DATE} || $DATE), 3);
+
+    if (date_diff($DATE, "$Y-$M-$D") < 1) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: $lang{DATE}");
+    }
+    else {
+      $Shedule->add({
+        UID    => $FORM{UID},
+        TYPE   => $FORM{SCHEDULE} || q{},
+        ACTION => ":$FORM{ACTION}",
+        D      => $D,
+        M      => $M,
+        Y      => $Y,
+        MODULE => 'Triplay'
+      });
+      if (!_error_show($Shedule, { ID => 971 })) {
+        $html->message('info', $lang{CHANGED}, "$lang{SHEDULE} $lang{ADDED}");
+      }
+    }
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS} && $admin->{permissions}{0}{18}) {
+    $Shedule->del({ ID => $FORM{del} });
+    if (!_error_show($Shedule)) {
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}]");
+    }
+  }
+
+  if ($FORM{SCHEDULE} && $FORM{SCHEDULE} eq 'status' && $admin->{permissions}{0}{18}) {
+    my $service_status = sel_status({ HASH_RESULT => 1 });
+
+    $html->tpl_show(_include('triplay_schedule_add_form', 'Triplay'), { %FORM,
+      DATE_PICKER => $html->date_fld2('DATE', {
+        NEXT_DAY  => 1,
+        MONTHES   => \@MONTHES,
+        WEEK_DAYS => \@WEEKDAYS
+      }),
+      STATUS_SEL  => $html->form_select('ACTION', {
+        SELECTED   => $FORM{ACTION},
+        SEL_HASH   => $service_status,
+        USE_COLORS => 1,
+        NO_ID      => 1
+      })
+    });
+  }
+
+  _triplay_schedule_list({ UID => $FORM{UID} });
+}
+
+#**********************************************************
+=head2 _triplay_schedule_list($attr) - Triplay schedule list
+
+=cut
+#**********************************************************
+sub _triplay_schedule_list {
+  my ($attr) = @_;
+
+  my $service_status = sel_status({ HASH_RESULT => 1 });
+  my $module = $attr->{MODULE} || q{Triplay};
+
+  my $list = $Shedule->list({
+    %LIST_PARAMS,
+    UID       => $attr->{UID},
+    MODULE    => $module,
+    COLS_NAME => 1
+  });
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{SHEDULE},
+    title   => [ $lang{HOURS}, $lang{DAY}, $lang{MONTH}, $lang{YEAR}, $lang{COUNT}, $lang{USER}, $lang{TYPE},
+      $lang{VALUE}, $lang{MODULES}, $lang{ADMINS}, $lang{CREATED}, "-" ],
+    qs      => $pages_qs,
+    pages   => $Shedule->{TOTAL},
+    ID      => uc($module) . '_SCHEDULE'
+  });
+
+  foreach my $line (@$list) {
+    my $delete = ($admin->{permissions}{0}{4}) ? $html->button($lang{DEL}, "index=$index&del=$line->{id}&UID=$line->{uid}",
+      { MESSAGE => "$lang{DEL} [$line->{id}]?", class => 'del', TEXT => $lang{DEL} }) : '-';
+
+    my $action = $line->{action};
+    my $service_id = 0;
+
+    if ($action =~ /:/) {
+      ($service_id, $action) = split(/:/, $action);
+    }
+
+    if ($line->{type} eq 'status') {
+      $action = $html->color_mark($service_status->{ $action });
+    }
+    else {
+      $action = sel_tp({ TP_ID => $action }) . (($service_id) ? " ($service_id)" : q{});
+    }
+
+    $table->addrow($html->b($line->{h}), $line->{d}, $line->{m}, $line->{y}, $line->{counts},
+      $html->button($line->{login}, "index=15&UID=$line->{uid}"), $line->{type}, $action, $line->{module},
+      $line->{admin_name}, $line->{date}, $delete
+    );
+  }
+
+  print $table->show();
+
+  $table = $html->table({
+    width => '100%',
+    ID    => uc($module) . '_SCHEDULE_TOTAL',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Shedule->{TOTAL}) ] ]
+  });
+
+  print $table->show();
+
+  return 1;
+}
 
 
 1;

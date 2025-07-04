@@ -32,7 +32,7 @@ sub new {
 
   bless($self, $class);
 
-  if(! $CONF->{KBYTE_SIZE}) {
+  if (! $CONF->{KBYTE_SIZE}) {
     $CONF->{KBYTE_SIZE} = 1024;
   }
 
@@ -164,7 +164,7 @@ sub traffic_calculations {
         }
       }
     }
-    elsif($self->{UID}) {
+    elsif ($self->{UID}) {
       #Get traffic from begin of month
       $used_traffic = $self->get_traffic({
         UID        => $self->{UID},
@@ -175,7 +175,7 @@ sub traffic_calculations {
     }
 
     if ($CONF->{rt_billing}) {
-      if($CONF->{INTERNET_INTERVAL_PREPAID}) {
+      if ($CONF->{INTERNET_INTERVAL_PREPAID}) {
 
       }
       else {
@@ -192,7 +192,7 @@ sub traffic_calculations {
     $used_traffic->{ONLINE} = 0;
 
     #Recv / IN
-    if ($self->{OCTETS_DIRECTION} == 1) {
+    if ($self->{OCTETS_DIRECTION} && $self->{OCTETS_DIRECTION} == 1) {
       $used_traffic->{TRAFFIC_SUM}   = $used_traffic->{TRAFFIC_IN};
       $used_traffic->{TRAFFIC_SUM_2} = $used_traffic->{TRAFFIC_IN_2};
       $used_traffic->{ONLINE}        = $recv;
@@ -200,7 +200,7 @@ sub traffic_calculations {
     }
 
     #Sent / Out
-    elsif ($self->{OCTETS_DIRECTION} == 2) {
+    elsif ($self->{OCTETS_DIRECTION} && $self->{OCTETS_DIRECTION} == 2) {
       $used_traffic->{TRAFFIC_SUM}   = $used_traffic->{TRAFFIC_OUT};
       $used_traffic->{TRAFFIC_SUM_2} = $used_traffic->{TRAFFIC_OUT_2};
       $used_traffic->{ONLINE}        = $sent;
@@ -502,7 +502,7 @@ sub session_sum {
   $attr->{DOMAIN_ID}  = 0    if (!$attr->{DOMAIN_ID});
   delete $CONF->{rt_billing} if ($attr->{disable_rt_billing});
   $self->{TI_ID}      = 0;
-  if(! $SESSION_START) {
+  if (! $SESSION_START) {
     $SESSION_START = 'UNIX_TIMESTAMP()';
   }
   my $sent  = $RAD->{'Acct-Input-Octets'}  || 0;    #from server
@@ -555,8 +555,9 @@ sub session_sum {
 
     $self->{UID} = $attr->{UID};
 
-    if($attr->{TP_ID}) {
-      $self->query("SELECT
+    if ($attr->{TP_ID}) {
+      $self->query(
+        "SELECT
     tp.min_session_cost,
     tp.payment_type,
     tp.octets_direction,
@@ -618,8 +619,9 @@ sub session_sum {
 
     $self->{UID} = $attr->{UID};
 
-    if($attr->{TP_ID}) {
-      $self->query("SELECT
+    if ($attr->{TP_ID}) {
+      $self->query(
+        "SELECT
     tp.min_session_cost,
     tp.payment_type,
     tp.octets_direction,
@@ -998,7 +1000,7 @@ sub session_splitter {
         print "  INT/TIME: $division_time_arr[$#division_time_arr]\n" if ($debug == 1);
         next;
       }
-      elsif($start > 86400) {
+      elsif ($start > 86400) {
         $self->{NO_TPINTERVALS} = 1;
         last;
       }
@@ -1290,7 +1292,7 @@ sub remaining_time {
         }
 
         #Time calculations/ Time tariff price
-        if($periods_time_tarif->{$int_id}) {
+        if ($periods_time_tarif->{$int_id}) {
           if ($periods_time_tarif->{$int_id} =~ /%$/) {
             my $tp = $periods_time_tarif->{$int_id};
             $tp =~ s/\%//;
@@ -1339,7 +1341,7 @@ sub remaining_time {
         }
         elsif ($price > 0) {
           $int_prepaid = int($deposit / $price * $PRICE_UNIT);
-          if($#intervals == 0 && $int_prepaid > 0) {
+          if ($#intervals == 0 && $int_prepaid > 0) {
             return $int_prepaid, \%ATTR;
           }
           elsif ($int_prepaid == 0) {
@@ -1459,7 +1461,7 @@ sub expression {
 
     my %ex = ();
     my $counters;
-    if($attr->{TI_ID}) {
+    if ($attr->{TI_ID}) {
       $self->{TI_ID} = $attr->{TI_ID};
     }
 

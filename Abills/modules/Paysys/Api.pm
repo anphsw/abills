@@ -153,6 +153,15 @@ sub admin_routes {
         'ADMIN', 'ADMINSID'
       ]
     },
+    {
+      method      => 'GET',
+      path        => '/paysys/systems/:id/merchants/tooltips/',
+      controller  => 'Paysys::Api::admin::Merchants',
+      endpoint    => \&Paysys::Api::admin::Merchants::get_paysys_merchants_tooltips,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
   ]
 }
 

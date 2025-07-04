@@ -1,0 +1,83 @@
+type: object
+properties:
+  comment:
+    type: string
+    example: "Cool comment"
+  comments:
+    type: string
+    example: "Cool comments"
+  dayAbon:
+    type: integer
+    example: 0
+  disable:
+    type: integer
+    example: 2
+  expire:
+    type: string
+    example: "0000-00-00"
+  monthAbon:
+    type: number
+    example: 500
+  personalTp:
+    type: integer
+    example: 0
+  reductionFee:
+    type: number
+    example: 0
+  serviceExpire:
+    type: string
+    format: date
+    example: "0000-00-00"
+  serviceStatus:
+    type: integer
+    example: 2
+  total:
+    type: integer
+    example: 1
+  tpCredit:
+    type: number
+    example: 0
+  tpId:
+    type: integer
+    example: 115
+  tpName:
+    type: string
+    example: triplay second tp
+  tpNum:
+    type: integer
+    example: 65535
+  tpPeriodAlignment:
+    type: integer
+    example: 0
+  uid:
+    type: integer
+    example: 10
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 48
+        module:
+          type: string
+          example: Iptv
+        serviceId:
+          type: integer
+          example: 869
+        uid:
+          type: integer
+          example: 10
+  userServices:
+    type: object
+    properties:
+      abonServiceId:
+        type: integer
+        example: 2
+      internetServiceId:
+        type: integer
+        example: 291
+      iptvServiceId:
+        type: integer
+        example: 869

@@ -1,0 +1,22 @@
+get:
+  tags:
+    - info_fields
+  summary: Получить информацию о информационном поле
+  operationId: getInfoField
+  parameters:
+    - name: id
+      in: path
+      description: ID информационного поля
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/infofield.yaml"
+  security:
+    - KEY: []

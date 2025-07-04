@@ -2,11 +2,10 @@
 
 <input type='hidden' name='index' value=%INDEX%>
 
-<div class='card card-primary card-outline box-form'>
+<div class='card card-primary card-outline card-form'>
 <div class='card-header with-border text-primary'>_{UPLOAD}_</div>
 
 <div class='card-body'>
-	<label class='col-md-3'>_{FILE}_</label>
 	<div class='col-md-9'><input type='file' name=FILE></div>
 </div>
 

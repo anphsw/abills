@@ -175,7 +175,7 @@ sub iptv_reports_channels{
   }
   print $user_table->show();
 
-  
+
   return 1;
 }
 
@@ -232,12 +232,15 @@ sub iptv_console {
         name => $lang{NAME}
       },
       TABLE           => {
-        width   => '100%',
-        caption => ($Tv_service->{REPORT_NAME} && $lang{$Tv_service->{REPORT_NAME}}) ? $lang{$Tv_service->{REPORT_NAME}} : $Tv_service->{REPORT_NAME},
-        qs      => "&list=" . ($FORM{list} || '') . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
-        EXPORT  => 1,
-        ID      => 'TV_REPORTS',
-        header  => $Tv_service->{MENU}
+        width             => '100%',
+        caption           => ($Tv_service->{REPORT_NAME} && $lang{$Tv_service->{REPORT_NAME}}) ? $lang{$Tv_service->{REPORT_NAME}} : $Tv_service->{REPORT_NAME},
+        qs                => "&list=" . ($FORM{list} || '') .
+          (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : '') . "&TYPE=" . ($FORM{TYPE} || ''),
+        EXPORT            => 1,
+        ID                => 'TV_REPORTS',
+        header            => $Tv_service->{MENU},
+        CUSTOM_TOTAL_ROWS => $Tv_service->{TOTAL_ROWS},
+        ITEMS_PER_PAGE    => $Tv_service->{ITEMS_PER_PAGE},
       },
       DATAHASH        => $Tv_service->{REPORT},
       SKIPP_UTF_OFF   => ($Tv_service && $Tv_service->{SERVICE_NAME} eq 'Smotreshka') ? undef : 1,
@@ -339,6 +342,11 @@ sub iptv_month_report {
     }
   }
 
+  if ($FORM{MONTH} && $FORM{MONTH} !~ /^\d+$/) {
+    $FORM{MONTH} = sprintf("%d", $current_month);
+  }
+
+  $Iptv->{debug} = 1 if ($FORM{DEBUG});
   reports({
     PERIODS           => 1,
     NO_TAGS           => 1,
@@ -375,19 +383,69 @@ sub iptv_month_report {
   });
 
   $pages_qs .= "&YEAR=$FORM{YEAR}" if defined $FORM{YEAR} && $pages_qs !~ /&YEAR=/;
+  $pages_qs .= "&MONTH=$FORM{MONTH}" if defined $FORM{MONTH} && $pages_qs !~ /&MONTH=/;
   $pages_qs .= "&SERVICE_ID=$FORM{SERVICE_ID}" if defined $FORM{SERVICE_ID} && $pages_qs !~ /&SERVICE_ID=/;
+  $pages_qs .= "&USERS_REPORT=$FORM{USERS_REPORT}" if defined $FORM{USERS_REPORT} && $pages_qs !~ /&USERS_REPORT=/;
+
+  if ($FORM{USERS_REPORT}) {
+    my $user_report_table = $html->table({
+      caption => $lang{IPTV_MONTHLY_REPORT},
+      width   => '100%',
+      title   => [ $lang{USER}, $lang{TARIF_PLAN}, $lang{SERVICE}, $lang{IPTV_DAYS_OF_USE}, $lang{PHONE}, $lang{CELL_PHONE} ],
+      ID      => 'IPTV_USERS_MONTH_REPORT',
+      qs      => $pages_qs,
+      EXPORT  => 1,
+    });
+
+    my $services_list = $Iptv->iptv_monthly_active_users_list({
+      TP_ID        => $FORM{USERS_REPORT},
+      TP_NAME      => '_SHOW',
+      SERVICE_NAME => '_SHOW',
+      USERS        => '_SHOW',
+      DAYS         => '_SHOW',
+      CELL_PHONE   => '_SHOW',
+      PHONE        => '_SHOW',
+      UID          => '>0',
+      LOGIN        => '_SHOW',
+      GROUP_BY     => 'imr.uid',
+      %FORM,
+      COLS_NAME    => 1
+    });
+    foreach my $service (@{$services_list}) {
+      $service->{uid} //= '';
+      my $user_btn = $html->button($service->{login}, "get_index=form_users&header=1&full=1&UID=$service->{uid}");
+      $user_report_table->addrow($user_btn, $service->{tp_name}, $service->{service_name}, $service->{days},
+        $service->{phone}, $service->{cell_phone});
+    }
+
+    print $user_report_table->show();
+    return;
+  }
+
   my $table = $html->table({
     caption => $lang{IPTV_MONTHLY_REPORT},
     width   => '100%',
-    title   => [ $lang{TARIF_PLAN}, $lang{SERVICE}, $lang{USERS}, $lang{DAYS} ],
+    title   => [ $lang{TARIF_PLAN}, $lang{SERVICE}, $lang{USERS}, $lang{IPTV_DAYS_OF_USE} ],
     ID      => 'IPTV_MONTH_REPORT',
     qs      => $pages_qs,
     EXPORT  => 1,
   });
 
-  my $services_list = $Iptv->iptv_monthly_active_users_list({ %FORM, COLS_NAME => 1 });
+  my $services_list = $Iptv->iptv_monthly_active_users_list({
+    TP_NAME      => '_SHOW',
+    TP_ID        => '_SHOW',
+    SERVICE_NAME => '_SHOW',
+    USERS        => '_SHOW',
+    UID          => '>0',
+    DAYS         => '_SHOW',
+    %FORM,
+    COLS_NAME    => 1
+  });
+
+  $pages_qs //= '';
   foreach my $service (@{$services_list}) {
-    $table->addrow($service->{tp_name}, $service->{service_name}, $service->{users}, $service->{days});
+    my $users_btn = $service->{tp_id} ? $html->button($service->{users}, "index=$index&USERS_REPORT=$service->{tp_id}$pages_qs") : $service->{users};
+    $table->addrow($service->{tp_name}, $service->{service_name}, $users_btn, $service->{days});
   }
 
   print $table->show();

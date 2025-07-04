@@ -16,4 +16,5 @@ $lang{NOT_AVAILABLE}='Не доступний';
 $lang{EVERY_MONTH}='Кожен місяць';
 $lang{UPDATE_DAY} = 'День оновлення';
 $lang{SQL_QUERY} = 'SQL запит';
+$lang{SQL_QUERY_USERS_ADD} = 'Додати користувачів по SQL запиту';
 1

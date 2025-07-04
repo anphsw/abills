@@ -2,7 +2,7 @@
   <input type=hidden name=index value=$index>
   <input type=hidden name=search value=1>
 
-  <div class='card card-primary card-outline card-form'>
+  <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'><h4 class='card-title'>_{SEARCH}_:</h4></div>
     <div class='card-body form form-horizontal'>
       <div class='form-group row'>
@@ -55,6 +55,24 @@
         <label class='col-md-4 col-form-label text-md-right' for='ARTICLE_SEARCH_id'>SN:</label>
         <div class='col-md-8'>
           <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_1:</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='IDENT1' value='%IDENT1%'>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_2:</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='IDENT2' value='%IDENT2%'>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_3:</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='IDENT3' value='%IDENT3%'>
         </div>
       </div>
       <div class='form-group row'>

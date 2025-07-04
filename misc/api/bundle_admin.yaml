@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS ADMIN API
-  version: 1.39.10
+  version: 1.47.11
   description: |
-    Last modified 2025-02-14 <br>
+    Last modified 2025-06-17 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_admin.yaml.
     Copy it and upload it to your favorite OPEN API viewer.
@@ -47,6 +47,8 @@ tags:
     description: Сессии пользователя
   - name: payments
     description: Оплаты
+  - name: services
+    description: Управление сервисами
   - name: streets
     description: Улицы
   - name: tp
@@ -83,6 +85,8 @@ tags:
     description: Работа с метками пользователя (модуль Tags)
   - name: tasks
     description: Работа с модулем Tasks
+  - name: triplay
+    description: Работа с модулем Triplay
   - name: ureports
     description: Работа с оповещениями (модуль Ureports)
   - name: voip
@@ -1648,7 +1652,13 @@ paths:
             default: true
         - name: method
           in: query
-          description: Метод списания.
+          description: ID типа списания.
+          schema:
+            type: boolean
+            default: true
+        - name: methodName
+          in: query
+          description: Название типа списания.
           schema:
             type: boolean
             default: true
@@ -1659,6 +1669,21 @@ paths:
             type: boolean
             default: false
         - $ref: "#/components/parameters/uid"
+        - name: contractId
+          in: query
+          description: Номер договора
+          schema:
+            type: boolean
+        - name: taxNumber
+          in: query
+          description: ИПН (РНОКПП)
+          schema:
+            type: boolean
+        - name: edrpou
+          in: query
+          description: EDRPOU компании
+          schema:
+           type: integer
         - name: fio
           in: query
           description: ФИО пользователя.
@@ -1748,6 +1773,7 @@ paths:
         - $ref: "#/components/parameters/pageRows"
         - $ref: "#/components/parameters/pg"
         - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/groupBy"
       responses:
         200:
           description: Успешное выполнение
@@ -1803,6 +1829,119 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeesTypesArray"
+      security:
+        - KEY: []
+  /fees/types/{id}:
+    get:
+      tags:
+        - fees
+      summary: Получить тип списания по ID
+      parameters:
+        - in: path
+          name: ID типа списания
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Получить тип списания по ID
+      operationId: getFeesTypesId
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeesFeesTypesResponse"
+      security:
+        - KEY: []
+    post:
+      tags:
+        - fees
+      summary: Добавить тип списания
+      parameters:
+        - in: path
+          name: ID типа списания
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Добавить тип списание по ID
+      operationId: postFeesTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeesFeesTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeesFeesTypesResponse"
+      security:
+        - KEY: []
+    put:
+      tags:
+        - fees
+      summary: Изменить тип списания
+      parameters:
+        - in: path
+          name: ID типа списания
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Изменить тип списание по ID
+      operationId: putFeesTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeesFeesTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeesFeesTypesResponse"
+      security:
+        - KEY: []
+    delete:
+      tags:
+        - fees
+      summary: Удалить тип списания
+      parameters:
+        - in: path
+          name: ID типа списания
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Удалить тип списание по ID
+      operationId: deleteFeesTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeesFeesTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeesFeesTypesDelete200"
+        400:
+          description: Нет типа списания
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeesFeesTypesDelete400"
       security:
         - KEY: []
   /fees/schedules:
@@ -2846,6 +2985,7 @@ paths:
         - $ref: "#/components/parameters/pageRows"
         - $ref: "#/components/parameters/pg"
         - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/groupBy"
       responses:
         200:
           description: Успешное выполнение
@@ -2904,6 +3044,119 @@ paths:
       security:
         - KEY: []
   
+  /payments/types/{id}:
+    get:
+      tags:
+        - payments
+      summary: Получить тип оплаты по ID
+      parameters:
+        - in: path
+          name: ID типа оплаты
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Получить тип оплаты по ID
+      operationId: getPaymentsTypesId
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsPaymentsTypesResponse"
+      security:
+        - KEY: []
+    post:
+      tags:
+        - payments
+      summary: Добавить тип оплаты
+      parameters:
+        - in: path
+          name: ID типа оплаты
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Добавить тип оплаты по ID
+      operationId: postPaymentsTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentsPaymentsTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsPaymentsTypesResponse"
+      security:
+        - KEY: []
+    put:
+      tags:
+        - payments
+      summary: Изменить тип оплаты
+      parameters:
+        - in: path
+          name: ID типа оплаты
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Изменить тип оплаты по ID
+      operationId: putPaymentsTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentsPaymentsTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsPaymentsTypesResponse"
+      security:
+        - KEY: []
+    delete:
+      tags:
+        - payments
+      summary: Удалить тип оплаты
+      parameters:
+        - in: path
+          name: ID типа оплаты
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      description: Удалить тип оплаты по ID
+      operationId: deletePaymentsTypesId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentsPaymentsTypesRequest"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsPaymentsTypesDelete200"
+        400:
+          description: Нет типа оплаты
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsPaymentsTypesDelete400"
+      security:
+        - KEY: []
   /payments/users/{uid}:
     get:
       tags:
@@ -3312,14 +3565,18 @@ paths:
       summary: Добавить нового пользователя
       operationId: addUser
       description: >
-        Также можно добавлять все информационные поля
-        Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+        Также можно добавлять все информационные поля  
+        Пример: если в БД `_TEST_FIELD` то можно добавить как `__testField`.  
+        Пример загрузки файла на сервер наведен в multipart/form-data.
       requestBody:
         description: Параметры, которые нужно указать
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/UsersAddUserRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UsersUploadFile"
         required: true
       responses:
         200:
@@ -3628,6 +3885,7 @@ paths:
       description: >
         Также можно добавлять все информационные поля
         Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+        Пример загрузки файла на сервер наведен в multipart/form-data.
       parameters:
         - $ref: "#/components/parameters/pathUid"
       requestBody:
@@ -3635,6 +3893,9 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/UsersAddUserRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UsersUploadFile"
         required: true
       responses:
         400:
@@ -4105,6 +4366,155 @@ paths:
                 $ref: "#/components/schemas/ErrorUserNotExists"
       security:
         - KEY: []
+  
+  /users/statuses/:
+    get:
+      tags:
+        - users
+      summary: Получить список статусов пользователей
+      parameters:
+        - name: id
+          in: query
+          description: ID статуса
+          schema:
+            type: boolean
+            default: true
+        - name: name
+          in: query
+          description: Название статуса
+          schema:
+            type: boolean
+            default: true
+        - name: color
+          in: query
+          description: Цвет статуса
+          schema:
+            type: boolean
+            default: true
+        - name: descr
+          in: query
+          description: Внутреннее описание статуса
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успішно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersStatusList"
+      security:
+        - KEY: []
+  
+  /users/statuses/{id}:
+    get:
+      tags:
+        - users
+      summary: Получить статус пользователя по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersStatusSingle"
+      security:
+        - KEY: []
+    
+    post:
+      tags:
+        - users
+      summary: Добавить новый статус пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsersAddStatusRequest"
+      responses:
+        200:
+          description: Статус создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersStatusSingle"
+        400:
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersAddStatusResponse400"
+      security:
+        - KEY: []
+    
+    put:
+      tags:
+        - users
+      summary: Изменить статус пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsersAddStatusRequest"
+      responses:
+        200:
+          description: Статус изменен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersStatusSingle"
+      security:
+        - KEY: []
+    
+    delete:
+      tags:
+        - users
+      summary: Удалить статус пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Статус удален
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDeleteResponseMessage200"
+        400:
+          description: Статуса нет в системе
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDeleteStatus400"
+      security:
+        - KEY: []
   /version:
     get:
       tags:
@@ -4146,6 +4556,279 @@ paths:
             application/yaml:
               schema:
                 $ref: "#/components/schemas/VersionSwaggerAdmin"
+  /info-fields:
+    get:
+      tags:
+        - info_fields
+      summary: Получить информационные поля
+      operationId: getInfoFieldsList
+      parameters:
+        - name: id
+          in: query
+          description: Идентификатор
+          schema:
+            type: boolean
+            default: true
+        - name: name
+          in: query
+          description: Название
+          schema:
+            type: boolean
+            default: true
+        - name: sqlField
+          in: query
+          description: SQL-поле
+          schema:
+            type: boolean
+            default: true
+        - name: type
+          in: query
+          description: Тип
+          schema:
+            type: boolean
+            default: true
+        - name: priority
+          in: query
+          description: Приоритет
+          schema:
+            type: boolean
+            default: true
+        - name: company
+          in: query
+          description: Компания
+          schema:
+            type: boolean
+            default: true
+        - name: abonPortal
+          in: query
+          description: Абонентский портал
+          schema:
+            type: boolean
+            default: true
+        - name: userChg
+          in: query
+          description: Изменение пользователя
+          schema:
+            type: boolean
+            default: true
+        - name: required
+          in: query
+          description: Обязательное поле
+          schema:
+            type: boolean
+            default: true
+        - name: module
+          in: query
+          description: Модуль
+          schema:
+            type: boolean
+            default: true
+        - name: comment
+          in: query
+          description: Комментарий
+          schema:
+            type: boolean
+            default: true
+        - name: domainId
+          in: query
+          description: ID домена
+          schema:
+            type: boolean
+            default: true
+        - name: parentId
+          in: query
+          description: ID родительского элемента
+          schema:
+            type: boolean
+            default: true
+        - name: parentValueId
+          in: query
+          description: Значение родительского элемента
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfofieldsInfofields"
+      security:
+        - KEY: [ ]
+  /info-fields/{id}:
+    get:
+      tags:
+        - info_fields
+      summary: Получить информацию о информационном поле
+      operationId: getInfoField
+      parameters:
+        - name: id
+          in: path
+          description: ID информационного поля
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfofieldsInfofield"
+      security:
+        - KEY: []
+  /services/statuses/:
+    get:
+      tags:
+        - services
+      summary: Получить список статусов
+      parameters:
+        - name: id
+          in: query
+          description: ID статуса
+          schema:
+            type: boolean
+            default: true
+        - name: name
+          in: query
+          description: Название статуса
+          schema:
+            type: boolean
+            default: true
+        - name: color
+          in: query
+          description: Цвет статуса
+          schema:
+            type: boolean
+            default: true
+        - name: descr
+          in: query
+          description: Внутреннее описание статуса
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успішно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesStatusList"
+      security:
+        - KEY: []
+  
+  /services/statuses/{id}:
+    get:
+      tags:
+        - services
+      summary: Получить статус по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesStatusSingle"
+      security:
+        - KEY: []
+    
+    post:
+      tags:
+        - services
+      summary: Добавить новый статус
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServicesAddStatusRequest"
+      responses:
+        200:
+          description: Статус создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesStatusSingle"
+        400:
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesAddStatusResponse400"
+      security:
+        - KEY: []
+    
+    put:
+      tags:
+        - services
+      summary: Изменить статус
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServicesAddStatusRequest"
+      responses:
+        200:
+          description: Статус изменен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesStatusSingle"
+      security:
+        - KEY: []
+    
+    delete:
+      tags:
+        - services
+      summary: Удалить статус
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Статус удален
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDeleteResponseMessage200"
+        400:
+          description: Статуса нет в системе
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesDeleteStatus400"
+      security:
+        - KEY: []
   /abon/tariffs:
     get:
       tags:
@@ -7628,6 +8311,21 @@ paths:
                 $ref: "#/components/schemas/EquipmentChangeNasResponse400"
       security:
         - KEY: []
+  /internet/sessions/:
+    get:
+      tags:
+        - internet
+      summary: Получить список интернет сессий
+      operationId: getInernetSessions
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnlineSessionsArray"
+      security:
+        - KEY: [ ]
   /internet/sessions/{uid}:
     get:
       tags:
@@ -7758,6 +8456,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternetChangeUserResponse400"
+      security:
+        - KEY: []
+  /internet/users/{uid}/services/{id}:
+    delete:
+      tags:
+        - internet
+      summary: Удаление тарифного плана Internet пользователю
+      operationId: deleteUserInternetInfo
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+        - name: id
+          in: path
+          description: ID услуги
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешно изменено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessAction200"
+        400:
+          description: Нет id услуги
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternetUsers_uid_service_delete_400"
       security:
         - KEY: []
   /internet/{uid}/:
@@ -8230,6 +8958,19 @@ paths:
       security:
         - KEY: [ ]
   /internet/tariff/{tpId}:
+    get:
+      tags:
+        - internet
+      summary: Информация о тарифном плане
+      parameters:
+        - $ref: "#/components/parameters/pathTpId"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternetTariff"
     put:
       tags:
         - internet
@@ -9643,6 +10384,29 @@ paths:
                 $ref: "#/components/schemas/MsgsSurvey"
       security:
         - KEY: []
+  /msgs/search/:
+    post:
+      tags:
+        - msgs
+      summary: Поиск сообщений по тексту
+      operationId: searchMsgs
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MsgsMsgsSearch"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsMsgsSearchList"
+      security:
+        - KEY: []
+  
   /msgs/report/dynamics/:
     get:
       tags:
@@ -10182,6 +10946,41 @@ paths:
       security:
         - KEY: [ ]
   /storage/installation:
+    post:
+      tags:
+        - storage
+      summary: Добавление установки
+      operationId: storageAddInstall
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                articleId:
+                  type: integer
+                  example: 164
+                uid:
+                  type: integer
+                  example: 100
+                status:
+                  type: integer
+                  example: 1
+                count:
+                  type: integer
+                  example: 1
+                months:
+                  type: integer
+                  example: 12
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageStorageAddInstallResponse"
     get:
       tags:
         - storage
@@ -10271,6 +11070,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StorageInstallationList"
+      security:
+        - KEY: [ ]
+  /storage/incoming_articles:
+    get:
+      tags:
+        - storage
+      summary: Список товаров на складе
+      parameters:
+        - name: id
+          in: query
+          description: ID записи
+          schema:
+            type: boolean
+            default: true
+        - name: serial
+          in: query
+          description: Серийный номер оборудования
+          schema:
+            type: boolean
+            default: false
+        - name: ident1
+          in: query
+          description: Доп. идентификатор 1 (IDENT1)
+          schema:
+            type: boolean
+            default: false
+        - name: ident2
+          in: query
+          description: Доп. идентификатор 2 (IDENT2)
+          schema:
+            type: boolean
+            default: false
+        - name: ident3
+          in: query
+          description: Доп. идентификатор 3 (IDENT3)
+          schema:
+            type: boolean
+            default: false
+        - name: article_id
+          in: query
+          description: ID артикула
+          schema:
+            type: boolean
+            default: false
+        - name: article_type
+          in: query
+          description: Тип артикула
+          schema:
+            type: boolean
+            default: false
+        - name: date
+          in: query
+          description: Дата поступления
+          schema:
+            type: boolean
+            default: false
+        - name: sia_count
+          in: query
+          description: Количество товара (SIA_COUNT)
+          schema:
+            type: boolean
+            default: false
+        - name: sell_price
+          in: query
+          description: Цена продажи
+          schema:
+            type: boolean
+            default: false
+        - name: rent_price
+          in: query
+          description: Цена аренды
+          schema:
+            type: boolean
+            default: false
+        - name: in_installments_price
+          in: query
+          description: Цена при покупке в рассрочку
+          schema:
+            type: boolean
+            default: false
+        - name: total_sum
+          in: query
+          description: Общая сумма
+          schema:
+            type: boolean
+            default: false
+        - name: sn_comments
+          in: query
+          description: Комментарий к серийному номеру
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/desc"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageIncomingArticlesList"
       security:
         - KEY: [ ]
   /tags:
@@ -10989,6 +11889,527 @@ paths:
                   result:
                     type: string
                     example: Successfully deleted
+      security:
+        - KEY: [ ]
+  /triplay/tariffs:
+    get:
+      tags:
+        - triplay
+      summary: Список тарифов Triplay
+      parameters:
+        - name: abonName
+          description: Название тарифного плана Abon
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: comments
+          in: query
+          description: Комментарий
+          schema:
+            type: boolean
+            default: false
+        - name: activatePrice
+          in: query
+          description: Цена активации услуги
+          schema:
+            type: boolean
+            default: false
+        - name: dayFee
+          in: query
+          description: Дневная абонплата
+          schema:
+            type: boolean
+            default: false
+        - name: internetTpId
+          description: ID тарифного плана Internet
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: credit
+          description: Кредит
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: creditTresshold
+          description: Несъёмный минимум
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: dayTimeLimit
+          description: Лимит времени (день)
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: dayTrafLimit
+          description: Дневной лимит трафика
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: describeAid
+          description: Описание для администратора
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/domainId"
+        - name: extBillAccount
+          description: Дополнительный счет
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: feesMethod
+          description: Тип списания
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: filterId
+          description: Filter ID
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: fine
+          description: Пеня
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: fixedFeesDay
+          description: Фиксированная дата абонплаты
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: ippool
+          description: IP pool
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: logins
+          description: Количество одновременных сессий для выбранного логина
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: maxSessionDuration
+          description: Максимальная продолжительность сессии
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: minSessionCost
+          description: Минимальная цена сессии
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: minUse
+          description: Минимальная денежная наработка
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: module
+          description: Модуль
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: monthTimeLimit
+          description: Месячный лимит времени
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: monthTrafLimit
+          description: Месячный лимит трафика
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: negDepositFilterId
+          description: Фільтр негативного депозиту
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: negDepositIppool
+          description: IP pool негативного депозиту
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: nextTpId
+          description: ID следующего тарифного плана
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: paymentType
+          description: Тип оплаты за услугу
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: periodAlignment
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: postpaidDailyFee
+          description: Выравнивание месяца
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: postpaidMonthlyFee
+          description: Абонплата за месяц - Послеоплата
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: serviceId
+          description: Id сервиса
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: serviceName
+          description: Название сервиса
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: smallDepositAction
+          description: Действие при нед. депозите
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: timeTarifs
+          description: Часовой тариф
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: totalTimeLimit
+          description: Временной лимит
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: totalTrafLimit
+          description: Лимит трафика
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tpGid
+          description: ID группы
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: trafficTransferPeriod
+          description: Период перехода трафика
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: uplimit
+          description: Предупреждение
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: userCreditLimit
+          description: Лимит кредита
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: weekTimeLimit
+          description: Временной лимит (неделя)
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: weekTrafLimit
+          description: Недельный лимит трафика
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: internetTpName
+          description: Название тарифного плана Internet
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: iptvTpId
+          description: ID тарифного плана IPTV
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: iptvName
+          description: Название тарифного плана IPTV
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: monthFee
+          description: месячная абон плата
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/tpId"
+        - name: name
+          description: Название тарифного плана Triplay
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: tpReductionFee
+          description: Скидка в тарифном плане
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: id
+          description: id услуги
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: voipTpId
+          description: ID тарифного плана Voip
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: voipName
+          description: Название тарифного плана Voip
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_tariffs"
+      security:
+        - KEY: []
+  /triplay/users:
+    get:
+      tags:
+        - triplay
+      summary: Список пользователей Triplay
+      parameters:
+        - name: abonTpName
+          description: Название тарифного плана Abon
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: internetTp
+          description: ID тарифного плана Internet
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: internetTpName
+          description: Название тарифного плана Internet
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: iptvTp
+          description: ID тарифного плана IPTV
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: iptvTpName
+          description: Название тарифного плана IPTV
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: monthFee
+          description: месячная абон плата
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: personalTp
+          description: Персональная цена для абонента. Работает если больше 0
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: serviceStatus
+          description: Статус услуги.
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: tpId
+          description: ID тарифного плана Triplay
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tpName
+          description: Название тарифного плана Triplay
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: tpReductionFee
+          description: Скидка в тарифном плане
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: triplayExpire
+          description: Окончание услуги
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: uid
+          description: UID пользователя
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: voipTp
+          description: ID тарифного плана Voip
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: voipTpName
+          description: Название тарифного плана Voip
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_users"
+      security:
+        - KEY: []
+  /triplay/users/{uid}:
+    get:
+      tags:
+        - triplay
+      summary: Информация о услуге Triplay
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_info"
+      security:
+        - KEY: [ ]
+    post:
+      tags:
+        - triplay
+      summary: Добавить услугу Triplay
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriplayTriplay_user_add_request"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_info"
+        400:
+          description: Нет поля tpId
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_add_400"
+      security:
+        - KEY: [ ]
+    patch:
+      tags:
+        - triplay
+      summary: Обновить услугу Triplay
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriplayTriplay_user_change_request"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_info"
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - triplay
+      summary: Удалить услугу Triplay
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_delete_200"
+        400:
+          description: Услуга не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriplayTriplay_user_delete_400"
       security:
         - KEY: [ ]
   /ureports/user/list:
@@ -12511,6 +13932,13 @@ components:
       schema:
         type: integer
         format: int64
+    groupBy:
+      name: groupBy
+      in: query
+      description: "Группировка по полю выше, кроме внутренних [desc, pageRows, pg, sort]. В ответе будет два дополнительных поля groupCount и groupSum. Это количество сгруппированных полей и общая сумма"
+      schema:
+        type: string
+        default: id
     desc:
       name: desc
       in: query
@@ -12553,6 +13981,12 @@ components:
       schema:
         type: string
   schemas:
+    SuccessAction200:
+      type: object
+      properties:
+        result:
+          type: string
+          example: OK
     ErrorUserNotExists:
       type: object
       properties:
@@ -12612,6 +14046,12 @@ components:
           type: integer
           format: int32
           example: 0
+    ApiDeleteResponseMessage200:
+      type: object
+      properties:
+        result:
+          type: string
+          example: "Successfully deleted"
     ApiDeleteResponse200:
       type: object
       properties:
@@ -13893,6 +15333,66 @@ components:
         zoom:
           type: number
           example: 0
+    FeesFeesTypesDelete200:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 0
+        result:
+          type: string
+          example: "Successfully deleted"
+    FeesFeesTypesDelete400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 1001040
+        errstr:
+          type: string
+          example: ""
+        errmsg:
+          type: string
+          example: Fee type with id 255 not exists
+    FeesFeesTypesRequest:
+      type: object
+      properties:
+        defaultDescribe:
+          type: string
+          example: "Api payment"
+        name:
+          type: string
+          example: "TestPaymentID"
+        parentId:
+          type: integer
+          example: 0
+        sum:
+          type: number
+          example: 20
+        tax:
+          type: number
+          example: 0
+    FeesFeesTypesResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 255
+        defaultDescribe:
+          type: string
+          example: "Api payment"
+        name:
+          type: string
+          example: "TestPaymentID"
+        parentId:
+          type: integer
+          example: 0
+        sum:
+          type: number
+          example: 20
+        tax:
+          type: number
+          example: 0
     FeesSchedule:
       type: object
       properties:
@@ -14379,6 +15879,77 @@ components:
         separateDocs:
           type: number
           example: 0
+    InfofieldsInfofield:
+      type: object
+      properties:
+        abonPortal:
+          type: number
+          example: 0
+        comment:
+          type: string
+          example: ""
+        company:
+          type: number
+          example: 0
+        domainId:
+          type: number
+          example: 0
+        id:
+          type: number
+          example: 9
+        listItems:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 3
+              name:
+                type: string
+                example: "Audi"
+        module:
+          type: string
+          example: ""
+        name:
+          type: string
+          example: "car"
+        parentId:
+          type: number
+          example: 0
+        parentValueId:
+          type: number
+          example: 0
+        pattern:
+          type: string
+          example: ""
+        priority:
+          type: number
+          example: 0
+        required:
+          type: number
+          example: 0
+        sqlField:
+          type: string
+          example: "_car"
+        title:
+          type: string
+          example: ""
+        type:
+          type: number
+          example: 2
+        userChg:
+          type: number
+          example: 0
+    InfofieldsInfofields:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/InfofieldsInfofield"
+        total:
+          type: integer
     IntervalsTpInterval:
       type: object
       properties:
@@ -14492,6 +16063,64 @@ components:
         errstr:
           type: string
           example: "Payment with id 121 and uid 11 does not exist"
+    PaymentsPaymentsTypesDelete200:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 0
+        result:
+          type: string
+          example: "Successfully deleted"
+    PaymentsPaymentsTypesDelete400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 1001140
+        errstr:
+          type: string
+          example: ""
+        errmsg:
+          type: string
+          example: Payment type with id 255 not exists
+    PaymentsPaymentsTypesRequest:
+      type: object
+      properties:
+        color:
+          type: string
+          pattern: "^#([A-Fa-f0-9]{6})$"
+          example: "#c2222e"
+        defaultPayment:
+          type: integer
+          example: 0
+        feesType:
+          type: integer
+          minimum: 0
+          example: 0
+        name:
+          type: string
+          example: "TestApiPaymentType"
+    PaymentsPaymentsTypesResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 255
+        color:
+          type: string
+          pattern: "^#([A-Fa-f0-9]{6})$"
+          example: "#c2222e"
+        defaultPayment:
+          type: integer
+          example: 0
+        feesType:
+          type: integer
+          minimum: 0
+          example: 0
+        name:
+          type: string
+          example: "TestApiPaymentType"
     PaymentsType:
       type: object
       properties:
@@ -14538,6 +16167,109 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/PaymentsUserPayment"
+    ServicesAddStatusRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Traveling"
+        color:
+          type: string
+          example: "000000"
+        type:
+          type: integer
+          example: 0
+        getFees:
+          type: integer
+          example: 0
+    ServicesAddStatusResponse400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: "Validation failed\nParameter Type is not valid.  Type - bool_number\n"
+        errno:
+          type: integer
+          example: 9
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 21
+              errstr:
+                type: string
+                example: "ERR_PARAMETER_NOT_VALID"
+              param:
+                type: string
+                example: "type"
+              type:
+                type: string
+                example: "bool_number"
+        errstr:
+          type: string
+          example: "Validation failed"
+    ServicesDeleteStatus400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: ""
+        errno:
+          type: integer
+          example: 1001032
+        errstr:
+          type: string
+          example: Status with id 1012 not exists
+    ServicesStatusList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 0
+              name:
+                type: string
+                example: "$lang{ENABLE}"
+              localeName:
+                type: string
+                example: "Active"
+              color:
+                type: string
+                example: "4CAF50"
+              type:
+                type: integer
+                example: 0
+              getFees:
+                type: integer
+                example: 0
+        total:
+          type: integer
+          example: 6
+    ServicesStatusSingle:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          example: Traveling
+        color:
+          type: string
+          example: "000000"
+        type:
+          type: integer
+          example: 0
+        getFees:
+          type: integer
+          example: 0
     StreetsGetStreets:
       type: array
       items:
@@ -14836,6 +16568,47 @@ components:
         errstr:
           type: string
           example: "Validation failed"
+    UsersAddStatusRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Contract suspended"
+        descr:
+          type: string
+          example: "Status for suspended contracts of users, maybe will return in future"
+        color:
+          type: string
+          example: "000000"
+    UsersAddStatusResponse400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: "Validation failed\nRequired parameter to be filled Name\n"
+        errno:
+          type: integer
+          example: 9
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 20
+              errstr:
+                type: string
+                example: "ERR_REQUIRED_PARAMETER"
+              param:
+                type: string
+                example: "name"
+              required:
+                type: boolean
+                example: true
+        errstr:
+          type: string
+          example: "Validation failed"
     UsersAddUserRequest:
       allOf:
         - $ref: "#/components/schemas/UsersUser"
@@ -14956,6 +16729,18 @@ components:
         errstr:
           type: string
           example: "ERROR_NOT_EXIST"
+    UsersDeleteStatus400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: ""
+        errno:
+          type: integer
+          example: 1001030
+        errstr:
+          type: string
+          example: Status with id 1012 not exists
     UsersDeleteUserResponse200:
       type: object
       properties:
@@ -15058,6 +16843,57 @@ components:
           type: string
           example: 14GROUP88
           description: Суффикс договора пользователя
+    UsersStatusList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 0
+              name:
+                type: string
+                example: "$lang{ENABLE}"
+              localeName:
+                type: string
+                example: "Active"
+              descr:
+                type: string
+                example: ""
+              color:
+                type: string
+                example: "4CAF50"
+        total:
+          type: integer
+          example: 6
+    UsersStatusSingle:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          example: "Contract suspended"
+        descr:
+          type: string
+          example: "Status for suspended contracts of users, maybe will return in future"
+        color:
+          type: string
+          example: "000000"
+    UsersUploadFile:
+      type: object
+      properties:
+        __document:
+          type: string
+          format: binary
+          description: Тестовий файл для загрузки
+        __testField:
+          type: string
+          description: Пример дополнительного поля
     UsersUser:
       type: object
       description: >
@@ -18233,6 +20069,23 @@ components:
         trafTarifs:
           type: number
           example: 0
+        gradients:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 1
+              price:
+                type: number
+                example: 12
+              startValue:
+                type: number
+                example: 10000
+              tpId:
+                type: number
+                example: 95
     InternetTariffList:
       type: array
       items:
@@ -18456,6 +20309,15 @@ components:
         moduleName:
           type: string
           example: "Internet"
+    InternetUsers_uid_service_delete_400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 1360030
+        errstr:
+          type: string
+          example: ERR_UID_SERVICE_NOT_EXISTS
     InternetWarning:
       type: object
       properties:
@@ -18998,6 +20860,82 @@ components:
             $ref: "#/components/schemas/MsgsMsgs"
         total:
           type: integer
+    MsgsMsgsSearch:
+      type: object
+      required: [searchText]
+      properties:
+        searchText:
+          type: string
+          example: 'test'
+        subject:
+          type: string
+          example: "456"
+        chapterColor:
+          type: string
+          example: "#FF5733"
+        chapter:
+          type: integer
+          example: 2
+        chapterName:
+          type: string
+          format: date-time
+          example: "2023-11-22T10:00:00Z"
+        date:
+          type: string
+          format: date
+          example: "2023-11-22"
+        state:
+          type: integer
+          example: 1
+        replyId:
+          type: integer
+          example: 2
+        message:
+          type: string
+          example: "This is the content of the message."
+        replyText:
+          type: string
+          example: "This is a reply."
+        responsible:
+          type: integer
+          example: 2
+    MsgsMsgsSearchList:
+      type: array
+      items:
+        type: object
+        properties:
+          subject:
+            type: string
+            example: "456"
+          chapterColor:
+            type: string
+            example: "#FF5733"
+          chapter:
+            type: integer
+            example: 2
+          chapterName:
+            type: string
+            format: date-time
+            example: "2023-11-22T10:00:00Z"
+          date:
+            type: string
+            format: date
+            example: "2023-11-22"
+          state:
+            type: integer
+            example: 1
+          replyId:
+            type: integer
+            example: 2
+          message:
+            type: string
+            example: "This is the content of the message."
+          replyText:
+            type: string
+            example: "This is a reply."
+          responsible:
+            type: integer
+            example: 1
     MsgsRepliesList:
       type: array
       items:
@@ -19478,6 +21416,20 @@ components:
         total:
           type: number
           example: 173
+    StorageIncomingArticlesList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 456
+        total:
+          type: number
+          example: 1
     StorageInstallation:
       type: object
       properties:
@@ -19488,6 +21440,18 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/StorageInstallation"
+    StorageStorageAddInstallResponse:
+      type: object
+      properties:
+        affected:
+          type: integer
+          example: 0
+        installationId:
+          type: integer
+          example: 187
+        total:
+          type: integer
+          example: 1
     TagsTagUser:
       type: object
       properties:
@@ -19763,6 +21727,421 @@ components:
         total:
           type: number
           example: 173
+    TriplayTriplay_tariffs:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              abonDistribution:
+                type: number
+                example: 0
+              abonName:
+                type: string
+                example: MMM pyramid
+              activatePrice:
+                type: number
+                example: 0
+              activeDayFee:
+                type: number
+                example: 0
+              age:
+                type: number
+                example: 0
+              changePrice:
+                type: number
+                example: 0
+              comment:
+                type: string
+                example: ""
+              comments:
+                type: string
+                example: ""
+              credit:
+                type: number
+                example: 0
+              creditTresshold:
+                type: number
+                example: 0
+              dayFee:
+                type: number
+                example: 0
+              dayTimeLimit:
+                type: number
+                example: 0
+              dayTrafLimit:
+                type: number
+                example: 0
+              describeAid:
+                type: string
+                example: ""
+              domainId:
+                type: number
+                example: 0
+              extBillAccount:
+                type: number
+                example: 0
+              feesMethod:
+                type: number
+                example: 1
+              filterId:
+                type: string
+                example: ""
+              fine:
+                type: number
+                example: 0
+              fixedFeesDay:
+                type: number
+                example: 0
+              id:
+                type: number
+                example: 1002
+              innerTpId:
+                type: number
+                example: 34
+              internetName:
+                type: string
+                example: 100 Mb/sec
+              ippool:
+                type: number
+                example: 0
+              iptvName:
+                type: string
+                example: 234 chanel
+              logins:
+                type: number
+                example: 0
+              maxSessionDuration:
+                type: number
+                example: 0
+              minSessionCost:
+                type: number
+                example: 0
+              minUse:
+                type: number
+                example: 0
+              module:
+                type: string
+                example: Triplay
+              monthFee:
+                type: number
+                example: 100
+              monthTimeLimit:
+                type: number
+                example: 0
+              monthTrafLimit:
+                type: number
+                example: 0
+              name:
+                type: string
+                example: Test triplay
+              negDepositFilterId:
+                type: string
+                example: ""
+              negDepositIppool:
+                type: number
+                example: 0
+              nextTpId:
+                type: number
+                example: 0
+              octetsDirection:
+                type: number
+                example: 0
+              paymentType:
+                type: number
+                example: 2
+              periodAlignment:
+                type: number
+                example: 1
+              postpaidDailyFee:
+                type: number
+                example: 0
+              postpaidMonthlyFee:
+                type: number
+                example: 0
+              priority:
+                type: number
+                example: 0
+              radPairs:
+                type: string
+                example: ""
+              reductionFee:
+                type: number
+                example: 0
+              serviceId:
+                type: number
+                example: 0
+              serviceName:
+                type: number
+                example: 0
+              smallDepositAction:
+                type: number
+                example: -1
+              totalTimeLimit:
+                type: number
+                example: 0
+              totalTrafLimit:
+                type: number
+                example: 0
+              tpGid:
+                type: number
+                example: 0
+              tpId:
+                type: number
+                example: 34
+              trafficTransferPeriod:
+                type: number
+                example: 0
+              uplimit:
+                type: number
+                example: 0
+              userCreditLimit:
+                type: number
+                example: 0
+              voipName:
+                type: string
+                example: Test Voip
+              weekTimeLimit:
+                type: number
+                example: 0
+              weekTrafLimit:
+                type: number
+                example: 0
+        total:
+          type: integer
+          example: 7
+    TriplayTriplay_user_add_400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: "Validation failed\nRequired parameter to be filled tpId\n"
+        errno:
+          type: integer
+          example: 9
+        errstr:
+          type: string
+          example: "VALIDATION_FAILED"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 20
+              errstr:
+                type: string
+                example: "ERR_REQUIRED_PARAMETER"
+              param:
+                type: string
+                example: "tpId"
+              required:
+                type: boolean
+                example: true
+    TriplayTriplay_user_add_request:
+      type: object
+      required:
+        - serviceStatus
+        - tpId
+      properties:
+        serviceStatus:
+          type: integer
+          example: 2
+        personalTp:
+          type: number
+          example: 150
+        serviceExpire:
+          type: string
+          example: "0000-00-00"
+        comments:
+          type: string
+          example: "Test add from api"
+        tpId:
+          type: integer
+          example: 115
+    TriplayTriplay_user_change_request:
+      type: object
+      required:
+        - serviceStatus
+        - tpId
+      properties:
+        serviceStatus:
+          type: integer
+          example: 2
+        personalTp:
+          type: number
+          example: 150
+        serviceExpire:
+          type: string
+          example: "0000-00-00"
+        comments:
+          type: string
+          example: "Test add from api"
+    TriplayTriplay_user_delete_200:
+      type: object
+      properties:
+        message:
+          type: string
+          example: service deleted
+        uid:
+          type: integer
+          example: 10
+    TriplayTriplay_user_delete_400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: "User subscription not found"
+        errno:
+          type: integer
+          example: 1130002
+        errstr:
+          type: string
+          example: "ERR_TRIPLAY_USER_SUBSCRIBE_NOT_FOUND"
+    TriplayTriplay_user_info:
+      type: object
+      properties:
+        comment:
+          type: string
+          example: "Cool comment"
+        comments:
+          type: string
+          example: "Cool comments"
+        dayAbon:
+          type: integer
+          example: 0
+        disable:
+          type: integer
+          example: 2
+        expire:
+          type: string
+          example: "0000-00-00"
+        monthAbon:
+          type: number
+          example: 500
+        personalTp:
+          type: integer
+          example: 0
+        reductionFee:
+          type: number
+          example: 0
+        serviceExpire:
+          type: string
+          format: date
+          example: "0000-00-00"
+        serviceStatus:
+          type: integer
+          example: 2
+        total:
+          type: integer
+          example: 1
+        tpCredit:
+          type: number
+          example: 0
+        tpId:
+          type: integer
+          example: 115
+        tpName:
+          type: string
+          example: triplay second tp
+        tpNum:
+          type: integer
+          example: 65535
+        tpPeriodAlignment:
+          type: integer
+          example: 0
+        uid:
+          type: integer
+          example: 10
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 48
+              module:
+                type: string
+                example: Iptv
+              serviceId:
+                type: integer
+                example: 869
+              uid:
+                type: integer
+                example: 10
+        userServices:
+          type: object
+          properties:
+            abonServiceId:
+              type: integer
+              example: 2
+            internetServiceId:
+              type: integer
+              example: 291
+            iptvServiceId:
+              type: integer
+              example: 869
+    TriplayTriplay_users:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              abonTpName:
+                type: string
+                example: Abon tp name
+              internetTp:
+                type: integer
+                example: 4
+              internetTpName:
+                type: string
+                example: Internet tp name
+              iptvTp:
+                type: integer
+                example: 12
+              iptvTpName:
+                type: string
+                example: Iptv tp name
+              monthFee:
+                type: number
+                format: float
+                example: 500.52
+              personalTp:
+                type: integer
+                example: 0
+              serviceStatus:
+                type: integer
+                example: 0
+              tpId:
+                type: integer
+                example: 115
+              tpName:
+                type: string
+                example: triplay second tp
+              tpReductionFee:
+                type: number
+                example: 0
+              triplayExpire:
+                type: string
+                example: "0000-00-00"
+              uid:
+                type: integer
+                example: 10
+              voipTp:
+                type: integer
+                example: 40
+              voipTpName:
+                type: string
+                example: Voip tp name
+        total:
+          type: integer
+          example: 7
     UreportsAddUserReportRequest:
       type: object
       properties:

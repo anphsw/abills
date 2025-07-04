@@ -1,0 +1,5 @@
+{
+  "name": "STORAGE_INCOMING_ARTICLES",
+  "method": "GET",
+  "path": "storage/incoming_articles"
+}

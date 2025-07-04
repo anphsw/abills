@@ -143,4 +143,7 @@ $conf{NEW_WIKI}=1;
 $conf{ATTACH2FILE} = 1;
 $conf{MSGS_ATTACH2FILE} = 1;
 
+# Paysys
+$conf{PAYSYS_V4} = 1;
+
 1

@@ -31,6 +31,7 @@ my @ports_state_color = ('', '#008000', '#FF0000');
 
 require Equipment::Pon_mng;
 require Equipment::Defs;
+require Equipment::Grabbers;
 use Nas;
 
 our Equipment $Equipment;
@@ -56,6 +57,9 @@ sub equipment_ports_full {
   my $Equipment_     = $attr->{NAS_INFO};
 
   if ($FORM{mac_info}) {
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('get_oui_info');
+
     my $result = get_oui_info($FORM{mac_info});
     $html->message('info', $lang{INFO}, "MAC: $FORM{mac_info}\n $result");
   }
@@ -97,44 +101,46 @@ sub equipment_ports_full {
   my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,VLAN,PORT_ALIAS,TRAFFIC,PORT_IN_ERR';
   my ($table) = result_former({
     DEFAULT_FIELDS => $default_fields,
-    BASE_PREFIX  => 'ID',
-    TABLE        => {
+    BASE_PREFIX    => 'ID',
+    TABLE          => {
       width            => '100%',
       caption          => $lang{PORTS},
       qs               => "&visual=$FORM{visual}&NAS_ID=$nas_id",
       SHOW_COLS        => {
-        %tpl_fields,
-        #ID           => 'ID',
-        PORT_NAME         => "$lang{PORT} $lang{NAME}",
-        PORT_STATUS       => $lang{PORT_STATUS},
-        PORT_TYPE         => $lang{PORT_TYPE},
-        ADMIN_PORT_STATUS => "Admin $lang{STATUS}",
-        UPLINK            => "UPLINK",
-        FIO               => $lang{FIO},
-        LOGIN             => $lang{LOGIN},
-        MAC               => "MAC",
-        MAC_DYNAMIC       => "MAC dynamic",
-        IP                => "IP",
-        VLAN              => "Native VLAN static",
-        ADDRESS_FULL      => $lang{ADDRESS},
-        DEPOSIT           => $lang{DEPOSIT},
-        TP_NAME           => $lang{TARIF_PLAN},
-        PORT_ALIAS        => $lang{COMMENTS},
-        TRAFFIC           => $lang{TRAFFIC},
-        PORT_SPEED        => $lang{SPEED},
-        PORT_COMMENTS     => $lang{COMMENTS},
-        PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
-        PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
-        PORT_UPTIME       => $lang{PORT_UPTIME},
-        DATETIME          => $lang{CHANGED}
+        PORTS => {
+          %tpl_fields,
+          #ID           => 'ID',
+          PORT_NAME         => "$lang{PORT} $lang{NAME}",
+          PORT_STATUS       => $lang{PORT_STATUS},
+          PORT_TYPE         => $lang{PORT_TYPE},
+          ADMIN_PORT_STATUS => "Admin $lang{STATUS}",
+          UPLINK            => "UPLINK",
+          FIO               => $lang{FIO},
+          LOGIN             => $lang{LOGIN},
+          MAC               => "MAC",
+          MAC_DYNAMIC       => "MAC dynamic",
+          IP                => "IP",
+          VLAN              => "Native VLAN static",
+          ADDRESS_FULL      => $lang{ADDRESS},
+          DEPOSIT           => $lang{DEPOSIT},
+          TP_NAME           => $lang{TARIF_PLAN},
+          PORT_ALIAS        => "$lang{COMMENTS} Alias",
+          TRAFFIC           => $lang{TRAFFIC},
+          PORT_SPEED        => $lang{SPEED},
+          PORT_COMMENTS     => $lang{COMMENTS},
+          PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
+          PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
+          PORT_UPTIME       => $lang{PORT_UPTIME},
+          DATETIME          => $lang{CHANGED}
+        }
       },
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
         NAS_ID => $nas_id,
       },
-      ID       => 'EQUIPMENT_PORTS',
-      EXPORT   => 1,
-      MENU    => "$lang{ADD} $lang{PORTS}:index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&MK_PORTS=1" . ':add'
+      ID               => 'EQUIPMENT_PORTS',
+      EXPORT           => 1,
+      MENU             => "$lang{ADD} $lang{PORTS}:index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&MK_PORTS=1" . ':add'
     },
   });
 
@@ -1379,6 +1385,12 @@ sub port_result_former {
   if (in_array('ONU_PORTS_STATUS', \@info_fields)) {
     push @skip_params, 'VLAN';
   }
+  if (in_array('PORT_COMMENTS', \@info_fields)) {
+    $port_info->{$port_id}->{PORT_COMMENTS} = '';
+  }
+  if (in_array('MAC', \@info_fields)) {
+    $port_info->{$port_id}->{MAC} = '';
+  }
 
   foreach my $key (@info_fields) {
     next if(! defined($port_info->{$port_id}->{$key}));
@@ -1656,6 +1668,31 @@ sub port_result_former {
         . ($port_info->{$port_id}->{PORT_OUT_DISCARDS} // '?'),
         ( $port_info->{$port_id}->{PORT_OUT_DISCARDS} || $port_info->{$port_id}->{PORT_IN_DISCARDS} ) ? 'text-danger' : undef );
     }
+    elsif($key eq 'PORT_NAME') {
+      $key = "$lang{PORT} $lang{NAME}";
+    }
+    elsif($key eq 'PORT_COMMENTS') {
+      $key = "$lang{PORT} $lang{COMMENTS}";
+
+      my $port_info_ = $Equipment->port_info({ NAS_ID => $nas_id, PORT => $port_id } );
+
+      my $btn_change = $html->button('', "header=2&get_index=equipment_change_port_desc_ajax&ID=".($port_info_->{ID} || '').
+        "&NAS_ID=$nas_id&PORT=$port_id",
+        { MESSAGE    => "$lang{PORT} $port_id: $lang{CHANGE} $lang{COMMENTS}",
+          class      => 'fa fa-pencil-alt ml-1',
+          TITLE      => $lang{CHANGE},
+          AJAX       => 'port_desc_changed',
+          ALLOW_EMPTY_MESSAGE => 1,
+        })
+        . "<script>
+         Events.on('AJAX_SUBMIT.port_desc_changed', function(e){
+           if (!e.error) {\$('#PORT_COMMENTS').text(e.new_desc)}
+         });
+         </script>";
+
+      $key = "$lang{PORT} $lang{COMMENTS}" . $btn_change;
+      $value = $html->element('span', ( $port_info_->{COMMENTS} || $FORM{COMMENTS} ), { id => 'PORT_COMMENTS' });
+    }
     elsif($key eq 'TEMPERATURE') {
       $key = $html->element( 'i', "", { class => 'fa fa-thermometer-half' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
       $value = $port_info->{$port_id}->{TEMPERATURE} . " &deg;C";
@@ -1665,6 +1702,28 @@ sub port_result_former {
     }
     elsif($key eq 'Mac/Serial') {
       $key = $html->element( 'i', "", { class => 'fa fa-barcode' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$key" );
+    }
+    elsif($key eq 'MAC') {
+      # for switch. user's mac
+      my $port = ($port_id > 100) ? 'PORT_NAME' : 'PORT';
+      my $mac_log = $Equipment->mac_log_list({
+        NAS_ID       => $nas_id || '-1',
+        $port        => $port_id || '',
+        MAC          => '_SHOW',
+        DATETIME     => '_SHOW',
+        VLAN         => '_SHOW',
+        COLS_NAME    => 1
+      });
+
+      if($mac_log->[0]->{mac}){
+        $value = $html->color_mark(($mac_log->[0]->{mac}), 'code') .
+          $html->button('', '', {
+            COPY      => $mac_log->[0]->{mac},
+            ADD_ICON  => 'fa fa-clone p-1',
+            class     => 'btn btn-default btn-sm p-0',
+            ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $mac_log->[0]->{mac}' data-tooltip-onclick=1"
+          }) . " (VLAN $mac_log->[0]->{vlan}) " . ($mac_log->[0]->{datetime} || '');
+      }
     }
     elsif($key eq 'ONU_DESC') {
       $key = $html->element( 'i', "", { class => 'fa fa-list-alt' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{DESCRIBE}" );
@@ -1682,10 +1741,16 @@ sub port_result_former {
       next if (!$value);
       $value = join ($html->br(),
         (sort map { $html->color_mark($value->{$_}->{mac}, 'code') .
-          (($value->{$_}->{vlan}) ? " (VLAN $value->{$_}->{vlan})" : '')
+          $html->button('', '', {
+            COPY      => $value->{$_}->{mac},
+            ADD_ICON  => 'fa fa-clone p-1',
+            class     => 'btn btn-default btn-sm p-0',
+            ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $value->{$_}->{mac}' data-tooltip-onclick=1"
+          }) .
+          (($value->{$_}->{vlan}) ? " (VLAN $value->{$_}->{vlan}) " . ($value->{$_}->{datetime} || '') : '')
         } grep { !$value->{$_}->{old} } (keys %$value)),
         (sort map { $html->color_mark($value->{$_}->{mac}, 'code') .
-          (($value->{$_}->{vlan}) ? " (VLAN $value->{$_}->{vlan})" : '') . ' (old)'
+          (($value->{$_}->{vlan}) ? " (VLAN $value->{$_}->{vlan}) " . ($value->{$_}->{datetime} || '') : '') . ' (old)'
         } grep { $value->{$_}->{old} } (keys %$value))
       );
     }
@@ -1983,11 +2048,21 @@ sub equipment_pon_map {
     RETURN_HASH => 1,
     NAS_ID      => $FORM{NAS_ID},
     OLT_PORT    => $FORM{OLT_PORT} ? $FORM{OLT_PORT} : '_SHOW',
-    LOCATION_ID => $FORM{LOCATION_ID} || $attr->{LOCATION_ID} || '',
+    # LOCATION_ID => $FORM{LOCATION_ID} || $attr->{LOCATION_ID} || '',
     TO_VISUAL   => 1
   });
 
-  if ($pon_maps){
+  my $location_id = $FORM{LOCATION_ID} || $attr->{LOCATION_ID};
+  if ($location_id) {
+    foreach my $pon (@{$pon_maps}) {
+      if ($pon->{MARKER} && $pon->{MARKER}{OBJECT_ID} && $pon->{MARKER}{OBJECT_ID} == $location_id) {
+        push @avarage_coord, ($pon->{MARKER}{COORDX}, $pon->{MARKER}{COORDY});
+        last;
+      }
+    }
+  }
+
+  if ($pon_maps && scalar(@avarage_coord) < 1) {
     @avarage_coord = equipment_coord_avarage($pon_maps);
   }
 
@@ -2031,4 +2106,45 @@ sub equipment_coord_avarage {
 
   return ($avg_coord_x, $avg_coord_y);
 }
+
+
+#**********************************************************
+=head2 equipment_change_port_desc_ajax($attr) - change port description from user's box equipment
+
+  Arguments:
+    $FORM{ID}       - port ID
+    $FORM{PORT}     - port number in range NAS
+    $FORM{NAS_ID}   - nas ID
+    $FORM{COMMENTS} - port comments
+
+=cut
+#**********************************************************
+sub equipment_change_port_desc_ajax {
+  my $error = 0;
+  my $comments = $FORM{COMMENTS} || '';
+
+  if (!$FORM{ID}){
+    $Equipment->port_add({ NAS_ID => $FORM{NAS_ID}, PORT => $FORM{PORT}, COMMENTS => $comments });
+  }
+  else{
+    $Equipment->port_change({ ID => $FORM{ID}, COMMENTS => $comments });
+  }
+
+  my $json = JSON->new->utf8(0);
+  $html->{JSON_OUTPUT} = [{
+    MESSAGE => $json->encode({
+      caption      => $error ? $lang{ERROR} : $lang{CHANGED},
+      message      => '',
+      message_type => $error ? 'err' : 'info'
+    }),
+  },{
+    error => $error
+  },{
+    new_desc => ($error ? '""' : "\"$comments\"")
+  }
+  ];
+
+  return 0;
+}
+
 1;

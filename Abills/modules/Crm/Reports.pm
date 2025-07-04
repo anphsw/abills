@@ -39,11 +39,12 @@ my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang
 sub crm_start_page {
 
   my %START_PAGE_F = (
-    crm_today_actions         => "$lang{ACTION} CRM",
-    crm_sales_funnel_widget   => $lang{SALES_FUNNEL},
-    crm_top_admins            => $lang{CRM_TOP_ADMINS},
-    crm_watch_leads_report    => $lang{TRACKED_LEADS},
-    crm_deferred_leads_report => $lang{DEFERRED_LEADS}
+    crm_today_actions                => "$lang{ACTION} CRM",
+    crm_sales_funnel_widget          => $lang{SALES_FUNNEL},
+    crm_top_admins                   => $lang{CRM_TOP_ADMINS},
+    crm_watch_leads_report           => $lang{TRACKED_LEADS},
+    crm_deferred_leads_report        => $lang{DEFERRED_LEADS},
+    crm_quick_report_processed_leads => $lang{CRM_PROCESSED_LEADS},
   );
 
   return \%START_PAGE_F;
@@ -488,6 +489,94 @@ sub crm_admin_leads_report {
     X_TEXT     => \@x_column_name,
     DATA       => \%COLUMNS,
   });
+}
+
+#**********************************************************
+=head2 crm_report_processed_leads()
+
+=cut
+#**********************************************************
+sub crm_report_processed_leads {
+
+  require Control::Reports;
+  reports({
+    DATE_RANGE        => 1,
+    REPORT            => '',
+    NO_GROUP          => 1,
+    NO_STANDART_TYPES => 1,
+    NO_TAGS           => 1,
+    PERIOD_FORM       => 1,
+  });
+
+  my $admins = $Crm->crm_action_list({
+    LEADS_COUNT => '_SHOW',
+    AID         => '>0',
+    LID         => '>0',
+    ADMIN       => '_SHOW',
+    TYPE        => "!3",
+    DATE        => $DATE,
+    GROUP_BY    => 'ca.aid',
+    COLS_NAME   => 1
+  });
+
+  $LIST_PARAMS{AID} = '>0';
+  $LIST_PARAMS{LID} = '>0';
+  $LIST_PARAMS{TYPE} = '!3';
+  $LIST_PARAMS{GROUP_BY} = 'ca.aid';
+
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_action_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ADMIN,LEADS_COUNT',
+    HIDDEN_FIELDS   => 'AID,LID,TYPE,DATE,ACTION_TYPE',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      admin       => $lang{ADMIN},
+      leads_count => $lang{COUNT},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{CRM_PROCESSED_LEADS},
+      qs      => $pages_qs,
+      ID      => 'CRM_PROCESSED_LEADS',
+      EXPORT  => 1
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#**********************************************************
+=head2 crm_quick_report_processed_leads()
+
+=cut
+#**********************************************************
+sub crm_quick_report_processed_leads {
+
+  my $admins = $Crm->crm_action_list({
+    LEADS_COUNT => '_SHOW',
+    AID         => '>0',
+    LID         => '>0',
+    ADMIN       => '_SHOW',
+    TYPE        => "!3",
+    DATE        => $DATE,
+    GROUP_BY    => 'ca.aid',
+    COLS_NAME   => 1
+  });
+
+  my $processed_leads_table = $html->table({
+    width   => '100%',
+    caption => $html->button($lang{CRM_PROCESSED_LEADS}, 'get_index=crm_report_processed_leads&full=1'),
+    title   => [ $lang{ADMIN}, $lang{COUNT} ],
+    ID      => 'CRM_PROCESSED_LEADS',
+  });
+
+  foreach my $admin_info (@{$admins}) {
+    $processed_leads_table->addrow($admin_info->{admin}, $admin_info->{leads_count});
+  }
+
+  return $processed_leads_table->show();
 }
 
 #**********************************************************

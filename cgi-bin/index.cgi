@@ -102,6 +102,7 @@ $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
 $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 
 do 'Abills/Misc.pm';
+do 'Control/Selects.pm';
 do 'Control/Password.pm';
 require Abills::Templates;
 require Abills::Result_former;
@@ -256,7 +257,7 @@ sub quick_functions {
   if ($uid > 0) {
     $default_index = 10;
     #  #Quick Amon Alive Update
-    if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=1000/) {
+    if ($FORM{REFERER} && $FORM{REFERER} =~ m/$SELF_URL/x && $FORM{REFERER} !~ m/index=1000/x) {
       print "Location: $FORM{REFERER}\n\n";
       return 1;
     }
@@ -324,7 +325,7 @@ sub quick_functions {
     $LIST_PARAMS{UID} = $user->{UID};
     $LIST_PARAMS{LOGIN} = $user->{LOGIN};
 
-    $index = int($FORM{qindex}) if ($FORM{qindex} && $FORM{qindex} =~ /^\d+$/);
+    $index = int($FORM{qindex}) if ($FORM{qindex} && $FORM{qindex} =~ m/^\d+$/x);
     print $html->header(\%FORM) if ($FORM{header});
 
     if ($FORM{qindex}) {
@@ -561,7 +562,11 @@ sub form_info {
     return 1;
   }
   elsif (defined $FORM{ATTACHMENT} && $FORM{UID} && $user->{UID} eq $FORM{UID}) {
-    return form_show_attach({ UID => $user->{UID} });
+    return form_show_attach({
+      UID        => $user->{UID},
+      ATTACHMENT => $FORM{ATTACHMENT},
+      TABLE      => $FORM{TABLE}
+    });
   }
 
   #Activate dashboard
@@ -639,7 +644,7 @@ sub form_info {
   }
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
-  my ($status, $color) = split(/:/, $service_status->{ $user->{DISABLE} });
+  my ($status, $color) = split(':', $service_status->{ $user->{DISABLE} });
   $user->{STATUS} = $html->color_mark($status, $color);
 
   #$user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
@@ -773,7 +778,7 @@ sub form_info {
   }
 
   if ($conf{MONEY_UNIT_NAMES}) {
-    $user->{MONEY_UNIT_NAME} = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+    $user->{MONEY_UNIT_NAME} = (split(';', $conf{MONEY_UNIT_NAMES}))[0];
   }
 
   if ($conf{DOCS_ESIGN} && $user->{CONTRACT_ID}) {
@@ -916,7 +921,7 @@ sub _user_pi {
 
     if ($conf{CHECK_CHANGE_PI}) {
       my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
-      my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+      my @fields_allow_to_change = split(/,\s?/x, $conf{CHECK_CHANGE_PI});
       foreach my $key (@all_fields) {
         next if in_array($key, \@fields_allow_to_change);
 
@@ -1085,7 +1090,7 @@ sub user_pi_change {
   $attr->{FIO} = $attr->{FIO1} if ($attr->{FIO1});
 
   if($conf{CHECK_CHANGE_PI}){
-    my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+    my @fields_allow_to_change = split(/,\s?/x, $conf{CHECK_CHANGE_PI});
     foreach my $key (keys %FORM){
       if(!(in_array($key, \@fields_allow_to_change))){
         delete $attr->{$key};
@@ -1202,12 +1207,12 @@ sub form_login_clients {
 
   $first_page{SEL_LANGUAGE} = language_select('language');
 
-  if (!$FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} =~ /$SELF_URL/) {
-    $ENV{HTTP_REFERER} =~ s/sid=[a-z0-9\_]+//g;
+  if (!$FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} =~ m/$SELF_URL/x) {
+    $ENV{HTTP_REFERER} =~ s/sid=[a-z0-9\_]+//xg;
     $FORM{REFERER} = $ENV{HTTP_REFERER};
   }
   elsif ($ENV{QUERY_STRING}) {
-    $ENV{QUERY_STRING} =~ s/sid=[a-z0-9\_]+//g;
+    $ENV{QUERY_STRING} =~ s/sid=[a-z0-9\_]+//xg;
     $FORM{REFERER} = $ENV{QUERY_STRING};
   }
 
@@ -1238,12 +1243,12 @@ sub form_login_clients {
 
   $OUTPUT{S_MENU} = 'style="display: none;"';
 
-  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ /^(\d+)$/) {
+  if ($FORM{DOMAIN_ID} && $FORM{DOMAIN_ID} =~ m/^(\d+)$/x) {
     $first_page{DOMAIN_ID}=$FORM{DOMAIN_ID};
   }
-  if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/) {
-    $FORM{REFERER} =~ s/>/&gt;/g;
-    $FORM{REFERER} =~ s/</&lt;/g;
+  if ($FORM{REFERER} && $FORM{REFERER} =~ m/$SELF_URL/x) {
+    $FORM{REFERER} =~ s/>/&gt;/xg;
+    $FORM{REFERER} =~ s/</&lt;/xg;
     $first_page{REFERER} = $FORM{REFERER};
   }
 
@@ -1251,6 +1256,8 @@ sub form_login_clients {
     MAIN => 1,
     ID   => 'form_client_login'
   });
+
+  return 1;
 }
 
 
@@ -1305,7 +1312,7 @@ sub reports {
     $pages_qs = "&allmonthes=1";
   }
   else {
-    ($y, $m, $d) = split(/-/, $DATE, 3);
+    ($y, $m, $d) = split('-', $DATE, 3);
     $LIST_PARAMS{MONTH} = "$y-$m";
     $pages_qs = "&MONTH=$LIST_PARAMS{MONTH}";
   }
@@ -1327,7 +1334,7 @@ sub reports {
   if ($attr->{FIELDS}) {
     my %fields_hash = ();
     if (defined($FORM{FIELDS})) {
-      my @fileds_arr = split(/, /, $FORM{FIELDS});
+      my @fileds_arr = split(', ', $FORM{FIELDS});
       foreach my $line (@fileds_arr) {
         $fields_hash{$line} = 1;
       }
@@ -1341,7 +1348,7 @@ sub reports {
     my $i = 0;
 
     foreach my $line (sort keys %{$attr->{FIELDS}}) {
-      my (undef, $k) = split(/:/, $line);
+      my (undef, $k) = split(':', $line);
 
       push @arr, $html->form_input("FIELDS", $k, { TYPE => 'checkbox', STATE => (defined($fields_hash{$k})) ? 'checked' : undef, OUTPUT2RETURN => 1 }) . " $attr->{FIELDS}{$line}";
       $i++;
@@ -1365,7 +1372,7 @@ sub reports {
         $date = $FORM{'FROM_DATE_TO_DATE'};
       }
       elsif(! $attr->{DATE}) {
-        ($y, $m, $d) = split(/-/, $DATE, 3) if (! $y);
+        ($y, $m, $d) = split('-', $DATE, 3) if (! $y);
         $date = "$y-$m-01/$DATE";
       }
 
@@ -1446,7 +1453,7 @@ sub reports {
   }
 
   if (defined($FORM{DATE})) {
-    ($y, $m, $d) = split(/-/, $FORM{DATE}, 3);
+    ($y, $m, $d) = split('-', $FORM{DATE}, 3);
 
     $LIST_PARAMS{DATE} = "$FORM{DATE}";
     $pages_qs .= "&DATE=$LIST_PARAMS{DATE}";
@@ -1480,7 +1487,7 @@ sub reports {
     @rows = ([ "$lang{YEAR}:", $y ], [ "$lang{MONTH}:", $MONTHES[ $m - 1 ] ], [ "$lang{DAY}:", $days ]);
 
     if ($attr->{SHOW_HOURS}) {
-      my (undef, $h) = split(/ /, $FORM{HOUR}, 2);
+      my (undef, $h) = split(' ', $FORM{HOUR}, 2);
       my $hours = '';
       for (my $i = 0; $i < 24; $i++) {
         $hours .= ($h == $i) ? $html->b($i) : ' ' . $html->button($i, sprintf("index=$index&HOUR=%d-%02.f-%02.f+%02.f&EX_PARAMS=$FORM{EX_PARAMS}$pages_qs", $y, $m, $d, $i), { BUTTON => 1 });
@@ -1509,7 +1516,9 @@ sub reports {
 
 
 #**********************************************************
-=head2 form_finance
+=head2 form_finance()
+
+  Arguments:
 
 =cut
 #**********************************************************
@@ -1547,9 +1556,9 @@ sub form_fees {
     $LIST_PARAMS{METHOD}=$conf{user_fees_methods};
   }
 
-  $conf{user_payment_journal_show}//=6;
-  if($conf{user_payment_journal_show}) {
-    $LIST_PARAMS{FEES_MONTHES} = $conf{user_payment_journal_show};
+  $conf{user_fees_journal_show}//=6;
+  if($conf{user_fees_journal_show}) {
+    $LIST_PARAMS{FEES_MONTHES} = $conf{user_fees_journal_show};
   }
 
   my $Fees = Finance->fees($db, $admin, \%conf);
@@ -1585,25 +1594,25 @@ sub form_fees {
   });
   my $summary = {
     TOTAL      => $Fees->{TOTAL},
-    SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Fees->{SUM}),
+    SUM        => format_sum($Fees->{SUM}),
     PAGINATION => $attr->{pagination} && $attr->{pagination} == 0 ? '' : $table->{pagination}
   };
 
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
-    while ( $line->{dsc} =~ /([A-Z\_]+)/g) {
+    while ( $line->{dsc} =~ m/([A-Z\_]+)/g) {
       my $res = $1;
       my $lang_res = $lang{$res};
       next if !$lang_res;
-      $line->{dsc} =~ s/$1/$lang_res/g;
+      $line->{dsc} =~ s/$1/$lang_res/xg;
     }
 
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{sum} || 0),
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{last_deposit} || 0),
+      format_sum($line->{sum}),
+      format_sum($line->{last_deposit}),
       $FEES_METHODS->{ $line->{method} || 0}
     );
   }
@@ -1614,7 +1623,7 @@ sub form_fees {
 }
 
 #**********************************************************
-=head2 form_payments_list()
+=head2 form_payments_list($attr)
 
 =cut
 #**********************************************************
@@ -1667,25 +1676,25 @@ sub form_payments_list {
 
   my $summary = {
     TOTAL      => $Payments->{TOTAL},
-    SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Payments->{SUM} || 0),
+    SUM        => format_sum($Payments->{SUM}),
     PAGINATION => $attr->{pagination} && $attr->{pagination} == 0 ? '' : $table->{pagination}
   };
 
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
-    while ( $line->{dsc} =~ /([A-Z\_]+)/g) {
+    while ( $line->{dsc} =~ m/([A-Z\_]+)/g) {
       my $res = $1;
       my $lang_res = $lang{$res};
-      next if !$lang_res;
-      $line->{dsc} =~ s/$1/$lang_res/g;
+      next if (!$lang_res);
+      $line->{dsc} =~ s/$1/$lang_res/xg;
     }
 
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{sum} || 0),
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{last_deposit} || 0),
+      format_sum($line->{sum}),
+      format_sum($line->{last_deposit}),
     );
   }
 
@@ -1785,8 +1794,8 @@ sub form_money_transfer {
 
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 
-  if ($conf{MONEY_TRANSFER} =~ /:/) {
-    ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
+  if ($conf{MONEY_TRANSFER} =~ m/:/x) {
+    ($deposit_limit, $transfer_price, $no_companies) = split(':', $conf{MONEY_TRANSFER});
 
     if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
@@ -1833,43 +1842,33 @@ sub form_money_transfer {
               return 1;
             }
           }
+          my $comments = $FORM{COMMENTS} ? " $FORM{COMMENTS} " : '';
 
           #Fees
           my $Fees = Finance->fees($db, $admin, \%conf);
-          $Fees->take(
-            $user,
-            $FORM{SUM},
-            {
-              DESCRIBE => "$lang{USER}: $user2->{UID}",
+          $Fees->take( $user, $FORM{SUM},{
+              DESCRIBE => "UID: $user2->{UID}" . $comments,
               METHOD   => 4
-            }
-          );
+          });
 
           if (!_error_show($Fees)) {
             $html->message('info', $lang{FEES},
               "UID: $user->{UID}, $lang{SUM}: $FORM{SUM}" . (($transfer_price > 0) ? " $lang{COMMISSION} $lang{SUM}: $transfer_price" : ''));
             my $Payments = Finance->payments($db, $admin, \%conf);
-            $Payments->add(
-              $user2,
-              {
-                DESCRIBE       => "$lang{USER}: $user->{UID}",
+            $Payments->add($user2, {
+                DESCRIBE       => "UID: $user->{UID}" . $comments,
                 INNER_DESCRIBE => "$Fees->{INSERT_ID}",
                 SUM            => $FORM{SUM},
                 METHOD         => 7
-              }
-            );
+            });
 
             if (!_error_show($Payments)) {
               my $message = "$lang{MONEY_TRANSFER}\n #$Payments->{INSERT_ID}\n UID: $user2->{UID}, $lang{SUM}: $FORM{SUM}";
               if ($transfer_price > 0) {
-                $Fees->take(
-                  $user,
-                  $transfer_price,
-                  {
+                $Fees->take( $user, $transfer_price, {
                     DESCRIBE => "$lang{USER}: $user2->{UID} $lang{COMMISSION}",
                     METHOD   => 4,
-                  }
-                );
+                });
               }
 
               $html->message('info', $lang{PAYMENTS}, $message);
@@ -1911,7 +1910,7 @@ sub form_neg_deposit {
 
   #use dv warning expr
   if ($conf{PORTAL_EXTRA_WARNING}) {
-    if ($conf{PORTAL_EXTRA_WARNING} =~ /CMD:(.+)/) {
+    if ($conf{PORTAL_EXTRA_WARNING} =~ m/CMD:(.+)/x) {
       $user_->{EXTRA_WARNING} = cmd($1, {
         PARAMS => {
           language => $html->{language},
@@ -1955,7 +1954,7 @@ sub form_neg_deposit {
 
   $user_->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT} || "%.2f", $user_->{DEPOSIT});
   if ($conf{MONEY_UNIT_NAMES}) {
-    $user->{MONEY_UNIT_NAME}=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+    $user->{MONEY_UNIT_NAME}=(split(';', $conf{MONEY_UNIT_NAMES}))[0];
   }
 
   $html->tpl_show(templates('form_neg_deposit'), $user_, { ID => 'form_neg_deposit' });
@@ -2136,7 +2135,7 @@ sub form_custom {
   my %info = ();
 
   if ($conf{MONEY_UNIT_NAMES}) {
-    $info{MONEY_UNIT_NAME}=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+    $info{MONEY_UNIT_NAME}=(split(';', $conf{MONEY_UNIT_NAMES}))[0];
   }
 
   if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
@@ -2329,7 +2328,7 @@ sub make_social_auth_manage_buttons {
   if ($conf{AUTH_APPLE_ID}) {
     my $client_id = $conf{AUTH_APPLE_ID} || q{};
     my $redirect_uri = $conf{AUTH_APPLE_URL} || q{};
-    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/xg;
     my $session_state = mk_unique_value(36);
 
     $result .= $make_button->('Apple', '', {
@@ -2347,7 +2346,7 @@ sub make_social_auth_manage_buttons {
   if ($conf{AUTH_FACEBOOK_ID}) {
     my $client_id = $conf{AUTH_FACEBOOK_ID} || q{};
     my $redirect_uri = $conf{AUTH_FACEBOOK_URL} || q{};
-    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/xg;
     my $scope = $conf{FACEBOOK_AUTH_SCOPE} || 'public_profile,email,user_birthday,user_likes,user_friends';
 
     $result .= $make_button->('Facebook', 'external_auth=Facebook', {
@@ -2363,7 +2362,7 @@ sub make_social_auth_manage_buttons {
   if ($conf{AUTH_GOOGLE_ID}) {
     my $client_id = $conf{AUTH_GOOGLE_ID} || q{};
     my $redirect_uri = $conf{AUTH_GOOGLE_URL} || q{};
-    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/xg;
 
     $result .= $make_button->('Google', '', {
       GLOBAL_URL => "https://accounts.google.com/o/oauth2/v2/auth?"
@@ -2379,7 +2378,7 @@ sub make_social_auth_manage_buttons {
   if ($conf{AUTH_INSTAGRAM_ID}) {
     my $client_id = $conf{AUTH_INSTAGRAM_ID} || q{};
     my $redirect_uri = $conf{AUTH_INSTAGRAM_URL} || q{};
-    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/xg;
 
     $result .= $make_button->('Instagram', '', {
       GLOBAL_URL => "https://api.instagram.com/oauth/authorize?"
@@ -2393,7 +2392,7 @@ sub make_social_auth_manage_buttons {
   if ($conf{AUTH_TWITTER_ID}) {
     my $client_id = $conf{AUTH_TWITTER_ID} || q{};
     my $redirect_uri = $conf{AUTH_TWITTER_URL} || q{};
-    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/xg;
 
     require Abills::Auth::Twitter;
     Abills::Auth::Twitter->import();
@@ -2598,12 +2597,12 @@ sub language_select {
 
   #Make active lang list
   if ($conf{LANGS}) {
-    $conf{LANGS} =~ s/\n//g;
-    my (@lang_arr) = split(/;/, $conf{LANGS});
+    $conf{LANGS} =~ s/\n//xg;
+    my (@lang_arr) = split(';', $conf{LANGS});
     %LANG = ();
     foreach my $l (@lang_arr) {
-      my ($lang, $lang_name) = split(/:/, $l);
-      $lang =~ s/^\s+//;
+      my ($lang, $lang_name) = split(':', $l);
+      $lang =~ s/^\s+//x;
       $LANG{$lang} = $lang_name;
     }
   }
@@ -2673,7 +2672,7 @@ sub form_company_list {
     });
 
     foreach my $service ( @{ $service_info->{list} } ) {
-      my ($status_name, $color_status) = split(/:/, $statuses->{$service->{STATUS}});
+      my ($status_name, $color_status) = split(':', $statuses->{$service->{STATUS}});
       $table->addrow($line->{LOGIN},
         $service->{SERVICE_NAME},
         $service->{SERVICE_DESC},
@@ -2721,7 +2720,7 @@ sub form_company_list {
 #**********************************************************
 sub change_pi_popup {
 
-  my @check_fields = split(/,[\r\n\s]?/, $conf{CHECK_CHANGE_PI});
+  my @check_fields = split(/,[\r\n\s]?/x, $conf{CHECK_CHANGE_PI});
   my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
 
   $user->{PINFO} = 0; # param wich show modal window
@@ -2740,7 +2739,7 @@ sub change_pi_popup {
   foreach my $info_field (@$info_fields_list) {
     if (($user->{uc($info_field->{SQL_FIELD})} eq ''
       || $user->{uc($info_field->{SQL_FIELD})} eq '0000-00-00'
-      || $user->{uc($info_field->{SQL_FIELD})} eq 0)
+      || $user->{uc($info_field->{SQL_FIELD})} eq '0')
       && in_array(uc($info_field->{SQL_FIELD}), \@check_fields)) {
 
       $user->{INFO_FIELDS_POPUP} .= form_info_field_tpl({
@@ -2830,7 +2829,7 @@ sub form_credit {
     });
 
     for (my $i = 0; $i <= $#{$credit_info->{CREDIT_RULES}}; $i++) {
-      my (undef, $days, $price, undef, undef) = split(/:/, $credit_info->{CREDIT_RULES}[$i]);
+      my (undef, $days, $price, undef, undef) = split(':', $credit_info->{CREDIT_RULES}[$i]);
       $table->addrow($days, sprintf("%.2f", $price),
         $html->button("$lang{SET} $lang{CREDIT}", '#', {
           ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
@@ -2927,7 +2926,7 @@ sub form_company_info {
 
   my $money_unit_names = '';
   if ($conf{MONEY_UNIT_NAMES}) {
-    $money_unit_names=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+    $money_unit_names=(split(';', $conf{MONEY_UNIT_NAMES}))[0];
   }
 
   $html->tpl_show(templates('form_client_company_info'), {
@@ -2953,4 +2952,4 @@ sub form_company_info {
   return 1;
 }
 
-1
+1;

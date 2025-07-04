@@ -176,7 +176,7 @@ use constant {
       type => 'string',
     },
     PERSONAL_TP      => {
-      type => 'unsigned_integer',
+      type => 'unsigned_number',
     },
     SERVICE_EXPIRE   => {
       type    => 'date',

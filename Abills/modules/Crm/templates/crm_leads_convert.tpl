@@ -8,7 +8,7 @@
 
 </style>
 
-<form id='LEAD_CONVERT' action='$SELF_URL' method='POST' class='form-horizontal'>
+<form id='LEAD_CONVERT' action='%SELF_URL%' method='POST' class='form-horizontal'>
 
 <input type='hidden' name='index' value='%INDEX%'>
 

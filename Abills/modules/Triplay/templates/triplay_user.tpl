@@ -2,6 +2,7 @@
 
     <input type='hidden' name='index' value=%index%>
     <input type='hidden' name='UID' value=%UID%>
+    <input type='hidden' name='step' value='$FORM{step}'>
 
     <div class='card card-primary card-outline card-big-form for_sort container-md'>
         <div class='card-header with-border'>
@@ -91,7 +92,7 @@
         <div class='card-footer'>
 
             %BACK_BUTTON%
-            <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%ACTION_LNG%'>
+            <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
             %DEL_BUTTON%
         </div>
 

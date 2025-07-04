@@ -176,38 +176,51 @@ sub post_user_paysys_pay {
     return $Errors->throw_error(1170102, { lang_vars => { FIELD => 'systemId' } });
   }
 
-  if (!$sum) {
-    require Users;
-    Users->import();
-    my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  require Users;
+  Users->import();
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  my $user = $Users->info($path_params->{uid});
 
-    my $user = $Users->info($path_params->{uid});
+  if (!$sum) {
     $sum = ::recomended_pay($user) || 1;
   }
 
   if (!$operation_id) {
-    $operation_id = mk_unique_value(9, { SYMBOLS => '0123456789' }),
+    $operation_id = mk_unique_value(16, { SYMBOLS => '0123456789' }),
   }
   else {
     $operation_id =~ s/[<>]//gm;
   }
 
-  my $paysys = $Paysys->paysys_connect_system_list({
+  my $system = $Paysys->paysys_connect_system_list({
     SHOW_ALL_COLUMNS => 1,
     STATUS           => 1,
     COLS_NAME        => 1,
     ID               => $query_params->{SYSTEM_ID} || '--',
   });
 
-  if (!scalar @{$paysys}) {
+  if (!scalar @{$system}) {
     return $Errors->throw_error(1170103);
   }
 
+  my $allowed_system = $Paysys->groups_settings_list({
+    GID       => $user->{GID},
+    PAYSYS_ID => $system->[0]->{paysys_id},
+    COLS_NAME => 1,
+    PAGE_ROWS => 50,
+  });
+
+  if (!scalar @{$allowed_system}) {
+    return $Errors->throw_error(1170109);
+  }
+
   my %pay_params = (
-    UID          => $path_params->{uid},
-    SUM          => $sum,
-    OPERATION_ID => $operation_id,
-    MODULE       => $paysys,
+    UID            => $path_params->{uid},
+    SUM            => $sum || 1,
+    OPERATION_ID   => $operation_id,
+    MODULE         => $system,
+    SUBSCRIBE      => $query_params->{SUBSCRIBE} || 0,
+    SUBSCRIBE_ONLY => $query_params->{SUBSCRIBE_ONLY} || 0,
   );
 
   $pay_params{APAY} = $query_params->{APAY} if ($query_params->{APAY});
@@ -373,6 +386,15 @@ sub paysys_pay {
     CUSTOM_NAME => $attr->{MODULE}->[0]->{name},
     CUSTOM_ID   => $attr->{MODULE}->[0]->{paysys_id}
   });
+
+  my %settings = $Paysys_plugin->get_settings();
+  if ($settings{SHORT_NAME}) {
+    $Paysys->info({
+      TRANSACTION_ID => "$settings{SHORT_NAME}:$attr->{OPERATION_ID}",
+    });
+
+    return $Errors->throw_error(1170110) if ($Paysys->{ID});
+  }
 
   if ($attr->{GPAY} && $Module->can('google_pay')) {
     return $Paysys_plugin->google_pay(\%params);

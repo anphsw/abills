@@ -203,10 +203,7 @@
                     }
                   },
                   "required": [
-                    "abonDate",
-                    "activateDate",
-                    "daysToFee",
-                    "sum"
+
                   ]
                 },
                 "outSpeed": {

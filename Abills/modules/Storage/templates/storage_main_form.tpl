@@ -20,8 +20,8 @@
     <div class='card-body'>
 
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{INVOICE_NUMBER}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right'>_{INVOICE_NUMBER}_:</label>
+        <div class='col-md-8'>
           <div class='addInvoiceMenu'>
 
             <div class='d-flex bd-highlight'>
@@ -56,22 +56,22 @@
       </div>
 
       <div class='form-group row changeInvoiceMenu' style='display : none'>
-        <label class='col-md-3 col-form-label text-md-right'>_{PAYER}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right'>_{PAYER}_:</label>
+        <div class='col-md-8'>
           %PAYERS_SELECT%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{TYPE}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
+        <div class='col-md-8'>
           %ARTICLE_TYPES%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{NAME}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right'>_{NAME}_:</label>
+        <div class='col-md-8'>
           <div class='ARTICLES_S'>
             %ARTICLE_ID%
           </div>
@@ -79,29 +79,29 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{SUPPLIERS}_:</label>
-        <div class='col-md-9'>%SUPPLIER_ID%
+        <label class='col-md-4 col-form-label text-md-right'>_{SUPPLIERS}_:</label>
+        <div class='col-md-8'>%SUPPLIER_ID%
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{DATE}_:</label>
-        <div class='col-md-9'>%DATE_TIME_PICKER%</div>
+        <label class='col-md-4 col-form-label text-md-right'>_{DATE}_:</label>
+        <div class='col-md-8'>%DATE_TIME_PICKER%</div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right required' for='COUNT'>_{QUANTITY_OF_GOODS}_: </label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right required' for='COUNT'>_{QUANTITY_OF_GOODS}_: </label>
+        <div class='col-md-8'>
           <input class='form-control' required id='COUNT' name='COUNT' type='text' value='%COUNT%' %DISABLED%/>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right' for='SELL_PRICE'>_{SELL_PRICE}_ (_{PER_ONE_ITEM}_): </label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='SELL_PRICE'>_{SELL_PRICE}_ (_{PER_ONE_ITEM}_): </label>
+        <div class='col-md-8'>
           <input class='form-control' id='SELL_PRICE' name='SELL_PRICE' type='text' value='%SELL_PRICE%'/>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right required' for='SUM'>_{SUM_ALL}_: </label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right required' for='SUM'>_{SUM_ALL}_: </label>
+        <div class='col-md-8'>
           <input class='form-control' required id='SUM' name='SUM' type='number' step='0.01' value='%SUM%' %DISABLED%/>
         </div>
       </div>
@@ -119,28 +119,28 @@
         </div>
         <div class='card-body'>
           <div class='form-group row'>
-            <label class='col-md-3 col-form-label text-md-right' for='RENT_PRICE'>_{RENT_PRICE}_ (_{MONTH}_): </label>
-            <div class='col-md-9'>
+            <label class='col-md-4 col-form-label text-md-right' for='RENT_PRICE'>_{RENT_PRICE}_ (_{MONTH}_): </label>
+            <div class='col-md-8'>
               <input class='form-control' id='RENT_PRICE' name='RENT_PRICE' type='text' value='%RENT_PRICE%'/>
             </div>
           </div>
           <div class='form-group row'>
-            <label class='col-md-3 col-form-label text-md-right' for='IN_INSTALLMENTS_PRICE'>_{BY_INSTALLMENTS}_: </label>
-            <div class='col-md-9'>
+            <label class='col-md-4 col-form-label text-md-right' for='IN_INSTALLMENTS_PRICE'>_{BY_INSTALLMENTS}_: </label>
+            <div class='col-md-8'>
               <input class='form-control' id='IN_INSTALLMENTS_PRICE' name='IN_INSTALLMENTS_PRICE' type='text'
                      value='%IN_INSTALLMENTS_PRICE%'/>
             </div>
           </div>
-          <div class='form-group row'>
-            <label for='METHOD' class='col-form-label text-md-right col-sm-3'>_{FEES}_ _{TYPE}_:</label>
-            <div class='col-md-9'>
+<!--          <div class='form-group row'>-->
+<!--            <label for='METHOD' class='col-form-label text-md-right col-sm-3'>_{FEES}_ _{TYPE}_:</label>-->
+<!--            <div class='col-md-8'>-->
               %SEL_METHOD%
-            </div>
-          </div>
+<!--            </div>-->
+<!--          </div>-->
 
           <div class='form-group row'>
-            <label class='col-md-3 text-md-right' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 text-md-right' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
+            <div class='col-md-8'>
               <div class='form-check text-left'>
                 <input id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION% type='checkbox'>
               </div>
@@ -148,8 +148,8 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-3 text-md-right' for='PUBLIC_SALE'>_{AVAILABLE_FOR_PUBLIC_SALE}_:</label>
-            <div class='col-md-9'>
+            <label class='col-md-4 text-md-right' for='PUBLIC_SALE'>_{AVAILABLE_FOR_PUBLIC_SALE}_:</label>
+            <div class='col-md-8'>
               <div class='form-check text-left'>
                 <input id='PUBLIC_SALE' name='PUBLIC_SALE' value='1' %PUBLIC_SALE% type='checkbox'>
               </div>
@@ -160,26 +160,29 @@
 
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right'>_{DEPOT_NUM}_: </label>
-        <div class='col-md-9'>%STORAGE_STORAGES%</div>
+        <label class='col-md-4 col-form-label text-md-right'>_{DEPOT_NUM}_: </label>
+        <div class='col-md-8'>%STORAGE_STORAGES%</div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right' for='SN'>SN: </label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='SN'>SN: </label>
+        <div class='col-md-8'>
           <input class='form-control' name='SN' type='hidden' value='%SN%'/>
           <input class='form-control' id='SN' name='SERIAL' type='%INPUT_TYPE%' value='%SERIAL%'/> %DIVIDE_BTN%
         </div>
       </div>
       <div class='form-group row' %SN_COMMENTS_HIDDEN%>
-        <label class='col-md-3 col-form-label text-md-right' for='SN_COMMENTS'>_{NOTES}_: </label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='SN_COMMENTS'>_{NOTES}_: </label>
+        <div class='col-md-8'>
           <textarea class='form-control' id='SN_COMMENTS' name='SN_COMMENTS'>%SN_COMMENTS%</textarea>
         </div>
       </div>
+
+      %IDENT_FORMS%
+
       %PROPERTIES%
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
-        <div class='col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
+        <div class='col-md-8'>
           <textarea class='form-control col-xs-12' id='COMMENTS' name='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>

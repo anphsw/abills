@@ -19,16 +19,17 @@ my (
 
 my Abills::HTML $html;
 
-require Internet;
-require Users;
-require Finance;
-require Shedule;
-require Tariffs;
-my ($Internet);
+use Internet;
+use Users;
+use Finance;
+use Shedule;
+use Tariffs;
 
 my Users $Users;
 my Tariffs $Tariffs;
 my Shedule $Shedule;
+my Internet $Internet;
+my $Errors;
 
 use Abills::Base qw(in_array date_diff cmd days_in_month next_month camelize int2ip);
 
@@ -53,6 +54,10 @@ sub new {
   $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Shedule = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
   $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+  require Control::Errors;
+  Control::Errors->import();
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $lang });
 
   return $self;
 }
@@ -366,6 +371,7 @@ sub user_holdup {
   }
 
   my $block_days = 0;
+  my $error_result = { error => 4428, errstr => 'ERR_WRONG_DATA' };
   if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
     my $err_msg = '';
     my $errstr = '';
@@ -417,11 +423,18 @@ sub user_holdup {
         last;
       }
     }
+    else {
+      $error_result = $Errors->throw_error(1000020, {
+        errstr    => 'ERR_HOLD_UP_MAX_PERIOD',
+        lang_vars => { DAYS => $_hold_up_max_period }
+      });
+      $error_result->{error} ||= $error_result->{errno};
+    }
   }
 
   if ($attr->{add} && !$self->{HOLDUP_ADD_RULES}) {
     # 'Parameters fromDate and toDate do not satisfy rules'
-    return { error => 4428, errstr => 'ERR_WRONG_DATA' };
+    return $error_result;
   }
 
   if ($holdup_skip_gids) {
@@ -526,7 +539,7 @@ sub user_holdup {
 }
 
 #**********************************************************
-=head2 available_tariffs()
+=head2 available_tariffs($attr)
 
   Arguments:
     $attr
@@ -548,48 +561,47 @@ sub available_tariffs {
     return $self->_get_tariffs($attr, { TP_ID => 0, SERVICE_ID => $attr->{SERVICE_ID} || '--' }, $Users->info($attr->{UID}));
   }
 
-  return {
-    message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
-    message_type  => 'err',
-    message_title => '$lang{ERROR}',
-    error         => 4504,
-    errstr        => 'Not allowed to change tariff plan',
-  } if (!$CONF->{uc $attr->{MODULE} . '_USER_CHG_TP'});
+  if (!$CONF->{uc $attr->{MODULE} . '_USER_CHG_TP'}) {
+    $self->{message}       = 'NOT_ALLOWED_TO_CHANGE_TP';
+    $self->{message_type}  = 'err';
+    $self->{message_title} = 'ERROR';
+    $self->{error}         = 4504;
+    $self->{errstr}        = 'Not allowed to change tariff plan';
+    return $self;
+  }
 
   my $service_info = $self->_service_info($attr);
-  return $service_info if $service_info->{errno};
+  return $service_info if ($service_info->{errno});
 
   my $user_info = $Users->info($attr->{UID});
 
   if ($user_info->{GID}) {
     $Users->group_info($user_info->{GID});
     if ($user_info->{DISABLE_CHG_TP}) {
-      return {
-        error   => 4505,
-        errstr  => 'Not allowed to change tariff plan',
-        message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
-        MODULE  => $attr->{MODULE}
-      };
+      $self->{error}   = 4505;
+      $self->{errstr}  = 'Not allowed to change tariff plan';
+      $self->{message} = 'NOT_ALLOWED_TO_CHANGE_TP';
+      $self->{MODULE}  = $attr->{MODULE};
+      return $self;
     }
   }
 
   if ($service_info->{UID} && $attr->{UID} ne $service_info->{UID}) {
-    return {
-      error   => 4520,
-      errstr  => 'Unknown parameter id',
-      message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
-      MODULE  => $attr->{MODULE}
-    };
+    $self->{error}   = 4520;
+    $self->{errstr}  = 'Unknown parameter id';
+    $self->{message} = 'NOT_ALLOWED_TO_CHANGE_TP';
+    $self->{MODULE}  = $attr->{MODULE};
+    return $self;
   }
 
   $Tariffs->tp_group_info($service_info->{TP_GID});
+
   if (!$Tariffs->{USER_CHG_TP}) {
-    return {
-      error   => 4506,
-      errstr  => 'Not allowed to change tariff plan',
-      message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
-      MODULE  => $attr->{MODULE}
-    };
+    $self->{error}   = 4506;
+    $self->{errstr}  = 'Not allowed to change tariff plan';
+    $self->{message} = 'NOT_ALLOWED_TO_CHANGE_TP';
+    $self->{MODULE}  = $attr->{MODULE};
+    return $self;
   }
 
   return $self->_get_tariffs($attr, $service_info, $user_info);
@@ -634,7 +646,7 @@ sub service_warning {
   my ($attr) = @_;
 
   my $service_info = $attr->{SERVICE_INFO} || $self->_service_info($attr);
-  return $service_info if $service_info->{errno};
+  return $service_info if ($service_info->{errno});
 
   my $user_info = $attr->{USER_INFO} || $Users->info($attr->{UID});
   my $warning = '';
@@ -645,11 +657,10 @@ sub service_warning {
   $user_info->{DEPOSIT} = 0 if (!$user_info->{DEPOSIT} || $user_info->{DEPOSIT} !~ /^[0-9\.\,\-]+$/);
   $user_info->{CREDIT} ||= $user_info->{COMPANY_CREDIT} || 0;
   $self->{DAYS_TO_FEE} = 0;
-
   if ($service_info->{EXPIRE} && $service_info->{EXPIRE} ne '0000-00-00') {
     my $expire = date_diff($service_info->{EXPIRE}, $main::DATE);
     if ($expire >= 0) {
-      $warning = ::_translate('$lang{EXPIRE}') . ": $service_info->{EXPIRE}";
+      $warning = ::_translate('EXPIRE') . ": $service_info->{EXPIRE}";
       $message_type = 'err';
       return {
         WARNING      => $warning,
@@ -658,7 +669,7 @@ sub service_warning {
     }
 
     $message_type = 'warn';
-    $warning = ::_translate('$lang{EXPIRE}') . ": $service_info->{EXPIRE}";
+    $warning = ::_translate('EXPIRE') . ": $service_info->{EXPIRE}";
   }
   elsif ($service_info->{JOIN_SERVICE} && $service_info->{JOIN_SERVICE} > 1) {
     $message_type = 'warn';
@@ -730,7 +741,7 @@ sub service_warning {
             (($service_info->{MONTH_ABON} * $reduction_division) / $days_in_month));
           $return_info{ACTIVATE_DATE} = $service_info->{ACTIVATE};
         }
-        $warning = ::_translate('$lang{SERVICE_ENDED}') || q{};
+        $warning = ::_translate('SERVICE_ENDED') || q{};
       }
       else {
         if ($service_info->{ACTIVATE} && $service_info->{ACTIVATE} ne '0000-00-00') {
@@ -773,7 +784,7 @@ sub service_warning {
 
         $days_to_fee = date_diff($main::DATE, $self->{ABON_DATE});
         if ($days_to_fee > 0) {
-          $warning = ::_translate('$lang{NEXT_FEES_THROUGHT}');
+          $warning = ::_translate('NEXT_FEES_THROUGHT');
         }
       }
     }
@@ -781,9 +792,8 @@ sub service_warning {
       $return_info{ACTIVATE_DATE} = '0000-00-00';
       $days_to_fee = int(($user_info->{DEPOSIT} + $user_info->{CREDIT} > 0) ?
         ($user_info->{DEPOSIT} + $user_info->{CREDIT}) / ($service_info->{DAY_ABON} * $reduction_division) : 0);
-      $warning = ::_translate('$lang{SERVICE_ENDED}');
+      $warning = ::_translate('SERVICE_ENDED');
     }
-
     if ($days_to_fee && $days_to_fee < 5) {
       $message_type = 'warn';
     }
@@ -811,14 +821,13 @@ sub service_warning {
       $self->{ABON_DATE} = $expire_date;
       $warning =~ s/\%EXPIRE_DATE\%/$expire_date/g;
       if ($service_info->{MONTH_ABON} && $service_info->{MONTH_ABON} > 0) {
-        $warning .= "\n" . ::_translate('$lang{SUM}') . ": " . sprintf("%.2f", $service_info->{MONTH_ABON} * $reduction_division);
+        $warning .= "\n" . ::_translate('SUM') . ": " . sprintf("%.2f", $service_info->{MONTH_ABON} * $reduction_division);
         $return_info{SUM} = $service_info->{MONTH_ABON} * $reduction_division;
       }
     }
     $return_info{DAYS_TO_FEE} = $days_to_fee;
     $return_info{ABON_DATE} = $self->{ABON_DATE};
   }
-
   # moved here, not defining ABON_DATE and DAYS_TO_FEE
   if ($self->{conf}{uc $attr->{MODULE} . '_WARNING_EXPR'}) {
     if ($self->{conf}{uc $attr->{MODULE} . '_WARNING_EXPR'} =~ /CMD:(.+)/) {
@@ -878,6 +887,16 @@ sub user_chg_tp_allow {
   $Users->group_info($user_info->{GID}) if ($user_info->{GID});
   $Tariffs->tp_group_info($service_info->{TP_GID});
 
+  if (!$service_info->{UID} || $attr->{UID} ne $service_info->{UID}) {
+    return {
+      message       => '$lang{UNKNOWN} $lang{SERVICES} ID',
+      message_type  => 'err',
+      message_title => '$lang{ERROR}',
+      error         => 4526,
+      errstr        => 'Unknown service id for change',
+    };
+  }
+
   if (!$CONF->{uc($attr->{MODULE}) . '_USER_CHG_TP'} || $Users->{DISABLE_CHG_TP} || !$Tariffs->{USER_CHG_TP}) {
     return {
       message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
@@ -910,7 +929,7 @@ sub user_chg_tp_allow {
     message_title => '$lang{ERROR}',
     error         => 4509,
     errstr        => 'Unknown id',
-  } if !$attr->{ID};
+  } if (!$attr->{ID});
 
   my $available_tariffs = $self->available_tariffs({
     SKIP_NOT_AVAILABLE_TARIFFS => 1,
@@ -1654,9 +1673,9 @@ sub _service_info {
   my ($attr) = @_;
 
   return {
-    message       => '$lang{ERR_NO_DATA}',
+    message       => 'ERR_NO_DATA',
     message_type  => 'err',
-    message_title => '$lang{ERROR}',
+    message_title => 'ERROR',
     error         => 4601,
     errstr        => 'No data'
   } if (!$attr->{UID} || !$attr->{MODULE});
@@ -1674,7 +1693,7 @@ sub _service_info {
   return {
     message       => $@,
     message_type  => 'err',
-    message_title => '$lang{ERROR}',
+    message_title => 'ERROR',
     error         => 4602,
     errstr        => 'Error occurred during operation'
   } if ($@);
@@ -1684,10 +1703,10 @@ sub _service_info {
   return {
     message       => 'CANNOT_GET_SERVICE_INFO',
     message_type  => 'err',
-    message_title => '$lang{ERROR}',
+    message_title => 'ERROR',
     error         => 4603,
     errstr        => 'Unknown operation for this user'
-  } if !$module->can('user_info') ;
+  } if (!$module->can('user_info'));
 
   return $module->user_info($info_function{$attr->{MODULE}} ?
     $info_function{$attr->{MODULE}} : ($attr->{UID}, { ID => $attr->{ID} }));
@@ -1858,14 +1877,26 @@ sub _add_holdup {
   my $err_status = 0;
 
   if ($attr->{HOLD_UP_MIN_PERIOD} && $block_days < $attr->{HOLD_UP_MIN_PERIOD}) {
-    $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS} ' . $block_days;
-    $errstr = 'Min holdup ' . $attr->{HOLD_UP_MIN_PERIOD} . ' days ' . $block_days;
-    $err_status = 4421;
+    # $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS} ';
+    # $errstr = 'Min holdup ' . $attr->{HOLD_UP_MIN_PERIOD} . ' days ' . $block_days;
+    # $err_status = 4421;
+    my $error_result = $Errors->throw_error(1000019, {
+      errstr    => 'ERR_HOLD_UP_MIN_PERIOD',
+      lang_vars => { DAYS => $attr->{HOLD_UP_MIN_PERIOD} }
+    });
+    $error_result->{error} ||= $error_result->{errno};
+    return $error_result;
   }
   elsif ($attr->{HOLD_UP_MAX_PERIOD} && $block_days > $attr->{HOLD_UP_MAX_PERIOD}) {
-    $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ' . $block_days;
-    $errstr = 'Max holdup ' . $attr->{HOLD_UP_MAX_PERIOD} . ' days ' . $block_days;
-    $err_status = 4422;
+    # $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ';
+    # $errstr = 'Max holdup ' . $attr->{HOLD_UP_MAX_PERIOD} . ' days ' . $block_days;
+    # $err_status = 4422;
+    my $error_result = $Errors->throw_error(1000020, {
+      errstr    => 'ERR_HOLD_UP_MAX_PERIOD',
+      lang_vars => { DAYS => $attr->{HOLD_UP_MAX_PERIOD} }
+    });
+    $error_result->{error} ||= $error_result->{errno};
+    return $error_result;
   }
   elsif (date_diff($main::DATE, $attr->{FROM_DATE}) < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{FROM}: ' . $attr->{FROM_DATE};
@@ -1884,7 +1915,9 @@ sub _add_holdup {
   }
 
   if ($err_msg) {
-    $self->_show_message('err', '$lang{ERR_WRONG_DATA}', $err_msg);
+    # if ($attr->{SHOW_ERROR_MSG}) {
+    #   $self->_show_message('err', '$lang{ERR_WRONG_DATA}', $err_msg);
+    # }
     return { error => $err_status, errstr => $errstr };
   }
 
@@ -2150,8 +2183,8 @@ sub services_info {
       };
 
       if ($attr->{MODULE} eq 'Internet') {
-        $tariff->{schedule}->{IN_SPEED} = $tariff_change->{in_speed};
-        $tariff->{schedule}->{OUT_SPEED} = $tariff_change->{out_speed};
+        $tariff->{schedule}->{IN_SPEED} = $tariff_change->{in_speed} || 0;
+        $tariff->{schedule}->{OUT_SPEED} = $tariff_change->{out_speed} || 0;
       }
 
       $tariff->{can_change_tp} = 'false';
@@ -2168,11 +2201,21 @@ sub services_info {
       $tariff->{can_change_tp} = ($change_tp_result->{errno} || $change_tp_result->{error}) ? 'false' : 'true';
     }
 
+    $tariff->{abon_distribution} //= 0;
+    $tariff->{month_fee} = $tariff->{personal_tp} || $tariff->{month_fee} || 0;
+    $tariff->{day_fee} //= 0;
+    $tariff->{tp_age} //= 0;
+    $tariff->{tp_reduction_fee} //= 0;
+    $tariff->{tv_user_portal} //= 0;
+    $tariff->{activate_price} //= 0;
+    $tariff->{original_day_fee} //= 0;
+    $tariff->{original_month_fee} //= 0;
+
     if ($tariff->{tp_reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
       $tariff->{original_day_fee} = $tariff->{day_fee};
       $tariff->{original_month_fee} = $tariff->{month_fee};
-      $tariff->{day_fee} = $tariff->{day_fee} ? sprintf('%.2f', $tariff->{day_fee} - (($tariff->{day_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{day_fee};
-      $tariff->{month_fee} = $tariff->{month_fee} ? sprintf('%.2f', $tariff->{month_fee} - (($tariff->{month_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{month_fee};
+      $tariff->{day_fee} = ($tariff->{day_fee}) ? sprintf('%.2f', $tariff->{day_fee} - (($tariff->{day_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{day_fee};
+      $tariff->{month_fee} = ($tariff->{month_fee}) ? sprintf('%.2f', $tariff->{month_fee} - (($tariff->{month_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{month_fee};
     }
 
     my $next_abon = $self->service_warning({
@@ -2183,7 +2226,9 @@ sub services_info {
 
     if (!$next_abon->{errno}) {
       delete @{$next_abon}{qw/WARNING MESSAGE_TYPE/};
-      $tariff->{next_abon} = $next_abon;
+      if ($next_abon->{ABON_DATE}) {
+        $tariff->{next_abon} = $next_abon;
+      }
     }
 
     my $status = defined $tariff->{service_status} ? $tariff->{service_status} : ($tariff->{internet_status} // $tariff->{voip_status});
@@ -2238,14 +2283,14 @@ sub _get_tariffs {
   my $tp_list = $Tariffs->list({
     TP_GID            => $service_info->{TP_GID} || '_SHOW',
     CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
-      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
+      '_SHOW' : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
     MODULE            => $attr->{MODULE},
     STATUS            => '<1',
     MONTH_FEE         => '_SHOW',
     DAY_FEE           => '_SHOW',
     CREDIT            => '_SHOW',
     COMMENTS          => '_SHOW',
-    TP_CHG_PRIORITY   => $service_info->{TP_PRIORITY},
+    TP_CHG_PRIORITY   => $service_info->{TP_PRIORITY} || undef,
     REDUCTION_FEE     => '_SHOW',
     NEW_MODEL_TP      => 1,
     DOMAIN_ID         => $user_info->{DOMAIN_ID},
@@ -2268,28 +2313,30 @@ sub _get_tariffs {
     next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
 
     my %tariff = (
-      id             => $tp->{id},
-      tp_id          => $tp->{tp_id},
-      name           => $tp->{name},
-      tp_name        => $tp->{name},
-      comments       => $tp->{comments},
-      tp_comments    => $tp->{comments},
-      service_id     => $tp->{service_id},
-      day_fee        => $tp->{day_fee},
-      month_fee      => $tp->{month_fee},
-      reduction_fee  => $tp->{reduction_fee},
-      activate_price => $tp->{activate_price},
-      tp_age         => $tp->{age},
-      popular        => $tp->{popular},
-      can_change_tp  => 'true',
+      id                 => $tp->{id},
+      tp_id              => $tp->{tp_id},
+      name               => $tp->{name},
+      tp_name            => $tp->{name},
+      comments           => $tp->{comments},
+      tp_comments        => $tp->{comments},
+      service_id         => $tp->{service_id},
+      day_fee            => $tp->{day_fee},
+      month_fee          => $tp->{month_fee},
+      reduction_fee      => $tp->{reduction_fee},
+      activate_price     => $tp->{activate_price} || 0,
+      tp_age             => $tp->{age},
+      popular            => $tp->{popular},
+      can_change_tp      => 'true',
+      original_day_fee   => 0,
+      original_month_fee => 0
     );
 
     my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
 
     if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
       $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});
-      $tariff{original_day_fee} = $tp->{day_fee};
-      $tariff{original_month_fee} = $tp->{month_fee};
+      $tariff{original_day_fee} = $tp->{day_fee} || 0;
+      $tariff{original_month_fee} = $tp->{month_fee} || 0;
       $tariff{day_fee} = $tp->{day_fee} ? sprintf('%.2f', $tp->{day_fee} - (($tp->{day_fee} / 100) * $user_info->{REDUCTION})) : $tp->{day_fee};
       $tariff{month_fee} = $tp->{month_fee} ? sprintf('%.2f', $tp->{month_fee} - (($tp->{month_fee} / 100) * $user_info->{REDUCTION})) : $tp->{month_fee};
     }
@@ -2297,12 +2344,11 @@ sub _get_tariffs {
     $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
     if (uc $attr->{MODULE} eq 'INTERNET') {
-      $tariff{out_speed} = $tp->{out_speed};
-      $tariff{in_speed} = $tp->{in_speed};
+      $tariff{out_speed} = $tp->{out_speed} || 0;
+      $tariff{in_speed} = $tp->{in_speed} || 0;
     }
 
     $tariff{tp_fee} = $tp_fee;
-
     if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
       push @tariffs, \%tariff;
       next;
@@ -2316,7 +2362,7 @@ sub _get_tariffs {
     next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
 
     $tariff{can_change_tp} = 'false';
-    $tariff{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
+    $tariff{ERROR} = ::_translate('ERR_SMALL_DEPOSIT');
 
     push @tariffs, \%tariff;
   }
@@ -2485,9 +2531,9 @@ sub _get_module_tariffs {
   };
 
   return {
-    message       => '$lang{NOT_ALLOWED}',
+    message       => 'NOT_ALLOWED',
     message_type  => 'err',
-    message_title => '$lang{ERROR}',
+    message_title => 'ERROR',
     error         => 4531,
     errstr        => 'Try later'
   } if ($@);

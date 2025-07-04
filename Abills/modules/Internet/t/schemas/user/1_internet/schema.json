@@ -35,7 +35,7 @@
             "type": "integer"
           }
         },
-        "required": ["abonDate", "activateDate", "daysToFee", "sum"]
+        "required": [ ]
       },
       "holdup": {
         "type": "object",
@@ -75,10 +75,10 @@
             "format": "date"
           },
           "dayFee": {
-            "type": "integer"
+            "type": "number"
           },
           "monthFee": {
-            "type": "integer"
+            "type": "number"
           },
           "tpAge": {
             "type": "integer"
@@ -99,13 +99,13 @@
             "type": "integer"
           }
         },
-        "required": ["canCancel", "date", "dateFrom", "dayFee", "monthFee", "tpAge", "sheduleId", "tpId", "tpName", "inSpeed", "outSpeed"]
+        "required": ["canCancel", "date", "dateFrom", "dayFee", "monthFee", "sheduleId", "tpId", "tpName", "inSpeed", "outSpeed"]
       },
       "abonDistribution": {
         "type": "integer"
       },
       "activatePrice": {
-        "type": "integer"
+        "type": "number"
       },
       "canChangeTp": {
         "type": "boolean"
@@ -114,7 +114,7 @@
         "type": "string"
       },
       "dayFee": {
-        "type": "integer"
+        "type": "number"
       },
       "inSpeed": {
         "type": "integer"
@@ -140,7 +140,7 @@
         "type": "boolean"
       },
       "monthFee": {
-        "type": "integer"
+        "type": "number"
       },
       "outSpeed": {
         "type": "integer"

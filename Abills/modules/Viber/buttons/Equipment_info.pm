@@ -3,6 +3,7 @@ package Viber::buttons::Equipment_info;
 use strict;
 use warnings FATAL => 'all';
 use Abills::Fetcher qw(web_request);
+use Abills::Base qw(in_array);
 
 my %icons = (
   not_active       => "\xE2\x9D\x8C",
@@ -94,7 +95,7 @@ sub click {
     return 0;
   }
 
-  if (!defined($equipment_info->{STATUS}) || $equipment_info->{STATUS} < 1) {
+  if (!defined($equipment_info->{STATUS}) || !in_array($equipment_info->{STATUS}, [1, 5])) {
     $self->{bot}->send_message({ text => "$icons{not_active} $self->{bot}{lang}{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING}" });
     $self->{bot}->send_message({ text => $custom_error_text }) if $custom_error_text;
     return 0;

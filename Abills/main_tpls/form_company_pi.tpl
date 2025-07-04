@@ -44,6 +44,15 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-sm-3 col-md-2 text-right control-label' for='EMAIL'>E-mail:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' type='email' id='EMAIL' name='EMAIL' value='%EMAIL%'>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label for='TAX_NUMBER' class='col-sm-3 col-md-2 text-right control-label'>_{TAX_NUMBER}_:</label>
         <div class='col-sm-9 col-md-10'>
           <div class='input-group'>

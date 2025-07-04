@@ -4,6 +4,9 @@
 
 =cut
 
+use strict;
+use warnings;
+
 our @skip_ports_types = (135, 142, 136, 1, 24, 250, 300, 53,
   161 # ieee8023adLag
 );

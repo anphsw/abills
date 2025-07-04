@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Click;
 
 our (
   %conf,
@@ -18,7 +17,16 @@ our (
   $payment_id
 );
 
-my $Payment_plugin = Paysys::systems::Click->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::Plugins::Click;
+  $Payment_plugin = Paysys::Plugins::Click->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Click;
+  $Payment_plugin = Paysys::Plugins::Click->new($db, $admin, \%conf);
+}
+
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }

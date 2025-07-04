@@ -3,7 +3,8 @@ package Ureports::Base;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/in_array date_diff cmd convert/;
+use Abills::Base qw/in_array date_diff cmd convert next_month/;
+use Abills::HTML;
 
 my ($admin, $CONF, $db);
 my Abills::HTML $html;
@@ -90,14 +91,14 @@ sub ureports_payments_maked {
   return 0 unless (exists $attr->{USER_INFO} && defined $attr->{USER_INFO} && $attr->{USER_INFO}{UID});
 
   if ($CONF->{UREPORTS_PAYMENT_METHOD} && $attr->{METHOD}) {
-    my @arr = split(/,\s?/, $CONF->{UREPORTS_PAYMENT_METHOD});
+    my @arr = split(/,\s?/x, $CONF->{UREPORTS_PAYMENT_METHOD});
     return 0 if !in_array($attr->{METHOD}, \@arr);
   }
 
   my $form = $attr->{FORM} || {};
 
   return '' if ($form->{DISABLE} || $form->{CREDIT});
-  return '' if (!$attr->{SUM} || $attr->{SUM} !~ /\d+/);
+  return '' if (!$attr->{SUM} || $attr->{SUM} !~ m/\d+/x);
 
   my $user = $attr->{USER_INFO};
 
@@ -151,7 +152,7 @@ sub ureports_payments_maked {
     my $expire_days = int($deposit / $total_daily_fee);
 
     if ($attr->{CREDIT_NOTIFICATION}) {
-      my (undef, $days) = split(/:/, $CONF->{user_credit_change});
+      my (undef, $days) = split(':', $CONF->{user_credit_change});
       $days = $days || 0;
       $expire_days = $days if ($days && $days < $expire_days);
     }
@@ -180,7 +181,7 @@ sub ureports_payments_maked {
     }
   }
 
-  $lang->{ALL_SERVICE_EXPIRE} =~ s/XX/ $info{EXPIRE_DAYS} /;
+  $lang->{ALL_SERVICE_EXPIRE} =~ s/XX/ $info{EXPIRE_DAYS} /x;
   $info{MESSAGE} = $lang->{ALL_SERVICE_EXPIRE};
   $info{PAYMENT_ID} = $attr->{PAYMENT_ID};
 
@@ -200,13 +201,14 @@ sub ureports_payments_maked {
     }
   }
 
-  $info{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
 
   $user->pi({ UID => $user->{UID} });
+  $info{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
   # This date dont shows in report
   $info{DATE} = "$main::DATE $main::TIME";
   # Added for some reason
   $info{TIME} = $main::TIME;
+  $info{NEXT_MONTH}=next_month({ DATE => $main::DATE });
 
   # Add 0 to correct encoding of sum
   $info{SUM} = sprintf("%.2f", $attr->{SUM} + 0);
@@ -221,20 +223,32 @@ sub ureports_payments_maked {
     $info{PAYMENT_METHOD} = $attr->{PAYMENTS_METHODS}{$attr->{METHOD}} // '';
   }
 
+  if (ref $html ne 'Abills::HTML') {
+    $html = Abills::HTML->new({
+      CONF     => $CONF,
+      CHARSET  => $CONF->{default_charset},
+    });
+  }
+
+  my %params = (
+    %{$user},
+    %{$user_info},
+    %info,
+    SUBJECT   => $lang->{ACCOUNT_REPLENISHMENT},
+    UID       => $user->{UID},
+    TP_ID     => $user_info->{TP_ID},
+    DATE      => $main::DATE,
+    REPORT_ID => 12,
+  );
+
+  my $send_tpl = $html->tpl_show(main::_include('ureports_report_12', 'Ureports'), \%params,
+    { ID => 'ureports_report_12', OUTPUT2RETURN => 1 });
+
   $self->ureports_send_reports(
     $user_info->{DESTINATION_TYPE},
     $user_info->{DESTINATION_ID},
-    $html->tpl_show(main::_include('ureports_report_12', 'Ureports'), { %{$user}, %info, %{$user_info} }, { OUTPUT2RETURN => 1 }),
-    {
-      %{$user},
-      %{$user_info},
-      %info,
-      SUBJECT   => $lang->{ACCOUNT_REPLENISHMENT},
-      UID       => $user->{UID},
-      TP_ID     => $user_info->{TP_ID},
-      DATE      => $main::DATE,
-      REPORT_ID => 12,
-    },
+    $send_tpl,
+    \%params,
     DEBUG => 0
   );
 
@@ -243,7 +257,8 @@ sub ureports_payments_maked {
 
     my %PARAMS = (DESCRIBE => "$lang->{REPORTS} ($user_info->{REPORT_ID}) ");
 
-    use Fees;
+    require Fees;
+    Fees->import();
     my $Fees = Fees->new($db, $admin, $CONF);
     $Fees->take($user, $sum, { %PARAMS });
 
@@ -319,7 +334,7 @@ sub ureports_send_reports {
         my $send_type_format = lc($sending_types{$send_type});
         my $send_type_tpl = 'ureports_report_'. $send_type_format .'_' . $attr->{REPORT_ID};
         my $check_tpl = $html->tpl_show(main::_include($send_type_tpl, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
-        if ($check_tpl !~ /No such module/) {
+        if ($check_tpl !~ m/No such module/x) {
           $message_template = $send_type_tpl;
         }
       }
@@ -367,9 +382,10 @@ sub ureports_send_reports {
         TO_ADDRESS    => $destinations[$type_index],
         SENDER_TYPE   => $send_type,
         MESSAGE       => $message,
-        SUBJECT       => $subject,
+        SUBJECT       => in_array($send_type, [ 1 ]) ? $subject : '',
         DEBUG         => ($debug > 2) ? $debug - 2 : undef,
-        RETURN_RESULT => 1
+        RETURN_RESULT => 1,
+        PARSE_MODE    => 'HTML'
       });
 
       if ($result) {

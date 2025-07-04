@@ -33,15 +33,18 @@ use Abills::Fetcher qw(web_request);
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($token, $receiver) = @_;
+  my ($token, $receiver, $attr) = @_;
 
   $receiver //= "";
+  $attr //= {};
 
   my $self = {
     token    => $token,
     receiver => $receiver,
     api_url  => 'https://chatapi.viber.com/pa/'
   };
+
+  $self->{name} = $attr->{NAME} || 'ABillS User Bot';
 
   bless($self, $class);
 
@@ -59,7 +62,7 @@ sub send_message {
 
   $attr->{receiver} ||= $self->{receiver};
   $attr->{min_api_version} = 7;
-  $attr->{sender} = { name => 'ABillS User Bot' };
+  $attr->{sender} = { name => $self->{name} };
   $attr->{type} ||= 'text';
 
   if ($attr->{keyboard}) {

@@ -25,7 +25,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' FOR='PRIORITY'>_{PRIORITY}_:</label>
         <div class='col-md-8'>
-          <input type='text' class='form-control' name='PRIORITY' id='PRIORITY' value='%PRIORITY%' >
+          <input type='number' class='form-control' name='PRIORITY' id='PRIORITY' value='%PRIORITY%' >
         </div>
       </div>
 

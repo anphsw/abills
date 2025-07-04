@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_FEES_TYPES_ADD",
+  "method": "POST",
+  "path": "payments/types/255",
+  "body": {
+    "name": "TestPaymentID",
+    "color": "#c22e2e"
+  }
+}

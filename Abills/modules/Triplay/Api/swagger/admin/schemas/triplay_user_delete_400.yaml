@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: "User subscription not found"
+  errno:
+    type: integer
+    example: 1130002
+  errstr:
+    type: string
+    example: "ERR_TRIPLAY_USER_SUBSCRIBE_NOT_FOUND"

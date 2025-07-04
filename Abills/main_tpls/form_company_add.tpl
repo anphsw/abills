@@ -22,7 +22,7 @@
       <div class='form-group row'>
         <label for='CREDIT' class='control-label col-md-3'>_{CREDIT}_:</label>
         <div class='input-group col-md-4'>
-          <input type='number' step='0.01' class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
+          <input type='text' class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
         </div>
         <label for='CREDIT_DATE' class='control-label col-md-1'>_{DATE}_:</label>
         <div class='input-group col-md-4'>
@@ -66,6 +66,13 @@
         </div>
 
         <div class='form-group row'>
+          <label class='control-label col-md-3 text-right' for='BANK_BIC'>_{BANK}_</label>
+          <div class='col-sm-9 col-md-9'>
+            %BANK_BIC_SEL%
+          </div>
+        </div>
+
+        <div class='form-group row'>
           <label for='BANK_ACCOUNT' class='control-label col-md-3'>_{ACCOUNT}_:</label>
           <div class='input-group col-md-9'>
             <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
@@ -74,24 +81,10 @@
         </div>
 
         <div class='form-group row'>
-          <label for='BANK_NAME' class='control-label col-md-3'>_{BANK}_:</label>
-          <div class='input-group col-md-9'>
-            <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
-          </div>
-        </div>
-
-        <div class='form-group row'>
           <label for='COR_BANK_ACCOUNT' class='control-label col-md-3'>_{COR_BANK_ACCOUNT}_:</label>
           <div class='input-group col-md-9'>
             <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%' name='COR_BANK_ACCOUNT'
                    value='%COR_BANK_ACCOUNT%'>
-          </div>
-        </div>
-
-        <div class='form-group row'>
-          <label for='BANK_BIC' class='control-label col-md-3'>_{BANK_BIC}_:</label>
-          <div class='input-group col-md-9'>
-            <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
           </div>
         </div>
 
@@ -123,6 +116,15 @@
           <label for='PHONE' class='control-label col-md-3'>_{PHONE}_:</label>
           <div class='input-group col-md-9'>
             <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='EMAIL'>E-mail:</label>
+          <div class='input-group col-md-9'>
+            <div class='input-group'>
+              <input class='form-control' type='email' id='EMAIL' name='EMAIL' value='%EMAIL%'>
+            </div>
           </div>
         </div>
 
@@ -195,4 +197,7 @@
       console.log(err);
     });
   }
+
+  formatInputWithThousands('CREDIT');
+
 </script>

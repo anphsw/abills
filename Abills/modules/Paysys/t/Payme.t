@@ -7,24 +7,6 @@ use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
 use Abills::Base qw(encode_base64);
-require Paysys::systems::Payme;
-
-=head1 TEST PAYME
-
-  Documentation: https://help.paycom.uz/ru/metody-merchant-api
-
-=head1 TEST DATA
-
-  ID: 611d07d5754e932e68fe6e5a
-  Key: 2VfAq8MKg6cX&e9IGCeg8gDyhUp#IhJKFqKo
-  Test key: y4nIvxJw?H&rW5Q7DQ%dgYt3@?Y7oGc&?nuJ
-
-  SDK URL
-
-  https://test.paycom.uz/create-transaction
-
-=cut
-
 
 our (
   %conf,
@@ -37,7 +19,16 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Payme->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::Plugins::Payme;
+  $Payment_plugin = Paysys::Plugins::Payme->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Payme;
+  $Payment_plugin = Paysys::Plugins::Payme->new($db, $admin, \%conf);
+}
+
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
@@ -83,7 +74,7 @@ our @requests = (
     "method": "CreateTransaction",
     "params": {
         "account": {
-            "login": "M-201211-067"
+            "login": "$user_id"
         },
         "amount": $payment_sum,
         "id": "$payment_id",

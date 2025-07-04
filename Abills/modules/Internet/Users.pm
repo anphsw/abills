@@ -9,6 +9,8 @@ use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
   mk_unique_value clearquotes json_former convert);
 use Log;
+use Abills::HTML;
+use Users;
 require Abills::Result_former;
 require Internet::Stats;
 require Control::Service_control;
@@ -64,6 +66,11 @@ sub internet_user {
   my $uid = $FORM{UID} || $LIST_PARAMS{UID} || 0;
   my $user_info = $users->pi({ UID => $uid });
   delete($Internet->{errno});
+  require Internet::Services;
+  Internet::Services->import();
+  my $Internet_services = Internet::Services->new($db, $admin, \%conf,
+    { MODULES => \@MODULES,
+    });
 
   if ($FORM{REGISTRATION_INFO}) {
     internet_registration_info($uid);
@@ -81,28 +88,45 @@ sub internet_user {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
     }
-    elsif (!internet_user_add({ %FORM, %{($attr) ? $attr : {}} })) {
+    elsif ($Internet_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+      if ($attr->{REGISTRATION}) {
+        if (!$attr->{QUITE}) {
+          my $service_status = ::sel_status({ HASH_RESULT => 1 });
+          my ($status, $color) = split(/:/, (defined($Internet_services->{INTERNET}->{STATUS}) && $service_status->{ $Internet_services->{INTERNET}->{STATUS} }) ?
+            $service_status->{ $Internet_services->{INTERNET}->{STATUS} } : q{});
+          $Internet_services->{INTERNET}->{STATUS_VALUE} = $html->color_mark($status, $color);
+          delete $Internet_services->{INTERNET}->{EXTRA_FIELDS};
+          $html->tpl_show(::_include('internet_user_info', 'Internet'), $Internet_services->{INTERNET});
+        }
+      }
+      else {
+        $html->message('info', $lang{INTERNET}, $lang{ADDED}) if (!$attr->{QUITE});
+      }
       return 1;
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Internet->user_del(\%FORM);
-    if (!$Internet->{errno}) {
+    if ($Internet_services->user_del({ %FORM })) {
       $html->message('info', $lang{INFO}, $lang{DELETED});
     }
   }
   elsif ($FORM{change} || $FORM{RESET}) {
-    if (!internet_user_change({ %FORM, %{($attr) ? $attr : {}} })) {
+    if ($Internet_services->user_change({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+      $html->message('info', $lang{INTERNET}, $lang{CHANGED}) if (! $attr->{QUITE});
       return 0;
     }
   }
 
   &{eval pack('H' . '*', '246462636f72653a3a44454641554c54')}(bless { %$Internet }, ref $Internet);
+
   if (_error_show($Internet, { MODULE_NAME => 'Internet', ID => 0x385, MESSAGE => $Internet->{errstr} })) {
     if ($Internet->{errno} == 0x2BC) {
       exit;
     }
     return 1 if ($attr->{REGISTRATION});
+  }
+  elsif (_error_show($Internet_services, { MODULE_NAME => 'Internet', MESSAGE => $Internet->{errstr} })) {
+
   }
   elsif ($Internet->{errno} && $attr->{REGISTRATION}) {
     return 1;
@@ -110,7 +134,8 @@ sub internet_user {
 
   my $user_service_count = 0;
   if (!$FORM{add_form}) {
-    $Internet->user_info($uid, {
+    $Internet = $Internet_services->user_info({
+      UID       => $uid,
       DOMAIN_ID => $users->{DOMAIN_ID},
       ID        => $FORM{chg}
     });
@@ -628,15 +653,18 @@ sub internet_user {
     });
   }
 
+  my $ext_service = ($admin->{permissions}{0}{43}) ? internet_ext_service($Internet) : q{};
+
   my $service_info1 = $html->tpl_show(_include('internet_user', 'Internet'), {
     %FORM,
     %$users,
     %$admin,
     %$attr,
     %$Internet,
-    LOGIN => $users->{LOGIN},
-    UID   => $uid,
-    MENU  => $menu,
+    LOGIN               => $users->{LOGIN},
+    UID                 => $uid,
+    MENU                => $menu,
+    EXT_SERVICE_CONTROL => $ext_service
   },
   {
     ID            => 'internet_user',
@@ -655,7 +683,7 @@ sub internet_user {
 }
 
 #**********************************************************
-=head2 internet_user_add($attr)
+=head2 internet_ext_service($attr)
 
   Arguments:
     $attr
@@ -665,606 +693,125 @@ sub internet_user {
       ID
       STATUS
 
-=cut
-#**********************************************************
-sub internet_user_add {
-  my ($attr) = @_;
+  Returns:
 
-  my $uid = $attr->{UID} || 0;
-  $attr = internet_user_preproccess($uid, $attr);
-
-  if ($attr->{RETURN}) {
-    return 0;
-  }
-
-  $Internet->user_add($attr);
-  my $service_id = $Internet->{ID} || 0;
-  if (!$Internet->{errno}) {
-    #Make month fee
-    $Internet->user_info($uid, { ID => $service_id });
-    if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
-      ::service_get_month_fee($Internet, {
-        REGISTRATION               => 1,
-        DO_NOT_USE_GLOBAL_USER_PLS => $attr->{DO_NOT_USE_GLOBAL_USER_PLS} || 0
-      });
-    }
-
-    $attr->{ID}=$service_id;
-
-    if ($attr->{REGISTRATION}) {
-      if (! $attr->{QUITE}) {
-        my $service_status = ::sel_status({ HASH_RESULT => 1 });
-        my ($status, $color) = split(/:/, (defined($Internet->{STATUS}) && $service_status->{ $Internet->{STATUS} }) ? $service_status->{ $Internet->{STATUS} } : q{});
-        $Internet->{STATUS_VALUE} = $html->color_mark($status, $color);
-        delete $Internet->{EXTRA_FIELDS};
-        $html->tpl_show(::_include('internet_user_info', 'Internet'), $Internet);
-      }
-      return 0;
-    }
-    else {
-      if ($attr->{API}) {
-        return {
-          result => 'Successfully added'
-        }
-      }
-      else {
-        $html->message('info', $lang{INTERNET}, $lang{ADDED}) if (!$attr->{QUITE});
-      }
-    }
-
-    internet_ipoe_activate_manual($attr);
-  }
-
-  if (!$service_id) {
-    if ($attr->{API}) {
-      return {
-        errno => $Internet->{errno},
-        error => 961,
-        errstr => $Internet->{errstr},
-      }
-    }
-    else {
-      _error_show($Internet, { ID => 961, MODULE => 'Internet' });
-    }
-
-    return -1;
-  }
-
-  return $service_id;
-}
-
-#**********************************************************
-=head2 internet_ipoe_activate_manual($attr)
-
-  Arguments:
-    $attr
-      IPN_ACTIVATE
-      IP
-      ID
-
-  Result:
-    TRUE or FALSE
 
 =cut
 #**********************************************************
-sub internet_ipoe_activate_manual {
-  my ($attr)=@_;
+sub internet_ext_service {
+  my ($Internet_) = @_;
 
-  if ($attr->{IPN_ACTIVATE}
-    && ($attr->{IP} && $attr->{IP} ne '0.0.0.0')
-  ) {
-    require Internet::Ipoe_mng;
-    $FORM{ACTIVE} = 1;
-    internet_ipoe_activate({
-      ADMIN_ACTIVATE => 1,
-      IP             => $attr->{IP},
-      UID            => $attr->{UID},
-      ID             => $attr->{ID} || $Internet->{ID},
-      ACTIVE         => 1
-    });
+  if (! $conf{INTERNET_EXT_SERVICE}) {
+    return q{};
+  }
+  elsif(! $Internet_->{ID}) {
+    return q{};
   }
 
-  return 1;
-}
+  my $nas_type = $conf{INTERNET_EXT_SERVICE};
+  my $nas_module = "Internet::Nas::". ucfirst($nas_type);
 
-#**********************************************************
-=head2 internet_user_change($attr)
-
-  Arguments:
-    UID
-    ID
-    QUITE
-
-  Results:
-    TRUE or FALSE
-
-=cut
-#**********************************************************
-sub internet_user_change {
-  my ($attr) = @_;
-
-  my $uid = $attr->{UID} || $LIST_PARAMS{UID} || 0;
-  my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
-  my $system_aid = $conf{SYSTEM_ADMIN_ID} || 2;
-
-  if (! in_array($admin->{AID}, [$web_admin_id, $system_aid]) && !$admin->{permissions}{0}{4}) {
-    return {
-      errno => 950,
-      errstr => 'ACCESS DENIED',
-    } if ($attr->{API});
-    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 1360950 });
-    return 0;
-  }
-
-  $attr = internet_user_preproccess($uid, $attr);
-  if ($attr->{RETURN}) {
-    return 0;
-  }
-
-  if (in_array('Equipment', \@MODULES)) {
-    internet_user_change_nas({ %$attr });
-  }
-
-  if ((!$attr->{NAS_ID}) || (!$attr->{PORT}) && $FORM{NAS_ID}) {
-    $attr->{NAS_ID} = $FORM{NAS_ID};
-    $attr->{NAS_ID1} = $FORM{NAS_ID1};
-    $attr->{PORT} = $FORM{PORT};
-  }
-
-  $Internet->user_change({
-    %$attr,
-    DETAIL_STATS => $attr->{DETAIL_STATS} || 0,
-    IPN_ACTIVATE => $attr->{IPN_ACTIVATE} || 0
+  my $nas_list = $Nas->list({
+    NAS_TYPE          => $nas_type,
+    NAS_IP            => '_SHOW',
+    NAS_NAME          => '_SHOW',
+    NAS_MNG_HOST_PORT => '_SHOW',
+    NAS_MNG_USER      => '_SHOW',
+    NAS_MNG_PASSWORD  => '_SHOW',
+    COLS_NAME         => 1
   });
 
-  if (!$attr->{STATUS}
-    || (defined($attr->{STATUS}) && in_array($attr->{STATUS}, [0, 3, 5]))) {
-    my $list = $Shedule->list({
-      UID       => $uid,
-      MODULE    => 'Internet',
-      TYPE      => 'status',
-      ACTION    => '0',
-      COLS_NAME => 1
-    });
+  my $host = $nas_list->[0]->{nas_mng_host_port} || q{};
+  my $login = $nas_list->[0]->{nas_mng_user} || q{};
+  my $password = $nas_list->[0]->{nas_mng_password} || q{};
 
-    if ($Shedule->{TOTAL} == 1) {
-      $Shedule->del({
-        UID => $uid,
-        IDS => $list->[0]->{shedule_id}
-      });
-    }
-
-    internet_ipoe_activate_manual($attr);
+  if (! load_module($nas_module, { LOAD_PACKAGE => 1 })) {
+    print "ERROR:" . $!;
   }
 
-  if (!$Internet->{errno}) {
-    if (!$attr->{STATUS} && ($attr->{GET_ABON} || !$attr->{TP_ID})) {
-      if ($conf{INTERNET_SKIP_FIRST_DAY_FEE} && ! $Internet->{STATUS} && $Internet->{TP_INFO}{ABON_DISTRIBUTION}) {
-        #print "Skip fee / $Internet->{TP_INFO}{ABON_DISTRIBUTION}";
-      }
-      elsif ((!$admin->{permissions}{0}{25} && $Internet->{OLD_PERSONAL_TP} > 0) ||
-        ($attr->{PERSONAL_TP} && $attr->{PERSONAL_TP} > 0
-        && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP}
-        && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0))) {
+  $nas_module->import();
+  my $Nas_console = $nas_module->new(\%conf, {
+    HOST     => $host,
+    LOGIN    => $login,
+    PASSWORD => $password,
+    DEBUG    => $FORM{DEBUG},
+    SERVICE  => $Internet_
+  });
 
+  my $services_methods = q{};
+  my $method_list = $Nas_console->methods();
 
-        my $external_cmd = '_EXTERNAL_CMD';
-        my $module = 'Internet';
-        $external_cmd = uc($module).$external_cmd;
-        if ($conf{$external_cmd}) {
-          if (!_external($conf{$external_cmd}, { %FORM, %$users, %$Internet, %$attr })) {
-            print "Error: external cmd '$conf{$external_cmd}'\n";
-          }
-        }
-      }
-      else {
-        # if (!$permissions{0}{25}) {
-        #   delete $Internet->{PERSONAL_TP};
-        # }
-        my $month_fee = 1;
+  if ($method_list->{user}) {
+    foreach my $service (sort keys %{$method_list->{user}}) {
+      my $button = ($FORM{service} && $FORM{service} eq $service) ? 2  : 1;
 
-        if($conf{INTERNET_SKIP_CURMONTH_ACTIVATE_FEE}) {
-          my ($Y, $M)=split(/\-/, $DATE, 3);
-
-          $admin->action_list({
-            TYPE      => '14',
-            #ACTION    => '0->3',
-            UID       => $uid,
-            MODULE    => 'Internet',
-            MONTH     => "$Y-$M",
-            PAGE_ROWS => 1,
-            COLS_NAME => 1,
-            SORT      => 'id',
-            DESC      => 'desc'
-          });
-
-          if ($admin->{TOTAL} && $admin->{TOTAL} > 0) {
-            $month_fee=0;
-          }
-        }
-
-        if($month_fee) {
-          ::service_get_month_fee($Internet);
-        }
-      }
+      $services_methods .= $html->button($method_list->{user}->{$service},
+        "index=$index&UID=$Internet->{UID}&ID=$Internet_->{ID}&service=$service", { BUTTON => $button });
     }
 
-    if ($attr->{STATUS}) {
-      ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
-    }
+    #Low level function
+    if ($conf{INTERNET_EXT_FUNCTION_LL}) {
+      $services_methods .= $html->br(). $html->br();
+      foreach my $service (sort keys %{$method_list->{user_ll}}) {
+        my $button = ($FORM{service} && $FORM{service} eq $service) ? 'btn btn-primary' : 'btn btn-info';
 
-    if ($Internet->{CHG_STATUS} && $Internet->{CHG_STATUS} eq '0->3' && $conf{INTERNET_HOLDUP_COMPENSATE}) {
-      $Internet->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
-      if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
-        $Internet->{TP_INFO}->{MONTH_FEE} = 0;
-        ::service_get_month_fee($Internet, { RECALCULATE => 1 });
+        $services_methods .= $html->button($method_list->{user_ll}->{$service},
+          "index=$index&UID=$Internet->{UID}&ID=$Internet_->{ID}&service=$service", { class => $button });
       }
     }
-
-    $FORM{chg} = $attr->{ID};
-    if ($attr->{API}) {
-      return {
-        result => 'Successfully changed'
-      }
-    }
-    else {
-      $html->message('info', $lang{INTERNET}, $lang{CHANGED}) if (! $attr->{QUITE});
-    }
-    return 0 if ($attr->{REGISTRATION});
   }
 
-  return 1;
-}
-
-#**********************************************************
-=head2 internet_user_change_nas($uid, $attr)
-
-  Arguments:
-    $attr
-      EQUIPMENT
-      SERVER_VLAN
-      VLAN
-      NAS_ID
-      PORT
-
-=cut
-#**********************************************************
-sub internet_user_change_nas {
-  my ($attr) = @_;
-
-  load_module('Equipment', $html);
-  require Equipment;
-  Equipment->import();
-  my $Equipment = Equipment->new($db, $admin, \%conf);
-
-  if ($attr->{SERVER_VLAN} && $attr->{VLAN} && (!$attr->{NAS_ID} || !$attr->{PORT})) {
-    my $Equipment_list = $Equipment->cvlan_svlan_list({
-      NAS_ID      => '_SHOW',
-      NAS_NAME    => '_SHOW',
-      VLAN        => $attr->{VLAN},
-      SERVER_VLAN => $attr->{SERVER_VLAN},
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1,
-      PAGE_ROWS   => 100000,
+  my $service_data = q{};
+  if ($FORM{service}) {
+    my $traffic_list = $Internet_->get_speed({
+      UID       => $Internet_->{UID},
+      PREPAID   => '_SHOW',
+      COLS_NAME => 1,
     });
 
-    if ($Equipment->{TOTAL} == 1) {
-      $attr->{NAS_ID} = $Equipment_list->[0]{NAS_ID};
-      $attr->{NAS_ID1} = $Equipment_list->[0]{NAME};
+    $Internet_->{PREPAID} = $traffic_list->[0]->{prepaid};
 
-      $attr->{PORT} = $Equipment_list->[0]{PORT};
-      $FORM{PORT} = $attr->{PORT};
+    my $service = $FORM{service};
+    $Nas_console->$service($Internet_);
 
-      $FORM{NAS_ID} = $attr->{NAS_ID};
-      $FORM{NAS_ID1} = $attr->{NAS_ID1};
+    if (! _error_show($Nas_console, { ID => 1360201, MODULE => 'Internet', MESSAGE => 'SERVICE: ' . $nas_type })) {
+      $html->message('info', $lang{INFO}, "$lang{EXECUTED}: $service");
     }
-    else {
-      $Equipment_list = $Equipment->cvlan_svlan_list({
-        NAS_ID      => '_SHOW',
-        ONU_VLAN    => $attr->{VLAN},
-        SERVER_VLAN => $attr->{SERVER_VLAN},
-        ONU         => 1,
-        COLS_NAME   => 1,
-        COLS_UPPER  => 1,
-        PAGE_ROWS   => 100000,
+
+    #$service_data = $service;
+
+    if ($Nas_console->{data}) {
+      my ($table) = result_former({
+        EXT_TITLES    => {
+          id   => 'ID',
+          name => $lang{NAME}
+        },
+        TABLE         => {
+          width   => '100%',
+          #caption => 'Services info',
+          #EXPORT  => 1,
+          ID      => 'INTERNET_EXT_SERVICES',
+        },
+        DATAHASH      => $Nas_console->{data},
       });
 
-      if ($Equipment->{TOTAL} == 1) {
-        $attr->{NAS_ID} = $Equipment_list->[0]{NAS_ID};
-        $attr->{NAS_ID1} = $Equipment_list->[0]{NAME};
-
-        $attr->{PORT} = $Equipment_list->[0]{ONU_DHCP_PORT};
-        $FORM{PORT} = $attr->{PORT};
-        $FORM{NAS_ID} = $attr->{NAS_ID};
-        $FORM{NAS_ID1} = $attr->{NAS_ID1};
-      }
-      else {
-        $attr->{NAS_ID} = 0;
-        $attr->{NAS_ID1} = 0;
-        $attr->{PORT} = 0;
-        $FORM{PORT} = 0;
-        $FORM{NAS_ID} = 0;
-        $FORM{NAS_ID1} = 0;
-      }
+      $service_data .= $table->show({ OUTPUT2RETURN => 1 });
     }
   }
-  elsif ($attr->{NAS_ID} && $attr->{PORT}) {
-    my $Equipment_server_vlan = $Equipment->_list({
-      NAS_ID      => $attr->{NAS_ID},
-      TYPE_NAME   => '_SHOW',
-      SERVER_VLAN => '_SHOW',
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1,
-      PAGE_ROWS   => 100000,
+
+  my $service_info = $html->tpl_show(_include('internet_user_service', 'Internet'), {
+    %FORM,
+    %$Internet,
+    SERVICES_METHODS => $services_methods,
+    SERVICES_DATA    => $service_data,
+    SERVICE_SHOW_BOX => ($FORM{service}) ? '' : 'collapsed-card'
+  },
+    {
+      ID            => 'internet_user_service',
+      OUTPUT2RETURN => 1
     });
 
-    if ($Equipment->{TOTAL}) {
-      if ($Equipment_server_vlan->[0] && $Equipment_server_vlan->[0]{type_name} && $Equipment_server_vlan->[0]{type_name} eq "Switch") {
-        my $Equipment_list = $Equipment->port_list({
-          NAS_ID     => $attr->{NAS_ID},
-          PORT       => $attr->{PORT},
-          VLAN       => '_SHOW',
-          COLS_NAME  => 1,
-          COLS_UPPER => 1,
-          PAGE_ROWS  => 100000,
-        });
-        if ($Equipment->{TOTAL}) {
-          $attr->{VLAN} = $Equipment_list->[0]{VLAN};
-          $FORM{VLAN} = $Equipment_list->[0]{VLAN};
-
-          if($Equipment_server_vlan->[0]{SERVER_VLAN}) {
-            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          }
-        }
-        # else {
-        #   $attr->{VLAN} = 0;
-        #   $FORM{VLAN} = 0;
-
-        #   $attr->{SERVER_VLAN} = 0;
-        #   $FORM{SERVER_VLAN} = 0;
-        # }
-      }
-
-      if ($Equipment_server_vlan->[0] &&
-        $Equipment_server_vlan->[0]{type_name} eq "PON") {
-        my $Equipment_list = $Equipment->onu_list({
-          ONU_DHCP_PORT => $attr->{PORT},
-          NAS_ID        => $attr->{NAS_ID},
-          VLAN          => '_SHOW',
-          COLS_NAME     => 1,
-          COLS_UPPER    => 1,
-          PAGE_ROWS     => 100000,
-        });
-
-        if ($Equipment->{TOTAL}) {
-          $attr->{VLAN} = $Equipment_list->[0]{VLAN};
-          $FORM{VLAN} = $Equipment_list->[0]{VLAN};
-
-          if($attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN}) {
-            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          }
-        }
-        else {
-          $attr->{VLAN} = 0;
-          $FORM{VLAN} = 0;
-
-          if($Equipment_server_vlan->[0]{SERVER_VLAN}) {
-            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          }
-        }
-      }
-    }
-  }
-}
-
-#**********************************************************
-=head2 internet_user_preproccess($uid, $attr)
-
-  Arguments:
-    $uid
-    $attr
-      SKIP_ERRORS
-      STATIC_IPV6_POOL
-      STATUS
-      REGISTRATION
-
-  Results:
-    $attr
-
-=cut
-#**********************************************************
-sub internet_user_preproccess {
-  my ($uid, $attr) = @_;
-
-  my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
-  my $system_aid = $conf{SYSTEM_ADMIN_ID} || 2;
-
-  if (! in_array($admin->{AID}, [$web_admin_id, $system_aid]) && $admin->{permissions}{0}) {
-    my $permits = $admin->{permissions}{0};
-    delete($attr->{TP_ID}) if (! $permits->{10} && !$attr->{REGISTRATION});
-    delete($attr->{STATUS}) if (! $permits->{18} && !$attr->{REGISTRATION});
-    delete($attr->{SERVICE_ACTIVATE}) if (!$permits->{19} && !$attr->{REGISTRATION});
-    delete($attr->{SERVICE_EXPIRE}) if (!$permits->{20} && !$attr->{REGISTRATION});
-    delete($attr->{PERSONAL_TP}) if (!$permits->{25});
-  }
-
-  my $message = q{};
-
-  if ((!$attr->{IP} || $attr->{IP} eq '0.0.0.0') && $attr->{STATIC_IP_POOL}) {
-    $attr->{IP} = get_static_ip($attr->{STATIC_IP_POOL});
-  }
-
-  if ($attr->{SERVER_VLAN} && !$attr->{VLAN}) {
-    $attr->{VLAN} = internet_get_vlan($attr);
-  }
-
-  if ($attr->{STATIC_IPV6_POOL}) {
-    ($attr->{IPV6}, $attr->{IPV6_MASK}, $attr->{IPV6_TEMPLATE},
-      $attr->{IPV6_PD}, $attr->{IPV6_PREFIX_MASK}, $attr->{IPV6_PD_TEMPLATE}) = get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
-
-    if ($uid > 65000) {
-      $html->message('warn', "UID too high $uid for IPv6");
-    }
-
-    my $uid_hex = sprintf("%x", $uid);
-    my $id_hex = sprintf("%x", $attr->{ID} || 0);
-    $attr->{IPV6} = $attr->{IPV6_TEMPLATE};
-    $attr->{IPV6} =~ s/\{UID\}/$uid_hex/g;
-    $attr->{IPV6} =~ s/\{ID\}/$id_hex/g;
-
-    $attr->{IPV6_PREFIX} = $attr->{IPV6_PD_TEMPLATE};
-    $attr->{IPV6_PREFIX} =~ s/\{UID\}/$uid_hex/g;
-    $attr->{IPV6_PREFIX} =~ s/\{ID\}/$id_hex/g;
-  }
-
-  #Check duplicate CID & format CID
-  if ($attr->{CID} && $attr->{CID} !~ /ANY/i) {
-    if (!$conf{INTERNET_CID_FORMAT}) {
-      $attr->{CID} = Abills::Filters::_mac_former($attr->{CID});
-    }
-    my $list = $Internet->user_list({
-      LOGIN     => '_SHOW',
-      CID       => $attr->{CID},
-      COLS_NAME => 1
-    });
-
-    if ($Internet->{TOTAL} > 0 && $list->[0]{uid} && $list->[0]{uid} != $uid) {
-      $message = "CID/MAC: $attr->{CID} $lang{EXIST}. $lang{LOGIN}: " . $html->button($list->[0]->{login},
-        "index=15&UID=" . $list->[0]{uid});
-      $attr->{RETURN}=1360034;
-    }
-  }
-
-  #Format CPE_MAC
-  if ($attr->{CPE_MAC} && $conf{INTERNET_CPE_FORMAT}) {
-    $attr->{CPE_MAC} = Abills::Filters::_mac_former($attr->{CPE_MAC});
-  }
-
-  #Check dublicate IP
-  if ($attr->{IP} && $attr->{IP} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ && $attr->{IP} ne '0.0.0.0') {
-    my $list = $Internet->user_list({
-      IP        => $attr->{IP},
-      LOGIN     => '_SHOW',
-      COLS_NAME => 1
-    });
-
-    if ($Internet->{TOTAL} > 0 && $list->[0]->{uid} != $uid) {
-      $html->message('err', $lang{ERROR}, "IP: $attr->{IP} $lang{EXIST}. $lang{LOGIN}: "
-        . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}), { ID => 931 });
-
-      if (!$attr->{SKIP_ERRORS}) {
-        $attr->{RETURN} = 1;
-        return $attr;
-      }
-    }
-  }
-
-  #Check duplicate SVLAN ans CVLAN
-  if ($conf{INTERNET_CHECK_VLANS} && $attr->{SERVER_VLAN} && $attr->{VLAN}) {
-    my $list = $Internet->user_list({
-      SERVER_VLAN => $attr->{SERVER_VLAN},
-      VLAN        => $attr->{VLAN},
-      CID         => $conf{INTERNET_CHECK_VLANS_WITHOUT_CID} ? '_SHOW' : ($attr->{CID} || "_SHOW"),
-      LOGIN       => '_SHOW',
-      COLS_NAME   => 1
-    });
-
-    if ($Internet->{TOTAL} > 0 &&  $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
-      $html->message('err', $lang{ERROR}, "Server VLAN: $attr->{SERVER_VLAN}, VLAN: $attr->{VLAN} $lang{EXIST}. $lang{LOGIN}: "
-        . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}));
-
-      if (!$attr->{SKIP_ERRORS}) {
-        $attr->{RETURN} = 1;
-        return $attr;
-      }
-    }
-  }
-
-  if ($attr->{NAS_ID} && $attr->{PORT}) {
-    my $list = $Internet->user_list({
-      NAS_ID    => $attr->{NAS_ID},
-      PORT      => $attr->{PORT},
-      LOGIN     => "_SHOW",
-      COLS_NAME => 1
-    });
-
-    if ($Internet->{TOTAL} > 0 &&  $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
-      $html->message('warn', $lang{WARNING}, "$lang{NAS_AND_PORT_ALREADY_USE}. $lang{LOGIN}: "
-        . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}));
-
-      if ($conf{INTERNET_PROHIBIT_DUPLICATE_NAS_PORT} && !$attr->{SKIP_ERRORS}) {
-        $attr->{RETURN} = 1;
-        return $attr;
-      }
-    }
-
-    if ($attr->{PORT} =~ /^\d+&/) {
-      require Equipment;
-      Equipment->import();
-      my $Equipment = Equipment->new($db, $admin, \%conf);
-
-      my $equipment_info = $Equipment->_info($attr->{NAS_ID});
-      if ($equipment_info->{PORTS_WITH_EXTRA} < $attr->{PORT}) {
-        $html->message('warn', $lang{WARNING}, $lang{ERR_NO_WRONG_PORT_SELECTED});
-
-        if (!$attr->{SKIP_ERRORS}) {
-          $attr->{RETURN} = 1;
-          return $attr;
-        }
-      }
-    }
-  }
-
-  #Check duplicate CPE MAC
-  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i) {
-    my $list = $Internet->user_list({
-      CPE_MAC   => $attr->{CPE_MAC},
-      LOGIN     => "_SHOW",
-      COLS_NAME => 1
-    });
-
-    if ($Internet->{TOTAL} > 0 && $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
-      $html->message('err', $lang{ERROR}, "CPE MAC $lang{ERR_ALREADY_USE}. Login: "
-        . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}), { ID => 933 });
-
-      if (!$attr->{SKIP_ERRORS} && ! $conf{INTERNET_ALLOW_MAC_DUPS}) {
-        $attr->{RETURN} = 1;
-        return $attr;
-      }
-    }
-  }
-
-  if ($attr->{RESET}) {
-    $attr->{PASSWORD} = '__RESET__';
-    $html->message('info', $lang{INFO}, "$lang{PASSWD} $lang{RESETED}");
-  }
-  elsif ($attr->{newpassword}) {
-    if (!$attr->{RESET_PASSWD} && length($attr->{newpassword}) < $conf{PASSWD_LENGTH}) {
-      $message = "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}";
-    }
-    elsif ($attr->{newpassword} eq $attr->{confirm}) {
-      $attr->{PASSWORD} = $attr->{newpassword};
-    }
-    elsif ($attr->{newpassword} ne $attr->{confirm}) {
-      $message = $lang{ERR_WRONG_CONFIRM};
-    }
-  }
-
-  if ($attr->{add} && ! $attr->{TP_ID}) {
-    $message = $lang{ERR_SELECT_TP};
-    if (!$attr->{SKIP_ERRORS}) {
-      $attr->{RETURN} = 1360011;
-    }
-  }
-
-  if ($message) {
-    $html->message('err', $lang{ERROR}, $message, { ID => $attr->{RETURN} || 1360010 });
-  }
-
-  return $attr;
+  return $service_info;
 }
 
 #**********************************************************
@@ -1282,7 +829,7 @@ sub internet_join_service {
   my $uid = $Internet->{UID};
   #Join Service
 
-  return '' if !$company_id;
+  return '' if (!$company_id);
 
   my $join_services_users = q{};
 
@@ -1460,6 +1007,9 @@ sub internet_user_online {
           $switch = '/' . $online->{switch_mac};
         }
       }
+
+      require Internet::Diagnostic;
+      Internet::Diagnostic->import('get_oui_info');
 
       my $vendor_info = get_oui_info($online->{cid});
 
@@ -2151,7 +1701,7 @@ sub internet_chg_tp {
 
   #my $TARIF_PLAN = $FORM{tarif_plan} || $lang{DEFAULT_TARIF_PLAN};
   my $period = $FORM{period} || 0;
-
+  $users->{DEPOSIT} //= 0;
   #Get next period
   if (
     ($Internet->{MONTH_ABON} && $Internet->{MONTH_ABON} > 0)
@@ -2254,9 +1804,8 @@ sub internet_chg_tp {
 
       if (!_error_show($Internet, { RIZE_ERROR => 1 })) {
         #Take fees
-        #Message
         if (!$Internet->{STATUS} && $FORM{GET_ABON}) {
-          service_get_month_fee($Internet);
+          service_get_month_fee($Internet, { RECALCULATE => $FORM{RECALCULATE} });
           if ($FORM{ACTIVE_SERVICE}) {
             $FORM{STATUS}=0;
             $Internet->user_change(\%FORM);
@@ -2281,15 +1830,36 @@ sub internet_chg_tp {
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]");
   }
 
+  internet_chg_tp_form($attr);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_chg_tp_form($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_chg_tp_form {
+  my ($attr) = @_;
+
+  my $user = $attr->{USER_INFO};
+  my $uid = $user->{UID};
+  my $period = $FORM{period} || 0;
+
   $Shedule->info({
     UID    => $uid,
     TYPE   => 'tp',
     MODULE => 'Internet'
   });
 
-  my $table;
   #Sheduler for TP change
-
   if ($FORM{del_Shedule} && $FORM{COMMENTS}) {
     $Shedule->del({ ID => $FORM{del_Shedule} });
     if (!_error_show($Shedule)) {
@@ -2298,7 +1868,7 @@ sub internet_chg_tp {
     $Shedule->{TOTAL} = 1;
   }
 
-  $table = $html->table({
+  my $table = $html->table({
     width   => '100%',
     caption => $lang{SHEDULE},
     title   => [ $lang{DATE}, $lang{TARIF_PLAN}, '-' ],
@@ -2319,8 +1889,8 @@ sub internet_chg_tp {
     foreach my $line (@$list) {
       my $action = $line->{action};
       my $service_id = 0;
-      if ($action =~ /:/) {
-        ($service_id, $action) = split(/:/, $action);
+      if ($action =~ m/:/x) {
+        ($service_id, $action) = split(/:/x, $action);
       }
 
       $table->addrow("$line->{y}-$line->{m}-$line->{d}",
@@ -3298,7 +2868,15 @@ sub internet_service_add {
   }
 
   $params->{TP_ID} = _check_tp({ %{$params}, MODULE => 'Internet' });
-  my $service_id = internet_user_add({
+  require Internet::Services;
+  Internet::Services->import();
+  my $Internet_services = Internet::Services->new($db, $admin, \%conf,
+    { HTML    => $html,
+      LANG    => \%lang,
+      MODULES => \@MODULES,
+    });
+
+  my $service_id = $Internet_services->user_add({
     %{$params},
     SKIP_MONTH_FEE             => $FORM{SERIAL},
     QUITE                      => 1,
@@ -3485,49 +3063,6 @@ sub internet_ip_pool_check {
   }
 
   return $static_ip_pools->{INTERNET_IP_FREE};
-}
-
-
-#**********************************************************
-=head2 internet_ip_pool_check($attr)
-
-  Arguments:
-    $attr
-      SERVER_VLAN
-      VLAN
-
-  Results:
-    $free_vlan
-
-=cut
-#**********************************************************
-sub internet_get_vlan {
-  my ($attr) = @_;
-
-  my $vlan = 0;
-
-  my $internet_users = $Internet->user_list({
-    SERVER_VLAN => $attr->{SERVER_VLAN},
-    VLAN        => '!',
-    GROUP_BY    => 'internet.id',
-    SORT        => 'MAX(internet.vlan)',
-    DESC        => 'DESC',
-    SKIP_GID    => 1,
-    PAGE_ROWS   => 1,
-    COLS_NAME   => 1
-  });
-
-  if (!$Internet->{errno}) {
-    if ($Internet->{TOTAL} && $Internet->{TOTAL} > 0) {
-      my $last_vlan = $internet_users->[0]{vlan};
-      $vlan = ($last_vlan && $last_vlan < 4098) ? ($last_vlan + 1) : $attr->{VLAN};
-    }
-    else {
-      $vlan = 1;
-    }
-  }
-
-  return $vlan;
 }
 
 1;

@@ -474,7 +474,7 @@ sub config_update_docs {
       }
     );
 
-    my $page_body = $page->{body}{view}{value};
+    my $page_body = ($page && $page->{body}{view}{value}) ? $page->{body}{view}{value} : q{};
     if (!$page_body) {
       next;
     }
@@ -527,44 +527,51 @@ sub config_update_docs {
 #**********************************************************
 sub config_password_generator {
 
-#  use Abills::Base qw/_bp/;
-#  _bp('', $conf{CONFIG_PASSWORD});
-  
   if ($FORM{action}) {
     $FORM{CASE}  //= 0;
     $FORM{CHARS} //= 0;
 
     my $new_config_string = join(':', $FORM{CASE}, $FORM{CHARS});
 
-    $Config->config_add({
-      PARAM   => 'CONFIG_PASSWORD',
-      VALUE   => $new_config_string,
-      REPLACE => 1
-    });
+    my %config_params = (
+      CONFIG_PASSWORD => $new_config_string,
+      PASSWD_LENGTH => ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
+      ADMIN_BRUTE_LIMIT => ($FORM{ADMIN_BRUTE_LIMIT} || $conf{ADMIN_BRUTE_LIMIT}),
+      ADMIN_BRUTE_PERIOD => ($FORM{ADMIN_BRUTE_PERIOD} || $conf{ADMIN_BRUTE_PERIOD}),
+      ADMIN_BRUTE_CLEAN_PERIOD => ($FORM{ADMIN_BRUTE_CLEAN_PERIOD} || $conf{ADMIN_BRUTE_CLEAN_PERIOD})
+    );
 
-    $Config->config_add({
-      PARAM   => 'PASSWD_LENGTH',
-      VALUE   => ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
-      REPLACE => 1
-    });
+    for my $param (keys %config_params) {
+      $Config->config_add({
+        PARAM   => $param,
+        VALUE   => $config_params{$param},
+        REPLACE => 1
+      });
 
-    if (!_error_show($Config)) {
-      $conf{CONFIG_PASSWORD} = $new_config_string;
-      $conf{PASSWD_LENGTH}   = $FORM{SYMBOLS_COUNT};
+      if (!_error_show($Config)) {
+        $conf{$param} = $config_params{$param};
+      }
     }
   }
   elsif ($FORM{reset}){
+    my @params_to_delete = qw(
+      CONFIG_PASSWORD
+      PASSWD_LENGTH
+      ADMIN_BRUTE_LIMIT
+      ADMIN_BRUTE_PERIOD
+      ADMIN_BRUTE_CLEAN_PERIOD
+    );
+
     my $error = 0;
-    $Config->config_del('CONFIG_PASSWORD');
-    $error = _error_show($Config);
-    
-    $Config->config_del('PASSWD_LENGTH');
-    $error ||= _error_show($Config);
-    
-    if (!$error){
+    for my $param (@params_to_delete) {
+      $Config->config_del($param);
+      $error ||= _error_show($Config);
+    }
+
+    if (!$error) {
       $html->message('info', $lang{DELETED});
-      $html->redirect("$SELF_URL?index=$index")
-    };
+      $html->redirect("$SELF_URL?index=$index");
+    }
   }
   
   my $config_string = $conf{CONFIG_PASSWORD} || '0:0';
@@ -574,17 +581,17 @@ sub config_password_generator {
   $case = 0 if ($case > 3);
   $chars = 0 if ($chars !~ /^\d+$/ || $chars > 3);
 
-  $html->tpl_show(
-    _include('config_password', 'Config'),
-    {
-      MIN_LENGTH => ($count < 6) ? $count : 6,
-      MAX_LENGTH => 32,
+  $html->tpl_show(_include('config_password', 'Config'), {
+    MIN_LENGTH               => ($count < 6) ? $count : 6,
+    MAX_LENGTH               => 32,
 
-      SYMBOLS_COUNT           => $count,
-      "CASE_$case\_CHECKED"   => 'checked="checked"',
-      "CHARS_$chars\_CHECKED" => 'checked="checked"'
-    }
-  );
+    SYMBOLS_COUNT            => $count,
+    "CASE_$case\_CHECKED"    => 'checked="checked"',
+    "CHARS_$chars\_CHECKED"  => 'checked="checked"',
+    ADMIN_BRUTE_LIMIT        => $conf{ADMIN_BRUTE_LIMIT},
+    ADMIN_BRUTE_PERIOD       => $conf{ADMIN_BRUTE_PERIOD},
+    ADMIN_BRUTE_CLEAN_PERIOD => $conf{ADMIN_BRUTE_CLEAN_PERIOD},
+  });
 }
 
 #**********************************************************

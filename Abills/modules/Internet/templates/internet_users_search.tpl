@@ -98,7 +98,14 @@
         <label class='col-md-3 control-label' for='TP_NUM'>
           _{TARIF_PLAN}_ (ID):
         </label>
-        <div class='col-md-9'>%TP_SEL%</div>
+        <div class='col-md-9 row'>
+          <div class='col-md-8'>
+            %TP_SEL%
+          </div>
+          <div class='col-md-4'>
+            %TP_SEARCH_VAL%
+          </div>
+        </div>
       </div>
       <div class='form-group row'>
         <label class='control-label col-sm-3 col-md-3' for='ID'>

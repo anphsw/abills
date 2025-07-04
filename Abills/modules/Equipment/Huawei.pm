@@ -405,9 +405,17 @@ sub _huawei_unregister_form {
 
   my $vlan_num=0;
   foreach my $profile (keys %profile_vlans) {
-    my $vlan_num=0;
+    my $vlan_num_=0;
+    my @formatted_vlans = map {
+      my $label = "vlan" . ++$vlan_num_;
+      "$label: '$_'"
+    } sort @{ $profile_vlans{$profile} };
+
+    # OLD
+    # join(', ', map{ $vlan_num++; $_ = "vlan$vlan_num: '$_'"; } sort @{ $profile_vlans{$profile} } )
+
     $attr->{MULTI_VLANS} .= "{ profile: '$profile', "
-      .  join(', ', map{ $vlan_num++; $_ = "vlan$vlan_num: '$_'"; } sort @{ $profile_vlans{$profile} } )
+      .  join(', ', @formatted_vlans)
       . "},\n";
   }
 

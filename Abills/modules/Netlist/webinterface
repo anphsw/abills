@@ -293,7 +293,10 @@ sub netlist_list {
   $Netlist->{ACTION_LNG} = $lang{ADD};
 
   if ( $FORM{ping} ) {
-    host_diagnostic($FORM{ping});
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_diagnostic');
+    my $result = host_diagnostic($FORM{ping});
+    $html->message('info', $lang{INFO}, $result);
   }
   elsif ( $FORM{add} ) {
     if ( defined $FORM{IP} && netlist_validate_v6($FORM{IP}) ) {

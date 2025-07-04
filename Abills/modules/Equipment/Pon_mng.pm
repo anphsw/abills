@@ -168,6 +168,7 @@ our @ONU_FIELDS = (
 );
 
 our @PORT_FIELDS = (
+  'PORT_NAME',
   'PORT_STATUS',
   'ADMIN_PORT_STATUS',
   'PORT_IN',
@@ -182,6 +183,8 @@ our @PORT_FIELDS = (
   'VLAN',
   'TRUNK',
   'CONNECTOR',
+  'MAC',
+  'PORT_COMMENTS',
   'PORT_UPTIME'
 );
 
@@ -769,7 +772,7 @@ sub equipment_pon {
       width            => '100%',
       caption          => "PON ONU " . $pon_onu_all . $unregister_btn . $select_onu_statuses,
       qs               => $page_gs,
-      SHOW_COLS        => \%EXT_TITLES,
+      SHOW_COLS        => { 'PON ONU' => \%EXT_TITLES },
       SHOW_COLS_HIDDEN => {
         PON_TYPE => $attr->{PON_TYPE},
         OLT_PORT => $FORM{OLT_PORT},
@@ -1224,7 +1227,8 @@ sub equipment_register_onu {
       %$attr,
       COLS_NAME  => 1,
       COLS_UPPER => 1,
-      BRANCH     => $FORM{BRANCH},
+      #BRANCH     => $FORM{BRANCH},
+      VLAN_ID    => '_SHOW',
       NAS_ID     => $nas_id
     });
 
@@ -1246,9 +1250,21 @@ sub equipment_register_onu {
 
     if ($FORM{reg_onu} && defined(&$unregister_form_fn) && !$FORM{onu_registration}) {
       if (in_array('Internet', \@MODULES)) {
-        load_module('Internet', $html);
+        #load_module('Internet', $html);
         $attr->{SERVER_VLAN} = $attr->{NAS_INFO}->{SERVER_VLAN} || 0;
-        $attr->{CLIENT_VLAN} = $FORM{CLIENT_VLAN} || internet_get_vlan($attr);
+        if ($FORM{CLIENT_VLAN}) {
+          $attr->{CLIENT_VLAN} = $FORM{CLIENT_VLAN};
+        }
+        else {
+          require Internet::Services;
+          Internet::Services->import();
+          my $Internet_services = Internet::Services->new($db, $admin, \%conf,
+            { HTML    => $html,
+              LANG    => \%lang,
+              MODULES => \@MODULES,
+            });
+          $attr->{CLIENT_VLAN} =  $Internet_services->get_vlan($attr);
+        }
 
         if ($FORM{DEBUG}) {
           print "Server_vlan: $attr->{SERVER_VLAN} ";
@@ -1686,7 +1702,7 @@ sub equipment_pon_onu {
       width            => '100%',
       caption          => "PON ONU",
       qs               => $page_gs,
-      SHOW_COLS        => \%show_cols,
+      SHOW_COLS        => { 'PON ONU' => \%show_cols },
       SHOW_COLS_HIDDEN => {
         PON_TYPE => $FORM{PON_TYPE},
         OLT_PORT => $FORM{OLT_PORT},
@@ -2309,7 +2325,7 @@ sub _extra_onu_info {
       width            => '100%',
       caption          => $lang{PORTS},
       qs               => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&ONU=$FORM{ONU}",
-      SHOW_COLS        => \%info_oids,
+      SHOW_COLS        => { PORTS => \%info_oids },
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
         NAS_ID => $FORM{NAS_ID},
@@ -2901,19 +2917,21 @@ sub equipment_pon_ports {
       caption          => "PON $lang{PORTS}",
       qs               => $pages_qs,
       SHOW_COLS        => {
-        #ID          => 'Billing ID',
-        BRANCH      => $lang{BRANCH},
-        PON_TYPE    => $lang{TYPE},
-        BRANCH_DESC => "BRANCH_DESC",
-        VLAN_ID     => "VLAN",
-        TRAFFIC     => $lang{TRAFFIC},
-        PORT_STATUS => $lang{STATUS},
-        PORT_SPEED  => $lang{SPEED},
-        ONU_COUNT   => "ONU $lang{COUNT}",
-        FREE_ONU    => "$lang{COUNT} $lang{FREE_ONU} ONU",
-        PORT_NAME   => "BRANCH_NAME",
-        PORT_ALIAS  => $lang{COMMENTS},
-        PORT_IN_ERR => "$lang{PACKETS_WITH_ERRORS} (in/out)",
+        PORTS => {
+          #ID          => 'Billing ID',
+          BRANCH      => $lang{BRANCH},
+          PON_TYPE    => $lang{TYPE},
+          BRANCH_DESC => "BRANCH_DESC",
+          VLAN_ID     => "VLAN",
+          TRAFFIC     => $lang{TRAFFIC},
+          PORT_STATUS => $lang{STATUS},
+          PORT_SPEED  => $lang{SPEED},
+          ONU_COUNT   => "ONU $lang{COUNT}",
+          FREE_ONU    => "$lang{COUNT} $lang{FREE_ONU} ONU",
+          PORT_NAME   => "BRANCH_NAME",
+          PORT_ALIAS  => $lang{COMMENTS},
+          PORT_IN_ERR => "$lang{PACKETS_WITH_ERRORS} (in/out)",
+        }
       },
       SHOW_COLS_HIDDEN => {
         PON_TYPE => $FORM{PON_TYPE},

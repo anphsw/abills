@@ -1,0 +1,5 @@
+{
+  "name": "STORAGE_INSTALLATIONS",
+  "method": "GET",
+  "path": "storage/installation"
+}

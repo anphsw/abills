@@ -34,7 +34,6 @@ use Inventory;
 our (
   $DATE,
   $TIME,
-  @MODULES,
   %conf,
   $sql_type,
   $libpath,
@@ -53,7 +52,14 @@ eval { do "$libpath/language/$html->{language}.pl" };
 
 #Operation status
 my $admin = Admins->new( $db, \%conf );
-$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} } );
+
+my $REMOTE_ADDR = $ENV{REMOTE_ADDR} || '0.0.0.0';
+
+if ($conf{AUTH_X_FORWARDED} && $conf{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST}, [ split(',\s?', $conf{AUTH_X_DOMAIN}) ])) {
+  $REMOTE_ADDR = $ENV{$conf{AUTH_X_FORWARDED}} if ($ENV{$conf{AUTH_X_FORWARDED}});
+}
+
+$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => $REMOTE_ADDR } );
 my $Inventory = Inventory->new( $db, $admin, \%conf );
 
 bug_form();
@@ -64,29 +70,29 @@ bug_form();
 =cut
 #**********************************************************
 sub bug_form {
-  if ( $FORM{add} ){
-    if ( $FORM{ERROR} =~ /========================/ ){
-      ($FORM{ERROR}, $FORM{INPUTS}) = split( /========================\n{0,10}/, $FORM{ERROR} );
+  if ($FORM{add}) {
+    if ($FORM{ERROR} =~ m/========================/x) {
+      ($FORM{ERROR}, $FORM{INPUTS}) = split(/========================\n{0,10}/x, $FORM{ERROR});
     }
 
-    $FORM{ERROR} =~ s/[\r\n]+$//g;
+    $FORM{ERROR} =~ s/[\r\n]+$//xg;
 
-    if($FORM{ERROR} && ! $FORM{CUR_VERSION}) {
+    if ($FORM{ERROR} && !$FORM{CUR_VERSION}) {
       print "Fix VERSION: 0.74.22";
       return 1;
     }
 
     my $list = $Inventory->bugs_list({
-        ERROR       => $FORM{ERROR},
-        STATUS      => '_SHOW',
-        FIX_VERSION => '_SHOW',
-        COLS_NAME   => 1
+      ERROR       => $FORM{ERROR},
+      STATUS      => '_SHOW',
+      FIX_VERSION => '_SHOW',
+      COLS_NAME   => 1
     });
 
-    if($Inventory->{TOTAL}) {
+    if ($Inventory->{TOTAL}) {
       print "Register Error: $list->[0]->{id}<br>\n";
 
-      if($list->[0]->{fix_version}) {
+      if ($list->[0]->{fix_version}) {
         print "Status: Done<br>\n";
         print "Fix Version: $list->[0]->{fix_version}<br>";
       }
@@ -94,8 +100,8 @@ sub bug_form {
         print "Status: In progress<br>\n";
       }
     }
-    else{
-      $Inventory->bug_add( \%FORM );
+    else {
+      $Inventory->bug_add(\%FORM);
       print "$lang{ADDED}: $Inventory->{INSERT_ID}";
     }
     return 0;
@@ -116,7 +122,8 @@ sub bug_form {
 
 [END]
 
+  return 1;
 }
 
 
-1
+1;

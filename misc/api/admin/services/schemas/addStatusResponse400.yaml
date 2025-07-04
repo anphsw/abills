@@ -1,0 +1,28 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: "Validation failed\nParameter Type is not valid.  Type - bool_number\n"
+  errno:
+    type: integer
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 21
+        errstr:
+          type: string
+          example: "ERR_PARAMETER_NOT_VALID"
+        param:
+          type: string
+          example: "type"
+        type:
+          type: string
+          example: "bool_number"
+  errstr:
+    type: string
+    example: "Validation failed"

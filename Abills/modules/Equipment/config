@@ -38,6 +38,7 @@
   "30:0::equipment_change_port_status_ajax:AJAX"                                  => 5,
   "31:0::equipment_change_onu_billing_desc_ajax:AJAX"                             => 5,
   "32:0::equipment_change_onu_desc_ajax:AJAX"                                     => 5,
+  "33:0::equipment_change_port_desc_ajax:AJAX"                                    => 5,
 );
 
 #%PERIODIC = (daily   => [ 'equipment_traps_clean', 'equipment_graph_clean' ]);

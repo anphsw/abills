@@ -1,0 +1,10 @@
+{
+  "name": "STORAGE_ADD_INSTALL",
+  "method": "POST",
+  "path": "/storage/installation/",
+  "body": {
+    "articleId": 200,
+    "uid": 1,
+    "count": 1
+  }
+}

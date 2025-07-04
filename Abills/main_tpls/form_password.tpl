@@ -1,10 +1,16 @@
 <script src='/styles/default/js/modules/config/password_generator.js'></script>
 
-<form action='$SELF_URL' METHOD='POST'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST'>
+  <input type='hidden' name='index' value='%index%'>
   %HIDDDEN_INPUT%
-  <div class='card card-outline card-primary'>
-    <div class='card-header with-border'><h4 class='card-title'>_{PASSWD}_: %ID%</h4></div>
+  <div class='card card-outline card-primary %COLLAPSED%'>
+    <div class='card-header with-border'><h4 class='card-title'>_{PASSWD}_: %ID%</h4>
+      <div class='card-tools float-right'>
+        <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+          <i class='fa fa-plus'></i>
+        </button>
+      </div>
+    </div>
     <div class='card-body'>
 
       %EXTRA_ROW%
@@ -35,9 +41,9 @@
       </div>
 
       <div class='form-group row' data-visible='%RESET_INPUT_VISIBLE%' style='display:none;'>
-        <label class='control-label col-md-5'>_{RESET}_</label>
+        <label class='control-label col-md-5' for='RESET'>_{RESET}_</label>
         <div class='col-md-7'>
-          <input type='checkbox' name='RESET' class='control-element' style='margin-top: 7px;'/>
+          <input type='checkbox' name='RESET' id='RESET' class='control-element' style='margin-top: 7px;'/>
         </div>
       </div>
     </div>
@@ -50,7 +56,7 @@
 %G2FA_MESSAGE%
 
 <div class='%G2FA_HIDDEN%'>
-  <form action='$SELF_URL' METHOD='POST'>
+  <form action='%SELF_URL%' METHOD='POST'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='g2fa_secret' value='%G2FA_SECRET%'>
     <input type='hidden' name='g2fa_remove' value='%G2FA_REMOVE%'>

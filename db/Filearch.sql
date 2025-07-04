@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `filearch_video` (
 
 CREATE TABLE IF NOT EXISTS `filearch_video_actors` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `bio` TEXT NOT NULL,
   `origin_name` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS `filearch_video_actors` (
 
 CREATE TABLE IF NOT EXISTS `filearch_video_genres` (
   `id` TINYINT(4) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(20) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   `imdb` VARCHAR(20) DEFAULT NULL,
   `sharereactor` VARCHAR(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS `filearch_video_genres` (
 
 CREATE TABLE IF NOT EXISTS `filearch_countries` (
   `id` TINYINT(4) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `name` VARCHAR(80) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)

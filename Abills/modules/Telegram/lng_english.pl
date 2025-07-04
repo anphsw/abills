@@ -25,7 +25,6 @@ $lang{ENABLED_CREDIT} = "Credit Enabled";
 $lang{CREDIT_SUCCESS} = "Credit set";
 $lang{CREDIT_NOT_EXIST} = "Credit not available";
 $lang{ABOUT} = "About Company";
-$lang{COMPANY_NAME} = "Company Name";
 $lang{ADDRESS} = "Address";
 $lang{PHONE} = "Phone";
 $lang{EMAIL} = "Email";

@@ -244,6 +244,15 @@ sub user_routes {
         'PUBLIC'
       ]
     },
+    {
+      method      => 'POST',
+      path        => '/user/accept-rules/',
+      controller  => 'Api::Controllers::User::User_core::Root',
+      endpoint    => \&Api::Controllers::User::User_core::Root::post_user_acceptRules,
+      credentials => [
+        'USER', 'USERBOT'
+      ]
+    },
   ];
 }
 

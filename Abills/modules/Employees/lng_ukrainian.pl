@@ -109,5 +109,6 @@ $lang{TYPE_IN_MOVING_TYPE} = 'Тип переміщення між касами'
 $lang{ALL_SALARY} = 'Виплатити';
 
 $lang{ADMIN_DEFAULT} = 'Адміністратор за замовчуванням';
+$lang{EMPLOYEES_TOTAL_CASH_BALANCE} = 'Загальний баланс в касі';
 
 1

@@ -1,0 +1,11 @@
+type: object
+properties:
+  name:
+    type: string
+    example: "Contract suspended"
+  descr:
+    type: string
+    example: "Status for suspended contracts of users, maybe will return in future"
+  color:
+    type: string
+    example: "000000"

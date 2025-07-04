@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_FEES_TYPES_GET",
+  "method": "GET",
+  "path": "fees/types/255",
+  "params": {}
+}

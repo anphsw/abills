@@ -147,7 +147,7 @@ sub post_payments_users_uid {
   if ($payment_method !~ /[0-9]+/) {
     my $payment_methods = $Payments->payment_type_list({
       COLS_NAME       => 1,
-      FEES_TYPE       => '_SHOW',
+      payments_TYPE       => '_SHOW',
       SORT            => 'id',
       DEFAULT_PAYMENT => 1,
       IDS             => scalar @allowed_payments_ids ? \@allowed_payments_ids : undef,
@@ -329,7 +329,7 @@ sub get_payments_types {
   return {
     errno  => 10,
     errstr => 'Access denied'
-  } if !$self->{admin}->{permissions}{1}{3};
+  } if (!$self->{admin}->{permissions}{1}{0} && !$self->{admin}->{permissions}{1}{3});
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
@@ -402,6 +402,108 @@ sub delete_payments_users_uid_id {
       errstr => "Payment with id $path_params->{id} and uid $path_params->{uid} does not exist"
     };
   }
+}
+
+#**********************************************************
+=head2 get_payments_types_id($path_params, $query_params)
+
+  GET /payments/types/:id/
+
+=cut
+#**********************************************************
+sub get_payments_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  $Payments->payment_type_info({ ID => $path_params->{id} });
+
+  delete @{$Payments}{qw/TOTAL list AFFECTED/};
+
+  return $Payments;
+}
+
+#**********************************************************
+=head2 post_payments_types_id($path_params, $query_params)
+
+  POST /payments/types/:id/
+
+=cut
+#**********************************************************
+sub post_payments_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Payments->payment_type_add({ %$query_params, ID => $path_params->{id} });
+
+  return $Payments if $Payments->{errno};
+
+  $Payments->payment_type_info({ ID => $path_params->{id} });
+
+  delete @{$Payments}{qw/TOTAL list AFFECTED INSERT_ID/};
+
+  return $Payments;
+}
+
+#**********************************************************
+=head2 put_payments_types_id($path_params, $query_params)
+
+  PUT /payments/types/:id/
+
+=cut
+#**********************************************************
+sub put_payments_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Payments->payment_type_change({ %$query_params, ID => $path_params->{id} });
+
+  return $Payments if $Payments->{errno};
+
+  $Payments->payment_type_info({ ID => $path_params->{id} });
+
+  delete @{$Payments}{qw/TOTAL list AFFECTED/};
+
+  return $Payments;
+}
+
+#**********************************************************
+=head2 delete_payments_types_id($path_params, $query_params)
+
+  DELETE /payments/types/:id/
+
+=cut
+#**********************************************************
+sub delete_payments_types_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{4});
+
+  $Payments->payment_type_del({ ID => $path_params->{id} });
+
+  return $Payments if $Payments->{errno};
+
+  if ($Payments->{AFFECTED} && $Payments->{AFFECTED} =~ /^[0-9]$/) {
+    return {
+      result => 'Successfully deleted',
+      id     => $path_params->{id},
+    };
+  }
+
+  return $Errors->throw_error(1001140, { errstr => "Payment type with id $path_params->{id} not exists" });
 }
 
 1;

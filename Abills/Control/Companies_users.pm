@@ -32,6 +32,7 @@ sub company_users_total_info {
 
   my $users_list = $user->list({
     COMPANY_ID => $company_id,
+    PAGE_ROWS  => 10000,
     COLS_NAME  => 1,
     COLS_UPPER => 1,
     REDUCTION  => '_SHOW'

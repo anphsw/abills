@@ -8,6 +8,8 @@ package Api::Paths::Fees;
 use strict;
 use warnings FATAL => 'all';
 
+use Api::Validations::Fees qw(POST_FEES_TYPES PUT_FEES_TYPES);
+
 #**********************************************************
 =head2 paths() - Returns available API paths
 
@@ -113,7 +115,45 @@ sub admin_routes {
       controller  => 'Api::Controllers::Admin::Fees',
       endpoint    => \&Api::Controllers::Admin::Fees::get_fees_types,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/fees/types/:id/',
+      controller  => 'Api::Controllers::Admin::Fees',
+      endpoint    => \&Api::Controllers::Admin::Fees::get_fees_types_id,
+      credentials =>[
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/fees/types/:id/',
+      params      => POST_FEES_TYPES,
+      controller  => 'Api::Controllers::Admin::Fees',
+      endpoint    => \&Api::Controllers::Admin::Fees::post_fees_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/fees/types/:id/',
+      params      => PUT_FEES_TYPES,
+      controller  => 'Api::Controllers::Admin::Fees',
+      endpoint    => \&Api::Controllers::Admin::Fees::put_fees_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/fees/types/:id/',
+      controller  => 'Api::Controllers::Admin::Fees',
+      endpoint    => \&Api::Controllers::Admin::Fees::delete_fees_types_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
     {

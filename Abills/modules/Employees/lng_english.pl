@@ -106,5 +106,6 @@ $lang{TYPE_IN_MOVING_TYPE} = 'Type in moving cashboxes';
 $lang{ALL_SALARY} = 'Pay out';
 
 $lang{ADMIN_DEFAULT} = 'Default admin';
+$lang{EMPLOYEES_TOTAL_CASH_BALANCE} = 'Total cash balance';
 
 1

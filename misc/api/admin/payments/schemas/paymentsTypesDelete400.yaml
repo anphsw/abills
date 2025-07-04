@@ -1,0 +1,11 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 1001140
+  errstr:
+    type: string
+    example: ""
+  errmsg:
+    type: string
+    example: Payment type with id 255 not exists

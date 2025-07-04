@@ -459,7 +459,10 @@ sub voip_online {
   my $message;
 
   if ($FORM{ping}) {
-    host_diagnostic($FORM{ping});
+    require Internet::Diagnostic;
+    Internet::Diagnostic->import('host_diagnostic');
+    my $result = host_diagnostic($FORM{ping});
+    $html->message('info', $lang{INFO}, $result);
   }
   elsif ($FORM{hangup}) {
     my ($nas_id, $acct_session_id) = split(/ /, $FORM{hangup});

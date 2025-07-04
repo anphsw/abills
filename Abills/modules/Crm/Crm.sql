@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `country` VARCHAR(80) NOT NULL DEFAULT '',
   `city` VARCHAR(80) NOT NULL DEFAULT '',
   `address` VARCHAR(100) NOT NULL DEFAULT '',
-  `source` INT(1) NOT NULL DEFAULT 0,
-  `responsible` SMALLINT(4) NOT NULL DEFAULT 0,
+  `source` SMALLINT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `responsible` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   `date` DATE NOT NULL DEFAULT '0000-00-00',
-  `current_step` INT NOT NULL DEFAULT 1,
+  `current_step` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `priority` SMALLINT(1) NOT NULL DEFAULT 0,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `tag_ids` VARCHAR(20) NOT NULL DEFAULT '',
@@ -27,21 +27,29 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `floor` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   `entrance` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY uid (`uid`),
-  KEY competitor_id (`competitor_id`)
+  KEY `uid` (`uid`),
+  KEY `responsible` (`responsible`),
+  KEY `source` (`source`),
+  KEY `build_id` (`build_id`),
+  KEY `current_step` (`current_step`),
+  KEY `competitor_id` (`competitor_id`),
+  KEY `holdup_date` (`holdup_date`),
+  KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm leads';
 
 CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `step_number` INT UNSIGNED NOT NULL DEFAULT 1,
+  `step_number` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `name` CHAR(40) NOT NULL DEFAULT '',
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `description` TEXT NOT NULL,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `deal_step` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `domain_id` (`domain_id`),
+  KEY `step_number` (`step_number`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm progressbar steps';
@@ -53,11 +61,12 @@ REPLACE INTO `crm_progressbar_steps` (`id`, `step_number`, `name`, `color`, `des
   ('4', '4', '$lang{CONVERSION}', '#f1233d', '');
 
 CREATE TABLE IF NOT EXISTS `crm_leads_sources` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` CHAR(40) NOT NULL DEFAULT '',
   `comments` TEXT NOT NULL,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm leads source';
@@ -85,7 +94,8 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `pin` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE (`lead_id`, `deal_id`, `date`),
-  KEY aid (`aid`)
+  KEY `aid` (`aid`),
+  KEY `action_id` (`action_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Comments for each step in progressbar';
@@ -98,7 +108,8 @@ CREATE TABLE IF NOT EXISTS `crm_actions` (
   `subject` VARCHAR(150) NOT NULL DEFAULT '',
   `message` TEXT NOT NULL,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Entity ACTION';
@@ -111,7 +122,8 @@ CREATE TABLE IF NOT EXISTS `crm_competitors` (
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `descr` TEXT NOT NULL,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Crm Competitors';
 
@@ -179,7 +191,8 @@ CREATE TABLE IF NOT EXISTS `crm_info_fields` (
   `domain_id`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY (`name`),
-  UNIQUE KEY (`sql_field`)
+  UNIQUE KEY (`sql_field`),
+  KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm Info fields';
@@ -207,6 +220,7 @@ CREATE TABLE IF NOT EXISTS `crm_leads_watchers` (
   `lead_id`     INT(10)       UNSIGNED  NOT NULL  DEFAULT 0,
   `add_time`    DATETIME                NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  KEY `lead_id` (`lead_id`),
   UNIQUE KEY (`aid`,`lead_id`)
 )
   DEFAULT CHARSET = utf8
@@ -247,7 +261,9 @@ CREATE TABLE IF NOT EXISTS `crm_dialogue_messages` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `inner_msg` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `external_id` VARCHAR(256) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
+  KEY `dialogue_id` (`dialogue_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm dialogue messages';
@@ -257,7 +273,8 @@ CREATE TABLE IF NOT EXISTS `crm_open_lines` (
   `name` VARCHAR(60) NOT NULL DEFAULT '',
   `source` VARCHAR(60) NOT NULL DEFAULT '',
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm open lines';
@@ -301,14 +318,15 @@ CREATE TABLE IF NOT EXISTS `crm_deals` (
   `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `name` VARCHAR(60) NOT NULL DEFAULT '',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `current_step` INT NOT NULL DEFAULT 1,
+  `current_step` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `close_date` DATE NOT NULL DEFAULT '0000-00-00',
   `begin_date` DATE NOT NULL DEFAULT '0000-00-00',
   `comments` TEXT,
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `current_step` (`current_step`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm deals';

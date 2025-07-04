@@ -180,12 +180,12 @@
               </div>
             </div>
 
-            <div class='form-group row'>
-              <label for='METHOD' class='control-label col-md-4'>_{FEES}_ _{TYPE}_:</label>
-              <div class='col-md-8'>
+<!--            <div class='form-group row'>-->
+<!--              <label for='METHOD' class='control-label col-md-4'>_{FEES}_ _{TYPE}_:</label>-->
+<!--              <div class='col-md-8'>-->
                 %SEL_METHOD%
-              </div>
-            </div>
+<!--              </div>-->
+<!--            </div>-->
 
             %EXT_BILL_ACCOUNT%
 

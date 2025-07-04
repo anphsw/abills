@@ -869,7 +869,7 @@ sub _mtik_connect {
   $port ||= 8728;
 
   if (!($host)) {
-    $self->{errstr} = $errstr = "no host!\n";;
+    $self->{errstr} = $errstr = "NO_HOST!\n";;
     return 0;
   }
   if ($port eq 8729) {
@@ -888,7 +888,7 @@ sub _mtik_connect {
     );
   }
   if (!($sock)) {
-    $self->{errstr} = $errstr = "no socket :$!\n";
+    $self->{errstr} = $errstr = "NO_SOCKET $host:$port $!\n";
     return 0;
   }
   return $sock;

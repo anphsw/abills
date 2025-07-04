@@ -9,7 +9,7 @@ package Abills::EXCEL;
 use strict;
 our (
   %FORM,
-  %LIST_PARAMS,
+  #%LIST_PARAMS,
   %COOKIES,
   $index,
   $pages_qs,
@@ -25,16 +25,22 @@ use Encode qw(decode decode_utf8);
 our $VERSION = 2.02;
 my $CONF;
 my $workbook;
-my $IMG_PATH = '';
+#my $IMG_PATH = '';
 
 use Spreadsheet::WriteExcel;
 my Spreadsheet::WriteExcel $worksheet;
 
 my %text_colors = (
-  'text-green'  => 'green',
-  'text-red'    => 'red',
-  'text-danger' => 'red',
-  '#FF0000'     => 'red',
+  'text-green'   => 'green',
+  'text-red'     => 'red',
+  'text-danger'  => 'red',
+  'text-warning' => 'orange',
+  'text-primary' => 'blue',
+  'alert-danger' => 'red',
+  'alert-warning'=> 'orange',
+  '#FF0000'      => 'red',
+  '#0000FF'      => 'blue',
+  '#000000'      => 'black',
 );
 
 my %format_class = (
@@ -348,11 +354,9 @@ sub table {
   my $proto  = shift;
   my $class  = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
-  my $self;
+  my $self = {};
 
-  $self = {};
-
-  bless($self);
+  bless($self, $class);
 
   $self->{prototype} = $proto;
   $self->{NO_PRINT}  = $proto->{NO_PRINT};
@@ -374,6 +378,7 @@ sub table {
   }
 
   $self->{AUTOFIT_COLUMNS} = $attr->{AUTOFIT_COLUMNS} if $attr->{AUTOFIT_COLUMNS};
+  $self->{SKIP_LINK} = $attr->{SKIP_LINK} if defined $attr->{SKIP_LINK};
   $self->{row_number} = 1;
   $self->{col_num}    = 0;
 
@@ -417,12 +422,16 @@ sub addrow {
   }
 
   $worksheet->set_column(0, 3, 25);
-
   my $col_shift = ($self->{SELECT_ALL}) ? 1 : 0;
 
   for (my $col_num = 0; $col_num <= $#row; $col_num++) {
     my $val = $row[$col_num + $col_shift];
-    my $format = $workbook->add_format( text_wrap => 1 );
+
+    my $format = $workbook->add_format(
+      text_wrap => 1,
+      #bg_color  => ($self->{rowcolor}) ? $self->_get_color($self->{rowcolor}) : 'white',
+      #pattern   => 1,
+    );
 
     if (ref $val eq 'HASH') {
       if ($val->{merge_rows} || $val->{merge_cols}) {
@@ -430,7 +439,7 @@ sub addrow {
         next;
       }
       else {
-        $format = $workbook->add_format(%{$val->{format}}) if $val->{format} && ref $val->{format} eq 'HASH';
+        $format = $workbook->add_format(%{$val->{format}}) if ($val->{format} && ref $val->{format} eq 'HASH');
         $val = $val->{value};
       }
     }
@@ -439,21 +448,34 @@ sub addrow {
       next if !$self->{skip_empty_col};
     }
 
-    if ($val =~ /\[(.+)\|(.{0,100})\]/) {
+
+    $val =~ s/\&quot;/"/g;
+    $val =~ s/&amp;/&/g;
+    $val =~ s/&gt;/>/g;
+    $val =~ s/&lt;/</g;
+    #Link parse
+    if ($val =~ /\[(.+)\|(.{0,200})\]/) {
       my $text_to_check = $2;
 
       if ($text_to_check =~ /^=/) {
         $text_to_check =~ s/^=//;
       }
 
-      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $SELF_URL .'?'. $1, decode_utf8($text_to_check));
+      my $skip_link = defined $self->{SKIP_LINK} ? $self->{SKIP_LINK} : 1;
+      my $url = ($skip_link == 1) ? '' : $SELF_URL .'?'. $1;
+
+      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $url, decode_utf8($text_to_check), $format);
     }
-    elsif($val =~ /_COLOR:(.+):(.+)/) {
-      my $color  = $1;
-      my $text   = $2;
+    elsif($val =~ /(.+):#([0-9a-f]{6})$/i) {
+      my $color  = '#'.$2;
+      my $text   = $1;
+
+      $color = $self->_get_color($color);
 
       my $color_format = $workbook->add_format(
-        color     => ($color =~ /^#(\d+)/) ? $1 : $text_colors{$color},
+        color     => $color,
+        #bg_color  => ($self->{rowcolor}) ? $self->get_color($self->{rowcolor}) : undef,
+        bg_color  => ($text =~ /_COLOR/) ? $self->_get_color($color) : undef,
         size      => 10,
         text_wrap => 1,
         #bold => 1
@@ -466,8 +488,42 @@ sub addrow {
         $worksheet->write( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
     }
+    elsif($val =~ /_COLOR:([a-zA-Z\-0-9]+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/ || $val =~ /_COLOR:(.+):(.{0,100}+)/) {
+      my $color  = $1;
+      my $text   = $2;
+
+      $color = $self->_get_color($color);
+      my $color_format;
+      if (! $text || $text eq '') {
+        $color_format = $workbook->add_format(
+          #color     => ($text ne '') ? $color : undef,
+          #bg_color  => ($self->{rowcolor}) ? $self->get_color($self->{rowcolor}) : undef,
+          bg_color  => ($color eq 'black') ? undef : $color,
+          size      => 10,
+          text_wrap => 1,
+          #bold => 1
+        );
+      }
+      else {
+        $color_format = $workbook->add_format(
+          color     => ($text ne '') ? $color : undef,
+          #bg_color  => ($text eq '') ? $self->_get_color($color) : undef,
+          bg_color  => ($self->{rowcolor}) ? $self->get_color($self->{rowcolor}) : undef,
+          size      => 10,
+          text_wrap => 1,
+          #bold => 1
+        );
+      }
+
+      if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
+      }
+      else {
+        $worksheet->write( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
+      }
+    }
     else {
-      if($val =~ /^0/  ||
+      if($val =~ /^0(?!\.\d)/  ||
          $val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
         $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $val ), $format || undef );
       }
@@ -950,10 +1006,41 @@ sub letters_list {
     print $output;
   }
 
+  return '';
 }
 
 #**********************************************************
-=head2 color_mark() Mark text
+=head2 _get_color($color) Mark text
+
+  Argumnets:
+    $color_rgb
+
+  Results:
+    $color_id
+
+=cut
+#**********************************************************
+sub _get_color {
+  my $self = shift;
+  my ($color) = @_;
+
+  my $color_id = 40;
+
+  if ($text_colors{$color}) {
+    $color_id = $text_colors{$color};
+  }
+  elsif ($color =~ /^#([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
+    $self->{custom_color_index}= ($self->{custom_color_index}) ? ($self->{custom_color_index} - 50 + 1) + $self->{custom_color_index} :  50;
+    my $color_index = $self->{custom_color_index};
+    $text_colors{$color}=$color_index;
+    $color_id = $workbook->set_custom_color($color_index, hex($1), hex($2), hex($3));
+  }
+
+  return $color_id;
+}
+
+#**********************************************************
+=head2 color_mark($message, $color, $attr) Mark text
 
 =cut
 #**********************************************************
@@ -1028,4 +1115,4 @@ sub AUTOLOAD {
   return $data;
 }
 
-1
+1;

@@ -294,6 +294,10 @@ $lang{MSGS_SPOILER} = 'Spoiler';
 $lang{MSGS_NUMBER_OF_ANSWERS} = 'Number of answers';
 $lang{MSGS_ANSWERS} = 'Answers';
 $lang{MSGS_NUMBER_OF_USES} = 'Number of uses';
+$lang{MSGS_NO_MATCHES_FOUND} = 'No matches found';
+$lang{MSGS_MATCHES_FOUND} = 'Matches found';
+$lang{MSGS_RESPONSIBLE_PERSON} = 'Responsible person';
+$lang{MSGS_RESPONSIBLE_PERSON_CLIENT_SIDE} = 'Responsible person on the client side';
 
 $lang{ERR_SEND_PUSH_ADMIN} = 'An error occurred while sending a Push notification. Push is not configured for the web interface, or administrators are not subscribed to Push notifications';
 $lang{ERR_SEND_MESSAGE_ADMIN} = 'An error occurred while sending notification.';
@@ -310,5 +314,12 @@ $lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Displaying user equipment inform
 $lang{SHOW_MSGS_MAP} = 'Show message on map';
 $lang{TICKET_WORKS} = 'Ticket works';
 $lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Ability to attach equipment to a ticket';
+$lang{MSGS_RELATED_MESSAGES} = 'Related messages';
+$lang{MSGS_NO_UNPLANNED_MESSAGES} = 'No unplanned messages';
+$lang{MSGS_LOADED_MESSAGES} = 'Loaded messages';
+$lang{MSGS_FILTER_BY_ADMIN} = 'Filter by administrator';
+$lang{MSGS_ALL_ADMINS} = 'All administrators';
+$lang{MSGS_UNPLANNED_MESSAGES} = 'Unplanned messages';
+$lang{MSGS_LOAD_MORE} = 'Load more';
 
 1;

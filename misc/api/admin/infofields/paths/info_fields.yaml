@@ -1,0 +1,101 @@
+get:
+  tags:
+    - info_fields
+  summary: Получить информационные поля
+  operationId: getInfoFieldsList
+  parameters:
+    - name: id
+      in: query
+      description: Идентификатор
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название
+      schema:
+        type: boolean
+        default: true
+    - name: sqlField
+      in: query
+      description: SQL-поле
+      schema:
+        type: boolean
+        default: true
+    - name: type
+      in: query
+      description: Тип
+      schema:
+        type: boolean
+        default: true
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: true
+    - name: company
+      in: query
+      description: Компания
+      schema:
+        type: boolean
+        default: true
+    - name: abonPortal
+      in: query
+      description: Абонентский портал
+      schema:
+        type: boolean
+        default: true
+    - name: userChg
+      in: query
+      description: Изменение пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: required
+      in: query
+      description: Обязательное поле
+      schema:
+        type: boolean
+        default: true
+    - name: module
+      in: query
+      description: Модуль
+      schema:
+        type: boolean
+        default: true
+    - name: comment
+      in: query
+      description: Комментарий
+      schema:
+        type: boolean
+        default: true
+    - name: domainId
+      in: query
+      description: ID домена
+      schema:
+        type: boolean
+        default: true
+    - name: parentId
+      in: query
+      description: ID родительского элемента
+      schema:
+        type: boolean
+        default: true
+    - name: parentValueId
+      in: query
+      description: Значение родительского элемента
+      schema:
+        type: boolean
+        default: true
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/infofields.yaml"
+  security:
+    - KEY: [ ]

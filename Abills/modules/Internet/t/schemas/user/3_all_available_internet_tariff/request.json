@@ -2,5 +2,6 @@
   "name": "USER_INTERNET_AVAILABLE_TARIFF_LIST",
   "method": "GET",
   "path": "user/internet/tariffs/all/",
-  "params": {}
+  "params": {},
+  "conf" : "INTERNET_USER_CHG_TP"
 }

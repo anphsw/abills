@@ -99,9 +99,9 @@ sub user_info {
    service.expire AS iptv_expire,
    service.activate AS iptv_activate,
    tv_services.module AS service_module,
-   tp.fees_method as fees_method,
-   tp.describe_aid as describe_aid,
-   tp.comments as comments,
+   tp.fees_method AS fees_method,
+   tp.describe_aid AS describe_aid,
+   tp.comments AS comments,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
@@ -436,7 +436,7 @@ sub user_list{
       [ 'SERIAL',            'STR', 'us.serial',                                                                 1 ],
       [ 'DESCRIBE_AID',      'STR', 'tp.describe_aid',                                                           1 ],
       [ 'ACTIVE_DAYS',       'STR', "SUM(CASE WHEN imr.expire = '0000-00-00' THEN
-        DATEDIFF(CURRENT_DATE, imr.activate) ELSE 0 END) AS active_days",                                        1 ],
+        IF(imr.activate = CURRENT_DATE, 1, DATEDIFF(CURRENT_DATE, imr.activate)) ELSE 0 END) AS active_days",                                        1 ],
       [ 'REDUCTION',         'INT', 'u.reduction', 'u.reduction AS user_reduction'                                 ],
     ],
     {
@@ -2489,6 +2489,8 @@ sub iptv_monthly_active_users_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my $GROUP_BY = $attr->{GROUP_BY} || 'imr.tp_id';
+
   my $month = $attr->{MONTH} ? sprintf('%02d', $attr->{MONTH}) : undef;
   my $year = $attr->{YEAR} || undef;
 
@@ -2502,22 +2504,38 @@ sub iptv_monthly_active_users_list {
 
   my $WHERE = $self->search_former($attr, [
       [ 'ID', 'INT', 'imr.id',  ],
-    ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+      [ 'USERS', 'INT', 'COUNT(DISTINCT imr.uid) AS users', 1 ],
+      [ 'TP_ID', 'INT', 'imr.tp_id', 1 ],
+      [ 'SERVICE_NAME', 'STR', 'ips.name AS service_name', 1 ],
+      [ 'MODULE', 'STR', 'ips.module', 1 ],
+      [ 'UID', 'INT', 'u.uid', 1 ],
+      [ 'TP_NAME', 'STR', 'tp.name AS tp_name', 1 ],
+      [ 'DAYS', 'INT', "SUM(DATEDIFF(
+                            IF(imr.expire <> '0000-00-00' AND imr.expire <= $last_date,
+                               imr.expire,
+                               $last_date
+                              ),
+                            IF(imr.activate < $start_date, $start_date, imr.activate)
+                          ) + 1) AS days", 1 ],
+    ],
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES,
+      USE_USER_PI      => 1,
+      USERS_FIELDS_PRE => 1,
+    }
   );
 
-  $self->query("SELECT COUNT(DISTINCT imr.uid) AS users, imr.tp_id, ips.name AS service_name, ips.module, tp.name AS tp_name,
-    SUM(DATEDIFF(
-      IF(imr.expire <> '0000-00-00' AND imr.expire <= $last_date,
-         imr.expire,
-         $last_date
-        ),
-      IF(imr.activate < $start_date, $start_date, imr.activate)
-    ) + 1) AS days
+  my $EXT_TABLE = $self->{EXT_TABLES};
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} imr.id
     FROM iptv_monthly_active_users_report imr
     LEFT JOIN iptv_services ips ON (ips.id = imr.service_id)
     LEFT JOIN tarif_plans tp ON (tp.tp_id = imr.tp_id)
+    LEFT JOIN users u ON u.uid = imr.uid
+    $EXT_TABLE
     $WHERE
-    GROUP BY imr.tp_id;",
+    GROUP BY $GROUP_BY;",
     undef,
     $attr
   );

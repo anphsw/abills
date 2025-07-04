@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS USER API
-  version: 1.38.05
+  version: 1.47.16
   description: |
-    Last modified 2025-01-09 <br>
+    Last modified 2025-06-27 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_user.yaml
     Copy it and upload it to your favorite OPEN API viewer.
@@ -61,6 +61,8 @@ tags:
     description: Работа с Triplay
   - name: voip
     description: Работа с телефонией
+  - name: storage
+    description: Работа с Storage
 paths:
   /user/bots/subscribe/phone:
     post:
@@ -883,7 +885,28 @@ paths:
                     example: Unknown operation happened
       security:
         - USERSID: [ ]
-  
+  /user/accept-rules:
+    post:
+      tags:
+        - user
+      summary: Принять правила использования
+      description: Работает при включенной опции $conf{ACCEPT_RULES}
+      deprecated: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAcceptRulesResponse200"
+        400:
+          description: Отключена опция $conf{ACCEPT_RULES}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAcceptRulesResponse400"
+      security:
+        - USERSID: [ ]
   /user/credit:
     get:
       tags:
@@ -2275,6 +2298,28 @@ paths:
                 $ref: "#/components/schemas/MsgsChapters"
       security:
         - USERSID: [ ]
+  /user/msgs/search:
+    post:
+      tags:
+        - msgs
+      summary: Поиск сообщений по тексту
+      operationId: userSearchMsgs
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MsgsMsgsSearch"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgsMsgsSearchList"
+      security:
+        - KEY: []
   /user/msgs/attachments/{id}:
     get:
       tags:
@@ -2714,6 +2759,27 @@ paths:
                 $ref: "#/components/schemas/VoipTariffs"
       security:
         - USERSID: [ ]
+  /user/storage/incoming_articles:
+    get:
+      tags:
+        - storage
+      summary: Получить товар по серийному номеру
+      parameters:
+        - name: serial
+          in: query
+          description: Серийный номер оборудования
+          schema:
+            type: boolean
+            default: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageIncomingArticlesList"
+      security:
+        - KEY: [ ]
 components:
   parameters:
     desc:
@@ -3430,6 +3496,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VoipUser'
+    UserAcceptRulesResponse200:
+      type: object
+      properties:
+        accepted:
+          type: integer
+          example: 1
+        result:
+          type: string
+          example: "Successfully accepted"
+    UserAcceptRulesResponse400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 1001501
+        errstr:
+          type: string
+          example: "ERR_ACCEPT_RULES_DISABLED"
+        errmsg:
+          type: string
+          example: ""
     UserCredit:
       type: object
       properties:
@@ -4155,60 +4242,96 @@ components:
           properties:
             activate:
               type: boolean
-              description: Indicates if the service is activated.
+              example: false
             active:
               type: boolean
-              description: Indicates if the service is currently active.
+              example: true
             description:
               type: string
-              description: Description of the service.
+              example: "Test describe"
+            discount:
+              type: number
+              format: float
+              example: 20
+            discountActivate:
+              type: string
+              example: "0000-00-00"
+            discountExpire:
+              type: string
+              format: date
+              example: "0000-00-00"
             endDate:
               type: string
               format: date
-              description: End date of the service.
+              example: "2025-06-01"
+            id:
+              type: integer
+              example: 3
+            monthFee:
+              type: number
+              format: float
+              example: 0
+            nextAbon:
+              type: object
+              properties:
+                abonDate:
+                  type: string
+                  format: date
+                  example: "2025-06-01"
+                daysToFee:
+                  type: integer
+                  example: 10
+                sum:
+                  type: number
+                  format: float
+                  example: 39
+            originalPrice:
+              type: number
+              format: float
+              example: 39
             period:
               type: string
-              description: Billing period (e.g., day, month).
+              example: "month"
+            periodId:
+              type: integer
+              example: 1
             personalDescription:
               type: string
-              description: Personal description for the service.
+              example: ""
             price:
               type: number
-              format: double
-              description: Price of the service.
+              format: float
+              example: 39
+            serviceCount:
+              type: integer
+              example: 1
             serviceImg:
               type: string
               format: uri
-              description: URL to the service image.
-            serviceLink:
-              type: string
-              format: uri
-              description: Link to the service page.
+              example: "https://content.rozetka.com.ua/goods/images/big/309817406.jpg"
+            serviceStatus:
+              type: integer
+              example: 1
             startDate:
               type: string
               format: date
-              description: Start date of the service.
-            tpReductionFee:
-              type: number
-              format: double
-              description: Reduction fee for the tariff plan.
-            monthFee:
-              type: number
-              format: double
-              description: Monthly fee for the service.
+              example: "2025-05-01"
             statusName:
               type: string
-              description: Current status of the service.
-            originalPrice:
+              example: ""
+            tpId:
+              type: integer
+              example: 0
+            tpName:
+              type: string
+              example: "Оренда приставки - 39₴ "
+            tpReductionFee:
               type: number
-              format: double
-              description: Original price before any discounts.
-          required:
-            - activate
-            - active
-            - description
-            - period
-            - price
+              format: float
+              example: 0
+            uid:
+              type: integer
+              example: 1003074
     CardsAddPaymentRequest:
       type: object
       properties:
@@ -5288,6 +5411,56 @@ components:
         state:
           type: number
           example: 0
+    MsgsMsgsSearch:
+      type: object
+      required: [searchText]
+      properties:
+        searchText:
+          type: string
+          example: 'test'
+        subject:
+          type: string
+          example: "456"
+        date:
+          type: string
+          format: date
+          example: "2023-11-22"
+        state:
+          type: integer
+          example: 1
+        replyId:
+          type: integer
+          example: 2
+        message:
+          type: string
+          example: "This is the content of the message."
+        replyText:
+          type: string
+          example: "This is a reply."
+    MsgsMsgsSearchList:
+      type: array
+      items:
+        type: object
+        properties:
+          subject:
+            type: string
+            example: "456"
+          date:
+            type: string
+            format: date
+            example: "2023-11-22"
+          state:
+            type: integer
+            example: 1
+          replyId:
+            type: integer
+            example: 2
+          message:
+            type: string
+            example: "This is the content of the message."
+          replyText:
+            type: string
+            example: "This is a reply."
     PaysysAppleSession:
       type: object
       properties:
@@ -5633,6 +5806,35 @@ components:
         comments:
           type: string
           example: My good friend
+    StorageIncomingArticlesList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 456
+              articleName:
+                type: string
+                example: "Splitter 90"
+              articleTypeName:
+                type: string
+                example: "Splitter"
+              serial:
+                type: string
+                example: "11457744689974"
+              siaCount:
+                type: number
+                example: 1
+              siaSum:
+                type: number
+                example: 100
+        total:
+          type: number
+          example: 1
     TriplayTriplay:
       type: object
       properties:

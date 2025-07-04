@@ -39,7 +39,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_portal_articles_id($path_params, $query_params)
+=head2 get_internet_sessions_uid($path_params, $query_params)
 
   Endpoints
    Active
@@ -49,9 +49,35 @@ sub new {
 
 =cut
 #**********************************************************
-sub get_sessions_uid {
+sub get_internet_sessions_uid {
   my $self = shift;
-  my ($path_params, $query_params);
+  return $self->_sessions_list(@_);
+}
+
+#**********************************************************
+=head2 get_internet_sessions($path_params, $query_params)
+
+  Endpoints
+   Active
+    GET /internet/sessions
+
+=cut
+#**********************************************************
+sub get_internet_sessions {
+  my $self = shift;
+  return $self->_sessions_list(@_);
+}
+
+#**********************************************************
+=head2 _sessions_list($path_params, $query_params)
+
+  return list of sessions
+
+=cut
+#**********************************************************
+sub _sessions_list {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -59,15 +85,16 @@ sub get_sessions_uid {
   } if ($self->{admin}->{MODULES} && !$self->{admin}->{MODULES}->{Internet}) || !$self->{admin}->{permissions}{0}{33};
 
   my $sessions = $Sessions->online({
-    UID           => $path_params->{uid},
-    NAS_PORT_ID   => '_SHOW',
-    CLIENT_IP_NUM => '_SHOW',
-    NAS_ID        => '_SHOW',
-    USER_NAME     => '_SHOW',
-    CLIENT_IP     => '_SHOW',
-    DURATION_SEC  => '_SHOW',
-    STATUS        => '_SHOW',
-    GUEST         => '_SHOW',
+    %$query_params,
+    UID           => $path_params->{uid} || $query_params->{UID} || '_SHOW',
+    NAS_PORT_ID   => $query_params->{NAS_PORT_ID} || '_SHOW',
+    CLIENT_IP_NUM => $query_params->{CLIENT_IP_NUM} || '_SHOW',
+    NAS_ID        => $query_params->{NAS_ID} || '_SHOW',
+    USER_NAME     => $query_params->{USER_NAME} || '_SHOW',
+    CLIENT_IP     => $query_params->{CLIENT_IP} || '_SHOW',
+    DURATION_SEC  => $query_params->{DURATION_SEC} || '_SHOW',
+    STATUS        => $query_params->{STATUS} || '_SHOW',
+    GUEST         => $query_params->{GUEST} || '_SHOW',
   });
 
   foreach my $session (@{$sessions}) {

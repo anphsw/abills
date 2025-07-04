@@ -1,0 +1,17 @@
+type: object
+required:
+  - serviceStatus
+  - tpId
+properties:
+  serviceStatus:
+    type: integer
+    example: 2
+  personalTp:
+    type: number
+    example: 150
+  serviceExpire:
+    type: string
+    example: "0000-00-00"
+  comments:
+    type: string
+    example: "Test add from api"

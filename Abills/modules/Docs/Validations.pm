@@ -102,6 +102,24 @@ use constant {
     },
     ORDERS_AS_ARRAY => {
       type => 'number',
+    },
+    _PATTERN_PROPERTIES        => {
+      "SUM_\\d+\$"       => {
+        type => 'unsigned_number',
+      },
+      "ORDER_\\d+\$"     => {
+        type => 'string'
+      },
+      "FEES_TYPE_\\d+\$" => {
+        # probably add custom validation on fees types
+        type => 'unsigned_integer'
+      },
+      "COUNT_\\d+\$"     => {
+        type => 'unsigned_integer'
+      },
+      "UNIT_\\d+\$"      => {
+        type => 'unsigned_integer'
+      },
     }
   },
   POST_INVOICE_ADD              => {

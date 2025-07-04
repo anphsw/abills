@@ -31,7 +31,8 @@ use SNMP_util;
 use SNMP_Session;
 use Events;
 use Events::API;
-use Abills::Misc qw(snmp_get host_diagnostic);
+use Abills::Misc qw(snmp_get);
+require Internet::Diagnostic;
 
 our (
   $db,
@@ -261,6 +262,7 @@ sub equipment_scan {
 
     print "check $w.$x.$y.$z\n" if ($argv->{DEBUG} || $argv->{INFO_ONLY});
 
+    use Internet::Diagnostic;
     my $ping = host_diagnostic("$w.$x.$y.$z", {
       QUITE         => 1,
       RETURN_RESULT => 1,

@@ -170,6 +170,7 @@ sub msgs_user_show {
     push @REPLIES, $main_message_survey if ($main_message_survey);
   }
 
+  my $found_linked_tickets = {};
   foreach my $line (@$replies_list) {
     $FORM{REPLY_ID} = $line->{id};
 
@@ -204,13 +205,31 @@ sub msgs_user_show {
       ex_params => "quoting_id='$line->{id}'"
     });
 
+    $line->{text} = msgs_text_formatting($line->{text});
+    while ($line->{text} =~ /#(\d+)/g) {
+      my $message_id = $1;
+      if (defined $found_linked_tickets->{$message_id}) {
+        next;
+      }
+
+      $Msgs->message_info($message_id, { UID => $line->{uid} });
+      if (!$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1) {
+        next;
+      }
+      $found_linked_tickets->{$message_id} = $html->button("#$message_id", "index=$index&ID=$message_id");
+    }
+
+    foreach my $message_id (keys %{$found_linked_tickets}) {
+      $line->{text} =~ s/#\Q$message_id\E/$found_linked_tickets->{$message_id}/g;
+    }
+
     push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
       LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
       REPLY_ID   => $line->{id},
       DATE       => $line->{datetime},
       CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
       PERSON     => ($line->{creator_fio} || $line->{creator_id}),
-      MESSAGE    => msgs_text_formatting($line->{text}),
+      MESSAGE    => $line->{text},
       COLOR      => (($line->{aid} > 0) ? 'fas fa-envelope bg-blue' : 'fas fa-user bg-green'),
       QUOTING    => $quoting_button,
       ATTACHMENT => $attachment_html,
@@ -276,6 +295,15 @@ sub msgs_user_show {
     ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
   });
 
+  if ($Msgs->{PLAN_DATE} && $Msgs->{PLAN_DATE} ne '0000-00-00') {
+    $Msgs->{PLAN_DATE_BADGE} = $html->button($Msgs->{PLAN_DATE}, '', {
+      class          => 'badge badge-primary cursor-pointer',
+      ex_params      => "data-tooltip-position='top' data-tooltip='$lang{EXECUTION}'",
+      NO_LINK_FORMER => 1,
+      JAVASCRIPT     => 1,
+      SKIP_HREF      => 1
+    });
+  }
   $html->tpl_show(_include('msgs_client_show', 'Msgs'), { %{$Msgs}, ID => $main_msgs_id, ID_BUTTON_COPY => $button_msgs_id}, { ID => 'MSGS_CLIENT_INFO' });
 
   my %params = ();
@@ -286,6 +314,59 @@ sub msgs_user_show {
   $Msgs->message_change({ UID => $LIST_PARAMS{UID}, ID => $FORM{ID}, USER_READ => "$DATE $TIME", %params });
 
   msgs_redirect_filter({ DEL => 1, UID => $LIST_PARAMS{UID} });
+  
+  if (scalar(keys %{$found_linked_tickets}) > 0) {
+    $LIST_PARAMS{CHG_MSGS} = join(';', keys %{$found_linked_tickets});
+    $LIST_PARAMS{INNER_MSG} = 0;
+    result_former({
+      INPUT_DATA      => $Msgs,
+      FUNCTION        => 'messages_list',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => 'ID,SUBJECT,DATETIME,STATE,LAST_REPLIE_DATE',
+      HIDDEN_FIELDS   => 'INNER_MSG,UID,LOGIN,CHG_MSGS',
+      FUNCTION_FIELDS => 'msgs_user:show:id:',
+      FUNCTION_INDEX  => $index,
+      SKIP_USER_TITLE => 1,
+      FILTER_VALUES   => {
+        subject => sub {
+          my $subject = shift;
+          my ($line) = @_;
+
+          if ($line->{aid} && $line->{aid} != ($conf{USERS_WEB_ADMIN_ID} || 3)) {
+            return $html->element('span', '', { class => 'fa fa-chevron-right', title => $lang{OUTGOING}, OUTPUT2RETURN => 1 }) .
+              $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg");
+          }
+
+          return $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
+        },
+        state   => sub {
+          my $state = shift;
+          my ($line) = @_;
+
+          $html->color_mark($msgs_status->{ $state }) . (($line->{resposible} && !$state) ? " ($lang{TAKEN_TO_WORK})" : "")
+        }
+      },
+      EXT_TITLES      => {
+        id                 => '#',
+        subject            => $lang{SUBJECT},
+        datetime           => $lang{ADDED},
+        state              => $lang{STATUS},
+        client_responsible => $lang{MSGS_RESPONSIBLE_PERSON},
+        plan_date          => $lang{EXECUTION},
+        last_replie_date   => $lang{LAST_ACTIVITY}
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => $lang{MSGS_RELATED_MESSAGES},
+        qs      => $pages_qs,
+        ID      => 'MSGS_BSS_LIST',
+      },
+      MAKE_ROWS       => 1,
+      MODULE          => 'Msgs',
+      TOTAL           => 1,
+      SEARCH_FORMER   => 1,
+    });
+  }
 
   return 0;
 }
@@ -362,16 +443,17 @@ sub msgs_user {
     $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} ? $chapter->{RESPONSIBLE} : 0;
 
     $Msgs->message_add({
-      UID        => $user->{UID},
-      STATE      => ($FORM{STATE}) ? $FORM{STATE} : 0,
-      USER_READ  => "$DATE  $TIME",
-      IP         => $ENV{'REMOTE_ADDR'},
-      RESPOSIBLE => $chapter->{RESPONSIBLE} || 0,
-      SUBJECT    => $FORM{SUBJECT} || '',
-      CHAPTER    => $FORM{CHAPTER} || 0,
-      MESSAGE    => $FORM{MESSAGE} || '',
-      PRIORITY   => $FORM{PRIORITY} || 0,
-      USER_SEND  => 1
+      UID                => $user->{UID},
+      STATE              => ($FORM{STATE}) ? $FORM{STATE} : 0,
+      USER_READ          => "$DATE  $TIME",
+      IP                 => $ENV{'REMOTE_ADDR'},
+      RESPOSIBLE         => $chapter->{RESPONSIBLE} || 0,
+      SUBJECT            => $FORM{SUBJECT} || '',
+      CHAPTER            => $FORM{CHAPTER} || 0,
+      MESSAGE            => $FORM{MESSAGE} || '',
+      PRIORITY           => $FORM{PRIORITY} || 0,
+      CLIENT_RESPONSIBLE => $FORM{CLIENT_RESPONSIBLE} || '',
+      USER_SEND          => 1
     });
     return 1 if _error_show($Msgs);
 
@@ -444,7 +526,7 @@ sub msgs_user {
 
   $pages_qs .= "&SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}" if( $FORM{SEARCH_MSG_TEXT});
 
-  my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1 });
+  my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1, SHOW_ONLY => 4 });
   if (! $FORM{sort}){
     $LIST_PARAMS{SORT} = '4, 1';
     delete $LIST_PARAMS{DESC};
@@ -471,100 +553,166 @@ sub msgs_user {
 
   $FORM{ALL_OPENED} = 1 if !defined($FORM{STATE}) && !$FORM{ALL_MSGS};
 
-  $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {%$Msgs}, { ID => 'MSGS_USER_SEARCH_FORM' });
+  my $ext_titles = {
+    id                 => '#',
+    subject            => $lang{SUBJECT},
+    datetime           => $lang{ADDED},
+    state              => $lang{STATUS},
+    client_responsible => $lang{MSGS_RESPONSIBLE_PERSON},
+    plan_date          => $lang{EXECUTION},
+    last_replie_date   => $lang{LAST_ACTIVITY}
+  };
 
-  my $table;
+  $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {
+    %$Msgs,
+    TABLE_TITLES => Abills::Base::json_former($ext_titles),
+    STATUSES     => Abills::Base::json_former($msgs_status),
+  }, { ID => 'MSGS_USER_SEARCH_FORM' });
 
-  if ($FORM{SEARCH_MSG_TEXT}) {
-    my $request_search_word = $FORM{SEARCH_MSG_TEXT};
-    $request_search_word =~ s/\\/\\\\/gi;
-    $request_search_word =~ s/\%/\\%/gi;
-    $request_search_word =~ s/\'/\\'/gi;
+  # my $table;
+  #
+  # if ($FORM{SEARCH_MSG_TEXT}) {
+  #   my $request_search_word = $FORM{SEARCH_MSG_TEXT};
+  #   $request_search_word =~ s/\\/\\\\/gi;
+  #   $request_search_word =~ s/\%/\\%/gi;
+  #   $request_search_word =~ s/\'/\\'/gi;
+  #
+  #   my $list = $Msgs->messages_list({
+  #     SUBJECT             => '_SHOW',
+  #     CHAPTER_NAME        => '_SHOW',
+  #     DATETIME            => '_SHOW',
+  #     STATE               => '_SHOW',
+  #     USER_READ           => '_SHOW',
+  #     REPLY_TEXT          => '_SHOW',
+  #     MESSAGE             => '_SHOW',
+  #     SEARCH_MSGS_BY_WORD => $request_search_word,
+  #     %LIST_PARAMS,
+  #     COLS_NAME           => 1
+  #   });
+  #
+  #   $table = msgs_user_search_table({
+  #     ID          => $FORM{ID},
+  #     SID         => $sid,
+  #     TOTAL_MSGS  => $Msgs->{TOTAL},
+  #     JSON        => $FORM{json},
+  #     STATUS_BAR  => $status_bar,
+  #     SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
+  #   }, $msgs_status, $list);
+  #   print $table->show();
+  # }
+  # else {
+    # my $list = $Msgs->messages_list({
+    #   SUBJECT            => '_SHOW',
+    #   LAST_REPLIE_DATE   => '_SHOW',
+    #   DATETIME           => '_SHOW',
+    #   STATE              => '_SHOW',
+    #   RESPOSIBLE         => '_SHOW',
+    #   USER_READ          => '_SHOW',
+    #   CLIENT_RESPONSIBLE => '_SHOW',
+    #   %LIST_PARAMS,
+    #   COLS_NAME          => 1
+    # });
+    #
+    # $table = $html->table({
+    #   width   => '100%',
+    #   caption => $lang{MESSAGES},
+    #   title   => [ '#', $lang{SUBJECT}, $lang{ADDED}, $lang{STATUS}, $lang{LAST_ACTIVITY}, $lang{MSGS_RESPONSIBLE_PERSON}, '-' ],
+    #   qs      => $pages_qs,
+    #   pages   => $Msgs->{TOTAL},
+    #   ID      => 'MSGS_LIST',
+    #   header  => $status_bar,
+    #   FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
+    # });
+    #
+    # foreach my $line (@$list) {
+    #   $table->{rowcolor} = ($FORM{ID} && $line->{id} == $FORM{ID}) ? 'row_active' : undef;
+    #   $line->{subject} = convert($line->{subject}, { text2html => 1, json => $FORM{json} });
+    #
+    #   my $msgs_id = $html->button($line->{id}, '', {
+    #     COPY      => $line->{id},
+    #     class     => 'btn btn-default btn-sm p-0',
+    #     ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+    #   });
+    #
+    #   $table->addrow(
+    #     $msgs_id,
+    #     ($line->{user_read} ne '0000-00-00 00:00:00')
+    #     ? $html->button((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
+    #     : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
+    #     $line->{datetime},
+    #     $html->color_mark($msgs_status->{ $line->{state} }) . (($line->{resposible} && !$line->{state}) ? " ($lang{TAKEN_TO_WORK})" : ""),
+    #     $line->{last_replie_date},
+    #     $line->{client_responsible},
+    #     $html->button($lang{SHOW}, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
+    #   );
+    # }
+  # }
 
-    my $list = $Msgs->messages_list({
-      SUBJECT             => '_SHOW',
-      CHAPTER_NAME        => '_SHOW',
-      DATETIME            => '_SHOW',
-      STATE               => '_SHOW',
-      USER_READ           => '_SHOW',
-      REPLY_TEXT          => '_SHOW',
-      MESSAGE             => '_SHOW',
-      SEARCH_MSGS_BY_WORD => $request_search_word,
-      %LIST_PARAMS,
-      COLS_NAME           => 1
-    });
+  # $Msgs->{TOTAL_MSG} = $Msgs->{TOTAL};
 
-    $table = msgs_user_search_table({
-      ID          => $FORM{ID},
-      SID         => $sid,
-      TOTAL_MSGS  => $Msgs->{TOTAL},
-      JSON        => $FORM{json},
-      STATUS_BAR  => $status_bar,
-      SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
-    }, $msgs_status, $list);
-  }
-  else {
-    my $list = $Msgs->messages_list({
-      SUBJECT          => '_SHOW',
-      LAST_REPLIE_DATE => '_SHOW',
-      DATETIME         => '_SHOW',
-      STATE            => '_SHOW',
-      RESPOSIBLE       => '_SHOW',
-      USER_READ        => '_SHOW',
-      %LIST_PARAMS,
-      COLS_NAME        => 1
-    });
+  # $table = $html->table({
+  #   width         => '100%',
+  #   rows          => [
+  #     [
+  #       "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
+  #       "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
+  #     ]
+  #   ],
+  #   ID            => 'MSGS_LIST_TOTAL',
+  #   OUTPUT2RETURN => 1
+  # });
+  # print $table->show();
 
-    $table = $html->table({
+  result_former({
+    INPUT_DATA      => $Msgs,
+    FUNCTION        => 'messages_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,SUBJECT,DATETIME,STATE,LAST_REPLIE_DATE',
+    HIDDEN_FIELDS   => 'INNER_MSG,UID,LOGIN,CHG_MSGS',
+    FUNCTION_FIELDS => 'msgs_user:show:id:',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      id      => sub {
+        my $id = shift;
+
+        $html->button($id, '', {
+          COPY      => $id,
+          class     => 'btn btn-default btn-sm p-0',
+          ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+        })
+      },
+      subject => sub {
+        my $subject = shift;
+        my ($line) = @_;
+
+        if ($line->{aid} && $line->{aid} != ($conf{USERS_WEB_ADMIN_ID} || 3)) {
+          return $html->element('span', '', { class => 'fa fa-chevron-right', title => $lang{OUTGOING}, OUTPUT2RETURN => 1 }) .
+            $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg");
+        }
+
+        return $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
+      },
+      state   => sub {
+        my $state = shift;
+        my ($line) = @_;
+
+        $html->color_mark($msgs_status->{ $state }) . (($line->{resposible} && !$state) ? " ($lang{TAKEN_TO_WORK})" : "")
+      }
+    },
+    EXT_TITLES      => $ext_titles,
+    TABLE           => {
       width   => '100%',
       caption => $lang{MESSAGES},
-      title   => [ '#', $lang{SUBJECT}, , $lang{ADDED}, $lang{STATUS}, $lang{LAST_ACTIVITY}, '-' ],
       qs      => $pages_qs,
-      pages   => $Msgs->{TOTAL},
       ID      => 'MSGS_LIST',
       header  => $status_bar,
-      FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
-    });
-
-    foreach my $line (@$list) {
-      $table->{rowcolor} = ($FORM{ID} && $line->{id} == $FORM{ID}) ? 'row_active' : undef;
-      $line->{subject} = convert($line->{subject}, { text2html => 1, json => $FORM{json} });
-
-      my $msgs_id = $html->button($line->{id}, '', {
-        COPY      => $line->{id},
-        class     => 'btn btn-default btn-sm p-0',
-        ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
-      });
-
-      $table->addrow(
-        $msgs_id,
-        ($line->{user_read} ne '0000-00-00 00:00:00')
-        ? $html->button((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
-        : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
-        $line->{datetime},
-        $html->color_mark($msgs_status->{ $line->{state} }) . (($line->{resposible} && !$line->{state}) ? " ($lang{TAKEN_TO_WORK})" : ""),
-        $line->{last_replie_date},
-        $html->button($lang{SHOW}, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
-      );
-    }
-  }
-
-  print $table->show();
-
-  $Msgs->{TOTAL_MSG} = $Msgs->{TOTAL};
-
-  $table = $html->table({
-    width         => '100%',
-    rows          => [
-      [
-        "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
-        "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
-      ]
-    ],
-    ID            => 'MSGS_LIST_TOTAL',
-    OUTPUT2RETURN => 1
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Msgs',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
   });
-  print $table->show();
 
   delete $LIST_PARAMS{SORT};
   if($conf{MSGS_CHAT}) {

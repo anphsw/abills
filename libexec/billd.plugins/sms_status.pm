@@ -25,6 +25,6 @@ our (
 );
 
 my $Sms_misc = Sms::Misc->new($db, $Admin, \%conf);
-$Sms_misc->sms_status({DEBUG => $debug});
+$Sms_misc->sms_status({ DEBUG => $debug });
 
 1;

@@ -1,0 +1,20 @@
+get:
+  tags:
+    - storage
+  summary: Получить товар по серийному номеру
+  parameters:
+    - name: serial
+      in: query
+      description: Серийный номер оборудования
+      schema:
+        type: boolean
+        default: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/incomingArticlesList.yaml"
+  security:
+    - KEY: [ ]

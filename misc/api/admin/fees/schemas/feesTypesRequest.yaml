@@ -1,0 +1,17 @@
+type: object
+properties:
+  defaultDescribe:
+    type: string
+    example: "Api payment"
+  name:
+    type: string
+    example: "TestPaymentID"
+  parentId:
+    type: integer
+    example: 0
+  sum:
+    type: number
+    example: 20
+  tax:
+    type: number
+    example: 0

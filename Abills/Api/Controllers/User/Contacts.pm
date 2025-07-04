@@ -285,6 +285,7 @@ sub get_user_contacts_push_messages {
     STATUS   => 0,
     GROUP_BY => 'CASE WHEN message_id = 0 THEN id ELSE message_id END',
     TYPE_ID  => $query_params->{TYPE_ID} ? $query_params->{TYPE_ID} : '_SHOW',
+    DESC     => 'DESC',
   });
 
   return $list || [];

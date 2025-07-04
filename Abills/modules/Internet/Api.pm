@@ -143,6 +143,15 @@ sub admin_routes {
       ],
     },
     {
+      method      => 'GET',
+      path        => '/internet/tariff/:tpId/',
+      controller  => 'Internet::Api::admin::Tariffs',
+      endpoint    => \&Internet::Api::admin::Tariffs::get_internet_tariff_tp_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ],
+    },
+    {
       method      => 'PUT',
       path        => '/internet/tariff/:tpId/',
       params      => PUT_INTERNET_TARIFF,
@@ -171,10 +180,28 @@ sub admin_routes {
       ],
     },
     {
+      method      => 'DELETE',
+      path        => '/internet/users/:uid/services/:id/',
+      controller  => 'Internet::Api::admin::Users',
+      endpoint    => \&Internet::Api::admin::Users::delete_internet_users_uid_services_id,
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
       method      => 'GET',
       path        => '/internet/sessions/:uid/',
       controller  => 'Internet::Api::admin::Sessions',
-      endpoint    => \&Internet::Api::admin::Sessions::get_sessions_uid,
+      endpoint    => \&Internet::Api::admin::Sessions::get_internet_sessions_uid,
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'GET',
+      path        => '/internet/sessions/',
+      controller  => 'Internet::Api::admin::Sessions',
+      endpoint    => \&Internet::Api::admin::Sessions::get_internet_sessions,
       credentials => [
         'ADMIN'
       ],

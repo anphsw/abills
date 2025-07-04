@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "acctSessionId": {
+        "type": "string"
+      },
+      "clientIp": {
+        "type": "string",
+        "format": "ipv4"
+      },
+      "clientIpNum": {
+        "type": "integer"
+      },
+      "duration": {
+        "type": "number"
+      },
+      "guest": {
+        "type": "integer"
+      },
+      "nasId": {
+        "type": "integer"
+      },
+      "nasPortId": {
+        "type": "integer"
+      },
+      "status": {
+        "type": "integer"
+      },
+      "uid": {
+        "type": "integer"
+      },
+      "userName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "acctSessionId",
+      "clientIp",
+      "clientIpNum",
+      "duration",
+      "guest",
+      "nasId",
+      "nasPortId",
+      "status",
+      "uid",
+      "userName"
+    ]
+  }
+}

@@ -3,14 +3,12 @@ package Abills::Auth::Ldap;
 =head1 NAME
 
   LDAP admin auth module
-
+   SUPPORT LDAPS
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule);
-
-load_pmodule('Net::LDAP', { HEADER => 1 });
 
 #**********************************************************
 =head2 check_access($attr)
@@ -28,6 +26,26 @@ sub check_access {
   my $self = shift;
   my($attr) = @_;
 
+  my $LDAP = 'Net::LDAP';
+  my $default_port = 389;
+
+  if ($self->{conf}->{LDAP_SSL}) {
+    if (load_pmodule('Net::LDAPS', { HEADER => 1 })) {
+      $self->{errno}=31;
+      $self->{errstr}='LDAP Auth Error: Net::LDAPS not loaded';
+      return 0;
+    }
+    $default_port = 636;
+    $LDAP = 'Net::LDAPS';
+  }
+  else {
+    if (load_pmodule('Net::LDAP', { HEADER => 1 })) {
+      $self->{errno}=32;
+      $self->{errstr}='LDAP Auth Error: Net::LDAP not loaded';
+      return 0;
+    }
+  }
+
   my $login      = $attr->{LOGIN} || q{};
   my $password   = $attr->{PASSWORD} || q{};
   my $debug      = $self->{debug} || 0;
@@ -35,7 +53,19 @@ sub check_access {
   my $ldap_base  = $self->{conf}->{LDAP_BASE} || "dc=sqd_ldp";
   my $server     = $self->{conf}->{LDAP_IP} || "192.168.0.40";
 
-  my $ldap = Net::LDAP->new( $server, timeout => 10 );
+  my ($host, $port)=split(':', $server);
+
+  $port //= $default_port || 389; #LDAPS 636
+
+  if ($debug > 5) {
+    print "Host: $host:$port\n";
+  }
+
+  my $ldap = $LDAP->new($host,
+    port    => $port,
+    timeout => 10
+  );
+
   my $user_name = "cn=$login,ou=users,$ldap_base";
   if ($ldap_base =~ /\@/) {
     $user_name = "$login$ldap_base";
@@ -52,7 +82,7 @@ sub check_access {
 
   my $mesg = $ldap->bind($user_name, password => $password);
 
-  print "Result: $mesg->{resultCode} $mesg->{errorMessage}\n" if ($debug);
+  print "Result: $mesg->{resultCode} $mesg->{errorMessage}\nUSER_NAME: $user_name\n" if ($debug);
   $ldap->unbind;
 
   if (! $mesg->{resultCode}) {

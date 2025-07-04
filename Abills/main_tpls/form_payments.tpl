@@ -21,7 +21,7 @@
           <label  class='col-md-3 col-form-label text-md-right required' for='SUM'>_{SUM}_:</label>
           <div class='col-md-9'>
             <input  id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control'
-                  type='number' step='0.01' min='0' max='%MAX_PAYMENT%' autofocus>
+                  type='text' step='0.01' min='0' max='%MAX_PAYMENT%' autofocus>
           </div>
         </div>
 
@@ -65,6 +65,10 @@
           <div class='col-md-9'>
             %CASHBOX_SELECT%
           </div>
+          <label  class='col-md-3 col-form-label text-md-right' for='EXT_ID'>_{COMING}_ _{TYPE}_:</label>
+          <div class='col-md-9'>
+            %CASHBOX_COMING_TYPE_SELECT%
+          </div>
         </div>
 
         <div class='form-group row'>
@@ -87,3 +91,7 @@
       </div>
     </div>
 </form>
+
+<script>
+  formatInputWithThousands('SUM');
+</script>

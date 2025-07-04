@@ -65,13 +65,23 @@
   form.on('submit', function (e) {
     e.preventDefault();
 
-    let formData = form.serialize();
+    let formObject = {};
+    form.serializeArray().forEach(field => {
+      formObject[field.name] = field.value;
+    });
+
     submit_btn.prop('disabled', true);
 
-    jQuery.post('/admin/index.cgi', `${formData}&add=1`, function (data) {
+    sendRequest('/api.cgi/tasks/', formObject, 'POST', {
+      'Content-Type': 'application/json'
+    }).then(result => {
       submit_btn.prop('disabled', false);
       aModal.hide();
       location.reload();
+    }).catch(error => {
+      console.error(error);
+      submit_btn.prop('disabled', false);
     });
   });
+
 </script>

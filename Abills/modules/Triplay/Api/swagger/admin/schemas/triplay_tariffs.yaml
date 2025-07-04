@@ -1,0 +1,184 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        abonDistribution:
+          type: number
+          example: 0
+        abonName:
+          type: string
+          example: MMM pyramid
+        activatePrice:
+          type: number
+          example: 0
+        activeDayFee:
+          type: number
+          example: 0
+        age:
+          type: number
+          example: 0
+        changePrice:
+          type: number
+          example: 0
+        comment:
+          type: string
+          example: ""
+        comments:
+          type: string
+          example: ""
+        credit:
+          type: number
+          example: 0
+        creditTresshold:
+          type: number
+          example: 0
+        dayFee:
+          type: number
+          example: 0
+        dayTimeLimit:
+          type: number
+          example: 0
+        dayTrafLimit:
+          type: number
+          example: 0
+        describeAid:
+          type: string
+          example: ""
+        domainId:
+          type: number
+          example: 0
+        extBillAccount:
+          type: number
+          example: 0
+        feesMethod:
+          type: number
+          example: 1
+        filterId:
+          type: string
+          example: ""
+        fine:
+          type: number
+          example: 0
+        fixedFeesDay:
+          type: number
+          example: 0
+        id:
+          type: number
+          example: 1002
+        innerTpId:
+          type: number
+          example: 34
+        internetName:
+          type: string
+          example: 100 Mb/sec
+        ippool:
+          type: number
+          example: 0
+        iptvName:
+          type: string
+          example: 234 chanel
+        logins:
+          type: number
+          example: 0
+        maxSessionDuration:
+          type: number
+          example: 0
+        minSessionCost:
+          type: number
+          example: 0
+        minUse:
+          type: number
+          example: 0
+        module:
+          type: string
+          example: Triplay
+        monthFee:
+          type: number
+          example: 100
+        monthTimeLimit:
+          type: number
+          example: 0
+        monthTrafLimit:
+          type: number
+          example: 0
+        name:
+          type: string
+          example: Test triplay
+        negDepositFilterId:
+          type: string
+          example: ""
+        negDepositIppool:
+          type: number
+          example: 0
+        nextTpId:
+          type: number
+          example: 0
+        octetsDirection:
+          type: number
+          example: 0
+        paymentType:
+          type: number
+          example: 2
+        periodAlignment:
+          type: number
+          example: 1
+        postpaidDailyFee:
+          type: number
+          example: 0
+        postpaidMonthlyFee:
+          type: number
+          example: 0
+        priority:
+          type: number
+          example: 0
+        radPairs:
+          type: string
+          example: ""
+        reductionFee:
+          type: number
+          example: 0
+        serviceId:
+          type: number
+          example: 0
+        serviceName:
+          type: number
+          example: 0
+        smallDepositAction:
+          type: number
+          example: -1
+        totalTimeLimit:
+          type: number
+          example: 0
+        totalTrafLimit:
+          type: number
+          example: 0
+        tpGid:
+          type: number
+          example: 0
+        tpId:
+          type: number
+          example: 34
+        trafficTransferPeriod:
+          type: number
+          example: 0
+        uplimit:
+          type: number
+          example: 0
+        userCreditLimit:
+          type: number
+          example: 0
+        voipName:
+          type: string
+          example: Test Voip
+        weekTimeLimit:
+          type: number
+          example: 0
+        weekTrafLimit:
+          type: number
+          example: 0
+  total:
+    type: integer
+    example: 7

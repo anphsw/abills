@@ -1,0 +1,112 @@
+get:
+  tags:
+    - payments
+  summary: Получить тип оплаты по ID
+  parameters:
+    - in: path
+      name: ID типа оплаты
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Получить тип оплаты по ID
+  operationId: getPaymentsTypesId
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paymentsTypesResponse.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - payments
+  summary: Добавить тип оплаты
+  parameters:
+    - in: path
+      name: ID типа оплаты
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Добавить тип оплаты по ID
+  operationId: postPaymentsTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/paymentsTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paymentsTypesResponse.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - payments
+  summary: Изменить тип оплаты
+  parameters:
+    - in: path
+      name: ID типа оплаты
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Изменить тип оплаты по ID
+  operationId: putPaymentsTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/paymentsTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paymentsTypesResponse.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - payments
+  summary: Удалить тип оплаты
+  parameters:
+    - in: path
+      name: ID типа оплаты
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  description: Удалить тип оплаты по ID
+  operationId: deletePaymentsTypesId
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/paymentsTypesRequest.yaml"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paymentsTypesDelete200.yaml"
+    400:
+      description: Нет типа оплаты
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paymentsTypesDelete400.yaml"
+  security:
+    - KEY: []

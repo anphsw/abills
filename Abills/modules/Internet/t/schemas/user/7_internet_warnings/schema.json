@@ -21,8 +21,9 @@
       "type": "integer"
     },
     "warning": {
-      "type": "integer"
+      "type": "string"
     }
-  },
-  "required": ["abonDate", "activateDate", "daysToFee", "messageType", "sum", "warning"]
+  }
+
+
 }

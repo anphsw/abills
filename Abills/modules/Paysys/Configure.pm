@@ -730,6 +730,7 @@ sub paysys_add_configure_groups {
             if ($key =~ /PAYSYS_/) {
               $FORM{$key} =~ s/[\n\r]//g;
               $FORM{$key} =~ s/"/\\"/g;
+              $FORM{$key} =~ s/;?0:0//g if ($key =~ /_SPLIT_RULES/);
 
               $Paysys->merchant_params_add({
                 PARAM       => $key,
@@ -994,6 +995,7 @@ sub _paysys_select_merchant_config {
       if ($paysys_name) {
         $settings{CONF}{$paysys_name . '_PAYMENT_METHOD'} = $system->{payment_method} || '';
         $settings{CONF}{$paysys_name . '_INNER_DESCRIPTION'} = '';
+        $settings{CONF}{$paysys_name . '_DESCRIPTION'} = '';
         my $user_portal = $conf{PAYSYS_V4} ? $Module->can('fast_pay_link') : $Module->can('user_portal');
         if ($user_portal) {
           $settings{CONF}{$paysys_name . '_PORTAL_DESCRIPTION'} = '';
@@ -1492,6 +1494,14 @@ sub add_settings_to_config {
   my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
 
   foreach my $key (keys %{$list}) {
+    if ($key && $key =~ /ACCOUNT_KEY/) {
+      $Config->config_add({
+        PARAM     => $key,
+        VALUE     => $list->{$key},
+        PAYSYS    => 1
+      });
+    }
+
     if (defined $attr->{GID} && $attr->{GID} != 0) {
       $Config->config_add({
         PARAM     => $key . "_$attr->{GID}",

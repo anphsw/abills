@@ -11,7 +11,7 @@ use Abills::Base qw(in_array cfg2hash int2byte sec2time days_in_month _bp);
 our (
   %lang,
   @MONTHES,
-  @WEEKDAYS,
+  #@WEEKDAYS,
   %permissions,
   $db,
   $admin,
@@ -85,7 +85,7 @@ sub reports {
     $pages_qs = "&allmonthes=1";
   }
   elsif (!$FORM{FROM_DATE}) {
-    ($y, $m, $d) = split(/-/, $DATE, 3);
+    ($y, $m, $d) = split('-', $DATE, 3);
     $LIST_PARAMS{MONTH} = "$y-$m";
     $pages_qs = "&MONTH=$LIST_PARAMS{MONTH}";
   }
@@ -117,7 +117,7 @@ sub reports {
     $pages_qs .= "&UID=$LIST_PARAMS{UID}";
   }
   else {
-    if ($FORM{GID}) {
+    if (defined($FORM{GID})) {
       $LIST_PARAMS{GID} = $FORM{GID};
       $pages_qs .= "&GID=$FORM{GID}";
       delete $LIST_PARAMS{GIDS};
@@ -131,7 +131,7 @@ sub reports {
   if ($attr->{FIELDS}) {
     my %fields_hash = ();
     if (defined($FORM{FIELDS})) {
-      my @fileds_arr = split(/, /, $FORM{FIELDS});
+      my @fileds_arr = split(/,\s/x, $FORM{FIELDS});
       foreach my $line (@fileds_arr) {
         $fields_hash{$line} = 1;
       }
@@ -147,7 +147,7 @@ sub reports {
     my $i = 0;
 
     foreach my $line (sort keys %{$attr->{FIELDS}}) {
-      my (undef, $k, undef) = split(/:/, $line);
+      my (undef, $k, undef) = split(':', $line);
       push @arr, $html->form_input("FIELDS", $k, { TYPE => 'checkbox', STATE =>
         (defined($fields_hash{$k})) ? 'checked' : undef }) . " " . ($attr->{FIELDS}{$line} || q{});
       $i++;
@@ -173,7 +173,7 @@ sub reports {
           $date = $FORM{'FROM_DATE_TO_DATE'};
         }
         elsif(! $attr->{DATE}) {
-          ($y, $m, $d) = split(/-/, $DATE, 3) if (! $y);
+          ($y, $m, $d) = split('-', $DATE, 3) if (! $y);
           $date = "$y-$m-01/$DATE";
         }
 
@@ -348,9 +348,9 @@ sub reports {
   }
 
   if ($FORM{DATE}) {
-    ($y, $m, $d) = split(/-/, $FORM{DATE}, 3);
+    ($y, $m, $d) = split('-', $FORM{DATE}, 3);
     my $hour = '';
-    ($d, $hour) = split(/ /, $d || 1);
+    ($d, $hour) = split(/\s/x, $d || 1);
     $LIST_PARAMS{DATE} = $FORM{DATE};
     $pages_qs .= "&DATE=$LIST_PARAMS{DATE}";
 
@@ -383,7 +383,7 @@ sub reports {
     @rows = ([ " $lang{YEAR}:", $y ], [ " $lang{MONTH}:", $MONTHES[ $m - 1 ] ], [ " $lang{DAY}:", $days ]);
 
     if ($attr->{SHOW_HOURS}) {
-      my (undef, $h) = split(/ /, $FORM{HOUR}, 2);
+      my (undef, $h) = split(/\s/x, $FORM{HOUR}, 2);
       my $hours = '';
       for (my $i = 0; $i < 24; $i++) {
         $hours .= ($h == $i) ? $html->b($i) : ' ' . $html->button($i,
@@ -421,6 +421,8 @@ sub report_fees_month {
   $FORM{allmonthes} = 1;
   $FORM{TYPE} //= 'PER_MONTH';
   report_fees();
+
+  return 1;
 }
 
 #**********************************************************
@@ -462,7 +464,7 @@ sub report_fees {
   });
 
   if (defined($FORM{FIELDS})) {
-    $FORM{FIELDS} =~ s/,\s/;/;
+    $FORM{FIELDS} =~ s/,\s/;/x;
     $LIST_PARAMS{METHOD} = $FORM{FIELDS};
   }
 
@@ -489,7 +491,7 @@ sub report_fees {
 
   if ($type) {
     $type = $type;
-    $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
+    $pages_qs .= "&TYPE=$type" if $pages_qs !~ (m/&TYPE=/x);
   }
 
   my %x_variable = (
@@ -509,7 +511,7 @@ sub report_fees {
   ($table_fees, $list) = result_former({
     INPUT_DATA      => $Fees,
     FUNCTION        => 'reports',
-    BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
+    BASE_FIELDS     => ($type =~ m/MONTH/x) ? 6 : 4,
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
       method => $FEES_METHODS,
@@ -618,15 +620,15 @@ sub report_payments {
   my $fields = '';
   if (defined($FORM{FIELDS}) && $FORM{FIELDS} ne '') {
     $LIST_PARAMS{METHOD} = $FORM{FIELDS};
-    $LIST_PARAMS{METHOD} =~ s/ //g;
-    $LIST_PARAMS{METHOD} =~ s/,/;/g;
+    $LIST_PARAMS{METHOD} =~ s/\s+//xg;
+    $LIST_PARAMS{METHOD} =~ s/,/;/xg;
     $fields = "&FIELDS=" . $LIST_PARAMS{METHOD};
   }
   elsif ($FORM{METHOD}) {
     $LIST_PARAMS{METHOD} = $FORM{METHOD};
     $FORM{FIELDS} = $FORM{METHOD};
   }
-  $FORM{FIELDS} =~ s/;/, /g if $FORM{FIELDS};
+  $FORM{FIELDS} =~ s/;/, /xg if $FORM{FIELDS};
 
   reports({
     DATE               => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
@@ -677,14 +679,14 @@ sub report_payments {
   }
 
   my $type = $FORM{TYPE} || '';
-  $pages_qs .= "&TYPE=$type" if $type && $pages_qs !~ /&TYPE=/;
+  $pages_qs .= "&TYPE=$type" if ($type && $pages_qs !~ m/&TYPE=/x);
   $pages_qs .= $fields if defined $FORM{FIELDS};
-  $pages_qs .= "&AID=$FORM{AID}" if defined $FORM{AID} && $pages_qs !~ /&AID=/;
-  $pages_qs .= "&TAGS=$FORM{TAGS}" if defined $FORM{TAGS} && $pages_qs !~ /&TAGS=/;
-  $pages_qs .= "&TAG_SEARCH_VAL=$FORM{TAG_SEARCH_VAL}" if defined $FORM{TAG_SEARCH_VAL} && $pages_qs !~ /&TAG_SEARCH_VAL=/;
+  $pages_qs .= "&AID=$FORM{AID}" if defined $FORM{AID} && $pages_qs !~ m/&AID=/x;
+  $pages_qs .= "&TAGS=$FORM{TAGS}" if defined $FORM{TAGS} && $pages_qs !~ m/&TAGS=/x;
+  $pages_qs .= "&TAG_SEARCH_VAL=$FORM{TAG_SEARCH_VAL}" if (defined $FORM{TAG_SEARCH_VAL} && $pages_qs !~ m/&TAG_SEARCH_VAL=/x);
 
   if($FORM{GID}){
-    my @gids = split /\s*,\s*/, $FORM{GID};
+    my @gids = split(/\s*,\s*/x, $FORM{GID});
     foreach my $gid (@gids) {
       $pages_qs .= "&GID=$gid";
     }
@@ -807,7 +809,7 @@ sub report_payments {
   ($table, $list) = result_former({
     INPUT_DATA      => $Payments,
     FUNCTION        => 'reports',
-    BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
+    BASE_FIELDS     => ($type =~ m/MONTH/x) ? 6 : 5,
     HIDDEN_FIELDS   => 'UID,TOTAL_USERS,PRIORITY',
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
@@ -936,6 +938,7 @@ sub form_system_changes {
     63 => "$lang{FILE_DELETED}",
     65 => "$lang{CHANGE_ADMIN_PERMITS}",
     70 => "SERVICE RESTART",
+    80 => $lang{FIRED}
   );
 
   if ($permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}) {
@@ -1001,7 +1004,9 @@ sub form_system_changes {
 
   my $br = $html->br();
 
-  foreach my $line (@{$list}) {
+  my @list = (@{$list});
+  for (my $idx = 0; $idx < scalar(@list); $idx++) {
+    my $line = $list[$idx];
     my $delete = ($permissions{4}{3}) ? $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]",
       { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' }) : '';
 
@@ -1016,13 +1021,22 @@ sub form_system_changes {
 
     my $message = $line->[2] || q{};
 
-    while ($message =~ /([A-Z\_]+)[:|\s]{1}/g) {
+    while ($message =~ m/([A-Z\_]+)[:|\s]{1}/xg) {
       my $marker = $1;
-      my $colorstring = $html->b($marker) . ':';
-      $message =~ s/$marker:?/$colorstring/g
+
+      if ($conf{SYSTEM_LOG_TRANSLATE}) {
+        my $lang_res = $lang{$marker};
+        $lang_res = $marker if (!$lang_res);
+        $lang_res = $html->b($lang_res);
+        $message =~ s/$marker/$lang_res/g;
+      }
+      else {
+        my $colorstring = $html->b($marker) . ':';
+        $message =~ s/$marker:?/$colorstring/xg
+      }
     }
 
-    $message =~ s/;/$br/g;
+    $message =~ s/;/$br/xg;
 
     $table->addrow(
       $html->b($line->[0]),
@@ -1037,12 +1051,10 @@ sub form_system_changes {
   }
 
   print $table->show();
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($admin->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($admin->{TOTAL}) ] ]
+  });
   print $table->show();
 
   return 1;
@@ -1057,7 +1069,7 @@ sub form_system_changes {
 sub report_webserver {
   my $web_error_log = $conf{WEB_SERVER_ERROR_LOG} || "/var/log/httpd/abills-error.log";
 
-  if ($web_error_log !~ /^([\w\-\.\/]*)$/) {
+  if ($web_error_log !~ m/^([\w\-\.\/]*)$/x) {
     $html->message('err', $lang{ERROR}, "Forbidden symbol in '$web_error_log'.\n");
     return 0;
   }
@@ -1072,10 +1084,10 @@ sub report_webserver {
 
     my $file_content = `tail -100 "$web_error_log"`;
 
-    my @file_lines = reverse(split(/\r?\n/, $file_content));
+    my @file_lines = reverse(split(/\r?\n/x, $file_content));
 
     foreach my $log_line (@file_lines) {
-      if ($log_line =~ m/\[(.+?)\]\s+(.+)/) {
+      if ($log_line =~ m/\[(.+?)\]\s+(.+)/x) {
         $table->addrow($1, $2);
       }
     }
@@ -1156,8 +1168,9 @@ sub report_bruteforce {
 sub report_ui_last_sessions {
 
   if ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5}) {
-    $users->web_session_del({ sid => $FORM{del},
-      ALL                         => ($FORM{del} eq 'all') ? 'all' : undef
+    $users->web_session_del({
+      sid => $FORM{del},
+      ALL => ($FORM{del} eq 'all') ? 'all' : undef
     });
     $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}");
   }
@@ -1168,12 +1181,9 @@ sub report_ui_last_sessions {
 
   $users->web_sessions_list({ ACTIVE => 300, CHECK => 1, COLS_NAME => 1 });
 
-  my $table2 = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ $html->button("$lang{ACTIV}", "index=$index&&ACTIVE=300") . ':', $users->{TOTAL} ] ],
-    }
-  );
+  my $table2 = $html->table({
+    rows  => [ [ $html->button("$lang{ACTIV}", "index=$index&&ACTIVE=300") . ':', $users->{TOTAL} ] ],
+  });
 
   print $table2->show();
 
@@ -1201,7 +1211,7 @@ sub report_ui_last_sessions {
       header  => defined($permissions{0}{5}) ? $html->button(
         "$lang{DEL} $lang{ALL}", "index=$index&del=all",
         { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-secondary' }) : '',
-      ID      => 'FORM_BRUTEFORCE',
+      ID      => 'UI_LAST_SESSION',
       EXPORT  => 1,
     },
     MAKE_ROWS       => 1,
@@ -1280,7 +1290,7 @@ sub form_changes_summary {
 #**********************************************************
 #Fixme make perl grep
 sub logs_list {
-  my %list;
+  my %list = ();
 
   if (!$conf{LOGS_DIR}) {
     $conf{LOGS_DIR} = $var_dir . 'log/';
@@ -1290,8 +1300,8 @@ sub logs_list {
     $conf{LOGS_DIR} = $ENV{LOGS_DIR};
   }
 
-  $conf{LOGS_DIR} =~ (s/\s//g);
-  my @files_dir = split(/;/, $conf{LOGS_DIR});
+  $conf{LOGS_DIR} =~ s/\s+//xg;
+  my @files_dir = split(/;/x, $conf{LOGS_DIR});
   $FORM{DIRACTORY} //= 0;
 
   if ($FORM{file} && @files_dir[$FORM{DIRACTORY}] eq $FORM{file}) {
@@ -1299,13 +1309,13 @@ sub logs_list {
     $list{FILE_DIR} = $FORM{file};
     $list{FILE_NAME} = $FORM{name};
 
-    if ($FORM{name} !~ /^([-\@\w\.]{0,12}\/?[-\@\w\.]+)$/) {
+    if ($FORM{name} !~ m/^[-\@\w\.]{0,12}\/?[-\@\w\.]+$/x) {
       $html->message('err', $lang{ERROR}, "Security error '$FORM{name}'");
       return 0;
     }
 
     if ($FORM{grep}) {
-      $FORM{grep} =~ s/\'//g;
+      $FORM{grep} =~ s/\'//xg;
       @File = `grep -r '$FORM{grep}' '$FORM{file}$FORM{name}'`;
     }
     else {
@@ -1324,7 +1334,7 @@ sub logs_list {
         OUTPUT2RETURN => 1
       });
       foreach my $FileSting (@File) {
-        my @lines = split(/\s/, $FileSting, 4);
+        my @lines = split(/\s/x, $FileSting, 4);
         $table->addrow($lines[0], $lines[1], $lines[2], $lines[3]);
       }
 
@@ -1372,7 +1382,7 @@ sub logs_list {
       ID          => 'LIST_OF_LOGS_TABLE',
     });
 
-    my @fnamelist = grep /\.log$/, readdir $dir;
+    my @fnamelist = grep(/\.log$/x, readdir $dir);
 
     foreach my $fname (@fnamelist) {
       my ($size, $mtime) = (stat("$prime_dir/$fname"))[ 7, 9 ];
@@ -1449,15 +1459,15 @@ sub _make_web_admin_analiz_user_stats {
   );
 
   while (my $row = <$log_file>) {
-    next if (!($row =~ /LOG_INFO/));
-    next if ($type && !($row =~ /$type/));
+    next if (!($row =~ m/LOG_INFO/x));
+    next if ($type && !($row =~ m/$type/x));
 
-    my ($date, $time, $log_type, $other_info) = split(/\s/, $row, 4);
+    my ($date, $time, $log_type, $other_info) = split(/\s/x, $row, 4);
     # Clean spaces for simpler regex after - better performance.
-    $other_info =~ s/\s//g;
-    my ($bot_type, $sid, $fn, $gt) = $other_info =~ /(?:\[(.*)\])?(.*?):(.*?):(.*)/;
+    $other_info =~ s/\s//xg;
+    my ($bot_type, $sid, $fn, $gt) = $other_info =~ m/(?:\[(.*)\])?(.*?):(.*?):(.*)/x;
 
-    $info{$fn}{time} += $gt;
+    $info{$fn}{time} = (defined $info{$fn}{time}) ? $info{$fn}{time} + $gt : $gt;
     $info{$fn}{popularity}++;
 
     if ($last_sid ne $sid) {
@@ -1466,11 +1476,17 @@ sub _make_web_admin_analiz_user_stats {
     elsif ($last_fn ne $fn) {
       $transition_info{$fn}{$last_fn}++;
       $stats{total_transition}++;
-      $stats{transition} = $transition_info{$fn}{$last_fn} if $transition_info{$fn}{$last_fn} > $stats{transition};
+      $stats{transition} = $transition_info{$fn}{$last_fn} if ($transition_info{$fn}{$last_fn} > $stats{transition});
     }
 
     $stats{total_popularity}++;
-    $stats{total_time} += $gt;
+    if ($gt =~ m/^[0-9\.]+$/x) {
+      $stats{total_time} += $gt;
+    }
+    else {
+      print "Wrong reccords: $gt";
+    }
+
     $stats{popularity} = $info{$fn}{popularity} if $info{$fn}{popularity} > $stats{popularity};
     $stats{time} = $info{$fn}{time} if $info{$fn}{time} > $stats{time};
 
@@ -1511,8 +1527,8 @@ sub _make_web_admin_analiz_user_stats {
 
   foreach my $func_name (sort keys %info) {
     my $time = $info{$func_name}{time};
-    $time =~ s/....$//;
-    $time =~ s/\.//;
+    $time =~ s/....$//x;
+    $time =~ s/\.//x;
     $time = sec2time($time, { format => 1 });
     $time_table->addrow(
       $func_name,
@@ -1564,7 +1580,7 @@ sub _make_web_admin_analiz_user_stats {
 =head2 reports_facebook_users_info () -
 
   Arguments:
-    $attr -
+
   Returns:
 
   Examples:
@@ -1572,56 +1588,53 @@ sub _make_web_admin_analiz_user_stats {
 =cut
 #**********************************************************
 sub reports_facebook_users_info {
-  #my ($attr) = @_;
 
   require Contacts;
   Contacts->import();
   my $Contacts = Contacts->new($db, $admin, \%conf);
 
-  my %SOCIAL_NETWORKS = (1 => 'Facebook',
-    2                      => 'VKontakte',
-    3                      => 'Google+',
-    4                      => 'Instagram');
+  my %SOCIAL_NETWORKS = (
+    1 => 'Facebook',
+    2 => 'VKontakte',
+    3 => 'Google+',
+    4 => 'Instagram');
+
   $LIST_PARAMS{SOCIAL_NETWORK_ID} = 1;
   $LIST_PARAMS{PAGE_ROWS} = 5000;
 
-  result_former(
-    {
-      INPUT_DATA      => $Contacts,
-      FUNCTION        => 'social_list_info',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "SOCIAL_NETWORK_ID, NAME, SOCIAL_EMAIL, BIRTHDAY, GENDER, LOGIN, LIKES, PHOTO, FRIENDS_COUNT, LOCALE, UID",
-      #FUNCTION_FIELDS => 'del',
-      SELECT_VALUE    => { social_network_id => \%SOCIAL_NETWORKS },
-      EXT_TITLES      => {
-        'uid'               => "UID",
-        'social_network_id' => "$lang{SOCIAL_NETWORKS}",
-        'name'              => "$lang{FIO}",
-        'social_email'      => "Social Email",
-        'email'             => "Email",
-        'birthday'          => "$lang{BIRTHDAY}",
-        'gender'            => "$lang{GENDER}",
-        'login'             => "$lang{LOGIN}",
-        'photo'             => "Photo",
-        'likes'             => 'Likes',
-        'friends_count'     => 'Friends',
-        'locale'            => "$lang{LANGUAGE}"
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "Facebook",
-        qs      => $pages_qs,
-        ID      => 'SOCIAL_INFO_FACEBOOK',
-        EXPORT  => 1,
-        # MENU    => "$lang{ADD}:index=" . get_function_index('poll_main') . ':add' . ";",
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      # MODULE        => 'Users',
-      TOTAL           => 1,
-      SKIP_USER_TITLE => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Contacts,
+    FUNCTION        => 'social_list_info',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => "SOCIAL_NETWORK_ID, NAME, SOCIAL_EMAIL, BIRTHDAY, GENDER, LOGIN, LIKES, PHOTO, FRIENDS_COUNT, LOCALE, UID",
+    #FUNCTION_FIELDS => 'del',
+    SELECT_VALUE    => { social_network_id => \%SOCIAL_NETWORKS },
+    EXT_TITLES      => {
+      'uid'               => "UID",
+      'social_network_id' => "$lang{SOCIAL_NETWORKS}",
+      'name'              => "$lang{FIO}",
+      'social_email'      => "Social Email",
+      'email'             => "Email",
+      'birthday'          => "$lang{BIRTHDAY}",
+      'gender'            => "$lang{GENDER}",
+      'login'             => "$lang{LOGIN}",
+      'photo'             => "Photo",
+      'likes'             => 'Likes',
+      'friends_count'     => 'Friends',
+      'locale'            => "$lang{LANGUAGE}"
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "Facebook",
+      qs      => $pages_qs,
+      ID      => 'SOCIAL_INFO_FACEBOOK',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1,
+    SKIP_USER_TITLE => 1
+  });
 
   return 1;
 }
@@ -1700,12 +1713,12 @@ sub _report_chart_info {
 
   foreach my $key (@{$charts_dataset}) {
     my $column = $columns_info{$key};
-    next if !$column;
+    next if (!$column);
 
     my %dataset_info = (
       backgroundColor => $column->{color},
       borderColor     => $column->{borderColor} || $column->{color},
-      data            => [ map $chart_data->{$_}{$key}, @labels ],
+      data            => [ map { $chart_data->{$_}{$key} } @labels ],
       label           => $column->{label},
       yAxisID         => $column->{id},
       order           => $column->{index}
@@ -1733,7 +1746,9 @@ sub _report_chart_info {
     },
     IN_CONTAINER => 1
   });
+
+  return 1;
 }
 
-1
+1;
 

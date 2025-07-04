@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `referral_log`
 CREATE TABLE IF NOT EXISTS `referral_tp`
 (
     `id`                 INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    `name`               VARCHAR(60)            NOT NULL DEFAULT '',
+    `name`               VARCHAR(80)            NOT NULL DEFAULT '',
     `bonus_amount`       DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT 0.00,
     `max_bonus_amount`   DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT 0.00,
     `payment_arrears`    INT(11) UNSIGNED       NOT NULL DEFAULT 0,

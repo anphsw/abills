@@ -3,7 +3,7 @@
 <form action='%SELF_URL%' method='post' class='form form-horizontal' id='PASSWORD_GENERATOR_FORM'>
   <input type='hidden' name='index' value='%index%'>
 
-  <div class='card card-primary card-outline container col-md-6'>
+  <div class='card card-primary card-outline container'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{PASSWORD_GENERATOR}_</h4>
     </div>
@@ -21,13 +21,13 @@
           <div class='radio'>
             <label>
               <input type='radio' name='CASE' id='CASEUPPER' %CASE_0_CHECKED% value='0'>
-              _{UPPERCASE}_ (abc)
+              _{UPPERCASE}_ (ABC)
             </label>
           </div>
           <div class='radio'>
             <label>
               <input type='radio' name='CASE' id='CASELOWER' %CASE_1_CHECKED% value='1'>
-              _{LOWERCASE}_ (ABC)
+              _{LOWERCASE}_ (abc)
             </label>
           </div>
           <div class='radio'>
@@ -76,6 +76,28 @@
         </div>
       </div>
 
+      <hr/>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ADMIN_BRUTE_LIMIT'>_{ADMIN_LOGIN_ATTEMPT_LIMIT}_:</label>
+        <div class='col-md-8'>
+          <input type='number' class='form-control' id='ADMIN_BRUTE_LIMIT' name='ADMIN_BRUTE_LIMIT' value='%ADMIN_BRUTE_LIMIT%'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ADMIN_BRUTE_PERIOD'>_{ADMIN_LOGIN_ATTEMPT_PERIOD}_:</label>
+        <div class='col-md-8'>
+          <input type='number' class='form-control' id='ADMIN_BRUTE_PERIOD' name='ADMIN_BRUTE_PERIOD' value='%ADMIN_BRUTE_PERIOD%'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ADMIN_BRUTE_CLEAN_PERIOD'>_{ADMIN_ATTEMPT_COUNTER_RESET_PERIOD}_:</label>
+        <div class='col-md-8'>
+          <input type='number' class='form-control' id='ADMIN_BRUTE_CLEAN_PERIOD' name='ADMIN_BRUTE_CLEAN_PERIOD' value='%ADMIN_BRUTE_CLEAN_PERIOD%'/>
+        </div>
+      </div>
       <hr/>
 
       <div class='form-group'>

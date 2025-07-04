@@ -177,7 +177,7 @@ sub docs_invoice_add {
       #DEBUG  => 7
     });
 
-    return 0 if _error_show($add_result);
+    return 0 if _error_show($add_result, { MESSAGE => "$lang{DOCS}" });
     @{$Docs}{keys %{$add_result}} = values %{$add_result};
 
     if (!$Docs->{errno}) {
@@ -278,8 +278,8 @@ sub docs_invoices_list {
   }
 
   if ($FORM{change}){
-    print "Content-Type: text/html\n\n";
     $Docs->invoice_info($FORM{change});
+    print $html->header();
     $html->tpl_show(_include('docs_invoice_change', 'Docs'), {
       INDEX => $index,
       ID    => $FORM{change},
@@ -1201,18 +1201,24 @@ sub docs_invoice_period {
       }
     }
 
-    if ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/ && $users->{DEPOSIT} != 0 && !$conf{DOCS_INVOICE_NO_DEPOSIT}) {
-      $amount_for_pay = ($total_sum < $users->{DEPOSIT}) ? 0 : $total_sum - $users->{DEPOSIT};
+    my $user_deposit = 0;
+    if ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\-\.\,]+$/) {
+      $user_deposit = sprintf('%.2f', ($users->{DEPOSIT} < int($users->{DEPOSIT})) ? int($users->{DEPOSIT})-1 : $users->{DEPOSIT});
+    }
+
+    if ($user_deposit != 0 && !$conf{DOCS_INVOICE_NO_DEPOSIT}) {
+      $amount_for_pay = ($total_sum < $user_deposit) ? 0 : $total_sum - $user_deposit;
     }
     else {
       $amount_for_pay = $total_sum;
     }
 
     my $deposit_sum = '';
-    if ( $users->{UID}
-      && ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/ && $users->{DEPOSIT} < 0)
+    # if ( $users->{UID}
+    #   &&
+    if (($user_deposit < 0)
       && !$conf{DOCS_INVOICE_NO_DEPOSIT} ){
-      $deposit_sum = $html->form_input( 'SUM_' . ($num + 1), abs( $users->{DEPOSIT} ),{ TYPE => 'hidden', OUTPUT2RETURN => 1 } )
+      $deposit_sum = $html->form_input( 'SUM_' . ($num + 1), abs( $user_deposit ),{ TYPE => 'hidden', OUTPUT2RETURN => 1 } )
         . $html->form_input( 'ORDER_' . ($num + 1), $lang{DEBT}, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
         . $html->form_input( 'IDS', ($num + 1), { TYPE => 'hidden', OUTPUT2RETURN => 1 } );
     }
@@ -1256,8 +1262,9 @@ sub docs_invoice_period {
 
     $table->{extra} = " colspan='4' ";
     $table->addrow( $html->b( "$lang{DEPOSIT}:" ),
-      $html->b( sprintf( "%.2f", ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/) ? $users->{DEPOSIT} : 0 ) ) . $deposit_sum || 0 );
-    $table->addrow( $html->b( "$lang{AMOUNT_FOR_PAY}:" ), $html->b( sprintf( "%.2f", $amount_for_pay ) ) );
+      $html->b( sprintf( "%.2f", ($user_deposit) ? $user_deposit : 0 ) ) . $deposit_sum || 0 );
+    #$table->addrow( $html->b( "$lang{AMOUNT_FOR_PAY}:" ), $html->b( sprintf( "%.2f", $amount_for_pay ) ) );
+    $table->addrow( $html->b( "$lang{RECOMMENDED_PAYMENT}:" ), $html->b( sprintf( "%.2f", $amount_for_pay ) ) );
     $FORM{AMOUNT_FOR_PAY} = sprintf( "%.2f", $amount_for_pay );
 
     $Docs->{PERIOD_DATE} = $html->form_daterangepicker({
@@ -1286,11 +1293,11 @@ sub docs_invoice_period {
       }
 
       $service_invoice = $table->show({ OUTPUT2RETURN => 1 });
-      my $title_form = ($users->{UID}) ? sprintf('%s: %.2f %s', $lang{ACTIVATE_NEXT_PERIOD}, $total_sum, $money_main_unit) : "$lang{INVOICE} $lang{PERIOD}: $Y-$M";
+      my $title_form = ($users->{UID}) ? sprintf('%s: %.2f %s', $lang{ACTIVATE_NEXT_PERIOD}, $amount_for_pay, $money_main_unit) : "$lang{INVOICE} $lang{PERIOD}: $Y-$M";
 
       my $pre_info = q{};
-      if ($service_info && $service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $users->{REDUCTION} < 100 && defined($users->{DEPOSIT})) {
-        my $days_to_end = int(($users->{DEPOSIT} || 0) / $service_info->{distribution_fee});
+      if ($service_info && $service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $users->{REDUCTION} < 100 && defined($user_deposit)) {
+        my $days_to_end = int($user_deposit / $service_info->{distribution_fee});
         $pre_info .= " ($lang{DAYS}: " . sprintf("%d", $days_to_end);
         if ($days_to_end > 0) {
           my ($Y1, $M1, $D1) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));

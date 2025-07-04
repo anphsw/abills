@@ -14,6 +14,7 @@ my $Abon_base;
 use POSIX qw(strftime mktime);
 use Abills::Base qw/days_in_month date_diff get_period_dates cmd sendmail/;
 use Abills::Loader;
+use Users;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -27,8 +28,8 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  %lang = %{$attr->{LANG}} if $attr->{LANG};
-  $html = $attr->{HTML} if $attr->{HTML};
+  %lang = %{$attr->{LANG}} if ($attr->{LANG});
+  $html = $attr->{HTML} if ($attr->{HTML});
 
   my $self = {};
 
@@ -65,12 +66,10 @@ sub new {
 =cut
 #**********************************************************
 sub abon_user_tariff_activate {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $user_info = $attr->{USER_INFO};
   if (!$user_info && $attr->{UID}) {
-    use Users;
     my $Users = Users->new($db, $admin, $CONF);
     $Users->info($attr->{UID});
     $Users->pi({ UID => $attr->{UID} });
@@ -78,7 +77,7 @@ sub abon_user_tariff_activate {
   }
 
   $user_info->{UID} ||= $attr->{UID};
-  my $debug = $attr->{DEBUG} || 0;
+  #my $debug = $attr->{DEBUG} || 0;
   my @messages = ();
 
   return { errno => 20001, errstr => 'ERR_ACTIVATE_UID' } if !$user_info->{UID};
@@ -106,7 +105,7 @@ sub abon_user_tariff_activate {
 
   my $select_time = 0;
   if ($attr->{DATE} && $attr->{DATE} ne '0000-00-00') {
-    my ($Y, $M, $D) = split(/-/, $attr->{DATE}, 3);
+    my ($Y, $M, $D) = split('-', $attr->{DATE}, 3);
     $select_time = mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900));
   }
 
@@ -149,7 +148,7 @@ sub abon_user_tariff_activate {
     ACCOUNT_ACTIVATE => $user_info->{ACTIVATE}
   }) : '';
 
-  my $DATE = strftime('%Y-%m-%d', localtime(time));
+  my $cur_date = strftime('%Y-%m-%d', localtime(time));
   $Abon->{TP_INFO}{PERIOD_ALIGNMENT} = $tariff_info->{PERIOD_ALIGNMENT} || 0;
   $Abon->{TP_INFO}{TP_NAME} = $tariff_info->{NAME};
   $Abon->{COMMENTS} = $attr->{COMMENTS};
@@ -160,13 +159,20 @@ sub abon_user_tariff_activate {
   my $activate_notification = $tariff_info->{ACTIVATE_NOTIFICATION};
   $Abon->{NEXT_ABON_DATE} = $tariff_info->{NEXT_ABON_DATE};
   $Abon->{SERVICE_COUNT} = $attr->{SERVICE_COUNT} || 1;
-  $Abon->{DATE} = $DATE;
-  $Abon->{DATETIME} = "$DATE " . strftime('%H:%M:%S', localtime(time));
+  $Abon->{DATE} = $cur_date;
+  $Abon->{DATETIME} = "$cur_date " . strftime('%H:%M:%S', localtime(time));
   $Abon->{PERSONAL_DESCRIPTION} = $tariff_info->{PERSONAL_DESCRIPTION} || q{};
 
-  if ($attr->{DATE} && $attr->{DATE} ne '0000-00-00') {
-    $attr->{PERIOD} = $tariff_info->{PERIOD};
-    return $Abon->user_tariff_add($attr);
+  my $active_period = date_diff($cur_date, $attr->{DATE});
+
+  $attr->{ACTIVATE} = $attr->{DATE};
+
+  if ($attr->{DATE} && $attr->{DATE} ne '0000-00-00' && $active_period > -30) {
+    #print "simle form: $tariff_info->{PERIOD_ALIGNMENT} /DATE: $attr->{DATE} ";
+    if (! $tariff_info->{PERIOD_ALIGNMENT}) {
+      $attr->{PERIOD} = $tariff_info->{PERIOD};
+      return $Abon->user_tariff_add($attr);
+    }
   }
 
   if ($tariff_info->{PLUGIN}) {
@@ -213,23 +219,31 @@ sub abon_user_tariff_activate {
     if ($tariff_info->{PERIOD} == 1 && $Abon->{TP_INFO}{PERIOD_ALIGNMENT} == 1) {
       $Abon->{ACTIVATE} = $user_info->{ACTIVATE};
       my $fee_result = $self->abon_get_month_fee($Abon, {
-        DATE      => $DATE,
+        %$attr,
+        DATE      => $attr->{DATE} || $cur_date,
         USER_INFO => $user_info,
         DISCOUNT  => $attr->{DISCOUNT}
       });
-      return $fee_result if $fee_result->{errno};
+
+      return $fee_result if ($fee_result->{errno});
 
       if ($fee_result->{MESSAGES} && ref $fee_result->{MESSAGES} eq 'ARRAY') {
         map push(@messages, $_), @{$fee_result->{MESSAGES}};
       }
+
+      #$attr->{ACTIVATE} = $attr->{DATE};
+      if ($active_period < -30) {
+        delete $attr->{DATE};
+      }
     }
     elsif (!$attr->{DISCOUNT} || $attr->{DISCOUNT} < 100) {
       my $fee_result = $self->abon_get_month_fee($Abon, {
-        DATE      => $DATE,
+        %$attr,
+        DATE      => $cur_date,
         USER_INFO => $user_info,
         DISCOUNT  => $attr->{DISCOUNT}
       });
-      return $fee_result if $fee_result->{errno};
+      return $fee_result if ($fee_result->{errno});
 
       if ($fee_result->{MESSAGES} && ref $fee_result->{MESSAGES} eq 'ARRAY') {
         map push(@messages, $_), @{$fee_result->{MESSAGES}};
@@ -250,7 +264,15 @@ sub abon_user_tariff_activate {
       . ($Abon->{COMMENTS} || q{}), $email_message, $CONF->{MAIL_CHARSET}, '', {});
   }
 
-  $Abon->user_tariff_add($attr);
+  #Don't add service if end date expire
+  if ($attr->{END_DATE} && date_diff($cur_date, $attr->{END_DATE}) > 0) {
+  }
+  else {
+    if ($attr->{END_DATE} && date_diff($cur_date, $attr->{END_DATE}) < 30) {
+      $attr->{DATE} = $attr->{END_DATE};
+    }
+    $Abon->user_tariff_add($attr);
+  }
 
   if ($ext_cmd) {
     my $cmd = $ext_cmd;
@@ -258,7 +280,7 @@ sub abon_user_tariff_activate {
       . ($Abon->{COMMENTS} || q{}) . "\" SUM=" . sprintf("%.2f", $Abon->{TP_INFO}{PRICE});
     cmd($cmd);
   }
-  return $Abon if $Abon->{errno};
+  return $Abon if ($Abon->{errno});
 
   $Abon->{COMMENTS} ||= '';
 
@@ -266,7 +288,7 @@ sub abon_user_tariff_activate {
     %{$Abon},
     MESSAGES    => \@messages,
     CREATE_DOCS => $Abon->{TP_INFO}{CREATE_ACCOUNT} && $attr->{CREATE_DOCS},
-    DOCS_SUM    => $self->{OPERATION_SUM} ? $self->{OPERATION_SUM} : $Abon->{TP_INFO}{PRICE} ? ($Abon->{TP_INFO}{PRICE} / $attr->{SERVICE_COUNT}) : 0,
+    DOCS_SUM    => $self->{OPERATION_SUM} ? $self->{OPERATION_SUM} : $Abon->{TP_INFO}{PRICE} ? ($Abon->{TP_INFO}{PRICE} / $Abon->{SERVICE_COUNT}) : 0,
     DOCS_ORDER  => $self->{OPERATION_DESCRIBE} ? $self->{OPERATION_DESCRIBE} : "[$Abon->{TP_INFO}{TP_ID}] $Abon->{TP_INFO}{TP_NAME} $Abon->{COMMENTS}",
   };
 }
@@ -288,7 +310,6 @@ sub abon_user_tariff_deactivate {
 
   my $user_info = $attr->{USER_INFO};
   if (!$user_info && $attr->{UID}) {
-    use Users;
     my $Users = Users->new($db, $admin, $CONF);
     $Users->info($attr->{UID});
     $Users->pi({ UID => $attr->{UID} });
@@ -297,17 +318,17 @@ sub abon_user_tariff_deactivate {
 
   $user_info->{UID} ||= $attr->{UID};
 
-  return { errno => 20001, errstr => 'ERR_ACTIVATE_UID' } if !$user_info->{UID};
-  return { errno => 20002, errstr => 'ERR_TARIFF_ID' } if !$attr->{ID};
+  return { errno => 20001, errstr => 'ERR_ACTIVATE_UID' } if (!$user_info->{UID});
+  return { errno => 20002, errstr => 'ERR_TARIFF_ID' } if (!$attr->{ID});
 
   my $user_tariffs = $Abon->user_tariff_list($user_info->{UID}, { ID => $attr->{ID}, COLS_NAME => 1 });
-  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
+  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
 
   my $user_tariff = $user_tariffs->[0];
-  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if !$user_tariff->{active_service};
+  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if (!$user_tariff->{active_service});
 
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
-  return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
+  return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
 
   my $ext_cmd = $tariff_info->{EXT_CMD};
   if ($ext_cmd) {
@@ -426,9 +447,9 @@ sub abon_service_deactivate {
 
   my $debug_output = q{};
   my $user_info = $attr->{USER_INFO};
-  my $debug = $attr->{DEBUG} || 0;
+  #my $debug = $attr->{DEBUG} || 0;
   my $date = $attr->{DATE} || $DATE;
-  my (undef, undef, $d) = split(/\-/, $date);
+  my (undef, undef, $d) = split('-', $date);
   my $user_tariff_list = $Abon->user_tariff_list($user_info->{UID}, {
     SERVICE_RECOVERY => '_SHOW',
     COLS_NAME        => 1
@@ -466,6 +487,11 @@ sub abon_service_deactivate {
        SHOW_SUM
        USER_INFO
        DATE
+       SERVICE_ACTIVATE
+       END_DATE
+
+  Results:
+    { MESSAGE => $message }
 
 =cut
 #**********************************************************
@@ -477,11 +503,19 @@ sub abon_get_month_fee {
   my $TIME = "00:00:00";
 
   my @messages = ();
-  #my $message = '';
   my $users = $attr->{USER_INFO};
   my $user = $users->info($Service->{UID});
-  my $DATE = strftime('%Y-%m-%d', localtime(time));
-  my $cur_date = $attr->{DATE} || $DATE;
+  my $DATE_ = strftime('%Y-%m-%d', localtime(time));
+  #my $cur_date = $attr->{DATE} || $DATE_;
+  my $cur_date = $attr->{END_DATE} || $DATE_;
+  my $discount = $attr->{DISCOUNT} || 0;
+
+  if ($attr->{SERVICE_ACTIVATE} && $attr->{SERVICE_ACTIVATE} ne '0000-00-00') {
+    $Service->{ACTIVATE}=$attr->{SERVICE_ACTIVATE};
+  }
+  else {
+    $Service->{ACTIVATE} = $DATE_;
+  }
 
   my %FEES_DSC = (
     MODULE            => 'Abon',
@@ -504,47 +538,24 @@ sub abon_get_month_fee {
   }
 
   # If zero price, should do nothing
-  return { MESSAGES => \@messages } if (!$Service->{TP_INFO}{PRICE} || $Service->{TP_INFO}{PRICE} <= 0);
+  if (!$Service->{TP_INFO}{PRICE} || $Service->{TP_INFO}{PRICE} <= 0) {
+    return { MESSAGES => \@messages };
+  }
 
   #Get month fee
   my $sum = $Service->{TP_INFO}{PRICE};
-
-  if ($Service->{SERVICE_COUNT} && $Service->{SERVICE_COUNT} > 1) {
-    $sum = $sum * $Service->{SERVICE_COUNT};
-  }
 
   if ($Service->{TP_INFO}{EXT_BILL_ACCOUNT}) {
     $user->{BILL_ID} = $user->{EXT_BILL_ID};
     $user->{DEPOSIT} = $user->{EXT_DEPOSIT};
   }
 
-  if ($attr->{DISCOUNT} && $attr->{DISCOUNT} > 0) {
-    $sum = $sum * ((100 - $attr->{DISCOUNT}) / 100);
-  }
-  elsif ($Service->{TP_INFO}{DISCOUNT} && $user->{REDUCTION} > 0) {
-    $sum = $sum * ((100 - $user->{REDUCTION}) / 100);
-  }
-
   #Current Month
-  my ($y, $m, $d) = split(/-/, $cur_date, 3);
-  my ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACTIVATE} || '0000-00-00', 3);
+  my ($y, $m, $d) = split('-', $cur_date, 3);
+  my ($active_y, $active_m, $active_d) = split('-', $Service->{ACTIVATE} || '0000-00-00', 3);
 
-  return { MESSAGES => \@messages } if (date_diff($cur_date, $Service->{ACTIVATE} || '0000-00-00') > 0);
-
-  if ($Service->{TP_INFO}{PERIOD_ALIGNMENT}) {
-    my $days_in_month = days_in_month({ DATE => "$y-$m" });
-
-    if ($Service->{ACTIVATE} && $Service->{ACTIVATE} ne '0000-00-00') {
-      $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
-      $d = $active_d;
-    }
-
-    $CONF->{START_PERIOD_DAY} = 1 if (!$CONF->{START_PERIOD_DAY});
-
-    if ($d != $CONF->{START_PERIOD_DAY}) {
-      $FEES_DSC{EXTRA} .= " $lang{PERIOD_ALIGNMENT}\n";
-      $sum = sprintf("%.2f", $sum / $days_in_month * ($days_in_month - $d + $CONF->{START_PERIOD_DAY}));
-    }
+  if (date_diff($cur_date, $Service->{ACTIVATE} || '0000-00-00') > 0) {
+    return { MESSAGES => \@messages };
   }
 
   return { MESSAGES => \@messages } if ($sum == 0);
@@ -556,7 +567,9 @@ sub abon_get_month_fee {
       $periods--;
     }
 
-    $periods += 12 * ($y - $active_y) - 12 if ($y - $active_y);
+    if ($y - $active_y) {
+      $periods += 12 * ($y - $active_y) - 12;
+    }
   }
   elsif (int($active_m) > 0 && (int($active_m) >= int($m) && int($active_y) < int($y))) {
     $periods = 12 - $active_m + $m;
@@ -564,25 +577,95 @@ sub abon_get_month_fee {
       $periods--;
     }
 
-    $periods += 12 * ($y - $active_y) - 12 if ($y - $active_y);
+    if ($y - $active_y) {
+      $periods += 12 * ($y - $active_y) - 12;
+    }
+  }
+  #Cur year
+  elsif ((int($active_m) < int($m) && int($active_y) == int($y))) {
+    $periods = (int($m) - int($active_m));
   }
 
+  $CONF->{START_PERIOD_DAY} = 1 if (!$CONF->{START_PERIOD_DAY});
+
   for (my $i = 0; $i <= $periods; $i++) {
+    $FEES_DSC{EXTRA} = q{};
+
     if ($active_m > 12) {
       $active_m = 1;
       $active_y = $active_y + 1;
     }
 
     $active_m = sprintf("%.2d", $active_m);
-    #my $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
+
+    my $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
+
     if ($i > 0) {
-      $sum = $Service->{TP_INFO}->{PRICE};
-      $DATE = "$active_y-$active_m-01";
-      $TIME = "00:00:00";
+      $sum   = $Service->{TP_INFO}->{PRICE};
+      $DATE_ = "$active_y-$active_m-01";
+      $TIME  = "00:00:00";
+      $active_d = 1;
     }
     elsif ($Service->{ACTIVATE} && $Service->{ACTIVATE} ne '0000-00-00') {
-      $DATE = "$active_y-$active_m-$active_d";
-      $TIME = "00:00:00";
+      $DATE_ = "$active_y-$active_m-$active_d";
+      $TIME  = "00:00:00";
+    }
+
+    my %period_params = (
+      TYPE             => 1,
+      START_DATE       => $DATE_ || $cur_date,
+      PERIOD_ALIGNMENT => $Service->{TP_INFO}{PERIOD_ALIGNMENT},
+      ACCOUNT_ACTIVATE => $DATE_ #$Service->{ACTIVATE}
+    );
+
+    my $work_days = 0;
+    if ($Service->{TP_INFO}{PERIOD_ALIGNMENT} && $active_d != $CONF->{START_PERIOD_DAY}) {
+      if ($Service->{ACTIVATE} && $Service->{ACTIVATE} ne '0000-00-00') {
+        $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
+      }
+      $FEES_DSC{EXTRA} = " $lang{PERIOD_ALIGNMENT}\n";
+      my ($end_y, $end_m, $end_d) = split('-', $attr->{END_DATE} || q{});
+      $work_days = $days_in_month - $active_d;
+
+      if ($i == $periods && $attr->{END_DATE} && $end_y == $y && $end_m == $m) {
+        $work_days = $end_d - $active_d;
+        $period_params{END_DATE} = $attr->{END_DATE};
+      }
+
+      $work_days += $CONF->{START_PERIOD_DAY};
+      $sum = sprintf("%.2f", ($sum / $days_in_month) * $work_days);
+    }
+    elsif ($i == $periods && $attr->{END_DATE}) {
+      my (undef, undef, $end_d) = split('-', $attr->{END_DATE} || q{}, 3);
+      if ($days_in_month > $end_d) {
+        $work_days = $end_d;
+
+        # if ($active_d != $CONF->{START_PERIOD_DAY}) {
+        #   $work_days += $CONF->{START_PERIOD_DAY};
+        # }
+
+        $sum = sprintf("%.2f", ($sum / $days_in_month) * $work_days);
+        $period_params{END_DATE} = $attr->{END_DATE};
+      }
+    }
+
+    if ($discount > 0) {
+      if ($attr->{DISCOUNT_ACTIVATE} && date_diff($period_params{START_DATE}, $attr->{DISCOUNT_ACTIVATE}) > 0) {
+        #print " Wrong activate" if ($debug);
+      }
+      elsif($attr->{DISCOUNT_EXPIRE} && date_diff($period_params{START_DATE}, $attr->{DISCOUNT_EXPIRE}) < 0){
+        #print " Wrong expire $DATE_, $attr->{DISCOUNT_EXPIRE}: " . date_diff($DATE_, $attr->{DISCOUNT_EXPIRE}) if ($debug);
+      }
+      else {
+        $sum = $sum * ((100 - $discount) / 100);
+      }
+    }
+    elsif ($Service->{TP_INFO}{DISCOUNT} && $user->{REDUCTION} > 0) {
+      $sum = $sum * ((100 - $user->{REDUCTION}) / 100);
+    }
+
+    if ($Service->{SERVICE_COUNT} && $Service->{SERVICE_COUNT} > 1) {
+      $sum = $sum * $Service->{SERVICE_COUNT};
     }
 
     if ($Service->{COMMENTS}) {
@@ -590,15 +673,22 @@ sub abon_get_month_fee {
     }
 
     #add period
-    $FEES_DSC{PERIOD} = get_period_dates({
-      TYPE             => 1,
-      START_DATE       => $DATE || $cur_date,
-      PERIOD_ALIGNMENT => $Service->{TP_INFO}{PERIOD_ALIGNMENT},
-      ACCOUNT_ACTIVATE => $DATE #$Service->{ACTIVATE}
-    });
+    $FEES_DSC{PERIOD} = get_period_dates(\%period_params);
 
     my $fees_message = abon_fees_dsc_former(\%FEES_DSC);
-    $fees_message =~ s/\n//g;
+    $fees_message =~ s/\n//gx;
+    $active_m++;
+
+    if ($attr->{TEST}) {
+      push @{ $self->{SUM} }, sprintf('%.2f', $sum);
+      push @{ $self->{DAYS}}, $work_days;
+      push @{ $self->{PERIOD}}, "$period_params{START_DATE} - ". ($period_params{END_DATE} || q{}); # ."\n";
+      if ($attr->{DEBUG}) {
+        print "PERIOD_: $self->{PERIOD} DAYS_: $self->{DAYS} SUM_: $self->{SUM}<br>\n";
+      }
+      next;
+      #return $self;
+    }
 
     $Fees->take($users, $sum, {
       DESCRIBE => $fees_message,
@@ -613,6 +703,7 @@ sub abon_get_month_fee {
 
     $self->{OPERATION_SUM} = sprintf("%.2f", $sum || 0);
     $self->{OPERATION_DESCRIBE} .= $fees_message . " $self->{OPERATION_SUM} \n";
+    $self->{OPERATION_TOTAL_SUM} += sprintf("%.2f", $sum || 0);
 
     if (!$Fees->{errno}) {
       $fees_message .= ($lang{SUM} ? " $lang{SUM}" : ' SUM') . ": $self->{OPERATION_SUM}";
@@ -621,8 +712,6 @@ sub abon_get_month_fee {
     else {
       return { MESSAGES => \@messages, errno => $Fees->{errno}, errstr => $Fees->{errstr} };
     }
-
-    $active_m++;
   }
 
   return { MESSAGES => \@messages };
@@ -660,18 +749,18 @@ sub abon_fees_dsc_former {
     $text = $attr->{TEMPLATE};
   }
 
-  while ($text =~ /\%(\w+)\%/g) {
+  while ($text =~ m/\%(\w+)\%/gx) {
     my $var = $1;
     if (!defined($attr->{$var})) {
-      $attr->{$var} = '';
+      $attr->{$var} = q{};
     }
-    $text =~ s/\%$var\%/$attr->{$var}/g;
+    $text =~ s/\%$var\%/$attr->{$var}/gx;
   }
 
-  while ($text =~ /\$lang\{([A-Z_]+)\}/) {
+  while ($text =~ /\$lang\{([A-Z_]+)\}/x) {
     my $lang_name = $1;
     if ($lang_name && defined $lang{$lang_name}) {
-      $text =~ s/\$lang\{$lang_name\}/$lang{$lang_name}/;
+      $text =~ s/\$lang\{$lang_name\}/$lang{$lang_name}/x;
     }
   }
 

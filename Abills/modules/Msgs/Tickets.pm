@@ -233,7 +233,8 @@ sub msgs_admin {
     return msgs_attachment_show(\%FORM);
   }
   elsif ($FORM{PHOTO}) {
-    my $media_return = form_image_mng({ TO_RETURN => 1 });
+    require Control::Image_mng;
+    my $media_return = form_image_mng({ %FORM, TO_RETURN => 1 });
 
     if ($FORM{IMAGE}) {
       $FORM{reply} = 1;
@@ -246,7 +247,7 @@ sub msgs_admin {
   }
   elsif ($FORM{del} && $FORM{UPDATE_STATUS}) {
     my @id_msgs = ();
-    @id_msgs = split(/, /, $FORM{del});
+    @id_msgs = split(/,\s/x, $FORM{del});
 
     my @id_error_change = ();
 
@@ -903,6 +904,7 @@ sub msgs_admin_add_form {
     $Msgs->{TPL_MESSAGE} =~ s/\%/&#37/g;
   }
 
+  $Msgs->{REQUIRED_MESSAGE} = 'required' if !$attr->{REGISTRATION};
   my $message_form = $html->tpl_show(_include($add_tpl_form, 'Msgs'), { %{$attr}, %FORM, %{$Msgs}, %tpl_info }, {
     OUTPUT2RETURN => 1,
     ID            => 'MSGS_SEND_FORM'
@@ -1447,9 +1449,11 @@ sub msgs_survey_sel {
 
   return '' if !$msgs_permissions{1}{20};
 
+  my $Msgs_subjects = Msgs->new($db, $admin, \%conf);
+
   return $html->form_select('SURVEY_ID', {
     SELECTED       => $FORM{SURVEY_ID} || '',
-    SEL_LIST       => $Msgs->survey_subjects_list({ PAGE_ROWS => 10000, COLS_NAME => 1 }),
+    SEL_LIST       => $Msgs_subjects->survey_subjects_list({ PAGE_ROWS => 10000, COLS_NAME => 1 }),
     SEL_OPTIONS    => { '' => '' },
     MAIN_MENU      => get_function_index('msgs_survey'),
     MAIN_MENU_ARGV => $FORM{SURVEY_ID} ? "chg=$FORM{SURVEY_ID}" : ''

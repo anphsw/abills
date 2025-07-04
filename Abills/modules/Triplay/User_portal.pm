@@ -12,6 +12,11 @@ our (
   $admin,
   %conf,
   %lang,
+  %LIST_PARAMS,
+  %FORM,
+  $index,
+  $sid,
+  %functions
 );
 
 our Users $user;
@@ -75,7 +80,7 @@ sub triplay_user_info {
           $sub_services{uc($service->{module}) . '_SERVICE_ID'} = $service->{service_id} if ($service->{service_id});
         }
 
-        $Triplay_base->triplay_service_activate_web({
+        $Triplay_base->triplay_service_activate({
           %sub_services,
           USER_INFO => $user,
           TP_INFO   => $Triplay->{TP_INFO},

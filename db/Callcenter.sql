@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_cdr` (
 
 CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu_chapters`(
 	`id` SMALLINT(5) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(20)  NOT NULL  DEFAULT '',
+  `name` VARCHAR(80)  NOT NULL  DEFAULT '',
   `numbers` VARCHAR(200) NULL NULL DEFAULT '',
   UNIQUE KEY (`id`)
 )

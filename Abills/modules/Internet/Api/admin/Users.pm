@@ -35,7 +35,8 @@ sub new {
     conf  => $conf,
     attr  => $attr,
     html  => $attr->{html},
-    lang  => $attr->{lang}
+    lang  => $attr->{lang},
+    debug => $attr->{DEBUG}
   };
 
   bless($self, $class);
@@ -65,23 +66,20 @@ sub post_internet_uid_activate {
   return {
     errno  => 10,
     errstr => 'Access denied'
-  } if !$self->{admin}->{permissions}{0}{18};
+  } if (!$self->{admin}->{permissions}{0}{18});
 
   # make empty before call not isolated function
   %main::FORM = ();
 
-  ::load_module('Internet::Users', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Internet/Users.pm'}));
-  require Users;
-  Users->import();
-  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->pi({ UID => $path_params->{uid} });
+  my $user_info = $self->_get_user_info($path_params->{uid});
 
-  ::internet_user_add({
+  $Internet_services->user_add({
     %$query_params,
     API        => 1,
     UID        => $path_params->{uid},
-    USERS_INFO => $Users,
+    USERS_INFO => $user_info,
   });
+
 }
 
 #**********************************************************
@@ -98,23 +96,20 @@ sub put_internet_uid_activate {
   return {
     errno  => 10,
     errstr => 'Access denied'
-  } if !$self->{admin}->{permissions}{0}{18};
+  } if (!$self->{admin}->{permissions}{0}{18});
 
   # make empty before call not isolated function
   %main::FORM = ();
 
-  ::load_module('Internet::Users', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Internet/Users.pm'}));
-  require Users;
-  Users->import();
-  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->pi({ UID => $path_params->{uid} });
+  my $user_info = $self->_get_user_info($path_params->{uid});
 
-  ::internet_user_change({
+  $Internet_services->user_change({
     %$query_params,
     API        => 1,
     UID        => $path_params->{uid},
-    USERS_INFO => $Users,
+    USERS_INFO => $user_info,
   });
+
 }
 
 #**********************************************************
@@ -177,6 +172,54 @@ sub put_internet_uid {
     %$query_params,
     UID => $path_params->{uid},
   });
+}
+
+#**********************************************************
+=head2 delete_internet_users_uid_services_id($path_params, $query_params)
+
+  Endpoint DELETE /internet/:uid/:id/
+
+=cut
+#**********************************************************
+sub delete_internet_users_uid_services_id {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $result = $Internet_services->user_del({
+    ID  => $path_params->{id},
+    UID => $path_params->{uid},
+  });
+
+  return $Internet_services if ($Internet_services->{errno});
+
+  if ($Internet_services->{affected} && $Internet_services->{affected} !~ /^[0-9]$/) {
+    return $Errors->throw_error(1360030);
+  }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 _get_user_info($uid)
+
+  Argumnets:
+    $uid
+
+  Results:
+    $user_info_obj
+
+=cut
+#**********************************************************
+sub _get_user_info {
+  my $self = shift;
+  my ($uid)=@_;
+
+  require Users;
+  Users->import();
+  my $User = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $User->info({ UID => $uid });
+
+  return $User;
 }
 
 1;

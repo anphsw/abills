@@ -40,15 +40,21 @@ use constant {
 
 use constant {
   POST_CRM_LEADS_SOCIAL           => {
-    FIO   => {
+    FIO      => {
       type => 'string',
     },
-    PHONE => {
+    PHONE    => {
       type => 'string',
     },
-    EMAIL => {
+    EMAIL    => {
       type => 'string',
     },
+    UID      => {
+      type => 'unsigned_integer',
+    },
+    BUILD_ID => {
+      type => 'unsigned_integer',
+    }
   },
   POST_CRM_LEADS_DIALOGUE_MESSAGE => {
     MESSAGE     => {

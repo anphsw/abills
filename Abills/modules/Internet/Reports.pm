@@ -13,9 +13,11 @@ our(
   $db,
   $admin,
   %conf,
-  $pages_qs
+  $pages_qs,
+  $DATE
 );
 
+use Address;
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -25,6 +27,7 @@ if($conf{INTERNET_TRAFFIC_DETAIL}) {
 }
 
 require Internet::Ipoe_reports;
+require Control::Selects;
 
 #**********************************************************
 =head2 internet_use_all_monthes()
@@ -48,22 +51,22 @@ sub internet_report_use {
 
   my %HIDDEN = ();
   $HIDDEN{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
-  $HIDDEN{sid} = $sid if ($FORM{sid});
+  #$HIDDEN{sid} = $sid if ($FORM{sid});
 
   my %ext_fields = (
-    arpu         => $lang{ARPU},
-    arpuu        => $lang{ARPPU},
-    date         => $lang{DATE},
-    month        => $lang{MONTH},
-    login        => $lang{USER},
-    fio          => $lang{FIO},
-    hour         => $lang{HOURS},
-    build        => $lang{ADDRESS_BUILD},
-    district_name=> $lang{DISTRICT},
-    street_name  => $lang{ADDRESS_STREET},
-    login_count  => $lang{USERS},
-    count        => $lang{COUNT},
-    sum          => $lang{SUM},
+    arpu            => $lang{ARPU},
+    arpuu           => $lang{ARPPU},
+    date            => $lang{DATE},
+    month           => $lang{MONTH},
+    login           => $lang{USER},
+    fio             => $lang{FIO},
+    hour            => $lang{HOURS},
+    build           => $lang{ADDRESS_BUILD},
+    district_name   => $lang{DISTRICT},
+    street_name     => $lang{ADDRESS_STREET},
+    login_count     => $lang{USERS},
+    count           => $lang{COUNT},
+    sum             => $lang{SUM},
     terminate_cause => "$lang{HANGUP} $lang{STATUS}",
     gid             => $lang{GROUPS},
     duration_sec    => $lang{DURATION},
@@ -106,6 +109,7 @@ sub internet_report_use {
   if ($admin->{MAKE_ROWS}) {
     $LIST_PARAMS{PAGE_ROWS} = $admin->{MAKE_ROWS};
   }
+
   $Sessions->{debug}=1 if ($FORM{DEBUG});
   my Abills::HTML $table;
   my $list;
@@ -113,7 +117,7 @@ sub internet_report_use {
 
   delete $LIST_PARAMS{MONTH} if $LIST_PARAMS{MONTH};
   if ($FORM{DISTRICT_ID}) {
-    $pages_qs =~ s/&TYPE=[A-Z,\+ ]+//;
+    $pages_qs =~ s/&TYPE=[A-Z,\+\s]+//x;
     $pages_qs .= "&DISTRICT_ID=$FORM{DISTRICT_ID}&TYPE=USER";
   }
 
@@ -132,6 +136,7 @@ sub internet_report_use {
     TERMINATE_CAUSE => 'terminate_cause'
   );
   my @charts_dataset = split(',', 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec');
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'reports2',
@@ -645,7 +650,6 @@ sub internet_pools_report {
 #**********************************************************
 sub internet_user_outflow {
 
-  use Address;
   my $Address = Address->new($db, $admin, \%conf);
 
   my $builds_sel = $html->form_select('BUILD_ID', {
@@ -711,9 +715,9 @@ sub internet_user_outflow {
     DATA_TABLE => 1
   });
 
-  foreach my $user (@{$outflow_users}) {
-    my $user_btn = $html->button($user->{login}, "get_index=form_users&header=1&full=1&UID=$user->{uid}");
-    $outflow_users_table->addrow($user->{uid}, $user_btn, $user->{tp_name}, $user->{last_fee}, $user->{deposit});
+  foreach my $user_ (@{$outflow_users}) {
+    my $user_btn = $html->button($user_->{login}, "get_index=form_users&header=1&full=1&UID=$user_->{uid}");
+    $outflow_users_table->addrow($user_->{uid}, $user_btn, $user_->{tp_name}, $user_->{last_fee}, $user_->{deposit});
   }
 
   print $outflow_users_table->show();
@@ -778,8 +782,8 @@ sub users_development_report {
 
   _internet_development_header($table, \@status);
 
-  $FORM{DISTRICT_ID} =~ s/,/;/g if $FORM{DISTRICT_ID};
-  $FORM{CITY} =~ s/,\s?/;/g if $FORM{CITY};
+  $FORM{DISTRICT_ID} =~ s/,/;/xg if ($FORM{DISTRICT_ID});
+  $FORM{CITY} =~ s/,\s?/;/xg if ($FORM{CITY});
   my $districts = $Address->district_list({
     ID         => $FORM{DISTRICT_ID} || '_SHOW',
     FULL_NAME  => '_SHOW',
@@ -798,12 +802,12 @@ sub users_development_report {
 
   foreach (@{$districts}) {
     my $city = $_->{full_name};
-    $city =~ s/\/?\s?$_->{name}$// if $city;
+    $city =~ s/\/?\s?$_->{name}$//x if ($city);
     $city ||= $lang{WITHOUT_CITY};
 
     push(@{$rows_by_city{$city}{$_->{name}}}, @empty_row);
     push(@{$growth_by_district{$city}{$_->{name}}}, (0, 0));
-    push(@{$growth_by_city{$city}}, (0, 0)) if !exists($growth_by_city{$city});
+    push(@{$growth_by_city{$city}}, (0, 0)) if (!exists($growth_by_city{$city}));
   }
 
   my $days = date_diff($FORM{FROM_DATE} || $DATE, $FORM{TO_DATE} || $DATE) + 2;
@@ -887,14 +891,14 @@ sub _users_growth {
     $growth_by_city_prev->{$city_key} += $_->{users} || 0;
   }
 
-  foreach $user (@{$users_growth}) {
-    my $city_key = $user->{city} || $lang{WITHOUT_CITY};
-    my $district_key = $user->{name} || $lang{WITHOUT_DISTRICT};
+  foreach my $user_ (@{$users_growth}) {
+    my $city_key = $user_->{city} || $lang{WITHOUT_CITY};
+    my $district_key = $user_->{name} || $lang{WITHOUT_DISTRICT};
 
-    $growth_by_city->{$city_key}[0] += $user->{users};
+    $growth_by_city->{$city_key}[0] += $user_->{users};
 
-    $growth_by_district->{$city_key}{$district_key}[0] = $user->{users};
-    $growth_by_district->{$city_key}{$district_key}[1] = $user->{users} - ($growth_by_district_prev->{$city_key}{$district_key} || 0);
+    $growth_by_district->{$city_key}{$district_key}[0] = $user_->{users};
+    $growth_by_district->{$city_key}{$district_key}[1] = $user_->{users} - ($growth_by_district_prev->{$city_key}{$district_key} || 0);
   }
 
   my @total_growth = (0, 0);

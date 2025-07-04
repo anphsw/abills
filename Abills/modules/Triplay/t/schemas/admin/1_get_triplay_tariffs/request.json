@@ -1,0 +1,5 @@
+{
+  "name": "TRIPLAY_TARIFFS",
+  "method": "GET",
+  "path": "triplay/tariffs"
+}

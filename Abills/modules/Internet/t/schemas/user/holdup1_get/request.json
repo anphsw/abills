@@ -2,5 +2,10 @@
   "name": "USER_HOLDUP_SET",
   "method": "POST",
   "path": "user/:id/holdup/",
-  "params": {}
+  "params": {},
+  "body" : {
+    "fromDate": ":fromDate",
+    "toDate": ":toDate"
+  },
+  "conf" : "HOLDUP_ALL"
 }

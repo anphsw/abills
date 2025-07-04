@@ -10,4 +10,10 @@ $lang{DISCOUNT_NOT_DELETED}='Discount not deleted';
 $lang{CARD_ABON}='Subscriber card';
 $lang{WARR_DEPOSIT}='You must be a subscriber to use the card. Fill in your account';
 
+$lang{DISCOUNT_PROMOTIONAL} = 'Promotional';
+$lang{DISCOUNT_EXCLUSIVE} = 'Exclusive';
+$lang{DATE_OF_CREATION} = 'Date of creation';
+$lang{DISCOUNTS_QUANTITY} = 'Discounts quantity';
+$lang{DISCOUNTS_TYPE} = 'Discounts type';
+
 1

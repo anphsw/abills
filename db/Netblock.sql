@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `netblock_main` (
   `hash` char(32) NOT NULL DEFAULT '',
   `inctime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `dbtime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `name` varchar(30) NOT NULL DEFAULT '',
+  `name` varchar(80) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 ) COMMENT='Netblock blocklist main table';
 

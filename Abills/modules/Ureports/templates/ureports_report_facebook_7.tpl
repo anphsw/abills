@@ -1,5 +1,6 @@
 _{DEAR}_, %FIO%
-_{CREDIT}_ _{EXPIRE}_
+
+%SUBJECT%
 
 _{DAYS}_: %CREDIT_EXPIRE_DAYS%
 

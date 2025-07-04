@@ -106,9 +106,10 @@ sub iptv_payments_maked {
     elsif (!$form->{DISABLE}) {
       #Fixme: call iptv_account_action when activate user
       ::iptv_user_activate($Iptv, {
-        USER       => $user,
-        SILENT     => 1,
-        REACTIVATE => $users_disable ? 1 : 0,
+        USER           => $user,
+        SILENT         => 1,
+        REACTIVATE     => $users_disable ? 1 : 0,
+        FULL_MONTH_FEE => $CONF->{IPTV_FULL_MONTH}
       });
     }
   }
@@ -193,6 +194,7 @@ sub iptv_quick_info {
   Arguments:
     UID
     IPTV_SHOW_FREE_TPS
+    IPTV_SHOW_ALL_SERVICES
 
   Results:
     \@service_list
@@ -233,6 +235,7 @@ sub iptv_docs {
     $info{tp_id}   = $service_info->{tp_id};
     $info{id}      = $service_info->{id};
     $info{module_name} = $lang->{TV};
+    $info{abon_distribution} = $service_info->{abon_distribution} || 0;
 
     #next if (!defined($service_info->{month_fee}) && ! $attr->{SHOW_ALL});
     my $monthly_fee_info = $self->_iptv_docs_monthly_fee($service_info, $attr);
@@ -340,6 +343,7 @@ sub _iptv_docs_monthly_fee {
     }
   }
 
+  $service_info->{month_fee} //= 0;
   if ($service_info->{month_fee} <= 0 && (!$attr->{IPTV_SHOW_FREE_TPS} || $service_info->{day_fee})) {
     return;
   }
@@ -599,9 +603,9 @@ sub iptv_get_available_tariffs {
   });
 
   return {
-    message       => '$lang{NOT_ALLOWED}',
+    message       => 'NOT_ALLOWED',
     message_type  => 'err',
-    message_title => '$lang{ERROR}',
+    message_title => 'ERROR',
     error         => 4514,
     errstr        => 'Not allowed to change tariff plan'
   } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
@@ -644,19 +648,23 @@ sub iptv_get_available_tariffs {
     next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
 
     my $tariff = {
-      id            => $tp->{id},
-      tp_id         => $tp->{tp_id},
-      name          => $tp->{name},
-      tp_name       => $tp->{name},
-      comments      => $tp->{comments},
-      tp_comments   => $tp->{comments},
-      service_id    => $tp->{service_id},
-      day_fee       => $tp->{day_fee},
-      month_fee     => $tp->{month_fee},
-      reduction_fee => $tp->{reduction_fee},
-      activate_fee  => $tp->{activate_price},
-      tp_age        => $tp->{age},
-      can_change_tp => 'true',
+      id                => $tp->{id},
+      tp_id             => $tp->{tp_id},
+      name              => $tp->{name},
+      tp_name           => $tp->{name},
+      comments          => $tp->{comments},
+      tp_comments       => $tp->{comments},
+      service_id        => $tp->{service_id},
+      day_fee           => $tp->{day_fee},
+      month_fee         => $tp->{month_fee},
+      reduction_fee     => $tp->{reduction_fee},
+      activate_fee      => $tp->{activate_price} || 0,
+      activate_price    => $tp->{activate_price} || 0,
+      tp_age            => $tp->{age} || 0,
+      abon_distribution => $tp->{abon_distribution} || 0,
+      can_change_tp     => 'true',
+      original_day_fee  => 0,
+      original_month_fee=> 0
     };
 
     my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
@@ -671,7 +679,7 @@ sub iptv_get_available_tariffs {
 
     $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
-    $tariff->{tp_fee} = $tp_fee;
+    $tariff->{tp_fee} = $tp_fee || 0;
 
     if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
       push @tariffs, $tariff;
@@ -687,7 +695,7 @@ sub iptv_get_available_tariffs {
 
     $tariff->{can_change_tp} = 'false';
 
-    $tariff->{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
+    $tariff->{ERROR} = ::_translate('ERR_SMALL_DEPOSIT');
 
     push @tariffs, $tariff;
   }

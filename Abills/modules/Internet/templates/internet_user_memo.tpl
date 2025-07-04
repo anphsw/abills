@@ -7,7 +7,7 @@
         </TR>
         <TR class='odd'>
           <TD>_{LOGIN}_:</TD>
-          <TD><a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a></TD>
+          <TD><a href='%SELF_URL%?index=15&UID=%UID%'>%LOGIN%</a></TD>
         </TR>
         <TR class='odd'>
           <TD>UID:</TD>

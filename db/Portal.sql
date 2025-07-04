@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `portal_articles`
 CREATE TABLE IF NOT EXISTS `portal_menu`
 (
   `id`     INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`   VARCHAR(45)      NOT NULL DEFAULT '',
+  `name`   VARCHAR(80)      NOT NULL DEFAULT '',
   `url`    VARCHAR(100)     NOT NULL DEFAULT '',
   `date`   DATETIME                  DEFAULT NULL,
   `status` TINYINT(1)       NOT NULL DEFAULT 0,

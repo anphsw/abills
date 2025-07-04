@@ -82,8 +82,9 @@
     let sorted = keys.sort();
     let systemID = arr[type]['SYSTEM_ID'] || 0;
     let checkBoxes = arr[type]['CHECKBOX_FIELDS'] || [];
+    let textareaFields = arr[type]['TEXTAREA_FIELDS'] || [];
     let selectFields = arr[type]['SELECT_FIELDS'] || {};
-    let splitRules = arr[type]['SPLIT_RULES'] || ['MERCHANT_ID','PERCENT'];
+    let splitRules = arr[type]['SPLIT_RULES'] || ['INNER_MERCHANT_ID','PERCENT'];
     jQuery('#SYSTEM_ID').attr('value', systemID);
 
     jQuery('#ACCOUNT_KEYS_SELECT').show();
@@ -127,8 +128,9 @@
         });
         formContainer.append(hiddenInput);
 
+        let element = jQuery('<div></div>').addClass('form-group appended_field');
         let label = jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12');
-        formContainer.append(label);
+        element.append(label);
 
         let addButton = jQuery('<div></div>').addClass('text-right');
         // need to separate elements because is adding a div around the button and the span and Boostrap dies
@@ -137,7 +139,7 @@
         addButton.append(button);
 
         let splitRulesLocales = {
-          MERCHANT_ID: 'ID _{_MERCHANT}_',
+          INNER_MERCHANT_ID: 'ID _{_MERCHANT}_',
           PERCENT: '_{PERCENT}_',
         }
 
@@ -147,7 +149,7 @@
               let container = jQuery('<div></div>').addClass('field-pair');
 
               splitRules.forEach(key => {
-                if (key.includes('MERCHANT_ID')) {
+                if (key.includes('INNER_MERCHANT_ID')) {
                   let element = jQuery('<div></div>').addClass('form-group appended_field');
                   element.append(jQuery('<label></label>').text(splitRulesLocales[key]).addClass('col-md-12 col-sm-12 text-muted'));
                   let selectList = jQuery('<select></select>', {id: obj[key], name: key, class: 'split-rules'});
@@ -186,10 +188,10 @@
                 }
               });
 
-              formContainer.append(container);
-              formContainer.append('<hr>');
+              element.append(container);
+              element.append('<hr>');
 
-              formContainer.append(addButton);
+              element.append(addButton);
               updateHiddenInput();
             }
 
@@ -199,7 +201,7 @@
               addFieldPair();
             });
 
-            formContainer.append(addButton);
+            element.append(addButton);
 
             function serializeInputs() {
               let values = [];
@@ -260,6 +262,8 @@
                 formContainer.find('.field-pair').last().after(errorMessage);
               }
             }
+
+            formContainer.append(element);
           });
       } else if (selectFields[param]) {
         let element = jQuery('<div></div>').addClass('form-group appended_field');
@@ -293,6 +297,17 @@
           jQuery(`<input ${checked} style='height: 20px; width:20px' type='checkbox' name='${param || ""}' id='${param || ""}' value='1' data-return='1' data-checked='1'>`)));
 
         jQuery('#paysys_connect_system_body').append(element);
+      } else if (textareaFields.includes(param)) {
+        console.log(val);
+        let element = jQuery('<div></div>').addClass('form-group appended_field');
+        element.append(jQuery("<label for='" + (param || '') + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
+        element.append(jQuery("<div></div>").addClass('col-md-12 col-sm-12').append(
+          jQuery("<textarea name='" + (param || '') + "' id='" + (param || '') + "'>")
+            .addClass('form-control')
+            .text(val || '')
+        ));
+
+        jQuery('#paysys_connect_system_body').append(element);
       } else {
         let element = jQuery('<div></div>').addClass('form-group appended_field');
         element.append(jQuery("<label for='" + (param || '') + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
@@ -309,7 +324,7 @@
       }
     }
 
-    // generateTooltips(type);
+    generateTooltips(type);
   }
 
   jQuery('#BTN_ADD').on('click', () => {
@@ -339,42 +354,20 @@
   var PORTAL_COMMISSION_DESC = '_{PORTAL_COMMISSION_DESC}_';
 
   function generateTooltips (type) {
-    const docsUrl = arr[type]['DOCS'] || '';
-    let url = '';
+    console.log(arr[type])
+    sendRequest(`/api.cgi/paysys/systems/${arr[type]['SYSTEM_ID']}/merchants/tooltips/`, {}, 'GET')
+      .then(data => {
+        let tooltips = data?.list;
 
-    const urlType = /pageId/.test(docsUrl);
-    const match = docsUrl.match(/[a-zA-Z0-9_\\-\\+]+\$/);
-    if (match.length < 1) return 1;
+        tooltips.map(tooltip => {
+          jQuery(`input[name*=${tooltip.name}]`).attr('title', tooltip.value)
+            .hover(() => {
+              jQuery().tooltip()
+            });
 
-    if (urlType) {
-      url = `http://abills.net.ua/wiki/rest/api/content/${match}?expand=body.storage`
-    } else {
-      url = `http://abills.net.ua/wiki/rest/api/content/search?cql=space=AB AND title=${match}&expand=body.storage`;
-    }
-
-    fetch(url)
-      .then(async response => {
-        if (!response.ok) throw response;
-
-        const content = await response.json();
-        const body = urlType ? content?.body?.storage?.value : content?.results[0]?.body?.storage?.value;
-
-        const tooltipsInfo = body.match(/(?<=<td[^>]*>)(.*?)(?=<\/td)/gm);
-
-        if (tooltipsInfo.length < 1) return 1;
-
-        tooltipsInfo.map((val, index) => {
-          if (val.includes('PAYSYS_')) {
-            const value = val.replace(/<[^>]*>/gm, '');
-            const tooltipValue = tooltipsInfo[index + 1].replace(/<[^>]*>/gm, '');
-            jQuery(`input[name*=${value}]`).attr('title', tooltipValue)
-              .hover(() => {
-                jQuery().tooltip()
-              });
-          }
-        });
-      })
-      .catch(e => console.warn(e));
+          console.log(tooltip);
+        })
+      });
 
     jQuery("input[name*='PORTAL_DESCRIPTION']").attr('title', PORTAL_COMMENT_DESC)
       .hover(() => {

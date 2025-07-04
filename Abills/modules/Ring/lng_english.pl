@@ -16,4 +16,6 @@ $lang{NOT_AVAILABLE}='Not Available';
 $lang{EVERY_MONTH}='Every month';
 $lang{UPDATE_DAY} = 'Update day';
 $lang{SQL_QUERY} = 'SQL query';
+$lang{SQL_QUERY_USERS_ADD} = 'Add users by sql query';
+
 1

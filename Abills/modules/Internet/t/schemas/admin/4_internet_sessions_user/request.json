@@ -1,0 +1,5 @@
+{
+   "method": "GET",
+   "name": "ADMIN_INTERNET_SESSIONS_LIST",
+   "path": "internet/sessions/:uid/"
+}

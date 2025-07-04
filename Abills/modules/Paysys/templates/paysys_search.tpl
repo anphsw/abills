@@ -64,6 +64,13 @@
           %DATERANGE_PICKER%
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-3 col-form-label' for='RECURRENT_PAYMENT'>_{RECURRENT_PAYMENT}_</label>
+        <div class='col-md-9'>
+          %SEL_RECURRENT_PAYMENT%
+        </div>
+      </div>
     </div>
   </div>
 </div>

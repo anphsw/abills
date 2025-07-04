@@ -98,9 +98,12 @@ sub exchange_add{
   $self->query( "INSERT INTO exchange_rate (money, short_name, rate, iso, changed)
    values ('$money', '$short_name', '$rate', '$attr->{ISO}', now());", 'do' );
 
-  $self->exchange_log_add( { RATE_ID => $self->{INSERT_ID},
-      RATE                           => $rate
-    } );
+  return $self if ($self->{errno});
+
+  $self->exchange_log_add({
+    RATE_ID => $self->{INSERT_ID},
+    RATE    => $rate
+  });
 
   $self->{admin}->{MODULE} = '';
   $self->{admin}->system_action_add( "$money/$short_name/$rate", { TYPE => 41 } );

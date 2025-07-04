@@ -882,6 +882,448 @@ function defineIpInputLogic(context) {
   });
 }
 
+function defineFeesMethodsLogic(context) {
+  const elements = {};
+
+  function initElements() {
+    jQuery('select[data-fees-methods-select]', context).each(function() {
+      const $methodSelect = jQuery(this);
+      const $element = $methodSelect.closest('div.form-group.row');
+      const closestCol = $element.children('div').filter(function() {
+        return this.className.match(/\bcol-md-\d+\b/);
+      }).first();
+      const closestLabel = $element.children('label').first();
+
+      const id = jQuery(this).attr('id');
+      const name = jQuery(this).attr('name');
+
+      elements[id] = {
+        $element: $element,
+        name: name,
+        children: []
+      };
+
+      jQuery(`select[data-fees-methods-parent-id='${id}']`, context).each(function() {
+        $methodSelect.removeAttr('name');
+
+        elements[id].children.push(jQuery(this).closest('div.form-group.row'));
+      });
+
+      jQuery(this).on('change', function () {
+        $methodSelect.attr('name', name);
+
+        elements[id].children.forEach($child => $child.remove());
+        elements[id].children = [];
+
+        let parentId = jQuery(this).val();
+        if (!parentId) {
+          return;
+        }
+
+        sendRequest(`/api.cgi/fees/types?PARENT_ID=${parentId}`, {}, 'GET').then(data => {
+          if (!Array.isArray(data) || data.length < 1) {
+            return;
+          }
+
+          $methodSelect.removeAttr('name');
+
+          const $select = jQuery('<select>', {
+            name: name,
+            class: 'form-control'
+          });
+
+          data.forEach(item => {
+            jQuery('<option>', {
+              value: item?.id,
+              text: item?.name
+            }).appendTo($select);
+          });
+
+          const $selectCol = jQuery('<div>', {
+            class: closestCol.attr('class')
+          });
+          $selectCol.append($select);
+
+          const $label = jQuery('<label>', {
+            class: closestLabel.attr('class')
+          });
+
+          const $formGroup = jQuery('<div>', {
+            class: 'form-group row'
+          });
+
+          $formGroup.append($label).append($selectCol);
+          elements[id].children.push($formGroup);
+
+          $element.after($formGroup);
+          $select.select2();
+        }).catch(err => {
+          console.log(err);
+        });
+      });
+    });
+  }
+
+  initElements();
+}
+
+function defineInfoFieldsLogic(context) {
+  const FIELD_TYPE = {
+    INPUT: 0,
+    SELECT: 2,
+    TEXTAREA: 3,
+    CHECKBOX: 4,
+    ICQ: 8,
+    URL: 9,
+    SKYPE: 12,
+    FILE: 13,
+    PHOTO: 15,
+    SOCIAL: 16,
+    LANGUAGE: 18,
+    TIMEZONE: 19,
+    DATE: 20
+  };
+
+  const elements = {};
+  const withParent = {};
+  let toRemove = jQuery();
+
+  function initElements() {
+    jQuery('[name^="_"][data-id]', context).each(function() {
+      const $element = jQuery(this).closest('div.form-group.row');
+      const dataId = jQuery(this).attr('data-id');
+      const parentId = jQuery(this).attr('data-parent') || "0";
+
+      elements[dataId] = {
+        $element: $element,
+        parentId: parentId,
+        children: []
+      };
+
+      if (jQuery(this).is('select')) {
+        jQuery(this).on('change', function() {
+          updateChildrenInputs(jQuery(this).val(), dataId);
+        });
+      }
+
+      if (parentId !== "0") {
+        withParent[dataId] = true;
+      }
+    });
+  }
+
+  function buildElementTree() {
+    jQuery.each(elements, function(id, element) {
+      const parentId = element.parentId;
+      if (parentId !== "0" && elements[parentId]) {
+        elements[parentId].children.push(id);
+      }
+    });
+  }
+
+  function detectCycles() {
+    const visited = new Set();
+    const cycleDetected = new Set();
+
+    function detectCycle(id, stack = new Set()) {
+      if (!elements[id] || cycleDetected.has(id)) return false;
+      if (visited.has(id)) return stack.has(id);
+
+      visited.add(id);
+      stack.add(id);
+
+      let hasCycle = false;
+      for (let i = 0; i < elements[id].children.length; i++) {
+        if (detectCycle(elements[id].children[i], stack)) {
+          cycleDetected.add(elements[id].children[i]);
+          hasCycle = true;
+        }
+      }
+
+      stack.delete(id);
+      return hasCycle;
+    }
+
+    jQuery.each(withParent, function(id) {
+      detectCycle(id);
+    });
+
+    return cycleDetected;
+  }
+
+  function validatePaths() {
+    const pathCache = {};
+    const invalidElements = new Set();
+
+    function isPathValid(id) {
+      if (pathCache[id] !== undefined) return pathCache[id];
+      if (!elements[id]) return false;
+
+      const parentId = elements[id].parentId;
+      if (parentId === "0") return true;
+      if (!elements[parentId]) return false;
+
+      pathCache[id] = isPathValid(parentId);
+      return pathCache[id];
+    }
+
+    jQuery.each(withParent, function(id) {
+      if (!isPathValid(id)) {
+        invalidElements.add(id);
+      }
+    });
+
+    return invalidElements;
+  }
+
+  function markForRemoval(id, delRoot = true) {
+    if (!elements[id]) return;
+    if (delRoot) toRemove = toRemove.add(elements[id].$element);
+
+    elements[id].children.forEach(childId => markForRemoval(childId, true));
+
+    if (delRoot) {
+      delete elements[id];
+    } else {
+      elements[id].children = [];
+    }
+
+    delete withParent[id];
+  }
+
+  function orderElements() {
+    const processed = new Set();
+
+    function placeElementInOrder(id) {
+      if (!elements[id] || processed.has(id) || !withParent[id]) return;
+      processed.add(id);
+
+      const parentId = elements[id].parentId;
+
+      if (parentId !== "0" && elements[parentId]) {
+        placeElementInOrder(parentId);
+        elements[id].$element.insertAfter(elements[parentId].$element);
+      }
+    }
+
+    jQuery.each(withParent, function(id) {
+      placeElementInOrder(id);
+    });
+  }
+
+  function updateChildrenInputs(value, dataId) {
+    markForRemoval(dataId, false);
+    toRemove.remove();
+
+    if (!value) return;
+
+    sendRequest(`/api.cgi/info-fields?parentId=${dataId}&parentValueId=${value}`, {}, 'GET')
+      .then(data => {
+        if (!data?.list || !data?.total) return;
+
+        data.list.forEach(field => {
+          createField(field, elements[dataId]);
+        });
+      });
+  }
+
+  const fieldGenerators = {
+    [FIELD_TYPE.INPUT]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      const $input = jQuery('<input>', {
+        type: 'text',
+        name: fieldName,
+        id: infoField.sqlField,
+        class: 'form-control'
+      });
+
+      if (infoField.placeholder) $input.attr('placeholder', infoField.placeholder);
+      if (infoField.title) $input.attr('title', infoField.title);
+      if (infoField.pattern) $input.attr('pattern', infoField.pattern);
+      if (infoField.required) $input.attr('required', 'required');
+
+      return $input;
+    },
+
+    [FIELD_TYPE.SELECT]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      const $select = jQuery('<select>', {
+        name: fieldName,
+        id: infoField.sqlField,
+        class: 'form-control info-fields-select'
+      });
+
+      if (infoField.required) $select.attr('required', 'required');
+
+      jQuery('<option>', { value: '', text: '' }).appendTo($select);
+
+      const listItems = infoField.listItems || infoField.LIST_ITEMS || [];
+      listItems.forEach(item => {
+        jQuery('<option>', {
+          value: item?.id,
+          text: item?.name
+        }).appendTo($select);
+      });
+
+      return $select;
+    },
+
+    [FIELD_TYPE.TEXTAREA]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      const $textarea = jQuery('<textarea>', {
+        name: fieldName,
+        id: infoField.sqlField,
+        class: 'form-control'
+      });
+
+      if (infoField.required) $textarea.attr('required', 'required');
+
+      return $textarea;
+    },
+
+    [FIELD_TYPE.CHECKBOX]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      return jQuery('<input>', {
+        type: 'checkbox',
+        name: fieldName,
+        id: infoField.sqlField,
+        value: '1'
+      });
+    },
+
+    [FIELD_TYPE.URL]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      const $container = jQuery('<div>', { class: 'input-group' });
+      const $input = jQuery('<input>', {
+        type: 'text',
+        name: fieldName,
+        id: infoField.sqlField,
+        class: 'form-control'
+      });
+
+      if (infoField.required) $input.attr('required', 'required');
+      $input.appendTo($container);
+
+      return $container;
+    },
+
+    [FIELD_TYPE.TIMEZONE]: function(infoField) {
+      const fieldName = infoField.sqlField?.toUpperCase();
+      if (!fieldName) return null;
+
+      const $container = jQuery('<div>', { class: 'row' });
+      const $selectContainer = jQuery('<div>', { class: 'col-md-8' });
+      const $select = jQuery('<select>', {
+        name: fieldName,
+        id: infoField.sqlField,
+        class: 'form-control'
+      });
+
+      for (let i = -12; i <= 12; i++) {
+        const prefix = i >= 0 ? '+' : '';
+        jQuery('<option>', {
+          value: i,
+          text: `GMT${prefix}${i}`,
+        }).appendTo($select);
+      }
+
+      const $timeLabel = jQuery('<label>', { class: 'control-label col-md-4' });
+
+      function updateTime() {
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const tzTime = new Date(utc + (3600000 * $select.val()));
+        $timeLabel.text(tzTime.toTimeString().split(' ')[0]);
+      }
+
+      updateTime();
+      setInterval(updateTime, 1000);
+      $select.on('change', updateTime);
+
+      $select.appendTo($selectContainer);
+      $selectContainer.appendTo($container);
+      $timeLabel.appendTo($container);
+
+      return $container;
+    }
+  };
+
+  function createField(infoField, parent) {
+    if (!fieldGenerators[infoField?.type]) return;
+
+    infoField.sqlField = infoField.sqlField || infoField.SQL_FIELD;
+    if (!infoField.sqlField) return;
+
+    const $input = fieldGenerators[infoField.type](infoField);
+    if (!$input) return;
+
+    const $container = jQuery('<div>', { class: 'form-group row' });
+    const $label = jQuery('<label>', {
+      class: 'col-md-4 col-form-label text-md-right',
+      for: infoField.sqlField,
+      text: infoField.name + ':'
+    });
+
+    const $inputContainer = jQuery('<div>', { class: 'col-md-8' });
+
+    $input.attr('data-id', infoField.id);
+    $inputContainer.append($input);
+    $container.append($label).append($inputContainer);
+
+    const parentId = infoField.parentId || infoField.PARENT_ID || "0";
+
+    elements[infoField.id] = {
+      $element: $container,
+      parentId: parentId,
+      children: []
+    };
+
+    if (parent) {
+      parent.children.push(infoField.id);
+      parent.$element.after($container);
+    }
+
+    if (infoField.type === FIELD_TYPE.SELECT) {
+      $input.select2({
+        allowClear: true,
+        placeholder: ''
+      });
+
+      $input.on('change', function() {
+        updateChildrenInputs(jQuery(this).val(), infoField.id);
+      });
+    } else if (infoField.type === FIELD_TYPE.TIMEZONE) {
+      jQuery(`#${infoField.sqlField}`).select2({
+        allowClear: true,
+        placeholder: ''
+      });
+    }
+  }
+
+  initElements();
+  buildElementTree();
+
+  const cycles = detectCycles();
+  cycles.forEach(id => markForRemoval(id));
+
+  const invalidPaths = validatePaths();
+  invalidPaths.forEach(id => markForRemoval(id));
+
+  toRemove.remove();
+
+  orderElements();
+}
+
 function isValidIp(ip) {
   //RegExp test for valid ipv4 and ipv6
   var ipRegularExpression = new RegExp(IPV4REGEXP);
@@ -1593,6 +2035,10 @@ function pageInit(context) {
   // Checking ip-inputs for IPV4 regexp
   defineIpInputLogic(context);
 
+  defineInfoFieldsLogic(context);
+
+  defineFeesMethodsLogic(context);
+
   // Checking inputs for defined regexpressions
   defineCheckPatternLogic(context);
 
@@ -1643,45 +2089,45 @@ function pageInit(context) {
   initHelp(context);
 }
 
-function initMultifileUploadZone(id, name_, max_files_){
-  var name = name_ || 'FILE_UPLOAD';
-  var max_files = max_files_ || 2;
-
-  var file_zone = jQuery('#' + id);
-
-  var main_input = file_zone.find('input[name='+ name +']');
-  var counter_input = jQuery('<input/>', { name : name + '_UPLOADS_COUNT', type : 'hidden' });
-
-  file_zone.append(counter_input);
-
-  var counter = 0;
-  var append_new_input = function(){
-    counter_input.val(++counter);
-    var new_input = jQuery('<input/>', {
-      type : 'file',
-      name : name + '_' + counter
-    });
-
-    new_input.data('number', counter);
-    new_input.on('change', append_new_input_if_needed);
-
-    let form_group = jQuery('<div/>', { class : 'form-group m-1' });
-    form_group.append(new_input);
-    file_zone.append(form_group);
-  };
-
-  var append_new_input_if_needed = function(){
-    // Get this position
-    var position = jQuery(this).data('number') || 0;
-
-    // If is last, should append new input and counter starts from 0
-    if (position === counter && counter < (max_files - 1)){
-      append_new_input();
-    }
-  };
-
-  main_input.on('change', append_new_input_if_needed);
-}
+// function initMultifileUploadZone(id, name_, max_files_){
+//   var name = name_ || 'FILE_UPLOAD';
+//   var max_files = max_files_ || 2;
+//
+//   var file_zone = jQuery('#' + id);
+//
+//   var main_input = file_zone.find('input[name='+ name +']');
+//   var counter_input = jQuery('<input/>', { name : name + '_UPLOADS_COUNT', type : 'hidden' });
+//
+//   file_zone.append(counter_input);
+//
+//   var counter = 0;
+//   var append_new_input = function(){
+//     counter_input.val(++counter);
+//     var new_input = jQuery('<input/>', {
+//       type : 'file',
+//       name : name + '_' + counter
+//     });
+//
+//     new_input.data('number', counter);
+//     new_input.on('change', append_new_input_if_needed);
+//
+//     let form_group = jQuery('<div/>', { class : 'form-group m-1' });
+//     form_group.append(new_input);
+//     file_zone.append(form_group);
+//   };
+//
+//   var append_new_input_if_needed = function(){
+//     // Get this position
+//     var position = jQuery(this).data('number') || 0;
+//
+//     // If is last, should append new input and counter starts from 0
+//     if (position === counter && counter < (max_files - 1)){
+//       append_new_input();
+//     }
+//   };
+//
+//   main_input.on('change', append_new_input_if_needed);
+// }
 
 function copyToBuffer(value){
   // Create textarea
@@ -1914,4 +2360,33 @@ $(function () {
     observer.observe(document.body, { childList: true, subtree: true });
   }
 });
+
+function formatInputWithThousands(id) {
+  let input = document.getElementById(id);
+  let formatted_sum = '';
+
+  input.addEventListener('input', (e) => {
+    const rawValue = e.target.value;
+    if (rawValue.trim() === '') {
+      e.target.value = '';
+      return;
+    }
+    formatted_sum = formatIntPart(rawValue);
+    e.target.value = formatted_sum;
+  });
+
+  if (input.value.trim() !== '') {
+    formatted_sum = formatIntPart(input.value);
+    input.value = formatted_sum;
+  }
+}
+
+function formatIntPart(value) {
+  let normalizedValue = value.replace(',', '.');
+  normalizedValue = normalizedValue.replace(/[^\d.]/g, '');
+  const [intPart, decimalPart] = normalizedValue.split('.');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  return decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
+}
 

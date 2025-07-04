@@ -100,7 +100,7 @@ return 0 unless ($hash && ref($hash) eq 'HASH' && $hash->{event});
 
 my $id = $hash->{user}{id} || $hash->{sender}{id} || '';
 
-my $Bot = Viber::API::Botapi->new($conf{VIBER_TOKEN}, $id);
+my $Bot = Viber::API::Botapi->new($conf{VIBER_TOKEN}, $id, { NAME => $conf{VIBER_BOT_SENDER_NAME} });
 
 our $html = Abills::HTML->new({
   IMG_PATH   => 'img/',

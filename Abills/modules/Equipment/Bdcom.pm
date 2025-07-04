@@ -948,7 +948,7 @@ sub _bdcom_convert_catv_port_admin_status {
 sub _bdcom_convert_video_power {
   my ($video_power) = @_;
 
-  return undef if (!defined $video_power || $video_power == 0);
+  return 0 if (!defined $video_power || $video_power == 0);
 
   return $video_power * 0.1;
 }

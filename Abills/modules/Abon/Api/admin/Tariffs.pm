@@ -67,12 +67,16 @@ sub get_abon_tariffs {
   my $self = shift;
   my ($path_params, $query_params) = @_;
 
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+
   $Abon->tariff_list({
+    _SHOW_ALL_COLUMNS => 1,
     %$query_params,
-    COLS_NAME => 1
+    COLS_NAME         => 1
   });
 }
-
 
 #**********************************************************
 =head2 post_abon_tariffs($path_params, $query_params)

@@ -1,0 +1,11 @@
+type: object
+properties:
+  affected:
+    type: integer
+    example: 0
+  installationId:
+    type: integer
+    example: 187
+  total:
+    type: integer
+    example: 1

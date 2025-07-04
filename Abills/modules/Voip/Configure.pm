@@ -149,12 +149,17 @@ sub voip_tp {
       ARRAY_NUM_ID => 1
     });
 
-    $Voip_tp->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
-      SELECTED       => $Voip_tp->{FEES_METHOD} || 1,
-      SEL_HASH       => get_fees_types(),
-      NO_ID          => 1,
-      SORT_KEY       => 1,
-      SEL_OPTIONS    => { 0 => '' },
+    # $Voip_tp->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+    #   SELECTED       => $Voip_tp->{FEES_METHOD} || 1,
+    #   SEL_HASH       => get_fees_types(),
+    #   NO_ID          => 1,
+    #   SORT_KEY       => 1,
+    #   SEL_OPTIONS    => { 0 => '' },
+    #   MAIN_MENU      => get_function_index('form_fees_types'),
+    #   CHECKBOX       => 'create_fees_type',
+    #   CHECKBOX_TITLE => $lang{CREATE}
+    # });
+    $Voip_tp->{SEL_METHOD} = sel_fees_methods('FEES_METHOD', defined $Voip_tp->{FEES_METHOD} ? $Voip_tp->{FEES_METHOD} : 1, {
       MAIN_MENU      => get_function_index('form_fees_types'),
       CHECKBOX       => 'create_fees_type',
       CHECKBOX_TITLE => $lang{CREATE}

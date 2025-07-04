@@ -20,3 +20,7 @@
   $ref: "./paths/usersContractsTypes.yaml"
 /users/{uid}/history:
   $ref: "./paths/usersHistory.yaml"
+/users/statuses/:
+  $ref: "./paths/usersStatuses.yaml"
+/users/statuses/{id}:
+  $ref: "./paths/usersStatuses_id.yaml"

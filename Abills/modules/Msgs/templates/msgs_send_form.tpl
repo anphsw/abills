@@ -60,7 +60,7 @@
   }
 
   var MAX_FILES_COUNT = 3;
-  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT, 'MESSAGE');
 </script>
 
 <FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
@@ -136,8 +136,7 @@
               <span class='text-bold'><i class='fa fa-code'></i></span>
             </button>
           </div>
-            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE' required
-                      rows='3'>%TPL_MESSAGE%</textarea>
+            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE' %REQUIRED_MESSAGE% rows='3'>%TPL_MESSAGE%</textarea>
         </div>
       </div>
 

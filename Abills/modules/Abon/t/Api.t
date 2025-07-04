@@ -26,7 +26,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Api::Tests::Init qw(test_runner folder_list help);
+use Abills::Api::Tests::Init qw(test_runner folder_list help test_preprocess);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Users;
@@ -43,6 +43,7 @@ my $db = Abills::SQL->connect(
     dbdebug => $conf{dbdebug}
   }
 );
+
 my $admin = Admins->new($db, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 my $Abon = Abon->new($db, $admin, \%conf);
@@ -69,21 +70,17 @@ if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($A
 }
 
 my $tariff_id = (scalar(@{$abon_tariffs})) ? $abon_tariffs->[0]->{id} : '';
-foreach my $test (@test_list) {
-  if ($test->{path} =~ /user\/abon\/:id/g) {
-    $test->{path} =~ s/:id/$tariff_id/g;
-  }
+my %params =  (
+  id => $tariff_id
+);
 
-  if ($test->{path} =~ /tariffs\/:id/g) {
-    $test->{path} =~ s/:id/$tariff_id/g;
-  }
-}
+my $run_test = test_preprocess(\@test_list, \%params);
 
 test_runner({
   apiKey => $apiKey,
   debug  => $debug,
   args   => $ARGS
-}, \@test_list);
+}, $run_test);
 
 done_testing();
 

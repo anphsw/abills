@@ -1,0 +1,2 @@
+ALTER TABLE `users_pi` ADD COLUMN `pasport_expire` DATE NOT NULL DEFAULT '0000-00-00';
+ALTER TABLE `discounts_main` ADD COLUMN `reg_date` TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Date of creation';

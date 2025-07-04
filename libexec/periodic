@@ -367,7 +367,7 @@ elsif ( defined( $argv->{rotate} ) ){
   logrotate();
 }
 elsif ( defined( $argv->{SET_FULL_CREDIT} ) ){
-  credit_full_set();
+  credit_full_set($argv);
 }
 else{
   help();
@@ -382,12 +382,15 @@ if ( $debug ){
 #**********************************************************
 =head2 sheduler() - Periodic shedule
 
+  Arguments:
+
+  Results:
+
 =cut
 #**********************************************************
 sub sheduler{
   $DEBUG .= "Shedule\n" if ($debug > 1);
 
-  #Change tp
   require Shedule;
   Shedule->import();
   my $Shedule = Shedule->new( $db, $admin, \%conf );
@@ -425,6 +428,9 @@ sub sheduler{
     my $shedule_id = $s->{id};
     my $comments   = $s->{comments} || q{};
 
+    $users->{UID}=$s->{uid};
+    $users->{BILL_ID}=$s->{bill_id};
+
     if ( $debug > 0 ){
       print "SHEDULE [$shedule_id] $login MODULE: $s->{module} $type: ". ($action || q{}) ."\n";
     }
@@ -434,10 +440,10 @@ sub sheduler{
     }
 
     if ( $type eq 'fees' ){
-      my $user = $users->info( $s->{uid} );
-      my ($sum, $descr, $bill_id, $method) = split( /:/, $action );
-      if ( $bill_id ){
-        if ( $bill_id =~ /(\S+)=(\S+)/ ){
+      my $user = $users->info($s->{uid});
+      my ($sum, $descr, $bill_id, $method) = split(':', $action );
+      if ($bill_id) {
+        if ($bill_id =~ m/(\S+)=(\S+)/x) {
           $bill_id = $2;
         }
         $user->{BILL_ID} = $bill_id;
@@ -460,17 +466,17 @@ sub sheduler{
         $ret = 1;
       }
     }
-    elsif ( $type eq 'sql' ){
-      $action =~ s/[\r\n]/ /g;
-      my @sqls = split( /;/, $action );
+    elsif ($type eq 'sql') {
+      $action =~ s/[\r\n]/ /xg;
+      my @sqls = split(';', $action );
       $ret = 1;
       foreach my $sql ( @sqls ){
-        $sql =~ s/^\s+//g;
+        $sql =~ s/^\s+//xg;
         if ( !$sql ){
           next;
         }
-        $admin->query( "$sql", 'do' );
-        if ( $admin->{errno} ){
+        $admin->query($sql, 'do');
+        if ($admin->{errno}) {
           $ret = 2;
           $error_text = $admin->{errstr};
         }
@@ -509,8 +515,6 @@ sub sheduler{
       }
     }
     elsif($s->{module} && $s->{module} eq 'ALL') {
-      $users->{UID}=$s->{uid};
-      $users->{BILL_ID}=$s->{bill_id};
       $ret = service_status_change({ UID => $s->{uid}, BILL_ID => $s->{bill_id} },
         $action,
         { DEBUG     => $debug,
@@ -519,10 +523,10 @@ sub sheduler{
           SHEDULER  => 1
         });
 
-      if ($comments && $comments =~ /DAYS:(\d+)/) {
+      if ($comments && $comments =~ m/DAYS:(\d+)/x) {
         my $holdup_days = $1;
 
-        my @holdup_rules = split(/;/, $conf{HOLDUP_ALL});
+        my @holdup_rules = split(';', $conf{HOLDUP_ALL});
         my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
           undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_);
 
@@ -561,9 +565,9 @@ sub sheduler{
     elsif ($type ne '') {
       my %ext_params = ();
       if ($s->{comments}) {
-        my @rows = split(/\n/, $s->{comments});
+        my @rows = split(/\n/x, $s->{comments});
         foreach my $line (@rows) {
-          my ($k, $v) = split(/=/, $line);
+          my ($k, $v) = split(/=/x, $line);
           $ext_params{$k} = $v;
         }
       }
@@ -571,11 +575,12 @@ sub sheduler{
       my $function = lc $s->{module} . "_sheduler";
 
       if (defined(&{$function})) {
-        $ret = &{\&{$function}}($s->{type}, "$action", $s->{uid},
+        $ret = &{\&{$function}}($s->{type}, $action, $s->{uid},
           {
             %ext_params,
             DATE          => $ADMIN_REPORT{DATE},
             SHEDULEE_ONLY => $argv->{SHEDULE},
+            USER_INFO     => $users,
             DEBUG         => $debug
           });
       }
@@ -600,7 +605,7 @@ sub sheduler{
       });
     }
     else{
-      $Shedule->change( { SHEDULE_ID => $shedule_id, COUNTS => $count - 1, RESULT => $ret . $error_text } );
+      $Shedule->change({ SHEDULE_ID => $shedule_id, COUNTS => $count - 1, RESULT => $ret . $error_text });
     }
 
     $DEBUG .= $text . "\n" if ($debug > 1);
@@ -1200,37 +1205,49 @@ sub credit_operation{
 }
 
 #*******************************************************************
-=head2 credit_full_set() - Set full credit
+=head2 credit_full_set($attr) - Set full credit
 
   Arguments:
-    DEPOSIT="<10"
-    GID=
+    $attr
+      SKIP_TPS="23,45,67"
+      FULL_CREDIT_PERIOD=1
+      TRANSACTION=1
+      DEPOSIT="<10"
+      COMPANY_ID=
+      GID=
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #*******************************************************************
 sub credit_full_set{
+  my ($attr) = @_;
+
   $DEBUG .= "Set full credit\n" if ($debug > 1);
 
-  my $FULL_CREDIT_PERIOD = $argv->{FULL_CREDIT_PERIOD};
+  my @skip_tps = ();
+
+  if ($attr->{CREDIT_SKIP_TPS}) {
+    @skip_tps = split(/,\s?/x, $attr->{CREDIT_SKIP_TPS});
+  }
+
+  my $FULL_CREDIT_PERIOD = $attr->{FULL_CREDIT_PERIOD};
   my $CREDIT_EXPIRE_DATE = '';
-  if ( $FULL_CREDIT_PERIOD ){
+  if ($FULL_CREDIT_PERIOD){
     $CREDIT_EXPIRE_DATE = POSIX::strftime("%Y-%m-%d",
       localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0 ) + $FULL_CREDIT_PERIOD * 86400) ));
   }
 
-  if($argv->{DEPOSIT}) {
-    $LIST_PARAMS{DEPOSIT}=$argv->{DEPOSIT};
+  if ($attr->{DEPOSIT}) {
+    $LIST_PARAMS{DEPOSIT} = $attr->{DEPOSIT};
   }
 
-  # if($argv->{GID}) {
-  #   $LIST_PARAMS{GID}=$argv->{GID};
-  # }
-
-  if ( $argv->{TRANSACTION} ){
+  if ($attr->{TRANSACTION}) {
     $db->{db}->{AutoCommit} = 0;
   }
 
-  if ( !$argv->{COMPANY_ID} ){
+  if (!$attr->{COMPANY_ID}) {
     #set credit for individual users
     $users->{debug} = 1 if ($debug > 6);
     my $list = $users->list({
@@ -1255,28 +1272,6 @@ sub credit_full_set{
       );
 
       $DEBUG .= "$u->{login} UID: $uid\n" if ($debug > 0);
-      # my $cross_modules_return = cross_modules('docs', {
-      #   UID           => $uid,
-      #   SKIP_MODULES  => 'Docs,Sqlcmd,Multidoms,Bsr1000',
-      #   DEBUG         => ($debug > 3) ? 1 : undef,
-      # });
-
-      # foreach my $module ( sort keys %{$cross_modules_return} ){
-      #   if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
-      #     next if ( $#{ $cross_modules_return->{$module} } == -1 );
-      #
-      #     foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
-      #       my (undef, undef, $sum) = split( /\|/, $service_info );
-      #       next if !$sum;
-      #
-      #       if($debug > 5) {
-      #         print "$module: $sum\n";
-      #       }
-      #
-      #       $full_sum += $sum;
-      #     }
-      #   }
-      # }
 
       my $services = ::get_services(\%user_info, {
         IPTV_SHOW_FREE_TPS     => 1,
@@ -1287,6 +1282,10 @@ sub credit_full_set{
       if ($services->{list}) {
         foreach my $service (sort @{$services->{list}}) {
           $full_sum += $service->{SUM};
+          if ( $service->{TP_ID} && in_array($service->{TP_ID}, \@skip_tps)) {
+            $full_sum = -1;
+            next;
+          }
         }
       }
 
@@ -1309,7 +1308,7 @@ sub credit_full_set{
     DELETED    => 0,
     %LIST_PARAMS,
     PAGE_ROWS  => 1000000,
-    COMPANY_ID => (defined( $argv->{COMPANY_ID} )) ? $argv->{COMPANY_ID} : undef,
+    COMPANY_ID => (defined( $attr->{COMPANY_ID} )) ? $attr->{COMPANY_ID} : undef,
     COLS_NAME  => 1,
   });
 
@@ -1386,7 +1385,7 @@ sub credit_full_set{
     }
   }
 
-  if ( $argv->{TRANSACTION} ){
+  if ( $attr->{TRANSACTION} ){
     $db->{db}->commit();
     $db->{db}->{AutoCommit} = 1;
   }

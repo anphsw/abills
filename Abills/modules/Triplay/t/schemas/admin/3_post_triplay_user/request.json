@@ -1,0 +1,9 @@
+{
+  "name": "TRIPLAY_USER_ADD_SERVICE",
+  "method": "POST",
+  "path": "triplay/users/:uid/",
+  "body": {
+    "tpId" : ":tpId",
+    "serviceStatus": 0
+  }
+}

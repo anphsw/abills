@@ -1,0 +1,6 @@
+/triplay/tariffs:
+  $ref: "./paths/triplay_tariffs.yaml"
+/triplay/users:
+  $ref: "./paths/triplay_user.yaml"
+/triplay/users/{uid}:
+  $ref: "./paths/triplay_users.yaml"

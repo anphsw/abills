@@ -1,0 +1,56 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        abonTpName:
+          type: string
+          example: Abon tp name
+        internetTp:
+          type: integer
+          example: 4
+        internetTpName:
+          type: string
+          example: Internet tp name
+        iptvTp:
+          type: integer
+          example: 12
+        iptvTpName:
+          type: string
+          example: Iptv tp name
+        monthFee:
+          type: number
+          format: float
+          example: 500.52
+        personalTp:
+          type: integer
+          example: 0
+        serviceStatus:
+          type: integer
+          example: 0
+        tpId:
+          type: integer
+          example: 115
+        tpName:
+          type: string
+          example: triplay second tp
+        tpReductionFee:
+          type: number
+          example: 0
+        triplayExpire:
+          type: string
+          example: "0000-00-00"
+        uid:
+          type: integer
+          example: 10
+        voipTp:
+          type: integer
+          example: 40
+        voipTpName:
+          type: string
+          example: Voip tp name
+  total:
+    type: integer
+    example: 7

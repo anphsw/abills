@@ -92,10 +92,13 @@ sub usage {
 sub get_session_info {
   my $session_id = shift;
 
-  require Abills::Misc;
+  #require Abills::Misc;
 
   print "Session id : $session_id \n" if ($DEBUG);
   my ($first, $vendor, $second) = split(/_/, $session_id);
+  require Internet::Diagnostic;
+  Internet::Diagnostic->import('get_oui_info');
+
   eval {$vendor = get_oui_info($vendor);};
   print "Vendor:" . ($vendor || "") . "\n";
 

@@ -9,6 +9,7 @@ package Internet::Sessions;
 =cut
 
 use strict;
+use POSIX qw(strftime);
 our $VERSION = 2.00;
 use parent qw( dbcore );
 
@@ -208,7 +209,7 @@ sub online_count {
     }
   );
 
-  if ($WHERE =~ /u\./) {
+  if ($WHERE =~ m/u\./x) {
     $EXT_TABLE = ' INNER JOIN users u ON (c.uid=u.uid)';
   }
 
@@ -456,16 +457,16 @@ sub online {
     if (! $field) {
       print "internet_online/online: Wrong field name\n";
     }
-    elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID|TP_NUM/ && $EXT_TABLE !~ /tarif_plans/) {
+    elsif ($field =~ m/TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID|TP_NUM/x && $EXT_TABLE !~ m/tarif_plans/x) {
       $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)";
     }
-    elsif ($field =~ /SWITCH_NAME|SWITCH_ID/ && $EXT_TABLE !~ m/ switch /) {
+    elsif ($field =~ m/SWITCH_NAME|SWITCH_ID/x && $EXT_TABLE !~ m/\s+switch\s+/x) {
       $EXT_TABLE .= " LEFT JOIN nas AS switch ON (c.switch_mac <> '' AND c.switch_mac=switch.mac)";
     }
-    elsif ($field =~ /NAS_NAME|NAS_TYPE/ && $EXT_TABLE !~ m/ nas ON /) {
+    elsif ($field =~ m/NAS_NAME|NAS_TYPE/x && $EXT_TABLE !~ m/\s+nas\s+ON\s+/x) {
       $EXT_TABLE .= " LEFT JOIN nas ON (nas.id=c.nas_id)";
     }
-    elsif ($field =~ /TURBO_/ && $EXT_TABLE !~ m/ turbo_mode /) {
+    elsif ($field =~ m/TURBO_/x && $EXT_TABLE !~ m/\s+turbo_mode\s+/x) {
       $EXT_TABLE .= " LEFT JOIN turbo_mode tm ON (c.uid=tm.uid AND tm.start + interval tm.time second > c.started)";
     }
   }
@@ -628,8 +629,7 @@ sub online_del {
 =cut
 #**********************************************************
 sub online_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE =  $self->search_former($attr, [
       ['NAS_ID',           'INT', 'c.nas_id'            ],
@@ -645,36 +645,36 @@ sub online_info {
     }
   );
 
-  $self->query("SELECT c.user_name,
-    UNIX_TIMESTAMP(c.started) AS session_start,
-    c.acct_session_time,
-   c.acct_input_octets,
-   c.acct_output_octets,
-   c.ex_input_octets,
-   c.ex_output_octets,
-   c.connect_term_reason,
-   INET_NTOA(c.framed_ip_address) AS framed_ip_address,
-   c.lupdated as last_update,
-   c.nas_port_id as nas_port,
-   INET_NTOA(c.nas_ip_address) AS nas_ip_address ,
-   c.cid AS calling_station_id,
-   c.connect_info,
-   c.acct_session_id,
-   c.nas_id,
-   c.started AS acct_session_started,
-   c.acct_input_gigawords,
-   c.acct_output_gigawords,
-   IF(internet.filter_id != '', internet.filter_id, IF(tp.filter_id IS NULL, '', tp.filter_id)) AS filter_id,
-   c.uid,
-   c.guest
-   FROM internet_online c
-   LEFT JOIN internet_main internet ON (c.uid=internet.uid)
-   LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
-   $WHERE",
-    undef,
-    { INFO => 1 }
-  );
+  my $sql = <<"SQL";
+SELECT c.user_name,
+       UNIX_TIMESTAMP(c.started) AS session_start,
+       c.acct_session_time,
+       c.acct_input_octets,
+       c.acct_output_octets,
+       c.ex_input_octets,
+       c.ex_output_octets,
+       c.connect_term_reason,
+       INET_NTOA(c.framed_ip_address) AS framed_ip_address,
+       c.lupdated as last_update,
+       c.nas_port_id as nas_port,
+       INET_NTOA(c.nas_ip_address) AS nas_ip_address ,
+       c.cid AS calling_station_id,
+       c.connect_info,
+       c.acct_session_id,
+       c.nas_id,
+       c.started AS acct_session_started,
+       c.acct_input_gigawords,
+       c.acct_output_gigawords,
+       IF(internet.filter_id != '', internet.filter_id, IF(tp.filter_id IS NULL, '', tp.filter_id)) AS filter_id,
+       c.uid,
+       c.guest
+FROM internet_online c
+       LEFT JOIN internet_main internet ON (c.uid=internet.uid)
+       LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
+  $WHERE
+SQL
 
+  $self->query($sql, undef, { INFO => 1 });
   $self->{CID} = $self->{CALLING_STATION_ID};
 
   return $self;
@@ -980,7 +980,6 @@ ORDER BY 1,2,3
   }
 
   $self->{INFO_LIST}    = $self->{list};
-  #my $login             = $self->{INFO_LIST}->[0]->{login};
   my $traffic_transfert = $self->{INFO_LIST}->[0]->{traffic_transfert};
 
   my %prepaid_traffic = (
@@ -1045,8 +1044,8 @@ ORDER BY 1,2,3
   }
 
   if ($CONF->{INTERNET_INTERVAL_PREPAID}) {
-    $WHERE =~ s/l.start/li\.added/g;
-    $uid =~ s/l.uid/li.uid/g;
+    $WHERE =~ s/l.start/li\.added/xg;
+    $uid =~ s/l.uid/li.uid/xg;
     $self->query("SELECT li.traffic_type, SUM($octets_direction_interval) / $CONF->{MB_SIZE}, li.interval_id
        FROM internet_log_intervals li
        WHERE $uid AND ($WHERE)
@@ -1147,7 +1146,7 @@ sub list {
 
   #Interval from date to date
   if ($attr->{INTERVAL}) {
-    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//x, $attr->{INTERVAL}, 2);
   }
   #Period
   elsif (defined($attr->{PERIOD})) {
@@ -1219,15 +1218,15 @@ sub list {
     $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /\s?u\.|pi\./ || $self->{SEARCH_FIELDS} =~ /company\.id/ || $WHERE =~ m/ u\.|pi\./) {
+  if ($self->{SEARCH_FIELDS} =~ m/\s?u\.|pi\./x || $self->{SEARCH_FIELDS} =~ m/company\./x || $WHERE =~ m/\s+u\.|pi\./x) {
     $EXT_TABLE .= " INNER JOIN users u ON (u.uid=l.uid)";
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /nas_name/ && $EXT_TABLE !~ /nas/ || $attr->{NAS_IP}) {
+  if ($self->{SEARCH_FIELDS} =~ m/nas_name/x && $EXT_TABLE !~ m/nas/x || $attr->{NAS_IP}) {
     $EXT_TABLE .= " LEFT JOIN nas n ON (n.id=l.nas_id)";
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /tp_bills_priority|tp_name|filter_id|tp_credit|payment_method|show_tp_id|tp_num/ && $EXT_TABLE !~ /tarif_plans/) {
+  if ($self->{SEARCH_FIELDS} =~ m/tp_bills_priority|tp_name|filter_id|tp_credit|payment_method|show_tp_id|tp_num/x && $EXT_TABLE !~ m/tarif_plans/x) {
     $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=l.tp_id)";
   }
 
@@ -1314,10 +1313,9 @@ sub calculation {
   my $period = $attr->{PERIOD} || 3;
 
   if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
     push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')>='$from' and DATE_FORMAT(start, '%Y-%m-%d')<='$to'";
   }
-  #Period
   elsif (defined($period)) {
     if    ($period == 0) { push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')=CURDATE()"; }
     elsif ($period == 1) { push @WHERE_RULES, "TO_DAYS(CURDATE()) - TO_DAYS(start) = 1 "; }
@@ -1394,7 +1392,7 @@ sub reports {
     push @WHERE_RULES, " DATE_FORMAT(l.start, '%Y-%m-%d')='$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
     push @WHERE_RULES, "DATE(l.start)<='$to' and DATE(l.start + INTERVAL l.duration SECOND)>='$from'";
     $attr->{TYPE} = '-' if (!$attr->{TYPE});
     if ($attr->{TYPE} eq 'HOURS') {
@@ -1474,7 +1472,7 @@ sub reports {
       SUM(l.sum) AS sum";
 
   if ($attr->{FIELDS}) {
-    my @fields_array    = split(/, /, $attr->{FIELDS});
+    my @fields_array    = split(/,\s/x, $attr->{FIELDS});
     my @show_fields     = ();
     my %get_fields_hash = ();
 
@@ -1484,7 +1482,7 @@ sub reports {
         $EXT_TABLE = 'users_pi';
         $date      = 'u.fio';
       }
-      elsif ($line =~ /^_(\S+)/) {
+      elsif ($line =~ m/^_(\S+)/x) {
         my $f = '_' . $1;
         push @FIELDS_ARR, $f;
         $self->{REPORT_FIELDS}{$f} = 'u.' . $f;
@@ -1609,8 +1607,7 @@ sub reports {
 =cut
 #**********************************************************
 sub reports2 {
-  my ($self) = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1625,81 +1622,73 @@ sub reports2 {
   }
 
   if($attr->{INTERVAL}) {
-    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//x, $attr->{INTERVAL}, 2);
   }
 
   $attr->{SKIP_DEL_CHECK}=1;
 
-  my $WHERE2 =  $self->search_former($attr, [
-      ['DATE',             'DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')", "DATE_FORMAT(l.start, '%Y-%m-%d') AS date"  ],
-      ['FIO',              'STR', 'pi.fio', 1         ],
-      ['MONTH',            'DATE',"DATE_FORMAT(l.start, '%Y-%m')"   ],
-      ['NAS_ID',           'INT', 'nas_id'            ],
-      ['NAS_IP_ADDRESS',   'IP',  'nas_ip_address'    ],
-      ['NAS_PORT',         'INT', 'nas_port_id',      ],
-      ['ACCT_SESSION_ID',  'STR', 'acct_session_id'   ],
-      ['UID',              'INT', 'l.uid'             ],
-      
-      ['USERS',           'STR', 'u.id', 'u.id AS login' ],
-      ['USERS_FIO',       'STR', 'u.fio',              1 ],
-      ['SESSIONS',        'INT', 'COUNT(l.uid)',    'COUNT(l.uid) AS sessions' ],
-      ['TERMINATE_CAUSE', 'INT', 'l.terminate_cause',  1 ],
-      ['TRAFFIC_SUM',     'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords)',
-        'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS traffic_sum' ],
-      ['TRAFFIC_2_SUM',   'INT', 'SUM(l.sent2 + l.recv2)', 'SUM(l.sent2 + l.recv2) AS traffic_2_sum'       ],
-      ['DURATION',        'INT', 'SEC_TO_TIME(SUM(l.duration))', 'SEC_TO_TIME(SUM(l.duration)) AS duration' ],
-      ['TP_ID',           'INT', 'l.tp_id',            1 ],
-      ['COMPANIES',       'STR', 'c.name',             1 ],
+  my @search_params = (
+    ['DATE',             'DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')", "DATE_FORMAT(l.start, '%Y-%m-%d') AS date"  ],
+    ['FIO',              'STR', 'pi.fio', 1         ],
+    ['MONTH',            'DATE',"DATE_FORMAT(l.start, '%Y-%m')"   ],
+    ['NAS_ID',           'INT', 'nas_id'            ],
+    ['NAS_IP_ADDRESS',   'IP',  'nas_ip_address'    ],
+    ['NAS_PORT',         'INT', 'nas_port_id',      ],
+    ['ACCT_SESSION_ID',  'STR', 'acct_session_id'   ],
+    ['UID',              'INT', 'l.uid'             ],
+    ['USERS',            'STR', 'u.id', 'u.id AS login' ],
+    ['USERS_FIO',        'STR', 'u.fio',              1 ],
+    ['SESSIONS',         'INT', 'COUNT(l.uid)',    'COUNT(l.uid) AS sessions' ],
+    ['TERMINATE_CAUSE',  'INT', 'l.terminate_cause',  1 ],
+    ['TRAFFIC_SUM',      'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords)',
+      'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS traffic_sum' ],
+    ['TRAFFIC_2_SUM',    'INT', 'SUM(l.sent2 + l.recv2)', 'SUM(l.sent2 + l.recv2) AS traffic_2_sum'       ],
+    ['DURATION',         'INT', 'SEC_TO_TIME(SUM(l.duration))', 'SEC_TO_TIME(SUM(l.duration)) AS duration' ],
+    ['TP_ID',            'INT', 'l.tp_id',            1 ],
+    ['COMPANIES',        'STR', 'c.name',             1 ],
+    ['USERS_COUNT',      'INT', '',  'COUNT(DISTINCT l.uid) AS users_count'            ],
+    ['SESSIONS_COUNT',   '',    '',  'COUNT(l.uid) AS sessions_count',                    ],
+    ['TRAFFIC_RECV',     'INT', 'SUM(l.recv + 4294967296 * acct_input_gigawords)',  'SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_recv' ],
+    ['TRAFFIC_SENT',     'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords)', 'SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_sent' ],
+    ['DURATION_SEC',     'INT', 'SUM(l.duration)', 'SUM(l.duration) AS duration_sec'      ],
+    ['SUM',              'INT', 'SUM(l.sum)',  'SUM(l.sum) AS sum'                        ],
+    ['LOCATION_ID',      'INT', 'builds.id', 'builds.id AS location_id',                  ],
+    ['COORDX',           'INT', 'builds.coordx',                                        1 ],
+    ['COORDY',           'INT', 'builds.coordy',                                        1 ],
+    ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')"                        ],
+   );
 
-      ['USERS_COUNT',     'INT',    '',  'COUNT(DISTINCT l.uid) AS users_count'       ],
-      ['SESSIONS_COUNT',  '',    '',  'COUNT(l.uid) AS sessions_count',               ],
-      ['TRAFFIC_RECV',    'INT', 'SUM(l.recv + 4294967296 * acct_input_gigawords)',  'SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_recv' ],
-      ['TRAFFIC_SENT',    'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords)', 'SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_sent' ],
-      ['DURATION_SEC',    'INT', 'SUM(l.duration)', 'SUM(l.duration) AS duration_sec' ],
-      ['SUM',             'INT', 'SUM(l.sum)',  'SUM(l.sum) AS sum'                   ],
-      ['LOCATION_ID',     'INT', 'builds.id', 'builds.id AS location_id',             ],
-      ['COORDX',          'INT', 'builds.coordx',                                        1 ],
-      ['COORDY',          'INT', 'builds.coordy',                                        1 ],
-      ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')"                  ],
-    ],
-    {
-      WHERE            => 1,
-      USERS_FIELDS     => 1,
-      USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ],
-    }
-  );
-
-  if ( $attr->{INTERVAL} ){
-    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split( /\//, $attr->{INTERVAL}, 2 );
+  if ($attr->{INTERVAL}) {
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//x, $attr->{INTERVAL}, 2);
     $attr->{TYPE} = '-' if (!$attr->{TYPE});
 
-    if ( $attr->{TYPE} eq 'HOURS' ){
+    if ($attr->{TYPE} eq 'HOURS') {
       $main_field = "DATE_FORMAT(l.start, '\%H') AS hour";
     }
-    elsif ( $attr->{TYPE} eq 'DAYS' ){
+    elsif ($attr->{TYPE} eq 'DAYS') {
       $main_field = "DATE_FORMAT(l.start, '%Y-%m-%d') AS date";
+      $EXT_TABLE_JOINS_HASH{users} = 1;
     }
-    elsif ( $attr->{TYPE} eq 'TP' ){
+    elsif ($attr->{TYPE} eq 'TP') {
       $main_field = "l.tp_id";
     }
-    elsif ( $attr->{TYPE} eq 'TERMINATE_CAUSE' ){
+    elsif ($attr->{TYPE} eq 'TERMINATE_CAUSE') {
       $main_field = "l.terminate_cause";
     }
-    elsif ( $attr->{TYPE} eq 'GID' ){
+    elsif ($attr->{TYPE} eq 'GID') {
       $main_field = "u.gid";
       $EXT_TABLE_JOINS_HASH{users} = 1;
     }
-    elsif ( $attr->{TYPE} eq 'PER_MONTH' ){
+    elsif ($attr->{TYPE} eq 'PER_MONTH') {
       $main_field = "DATE_FORMAT(l.start, '%Y-%m') AS month";
     }
-    elsif ( $attr->{TYPE} eq 'COMPANIES' ){
+    elsif ($attr->{TYPE} eq 'COMPANIES') {
       $main_field = "company.name AS company_name";
       $self->{SEARCH_FIELDS} .= 'u.company_id,';
       $EXT_TABLE_JOINS_HASH{users} = 1;
       $EXT_TABLE_JOINS_HASH{companies} = 1;
     }
-    elsif ( $attr->{TYPE} eq 'DISTRICT' ){
+    elsif ($attr->{TYPE} eq 'DISTRICT') {
       $main_field = "districts.name AS district_name";
       $self->{SEARCH_FIELDS} .= 'districts.id AS district_id,';
       $EXT_TABLE_JOINS_HASH{users} = 1;
@@ -1709,7 +1698,7 @@ sub reports2 {
       $EXT_TABLE_JOINS_HASH{districts} = 1;
       $PAGE_ROWS = 1000;
     }
-    elsif ( $attr->{TYPE} eq 'STREET' ){
+    elsif ($attr->{TYPE} eq 'STREET') {
       $main_field = "streets.name AS street_name";
       $self->{SEARCH_FIELDS} .= 'streets.id AS street_id,';
       $EXT_TABLE_JOINS_HASH{users} = 1;
@@ -1718,7 +1707,7 @@ sub reports2 {
       $EXT_TABLE_JOINS_HASH{streets} = 1;
       $PAGE_ROWS = 1000;
     }
-    elsif ( $attr->{TYPE} eq 'BUILD' ){
+    elsif ($attr->{TYPE} eq 'BUILD') {
       $main_field = "CONCAT(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number) AS build";
       $attr->{LOCATION_ID} = '_SHOW';
       $EXT_TABLE_JOINS_HASH{users} = 1;
@@ -1726,44 +1715,58 @@ sub reports2 {
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
     }
-    else{
+    else {
       $main_field = "u.id AS login";
       $EXT_TABLE_JOINS_HASH{users} = 1;
     }
   }
-  elsif ( $attr->{DATE} ){
+  elsif ($attr->{DATE}) {
     $main_field = "u.id AS login";
     $EXT_TABLE_JOINS_HASH{users} = 1;
   }
-  elsif ( $attr->{MONTH} ){
+  elsif ($attr->{MONTH}) {
     $main_field = "DATE_FORMAT(l.start, '%Y-%m-%d') AS date";
   }
-  else{
+  else {
     $main_field = "u.id AS login";
     $EXT_TABLE_JOINS_HASH{users} = 1;
   }
 
-  if ( $attr->{USERS} || $attr->{DEPOSIT} || $attr->{GID} || $admin->{GID} ){
+  if ($attr->{USERS} || $attr->{DEPOSIT} || $attr->{GID} || $admin->{GID}) {
     $EXT_TABLE_JOINS_HASH{users} = 1;
   }
 
-  my $EXT_TABLES = $self->mk_ext_tables( {
-    JOIN_TABLES    => \%EXT_TABLE_JOINS_HASH,
-    EXTRA_PRE_JOIN => [ 'users:INNER JOIN users u ON (u.uid=l.uid)',
-    ]
-  } );
-
-  $self->query( "SELECT $main_field, $self->{SEARCH_FIELDS}
-      l.uid
-       FROM internet_log l
-       $EXT_TABLES
-       $WHERE2
-       GROUP BY 1
-       ORDER BY $SORT $DESC
-       LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
+  my $WHERE2 =  $self->search_former($attr, \@search_params,
+    {
+      WHERE             => 1,
+      USERS_FIELDS      => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ],
+      SKIP_JOIN         => [ keys %EXT_TABLE_JOINS_HASH ]
+    }
   );
+
+
+  #delete $self->{EXT_TABLES};
+  my $EXT_TABLES = $self->mk_ext_tables({
+    JOIN_TABLES    => \%EXT_TABLE_JOINS_HASH,
+    EXTRA_PRE_JOIN => [
+      'users:INNER JOIN users u ON (u.uid=l.uid)'
+    ]
+  });
+
+  my $sql = <<"SQL";
+    SELECT $main_field, $self->{SEARCH_FIELDS}
+      l.uid
+    FROM internet_log l
+    $EXT_TABLES
+    $WHERE2
+    GROUP BY 1
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -1776,7 +1779,8 @@ sub reports2 {
 
   return $list if ($self->{TOTAL} < 1);
 
-  $self->query( "SELECT COUNT(DISTINCT l.uid) AS users,
+  $sql = <<"SQL";
+    SELECT COUNT(DISTINCT l.uid) AS users,
       COUNT(l.uid) AS sessions,
       SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_out,
       SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_in,
@@ -1784,15 +1788,14 @@ sub reports2 {
       SUM(l.recv2) AS traffic_2_in,
       SUM(l.duration) AS duration_sec,
       SUM(l.sum) AS sum
-       FROM internet_log l
-       $EXT_TABLES
-       $WHERE2;",
-    undef,
-    { INFO => 1 }
-  );
+    FROM internet_log l
+    $EXT_TABLES
+    $WHERE2;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
   
   $self->{TOTAL} = $self->{USERS};
-
   $self->{TRAFFIC} = $self->{TRAFFIC_OUT} + $self->{TRAFFIC_IN};
   $self->{TRAFFIC_2} = $self->{TRAFFIC_2_OUT} + $self->{TRAFFIC_2_IN};
 
@@ -1858,9 +1861,6 @@ sub log_rotate{
   my ($attr) = @_;
 
   my @rq = ();
-  #TODO
-  # Remove for partitioning
-
   if($CONF->{USE_PARTITIONING}) {
     return $self;
   }
@@ -1880,7 +1880,6 @@ sub log_rotate{
   }
 
   if (!$attr->{DAILY}) {
-    use POSIX qw(strftime);
     my $DATE = (POSIX::strftime("%Y_%m_%d", localtime(time - 86400)));
     push @rq,
       'CREATE TABLE IF NOT EXISTS s_detail_new LIKE s_detail;',
@@ -1978,7 +1977,6 @@ sub session_sum {
   );
 
   return $self->{list};
-
 }
 
-1
+1;
