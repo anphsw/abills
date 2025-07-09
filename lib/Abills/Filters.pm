@@ -557,9 +557,9 @@ sub mk_cid_list {
   foreach my $mac_format ( @mac_formats ) {
     #print $mac_format ."\n";
     my $_cid = $cid;
-    my ($expr, $result)=split(/\|/, $mac_format);
+    my ($expr, $result)=split(/\|/x, $mac_format);
 
-    $_cid =~ s/$expr/eval "\"$result\""/e;
+    $_cid =~ s/$expr/eval "\"$result\""/xie;
 
     push @cid_list, $_cid;
   }

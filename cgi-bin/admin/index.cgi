@@ -817,6 +817,7 @@ sub form_changes {
     MENU       => "$lang{SEARCH}:search_form=1&index=$index$pages_qs2:search;"
   });
 
+
   foreach my $action (@$action_list) {
     #my @location_ids = ();
     if ($action->{actions}) {
@@ -892,10 +893,19 @@ sub form_changes {
       my $action_text = ' '.$message;
       while($action_text =~ m/\s+([A-Z\_]+)[:\s]/xg) {
         my $marker = $1 || q{};
-        my $colorstring = $html->b($marker).':';
-        $message =~ s/$marker:?/$colorstring/xg
+        if ($conf{LOG_TRANSLATE}) {
+          my $lang_res = $lang{$marker};
+          $lang_res = $marker if (!$lang_res);
+          $lang_res = $html->b($lang_res);
+          $message =~ s/$marker/$lang_res/g;
+        }
+        else{
+          my $colorstring = $html->b($marker).':';
+          $message =~ s/$marker:?/$colorstring/xg
+        }
       }
       $message =~ s/;/$br/xg;
+      $message =~ s/,/$br/xg;
     }
 
     $action->{action_type} //= 0;

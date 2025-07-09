@@ -1363,6 +1363,24 @@ CREATE TABLE IF NOT EXISTS `push_messages`
   DEFAULT CHARSET = utf8
   COMMENT = 'Push messages log';
 
+CREATE TABLE IF NOT EXISTS `sender_log` (
+  `id`          INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `sender_type` TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
+  `destination` VARCHAR(60)          NOT NULL DEFAULT '',
+  `source`      VARCHAR(60)          NOT NULL DEFAULT '',
+  `message`     TEXT,
+  `subject`     TEXT,
+  `created`     DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `result`      SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `uid`         INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+  `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
+  KEY `uid` (`uid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Sender log';
+
 CREATE TABLE IF NOT EXISTS `payments` (
   `date`           TIMESTAMP            NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `sum`            DOUBLE(10, 2)        NOT NULL  DEFAULT '0.00',
@@ -1470,6 +1488,7 @@ CREATE TABLE IF NOT EXISTS `fees_types` (
   `default_describe` VARCHAR(80)          NOT NULL DEFAULT '',
   `tax`              DOUBLE(10, 2)        NOT NULL DEFAULT '0.00',
   `parent_id`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `subconto`         VARCHAR(20)          NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )

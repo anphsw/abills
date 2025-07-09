@@ -4,6 +4,9 @@ use strict;
 use warnings FATAL => 'all';
 use JSON qw(decode_json);
 
+use Abills::Fetcher qw(web_request);
+use Abills::Base qw(in_array);
+
 my %icons = (
   admin => "\xF0\x9F\x92\xAC"
 );
@@ -102,7 +105,7 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
-  if (!$attr->{message} || !$attr->{message}{text}) {
+  if (!$attr->{message} || (!$attr->{message}{text} && !$attr->{message}{media})) {
     return 0;
   }
 
@@ -116,12 +119,27 @@ sub send_message {
   };
   push (@keyboard, $cancel_button);
 
+  my $params = {
+    MESSAGE => $attr->{message}{text}
+  };
+
+  if ($attr->{message}{media}) {
+    my $file_id = $attr->{message}{media}.'|'.$attr->{message}{file_name}.'|'.$attr->{message}{size};
+    my ($file, $file_size, $file_content) = $self->get_file($file_id);
+    my ($file_extension) = $file =~ /\.([^.]+)$/;
+
+    $params->{ATTACHMENTS} = [{
+      FILE_NAME    => $attr->{message}{file_name},
+      CONTENT_TYPE => file_content_type($file_extension),
+      SIZE         => $file_size,
+      CONTENTS     => $file_content
+    }];
+  }
+
   my ($res) = $self->{api}->fetch_api({
     METHOD => 'POST',
     PATH   => '/crm/leads/dialogue/message/',
-    PARAMS => {
-      MESSAGE => $attr->{message}{text}
-    }
+    PARAMS => $params
   });
 
   $self->{bot}->send_message({
@@ -134,6 +152,24 @@ sub send_message {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 get_file($file_id)
+
+=cut
+#**********************************************************
+sub get_file {
+  my $self = shift;
+  my ($file_id) = @_;
+
+  my ($file_path, $file_name, $file_size) = $file_id =~ /(.*)\|(.*)\|(.*)/;
+  my $file_content = web_request($file_path, {
+    CURL         => 1,
+    CURL_OPTIONS => '-s',
+  });
+
+  return ($file_name, $file_size, $file_content);
 }
 
 #**********************************************************
@@ -169,6 +205,28 @@ sub _get_dialogue_id {
   });
 
   return $res;
+}
+
+#**********************************************************
+=head2 file_content_type()
+
+=cut
+#**********************************************************
+sub file_content_type {
+  my ($file_extension) = @_;
+
+  my @IMAGES_FILE_EXTENSIONS = ('png', 'jpg', 'gif', 'jpeg', 'tiff');
+
+  my $file_content_type = "application/octet-stream";
+
+  if (in_array($file_extension, \@IMAGES_FILE_EXTENSIONS)) {
+    $file_content_type = "image/$file_extension";
+  }
+  elsif ( $file_extension && $file_extension eq "zip" ) {
+    $file_content_type = "application/x-zip-compressed";
+  }
+
+  return $file_content_type;
 }
 
 1;

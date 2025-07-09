@@ -160,7 +160,8 @@ sub crm_send_action_message {
     SUBJECT      => $action_info->{SUBJECT},
     SENDER_TYPE  => 'Mail',
     CONTENT_TYPE => $is_html ? 'text/html' : undef,
-    MAIL_HEADER  => [ "X-ABillS-LEAD-ID: $attr->{LEAD_ID}" ]
+    MAIL_HEADER  => [ "X-ABillS-LEAD-ID: $attr->{LEAD_ID}" ],
+    SOURCE       => 'Crm'
   });
 }
 

@@ -336,6 +336,7 @@ sub list {
       ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
       ['INVOICE_ID',     'INT', 'd.id',  'd.id AS invoice_id'                              ],
+      ['SUBCONTO',       'STR', 'ft.subconto',                                           1 ],
     ],
     { WHERE             => 1,
       USERS_FIELDS      => 1,
@@ -580,6 +581,7 @@ sub fees_type_list {
       [ 'NAME',      'STR', 'name'         ],
       [ 'TAX',       'INT', 'tax',       1 ],
       [ 'PARENT_ID', 'INT', 'parent_id', 1 ],
+      [ 'SUBCONTO',  'STR', 'subconto',  1 ],
     ],
   { WHERE => 1, });
 

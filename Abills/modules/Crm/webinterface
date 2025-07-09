@@ -28,6 +28,15 @@ require Control::Address_mng;
 our ($db, $admin, %conf, %lang, @MONTHES, %permissions, @WEEKDAYS, $libpath);
 
 our Abills::HTML $html;
+
+if (form_purchase_module({
+  HEADER          => $user->{UID} || $FORM{UID},
+  MODULE          => 'Crm::db::Crm',
+  REQUIRE_VERSION => 1.19
+})) {
+  exit;
+}
+
 our Crm $Crm = Crm->new($db, $admin, \%conf);
 
 require Control::Schedule;

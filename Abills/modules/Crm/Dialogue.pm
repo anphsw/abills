@@ -166,7 +166,8 @@ sub crm_send_message {
     EX_PARAMS   => {
       icon => $lead_info->{_AVATAR_URL},
       url  => $CONF->{CRM_PUSH_URL} ? "$CONF->{CRM_PUSH_URL}?get_index=crm_dialogue&full=1&ID=$dialogue_id" : ''
-    }
+    },
+    SOURCE      => 'Crm'
   });
 
   return $message_id;

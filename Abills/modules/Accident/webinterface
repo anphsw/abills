@@ -990,9 +990,10 @@ sub accident_equipment_error {
 
     foreach my $aid (@arr_admins) {
       $Sender->send_message({
-        AID       => $aid,
-        TITLE     => "$lang{ACCIDENT_FOR_EQUIPMENT} $attr->{NAS_NAME}",
-        MESSAGE   => "$attr->{NAS_NAME}, ID: $attr->{NAS_ID}"
+        AID     => $aid,
+        TITLE   => "$lang{ACCIDENT_FOR_EQUIPMENT} $attr->{NAS_NAME}",
+        MESSAGE => "$attr->{NAS_NAME}, ID: $attr->{NAS_ID}",
+        SOURCE  => 'Accident'
       });
     }
   }

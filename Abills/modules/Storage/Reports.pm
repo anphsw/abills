@@ -755,11 +755,13 @@ sub storage_in_installments_statistics {
   foreach my $item (@$in_installments_items){
     $item->{in_installments_price} //= 0;
     $item->{sum_price} //= 0;
+    $item->{amount_per_month} //= 0;
+    $item->{payments_count} //= 0;
     my $profit = ($item->{in_installments_price} - $item->{sum_price}) / $item->{total_months} * $item->{payments_count};
     my $admin_sum = $item->{admin_percent} ? $profit / 100 * $item->{admin_percent} : 0;
     $table->addrow(
-      "$item->{sat_name} $item->{sta_name}",
-      "$item->{count}",
+      ($item->{sat_name} ||q{}) .' '. ($item->{sta_name} || q{}),
+      $item->{count},
       $item->{payments_count},
       $item->{amount_per_month},
       $item->{amount_per_month} * $item->{payments_count},
@@ -770,6 +772,7 @@ sub storage_in_installments_statistics {
   }
 
   print $table->show();
+  return 1;
 }
 
 #**********************************************************

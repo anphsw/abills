@@ -428,6 +428,7 @@ sub form_fees_list {
       tax              => $lang{TAX},
       tax_sum          => "$lang{TAX} $lang{SUM}",
       invoice_id       => $lang{INVOICE},
+      subconto         => "$lang{SUBCONTO}1",
       ext_bill_deposit => "$lang{EXTRA} $lang{DEPOSIT}"
     },
     TABLE           => {
@@ -443,7 +444,7 @@ sub form_fees_list {
       SHOW_COLS_HIDDEN    => {
         TYPE_PAGE => $FORM{type}
       },
-      MULTISELECT_ACTIONS => $FORM{UID} && $permissions{0}{42} ? [
+      MULTISELECT_ACTIONS => ($FORM{UID} && $permissions{0}{42}) ? [
         {
           TITLE    => $lang{DEL},
           ICON     => 'fa fa-trash',

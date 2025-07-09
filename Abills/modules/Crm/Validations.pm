@@ -58,7 +58,6 @@ use constant {
   },
   POST_CRM_LEADS_DIALOGUE_MESSAGE => {
     MESSAGE     => {
-      required => 1,
       type     => 'string',
     },
     ATTACHMENTS => {

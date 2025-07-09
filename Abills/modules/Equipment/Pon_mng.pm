@@ -3715,7 +3715,7 @@ sub pon_olt_rx_alerts {
   );
 
   if (!$rx || $rx == 65535) {
-    $rx = '';
+    $rx = 0;
   }
   elsif ($rx > 0) {
     $rx = $html->color_mark($rx, 'text-secondary');

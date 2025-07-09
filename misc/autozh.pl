@@ -188,7 +188,7 @@ sub _hangup {
       );
 
       if ($attr->{DAYS2FINISH}) {
-        my @day2finish = split(/,/, $attr->{DAYS2FINISH});
+        my @day2finish = split(/,/x, $attr->{DAYS2FINISH});
         my $day_fee = $online->{tp_day_fee} || 0;
 
         if ($online->{tp_month_fee} > 0 && $online->{tp_abon_distribution}) {
@@ -236,7 +236,7 @@ sub _hangup {
       $count++;
 
       if ($attr->{SLEEP}) {
-        my ($action_count, $sleep_time) = split(/:/, $attr->{SLEEP});
+        my ($action_count, $sleep_time) = split(':', $attr->{SLEEP});
 
         if ($count % $action_count == 0) {
           if ($debug > 1) {
@@ -353,5 +353,5 @@ sub list_forming {
   return \%list_params;
 }
 
-1
+1;
 

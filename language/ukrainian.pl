@@ -1170,5 +1170,6 @@ $lang{FORBIDDEN_PASSWORDS} = 'Заборонені паролі';
 $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Кількість дозволених неправильних спроб входу';
 $lang{ADMIN_LOGIN_ATTEMPT_PERIOD} = 'Період перевірки (в секундах)';
 $lang{ADMIN_ATTEMPT_COUNTER_RESET_PERIOD} = 'Інтервал очищення лічильника спроб (у секундах, 0 — не встановлювати)';
+$lang{SUBCONTO} = 'Код Субконто';
 
 1;

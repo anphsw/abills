@@ -1202,5 +1202,6 @@ $lang{FORBIDDEN_PASSWORDS} = 'Forbidden passwords';
 $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Number of allowed failed login attempts';
 $lang{ADMIN_LOGIN_ATTEMPT_PERIOD} = 'Check period (in seconds)';
 $lang{ADMIN_ATTEMPT_COUNTER_RESET_PERIOD} = 'Attempt counter reset interval (in seconds, 0 — do not set)';
+$lang{SUBCONTO} = 'Code of Cubconto';
 
 1;

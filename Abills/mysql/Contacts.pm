@@ -872,4 +872,94 @@ sub push_messages_change {
   return $self;
 }
 
+#**********************************************************
+=head2 sender_log_list($attr)
+
+=cut
+#**********************************************************
+sub sender_log_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 'id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  my $GROUP_BY = $attr->{GROUP_BY} || 'sl.id';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',                'INT',  'sl.id',                              1 ],
+    [ 'SENDER_TYPE',       'INT',  'sl.sender_type',                     1 ],
+    [ 'DESTINATION',       'STR',  'sl.destination',                     1 ],
+    [ 'SOURCE',            'STR',  'sl.source',                          1 ],
+    [ 'MESSAGE',           'STR',  'sl.message',                         1 ],
+    [ 'SUBJECT',           'STR',  'sl.subject',                         1 ],
+    [ 'CREATED',           'DATE', 'sl.created',                         1 ],
+    [ 'RESULT',            'INT',  'sl.result',                          1 ],
+    [ 'UID',               'INT',  'sl.uid',                             1 ],
+    [ 'AID',               'INT',  'sl.aid',                             1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(sl.created, '%Y-%m-%d')"   ],
+  ] , { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} sl.id
+   FROM sender_log sl
+   $WHERE
+   GROUP BY $GROUP_BY
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;", undef, {
+    COLS_NAME => 1,
+    %{$attr || {}} }
+  );
+
+  return [] if ($self->{errno} || $self->{TOTAL} < 1);
+
+  my $list = $self->{list};
+
+  $self->query("SELECT COUNT(sl.id) AS total FROM sender_log sl $WHERE", undef, { INFO => 1 });
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 sender_log_info($id)
+
+=cut
+#**********************************************************
+sub sender_log_info {
+  my $self = shift;
+  my $id = shift;
+
+  $self->query("SELECT * FROM sender_log WHERE id = ? ;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 sender_log_add($attr)
+
+=cut
+#**********************************************************
+sub sender_log_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('sender_log', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 sender_log_del($attr)
+
+=cut
+#**********************************************************
+sub sender_log_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('sender_log', undef, $attr);
+
+  return $self;
+}
+
 1;

@@ -60,6 +60,16 @@
             </div>
           </div>
         </div>
+
+        <div class='form-group row'>
+          <label class='col-md-3 control-label' for='SUBCONTO'>_{SUBCONTO}_ 1:</label>
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <input type='text' class='form-control' ID='SUBCONTO' name='SUBCONTO' value='%SUBCONTO%'>
+            </div>
+          </div>
+        </div>
+
       </div>
       <div class='card-footer'>
         <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>

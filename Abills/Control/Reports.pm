@@ -1024,7 +1024,7 @@ sub form_system_changes {
     while ($message =~ m/([A-Z\_]+)[:|\s]{1}/xg) {
       my $marker = $1;
 
-      if ($conf{SYSTEM_LOG_TRANSLATE}) {
+      if ($conf{LOG_TRANSLATE}) {
         my $lang_res = $lang{$marker};
         $lang_res = $marker if (!$lang_res);
         $lang_res = $html->b($lang_res);

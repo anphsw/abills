@@ -13,6 +13,7 @@ package Equipment::Api::admin::Users;
 use strict;
 use warnings FATAL => 'all';
 
+use Equipment::Users;
 use Control::Errors;
 use Equipment;
 

@@ -1970,6 +1970,7 @@ sub form_fees_types {
       id               => '#',
       name             => $lang{NAME},
       default_describe => $lang{COMMENTS},
+      subconto         => "$lang{SUBCONTO}1",
       sum              => $lang{SUM}
     },
     FILTER_COLS     => {

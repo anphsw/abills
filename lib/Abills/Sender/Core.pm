@@ -206,6 +206,11 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
+  if (!$attr->{SOURCE} && $self->{conf}{SENDER_LOG}) {
+    my ($package) = caller(1);
+    $attr->{SOURCE} = $package || '';
+  }
+
   my $send_type = $attr->{SENDER_TYPE} || $self->{SENDER_TYPE} || '';
   $attr->{MESSAGE_ID} = $attr->{MESSAGE_ID} || mk_unique_value(8, { SYMBOLS => '0123456789' });
 
@@ -280,11 +285,22 @@ sub send_message {
   $plugin->{conf} = $self->{conf};
 
   if (scalar @contacts > 1 && ($plugin->can('support_batch') && $plugin->support_batch())) {
-    return $plugin->send_message({
+    my $result = $plugin->send_message({
       %{$attr},
       TO_ADDRESS => $contacts[0]{value},
       CONTACT    => \@contacts
     });
+
+    if ($self->{conf}{SENDER_LOG}) {
+      $Contacts->sender_log_add({
+        %{$attr},
+        SENDER_TYPE => $TYPE_ID_FOR_PLUGIN_NAME{$send_type},
+        DESTINATION => $contacts[0]{value},
+        RESULT      => $result
+      });
+    }
+
+    return $result;
   }
   else {
     my $at_least_once_successful = 0;
@@ -294,6 +310,15 @@ sub send_message {
         TO_ADDRESS => $contact->{value},
         CONTACT    => $contact
       });
+
+      if ($self->{conf}{SENDER_LOG}) {
+        $Contacts->sender_log_add({
+          %{$attr},
+          SENDER_TYPE => $TYPE_ID_FOR_PLUGIN_NAME{$send_type},
+          DESTINATION => $contacts[0]{value},
+          RESULT      => $send_result
+        });
+      }
 
       $at_least_once_successful ||= $send_result;
     }
