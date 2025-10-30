@@ -1248,7 +1248,7 @@ sub hangup_pppd_coa {
   }
 
   my $nas_type = $attr->{NAS_TYPE};
-  if ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp') {
+  if (defined($nas_type) && ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp')) {
     return 1;
   }
 
