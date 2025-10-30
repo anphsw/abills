@@ -766,6 +766,33 @@ sub form_user_change {
     return 1;
   }
 
+  if ($admin->{MAX_CREDIT} && $admin->{GID} && $form->{CREDIT} && ($user_info->{CREDIT} != $form->{CREDIT})) {
+    # TODO: replace with SELECT SUM(credit) FROM users WHERE gid IN ($admin->{GID});
+    my $user_credits_all = $users->list({
+	CREDIT		=> '_SHOW',
+	COLS_NAME	=> 1,
+	SORT		=> 0,
+	PAGE_ROWS	=> 1000000
+    });
+
+    my $total_credit = 0;
+    foreach my $user (@$user_credits_all) {
+	$total_credit += $user->{credit};
+    }
+
+    # deny credit increase if admin hits group credit limit
+    my $avail_credit = $admin->{MAX_CREDIT} - $total_credit + $user_info->{CREDIT} - $form->{CREDIT};
+    if ($avail_credit <= 0 && $user_info->{CREDIT} < $form->{CREDIT} ) {
+	$html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{CREDIT}\nGROUP CREDIT MAX:$admin->{MAX_CREDIT} CUR:$total_credit DIFF:$avail_credit", { ID => 131 });
+	delete($form->{CREDIT});
+	return 1;
+    } elsif ($avail_credit <= 0) {
+	$html->message('warn', $lang{CHANGE}, "GROUP CREDIT AVAILABLE: $avail_credit");
+    } else {
+	$html->message('info', $lang{CHANGE}, "GROUP CREDIT AVAILABLE: $avail_credit");
+    }
+  }
+
   if (!$permissions{0}{11} && defined($form->{REDUCTION}) && $form->{REDUCTION} > 0 && $user_info->{REDUCTION} != $form->{REDUCTION}) {
     $html->message('err', $lang{ERROR}, "$lang{REDUCTION} $lang{ERR_ACCESS_DENY}", { ID => 132 });
     delete($form->{REDUCTION});
