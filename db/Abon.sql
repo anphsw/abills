@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `abon_user_list`
     `personal_description`     VARCHAR(240)         NOT NULL DEFAULT '',
     `discount_expire`          DATE                 NOT NULL DEFAULT '0000-00-00',
     `discount_activate`        DATE                 NOT NULL DEFAULT '0000-00-00',
-    KEY `uid` (`uid`, `tp_id`),
+    KEY `uid_tp_id` (`uid`, `tp_id`),
     KEY `uid` (`uid`),
     KEY `tp_id` (`tp_id`),
     KEY `date` (`date`)
