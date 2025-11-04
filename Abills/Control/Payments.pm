@@ -171,6 +171,20 @@ sub form_payments {
     return 0;
   }
 
+  if (defined $FORM{UID} && !$permissions{1}{1} && $conf{"MONEY_TRANSFER"} && defined $conf{"MONEY_TRANSFER_SRC_LIST"}) {
+	if (!defined($FORM{s2}) && !defined($FORM{transfer})) {
+	    foreach my $entry (split(/\s*,\s*/, $conf{"MONEY_TRANSFER_SRC_LIST"})) {
+		my ($admin_id, $account) = split(/:/, $entry);
+
+		if (defined($admin_id) && $admin_id eq int($admin->{AID}) && defined($account)) {
+		    $FORM{RECIPIENT} = $FORM{UID};
+		    $FORM{UID} = $account;
+		    last;
+		}
+	    }
+	}
+	form_money_transfer_admin();
+  }
   form_payments_list($attr);
 
   return 0;

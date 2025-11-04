@@ -547,6 +547,7 @@ REPLACE INTO `config_variables` (`param`, `type`, `value`, `regex`) VALUES
 ('MOBILE_PAY_PASS_MERCHANT', 0, '', ''),
 ('MOBILNIK_SUPLIER_ID', 0, '', ''),
 ('MONEY_TRANSFER', 3, 'DEPOSIT_LIMIT:TRANSFER_COMMISSION:NO_COMPANIES', ''),
+('MONEY_TRANSFER_SRC_LIST', 0, '', ''),
 ('MONEY_UNIT_NAMES', 0, '[\'грн\',\'коп\']', ''),
 ('MSGS_ATTACH2FILE', 0, '', ''),
 ('MSGS_CHAT', 0, '', ''),
