@@ -704,7 +704,7 @@ CREATE TABLE IF NOT EXISTS `internet_log` (
   `sent2`                      INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `recv2`                      INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `acct_session_id`            VARCHAR(32)          NOT NULL  DEFAULT '',
-  `cid`                        VARCHAR(18)          NOT NULL  DEFAULT '',
+  `cid`                        VARCHAR(60)          NOT NULL  DEFAULT '',
   `bill_id`                    INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `uid`                        INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `terminate_cause`            TINYINT(4) UNSIGNED  NOT NULL  DEFAULT '0',
