@@ -88,7 +88,7 @@ sub internet_user {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
     }
-    elsif ($Internet_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+    elsif ($Internet_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users, PASSWORD => $users->info($uid, { SHOW_PASSWORD => 1 })->{PASSWORD} })) { ###!
       if ($attr->{REGISTRATION}) {
         if (!$attr->{QUITE}) {
           my $service_status = ::sel_status({ HASH_RESULT => 1 });
@@ -160,8 +160,9 @@ sub internet_user {
       $Internet->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
         ID    => 'INTERNET_LOGIN',
         NAME  => $lang{LOGIN},
-        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN})
-      }, { OUTPUT2RETURN => 1, ID => 'LOGIN_FORM' });
+        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN} ? $Internet->{INTERNET_LOGIN} : $user_info->{LOGIN})
+      }, { OUTPUT2RETURN => 1, ID => 'LOGIN_FORM'});
+
     }
 
     if ($attr->{ACTION}) {
