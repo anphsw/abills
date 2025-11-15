@@ -97,6 +97,10 @@ if ($conf{RADIUS_TEST_IP}) {
 
 $USER_FUNCTION_LIST{"04:1:$lang{TARIF_PLAN}:internet_user_chg_tp:"} = 0 if ($conf{INTERNET_USER_CHG_TP});
 
+if ($conf{INTERNET_LOGIN}) {
+  $FUNCTIONS_LIST{"100:0:$lang{TEST}:check_internet_account_availability:"} = 0;
+}
+
 our %PERIODIC = (
   daily   => [
     'internet_daily_fees',

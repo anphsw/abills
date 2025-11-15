@@ -51,6 +51,66 @@ my $Shedule = Shedule->new( $db, $admin, \%conf );
 require Internet::Ipoe_mng;
 require Internet::User_ips;
 
+
+#**********************************************************
+=head1 internet_user_exist($attr) - Check user existence
+
+  Arguments:
+    $attr
+      CHECK_ID
+      MSG_TEXT
+      MSG_TYPE
+      * (passed to user_list)
+=cut
+#**********************************************************
+sub internet_user_exist {
+    my ($attr) = @_;
+    my $err_list = $Internet->user_list({ %$attr, SKIP_GID => 1, PAGE_ROWS => 2, COLS_NAME => 1 });
+
+    my @conflict_users = grep { $_->{id} != $attr->{CHECK_ID} } @$err_list;
+    if (@conflict_users) {
+        my ($srv_id, $srv_uid) = ($conflict_users[0]{id}, $conflict_users[0]{uid});
+        if ($attr->{MSG_TYPE}) {
+	    print $attr->{MSG_TEXT} . " SID: $srv_id UID: $srv_uid";
+	} else {
+	    $html->message('err', $lang{INTERNET}, $attr->{MSG_TEXT} . " SID: $srv_id UID: " . $html->button($srv_uid, "index=7&UID=$srv_uid&search=1&type=11"));
+	}
+        return 1;
+    }
+    return 0;
+}
+
+#**********************************************************
+=head2 check_internet_account_availability()
+  check $FORM{internet_login_check}
+  return "success" if account avaiable
+      or full error message if account already used
+  multiple arguments (excluding ID) will use logical OR
+=cut
+#**********************************************************
+sub check_internet_account_availability {
+    if ($FORM{CHECK_IP} && $FORM{CHECK_IP} eq '0.0.0.0') {
+	if (!grep { /^CHECK_/ && $_ ne 'CHECK_IP' && $FORM{$_} } keys %FORM) {
+	    print "success";
+	    return 0;
+	}
+    }
+    if (internet_user_exist({
+	CHECK_ID => $FORM{ID} ? $FORM{ID} : 0,
+	($FORM{CHECK_INTERNET_LOGIN} ? (INTERNET_LOGIN => $FORM{CHECK_INTERNET_LOGIN}) : ()),
+	($FORM{CHECK_IP} ? (IP => $FORM{CHECK_IP}) : ()),
+	($FORM{CHECK_IPV6} ? (IPV6 => $FORM{CHECK_IPV6}) : ()),
+	MSG_TEXT => "$lang{EXIST}",
+	MSG_TYPE => 1
+    })) {
+	return 1;
+    } else {
+	print "success";
+	return 0;
+    }
+
+}
+
 #**********************************************************
 =head1 internet_user($attr) - Show user information
 
@@ -84,6 +144,11 @@ sub internet_user {
     return 1;
   }
   elsif ($FORM{add}) {
+    if ($conf{INTERNET_LOGIN}) {
+	if ($FORM{INTERNET_LOGIN}) {return 1 if internet_user_exist({CHECK_ID => 0, INTERNET_LOGIN => $FORM{INTERNET_LOGIN}, MSG_TEXT => "$lang{LOGIN} $lang{EXIST} \"$FORM{INTERNET_LOGIN}\""});}
+	if ($FORM{IP} && $FORM{IP} ne '0.0.0.0' ) {return 1 if internet_user_exist({CHECK_ID => 0, IP => $FORM{IP}, MSG_TEXT => "$lang{DUPLICATE_IP} \"$FORM{IP}\""});}
+	if ($FORM{IPV6}) {return 1 if internet_user_exist({CHECK_ID => 0, IPV6 => $FORM{IPV6}, MSG_TEXT => "$lang{DUPLICATE_IP} \"$FORM{IPV6}\""});}
+    }
     if (!$admin->{permissions}{0}{32} && !$attr->{REGISTRATION}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
@@ -111,6 +176,11 @@ sub internet_user {
     }
   }
   elsif ($FORM{change} || $FORM{RESET}) {
+    if ($conf{INTERNET_LOGIN}) {
+	if ($FORM{INTERNET_LOGIN}) {return 1 if internet_user_exist({CHECK_ID => $FORM{ID}, INTERNET_LOGIN => $FORM{INTERNET_LOGIN}, MSG_TEXT => "$lang{LOGIN} $lang{EXIST} \"$FORM{INTERNET_LOGIN}\""});}
+	if ($FORM{IP} && $FORM{IP} ne '0.0.0.0') {return 1 if internet_user_exist({CHECK_ID => $FORM{ID}, IP => $FORM{IP}, MSG_TEXT => "$lang{DUPLICATE_IP} \"$FORM{IP}\""});}
+	if ($FORM{IPV6}) {return 1 if internet_user_exist({CHECK_ID => $FORM{ID}, IPV6 => $FORM{IPV6}, MSG_TEXT => "$lang{DUPLICATE_IP} \"$FORM{IPV6}\""});}
+    }
     if ($Internet_services->user_change({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
       $html->message('info', $lang{INTERNET}, $lang{CHANGED}) if (! $attr->{QUITE});
       return 0;
@@ -160,7 +230,7 @@ sub internet_user {
       $Internet->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
         ID    => 'INTERNET_LOGIN',
         NAME  => $lang{LOGIN},
-        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN} ? $Internet->{INTERNET_LOGIN} : $user_info->{LOGIN})
+        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN} ? $Internet->{INTERNET_LOGIN} : $user_info->{LOGIN}) . "<div class='invalid-feedback'>$lang{LOGIN} $lang{EXIST}</div>"
       }, { OUTPUT2RETURN => 1, ID => 'LOGIN_FORM'});
 
     }
@@ -334,7 +404,7 @@ sub internet_user {
       my $input = $html->element(
         'div',
         $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN}, { OUTPUT2RETURN => 1 })
-        . $password_append_text,
+        . $password_append_text . "<div class='invalid-feedback'>$lang{LOGIN} $lang{EXIST}</div>",
         { class => 'input-group' });
 
       $Internet->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
@@ -3065,5 +3135,6 @@ sub internet_ip_pool_check {
 
   return $static_ip_pools->{INTERNET_IP_FREE};
 }
+
 
 1;

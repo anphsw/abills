@@ -105,6 +105,7 @@
           <label class='col-form-label text-md-right col-xs-4 col-md-2' for='IP'>_{STATIC}_ IP:</label>
           <div class='col-xs-8 col-md-4'>
             <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control' type='text'>
+	    <div class='invalid-feedback'>invalid</div>
           </div>
         </div>
 
@@ -229,6 +230,7 @@
                 <div class='input-group'>
                   <input id='IPV6' name='IPV6' value='%IPV6%' placeholder='%IPV6%' class='form-control'
                            type='text'>
+                <div class='invalid-feedback'>invalid</div>
                 </div>
               </div>
               <div class='col-sm-3 col-md-3'>
@@ -437,4 +439,41 @@
     });
   });
 
+</script>
+
+<script TYPE='text/javascript'>
+  'use strict';
+
+  jQuery(function () {
+    jQuery('#INTERNET_LOGIN').on('input', function () { doDelayedSearch('INTERNET_LOGIN') });
+    jQuery('#IP').on('input', function () { doDelayedSearch('IP') });
+    jQuery('#IPV6').on('input', function () { doDelayedSearch('IPV6') });
+  });
+
+  var timeout = null;
+
+  function doDelayedSearch(arg_in) {
+    var value = jQuery('#' + arg_in).val();
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(function () {
+          doSearch(value, arg_in);
+    }, 500);
+  }
+
+  function doSearch(val, arg_in) {
+    if (!val) {
+      jQuery('#' + arg_in).removeClass('is-valid').addClass('is-invalid').siblings('.invalid-feedback').text('_{EMPTY}_');
+      return 1;
+    }
+    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'check_internet_account_availability' + '&ID=%ID%&CHECK_' + arg_in + '=' + val, function (data) {
+      if (data === 'success') {
+        jQuery('#' + arg_in).removeClass('is-invalid').addClass('is-valid').siblings('.invalid-feedback').text('');
+      } else {
+        jQuery('#' + arg_in).removeClass('is-valid').addClass('is-invalid').siblings('.invalid-feedback').text(data);
+      }
+
+    });
+  }
 </script>
