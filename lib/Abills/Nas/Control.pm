@@ -211,7 +211,7 @@ sub hangup {
   }
   # http://sourceforge.net/projects/radcoad/
   elsif ($nas_type eq 'pppd_coa') {
-    hangup_pppd_coa($Nas, \%params);
+    hangup_pppd_coa($Nas, $PORT, \%params);
   }
   elsif ($nas_type eq 'accel_ppp' || $nas_type eq 'accel_ipoe') {
     $USER =~ s/^!\s?//x;
