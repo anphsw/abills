@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "deposit": {
+      "type": "number"
+    },
+    "fio": {
+      "type": "string"
+    },
+    "recommendedPay": {
+      "type": "number"
+    },
+    "systems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paysysId": {
+            "type": "integer"
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "GET",
+                  "POST"
+                ]
+              },
+              "formData": {
+                "type": "integer"
+              }
+            }
+          },
+          "subsystemId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "name",
+          "paysysId"
+        ]
+      }
+    }
+  },
+  "required": [
+    "deposit",
+    "fio",
+    "recommendedPay",
+    "systems"
+  ]
+}

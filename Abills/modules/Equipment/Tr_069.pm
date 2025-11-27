@@ -11,7 +11,6 @@ use Abills::Base qw(load_pmodule);
 
 our (
   %lang,
-  %html_color,
   %conf,
   %FORM,
   $index
@@ -63,6 +62,11 @@ my $default_settings = {
 #**********************************************************
 =head2 tr_069_presets($attr) - TR-069 Presets
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_presets {
@@ -81,17 +85,24 @@ sub tr_069_presets {
   $attr->{COLLECTION_IDS} .= $html->li($html->button('<span class="text-green">Add NEW Preset</span>', "index=$index&add_form=1"),
     { class => ($FORM{'add'}) ? 'active' : '' });
   $html->tpl_show(_include('equipment_script_editor', 'Equipment'), { %FORM, %{$attr} });
+
+  return 1;
 }
 
 #**********************************************************
 =head2 tr_069_provisions($attr) - TR-069 Provisions
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub tr_069_provisions {
   my ($attr) = @_;
   return 0 if (!$conf{TR069_SERVER});
-  $FORM{script} =~ s/\\//g if $FORM{script};
+  $FORM{script} =~ s/\\//xg if $FORM{script};
 
   if ($FORM{add}) {
     if (!tr_069_set_data({ PATCH => 'provisions/' . $FORM{_id} . '/', METOD => 'PUT', DATA => '', DEBUG => 0 })) {
@@ -149,7 +160,7 @@ sub tr_069_provisions {
 
   $attr->{COLLECTION_IDS} .= $html->li($html->button('<span class="text-green">Add NEW Provision</span>', "index=$index&add_form=1"),
     { class => ($FORM{'add'}) ? 'active' : '' });
-  $attr->{HTML_CONTENT} =~ s/__SCRIPT__/$script/g;
+  $attr->{HTML_CONTENT} =~ s/__SCRIPT__/$script/xg;
 
   $html->tpl_show(_include('equipment_script_editor', 'Equipment'), { %FORM, %{$attr} });
 
@@ -158,6 +169,11 @@ sub tr_069_provisions {
 
 #**********************************************************
 =head2 tr_069_faults($attr) - TR-069 Faults
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -176,7 +192,7 @@ sub tr_069_faults {
     foreach my $key (@key_names) {
       if ($key eq 'Date') {
         my $date_ = $line->{timestamp} || q{};
-        $date_ =~ s/^([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*$/$1 $2/;
+        $date_ =~ s/^([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*$/$1 $2/x;
         push @row, $date_;
       }
       elsif (defined($line->{ lc($key) })) {
@@ -201,9 +217,9 @@ sub tr_069_faults {
             }
           }
           my $text = $describe;
-          $text =~ s/<\/br>//g;
-          $text =~ s/\n//g;
-          $text =~ s/^(.{20}).*/$1\.\.\./g;
+          $text =~ s/<\/br>//xg;
+          $text =~ s/\n//xg;
+          $text =~ s/^(.{20}).*/$1\.\.\./xg;
           my $em = $html->element('span', $text, { 'data-tooltip' => $describe, 'data-tooltip-position' => 'left' });
           push @row, $em;
         }
@@ -250,6 +266,11 @@ sub tr_069_main {
 #**********************************************************
 =head2 tr_069_cpe_setting($id, $attr) - Devaice setting
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_cpe_setting {
@@ -270,6 +291,7 @@ sub tr_069_cpe_setting {
 
   my $onu_setting_json = $settings_list->[0]->{settings} || "{}";
   my $onu_setting = $json->decode($onu_setting_json);
+
   if ($FORM{sub_menu}) {
     $onu_setting->{ $FORM{menu} }->[ $FORM{sub_menu} - 1 ] = $new_settings;
   }
@@ -293,11 +315,18 @@ sub tr_069_cpe_setting {
 #**********************************************************
 =head2 tr_069_cpe_info($id, $attr) - Devaices info
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_cpe_info {
   my ($id, $attr) = @_;
   my $html_content = '';
+
   my $json = JSON->new->allow_nonref;
 
   my $settings_list = $Equipment->tr_069_settings_list({
@@ -323,12 +352,19 @@ sub tr_069_cpe_info {
   }
   elsif (!$FORM{sub_menu}) {
     print $html_content;
-    `echo "$html_content" > /tmp/tr_.log`;
+    #`echo "$html_content" > /tmp/tr_.log`;
   }
+
+  return 1;
 }
 
 #**********************************************************
 =head2 tr_069_api($attr) - Api
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -337,7 +373,7 @@ sub tr_069_api {
   my $json = JSON->new->allow_nonref;
 
   my $wifi_key = $FORM{serial};
-  $wifi_key =~ s/^[A-F0-9]{8}//g;
+  $wifi_key = substr($wifi_key, -8);
   my $settings_list = $Equipment->tr_069_settings_list({
     #    NAS_NAME        => $FORM{oltName},
     SERIAL          => $FORM{serial},
@@ -361,7 +397,7 @@ sub tr_069_api {
   }
   if ($wifi_ssid) {
     $wifi_key = $FORM{serial};
-    $wifi_key =~ s/^[A-F0-9]{8}//g;
+    $wifi_key = substr($wifi_key, -8);
     $onu_setting->{wlan}->[0]->{ssid} ||= $wifi_ssid . '-' . $wifi_key;
   }
 
@@ -374,10 +410,16 @@ sub tr_069_api {
 #**********************************************************
 =head2 tr_069_set_data($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_set_data {
   my ($attr) = @_;
+
   my $patch = $attr->{PATCH} || '';
   my $port = $conf{TR069_PORT} || '7557';
   my $http = ($conf{TR069_SSL}) ? 'https' : 'http';
@@ -386,16 +428,17 @@ sub tr_069_set_data {
   if ($attr->{ACTION}) {
     $request_url .= '?' . $attr->{ACTION}
   }
-  my $metod = '';
+  my $method = '';
   if ($attr->{METOD}) {
-    $metod .= ' -X ' . $attr->{METOD};
+    $method .= ' -X ' . $attr->{METOD};
     if (defined($attr->{DATA})) {
-      $attr->{DATA} =~ s/"/\\"/g;
-      $metod .= " --data \"" . $attr->{DATA} . "\"";
+      $attr->{DATA} =~ s/"/\\"/xg;
+      $method .= " --data \"" . $attr->{DATA} . "\"";
     }
   }
-
-  my $request_cmd = qq{ $CURL -s "$request_url" $metod };
+  $request_url =~ s/\*\*/%/xg;
+  my $request_cmd = qq{ $CURL -s "$request_url" $method };
+  #@FIXME use Fetcher
   my $result = `$request_cmd`;
   my $perl_hash = ();
   eval {
@@ -424,6 +467,11 @@ sub tr_069_set_data {
 #**********************************************************
 =head2 tr_069_get_data($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_get_data {
@@ -444,27 +492,28 @@ sub tr_069_get_data {
     $query .= '"' . $key . '"%3A"' . $attr->{QUERY}->{$key} . '"';
   }
 
-  $query =~ s/""/","/g;
+  $query =~ s/""/","/xg;
   $query .= '}';
   $request_url .= '?' . $query;
 
   if ($attr->{PROJECTION}) {
-    my $projektoin = 'projection=';
+    my $projektion = 'projection=';
     foreach my $line (@{$attr->{PROJECTION}}) {
-      $projektoin .= $line . ',';
+      $projektion .= $line . ',';
     }
-    $projektoin =~ s/,$//g;
-    $request_url .= '&' . $projektoin;
+    $projektion =~ s/,$//xg;
+    $request_url .= '&' . $projektion;
   }
 
-  $request_url =~ s/ /%20/g;
-  $request_url =~ s/"/%22/g;
-  $request_url =~ s/,/%2C/g;
-  $request_url =~ s/{/%7B/g;
-  $request_url =~ s/}/%7D/g;
-  #print $request_url;
+  $request_url =~ s/\s+/%20/xg;
+  $request_url =~ s/"/%22/xg;
+  $request_url =~ s/,/%2C/xg;
+  $request_url =~ s/{/%7B/xg;
+  $request_url =~ s/}/%7D/xg;
+  $request_url =~ s/\*\*/%/xg;
+#  print $request_url;
   my $request_cmd = qq{ $CURL -m 10 -s "$request_url" };
-
+  #@FIXME use Fetcher
   my $result = `$request_cmd`;
 
   if ($attr->{DEBUG}) {
@@ -482,10 +531,17 @@ sub tr_069_get_data {
 #**********************************************************
 =head2 tr_069_status_device($id, $attr) - Device Status
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_status_device {
   my ($id, $attr) = @_;
+
   $attr->{QUERY} = ({ '_id' => $id });
   $attr->{PROJECTION} = ([
     'InternetGatewayDevice.DeviceInfo',
@@ -519,6 +575,12 @@ sub tr_069_status_device {
 #**********************************************************
 =head2 tr_069_status_wan($id, $attr) - WAN Status
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_status_wan {
@@ -538,9 +600,16 @@ sub tr_069_status_wan {
   tr_069_hash_extract($device_data->[0], { HASH_NAMES => \@hash_names, KEY_NAMES => \@key_names }, []);
   print tr_069_table({ title => \@key_names, rows => \@cpe_sys_info });
 
+  return;
 }
 #**********************************************************
 =head2 tr_069_status_wlan($id, $attr) - WLAN Status
+
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -563,6 +632,12 @@ sub tr_069_status_wlan {
 
 #**********************************************************
 =head2 tr_069_status_voip($id, $attr) - VoIP Status
+
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -598,6 +673,12 @@ sub tr_069_status_voip {
 #**********************************************************
 =head2 tr_069_status_security($id, $attr) - Security Status
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_status_security {
@@ -630,6 +711,12 @@ sub tr_069_status_security {
 #**********************************************************
 =head2 tr_069_status_hosts($id, $attr) - Hosts Status
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_status_hosts {
@@ -651,6 +738,12 @@ sub tr_069_status_hosts {
 
 #**********************************************************
 =head2 tr_069_status_neighbor_ap($id, $attr) - Neighbor AP Status
+
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -674,11 +767,19 @@ sub tr_069_status_neighbor_ap {
 #**********************************************************
 =head2 tr_069_status($id, $attr) - Status
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_status {
   my ($id, $attr) = @_;
   my $html_content = '';
+
+  $id =~ s/%2D/%252D/xg;
   my $sub_menu = $FORM{sub_menu} || 'device';
 
   my $menu_fn = 'tr_069_status_' . $sub_menu;
@@ -699,16 +800,24 @@ sub tr_069_status {
     return $html->tpl_show(_include('equipment_tr_069_cpe_menu', 'Equipment'), { HTML_CONTENT => $html_content, MENU => 'status', SUB_MENU_CONTENT => $sub_menu_items, %FORM }, $attr);
   }
 
+  return q{};
 }
 
 
 #**********************************************************
 =head2 tr_069_wan($id, $attr) - Wan Setting
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_wan {
   my ($id, $attr) = @_;
+
   my $html_content = '';
   my $sub_menu = $FORM{sub_menu} || '1';
   my $wans_info = $attr->{SETTINGS}->{wan} || $default_settings->{ wan };
@@ -753,17 +862,27 @@ sub tr_069_wan {
 #**********************************************************
 =head2 tr_069_wlan($id, $attr) - WLAN Setting
 
+  Arguments:
+    $id
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_wlan {
   my ($id, $attr) = @_;
+
   my $html_content = '';
   my $sub_menu = $FORM{sub_menu} || '1';
   my $wlans_info = $attr->{SETTINGS}->{wlan} || $default_settings->{ wlan };
   my $wlan_info = $wlans_info->[$sub_menu - 1];
 
   if (!$wlan_info->{ssid} && $wifi_ssid) {
-    if ($id =~ /-[0-9A-F]{8}([0-9A-F]{8})$/) {
+    if ($id =~ /-[0-9A-F]{8}([0-9A-F]{8})$/xm) {
+      $wlan_info->{ssid} = $wifi_ssid . '-' . $1;
+    }
+    elsif ($id =~ /-[0-9A-Z]{4}([0-9A-F]{8})$/xm) {
       $wlan_info->{ssid} = $wifi_ssid . '-' . $1;
     }
   }
@@ -792,6 +911,11 @@ sub tr_069_wlan {
 #**********************************************************
 =head2 tr_069_voip($id, $attr) - VoIP Setting
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tr_069_voip {
@@ -810,13 +934,13 @@ sub tr_069_voip {
   $FORM{SERVER_FORM} = "<input type='text' name='server' value='$voip_info->{server}' class='form-control ip-input' ID='server'/>";
 
   if ($conf{TR069_VOIP_SERVERS}) {
-    $conf{TR069_VOIP_SERVERS} =~ s/[\n\s]//g;
-    my @servers_arr = split(/;/, $conf{TR069_VOIP_SERVERS});
+    $conf{TR069_VOIP_SERVERS} =~ s/[\n\s]//xg;
+    my @servers_arr = split(/;/x, $conf{TR069_VOIP_SERVERS});
     my %servers_hash = ();
     my $sel_data = { SEL_ARRAY => \@servers_arr };
     foreach my $server (@servers_arr) {
-      if ($server =~ /.+:.+/) {
-        my ($s_name, $s_ip) = split(/:/, $server, 2);
+      if ($server =~ /.+:.+/xm) {
+        my ($s_name, $s_ip) = split(/:/x, $server, 2);
         $servers_hash{$s_ip} = "($s_name)";
       }
     }
@@ -851,7 +975,7 @@ sub tr_069_hash_extract {
 
   foreach my $hash_name (@{$attr->{HASH_NAMES}}) {
     my $hash_ = join('.', @$arr);
-    if ($hash_ =~ /^$hash_name$/) {
+    if ($hash_ =~ /^$hash_name$/xm) {
       my @arr_ = ();
       if (!$attr->{KEY_NAMES} && defined($hash->{'_value'})) {
         push @arr_, $attr->{KEY};
@@ -859,7 +983,7 @@ sub tr_069_hash_extract {
       }
       else {
         foreach my $key (@{$attr->{KEY_NAMES}}) {
-          if ($key =~ /^([0-9A-Za-z]+)\.([0-9A-Za-z]+)$/) {
+          if ($key =~ /^([0-9A-Za-z]+)\.([0-9A-Za-z]+)$/xm) {
             push @arr_, $hash->{ $1 }->{ $2 }->{'_value'};
           }
           else {
@@ -886,6 +1010,11 @@ sub tr_069_hash_extract {
 
 #**********************************************************
 =head2 tr_069_table($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -915,4 +1044,4 @@ sub tr_069_table {
   return $table;
 }
 
-1
+1;

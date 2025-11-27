@@ -108,6 +108,7 @@ sub admin_profile {
     EVENT_GROUPS_SELECT  => $events_groups_select,
     EVENTS_GROUPS_HIDDEN => $events_groups_show,
     AUTH_HISTORY         => $auth_history,
+    PAGE_ROWS            => $PAGE_ROWS
   });
 
   _form_profile_search();
@@ -117,6 +118,11 @@ sub admin_profile {
 
 #**********************************************************
 =head2 admin_auth_history_table() -
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -153,6 +159,12 @@ sub _admin_auth_history_table {
 
 #**********************************************************
 =head2 form_profile_search($attr) -
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _form_profile_search {
@@ -365,6 +377,11 @@ sub flist {
 #**********************************************************
 =head2 _profile_get_admin_sender_subscribe_block()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _profile_get_admin_sender_subscribe_block {
@@ -442,7 +459,8 @@ sub _profile_get_admin_sender_subscribe_block {
           }
         );
       }
-    } else {
+    }
+    else {
       push @buttons_html, _make_subscribe_btn('Viber', 'fa fa-phone', undef, {
         HREF           => "$SELF_URL/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=$viber_cont",
         UNSUBSCRIBE    => 1,
@@ -458,6 +476,11 @@ sub _profile_get_admin_sender_subscribe_block {
 
 #**********************************************************
 =head2 admin_info_change() - Admin profile change
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -511,57 +534,7 @@ sub _admin_info_change {
   my $G2FA = '';
 
   if (!$admin->{G2FA}) {
-    if ($FORM{add_G2FA}) {
-
-      require Abills::Auth::Core;
-      Abills::Auth::Core->import();
-      my $Auth = Abills::Auth::Core->new({
-        CONF      => \%conf,
-        AUTH_TYPE => 'OATH'
-      });
-
-      if ($FORM{PIN}) {
-
-        if ($Auth->check_access({ PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA} })) {
-          $admin->change({
-            AID  => $admin->{AID},
-            G2FA => $FORM{add_G2FA},
-          });
-          $html->redirect("?index=$index", { WAIT => 1 });
-        }
-        else {
-          $html->message('err', $lang{ERROR}, "$lang{WRONG} PIN!");
-          $html->redirect("?index=$index&add_G2FA=$FORM{add_G2FA}", { WAIT => 1 });
-        }
-
-      }
-      else {
-        require Control::Qrcode;
-        Control::Qrcode->import();
-        my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html, functions => \%functions });
-
-        my $secret = Abills::Auth::OATH::encode_base32($FORM{add_G2FA});
-        my $img_qr = $QRCode->_encode_url_to_img($secret, {
-          AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
-          AUTH_G2FA_MAIL => $admin->{ADMIN},
-          OUTPUT2RETURN  => 1,
-          %FORM
-        });
-
-        my $qr = "<img src='data:image/jpg;base64," . encode_base64($img_qr) . "'>";
-
-        $G2FA .= $html->element('div', "$qr", { class => 'col-md-12 text-center mb-3' });
-        $G2FA .= $html->element('label', "$lang{CONFIRM} PIN: ", { class => 'control-label col-md-3', for => 'PIN' });
-        $G2FA .= $html->form_input('add_G2FA', $FORM{add_G2FA}, { TYPE => 'hidden' });
-        $G2FA .= $html->form_input('PIN', "", { class => 'form-control col-md-9' });
-      }
-    }
-    else {
-      $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(32)), {
-        class   => 'btn btn-sm col-md-12 btn-secondary',
-        CONFIRM => "$lang{G2FA_ADD}?",
-      });
-    }
+    $G2FA = _admin_g2fa();
   }
   else {
     if ($FORM{remove_G2FA}) {
@@ -600,6 +573,78 @@ sub _admin_info_change {
 
 #**********************************************************
 =head2 _make_subscribe_btn() - $name, $icon_classes, $lang_vars, $attr
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub _admin_g2fa {
+
+  my $G2FA = q{};
+
+  if ($FORM{add_G2FA}) {
+    require Abills::Auth::Core;
+    Abills::Auth::Core->import();
+    my $Auth = Abills::Auth::Core->new({
+      CONF      => \%conf,
+      AUTH_TYPE => 'OATH'
+    });
+
+    if ($FORM{PIN}) {
+
+      if ($Auth->check_access({ PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA} })) {
+        $admin->change({
+          AID  => $admin->{AID},
+          G2FA => $FORM{add_G2FA},
+        });
+        $html->redirect("?index=$index", { WAIT => 1 });
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "$lang{WRONG} PIN!");
+        $html->redirect("?index=$index&add_G2FA=$FORM{add_G2FA}", { WAIT => 1 });
+      }
+    }
+    else {
+      require Control::Qrcode;
+      Control::Qrcode->import();
+      my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html, functions => \%functions });
+
+      my $secret = Abills::Auth::OATH::encode_base32($FORM{add_G2FA});
+      my $img_qr = $QRCode->_encode_url_to_img($secret, {
+        AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
+        AUTH_G2FA_MAIL => $admin->{ADMIN},
+        OUTPUT2RETURN  => 1,
+        %FORM
+      });
+
+      my $qr = "<img src='data:image/jpg;base64," . encode_base64($img_qr) . "'>";
+
+      $G2FA .= $html->element('div', "$qr", { class => 'col-md-12 text-center mb-3' });
+      $G2FA .= $html->element('label', "$lang{CONFIRM} PIN: ", { class => 'control-label col-md-3', for => 'PIN' });
+      $G2FA .= $html->form_input('add_G2FA', $FORM{add_G2FA}, { TYPE => 'hidden' });
+      $G2FA .= $html->form_input('PIN', "", { class => 'form-control col-md-9' });
+    }
+  }
+  else {
+    $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(32)), {
+      class   => 'btn btn-sm col-md-12 btn-secondary',
+      CONFIRM => "$lang{G2FA_ADD}?",
+    });
+  }
+
+  return $G2FA;
+}
+
+#**********************************************************
+=head2 _make_subscribe_btn() - $name, $icon_classes, $lang_vars, $attr
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -658,6 +703,11 @@ sub _make_subscribe_btn {
 
 #**********************************************************
 =head2 _telegram_button() - $contacts_list
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************

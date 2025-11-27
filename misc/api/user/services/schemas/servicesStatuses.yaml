@@ -1,0 +1,22 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        color:
+          type: string
+          example: "F44336"
+        id:
+          type: integer
+          example: 1
+        localeName:
+          type: string
+          example: "Disable"
+        name:
+          type: string
+          example: "$lang{DISABLE}"
+  total:
+    type: integer
+    example: 12

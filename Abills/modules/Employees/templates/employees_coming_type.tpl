@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD=POST>
-<input type='hidden' name='index' value=$index>
+<form action='%SELF_URL%' METHOD=POST>
+<input type='hidden' name='index' value=%index%>
 <input type='hidden' name='ID' value='%ID%'>
 <input type='hidden' id='DEFAULT_UNCLICK' name='DEFAULT_UNCLICK' value=''/>
 

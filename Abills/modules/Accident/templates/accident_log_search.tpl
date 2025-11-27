@@ -10,19 +10,19 @@
       <div class='form-group row'>
         <label class='control-label col-md-4 col-sm-4'>_{PRIORITY}_:</label>
         <div class='col-md-8 col-sm-8'>
-          %SELECT_PRIORITY%
+          %PRIORITY_SEL%
         </div>
       </div>
       <div class='form-group row'>
         <label class='control-label col-md-4 col-sm-4'>_{STATUS}_:</label>
         <div class='col-md-8 col-sm-8'>
-          %SELECT_STATUS%
+          %STATUS_SEL%
         </div>
       </div>
       <div class='form-group row'>
         <label class='control-label col-md-4 col-sm-4'>_{ADMIN}_:</label>
         <div class='col-md-8 col-sm-8'>
-          %SELECT_ADMIN%
+          %ADMIN_SEL%
         </div>
       </div>
 
@@ -42,12 +42,26 @@
         </div>
       </div>
 
-      %SELECT_ADDRESS%
+      <div class='form-group row'>
+        <label class='control-label col-md-4 col-sm-4' for='GROUP_SEL'>_{GROUP}_</label>
+        <div class='col-md-8 col-sm-8'>
+          %GROUP_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-4 col-sm-4' for='NAS_SEL'>_{NAS}_</label>
+        <div class='col-md-8 col-sm-8'>
+          %NAS_SEL%
+        </div>
+      </div>
+
+      %ADDRESS_SEL%
 
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
         <div class='col-md-8'>
-          %SELECT_TYPE%
+          %TYPE_SEL%
         </div>
       </div>
     </div>

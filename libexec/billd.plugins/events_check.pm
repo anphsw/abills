@@ -11,22 +11,21 @@ our (
   %conf,
   $DATE,
   $argv,
-  $base_dir
+  $base_dir,
+  $debug
 );
 
-BEGIN{
-  use FindBin '$Bin';
-  my $libpath = "$Bin/../"; # Assuming we are in /usr/abills/libexec/
-  unshift ( @INC, $libpath );
-}
+# BEGIN{
+#   use FindBin '$Bin';
+#   my $libpath = "$Bin/../"; # Assuming we are in /usr/abills/libexec/
+#   unshift ( @INC, $libpath );
+# }
 
 use Abills::Base qw (_bp in_array days_in_month);
 require Abills::Misc;
 
-require "libexec/config.pl";
-
 my $backup_dir = $conf{BACKUP_DIR} || "/usr/abills/backup/";
-$backup_dir =~ s/\/\//\//g;
+$backup_dir =~ s/\/\//\//xg;
 
 events_check();
 
@@ -53,9 +52,8 @@ sub check_backups{
   # Check if yesterday backup exists
   my $yesterday_date = date_dec( 1, $DATE );
 
-
   unless ( in_array( "stats-$yesterday_date.sql.gz", $backup_files ) ){
-    generate_new_event( "SYSTEM", '_{YESTERDAY_BACKUP_DOES_NOT_EXISTS}_!' );
+    generate_new_event( "SYSTEM", '_{YESTERDAY_BACKUP_DOES_NOT_EXISTS}_! '. $DATE );
   };
 
   foreach my $backup_file_name ( @{$backup_files} ){
@@ -110,9 +108,9 @@ sub generate_new_event{
   my $cmd = ($base_dir || '/usr/abills') . '/misc/events.pl ADD=events'
   ." MODULE='$name' COMMENTS='$comments' STATE_ID=1 PRIORITY_ID=5 OUTPUT=JSON TITLE='_{SYSTEM_NOTIFICATION}_'";
   
-  my $add_result = `$cmd`;
+  my $add_result = cmd($cmd, { DEBUG => $debug });
 
-  if ( !$add_result || $add_result !~ /"status":0/m ){
+  if ( !$add_result || $add_result !~ /"status":0/xm ){
     print "Error adding event";
     print $add_result
   }

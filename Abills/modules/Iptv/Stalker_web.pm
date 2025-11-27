@@ -43,11 +43,15 @@ sub stalker_console {
   my $service_id = $FORM{SERVICE_ID};
 
   if ($FORM{hangup}) {
-    iptv_account_action({ hangup => 1, UID => $FORM{UID} });
+    require Iptv::Services;
+    Iptv::Services->import();
+    my $Iptv_services = Iptv::Services->new($db, $admin, \%conf, { lang => \%lang });
+    $Iptv_services->service_hangup({ UID => $FORM{UID}, REBOOT => 1 });
+    # iptv_account_action({ hangup => 1, UID => $FORM{UID} });
   }
   elsif ($FORM{send_message}) {
     $FORM{UID} = $Iptv->{CID};
-    iptv_account_action({ send_message => 1, %$Iptv, %FORM });
+    # iptv_account_action({ send_message => 1, %$Iptv, %FORM });
     return $Tv_service->{error};
   }
   elsif ($FORM{add} || $FORM{change}) {

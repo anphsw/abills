@@ -5,7 +5,8 @@
 =cut
 
 use strict;
-use warnings;
+use warnings FATAL => 'all';
+
 use Abills::Fetcher;
 use Paysys;
 use Payments;
@@ -48,8 +49,10 @@ sub paysys_periodic_new {
   $debug_output .= "Paysys: Daily periodic payments\n" if ($debug > 1);
   my $users = Users->new($db, $admin, \%conf);
 
+  my $period = $conf{PAYSYS_STATEMENTS_PERIOD} || 3;
+
   if (!$attr->{DATE_FROM}) {
-    $attr->{DATE_FROM} = POSIX::strftime('%Y-%m-%d', localtime(time - 86400 * 3));
+    $attr->{DATE_FROM} = POSIX::strftime('%Y-%m-%d', localtime(time - 86400 * $period));
   }
 
   my $connected_systems_list = $Paysys->paysys_connect_system_list({
@@ -124,7 +127,7 @@ sub paysys_monthly_new {
   $USERS_LIST_PARAMS{DEPOSIT}   = $attr->{DEPOSIT} if ($attr->{DEPOSIT});
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  my (undef, undef, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my (undef, undef, $d) = split('-', $ADMIN_REPORT{DATE}, 3);
   my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
 
   if ($d != $START_PERIOD_DAY) {
@@ -156,8 +159,8 @@ sub paysys_monthly_new {
     if ($debug > 2) {
       print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";
     }
+
     my $Paysys_module = $Module->new($db, $admin, \%conf, {
-      USER  => $users,
       NAME  => $name,
       DEBUG => $attr->{DEBUG}
     });
@@ -177,15 +180,19 @@ sub paysys_monthly_new {
       my $paysys_id = $paysys_user->{paysys_id};
       my $order_id = $paysys_user->{order_id} || q{};
 
-      print "UID: $paysys_user->{uid} PAYSYS_ID: $paysys_id SUM: $sum\n" if ($debug > 0);
+      $users->info($paysys_user->{uid});
+      my $recommended_pay = recomended_pay($users);
+
+      print "UID: $paysys_user->{uid} PAYSYS_ID: $paysys_id SUM: $sum RECOMMENDED_PAYMENT: $recommended_pay\n" if ($debug > 0);
 
       $Paysys_module->subscribe_pay({
-        USER     => $paysys_user,
-        SUM      => $sum,
-        ORDER_ID => $order_id,
-        TOKEN    => $token,
-        PAYSYS   => $Paysys,
-        DEBUG    => $debug
+        USER                => $paysys_user,
+        SUM                 => $sum,
+        ORDER_ID            => $order_id,
+        TOKEN               => $token,
+        PAYSYS              => $Paysys,
+        DEBUG               => $debug,
+        RECOMMENDED_PAYMENT => $recommended_pay,
       });
     }
 

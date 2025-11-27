@@ -12,8 +12,8 @@
 <script src='/styles/default/js/modules/portal.js'></script>
 <script src='/styles/default/js/beautify-html.js'></script>
 
-<form action=$SELF_URL name='portal_form' method=POST class='form-horizontal' enctype='multipart/form-data'>
-  <input type=hidden name=index value=$index>
+<form action=%SELF_URL% name='portal_form' method=POST class='form-horizontal' enctype='multipart/form-data'>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name=id value=%id%>
 
   <div class='row'>

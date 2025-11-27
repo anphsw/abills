@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' class='form-inline'>
+<form action='%SELF_URL%' METHOD='POST' class='form-inline'>
     <input type=hidden name='mac' value='%mac%'>
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
     <input type=hidden name='server_name' value='%server_name%'>

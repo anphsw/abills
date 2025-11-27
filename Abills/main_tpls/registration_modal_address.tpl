@@ -1,22 +1,18 @@
 <div class='form-address'>
   <input type='hidden' name='LOCATION_ID' id='LOCATION_ID_REG' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
+  %ADDRESS_DISTRICT%
+
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
-    <label class='control-label col-xs-3 col-md-2 LABEL-DISTRICT'>_{DISTRICTS}_</label>
-    <div class='col-xs-9 col-md-10'>
-      %ADDRESS_DISTRICT%
-    </div>
-  </div>
-  <div class='form-group row' style='%EXT_SEL_STYLE%'>
-    <label class='control-label col-xs-3 col-md-2 LABEL-STREET'>_{ADDRESS_STREET}_</label>
-    <div class='col-xs-9 col-md-10' id='registration_streets'>
+    <label class='control-label col-xs-3 col-md-4 LABEL-STREET'>_{ADDRESS_STREET}_</label>
+    <div class='col-xs-9 col-md-8' id='registration_streets'>
       %ADDRESS_STREET%
     </div>
   </div>
 
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
-    <label class='control-label col-xs-3 col-md-2 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
-    <div id='registration_builds' class='col-xs-9 col-md-10'>
+    <label class='control-label col-xs-3 col-md-4 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
+    <div id='registration_builds' class='col-xs-9 col-md-8'>
       %ADDRESS_BUILD%
     </div>
   </div>
@@ -62,7 +58,7 @@
       });
   }
 
-  function GetBuilds(data) {
+  function GetBuildsReg(data) {
     let build = jQuery('#%BUILD_ID%');
     build.attr('disabled', 'disabled');
     let street_id = jQuery(data).val();

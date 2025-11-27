@@ -103,6 +103,7 @@ sub result_row_former {
       APPEND_FIELDS   - Additional fields to extract from the sheet
 
       DATAHASH        - get input data from json parsed hash
+      DATAHASH_ORDER  - array ref with field names in desired order for DATAHASH (optional)
       DATATOTAL       - total count for DATAHASH (pagination etc.)
 
       BASE_PREFIX     - Base prefix for data hash
@@ -245,7 +246,13 @@ sub result_former {
 
   #data hash result former
   if (ref $attr->{DATAHASH} eq 'ARRAY') {
-    @title = sort keys %{$attr->{DATAHASH}->[0]};
+    if ($attr->{DATAHASH_ORDER} && ref $attr->{DATAHASH_ORDER} eq 'ARRAY') {
+      @title = @{$attr->{DATAHASH_ORDER}};
+      @cols = @{$attr->{DATAHASH_ORDER}};
+    }
+    else {
+      @title = sort keys %{$attr->{DATAHASH}->[0]};
+    }
 
     if ($#hidden_fields) {
       my @title_ = grep { my $t = $_; !grep {$_ eq $t} @hidden_fields; } @title;
@@ -983,6 +990,8 @@ sub _get_search_titles {
       pasport_date  => "$lang{PASPORT} $lang{DATE}",
       pasport_num   => "$lang{PASPORT} $lang{NUM}",
       pasport_grant => "$lang{PASPORT} $lang{GRANT}",
+      pasport_expire=> "$lang{PASPORT} $lang{EXPIRY}",
+      tax_number    => $lang{TAX_NUMBER},
       contract_id   => $lang{CONTRACT_ID},
       contract_date => "$lang{CONTRACT} $lang{DATE}",
       registration  => $lang{REGISTRATION},
@@ -1031,6 +1040,10 @@ sub _get_search_titles {
     $SEARCH_TITLES{personal_info}{phone} = $lang{PHONE};
     $SEARCH_TITLES{address}{floor} = $lang{FLOOR};
     $SEARCH_TITLES{address}{entrance} = $lang{ENTRANCE};
+  }
+
+  if ($conf{TERRITORIAL_UNITS}) {
+    $SEARCH_TITLES{address}{territorial_units_code} = $lang{TERRITORIAL_UNITS_CODE};
   }
 
   if ($permissions{0} && $permissions{0}{28}) {
@@ -1120,6 +1133,12 @@ sub _result_former_get_total_table {
 =head2 _result_former_get_value($attr, $col_name, $line, $service_status, $service_status_colors)
 
   Arguments:
+    $attr
+    $col_name
+    $line
+    $service_status
+    $service_status_colors
+    $list
 
   Return:
 
@@ -1141,18 +1160,18 @@ sub _result_former_get_value {
     }
   }
 
-  if ($col_name =~ /status$/ && (!$attr->{SELECT_VALUE} || !$attr->{SELECT_VALUE}->{$col_name})) {
+  if ($col_name =~ /status$/xm && (!$attr->{SELECT_VALUE} || !$attr->{SELECT_VALUE}->{$col_name})) {
     return _get_status_value($attr, $line, $col_name, $service_status, $service_status_colors);
   }
 
-  if ($col_name =~ /build_id/) {
+  if ($col_name =~ /build_id/xm) {
     return _get_location_value($line, $col_name);
   }
 
-  if ($col_name =~ /deposit/) {
+  if ($col_name =~ /deposit/xm) {
     return '--' if (!$permissions{0}{12});
 
-    my $deposit = $line->{deposit} || 0;
+    my $deposit = $line->{$col_name} || 0;
     $deposit = sprintf("$conf{DEPOSIT_FORMAT}", $deposit) if $conf{DEPOSIT_FORMAT};
     return ($deposit + ($line->{credit} || 0) < 0) ? $html->color_mark($deposit, 'text-danger') : $deposit,
   }
@@ -1163,7 +1182,7 @@ sub _result_former_get_value {
   return _get_tags_value($line, $col_name) if ($col_name eq 'tags');
 
   if ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name} && defined($line->{$col_name})) {
-    my ($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} || '');
+    my ($value, $color) = split(/:/x, $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} || '');
 
     $value = $html->color_mark($value, $color) if ($value && $color);
     return $value || $line->{$col_name};
@@ -1171,7 +1190,7 @@ sub _result_former_get_value {
 
   my $val = $line->{ $col_name  } // '';
   my $brake = $html->br();
-  $val =~ s/\n/$brake/g;
+  $val =~ s/\n/$brake/xg;
 
   return $val;
 }

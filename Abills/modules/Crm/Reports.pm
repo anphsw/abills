@@ -228,6 +228,11 @@ sub crm_watch_leads_report {
 #**********************************************************
 =head2 crm_deferred_leads_report()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub crm_deferred_leads_report {
@@ -508,16 +513,16 @@ sub crm_report_processed_leads {
     PERIOD_FORM       => 1,
   });
 
-  my $admins = $Crm->crm_action_list({
-    LEADS_COUNT => '_SHOW',
-    AID         => '>0',
-    LID         => '>0',
-    ADMIN       => '_SHOW',
-    TYPE        => "!3",
-    DATE        => $DATE,
-    GROUP_BY    => 'ca.aid',
-    COLS_NAME   => 1
-  });
+  # my $admins = $Crm->crm_action_list({
+  #   LEADS_COUNT => '_SHOW',
+  #   AID         => '>0',
+  #   LID         => '>0',
+  #   ADMIN       => '_SHOW',
+  #   TYPE        => "!3",
+  #   DATE        => $DATE,
+  #   GROUP_BY    => 'ca.aid',
+  #   COLS_NAME   => 1
+  # });
 
   $LIST_PARAMS{AID} = '>0';
   $LIST_PARAMS{LID} = '>0';
@@ -545,6 +550,10 @@ sub crm_report_processed_leads {
     MAKE_ROWS       => 1,
     TOTAL           => 1
   });
+
+  delete $LIST_PARAMS{GROUP_BY};
+
+  return 1;
 }
 
 #**********************************************************

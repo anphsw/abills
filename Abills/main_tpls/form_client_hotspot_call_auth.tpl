@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' class='form-inline' name=admin_form>
+<form action='%SELF_URL%' METHOD='POST' class='form-inline' name=admin_form>
     
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
     <input type=hidden name='PHONE' value='%PHONE%'>
@@ -24,7 +24,7 @@ jQuery(function(){
 
 function check_call() {
   jQuery.ajax({
-    url: '$SELF_URL?ajax=1&mac=%mac%&PHONE=%PHONE%',
+    url: '%SELF_URL%?ajax=1&mac=%mac%&PHONE=%PHONE%',
     success: function(result){
       if(result == '1') {
         document.location.href = 'http://google.com';

@@ -61,7 +61,7 @@ sub sel_groups {
       ALLOW_CREDIT    => '_SHOW',
       DISABLE_PAYSYS  => '_SHOW',
       DISABLE_CHG_TP  => '_SHOW',
-      USERS_COUNT     => '_SHOW',
+      #USERS_COUNT     => '_SHOW',
       COLS_NAME       => 1,
     });
     foreach my $line (@$list) {
@@ -81,7 +81,7 @@ sub sel_groups {
         ALLOW_CREDIT   => '_SHOW',
         DISABLE_PAYSYS => '_SHOW',
         DISABLE_CHG_TP => '_SHOW',
-        USERS_COUNT    => '_SHOW',
+        #USERS_COUNT    => '_SHOW',
         GIDS           => ($admin->{GID}) ? $admin->{GID} : undef,
         DOMAIN_ID      => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
         COLS_NAME      => 1
@@ -207,7 +207,7 @@ sub sel_fees_methods {
     my ($types) = $Api->api_call({
       METHOD => 'GET',
       PATH   => "/fees/types/",
-      PARAMS => { ID => $selected, PARENT_ID => '_SHOW' },
+      PARAMS => { ID => $selected, PARENT_ID => '_SHOW', PAGE_ROWS => 100000 },
     });
 
     my $fees_type = $types && ref $types eq 'ARRAY' ? shift @{$types} : {};
@@ -216,7 +216,7 @@ sub sel_fees_methods {
       my ($fees_type_children) = $Api->api_call({
         METHOD => 'GET',
         PATH   => "/fees/types/",
-        PARAMS => { PARENT_ID => $fees_type->{parent_id} },
+        PARAMS => { PARENT_ID => $fees_type->{parent_id}, PAGE_ROWS => 100000 },
       });
 
       my $parent_sel_id = $attr->{ID} || $sel_name;

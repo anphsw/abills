@@ -32,7 +32,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
 
-$payment_id = int(rand(10000));
 $payment_sum = int($payment_sum * 100);
 
 our @requests = (

@@ -12,7 +12,7 @@ use warnings FATAL => 'all';
 use JSON qw(decode_json);
 
 use Abills::Base qw(in_array mk_unique_value vars2lang escape_for_sql);
-use Abills::Filters qw($EMAIL_EXPR _utf8_encode);
+use Abills::Filters qw($EMAIL_EXPR _utf8_encode email_valid);
 use Abills::Fetcher qw(web_request);
 use Users;
 
@@ -55,10 +55,9 @@ sub new {
 =cut
 #**********************************************************
 sub password_recovery {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $captcha_check = $self->reCaptchaV3($attr);
+  my $captcha_check = $self->re_captcha_v3($attr);
   return $captcha_check if ($captcha_check->{errno});
 
   return {
@@ -136,12 +135,12 @@ sub password_recovery {
   if ($conf{PASSWORD_RECOVERY_URL}) {
     $code = mk_unique_value(64);
     $url = $conf{PASSWORD_RECOVERY_URL} || '';
-    $url =~ s/%CODE%/$code/gm;
+    $url =~ s/%CODE%/$code/xgm;
     $mess = "$self->{lang}->{PASSWD_RESET_LINK}: $url"
   }
 
-  ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
-  my $message = $self->{html}->tpl_show(::templates('msg_passwd_recovery'), {
+  #::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  my $message = $self->{html}->tpl_show(Abills::Templates::templates('msg_passwd_recovery'), {
     MESSAGE => $mess,
     URL     => $url,
     %{$user_info},
@@ -178,7 +177,7 @@ sub password_recovery {
       };
     }
 
-    $message =~ s/[\r\n]/ /gm if ($message);
+    $message =~ s/[\r\n]/ /xgm if ($message);
 
     my $status = $Sender->send_message({
       TO_ADDRESS  => $attr->{PHONE},
@@ -241,13 +240,17 @@ sub password_recovery {
 }
 
 #**********************************************************
-=head2 password_reset()
+=head2 password_reset($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub password_reset {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return {
     errno      => 10025,
@@ -271,7 +274,7 @@ sub password_reset {
     errno      => 10028,
     errstr     => "Password not valid, allowed symbols $conf{PASSWD_SYMBOLS}",
     errstr_lng => $lang{ERR_SYMBOLS_PASSWD},
-  } if ($conf{PASSWD_SYMBOLS} && $attr->{PASSWORD} !~ /^[$conf{PASSWD_SYMBOLS}]+$/g);
+  } if ($conf{PASSWD_SYMBOLS} && $attr->{PASSWORD} !~ /^[$conf{PASSWD_SYMBOLS}]+$/xg);
 
   my $list = $self->{admin}->action_list({
     FROM_DATE => $main::DATE,
@@ -312,14 +315,14 @@ sub password_reset {
   $Users->info($list->[0]->{uid});
   $Users->pi({ UID => $list->[0]->{uid} });
 
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  #::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
 
   require Abills::Sender::Core;
   Abills::Sender::Core->import();
   my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
 
   if ($users_info->[0]->{email}) {
-    my ($email) = split(/:/, $users_info->[0]->{email});
+    my ($email) = split(/:/x, $users_info->[0]->{email});
     my $message = $html->tpl_show(::templates('email_user_password_recovery'), {
       %$Users, %$attr,
     }, { OUTPUT2RETURN => 1 });
@@ -335,8 +338,8 @@ sub password_reset {
     });
   }
   else {
-    my ($phone) = split(/:/, $users_info->[0]->{phone});
-    my $message = $html->tpl_show(::_include('sms_user_password_recovery', 'Sms'), {
+    my ($phone) = split(/:/x, $users_info->[0]->{phone});
+    my $message = $html->tpl_show(Abills::Templates::_include('sms_user_password_recovery', 'Sms'), {
       %$Users, %$attr
     }, { OUTPUT2RETURN => 1 });
 
@@ -354,13 +357,17 @@ sub password_reset {
 }
 
 #**********************************************************
-=head2 user_registration()
+=head2 user_registration($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub user_registration {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $password = q{};
   my %extra_params = ();
@@ -368,7 +375,7 @@ sub user_registration {
   my $user_status = 0;
   delete $attr->{UID};
 
-  my $captcha_check = $self->reCaptchaV3($attr);
+  my $captcha_check = $self->re_captcha_v3($attr);
   return $captcha_check if ($captcha_check->{errno});
 
   return {
@@ -549,13 +556,17 @@ sub user_registration {
 }
 
 #**********************************************************
-=head2 reCaptchaV3()
+=head2 re_captcha_v3($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub reCaptchaV3 {
-  my $self = shift;
-  my ($attr) = @_;
+sub re_captcha_v3 {
+  my ($self, $attr) = @_;
 
   return {
     result => 'OK'
@@ -581,11 +592,15 @@ sub reCaptchaV3 {
 #**********************************************************
 =head2 _registration_validation()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _registration_validation {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return {
     errno      => 10203,
@@ -605,7 +620,7 @@ sub _registration_validation {
     errno      => 10212,
     errstr     => "Invalid login, not allowed symbols. Allowed: $conf{USERNAMEREGEXP}",
     errstr_lng => "$lang{ERR_WRONG_DATA} $lang{LOGIN}",
-  } if ($attr->{LOGIN} !~ /$conf{USERNAMEREGEXP}/);
+  } if ($attr->{LOGIN} !~ /$conf{USERNAMEREGEXP}/xm);
 
   return {
     errno      => 10204,
@@ -617,17 +632,17 @@ sub _registration_validation {
     errno      => 10237,
     errstr     => 'Invalid email',
     errstr_lng => "$lang{ERR_WRONG_DATA} Email",
-  } if ($attr->{EMAIL} !~ /$EMAIL_EXPR/);
+  } if (! email_valid($attr->{EMAIL}));
 
   $conf{EMAIL_DOMAIN_VALIDATION} //= 1;
 
   if ($conf{EMAIL_DOMAIN_VALIDATION}) {
     my $domain_temp = ($conf{EMAIL_DOMAIN_VALIDATION} == 1) ? 'mail_whitelist' : 'mail_blacklist';
-    ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+    #::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
     my $domains = $html->tpl_show(::templates($domain_temp), {}, { OUTPUT2RETURN => 1 });
 
     my @domains = split('\r?\n', $domains);
-    my ($domain) = $attr->{EMAIL} =~ /(?<=@).+/g;
+    my ($domain) = $attr->{EMAIL} =~ /(?<=@).+/mxg;
 
     if (in_array($domain, \@domains)) {
       return {
@@ -682,7 +697,7 @@ sub _registration_validation {
       errno      => 10241,
       errstr     => 'No param phone',
       errstr_lng => "$lang{ERR_WRONG_DATA} $lang{PHONE}",
-    } if ($phone_format && $attr->{PHONE} !~ /$phone_format/);
+    } if ($phone_format && $attr->{PHONE} !~ /$phone_format/xm);
   }
 
   my $password = q{};
@@ -704,7 +719,7 @@ sub _registration_validation {
       errno      => 10207,
       errstr     => "Password not valid, allowed symbols $conf{PASSWD_SYMBOLS}",
       errstr_lng => "$lang{ERR_WRONG_DATA} $lang{PASSWD}",
-    } if ($conf{PASSWD_SYMBOLS} && $attr->{PASSWORD} !~ /^[$conf{PASSWD_SYMBOLS}]+$/g);
+    } if ($conf{PASSWD_SYMBOLS} && $attr->{PASSWORD} !~ /^[$conf{PASSWD_SYMBOLS}]+$/xmg);
 
     $password = $attr->{PASSWORD};
   }
@@ -734,11 +749,15 @@ sub _registration_validation {
 #**********************************************************
 =head2 _social_registration()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _social_registration {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $social_net_name = $attr->{external_auth} || $attr->{SOCIAL_NETWORK};
 
@@ -775,7 +794,7 @@ sub _social_registration {
     };
   }
   elsif ($Auth->{USER_ID}) {
-    my $captcha_check = $self->reCaptchaV3($attr);
+    my $captcha_check = $self->re_captcha_v3($attr);
     return $captcha_check if ($captcha_check->{errno});
 
     $Users->list({
@@ -798,14 +817,14 @@ sub _social_registration {
       my $login = q{};
 
       $conf{USERNAMEREGEXP} //= "^[a-z0-9_][a-z0-9_-]*\$";
-      if ($Auth->{USER_EMAIL} && $Auth->{USER_EMAIL} =~ /$conf{USERNAMEREGEXP}/) {
+      if ($Auth->{USER_EMAIL} && $Auth->{USER_EMAIL} =~ /$conf{USERNAMEREGEXP}/xm) {
         $login = $Auth->{USER_EMAIL};
       }
       else {
-        my $pattern = qr/$conf{USERNAMEREGEXP}/;
+        my $pattern = qr/$conf{USERNAMEREGEXP}/x;
         my $_login = q{};
 
-        if ('example@gmail.com' =~ /$conf{USERNAMEREGEXP}/) {
+        if ('example@gmail.com' =~ /$conf{USERNAMEREGEXP}/xm) {
           $_login = mk_unique_value(15, { SYMBOLS => 'qwertyupasdfghjikzxcvbnm123456789' }) . '@unknown.com';
         }
         else {
@@ -825,7 +844,7 @@ sub _social_registration {
         });
 
         if (scalar @$list) {
-          if ($_login . 'a' =~ /$conf{USERNAMEREGEXP}/) {
+          if ($_login . 'a' =~ /$conf{USERNAMEREGEXP}/xm) {
             $login = $_login . 'a';
           }
           else {
@@ -859,20 +878,25 @@ sub _social_registration {
 #**********************************************************
 =head2 _send_registration_message()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _send_registration_message {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}/index.cgi" : '';
 
   $attr->{FIO} = _utf8_encode($attr->{FIO}) if ($attr->{FIO});
 
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
-  my $message = $html->tpl_show(::templates('form_registration_complete'), {
-    %$Users, %$attr,
+  #::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  my $message = $html->tpl_show(Abills::Templates::templates('form_registration_complete'), {
+    %$Users,
+    %$attr,
     PASSWORD => $attr->{PASSWORD},
     BILL_URL => $addr
   }, { OUTPUT2RETURN => 1 });
@@ -912,13 +936,18 @@ sub _send_registration_message {
 }
 
 #**********************************************************
-=head2 _send_pin()
+=head2 _send_pin($pin, $attr)
+
+  Arguments:
+    $pin
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub _send_pin {
-  my $self = shift;
-  my ($pin, $attr) = @_;
+  my ($self, $pin, $attr) = @_;
 
   require Abills::Sender::Core;
   Abills::Sender::Core->import();
@@ -926,11 +955,11 @@ sub _send_pin {
 
   $pin = $pin || int(rand(9999)) + 10000;
 
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/xi) ? 'https' : 'http';
   my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}/index.cgi" : '';
 
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
-  my $message = $html->tpl_show(::templates('form_registration_pin'), {
+  #::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  my $message = $html->tpl_show(Abills::Templates::templates('form_registration_pin'), {
     %$Users, %$attr,
     PIN      => $pin,
     BILL_URL => $addr
@@ -986,13 +1015,17 @@ sub _send_pin {
 }
 
 #**********************************************************
-=head2 resend_pin()
+=head2 resend_pin($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub resend_pin {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $result = $self->_pin_process_validation($attr);
   return $result if ($result->{errno} || $result->{uid});
@@ -1022,11 +1055,15 @@ sub resend_pin {
 #**********************************************************
 =head2 verify_pin($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub verify_pin {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $result = $self->_pin_process_validation($attr);
   return $result if ($result->{errno} || $result->{uid});
@@ -1092,11 +1129,15 @@ sub verify_pin {
 #**********************************************************
 =head2 _pin_process_validation($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _pin_process_validation {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return {
     errno  => 10252,
@@ -1112,7 +1153,7 @@ sub _pin_process_validation {
     errno      => 10243,
     errstr     => "No field $check_field or uid",
     errstr_lng => $lang{ERR_WRONG_DATA},
-  } if !$destination;
+  } if (!$destination);
 
   return {
     errno      => 10249,
@@ -1137,11 +1178,15 @@ sub _pin_process_validation {
 #**********************************************************
 =head2 _registration_default_tp($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _registration_default_tp {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $cid = q{};
   my $uid = $attr->{UID};

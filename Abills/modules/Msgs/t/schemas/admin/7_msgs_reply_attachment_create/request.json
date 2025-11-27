@@ -1,0 +1,12 @@
+{
+  "name": "ADMIN_MSGS_MSG_REPLY_ATTACHMENT_CREATE",
+  "method": "POST",
+  "path": "msgs/reply/:reply_id/attachment/",
+  "body": {
+    "filename": "Test.txt",
+    "filesize": 12,
+    "content": "  Test content",
+    "contentType": "text/plain",
+    "messageType": 1
+  }
+}

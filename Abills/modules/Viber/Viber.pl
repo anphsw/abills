@@ -40,12 +40,13 @@ my $db = Abills::SQL->connect(
     dbdebug => $conf{dbdebug}
   }
 );
-our $admin = Admins->new($db, \%conf);
+my $admin = Admins->new($db, \%conf);
 # Just init Tokens from Config
 my $Conf = Conf->new($db, $admin, \%conf);
 my $debug = $ARGS->{DEBUG} || 0;
 
 _start();
+
 sub _start {
   if ($ARGS->{help}) {
     help();
@@ -53,6 +54,8 @@ sub _start {
   else {
     integration();
   }
+
+  return 1;
 }
 
 
@@ -75,7 +78,7 @@ sub integration {
     return;
   }
 
-  if ($billing_url !~ /https:\/\//) {
+  if ($billing_url !~ /https:\/\//xm) {
     print <<"[END]";
     Your \$conf{BILLING_URL} is not valid for Viber.
     Change it due to requirements and change web server config.
@@ -83,7 +86,7 @@ sub integration {
     Requirements:
     - https
 [END]
-    return;
+    return 0;
   }
 
   my @headers = ('Content-Type: application/json', 'X-Viber-Auth-Token: ' . $conf{VIBER_TOKEN});
@@ -97,7 +100,7 @@ sub integration {
 
   if (!$bot_info || $bot_info->{status} == 2) {
     print "Bot is not exist.\nRecheck your \$conf{VIBER_TOKEN} and try again.\n";
-    return;
+    return 0;
   }
 
   if ($bot_info->{webhook}) {
@@ -141,7 +144,7 @@ Create it manually with commands:
 
 And start this script again.
 [END]
-    return;
+    return 0;
   }
   else {
     print "Folder and symlink successfully created.\n";
@@ -211,6 +214,8 @@ And start this script again.
   # Fill config variables
   $Conf->config_add({ PARAM => 'VIBER_BOT_NAME', VALUE => $bot_info->{uri}, REPLACE => 1 });
   $Conf->config_add({ PARAM => 'VIBER_WEBHOOK_URL', VALUE => $generated_url, REPLACE => 1 });
+
+  return 1;
 }
 
 #*******************************************************************
@@ -228,6 +233,8 @@ sub _load_viber_db {
   };
 
   eval {$admin->query($content, 'do', {})};
+
+  return 1;
 }
 
 #*******************************************************************
@@ -248,4 +255,8 @@ ABillS Viber bot setup in one click
     help - show this message
 
 [END]
+
+  return 1;
 }
+
+1;

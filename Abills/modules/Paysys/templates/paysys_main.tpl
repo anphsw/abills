@@ -1,5 +1,5 @@
 <form method='POST' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='sid' value='$sid'>
   <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 

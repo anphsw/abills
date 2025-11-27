@@ -89,11 +89,11 @@ our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $con
 });
 
 our $html = Abills::HTML->new({
-  IMG_PATH   => '../img/',
+  #IMG_PATH   => '../img/',
   NO_PRINT   => 1,
   CONF       => \%conf,
   CHARSET    => $conf{default_charset},
-  HTML_STYLE => $conf{UP_HTML_STYLE}
+  #HTML_STYLE => $conf{UP_HTML_STYLE}
 });
 
 our $admin = Admins->new($db, \%conf);
@@ -186,7 +186,7 @@ sub start {
 
   for my $path (@paths) {
     my  $module_path = $path->{controller} . '.pm';
-    $module_path =~ s{::}{/}g;
+    $module_path =~ s{::}{/}xg;
     require $module_path;
   };
 
@@ -206,6 +206,8 @@ sub start {
       });
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -294,7 +296,7 @@ sub _define_env {
 
     # empty cache if was defined before, preventing auth without access allow
     foreach my $variable (keys %ENV) {
-      next if ($variable !~ /^HTTP_/);
+      next if ($variable !~ /^HTTP_/xm);
       delete $ENV{$variable};
     }
 
@@ -302,7 +304,7 @@ sub _define_env {
     foreach my $header (keys %{$headers}) {
       next if (!$header);
       my $value = $headers->{$header};
-      $header =~ s/-/_/g;
+      $header =~ s/\-/_/xg;
 
       $ENV{'HTTP_' . uc($header)} = $value;
     }
@@ -314,3 +316,5 @@ sub _define_env {
 }
 
 app->start;
+
+1;

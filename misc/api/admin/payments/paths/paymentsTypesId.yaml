@@ -4,7 +4,8 @@ get:
   summary: Получить тип оплаты по ID
   parameters:
     - in: path
-      name: ID типа оплаты
+      name: id
+      description: ID типа оплаты
       required: true
       schema:
         type: integer
@@ -26,7 +27,8 @@ post:
   summary: Добавить тип оплаты
   parameters:
     - in: path
-      name: ID типа оплаты
+      name: id
+      description: ID типа оплаты
       required: true
       schema:
         type: integer
@@ -54,7 +56,8 @@ put:
   summary: Изменить тип оплаты
   parameters:
     - in: path
-      name: ID типа оплаты
+      name: id
+      description: ID типа оплаты
       required: true
       schema:
         type: integer
@@ -82,7 +85,8 @@ delete:
   summary: Удалить тип оплаты
   parameters:
     - in: path
-      name: ID типа оплаты
+      name: id
+      description: ID типа оплаты
       required: true
       schema:
         type: integer

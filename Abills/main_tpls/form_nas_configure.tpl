@@ -105,6 +105,6 @@
     </div>
   </div>
   <div class='form-group'>
-    <a href='_{SELF_URL}_?index=$index&wrt_configure=1&nas=$FORM{NAS_ID}' class='btn btn-xs btn-secondary'>_{CONFIG}_</a>
+    <a href='_{SELF_URL}_?index=%index%&wrt_configure=1&nas=$FORM{NAS_ID}' class='btn btn-xs btn-secondary'>_{CONFIG}_</a>
   </div>
 </div>

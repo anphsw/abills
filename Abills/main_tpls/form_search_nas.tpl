@@ -1,5 +1,5 @@
 <form id='form-search' name='nfrmSearchNAS' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index' form='form-search'/>
+  <input type='hidden' name='index' value='%index%' form='form-search'/>
   <input type='hidden' name='POPUP' value='%POPUP%' form='form-search'/>
   <input type='hidden' name='NAS_SEARCH' value='1' form='form-search'/>
 

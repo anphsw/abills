@@ -4,8 +4,6 @@ use warnings FATAL => 'all';
 use Time::Piece;
 use Time::Seconds;
 
-use Abills::Loader qw/load_plugin/;
-
 BEGIN {
   our $Bin;
   use FindBin '$Bin';
@@ -35,6 +33,7 @@ require Abills::Misc;
 require Iptv::User_portal;
 require Iptv::Base;
 use JSON qw/decode_json encode_json/;
+use Abills::Loader qw/load_plugin/;
 
 our $DATE = strftime("%Y-%m-%d", localtime(time));
 our $TIME = strftime("%H:%M:%S", localtime(time));

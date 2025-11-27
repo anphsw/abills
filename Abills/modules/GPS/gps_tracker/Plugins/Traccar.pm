@@ -2,7 +2,7 @@ package Traccar;
 use warnings FATAL => 'all';
 use strict;
 
-use POSIX qw( strftime );
+use POSIX qw(strftime);
 
 =head1 NAME
 
@@ -11,26 +11,14 @@ Abstract tracker
 
 =head1 VERSION
 
-  Version 0.1
+  Version 0.2
 
 =head1 SYNOPSIS
 
 
 =cut
 
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-use Exporter;
-
-$VERSION = 1.00;
-@ISA = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("Tracker");
+use parent qw(dbcore);
 
 # Singleton reference;
 my $instance;
@@ -46,15 +34,15 @@ sub new {
   unless (defined $instance) {
     my $class = shift;
     my $db = shift;
-    ($CONF) = @_;
-    my $self = { };
+    my ($CONF) = @_;
+    my $self = {};
     bless($self, $class);
-    $self->{db} = $db;
-    $instance = $self;
 
+    $instance = $self;
     #    $instance->{debug} = 1;
   }
 
   return $instance;
-
 }
+
+1;

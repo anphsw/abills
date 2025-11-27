@@ -3,7 +3,7 @@
     <form name='ADD_FRIEND' id='form_ADD_FRIEND' method='get' class='form form-horizontal'>
         <div class='card-body'>
 
-            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='index' value='%index%'/>
             <input type='hidden' name='REFERRAL_REQUEST' value='%ID%'/>
             <input type='hidden' name='FIO' value='%FIO%'/>
             <input type='hidden' name='PHONE' value='%PHONE%'/>

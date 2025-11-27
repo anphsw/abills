@@ -70,22 +70,8 @@
     pinedActivity.find('.time').first().addClass('time-black');
   }
 
-  // modules/Crm/Api.pm
-  async function sendRequest(url = '', data = {}, method = 'POST') {
-    const response = await fetch(url, {
-      method: method,
-      mode: 'cors',
-      cache: 'no-cache',
-      credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json'},
-      redirect: 'follow',
-      referrerPolicy: 'no-referrer',
-      body: method === 'GET' ? undefined : JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  jQuery('.del-task-button').on('click', function() {
+  jQuery('.del-task-button').on('click', function(e) {
+    sendRequest(jQuery(this).attr('href'), {}, 'GET');
     location.reload();
   })
 

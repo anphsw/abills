@@ -453,21 +453,21 @@ sub load_rad_pairs {
   }
   close($fh);
 
-  my @rows = split(/[\r\n]+/, $content);
+  my @rows = split(/[\r\n]+/x, $content);
 
   foreach my $line (@rows) {
-    my ($key, $val) = split(/\s+\+?=\s+/, $line, 2);
+    my ($key, $val) = split(/\s+\+?=\s+/x, $line, 2);
     if (!$key) {
       next;
     }
-    $key =~ s/^\s+//;
-    $key =~ s/\s+$//;
-    $val =~ s/^\s+//;
-    $val =~ s/\s+$//;
-    $val =~ s/\"$//;
-    $val =~ s/^\"//;
-    $val =~ s/\'$//;
-    $val =~ s/^\'//;
+    $key =~ s/^\s+//x;
+    $key =~ s/\s+$//x;
+    $val =~ s/^\s+//x;
+    $val =~ s/\s+$//x;
+    $val =~ s/\"$//x;
+    $val =~ s/^\"//x;
+    $val =~ s/\'$//x;
+    $val =~ s/^\'//x;
     $rad_pairs{$key} = $val;
   }
 

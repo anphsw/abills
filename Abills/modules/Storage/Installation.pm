@@ -3,8 +3,6 @@ package Storage::Installation;
 use strict;
 use warnings FATAL => 'all';
 
-my Abills::HTML $html;
-
 my $Storage;
 my $Errors;
 use Abills::Base qw/in_array days_in_month/;
@@ -23,10 +21,12 @@ sub new {
   my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $conf,
-    lang  => $attr->{lang} || {}
+    db      => $db,
+    admin   => $admin,
+    conf    => $conf,
+    lang    => $attr->{lang} || {},
+    html    => $attr->{html} || undef,
+    libpath => $attr->{libpath}
   };
 
   use Storage;
@@ -41,6 +41,54 @@ sub new {
 }
 
 #**********************************************************
+=head2 _start_transaction() - Initialize transaction manager
+
+  Arguments:
+    None
+
+  Returns:
+    HASHREF
+      {
+        rollback => sub { ... }, # Rollback transaction if needed
+        commit   => sub { ... }  # Commit transaction if needed
+      }
+
+  Example:
+    my $transaction = $self->_start_transaction();
+    $transaction->{commit}->();
+
+=cut
+#**********************************************************
+sub _start_transaction {
+  my ($self) = @_;
+
+  my $db = $Storage->{db}{db};
+  my $manage_transaction = !$Storage->{db}->{TRANSACTION};
+
+  if ($manage_transaction) {
+    $db->{AutoCommit} = 0;
+    $Storage->{db}->{TRANSACTION} = 1;
+  }
+
+  return {
+    rollback => sub {
+      return if !$manage_transaction;
+
+      delete $Storage->{db}->{TRANSACTION};
+      $db->rollback();
+      $db->{AutoCommit} = 1;
+    },
+    commit => sub {
+      return if !$manage_transaction;
+
+      delete $Storage->{db}->{TRANSACTION};
+      $db->commit();
+      $db->{AutoCommit} = 1;
+    }
+  };
+}
+
+#**********************************************************
 =head2 storage_change_installation($attr)
 
 =cut
@@ -49,18 +97,24 @@ sub storage_change_installation {
   my $self = shift;
   my ($attr) = @_;
 
-  $Storage->storage_installation_info({ ID => $attr->{ID} });
+  my $installation_id = $attr->{ID};
+  $Storage->storage_installation_info({ ID => $installation_id });
   return $Storage if ($Storage->{TOTAL} && $Storage->{TYPE} && $Storage->{TYPE} eq '4');
 
-  delete $attr->{COUNT} if defined $attr->{COUNT} && (!$attr->{COUNT} || $attr->{COUNT} < 1);
+  delete $attr->{COUNT} if (defined $attr->{COUNT} && (!$attr->{COUNT} || $attr->{COUNT} < 1));
 
   my $old_count = $Storage->{COUNT} || 0;
-  my $new_count = $attr->{COUNT};
+  my $old_status = $Storage->{TYPE} || 0;
+  my $new_status = $attr->{STATUS} || $attr->{TYPE};
+  my $new_count = defined $attr->{COUNT} ? $attr->{COUNT} : $old_count;
   my $incoming_articles_count = 0;
   my $incoming_article_id = $Storage->{STORAGE_INCOMING_ARTICLES_ID};
+  my $article_info = $Storage->storage_incoming_articles_info({ ID => $incoming_article_id });
+  if (!$Storage->{TOTAL} || $Storage->{TOTAL} < 1) {
+    return $Errors->throw_error(1180004);
+  }
 
   if ($new_count && $new_count > 0 && $new_count != $old_count && $incoming_article_id) {
-    my $article_info = $Storage->storage_incoming_articles_info({ ID => $incoming_article_id });
     my $residue = $article_info->{COUNT} || 0;
 
     if ($new_count < $old_count) {
@@ -75,13 +129,53 @@ sub storage_change_installation {
     }
   }
 
+  my $transaction = $self->_start_transaction();
+
   $Storage->storage_installation_change($attr);
-  return $Storage if $Storage->{errno};
+  if ($Storage->{errno}) {
+    $transaction->{rollback}->();
+    return $Storage;
+  }
 
   if ($incoming_articles_count) {
     $Storage->storage_incoming_articles_change({ ID => $incoming_article_id, COUNT => $incoming_articles_count });
+    if ($Storage->{errno}) {
+      $transaction->{rollback}->();
+      return $Storage;
+    }
   }
 
+  if (defined $new_status && $old_status == 7 && $old_status != $new_status) {
+    $attr->{MONTHES} //= $attr->{MONTHS};
+
+    $attr->{SELL_PRICE} = $article_info->{SELL_PRICE} ? $article_info->{SELL_PRICE} * int($new_count) : 0;
+    $attr->{RENT_PRICE} = $article_info->{RENT_PRICE} ? $article_info->{RENT_PRICE} * int($new_count) : 0;
+    $attr->{IN_INSTALLMENTS_PRICE} = ($article_info->{IN_INSTALLMENTS_PRICE} && $attr->{MONTHES}) ?
+      $article_info->{IN_INSTALLMENTS_PRICE} / $attr->{MONTHES} : 0;
+
+    $attr->{SELL_PRICE} = $attr->{ACTUAL_SELL_PRICE} if ($attr->{ACTUAL_SELL_PRICE} && $attr->{ACTUAL_SELL_PRICE} > 0);
+
+    if (!$attr->{USER_INFO} && $attr->{UID}) {
+      use Users;
+      my Users $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+      $Users->info($attr->{UID});
+      if ($Users->{TOTAL} && $Users->{TOTAL} == 1) {
+        $attr->{USER_INFO} = $Users;
+      }
+    }
+    my $fee_result = $self->_storage_make_installation_fee($article_info, { %{$attr}, STATUS => $new_status, COUNT => $new_count });
+
+    if ($fee_result) {
+      $Storage->storage_installation_change({ ID => $installation_id, TYPE => $attr->{STATUS} });
+      $transaction->{commit}->();
+    }
+    else {
+      $transaction->{rollback}->();
+      return $Errors->throw_error(1180005);
+    }
+  }
+
+  $transaction->{commit}->();
   return $Storage;
 }
 
@@ -150,9 +244,7 @@ sub storage_add_installation {
 
   $attr->{SELL_PRICE} = $attr->{ACTUAL_SELL_PRICE} if ($attr->{ACTUAL_SELL_PRICE} && $attr->{ACTUAL_SELL_PRICE} > 0);
 
-  $Storage->{db}{db}->{AutoCommit} = 0;
-  $Storage->{db}->{TRANSACTION} = 1;
-  my DBI $db_ = $Storage->{db}{db};
+  my $transaction = $self->_start_transaction();
 
   if ($attr->{SERIAL} && $attr->{COUNT} == 1 && !$incoming_article_info->{SN}) {
     if ($incoming_article_info->{SIA_COUNT} && $incoming_article_info->{SIA_COUNT} > 1) {
@@ -168,7 +260,7 @@ sub storage_add_installation {
       });
 
       if ($Storage->{errno} || !$Storage->{INCOMING_ARTICLE_ID}) {
-        $db_->rollback();
+        $transaction->{rollback}->();
         return $Errors->throw_error(1180004);
       }
 
@@ -179,7 +271,7 @@ sub storage_add_installation {
         });
 
         if ($Storage->{errno}) {
-          $db_->rollback();
+          $transaction->{rollback}->();
           return $Storage;
         }
 
@@ -193,7 +285,7 @@ sub storage_add_installation {
       });
 
       if ($Storage->{errno}) {
-        $db_->rollback();
+        $transaction->{rollback}->();
         return $Storage;
       }
     }
@@ -216,7 +308,7 @@ sub storage_add_installation {
   my $installation_id = $Storage->{INSTALLATION_ID};
 
   if ($Storage->{errno} || !$installation_id) {
-    $db_->rollback();
+    $transaction->{rollback}->();
     return $Storage->{errno} ? $Storage : $Errors->throw_error(1180005);
   }
 
@@ -232,18 +324,20 @@ sub storage_add_installation {
   my $fee_result = $self->_storage_make_installation_fee($incoming_article_info, $attr);
 
   if ($fee_result) {
-    delete $Storage->{db}->{TRANSACTION};
-    $db_->commit();
-    $db_->{AutoCommit} = 1;
+    $transaction->{commit}->();
   }
   else {
-    $db_->rollback();
+    $transaction->{rollback}->();
     return $Errors->throw_error(1180005);
   }
 
   if ($attr->{UID} && $attr->{COUNT} == 1 && $self->{conf}{STORAGE_INTERNET_ASSIGN}) {
     $self->_storage_assign_internet_parameters($installation_id, $attr->{UID});
     $Storage->{INSTALLATION_ID} = $installation_id;
+  }
+
+  if ($attr->{STATUS} && $attr->{STATUS} == 7 && $attr->{PUBLIC_SALE}) {
+    $self->_send_reserve_notification($incoming_article_info, $attr);
   }
 
   return $Storage;
@@ -290,6 +384,7 @@ sub storage_del_installation {
     UID                          => '_SHOW',
     STATUS                       => '_SHOW',
     STORAGE_ID                   => '_SHOW',
+    INSTALLATION_SOURCE          => '_SHOW',
     COLS_NAME                    => 1
   });
 
@@ -298,9 +393,14 @@ sub storage_del_installation {
   }
   my $installation_info = $installations->[0] || {};
 
-  if (defined($Storage->{STORAGE_ADMIN_PERMISSIONS}) && $installation_info->{storage_id}) {
-    if (!$Storage->{STORAGE_ADMIN_PERMISSIONS}{$installation_info->{storage_id}}) {
-      return $Errors->throw_error(1180002);
+  if ($installation_info->{installation_source} && $installation_info->{installation_source} =~ /ACCOUNTABILITY:\s?(\d+)/x) {
+    $installation_info->{ACCOUNTABILITY_AID} = $1;
+  }
+  else {
+    if (defined($Storage->{STORAGE_ADMIN_PERMISSIONS}) && $installation_info->{storage_id}) {
+      if (!$Storage->{STORAGE_ADMIN_PERMISSIONS}{$installation_info->{storage_id}}) {
+        return $Errors->throw_error(1180002);
+      }
     }
   }
 
@@ -309,6 +409,7 @@ sub storage_del_installation {
     IDENT1     => '_SHOW',
     IDENT2     => '_SHOW',
     IDENT3     => '_SHOW',
+    IDENT4     => '_SHOW',
     COLS_UPPER => 1,
     COLS_NAME  => 1
   });
@@ -321,6 +422,8 @@ sub storage_del_installation {
   my $storage_id = $incoming_article_info->{storage_id} || 0;
   return $Storage if $Storage->{errno};
 
+  my $transaction = $self->_start_transaction();
+
   $Storage->storage_installation_return({
     COUNT_INCOMING  => $incoming_article_info->{sia_count},
     SUM_TOTAL       => $incoming_article_info->{total_sum},
@@ -332,7 +435,11 @@ sub storage_del_installation {
     COMMENTS        => $attr->{COMMENTS},
     RETURN_STATUS   => 1
   });
-  return $Storage if $Storage->{errno};
+
+  if ($Storage->{errno}) {
+    $transaction->{rollback}->();
+    return $Storage;
+  }
 
   if ($installation_info->{count} == 1 && $self->{conf}{STORAGE_INTERNET_ASSIGN} && $installation_info->{uid}) {
     $self->_storage_clear_internet_parameters($incoming_article_info, $installation_info->{uid});
@@ -342,6 +449,7 @@ sub storage_del_installation {
   my $storage_name = $storage_storages->[$storage_id];
 
   if (!$self->{conf}{STORAGE_MOVE_TO_ACCOUNTABILITY_ON_DELETE}) {
+    $transaction->{commit}->();
     return {
       STA_NAME     => $installation_info->{sta_name} || '',
       COUNT        => $installation_info->{count} || '',
@@ -351,23 +459,54 @@ sub storage_del_installation {
     };
   }
 
-  $Storage->storage_accountability_add({
+  my $accountability_list = $Storage->storage_accountability_list({
     STORAGE_INCOMING_ARTICLES_ID => $incoming_article_info->{sia_id},
-    COUNT                        => $installation_info->{count},
     AID                          => $self->{admin}{AID},
-    ADDED_BY_AID                 => $self->{admin}{AID},
-    COMMENTS                     => $attr->{COMMENTS}
+    COUNT                        => '_SHOW',
+    COLS_NAME                    => 1
   });
-  if ($Storage->{errno}) {
-    return {
-      STA_NAME     => $installation_info->{sta_name} || '',
-      COUNT        => $installation_info->{count} || '',
-      STREET       => $installation_info->{street} || '',
-      STORAGE_NAME => $storage_name || '',
-      TO_STORAGE   => 1
-    };
+
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    my $accountability_info = $accountability_list->[0];
+
+    $Storage->storage_accountability_change({
+      ID    => $accountability_info->{id},
+      COUNT => $accountability_info->{count} + $installation_info->{count},
+    });
+
+    if ($Storage->{errno}) {
+      $transaction->{rollback}->();
+      return $Storage;
+    }
+  }
+  else {
+    $Storage->storage_accountability_add({
+      STORAGE_INCOMING_ARTICLES_ID => $incoming_article_info->{sia_id},
+      COUNT                        => $installation_info->{count},
+      AID                          => $self->{admin}{AID},
+      ADDED_BY_AID                 => $self->{admin}{AID},
+      COMMENTS                     => $attr->{COMMENTS}
+    });
+
+    if ($Storage->{errno}) {
+      $transaction->{rollback}->();
+      return $Storage;
+    }
   }
 
+  if ($Storage->{errno}) {
+    $transaction->{rollback}->();
+    return $Storage;
+    # return {
+    #   STA_NAME     => $installation_info->{sta_name} || '',
+    #   COUNT        => $installation_info->{count} || '',
+    #   STREET       => $installation_info->{street} || '',
+    #   STORAGE_NAME => $storage_name || '',
+    #   TO_STORAGE   => 1
+    # };
+  }
+
+  $transaction->{commit}->();
   return {
     STA_NAME          => $installation_info->{sta_name} || '',
     COUNT             => $installation_info->{count} || '',
@@ -400,13 +539,10 @@ sub storage_del_installation {
 =cut
 #**********************************************************
 sub _storage_make_installation_fee {
-  my $self = shift;
-  my $incoming_article_info = shift;
-  my ($attr) = @_;
+  my ($self, $incoming_article_info, $attr) = @_;
 
-  return 1 if !$attr->{STATUS};
-  return 0 if !$attr->{USER_INFO} && $attr->{UID};
-
+  return 1 if (!$attr->{STATUS});
+  return 0 if (!$attr->{USER_INFO} && $attr->{UID});
   require Finance;
   Finance->import();
   my $Fees = Finance->fees($self->{db}, $self->{admin}, $self->{conf});
@@ -473,10 +609,11 @@ sub _storage_assign_internet_parameters {
     ID     => $installation_id,
     IDENT1 => '_SHOW',
     IDENT2 => '_SHOW',
-    IDENT3 => '_SHOW'
+    IDENT3 => '_SHOW',
+    IDENT4 => '_SHOW'
   });
 
-  if (!grep {$Storage->{$_}} qw(SERIAL IDENT1 IDENT2 IDENT3)) {
+  if (!grep {$Storage->{$_}} qw(SERIAL IDENT1 IDENT2 IDENT3 IDENT4)) {
     return;
   }
 
@@ -491,6 +628,7 @@ sub _storage_assign_internet_parameters {
 
   my @changeable_fields = qw(CID CPE_MAC);
   my $internet_params = {};
+  my $comments = [];
 
   for my $pair (split(/;/, $self->{conf}{STORAGE_INTERNET_ASSIGN})) {
     my ($key, $value) = split(/=/, $pair, 2);
@@ -504,13 +642,19 @@ sub _storage_assign_internet_parameters {
       for my $candidate (@candidates) {
         if (defined $Storage->{$candidate} && $Storage->{$candidate} ne '') {
           $internet_params->{$key} = $Storage->{$candidate};
+          push @{$comments}, "$key: $Storage->{$candidate}";
           last;
         }
       }
     }
     elsif (defined $Storage->{$value} && $Storage->{$value}) {
       $internet_params->{$key} = $Storage->{$value};
+      push @{$comments}, "$key: $Storage->{$value}";
     }
+  }
+
+  if (scalar @{$comments}) {
+    $internet_params->{COMMENTS} = join(' ', @{$comments});
   }
 
   if (%{$internet_params}) {
@@ -537,7 +681,7 @@ sub _storage_clear_internet_parameters {
   my $self = shift;
   my ($installation, $uid) = @_;
 
-  if (!grep { $installation->{$_} } qw(SERIAL IDENT1 IDENT2 IDENT3)) {
+  if (!grep { $installation->{$_} } qw(SERIAL IDENT1 IDENT2 IDENT3 IDENT4)) {
     return;
   }
 
@@ -600,6 +744,60 @@ sub _storage_clear_internet_parameters {
       UID => $uid
     });
   }
+}
+
+#***********************************************************
+=head2 _send_reserve_notification($incoming_article_info, $attr) - Send notification to admin about item reservation
+
+  Arguments:
+    $incoming_article_info - HashRef of article details from storage_incoming_articles_info()
+    $attr
+      USER_INFO             - User object (required)
+      COUNT                 - Count of reserved items
+      SELL_PRICE            - Price
+
+  Returns:
+    1 on success, 0 on failure
+
+  Example:
+    $self->_send_reserve_notification($incoming_article_info, $attr);
+
+=cut
+#***********************************************************
+sub _send_reserve_notification {
+  my ($self, $incoming_article_info, $attr) = @_;
+
+  return 0 if (!$incoming_article_info->{STORAGE_ID} || !$self->{html});
+
+  $Storage->storage_info({ ID => $incoming_article_info->{STORAGE_ID} });
+  return 0 if (!$Storage->{RESPONSIBLE});
+
+  require Abills::Template;
+  my $Templates = Abills::Template->new($self->{db}, $self->{admin}, $self->{conf}, {
+    html    => $self->{html},
+    lang    => $self->{lang},
+    libpath => $self->{libpath}
+  });
+
+  my $message = $self->{html}->tpl_show($Templates->_include('storage_reserve_item_from_user_portal_admin_notify', 'Storage'), {
+    LOGIN           => $attr->{USER_INFO}{LOGIN},
+    ARTICLE_NAME    => $incoming_article_info->{ARTICLE_NAME} || '',
+    COUNT           => $attr->{COUNT} || 0,
+    SELL_PRICE      => $attr->{SELL_PRICE} || 0,
+    STORAGE_NAME    => $Storage->{NAME} || '',
+  }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+
+  my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
+  $Sender->send_message_auto({
+    AID     => $Storage->{RESPONSIBLE},
+    SUBJECT => $self->{lang}{STORAGE_RESERVE_NOTIFY_SUBJECT},
+    MESSAGE => $message
+  });
+
+  return 1;
 }
 
 1;

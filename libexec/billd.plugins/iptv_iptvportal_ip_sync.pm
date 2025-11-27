@@ -26,7 +26,7 @@ our (
 );
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 iptvportal_ips_sync();
 

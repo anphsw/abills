@@ -1,4 +1,4 @@
-package Acct2 v3.0.0;
+package Acct2 v3.1.0;
 
 =head1 NAME
 
@@ -7,15 +7,15 @@ package Acct2 v3.0.0;
 =cut
 
 use strict;
-use parent 'dbbase';
+use parent qw(dbbase);
 use Billing;
 
 my ($conf);
 my $Billing;
-my $input_gigawords='Acct-Output-Gigawords';
-my $output_gigawords='Acct-Input-Gigawords';
-my $input_octets='Acct-Output-Octets';
-my $output_octets='Acct-Input-Octets';
+my $input_gigawords = 'Acct-Output-Gigawords';
+my $output_gigawords = 'Acct-Input-Gigawords';
+my $input_octets = 'Acct-Output-Octets';
+my $output_octets = 'Acct-Input-Octets';
 
 #our %ACCT_TYPES;
 # my %ACCT_TYPES = (
@@ -58,45 +58,187 @@ my %ACCT_TERMINATE_CAUSES = (
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
-  ($conf)   = @_;
+  my $db = shift;
+  ($conf) = @_;
 
   my $self = {};
   bless($self, $class);
 
-  $self->{db}=$db;
+  $self->{db} = $db;
   $Billing = Billing->new($db, $conf);
-  $Billing->{INTERNET}=1;
+  $Billing->{INTERNET} = 1;
 
   return $self;
 }
 
+
+#**********************************************************
+=head2  accounting_ipn_stop($RAD, $NAS) - Accounting Work_
+
+  Arguments:
+    $RAD,
+    $NAS,
+    $attr
+
+  Results:
+    $ret
+
+=cut
+#**********************************************************
+sub accounting_ipn_stop {
+  my ($self, $RAD, $NAS) = @_;
+
+  my $terminate_cause = ($RAD->{'Acct-Terminate-Cause'} && defined($ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}})) ? $ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}} : 0;
+
+  my $sql = <<'SQL';
+SELECT
+  online.acct_input_octets  AS inbyte,
+  online.acct_output_octets AS outbyte,
+  online.acct_input_gigawords,
+  online.acct_output_gigawords,
+  online.ex_input_octets    AS inbyte2,
+  online.ex_output_octets   AS outbyte2,
+  online.tp_id              AS tarif_plan,
+  online.sum,
+  online.uid,
+  u.bill_id,
+  u.company_id
+FROM internet_online online
+       INNER JOIN users u ON (online.uid=u.uid)
+WHERE online.user_name= ?
+  AND online.acct_session_id= ? ;
+SQL
+
+  $self->query($sql,
+    undef,
+    { INFO => 1,
+      Bind => [ $RAD->{'User-Name'} || '',
+        $RAD->{'Acct-Session-Id'}
+      ] }
+  );
+
+  if ($self->{errno}) {
+    if ($self->{errno} == 2) {
+      $self->{errno} = 2;
+      $self->{errstr} = "Session account Not Exist '" . $RAD->{'Acct-Session-Id'} . "'";
+      return $self;
+    }
+    return $self;
+  }
+
+  if ($self->{COMPANY_ID} > 0) {
+    $self->query("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
+    if ($self->{TOTAL} < 1) {
+      $self->{errno} = 2;
+      $self->{errstr} = "Company not exists '$self->{COMPANY_ID}'";
+      return $self;
+    }
+    ($self->{BILL_ID}) = @{$self->{list}->[0]};
+  }
+
+  # if ($self->{INBYTE} > 4294967296) {
+  #   $RAD->{$input_gigawords} = int($self->{INBYTE} / 4294967296);
+  #   $RAD->{INBYTE}           = $self->{INBYTE} - $RAD->{$input_gigawords} * 4294967296;
+  # }
+  #
+  # if ($self->{OUTBYTE} > 4294967296) {
+  #   $RAD->{$output_gigawords} = int($self->{OUTBYTE} / 4294967296);
+  #   $RAD->{OUTBYTE}           = $self->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
+  # }
+
+  my $ipv6 = '';
+  if ($conf->{IPV6} && $RAD->{'Framed-IPv6-Prefix'}) {
+    my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
+    $interface_id =~ s/\/\d+//xg;
+    $ipv6 = ", framed_ipv6_prefix =INET6_ATON('" . $RAD->{'Framed-IPv6-Prefix'} . '::' . $interface_id . "')";
+  }
+
+  if ($self->{UID} > 0) {
+    $sql = <<'SQL';
+INSERT INTO internet_log
+SET
+  uid                  = ? ,
+  start                =NOW() - INTERVAL ? SECOND,
+  tp_id                = ? ,
+  duration             = ? ,
+  sent                 = ? ,
+  recv                 = ? ,
+  sum                  = ? ,
+  nas_id               = ? ,
+  port_id              = ? ,
+  ip                   =INET_ATON( ? ),
+  cid                  = ? ,
+  sent2                = ? ,
+  recv2                = ? ,
+  acct_session_id      = ? ,
+  bill_id              = ? ,
+  terminate_cause      = ? ,
+  acct_input_gigawords = ? ,
+  acct_output_gigawords= ?,
+  guest                = ?
+SQL
+
+    my @values = (
+      $self->{UID} || 0,
+      $RAD->{'Acct-Session-Time'},
+      $self->{TP_ID} // 0,
+      $RAD->{'Acct-Session-Time'},
+      $RAD->{$output_octets} || 0,
+      $RAD->{$input_octets} || 0,
+      $self->{SUM},
+      $NAS->{NAS_ID},
+      $RAD->{'NAS-Port'} || 0,
+      $RAD->{'Framed-IP-Address'},
+      $RAD->{'Calling-Station-Id'} || '_1',
+      $self->{OUTBYTE2} || 0,
+      $self->{INBYTE2} || 0,
+      $RAD->{'Acct-Session-Id'},
+      $self->{BILL_ID},
+      $terminate_cause,
+      $RAD->{$input_gigawords},
+      $RAD->{$output_gigawords},
+      $self->{GUEST} || 0
+    );
+
+    $self->query($sql . $ipv6, 'do', { Bind => \@values });
+  }
+
+  return 1;
+}
+
+
 #**********************************************************
 =head2  accounting($RAD, $NAS) - Accounting Work_
+
+  Arguments:
+    $RAD,
+    $NAS,
+    $attr
+
+  Results:
+    $ret
 
 =cut
 #**********************************************************
 sub accounting {
-  my $self = shift;
-  my ($RAD, $NAS, $attr) = @_;
+  my ($self, $RAD, $NAS, $attr) = @_;
 
-  $self->{SUM}              = 0 if (!$self->{SUM});
-  my $acct_status_type      = $attr->{ACCT_STATUS_TYPE} || 0; #$ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
-  $RAD->{$input_gigawords}  = 0 if (!$RAD->{$input_gigawords});
+  $self->{SUM} = 0 if (!$self->{SUM});
+  my $acct_status_type = $attr->{ACCT_STATUS_TYPE} || 0; #$ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
+  $RAD->{$input_gigawords} = 0 if (!$RAD->{$input_gigawords});
   $RAD->{$output_gigawords} = 0 if (!$RAD->{$output_gigawords});
-  $RAD->{$input_octets}     = 0 if (!$RAD->{$input_octets});
-  $RAD->{$output_octets}    = 0 if (!$RAD->{$output_octets});
+  $RAD->{$input_octets} = 0 if (!$RAD->{$input_octets});
+  $RAD->{$output_octets} = 0 if (!$RAD->{$output_octets});
 
-  $RAD->{'Framed-IP-Address'}     = '0.0.0.0' if (!$RAD->{'Framed-IP-Address'});
-  $RAD->{'Acct-Session-Time'}     = 0         if (!defined($RAD->{'Acct-Session-Time'}));
+  $RAD->{'Framed-IP-Address'} = '0.0.0.0' if (!$RAD->{'Framed-IP-Address'});
+  $RAD->{'Acct-Session-Time'} = 0 if (!defined($RAD->{'Acct-Session-Time'}));
   if (length($RAD->{'Acct-Session-Id'}) > 36) {
     $RAD->{'Acct-Session-Id'} = substr($RAD->{'Acct-Session-Id'}, 0, 36);
   }
 
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
-    $self->query("SELECT u.uid, u.id
-     FROM users u, internet_main internet WHERE internet.uid=u.uid AND internet.CID= ? AND u.deleted = 0;",
-      undef, { Bind => [ $RAD->{'Calling-Station-Id'} ]}
+    $self->query("SELECT u.uid, u.id FROM users u, internet_main internet WHERE internet.uid=u.uid AND internet.CID= ? AND u.deleted = 0;",
+      undef, { Bind => [ $RAD->{'Calling-Station-Id'} ] }
     );
 
     if ($self->{TOTAL} < 1) {
@@ -106,23 +248,20 @@ sub accounting {
       $RAD->{'User-Name'} = $self->{list}->[0]->[1];
     }
   }
-  # elsif($NAS->{NAS_TYPE} eq 'accel_ipoe') {
-  #
-  # }
 
   #Get cisco session id
   if ($RAD->{'Cisco-Service-Info'}) {
     $RAD->{'Connect-Info'} = $RAD->{'Cisco-Service-Info'};
     if (ref $RAD->{'Cisco-AVPair'} eq 'ARRAY') {
-      foreach my $params (@{ $RAD->{'Cisco-AVPair'} }) {
-        if ($params =~ /parent-session-id=(.+)/) {
+      foreach my $params (@{$RAD->{'Cisco-AVPair'}}) {
+        if ($params =~ /parent-session-id=(.+)/xm) {
           $RAD->{'Acct-Session-Id'} = $1;
           last;
         }
       }
     }
     else {
-      if ($RAD->{'Cisco-AVPair'} && $RAD->{'Cisco-AVPair'} =~ /parent-session-id=(.+)/) {
+      if ($RAD->{'Cisco-AVPair'} && $RAD->{'Cisco-AVPair'} =~ /parent-session-id=(.+)/xm) {
         $RAD->{'Acct-Session-Id'} = $1;
       }
     }
@@ -130,51 +269,63 @@ sub accounting {
 
   #Start
   if ($acct_status_type == 1) {
-    $self->query("SELECT acct_session_id, uid FROM internet_online
-    WHERE user_name= ?
-      AND nas_id= ?
-      AND (framed_ip_address=INET_ATON( ? )
-      OR framed_ip_address=0) FOR UPDATE;",
+    my $sql = <<'SQL';
+SELECT acct_session_id, uid
+FROM internet_online
+WHERE user_name= ?
+  AND nas_id= ?
+  AND (framed_ip_address=INET_ATON( ? )
+  OR framed_ip_address=0) FOR
+UPDATE;
+SQL
+
+    $self->query($sql,
       undef,
       { Bind => [
-          $RAD->{'User-Name'},
-          $NAS->{NAS_ID},
-          $RAD->{'Framed-IP-Address'}
-        ] }
+        $RAD->{'User-Name'},
+        $NAS->{NAS_ID},
+        $RAD->{'Framed-IP-Address'}
+      ] }
     );
 
     if ($self->{TOTAL} > 0) {
-      foreach my $line (@{ $self->{list} }) {
+      foreach my $line (@{$self->{list}}) {
         if ($line->[0] eq 'IP' || $line->[0] eq $RAD->{'Acct-Session-Id'}) {
-          $self->{UID}=$line->[1];
-          $self->query("UPDATE internet_online SET
-           status= ? ,
-           started=NOW() - INTERVAL ? SECOND,
-           lupdated=UNIX_TIMESTAMP(),
-           nas_port_id= ? ,
-           acct_session_id= ? ,
-           cid= ? ,
-           connect_info= ?
-           WHERE user_name= ?
-             AND nas_id= ?
-             AND (acct_session_id='IP' OR acct_session_id= ? )
-             AND (framed_ip_address=INET_ATON( ? ) OR framed_ip_address=0)
-           ORDER BY started
-           LIMIT 1;", 'do',
-            { Bind => [
-                $acct_status_type,
-                $RAD->{'Acct-Session-Time'} || 0,
-                $RAD->{'NAS-Port'} || 0,
-                $RAD->{'Acct-Session-Id'},
-                $RAD->{'Calling-Station-Id'},
-                $RAD->{'Connect-Info'} || $RAD->{'NAS-Port-Id'},
-                $RAD->{'User-Name'},
-                $NAS->{'NAS_ID'},
-                $RAD->{'Acct-Session-Id'},
-                $RAD->{'Framed-IP-Address'} ]
-            });
+          $self->{UID} = $line->[1];
+          $sql = <<'SQL';
+UPDATE internet_online
+SET
+  status         = ? ,
+  started        =NOW() - INTERVAL ? SECOND,
+  lupdated       =UNIX_TIMESTAMP(),
+  nas_port_id    = ? ,
+  acct_session_id= ? ,
+  cid            = ? ,
+  connect_info   = ?
+WHERE user_name= ?
+  AND nas_id= ?
+  AND (acct_session_id='IP' OR acct_session_id= ? )
+  AND (framed_ip_address=INET_ATON( ? ) OR framed_ip_address=0)
+ORDER BY started
+LIMIT 1;
+SQL
 
-          if (! $self->{errno}) {
+          my @values = (
+            $acct_status_type,
+            $RAD->{'Acct-Session-Time'} || 0,
+            $RAD->{'NAS-Port'} || 0,
+            $RAD->{'Acct-Session-Id'},
+            $RAD->{'Calling-Station-Id'},
+            $RAD->{'Connect-Info'} || $RAD->{'NAS-Port-Id'},
+            $RAD->{'User-Name'},
+            $NAS->{'NAS_ID'},
+            $RAD->{'Acct-Session-Id'},
+            $RAD->{'Framed-IP-Address'}
+          );
+
+          $self->query($sql, 'do', { Bind => \@values });
+
+          if (!$self->{errno}) {
             return $self;
           }
 
@@ -183,127 +334,17 @@ sub accounting {
       }
     }
     # If not found auth records and session > 2 sec
-    else { #if($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2) {
+    else {
       $self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
     }
-    # Ignoring quick alive rad packets
-    #else {
-    #
-    #}
   }
 
   # Stop status
   elsif ($acct_status_type == 2) {
-
     my $terminate_cause = ($RAD->{'Acct-Terminate-Cause'} && defined($ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}})) ? $ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}} : 0;
     if ($RAD->{'Acct-Session-Time'} > 5) {
-      #IPN Service
       if ($NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipn') {
-        $self->query("SELECT
-       online.acct_input_octets AS inbyte,
-       online.acct_output_octets AS outbyte,
-       online.acct_input_gigawords,
-       online.acct_output_gigawords,
-       online.ex_input_octets AS inbyte2,
-       online.ex_output_octets AS outbyte2,
-       online.tp_id AS tarif_plan,
-       online.sum,
-       online.uid,
-       u.bill_id,
-       u.company_id
-    FROM internet_online online
-    INNER JOIN users u ON (online.uid=u.uid)
-    WHERE online.user_name= ?
-      AND online.acct_session_id= ? ;",
-          undef,
-          { INFO => 1,
-            Bind => [ $RAD->{'User-Name'} || '',
-              $RAD->{'Acct-Session-Id'}
-            ] }
-        );
-
-        if ($self->{errno}) {
-          if ($self->{errno} == 2) {
-            $self->{errno} = 2;
-            $self->{errstr} = "Session account Not Exist '" . $RAD->{'Acct-Session-Id'} . "'";
-            return $self;
-          }
-          return $self;
-        }
-
-        if ($self->{COMPANY_ID} > 0) {
-          $self->query("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
-          if ($self->{TOTAL} < 1) {
-            $self->{errno} = 2;
-            $self->{errstr} = "Company not exists '$self->{COMPANY_ID}'";
-            return $self;
-          }
-          ($self->{BILL_ID}) = @{$self->{list}->[0]};
-        }
-
-        # if ($self->{INBYTE} > 4294967296) {
-        #   $RAD->{$input_gigawords} = int($self->{INBYTE} / 4294967296);
-        #   $RAD->{INBYTE}           = $self->{INBYTE} - $RAD->{$input_gigawords} * 4294967296;
-        # }
-        #
-        # if ($self->{OUTBYTE} > 4294967296) {
-        #   $RAD->{$output_gigawords} = int($self->{OUTBYTE} / 4294967296);
-        #   $RAD->{OUTBYTE}           = $self->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
-        # }
-
-        my $ipv6 = '';
-        if ($conf->{IPV6} && $RAD->{'Framed-IPv6-Prefix'}) {
-          my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
-          $interface_id =~ s/\/\d+//g;
-          $ipv6 = ", framed_ipv6_prefix =INET6_ATON('" . $RAD->{'Framed-IPv6-Prefix'} . '::' . $interface_id . "')";
-        }
-
-        if ($self->{UID} > 0) {
-          $self->query('INSERT INTO internet_log SET
-          uid= ? ,
-          start=NOW() - INTERVAL ? SECOND,
-          tp_id= ? ,
-          duration= ? ,
-          sent= ? ,
-          recv= ? ,
-          sum= ? ,
-          nas_id= ? ,
-          port_id= ? ,
-          ip=INET_ATON( ? ),
-          cid= ? ,
-          sent2= ? ,
-          recv2= ? ,
-          acct_session_id= ? ,
-          bill_id= ? ,
-          terminate_cause= ? ,
-          acct_input_gigawords= ? ,
-          acct_output_gigawords= ?,
-          guest= ? '
-            . $ipv6,
-            'do',
-            { Bind => [
-              $self->{UID} || 0,
-              $RAD->{'Acct-Session-Time'},
-              $self->{TP_ID} // 0,
-              $RAD->{'Acct-Session-Time'},
-              $RAD->{$output_octets} || 0,
-              $RAD->{$input_octets} || 0,
-              $self->{SUM},
-              $NAS->{NAS_ID},
-              $RAD->{'NAS-Port'} || 0,
-              $RAD->{'Framed-IP-Address'},
-              $RAD->{'Calling-Station-Id'} || '_1',
-              $self->{OUTBYTE2} || 0,
-              $self->{INBYTE2}  || 0,
-              $RAD->{'Acct-Session-Id'},
-              $self->{BILL_ID},
-              $terminate_cause,
-              $RAD->{$input_gigawords},
-              $RAD->{$output_gigawords},
-              $self->{GUEST} || 0
-            ] }
-          );
-        }
+        $self->accounting_ipn_stop($RAD, $NAS, $attr);
       }
       elsif ($conf->{rt_billing}) {
         $self->rt_billing($RAD, $NAS);
@@ -332,47 +373,52 @@ sub accounting {
           $self->{SUM} += $self->{CALLS_SUM};
         }
 
-        $self->query("INSERT INTO internet_log SET
-          uid= ? ,
-          start=NOW() - INTERVAL ? SECOND,
-          tp_id= ? ,
-          duration= ? ,
-          sent= ? ,
-          recv= ? ,
-          sum= ? ,
-          nas_id= ? ,
-          port_id= ? ,
-          ip=INET_ATON( ? ),
-          CID= ? ,
-          sent2= ? ,
-          recv2= ? ,
-          acct_session_id= ? ,
-          bill_id= ? ,
-          terminate_cause= ? ,
-          acct_input_gigawords= ? ,
-          acct_output_gigawords= ? ",
-          'do',
-          { Bind => [
-            $self->{UID} || 0,
-            $RAD->{'Acct-Session-Time'},
-            $self->{TP_ID} || 0,
-            $RAD->{'Acct-Session-Time'},
-            $RAD->{$output_octets} || 0,
-            $RAD->{$input_octets} || 0,
-            $self->{SUM} || 0,
-            $NAS->{NAS_ID},
-            $RAD->{'NAS-Port'} || 0,
-            $RAD->{'Framed-IP-Address'},
-            $RAD->{'Calling-Station-Id'} || '_2',
-            $RAD->{OUTBYTE2} || 0,
-            $RAD->{INBYTE2} || 0,
-            $RAD->{'Acct-Session-Id'},
-            $self->{BILL_ID},
-            $terminate_cause,
-            $RAD->{$input_gigawords},
-            $RAD->{$output_gigawords}
-          ] }
+        my $sql = <<'SQL';
+INSERT INTO internet_log
+SET
+  uid                  = ? ,
+  start                =NOW() - INTERVAL ? SECOND,
+  tp_id                = ? ,
+  duration             = ? ,
+  sent                 = ? ,
+  recv                 = ? ,
+  sum                  = ? ,
+  nas_id               = ? ,
+  port_id              = ? ,
+  ip                   =INET_ATON( ? ),
+  CID                  = ? ,
+  sent2                = ? ,
+  recv2                = ? ,
+  acct_session_id      = ? ,
+  bill_id              = ? ,
+  terminate_cause      = ? ,
+  acct_input_gigawords = ? ,
+  acct_output_gigawords= ?
+SQL
+
+
+        my @values = (
+          $self->{UID} || 0,
+          $RAD->{'Acct-Session-Time'},
+          $self->{TP_ID} || 0,
+          $RAD->{'Acct-Session-Time'},
+          $RAD->{$output_octets} || 0,
+          $RAD->{$input_octets} || 0,
+          $self->{SUM} || 0,
+          $NAS->{NAS_ID},
+          $RAD->{'NAS-Port'} || 0,
+          $RAD->{'Framed-IP-Address'},
+          $RAD->{'Calling-Station-Id'} || '_2',
+          $RAD->{OUTBYTE2} || 0,
+          $RAD->{INBYTE2} || 0,
+          $RAD->{'Acct-Session-Id'},
+          $self->{BILL_ID},
+          $terminate_cause,
+          $RAD->{$input_gigawords},
+          $RAD->{$output_gigawords}
         );
+
+        $self->query($sql, 'do', { Bind => \@values });
 
         if ($self->{errno}) {
           print "Error: [$self->{errno}] $self->{errstr}\n";
@@ -382,8 +428,8 @@ sub accounting {
         my %EXT_ATTR = ();
 
         #Get connected TP
-        $self->query("SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE
-          acct_session_id= ? AND nas_id= ? ;",
+        $self->query(
+          "SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE acct_session_id= ? AND nas_id= ? ;",
           undef,
           { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] }
         );
@@ -425,46 +471,51 @@ sub accounting {
             $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
         }
         else {
-          $self->query("INSERT INTO internet_log SET
-          uid= ? ,
-          start=NOW() - INTERVAL ? SECOND,
-          tp_id= ? ,
-          duration= ? ,
-          sent= ? ,
-          recv= ? ,
-          sum= ? ,
-          nas_id= ? ,
-          port_id= ? ,
-          ip=INET_ATON( ? ),
-          CID= ? ,
-          sent2= ? ,
-          recv2= ? ,
-          acct_session_id= ? ,
-          bill_id= ? ,
-          terminate_cause= ? ,
-          acct_input_gigawords= ? ,
-          acct_output_gigawords= ? ",
-            'do',
-            { Bind => [ $self->{UID} || 0,
-              $RAD->{'Acct-Session-Time'},
-              $self->{TP_ID} || $EXT_ATTR{TP_ID},
-              $RAD->{'Acct-Session-Time'},
-              $RAD->{$output_octets} || 0,
-              $RAD->{$input_octets} || 0,
-              $self->{SUM},
-              $NAS->{NAS_ID},
-              $RAD->{'NAS-Port'} || 0,
-              $RAD->{'Framed-IP-Address'},
-              $RAD->{'Calling-Station-Id'} || '',
-              $RAD->{OUTBYTE2}  || 0,
-              $RAD->{INBYTE2}  || 0,
-              $RAD->{'Acct-Session-Id'},
-              $self->{BILL_ID},
-              $terminate_cause,
-              $RAD->{$input_gigawords},
-              $RAD->{$output_gigawords}
-            ] }
+          my $sql = <<'SQL';
+INSERT INTO internet_log
+SET
+  uid                  = ? ,
+  start                =NOW() - INTERVAL ? SECOND,
+  tp_id                = ? ,
+  duration             = ? ,
+  sent                 = ? ,
+  recv                 = ? ,
+  sum                  = ? ,
+  nas_id               = ? ,
+  port_id              = ? ,
+  ip                   =INET_ATON( ? ),
+  CID                  = ? ,
+  sent2                = ? ,
+  recv2                = ? ,
+  acct_session_id      = ? ,
+  bill_id              = ? ,
+  terminate_cause      = ? ,
+  acct_input_gigawords = ? ,
+  acct_output_gigawords= ?
+SQL
+
+          my @values = (
+            $self->{UID} || 0,
+            $RAD->{'Acct-Session-Time'},
+            $self->{TP_ID} || $EXT_ATTR{TP_ID},
+            $RAD->{'Acct-Session-Time'},
+            $RAD->{$output_octets} || 0,
+            $RAD->{$input_octets} || 0,
+            $self->{SUM},
+            $NAS->{NAS_ID},
+            $RAD->{'NAS-Port'} || 0,
+            $RAD->{'Framed-IP-Address'},
+            $RAD->{'Calling-Station-Id'} || '',
+            $RAD->{OUTBYTE2} || 0,
+            $RAD->{INBYTE2} || 0,
+            $RAD->{'Acct-Session-Id'},
+            $self->{BILL_ID},
+            $terminate_cause,
+            $RAD->{$input_gigawords},
+            $RAD->{$output_gigawords}
           );
+
+          $self->query($sql, 'do', { Bind => \@values });
 
           if ($self->{errno}) {
             my $filename = $RAD->{'User-Name'} . $RAD->{'Acct-Session-Id'};
@@ -488,38 +539,10 @@ sub accounting {
   }
 
   #Alive status 3
-  elsif ($acct_status_type eq 3) {
+  elsif ($acct_status_type == 3) {
     $self->{SUM} = 0 if (!$self->{SUM});
     if ($NAS->{NAS_EXT_ACCT}) {
-      my $ipn_fields = '';
-      if ($NAS->{IPN_COLLECTOR}) {
-        $ipn_fields = "sum=sum+$self->{SUM},
-      acct_input_octets='$RAD->{$input_octets}',
-      acct_output_octets='$RAD->{$output_octets}',
-      ex_input_octets=ex_input_octets + ". ($RAD->{INBYTE2}  || 0) .",
-      ex_output_octets=ex_output_octets + ". ($RAD->{OUTBYTE2} || 0). ",
-      acct_input_gigawords='". $RAD->{$input_gigawords} ."',
-      acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
-      }
-
-      $self->query('UPDATE internet_online SET '
-        . $ipn_fields
-        . "status= ? ,
-        acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
-        framed_ip_address=INET_ATON( ? ),
-        lupdated=UNIX_TIMESTAMP()
-      WHERE
-        acct_session_id= ? AND
-        user_name= ? AND
-        nas_id= ? ;", 'do', {
-          Bind => [ $acct_status_type,
-            $RAD->{'Framed-IP-Address'},
-            $RAD->{'Acct-Session-Id'},
-            $RAD->{'User-Name'} || '',
-            $NAS->{NAS_ID}
-          ]   });
-
-      return $self;
+      return $self->nas_ext_acct($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
     }
     elsif ($NAS->{NAS_TYPE} eq 'ipn') {
       return $self;
@@ -528,13 +551,10 @@ sub accounting {
       $self->rt_billing($RAD, $NAS);
       #add unknown session
       if ($self->{errno}) {
-        if ($self->{errno}  == 2 && ($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2)) {
+        if ($self->{errno} == 2 && ($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2)) {
           $self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
           return $self;
         }
-        #else {
-        #
-        #}
       }
     }
 
@@ -543,13 +563,14 @@ sub accounting {
       $ex_octets = "ex_input_octets='$RAD->{INBYTE2}',  ex_output_octets='$RAD->{OUTBYTE2}', ";
     }
 
-    $self->query('UPDATE internet_online SET
+    my $sql = <<"SQL";
+    UPDATE internet_online SET
       status= ? ,
       acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
       acct_input_octets= ? ,
-      acct_output_octets= ? ,'
-      . $ex_octets
-      . 'framed_ip_address=INET_ATON( ? ),
+      acct_output_octets= ? ,
+      $ex_octets
+      framed_ip_address=INET_ATON( ? ),
       lupdated=UNIX_TIMESTAMP(),
       sum=sum + ? ,
       acct_input_gigawords= ? ,
@@ -557,59 +578,88 @@ sub accounting {
     WHERE
       acct_session_id= ?
       AND user_name= ?
-      AND nas_id= ? ;', 'do',
-      { Bind => [
-          $acct_status_type,
-          $RAD->{$input_octets},
-          $RAD->{$output_octets},
-          $RAD->{'Framed-IP-Address'},
-          $self->{'SUM'},
-          $RAD->{$input_gigawords},
-          $RAD->{$output_gigawords},
-          $RAD->{'Acct-Session-Id'},
-          $RAD->{'User-Name'} || '',
-          $NAS->{'NAS_ID'} || 0
-        ]}
+      AND nas_id= ? ;
+SQL
+
+    my @values = (
+      $acct_status_type,
+      $RAD->{$input_octets},
+      $RAD->{$output_octets},
+      $RAD->{'Framed-IP-Address'},
+      $self->{'SUM'},
+      $RAD->{$input_gigawords},
+      $RAD->{$output_gigawords},
+      $RAD->{'Acct-Session-Id'},
+      $RAD->{'User-Name'} || '',
+      $NAS->{'NAS_ID'} || 0
     );
+
+    $self->query($sql, 'do', { Bind => \@values });
   }
-  elsif($acct_status_type == '7' || $acct_status_type == '8') {
-    $self->query("UPDATE internet_online SET status = 2
-           WHERE nas_id = ?;", 'do',
+  elsif ($acct_status_type == 7 || $acct_status_type == 8) {
+    $self->query("UPDATE internet_online SET status = 2 WHERE nas_id = ?;", 'do',
       { Bind => [
-          $NAS->{'NAS_ID'}
-        ]
+        $NAS->{'NAS_ID'}
+      ]
       });
   }
   else {
-    $self->{errno}  = 1;
-    $self->{errstr} = "ACCT [". $RAD->{'User-Name'} ."] Unknown accounting status: ". $RAD->{'Acct-Status-Type'}." (". $RAD->{'Acct-Session-Id'} .")";
+    $self->{errno} = 1;
+    $self->{errstr} = "ACCT [" . $RAD->{'User-Name'} . "] Unknown accounting status: " . $RAD->{'Acct-Status-Type'} . " (" . $RAD->{'Acct-Session-Id'} . ")";
     return $self;
   }
 
   if ($self->{errno}) {
-    $self->{errno}  = 1;
-    $self->{errstr} = "ACCT ". $RAD->{'Acct-Status-Type'} ." SQL Error '". $RAD->{'Acct-Session-Id'} ."'";
+    $self->{errno} = 1;
+    $self->{errstr} = "ACCT " . $RAD->{'Acct-Status-Type'} . " SQL Error '" . $RAD->{'Acct-Session-Id'} . "'";
     return $self;
   }
 
   #detalization radius acct request
   if (($conf->{s_detalization} || $self->{DETAIL_STATS}) && $self->{UID}) {
-    $self->query("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
-       VALUES (?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?);",
-      'do',
-      { Bind => [
-          $RAD->{'Acct-Session-Id'},
-          $NAS->{NAS_ID},
-          $acct_status_type,
-          $RAD->{$input_octets} +  (($RAD->{$input_gigawords})  ? $RAD->{$input_gigawords} * 4294967296  : 0),
-          $RAD->{$output_octets} + (($RAD->{$output_gigawords}) ? $RAD->{$output_gigawords} * 4294967296 : 0),
-          $RAD->{INBYTE2}  || 0,
-          $RAD->{OUTBYTE2} || 0,
-          $self->{UID} || 0,
-          $self->{SUM}
-        ]}
-    );
+    $self->accounting_details($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
   }
+
+  return $self;
+}
+
+#**********************************************************
+=head2  accounting($RAD, $NAS) - Accounting Work_
+
+  Arguments:
+    $RAD,
+    $NAS,
+    $attr
+      ACCT_STATUS_TYPE
+
+  Results:
+    $ret
+
+=cut
+#**********************************************************
+sub accounting_details {
+  my ($self, $RAD, $NAS, $attr) = @_;
+
+  my $acct_status_type = $attr->{ACCT_STATUS_TYPE} || 0;
+
+  my $sql = <<'SQL';
+INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
+VALUES (?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?);
+SQL
+
+  my @values = (
+    $RAD->{'Acct-Session-Id'},
+    $NAS->{NAS_ID},
+    $acct_status_type,
+    $RAD->{$input_octets} + (($RAD->{$input_gigawords}) ? $RAD->{$input_gigawords} * 4294967296 : 0),
+    $RAD->{$output_octets} + (($RAD->{$output_gigawords}) ? $RAD->{$output_gigawords} * 4294967296 : 0),
+    $RAD->{INBYTE2} || 0,
+    $RAD->{OUTBYTE2} || 0,
+    $self->{UID} || 0,
+    $self->{SUM}
+  );
+
+  $self->query($sql, 'do', { Bind => \@values });
 
   return $self;
 }
@@ -617,51 +667,63 @@ sub accounting {
 #**********************************************************
 =head2 rt_billing($RAD, $NAS) Alive accounting
 
+  Arguments:
+     $RAD,
+     $NAS,
+     $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub rt_billing {
-  my $self = shift;
-  my ($RAD, $NAS, $attr) = @_;
+  my ($self, $RAD, $NAS, $attr) = @_;
 
-  if (! $RAD->{'Acct-Session-Id'}) {
-    $self->{errno}  = 2;
+  if (!$RAD->{'Acct-Session-Id'}) {
+    $self->{errno} = 2;
     $self->{errstr} = "Session account rt Not Exist '$RAD->{'Acct-Session-Id'}'";
     return $self;
   }
 
   my $acct_session_id = $RAD->{'Acct-Session-Id'};
-  $RAD->{INBYTE2}  //= 0;
+  $RAD->{INBYTE2} //= 0;
   $RAD->{OUTBYTE2} //= 0;
 
-  $self->query("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
-   IF($RAD->{$input_octets}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
+  my $sql = <<"SQL";
+SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
+       IF($RAD->{$input_octets}   >= acct_input_octets AND $RAD->{$input_gigawords}=acct_input_gigawords,
         $RAD->{$input_octets} - acct_input_octets,
-        IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) + $RAD->{$input_octets} - acct_input_octets, 0)),
+        IF($RAD->{$input_gigawords} > acct_input_gigawords, 4294967296 * ($RAD->{$input_gigawords} - acct_input_gigawords) + $RAD->{$input_octets} - acct_input_octets, 0)),
 
-   IF($RAD->{$output_octets}  >= acct_output_octets AND ". $RAD->{$output_gigawords} ."=acct_output_gigawords,
+       IF($RAD->{$output_octets}  >= acct_output_octets AND $RAD->{$output_gigawords}=acct_output_gigawords,
         $RAD->{$output_octets} - acct_output_octets,
-        IF(". $RAD->{$output_gigawords} ." > acct_output_gigawords, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) + $RAD->{$output_octets} - acct_output_octets, 0)),
-   IF($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
-   IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
-   sum,
-   tp_id,
-   uid,
-   service_id,
-   guest
-   FROM internet_online
-  WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='". $acct_session_id ."';");
+        IF($RAD->{$output_gigawords} > acct_output_gigawords, 4294967296 * ($RAD->{$output_gigawords} - acct_output_gigawords) + $RAD->{$output_octets} - acct_output_octets, 0)),
+       IF($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
+       IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
+       sum,
+       tp_id,
+       uid,
+       service_id,
+       guest
+FROM internet_online
+WHERE nas_id='$NAS->{NAS_ID}'
+AND acct_session_id='$acct_session_id'
+SQL
+
+  $self->query($sql);
 
   if ($self->{errno}) {
     return $self;
   }
   elsif ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = "Session account rt Not Exist '$acct_session_id'";
+    $self->{errno} = 2;
+    $self->{errstr} = "RT_SESSION_NOT_EXIST '$acct_session_id'";
     return $self;
   }
 
-  my $interium_acct_session_time=0;
-  my $interium_session_start=0;
+  my $interium_acct_session_time = 0;
+  my $interium_session_start = 0;
   my $interium_inbyte = 0;
   my $interium_outbyte = 0;
 
@@ -675,10 +737,10 @@ sub rt_billing {
     $self->{TP_ID},
     $self->{UID},
     $self->{SERVICE_ID},
-    $self->{GUEST}) = @{ $self->{list}->[0] };
+    $self->{GUEST}) = @{$self->{list}->[0]};
 
   my $out_byte = $RAD->{$output_octets} + $RAD->{$output_gigawords} * 4294967296;
-  my $in_byte  = $RAD->{$input_octets} + $RAD->{$input_gigawords} * 4294967296;
+  my $in_byte = $RAD->{$input_octets} + $RAD->{$input_gigawords} * 4294967296;
 
   $RAD->{INTERIUM_INBYTE} = $interium_inbyte;
   $RAD->{INTERIUM_OUTBYTE} = $interium_outbyte;
@@ -697,10 +759,10 @@ sub rt_billing {
     $interium_session_start,
     $interium_acct_session_time,
     {
-      OUTBYTE  => ($out_byte == $interium_outbyte) ? $interium_outbyte : $out_byte - $interium_outbyte,
-      INBYTE   => ($in_byte  == $interium_inbyte) ? $interium_inbyte : $in_byte - $interium_inbyte,
-      OUTBYTE2 => $RAD->{OUTBYTE2} - $RAD->{INTERIUM_OUTBYTE1},
-      INBYTE2  => $RAD->{INBYTE2} - $RAD->{INTERIUM_INBYTE1},
+      OUTBYTE           => ($out_byte == $interium_outbyte) ? $interium_outbyte : $out_byte - $interium_outbyte,
+      INBYTE            => ($in_byte == $interium_inbyte) ? $interium_inbyte : $in_byte - $interium_inbyte,
+      OUTBYTE2          => $RAD->{OUTBYTE2} - $RAD->{INTERIUM_OUTBYTE1},
+      INBYTE2           => $RAD->{INBYTE2} - $RAD->{INTERIUM_INBYTE1},
 
       INTERIUM_OUTBYTE  => $interium_outbyte,
       INTERIUM_INBYTE   => $interium_inbyte,
@@ -720,95 +782,41 @@ sub rt_billing {
 
   #  return $self;
   if ($self->{UID} == -2) {
-    $self->{errno}  = 1;
+    $self->{errno} = 1;
     $self->{errstr} = "ACCT [$RAD->{'User-Name'}] Not exist";
     return $self;
   }
   elsif ($self->{UID} == -3) {
     my $filename = "$RAD->{'User-Name'}.$acct_session_id";
-    $self->{errno}  = 1;
+    $self->{errno} = 1;
     $self->{errstr} = "ACCT [$RAD->{'User-Name'}] Not allow start period '$filename'";
     $Billing->mk_session_log($RAD);
     return $self;
   }
   elsif ($self->{UID} == -5) {
     $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $acct_session_id";
-    $self->{errno}     = 1;
+    $self->{errno} = 1;
     print "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $acct_session_id\n";
     return $self;
   }
   elsif ($self->{SUM} < 0) {
-    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'}.", $RAD->{$input_octets}, $RAD->{$output_octets})";
+    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (" . $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets})";
   }
   elsif ($self->{UID} <= 0) {
-    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'} .", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
-    $self->{errno}     = 1;
+    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (" . $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
+    $self->{errno} = 1;
     return $self;
   }
   else {
     if ($self->{SUM} > 0) {
-      $self->query("UPDATE bills SET deposit=deposit-$self->{SUM} WHERE id= ? ;", 'do', { Bind => [ $self->{BILL_ID} ]});
+      $self->query('UPDATE bills SET deposit=deposit - \'' . $self->{SUM} . '\' WHERE id= ? ;', 'do', { Bind => [ $self->{BILL_ID} ] });
     }
   }
 
-  if($conf->{INTERNET_INTERVAL_PREPAID}) {
-    $self->query('SELECT traffic_type FROM internet_log_intervals
-     WHERE acct_session_id= ?
-           AND interval_id= ?
-           AND uid= ? FOR UPDATE;',
-      undef,
-      { Bind => [ $acct_session_id, $Billing->{TI_ID}, $self->{UID} ] }
-    );
-
-    my %intrval_traffic = ();
-    foreach my $line (@{$self->{list}}) {
-      $intrval_traffic{ $line->[0] } = 1;
-    }
-
-    my @RAD_TRAFF_SUFIX = ('', '1');
-    $self->{SUM} = 0 if ($self->{SUM} < 0);
-
-    for (my $traffic_type = 0; $traffic_type <= $#RAD_TRAFF_SUFIX; $traffic_type++) {
-      next if ($RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } + $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } < 1);
-
-      if ($intrval_traffic{$traffic_type}) {
-        $self->query('UPDATE internet_log_intervals SET
-                sent=sent+ ? ,
-                recv=recv+ ? ,
-                duration=duration + ?,
-                sum=sum + ?
-              WHERE interval_id= ?
-                AND acct_session_id= ?
-                AND traffic_type= ?
-                AND uid= ? ;', 'do',
-          { Bind => [
-            $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
-            $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
-
-            $interium_acct_session_time,
-            $self->{SUM},
-            $Billing->{TI_ID},
-            $acct_session_id,
-            $traffic_type,
-            $self->{UID}
-          ] }
-        );
-      }
-      else {
-        $self->query('INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
-        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());', 'do',
-          { Bind => [
-            $Billing->{TI_ID},
-            $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
-            $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
-            $interium_acct_session_time,
-            $traffic_type,
-            $self->{SUM},
-            $acct_session_id,
-            $self->{UID}
-          ] });
-      }
-    }
+  if ($conf->{INTERNET_INTERVAL_PREPAID}) {
+    $attr->{INTERIUM_ACCT_SESSION_TIME} = $interium_acct_session_time;
+    $attr->{BILLING} = $Billing;
+    $self->internet_interval_prepaid($RAD, $attr);
   }
 
   return $self;
@@ -823,98 +831,288 @@ sub rt_billing {
     $NAS,
     $attr
       ACCT_STATUS_TYPE
+      AUTH_FUNCTION - Use external function for auth
 
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub add_unknown_session {
-  my $self = shift;
-  my ($RAD, $NAS, $attr)=@_;
+  my ($self, $RAD, $NAS, $attr) = @_;
 
   my $guest_mode = '';
   if (!$RAD->{'Framed-Protocol'} || $RAD->{'Framed-Protocol'} ne 'PPP') {
-    use Auth2;
-    my $Auth = Auth2->new($self->{db}, $conf);
-    $Auth->auth($RAD, $NAS, { GET_USER => 1 });
-    $RAD->{'User-Name'} = $self->{LOGIN} || $self->{USER_NAME} || $RAD->{'User-Name'};
-    if($Auth->{UID}) {
-      $self->{UID} = $Auth->{UID};
-      $self->{SERVICE_ID} = $Auth->{SERVICE_ID};
+    if ($attr->{AUTH_FUNCTION}) {
+      my $fn = $attr->{AUTH_FUNCTION};
+      $self->$fn($RAD, $NAS, { GET_USER => 1 });
     }
     else {
-      $guest_mode=', guest=1';
+      require Auth2;
+      Auth2->import();
+      my $Auth = Auth2->new($self->{db}, $conf);
+      $Auth->{debug} = 1;
+      $Auth->auth($RAD, $NAS, { GET_USER => 1 });
+      if ($Auth->{UID}) {
+        $self->{UID} = $Auth->{UID};
+        $self->{SERVICE_ID} = $Auth->{SERVICE_ID};
+      }
+    }
+    $RAD->{'User-Name'} = $self->{LOGIN} || $self->{USER_NAME} || $RAD->{'User-Name'};
+    if (!$self->{UID}) {
+      $guest_mode = ', guest=1';
     }
     #print "INFO: $Auth->{INFO} - $Auth->{UID} \n";
   }
   else {
     #Get TP_ID
-    $self->query("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
-       FROM (users u, internet_main internet)
-       WHERE u.uid=internet.uid AND u.id= ? ;",
-      undef,
-      { Bind => [ $RAD->{'User-Name'} ] }
-    );
+    my $sql = <<'SQL';
+SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
+FROM (users u, internet_main internet)
+WHERE u.uid=internet.uid
+  AND u.id= ? ;
+SQL
+
+    $self->query($sql, undef, { Bind => [ $RAD->{'User-Name'} ] });
 
     if ($self->{TOTAL} > 0) {
       ($self->{UID},
         $self->{TP_ID},
         $self->{JOIN_SERVICE},
         $self->{SERVICE_ID},
-      ) = @{ $self->{list}->[0] };
+      ) = @{$self->{list}->[0]};
 
-      if ($self->{JOIN_SERVICE}) {
-        if ($self->{JOIN_SERVICE} == 1) {
-          $self->{JOIN_SERVICE} = $self->{UID};
-        }
-        else {
-          $self->{TP_ID} = '0';
-        }
-      }
+      # if ($self->{JOIN_SERVICE}) {
+      #   if ($self->{JOIN_SERVICE} == 1) {
+      #     $self->{JOIN_SERVICE} = $self->{UID};
+      #   }
+      #   else {
+      #     $self->{TP_ID} = '0';
+      #   }
+      # }
     }
     else {
       #$RAD->{'User-Name'} = '! ' . $RAD->{'User-Name'};
-      $guest_mode=', guest=1';
+      $guest_mode = ', guest=1';
     }
   }
 
-  my $sql = "REPLACE INTO internet_online SET
-        status= ? ,
-        user_name= ? ,
-        started=NOW() - INTERVAL ? SECOND,
-        lupdated=UNIX_TIMESTAMP(),
-        nas_ip_address=INET_ATON( ? ),
-        nas_port_id= ? ,
-        acct_session_id= ? ,
-        framed_ip_address=INET_ATON( ? ),
-        cid= ? ,
-        connect_info= ? ,
-        nas_id= ? ,
-        tp_id= ? ,
-        uid= ? ,
-        service_id = ? ". $guest_mode;
+  my $sql = <<'SQL';
+REPLACE INTO internet_online
+SET
+  status           = ? ,
+  user_name        = ? ,
+  started          =NOW() - INTERVAL ? SECOND,
+  lupdated         =UNIX_TIMESTAMP(),
+  nas_ip_address   =INET_ATON( ? ),
+  nas_port_id      = ? ,
+  acct_session_id  = ? ,
+  framed_ip_address=INET_ATON( ? ),
+  cid              = ? ,
+  connect_info     = ? ,
+  nas_id           = ? ,
+  tp_id            = ? ,
+  uid              = ? ,
+  service_id       = ?
+SQL
 
-  $self->query($sql, 'do', { Bind =>
-    [ $attr->{ACCT_STATUS_TYPE},
-      $RAD->{'User-Name'} || '',
-      $RAD->{'Acct-Session-Time'} || 0,
-      $RAD->{'NAS-IP-Address'},
-      $RAD->{'NAS-Port'} || 0,
-      $RAD->{'Acct-Session-Id'} || 'undef',
-      $RAD->{'Framed-IP-Address'},
-      $RAD->{'Calling-Station-Id'},
-      ($RAD->{'Connect-Info'} || $RAD->{'NAS-Port-Id'} || q{}) .'LOST_START_SESSION',
-      $NAS->{'NAS_ID'},
-      $self->{'TP_ID'} || 0,
-      $self->{'UID'} || 0,
-      $self->{'SERVICE_ID'} || 0,
-    ]});
+  my @values = (
+    $attr->{ACCT_STATUS_TYPE},
+    $RAD->{'User-Name'} || '',
+    $RAD->{'Acct-Session-Time'} || 0,
+    $RAD->{'NAS-IP-Address'},
+    $RAD->{'NAS-Port'} || 0,
+    $RAD->{'Acct-Session-Id'} || 'undef',
+    $RAD->{'Framed-IP-Address'},
+    $RAD->{'Calling-Station-Id'},
+    ($RAD->{'Connect-Info'} || $RAD->{'NAS-Port-Id'} || q{}) . 'LOST_START_SESSION',
+    $NAS->{'NAS_ID'},
+    $self->{'TP_ID'} || 0,
+    $self->{'UID'} || 0,
+    $self->{'SERVICE_ID'} || 0
+  );
 
-  $sql  = "DELETE FROM internet_online WHERE nas_id= ? AND acct_session_id='IP'
-        AND (framed_ip_address=INET_ATON( ? ) OR UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started) > 120 );";
+  if ($RAD->{'Framed-IPv6-Prefix'}) {
+    $sql .= ",framed_ipv6_prefix=INET6_ATON(?), delegated_ipv6_prefix=INET6_ATON(?)";
+    $RAD->{'Framed-IPv6-Prefix'} =~ s/\/\d+//x;
+    $RAD->{'Delegated-IPv6-Prefix'} =~ s/\/\d+//x;
+    push @values, $RAD->{'Framed-IPv6-Prefix'};
+    push @values, $RAD->{'Delegated-IPv6-Prefix'};
+  }
+
+  $self->query($sql . $guest_mode, 'do', { Bind => \@values });
+
+  $sql = <<'SQL';
+DELETE
+FROM internet_online
+WHERE nas_id= ?
+  AND acct_session_id='IP'
+  AND (framed_ip_address=INET_ATON( ? ) OR UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started) > 120 );
+SQL
 
   $self->query($sql, 'do', { Bind => [ $NAS->{NAS_ID}, $RAD->{'Framed-IP-Address'} ] });
 
   return 1;
 }
 
-1
+#**********************************************************
+=head2 nas_ext_acct($RAD)
+
+  Arguments:
+    $RAD,
+    $NAS,
+    $attr
+      ACCT_STATUS_TYPE
+
+  Return:
+    $self
+
+=cut
+#**********************************************************
+sub nas_ext_acct {
+  my ($self, $RAD, $NAS, $attr) = @_;
+
+  my $ipn_fields = '';
+  if ($NAS->{IPN_COLLECTOR}) {
+    $RAD->{INBYTE2} //= 0;
+    $RAD->{OUTBYTE2} //= 0;
+
+    $ipn_fields = <<"FIELDS";
+      sum=sum+$self->{SUM},
+      acct_input_octets='$RAD->{$input_octets}',
+      acct_output_octets='$RAD->{$output_octets}',
+      ex_input_octets=ex_input_octets + $RAD->{INBYTE2},
+      ex_output_octets=ex_output_octets + $RAD->{OUTBYTE2},
+      acct_input_gigawords='$RAD->{$input_gigawords}',
+      acct_output_gigawords='$RAD->{$output_gigawords}',
+FIELDS
+  }
+
+  my $sql = <<"SQL";
+UPDATE internet_online SET
+  $ipn_fields
+  status= ? ,
+  acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+  framed_ip_address=INET_ATON( ? ),
+  lupdated=UNIX_TIMESTAMP()
+WHERE
+  acct_session_id= ? AND
+  user_name= ? AND
+  nas_id= ? ;
+SQL
+
+  my @values = (
+    $attr->{ACCT_STATUS_TYPE},
+    $RAD->{'Framed-IP-Address'},
+    $RAD->{'Acct-Session-Id'},
+    $RAD->{'User-Name'} || '',
+    $NAS->{NAS_ID}
+  );
+
+  $self->query($sql, 'do', { Bind => \@values });
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 add_unknown_session($RAD)
+
+  Arguments:
+    $RAD,
+    $NAS,
+    $attr
+      ACCT_STATUS_TYPE
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub internet_interval_prepaid {
+  my ($self, $RAD, $attr) = @_;
+
+  if ($attr->{BILLING}) {
+    $Billing = $attr->{BILLING};
+  }
+
+  my $acct_session_id = $RAD->{'Acct-Session-Id'};
+  my $interium_acct_session_time = $attr->{INTERIUM_ACCT_SESSION_TIME};
+
+  my $sql = <<'SQL';
+SELECT traffic_type
+FROM internet_log_intervals
+WHERE acct_session_id= ?
+  AND interval_id= ?
+  AND uid= ? FOR
+UPDATE;
+SQL
+
+  $self->query($sql,
+    undef,
+    { Bind => [ $acct_session_id, $Billing->{TI_ID}, $self->{UID} ] }
+  );
+
+  my %intrval_traffic = ();
+  foreach my $line (@{$self->{list}}) {
+    $intrval_traffic{ $line->[0] } = 1;
+  }
+
+  my @RAD_TRAFF_SUFIX = ('', '1');
+  $self->{SUM} = 0 if ($self->{SUM} < 0);
+
+  for (my $traffic_type = 0; $traffic_type <= $#RAD_TRAFF_SUFIX; $traffic_type++) {
+    next if ($RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } + $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } < 1);
+
+    if ($intrval_traffic{$traffic_type}) {
+      $sql = <<'SQL';
+UPDATE internet_log_intervals
+SET
+  sent    =sent+ ? ,
+  recv    =recv+ ? ,
+  duration=duration + ?,
+  sum     =sum + ?
+WHERE interval_id= ?
+  AND acct_session_id= ?
+  AND traffic_type= ?
+  AND uid= ? ;
+SQL
+
+      my @values = (
+        $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
+        $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
+        $interium_acct_session_time,
+        $self->{SUM},
+        $Billing->{TI_ID},
+        $acct_session_id,
+        $traffic_type,
+        $self->{UID}
+      );
+
+      $self->query($sql, 'do', { Bind => \@values });
+    }
+    else {
+      $sql = <<'SQL';
+INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
+VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());
+SQL
+
+      my @values = (
+        $Billing->{TI_ID},
+        $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
+        $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
+        $interium_acct_session_time,
+        $traffic_type,
+        $self->{SUM},
+        $acct_session_id,
+        $self->{UID}
+      );
+
+      $self->query($sql, 'do', { Bind => \@values });
+    }
+  }
+
+  return $self;
+}
+
+1;

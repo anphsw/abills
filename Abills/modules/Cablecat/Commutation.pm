@@ -204,6 +204,7 @@ sub cablecat_commutation_operations {
       COMMUTATION_ID => $FORM{COMMUTATION_ID},
       CABLE_ID       => '_SHOW',
       CABLE_NAME     => '_SHOW',
+      NAME     => '_SHOW',
     });
     _error_show($Cablecat) and return 0;
 
@@ -215,33 +216,23 @@ sub cablecat_commutation_operations {
       $selected_2 = $cables_list->[1]->{cable_id};
     }
 
-    my $cable_1_select = make_select_from_list("CABLE_1", $cables_list,
-      {
-        SELECTED     => $selected_1,
-        SEL_KEY      => 'cable_id',
-        SEL_VALUE    => 'cable_name',
-        NORMAL_WIDTH => 1,
-      }
-    );
-    my $cable_2_select = make_select_from_list("CABLE_2", $cables_list,
-      {
-        SELECTED     => $selected_2,
-        SEL_KEY      => 'cable_id',
-        SEL_VALUE    => 'cable_name',
-        NORMAL_WIDTH => 1,
-      }
-    );
+    my $cable_1_select = make_select_from_list("CABLE_1", $cables_list, {
+      SELECTED  => $selected_1,
+      SEL_KEY   => 'cable_id',
+      SEL_VALUE => 'cable_name',
+      NORMAL_WIDTH => 1,
+    });
+    my $cable_2_select = make_select_from_list("CABLE_2", $cables_list, {
+      SELECTED     => $selected_2,
+      SEL_KEY      => 'cable_id',
+      SEL_VALUE    => 'cable_name',
+      NORMAL_WIDTH => 1,
+    });
 
-    # Get number of fibers for each cable
-
-    # Show template
-    $html->tpl_show(
-      _include('cablecat_commutation_connect_by_numbers', 'Cablecat'),
-      {
-        CABLE_1_SELECT => $cable_1_select,
-        CABLE_2_SELECT => $cable_2_select
-      }
-    );
+    $html->tpl_show(_include('cablecat_commutation_connect_by_numbers', 'Cablecat'), {
+      CABLE_1_SELECT => $cable_1_select,
+      CABLE_2_SELECT => $cable_2_select
+    });
 
   }
   else {
@@ -409,7 +400,7 @@ sub cablecat_commutation_equipment {
     my @equipment_on_commutation_ids = $Cablecat->commutation_equipment_ids();
     _error_show($Cablecat) and return 0;
 
-    my $equipment_list = $Equipment->_list({
+    my $equipment_list = $Equipment->list({
       NAS_NAME  => '_SHOW',
       NAS_ID    => join(',', map {"!$_"} @equipment_on_commutation_ids),
       COLS_NAME => 1,
@@ -451,7 +442,7 @@ sub cablecat_commutation_equipment {
     if ($not_added_to_commutation) {
 
       # Check if have ports count defined
-      my $equipment_info = $Equipment->_info($FORM{EQUIPMENT_ID});
+      my $equipment_info = $Equipment->info($FORM{EQUIPMENT_ID});
       my $ports_count = $equipment_info->{PORTS};
 
       if (!$ports_count || $ports_count eq '0') {
@@ -615,6 +606,8 @@ sub cablecat_commutation_crosses {
     });
     _error_show($Cablecat) and return 0;
     foreach my $cross_range (@$cross_ranges) {
+      next if !$cross_range->{cross_id};
+
       my %range_hash = (
         start  => $cross_range->{port_start},
         finish => $cross_range->{port_finish},
@@ -843,7 +836,7 @@ sub cablecat_commutation_links {
     PAGE_ROWS        => 500000
   });
 
-  my $links = JSON::to_json(
+  my $links = Abills::Base::json_former(
     [
       map {
         $_->{geometry} = JSON::from_json($_->{geometry}) if ($_->{geometry});
@@ -854,7 +847,7 @@ sub cablecat_commutation_links {
 
         $_;
       } @{$com_links_list}
-    ]
+    ], { ESCAPE_DQ => $FORM{JSON_RESULT} ? 0 : 1 }
   );
 
   print $links if $FORM{JSON_RESULT};
@@ -1354,7 +1347,7 @@ sub _cablecat_equipment_element {
   }
 
   my %equipment = ();
-  my $equipment_info = $Equipment->_list({
+  my $equipment_info = $Equipment->list({
     NAS_ID    => $element_id,
     NAS_NAME  => '_SHOW',
     COLS_NAME => 1,

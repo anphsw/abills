@@ -34,7 +34,7 @@
 
 <script>
   jQuery(function () {
-    var index = '$index';
+    var index = '%index%';
     var uid_input = jQuery('input#UID');
     var equipment_select = jQuery('select#NAS_ID');
     var endpoint_select = jQuery('select#ENDPOINT_NAS_ID');

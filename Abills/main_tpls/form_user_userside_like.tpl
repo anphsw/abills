@@ -145,7 +145,7 @@
 									</div>
 
 									 <form name='%FORM_NAME%' id='form_%FORM_NAME%' method='post' class='form form-horizontal'>
-									 <input type='hidden' name='index' value='$index' />
+									 <input type='hidden' name='index' value='%index%' />
 									 <input type='hidden' name='UID' value='%UID%' />
 							      	  <div class='form-group'>
 							      	      <label class='control-label col-md-6 text-right' for='COMMENTS_ID'>_{NOTES}_</label>

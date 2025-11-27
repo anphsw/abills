@@ -1,5 +1,5 @@
 <form name='add_permits' id='msgs_add_permits' method='post'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='AID' value='%AID%'/>
 
   <div class='d-flex flex-sm-row flex-column justify-content-center d-flex align-items-center pt-2 pb-2'>

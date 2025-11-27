@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Accounts Response",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "array",
+      "description": "List of account objects",
+      "items": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "integer",
+            "description": "Account number"
+          },
+          "info": {
+            "type": "string",
+            "description": "Account information"
+          },
+          "sum": {
+            "type": "number",
+            "description": "Associated sum or amount"
+          }
+        },
+        "required": ["account", "info", "sum"],
+        "additionalProperties": false
+      }
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Error message, if any"
+    }
+  },
+  "required": ["data", "error"],
+  "additionalProperties": false
+}

@@ -21,11 +21,10 @@ our (
 
 my $Payment_plugin = Paysys::systems::USMP->new($db, $admin, \%conf);
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = int(rand(10000));
 my $transaction_start_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime(time - 86400 * 3));
 my $transaction_end_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());
-$transaction_end_date =~ s/[-: ]//g;
-$transaction_start_date =~ s/[-: ]//g;
+$transaction_end_date =~ s/[-: ]//xg;
+$transaction_start_date =~ s/[-: ]//xg;
 
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
@@ -37,7 +36,7 @@ our @requests = (
     request => qq{
 QueryType=check
 Account=$user_id
-TransactionId=$transaction_id},
+TransactionId=$payment_id},
     get     => 1,
     result  => qq{}
   },
@@ -47,7 +46,7 @@ TransactionId=$transaction_id},
 QueryType=pay
 Account=$user_id
 TransactionDate=$transaction_end_date
-TransactionId=$transaction_id
+TransactionId=$payment_id
 Amount=$payment_sum},
     get     => 1,
     result  => qq{}
@@ -57,8 +56,8 @@ Amount=$payment_sum},
     request => qq{
 QueryType=cancel
 RevertDate=$transaction_end_date
-RevertId=$transaction_id
-TransactionId=$transaction_id
+RevertId=$payment_id
+TransactionId=$payment_id
 time_p=1630059104
 Amount=$payment_sum
 Account=$user_id},

@@ -35,7 +35,6 @@ our (
   $argv,
   $debug,
   $var_dir,
-  %lang
 );
 
 our Admins $Admin;
@@ -53,47 +52,56 @@ else {
 }
 
 if ($argv->{TRANSACTION}) {
-  $Equipment->{db}->{db}->begin_work();
+  my DBI $db_ = $Equipment->{db}->{db};
+  $db_->begin_work();
 }
 
 if ($argv->{DEL_MAC}) {
   $Equipment->mac_log_del({
-    DEL_PERIOD => $conf{EQUIPMENT_MAC_EXPIRE},
+    DEL_PERIOD => $conf{EQUIPMENT_MAC_EXPIRE} || 90,
   });
 }
 else {
-  equipment_check();
+  equipment_check($argv);
 }
 
 if ($argv->{TRANSACTION}) {
-  $Equipment->{db}->{db}->commit();
+  my DBI $db_ = $Equipment->{db}->{db};
+  $db_->commit();
 }
 
 #**********************************************************
-=head2 equipment_check()
+=head2 equipment_check($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub equipment_check {
+  my ($attr)=@_;
+
   $Log->log_print('LOG_INFO', '', "Equipment check");
 
   my $search_mac = '';
 
-  if ($argv->{SEARCH_MAC}) {
-    $search_mac = $argv->{SEARCH_MAC};
+  if ($attr->{SEARCH_MAC}) {
+    $search_mac = $attr->{SEARCH_MAC};
   }
 
   if ($debug > 7) {
     $Equipment->{debug} = 1;
   }
 
-  if ($argv->{NAS_IPS}) {
-    $LIST_PARAMS{NAS_IP} = $argv->{NAS_IPS};
+  if ($attr->{NAS_IPS}) {
+    $LIST_PARAMS{NAS_IP} = $attr->{NAS_IPS};
   }
 
   my $total_nas = 0;
-  my $SNMP_COMMUNITY = $argv->{SNMP_COMMUNITY};
-  my $equipment_list = $Equipment->_list({
+  my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY};
+  my $equipment_list = $Equipment->list({
     COLS_NAME                  => 1,
     COLS_UPPER                 => 1,
     PAGE_ROWS                  => 100000,
@@ -139,14 +147,14 @@ sub equipment_check {
     my %mac_log_hash = ();
 
     foreach my $mac (@$mac_list) {
-      $mac->{port} =~ s/\./_/g;
+      $mac->{port} =~ s/\./_/xg;
       my $key = $mac->{mac} . '_' . $mac->{vlan} . '_' . $mac->{port};
       $mac_log_hash{ $key }{id} = $mac->{id};
       $mac_log_hash{ $key }{datetime} = $mac->{unix_datetime} || 0;
       $mac_log_hash{ $key }{rem_time} = $mac->{unix_rem_time} || 0;
     }
 
-    if (!$argv->{SNMP_COMMUNITY}) {
+    if (!$attr->{SNMP_COMMUNITY}) {
       $SNMP_COMMUNITY = ($equip->{NAS_MNG_PASSWORD} || '') . '@' . (($equip->{NAS_MNG_IP_PORT}) ? $equip->{NAS_MNG_IP_PORT} : $equip->{NAS_IP});
     }
     $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: " . ($equip->{NAS_NAME} || q{}));
@@ -181,15 +189,15 @@ sub equipment_check {
         next;
       }
 
-      if ($argv->{SKIP_LINK}){
-        $argv->{SKIP_LINK} =~ s/,/\|/g;
-        if ($fdb_list->{$mac_dec}{5} && $fdb_list->{$mac_dec}{5} =~ /$argv->{SKIP_LINK}/){
+      if ($attr->{SKIP_LINK}){
+        $attr->{SKIP_LINK} =~ s/,/\|/xg;
+        if ($fdb_list->{$mac_dec}{5} && $fdb_list->{$mac_dec}{5} =~ /$attr->{SKIP_LINK}/xm){
           next;
         }
       }
 
       my $vlan = $fdb_list->{$mac_dec}{4} || 0;
-      if ($vlan =~ /(\d+)\D+/) {
+      if ($vlan =~ /(\d+)\D+/xm) {
         $vlan = $1;
       }
 
@@ -206,9 +214,9 @@ sub equipment_check {
       );
 
       if(defined $search_mac && defined $data{MAC}) {
-        my @macs = split(/,\s?/, $search_mac);
+        my @macs = split(/,\s?/x, $search_mac);
         for my $mac_s (@macs) {
-          if ($data{MAC} =~ /$mac_s/) {
+          if ($data{MAC} =~ /$mac_s/xm) {
             my %parameters = (
               MODULE      => 'Equipment',
               COMMENTS    => "MAC GRABBER:\n"
@@ -301,6 +309,11 @@ sub equipment_check {
 #**********************************************************
 =head2 mac_flood()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub mac_flood {
@@ -322,4 +335,4 @@ sub mac_flood {
   return 1;
 }
 
-1
+1;

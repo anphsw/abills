@@ -1,0 +1,6 @@
+{
+  "name": "USER_GET_BUILDS",
+  "method": "GET",
+  "path": "user/addresses/builds/",
+  "params": {}
+}

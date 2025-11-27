@@ -23,7 +23,6 @@ our (
   @MONTHES_LIT,
   %permissions,
   $users,
-
   @one,
   @ones,
   @onest,
@@ -33,6 +32,7 @@ our (
   @tens,
   @hundred,
   @money_unit_names,
+  $libpath
 );
 
 our Abills::HTML $html;
@@ -49,6 +49,13 @@ my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
   lang    => \%lang,
   cookies => \%COOKIES,
   direct  => 1
+});
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, {
+  html    => $html,
+  lang    => \%lang,
+  libpath => $libpath
 });
 
 #**********************************************************
@@ -114,6 +121,8 @@ sub docs_invoices_del {
     my $parameter = $FORM{del} || $FORM{IDS} || '';
     $html->message('info', "$lang{INFO}", "$lang{DELETED} ID(s): [$parameter]");
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -154,13 +163,13 @@ sub docs_invoice_add {
 
   my $uid = $invoice_create_info{UID} || 0;
 
-  $invoice_create_info{SUM} =~ s/\,/\./g if ($invoice_create_info{SUM});
+  $invoice_create_info{SUM} =~ s/\,/\./xg if ($invoice_create_info{SUM});
   if ($invoice_create_info{OP_SID} && $invoice_create_info{OP_SID} eq ($COOKIES{OP_SID} || '')) {
     $html->message('err', "$lang{DOCS} : $lang{ERROR}", $lang{EXIST}, { ID => 511 });
     return 0;
   }
   #NO in
-  elsif (!$invoice_create_info{IDS} && (!$invoice_create_info{SUM} || $invoice_create_info{SUM} !~ /^[0-9,\.]+$/ || $invoice_create_info{SUM} < 0.01)) {
+  elsif (!$invoice_create_info{IDS} && (!$invoice_create_info{SUM} || $invoice_create_info{SUM} !~ /^[0-9,\.]+$/xm || $invoice_create_info{SUM} < 0.01)) {
     $html->message('err', "$lang{DOCS} :$lang{ERROR}", $lang{ERR_WRONG_SUM}, { ID => 512 });
     return 0;
   }
@@ -246,6 +255,8 @@ sub docs_invoice_add {
       }
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -408,7 +419,34 @@ sub docs_invoices_list {
   #   }
   # });
 
-  ($table, $invoice_list) = result_former( {
+  my %ext_titles = (
+    invoice_num          => '#',
+    date                 => $lang{DATE},
+    customer             => $lang{CUSTOMER},
+    total_sum            => $lang{SUM},
+    payment_id           => "$lang{PAYMENTS} ID",
+    login                => $lang{USER},
+    admin_name           => $lang{ADMIN},
+    created              => $lang{CREATED},
+    payment_method       => $lang{PAYMENT_METHOD},
+    ext_id               => "EXT ID",
+    group_name           => "$lang{GROUP} $lang{NAME}",
+    currency             => $lang{CURRENCY},
+    alt_sum              => "$lang{ALT} $lang{SUM}",
+    exchange_rate        => $lang{EXCHANGE_RATE},
+    payment_sum          => $lang{PAYMENT_SUM},
+    docs_deposit         => $lang{OPERATION_DEPOSIT},
+    deposit              => $lang{CURRENT_DEPOSIT},
+    sum_vat              => "$lang{SUM} $lang{VAT}",
+    orders               => $lang{ORDERS},
+    tracking_date_to     => "$lang{DOCS_SEND_INVOICE} $lang{TO} $lang{OF_CLIENT}",
+    tracking_number_to   => "$lang{DOCS_TRACKING_NUMBER} $lang{TO} $lang{OF_CLIENT}",
+    receive_date         => "$lang{DOCS_RECEIVE_INVOICE} $lang{BY_CLIENT}",
+    tracking_date_from   => "$lang{DOCS_TRACKING_DATE} $lang{FROM} $lang{OF_CLIENT}",
+    tracking_number_from => "$lang{DOCS_TRACKING_NUMBER} $lang{FROM} $lang{OF_CLIENT}",
+  );
+
+  ($table, $invoice_list) = result_former({
     INPUT_DATA      => $Docs,
     FUNCTION        => 'invoices_list',
     BASE_FIELDS     => (!$user->{UID}) ? 4 : 3,
@@ -418,39 +456,14 @@ sub docs_invoices_list {
     FUNCTION_FIELDS =>
       (!$user->{UID}) ? (($conf{DOCS_INVOICE_ALT_TPL}) ? 'print,' : '') . 'print,payment,show,send,del' : 'print',
     MULTISELECT     => (!$user->{UID} && $FORM{UID}) ? 'UID:uid' : '',
-    EXT_TITLES      => {
-      invoice_num    => '#',
-      date           => $lang{DATE},
-      customer       => $lang{CUSTOMER},
-      total_sum      => $lang{SUM},
-      payment_id     => "$lang{PAYMENTS} ID",
-      login          => $lang{USER},
-      admin_name     => $lang{ADMIN},
-      created        => $lang{CREATED},
-      payment_method => $lang{PAYMENT_METHOD},
-      ext_id         => "EXT ID",
-      group_name     => "$lang{GROUP} $lang{NAME}",
-      currency       => $lang{CURRENCY},
-      alt_sum        => "$lang{ALT} $lang{SUM}",
-      exchange_rate  => $lang{EXCHANGE_RATE},
-      payment_sum    => $lang{PAYMENT_SUM},
-      docs_deposit   => $lang{OPERATION_DEPOSIT},
-      deposit        => $lang{CURRENT_DEPOSIT},
-      sum_vat        => "$lang{SUM} $lang{VAT}",
-      orders         => $lang{ORDERS},
-      tracking_date_to     => "$lang{DOCS_SEND_INVOICE} $lang{TO} $lang{OF_CLIENT}",
-      tracking_number_to   => "$lang{DOCS_TRACKING_NUMBER} $lang{TO} $lang{OF_CLIENT}",
-      receive_date         => "$lang{DOCS_RECEIVE_INVOICE} $lang{BY_CLIENT}",
-      tracking_date_from   => "$lang{DOCS_TRACKING_DATE} $lang{FROM} $lang{OF_CLIENT}",
-      tracking_number_from => "$lang{DOCS_TRACKING_NUMBER} $lang{FROM} $lang{OF_CLIENT}",
-    },
-    TABLE  => {
-      width       => '100%',
-      qs          => $pages_qs,
-      #LITE_HEADER => 1,
-      ID          => 'DOCS_INVOICES_LIST',
-      header      => $html->table_header(\@status_bar),
-      EXPORT      => 1,
+    EXT_TITLES      => \%ext_titles,
+    TABLE           => {
+      width  => '100%',
+      qs     => $pages_qs,
+      ID     => 'DOCS_INVOICES_LIST',
+      header => $html->table_header(\@status_bar),
+      EXPORT => 1,
+      SHOW_FULL_LIST  => 1,
       %table_params
     },
   });
@@ -485,7 +498,7 @@ sub docs_invoices_list {
     if ( !$user->{UID} && !$FORM{qindex} ){
       push @fields_array, $html->form_input( 'IDS', $invoice->{id}, {
         TYPE    => 'checkbox',
-        STATE   => (in_array( $invoice->{id}, [ split( /, /, $FORM{IDS} || '' ) ] )) ? 'checked' : undef,
+        STATE   => (in_array( $invoice->{id}, [ split( /,\s+/x, $FORM{IDS} || '' ) ] )) ? 'checked' : undef,
         FORM_ID => 'DOCS_INVOICES_LIST',
       });
     }
@@ -499,7 +512,7 @@ sub docs_invoices_list {
           "qindex=$index&print=$invoice->{id}"
             . ((! $FORM{UID}) ? "&UID=$invoice->{uid}" : q{})
             . $pages_qs . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($users->{DOMAIN_ID}) ? "&DOMAIN_ID=$users->{DOMAIN_ID}" : '')
-          , { ex_params => 'target=_new' } ),
+          , { ex_params => 'target=_new' } );
       }
       elsif ( $field_name eq 'login_status' ){
         my $login_status = $invoice->{$field_name} || 0;
@@ -512,7 +525,7 @@ sub docs_invoices_list {
       elsif ( $field_name eq 'orders' ) {
         my $br = $html->br();
         $val = $invoice->{$field_name};
-        $val =~ s/;;/$br/g;
+        $val =~ s/;;/$br/xg;
       }
       elsif ( $field_name eq 'payment_sum' ){
         my $invoice_sum = $invoice->{total_sum};
@@ -521,7 +534,7 @@ sub docs_invoices_list {
         #if ( $i2p_hash{$invoice->{id}} && !$user->{UID} ){
         if ( $i2p_hash{$invoice->{id}} ){
           foreach my $p2i_val ( @{ $i2p_hash{$invoice->{id}} } ){
-            my ($payment_id, $invoiced_sum) = split( /:/, $p2i_val );
+            my ($payment_id, $invoiced_sum) = split(/:/x, $p2i_val );
 
             $invoiced_sum = sprintf("%.2f", $invoiced_sum);
             if($user->{UID}) {
@@ -552,7 +565,7 @@ sub docs_invoices_list {
           ($invoice->{company_name}) ? substr( $invoice->{company_name}, 0, 30 ) : '',
           "index=13&COMPANY_ID=$invoice->{company_id}", { class => 'small' } ) : '');
       }
-      elsif ( $field_name =~ /deposit/ ){
+      elsif ( $field_name =~ /deposit/xm ){
         $val = ($invoice->{$field_name} && $invoice->{$field_name} < 0) ? $html->color_mark( $invoice->{$field_name},
           $_COLORS[6] )                    : $invoice->{$field_name};
       }
@@ -751,7 +764,7 @@ sub _docs_invoices_list_search {
     SEL_OPTIONS  => { '' => '--' },
   });
 
-  $my_charges =~ s/\n//g;
+  $my_charges =~ s/\n//xg;
   $info{TYPES_FEES} = $my_charges;
   form_search( { SEARCH_FORM =>
     ($FORM{pdf}) ? '' : $html->tpl_show(_include('docs_invoice_search', 'Docs'), { %info, %FORM },
@@ -778,7 +791,7 @@ sub docs_invoices_multi_create {
       return 0;
     }
 
-    my @uids_arr = split( /, /, $FORM{UIDS} );
+    my @uids_arr = split(/,\s+/x, $FORM{UIDS} );
 
     my $count = 0;
     my $total_sum = 0;
@@ -1001,7 +1014,7 @@ sub docs_invoice {
   $Docs->{OP_SID} = mk_unique_value(16);
   $Docs->{CAPTION} = $lang{INVOICE};
   if (!$Docs->{MONTH}) {
-    my ($year, $month, undef) = split(/-/, $DATE);
+    my ($year, $month, undef) = split(/-/x, $DATE);
     $Docs->{MONTH} = $MONTHES[ int($month - 1) ];
     $Docs->{YEAR} = $year;
   }
@@ -1089,7 +1102,7 @@ sub _docs_invoice_fees_taxes {
 sub docs_invoice_period {
   my ($attr) = @_;
 
-  my ($Y, $M, $D) = split( /-/, $DATE );
+  my ($Y, $M, $D) = split(/-/x, $DATE );
 
   my $uid = $attr->{UID} || 0;
   my $service_activate = $users->{ACTIVATE} || '0000-00-00';
@@ -1170,7 +1183,7 @@ sub docs_invoice_period {
       $date = $service_activate;
       $FORM{FROM_DATE} = $service_activate;
     }
-    ($Y, $M, $D) = split( /-/, $date );
+    ($Y, $M, $D) = split(/-/x, $date );
 
     if ($FORM{NEXT_PERIOD}) {
       my $service_orders = $invoices->{SERVICE_ORDERS};
@@ -1202,7 +1215,7 @@ sub docs_invoice_period {
     }
 
     my $user_deposit = 0;
-    if ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\-\.\,]+$/) {
+    if ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\-\.\,]+$/xm) {
       $user_deposit = sprintf('%.2f', ($users->{DEPOSIT} < int($users->{DEPOSIT})) ? int($users->{DEPOSIT})-1 : $users->{DEPOSIT});
     }
 
@@ -1289,7 +1302,7 @@ sub docs_invoice_period {
 
       my $money_main_unit = q{};
       if ($conf{MONEY_UNIT_NAMES}) {
-        $money_main_unit=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+        $money_main_unit=(split(/;/x, $conf{MONEY_UNIT_NAMES}))[0];
       }
 
       $service_invoice = $table->show({ OUTPUT2RETURN => 1 });
@@ -1300,7 +1313,7 @@ sub docs_invoice_period {
         my $days_to_end = int($user_deposit / $service_info->{distribution_fee});
         $pre_info .= " ($lang{DAYS}: " . sprintf("%d", $days_to_end);
         if ($days_to_end > 0) {
-          my ($Y1, $M1, $D1) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
+          my ($Y1, $M1, $D1) = split(/-/x, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
           $pre_info .= " / $Y1-$M1-$D1";
         }
         $pre_info .= ')';
@@ -1369,7 +1382,7 @@ sub docs_invoice_add_form {
     SEL_OPTIONS  => { '' => '--' },
   });
 
-  $myf =~ s/\n//g;
+  $myf =~ s/\n//xg;
   $Docs->{TYPES_FEES} = $myf;
   if ( $user && $user->{UID} ){
     $html->tpl_show( _include( 'docs_invoice_client_add', 'Docs' ), { %{$Docs}, %{$users}, %FORM } );
@@ -1453,13 +1466,14 @@ sub docs_invoice_print {
   }
 
   my %Doc = %{ $Docs };
+  my $Conf = Conf->new($db, $admin, \%conf, { SKIP_PAYSYS => 1 });
   my $value_list=$Conf->config_list({
     CUSTOM    => 1,
     COLS_NAME => 1
   });
 
   foreach my $line (@$value_list){
-    $Doc{"$line->{param}"}=$line->{value};
+    $Doc{$line->{param}}=$line->{value};
   }
 
   if (defined($conf{DOCS_VAT_INCLUDE})) {
@@ -1476,7 +1490,7 @@ sub docs_invoice_print {
   $Doc{DEPOSIT}  = sprintf( "%.2f", $Doc{DEPOSIT} || 0);
   $Doc{DEBT}     = ($Doc{DEPOSIT} < 0) ? $Doc{DEPOSIT} : 0.00;
   $Doc{AVANCE}   = ($Doc{DEPOSIT} > 0) ? $Doc{DEPOSIT} : 0.00;
-  my ($y, $m)    = split( /\-/, $Doc{DATE} );
+  my ($y, $m)    = split(/\-/x, $Doc{DATE} );
   my $days_in_month = days_in_month( { DATE => $Doc{DATE} } );
   $Doc{INVOICE_PERIOD} = "$y-$m-01 $y-$m-$days_in_month";
   $Doc{MONTH_LAST_DAY} = "$y-$m-".  $days_in_month;
@@ -1488,7 +1502,7 @@ sub docs_invoice_print {
   if ( $Docs->{TOTAL} > 0 ){
     $Doc{FROM_DATE_LIT} = '';
 
-    (undef, $Doc{TIME}) = split( / /, $Doc{CREATED}, 2 );
+    (undef, $Doc{TIME}) = split(/\s+/x, $Doc{CREATED}, 2 );
     $Doc{AMOUNT_FOR_PAY} = ($Doc{DEPOSIT} < 0) ? abs( $Doc{DEPOSIT} ) : 0 - $Doc{DEPOSIT};
 
     my $orders_list = $Doc{ORDERS};
@@ -1501,7 +1515,7 @@ sub docs_invoice_print {
 
       if (!$FORM{pdf}) {
         $Doc{ORDER} .= $html->tpl_show(
-          _include('docs_invoice_order_row', 'Docs'),
+          $Templates->_include('docs_invoice_order_row', 'Docs'),
           {
             %{$Docs},
             NUMBER => $i,
@@ -1542,7 +1556,7 @@ sub docs_invoice_print {
       }
 
       #alternative currancy sum
-      if ( $Doc{EXCHANGE_RATE} > 0 ){
+      if ($Doc{EXCHANGE_RATE} > 0) {
         $Doc{ 'ORDER_ALT_SUM_' . $i }   = sprintf( "%.2f", $Doc{ 'ORDER_SUM_' . $i } * $Doc{EXCHANGE_RATE} );
         $Doc{ 'ORDER_ALT_PRICE_' . $i } = sprintf( "%.2f", $Doc{ 'ORDER_PRICE_' . $i } * $Doc{EXCHANGE_RATE} );
         $Doc{ 'ORDER_ALT_VAT_' . $i }   = sprintf( "%.2f", $Doc{ 'ORDER_VAT_' . $i } * $Doc{EXCHANGE_RATE} );
@@ -1562,10 +1576,12 @@ sub docs_invoice_print {
     my $i2p_list = $Docs->invoices2payments_list({ INVOICE_ID => $invoice_id,
       COLS_NAME  => 1
     });
+
     my $payments_total_sum = 0;
     $i = 1;
+
     foreach my $i2p ( @{ $i2p_list } ){
-      my ($payment_day, undef) = split( / /, $i2p->{date} );
+      my ($payment_day, undef) = split(/\s+/x, $i2p->{date} );
       $Doc{'PAYMENT_DATE_' . $i}     = $payment_day;
       $Doc{'PAYMENT_COMMENTS_' . $i} = $i2p->{dsc};
       $Doc{'PAYMENT_SUM_' . $i}      = $i2p->{invoiced_sum};
@@ -1669,7 +1685,7 @@ sub docs_invoice_print {
     }
     else{
       my $invoice_blank = ($FORM{alt_tpl}) ? 'invoice_alt' : ($FORM{termo_printer_tpl}) ? 'invoice_termo_printer' : 'invoice';
-      my $sufix = ($Doc{PAYMENT_SUM} && $Doc{TOTAL_SUM} && $Doc{PAYMENT_SUM} == $Doc{TOTAL_SUM} && _include(
+      my $sufix = ($Doc{PAYMENT_SUM} && $Doc{TOTAL_SUM} && $Doc{PAYMENT_SUM} == $Doc{TOTAL_SUM} && $Templates->_include(
         'docs_' . $invoice_blank . '_paid', 'Docs', { CHECK_ONLY => 1 } )) ? '_paid' : '';
 
       return docs_print( "$invoice_blank$sufix", {
@@ -1900,7 +1916,7 @@ sub docs_invoice_list_print {
   foreach my $d ( @{$invoices_list} ){
     $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
     $d->{NUMBER} = $d->{INVOICE_NUM} || '-';
-    my ($year, $month, $day) = split( /-/, $d->{DATE}, 3 );
+    my ($year, $month, $day) = split(/-/x, $d->{DATE}, 3 );
     $d->{FROM_DATE_LIT} = "$day " . $MONTHES_LIT[ int( $month ) - 1 ] . " $year $lang{YEAR_SHORT}";
     $d->{DATE_EURO_STANDART} = "$day.$month.$year";
     $d->{FIO} = $d->{CUSTOMER} if ($d->{CUSTOMER});

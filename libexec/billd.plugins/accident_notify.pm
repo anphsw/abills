@@ -14,7 +14,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Sender::Core;
-use Abills::Base qw(sendmail in_array);
+use Abills::Base qw(sendmail in_array datetime_diff);
 use Accident;
 use Users;
 
@@ -48,12 +48,38 @@ if (!$conf{ACCIDENT_WARNING}) {
 }
 
 $conf{ACCIDENT_WARNING} =~ s/ //g;
-my @sender_types = split(/,\s?/, $conf{ACCIDENT_WARNING});
+my @sender_types = split(/,\s?/x, $conf{ACCIDENT_WARNING});
 
-accident_notify_open();
-accident_notify_close();
-accident_equipment_notify_open();
-accident_equipment_notify_close();
+accident_start();
+
+#**********************************************************
+=head2 accident_start()
+
+=cut
+#**********************************************************
+sub accident_start {
+
+  $Accident->{debug} = 1 if $debug > 6;
+
+  my $accident_list = $Accident->list({
+    SKIP_STATUS => '2',
+    REALY_TIME  => '!0000-00-00 00:00:00',
+    COLS_NAME   => 1
+  });
+
+  foreach my $accident (@$accident_list) {
+    if (datetime_diff($accident->{realy_time}, "$DATE $TIME") > 1) {
+       $Accident->change({ ID => $accident->{id}, STATUS => 2 });
+    }
+  }
+
+  accident_notify_open();
+  accident_notify_close();
+  accident_equipment_notify_open();
+  accident_equipment_notify_close();
+
+  return 1;
+}
 
 #**********************************************************
 =head2 accident_open_notify() - send notify to abonent about opening accident
@@ -73,6 +99,9 @@ sub accident_notify_open {
     FROM_DATE   => $DATE,
     TO_DATE     => '_SHOW',
     END_TIME    => '_SHOW',
+    GID         => '_SHOW',
+    NAS_ID      => '_SHOW',
+    PORT        => '_SHOW',
     SENT_OPEN   => 0,
     COLS_NAME   => 1
   });
@@ -83,28 +112,52 @@ sub accident_notify_open {
 
   foreach my $accident (@$accident_list) {
     my $count = 0;
+    my $users = '';
 
     my $accident_address_info = $Accident->accident_address_info($accident->{id});
 
-    foreach my $accident_addr (@$accident_address_info) {
-      my $type_id = $accident_addr->{type_id};
-      my $address_id = $accident_addr->{address_id};
-      my $location_info = _search_address($type_id, $address_id);
+    if ($accident_address_info){
+      foreach my $accident_addr (@$accident_address_info) {
+        my $type_id = $accident_addr->{type_id};
+        my $address_id = $accident_addr->{address_id};
+        my $location_info = _search_address($type_id, $address_id);
 
-      my $users = $Users->list({
-        DISTRICT_ID => ($location_info->{DISTRICT}) ? $location_info->{DISTRICT} : '',
-        STREET_ID   => ($location_info->{STREET}) ? $location_info->{STREET} : '',
-        LOCATION_ID => ($location_info->{BUILD}) ? $location_info->{BUILD} : '',
-        UID         => '_SHOW',
-        PAGE_ROWS   => 999999,
-        COLS_NAME   => 1,
-      });
+        $users = $Users->list({
+          DISTRICT_ID => ($location_info->{DISTRICT}) ? $location_info->{DISTRICT} : '',
+          STREET_ID   => ($location_info->{STREET}) ? $location_info->{STREET} : '',
+          LOCATION_ID => ($location_info->{BUILD}) ? $location_info->{BUILD} : '',
+          UID         => '_SHOW',
+          PAGE_ROWS   => 999999,
+          COLS_NAME   => 1,
+        });
 
-      if ($Users->{TOTAL} > 0) {
+        if ($Users->{TOTAL} > 0) {
+          foreach my $user (@$users) {
+            _accident_send_warning({
+              UID  => $user->{uid},
+              TEXT => "$accident->{descr}\n$lang{WARNING_TIME} $accident->{end_time}"
+            });
+            $count++;
+          }
+        }
+      }
+    }
+    else {
+      if ($accident->{nas_id}){
+        $users = $Internet->user_list({
+          NAS_ID    => $accident->{nas_id},
+          PORT      => $accident->{port} || '_SHOW',
+          COLS_NAME => 1 });
+      }
+      elsif ($accident->{gid}){
+        $users = $Users->list({ GID => $accident->{gid}, COLS_NAME => 1 });
+      }
+
+      if (ref $users eq 'ARRAY') {
         foreach my $user (@$users) {
-          accident_send_warning({
+          _accident_send_warning({
             UID  => $user->{uid},
-            TEXT => "$accident->{descr}\n$lang{WARNING_TIME}$accident->{end_time}"
+            TEXT => "$accident->{descr}\n$lang{WARNING_TIME} $accident->{end_time}"
           });
           $count++;
         }
@@ -113,10 +166,7 @@ sub accident_notify_open {
 
     print "Users quantity: $count \n" if ($debug);
 
-    $Accident->change({
-      ID        => $accident->{id},
-      SENT_OPEN => $count,
-    });
+    $Accident->change({ ID => $accident->{id}, SENT_OPEN => $count }) if ($count > 0);
   }
 
   return 1;
@@ -138,6 +188,9 @@ sub accident_notify_close {
     SKIP_STATUS => '0,1',
     REALY_TIME  => ">$DATE 00:00:00",
     SENT_CLOSE  => 0,
+    GID         => '_SHOW',
+    NAS_ID      => '_SHOW',
+    PORT        => '_SHOW',
     COLS_NAME   => 1
   });
 
@@ -145,26 +198,49 @@ sub accident_notify_close {
 
   foreach my $accident (@$accident_list) {
     my $count = 0;
+    my $users = '';
 
     my $accident_address_info = $Accident->accident_address_info($accident->{id});
+    if ($accident_address_info) {
+      foreach my $accident_addr (@$accident_address_info) {
+        my $type_id = $accident_addr->{type_id};
+        my $address_id = $accident_addr->{address_id};
+        my $location_info = _search_address($type_id, $address_id);
 
-    foreach my $accident_addr (@$accident_address_info) {
-      my $type_id = $accident_addr->{type_id};
-      my $address_id = $accident_addr->{address_id};
-      my $location_info = _search_address($type_id, $address_id);
+        my $users = $Users->list({
+          DISTRICT_ID => ($location_info->{DISTRICT}) ? $location_info->{DISTRICT} : '',
+          STREET_ID   => ($location_info->{STREET}) ? $location_info->{STREET} : '',
+          LOCATION_ID => ($location_info->{BUILD}) ? $location_info->{BUILD} : '',
+          UID         => '_SHOW',
+          PAGE_ROWS   => 999999,
+          COLS_NAME   => 1,
+        });
 
-      my $users = $Users->list({
-        DISTRICT_ID => ($location_info->{DISTRICT}) ? $location_info->{DISTRICT} : '',
-        STREET_ID   => ($location_info->{STREET}) ? $location_info->{STREET} : '',
-        LOCATION_ID => ($location_info->{BUILD}) ? $location_info->{BUILD} : '',
-        UID         => '_SHOW',
-        PAGE_ROWS   => 999999,
-        COLS_NAME   => 1,
-      });
+        if ($Users->{TOTAL} > 0) {
+          foreach my $user (@$users) {
+            _accident_send_warning({
+              UID  => $user->{uid},
+              TEXT => $lang{ACCIDENT_FIXED}
+            });
+            $count++;
+          }
+        }
+      }
+    }
+    else {
+      if ($accident->{nas_id}){
+        $users = $Internet->user_list({
+          NAS_ID    => $accident->{nas_id},
+          PORT      => $accident->{port} || '_SHOW',
+          COLS_NAME => 1 });
+      }
+      elsif ($accident->{gid}){
+        $users = $Users->list({ GID => $accident->{gid}, COLS_NAME => 1 });
+      }
 
-      if ($Users->{TOTAL} > 0) {
+      if (ref $users eq 'ARRAY') {
         foreach my $user (@$users) {
-          accident_send_warning({
+          _accident_send_warning({
             UID  => $user->{uid},
             TEXT => $lang{ACCIDENT_FIXED}
           });
@@ -173,11 +249,7 @@ sub accident_notify_close {
       }
     }
 
-    $Accident->change({
-      ID         => $accident->{id},
-      SENT_CLOSE => $count,
-    });
-
+    $Accident->change({ ID => $accident->{id}, SENT_CLOSE => $count }) if ($count > 0);
   }
 
   return 1;
@@ -197,6 +269,7 @@ sub accident_equipment_notify_open {
 
   my $accident_equipment = $Accident->accident_equipment_list({
     ID_EQUIPMENT => '_SHOW',
+    INTERNET_PORT=> '_SHOW',
     DATE         => $DATE,
     STATUS       => 0,
     SENT_OPEN    => 0,
@@ -213,12 +286,13 @@ sub accident_equipment_notify_open {
 
     my $users = $Internet->user_list({
       NAS_ID    => $equipment->{id_equipment},
+      PORT      => $equipment->{internet_port} || '_SHOW',
       COLS_NAME => 1,
     });
 
     if ($Internet->{TOTAL} > 0) {
       foreach my $user (@$users) {
-        accident_send_warning({
+        _accident_send_warning({
           UID  => $user->{uid},
           TEXT => "$equipment->{descr}\n$lang{WARNING_TIME}$equipment->{end_date}"
         });
@@ -226,10 +300,7 @@ sub accident_equipment_notify_open {
       }
     }
 
-    $Accident->accident_equipment_chg({
-      ID         => $equipment->{id},
-      SENT_OPEN  => $count,
-    });
+    $Accident->accident_equipment_chg({ ID => $equipment->{id}, SENT_OPEN => $count}) if ($count > 0);
   }
 
   return 1;
@@ -237,7 +308,7 @@ sub accident_equipment_notify_open {
 
 #**********************************************************
 
-=head2 accident_equipment_notify_open()
+=head2 accident_equipment_notify_close()
 
 =cut
 
@@ -248,6 +319,7 @@ sub accident_equipment_notify_close {
 
   my $accident_equipment = $Accident->accident_equipment_list({
     ID_EQUIPMENT => '_SHOW',
+    INTERNET_PORT=> '_SHOW',
     STATUS       => 2,
     SENT_CLOSE   => 0,
     END_DATE     => $DATE,
@@ -262,12 +334,13 @@ sub accident_equipment_notify_close {
 
     my $users = $Internet->user_list({
       NAS_ID    => $equipment->{id_equipment},
+      PORT      => $equipment->{internet_port} || '_SHOW',
       COLS_NAME => 1,
     });
 
     if ($Internet->{TOTAL} > 0) {
       foreach my $user (@$users) {
-        accident_send_warning({
+        _accident_send_warning({
           UID  => $user->{uid},
           TEXT => "$lang{ACCIDENT_FIXED}"
         });
@@ -275,10 +348,7 @@ sub accident_equipment_notify_close {
       }
     }
 
-    $Accident->accident_equipment_chg({
-      ID         => $equipment->{id},
-      SENT_CLOSE => $count,
-    });
+    $Accident->accident_equipment_chg({ ID => $equipment->{id}, SENT_CLOSE => $count}) if ($count > 0);
   }
 
   return 1;
@@ -286,7 +356,7 @@ sub accident_equipment_notify_close {
 
 
 #**********************************************************
-=head2 accident_warning($attr) - Send warning to telegram or viber or push
+=head2 _accident_send_warning($attr) - Send warning to telegram, viber, push
 
  Arguments:
     $attr
@@ -295,7 +365,7 @@ sub accident_equipment_notify_close {
 
 =cut
 #**********************************************************
-sub accident_send_warning {
+sub _accident_send_warning {
   my ($attr) = @_;
 
   my $message = $lang{WARNING} . " \n";

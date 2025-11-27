@@ -4,7 +4,7 @@
   <div class='card-body'>
 
     <form name='MIKROTIK_HOTSPOT' id='form_MIKROTIK_HOTSPOT' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'/>
       <input type='hidden' name='mikrotik_hotspot' value='1'/>
       <input type='hidden' name='WALLED_GARDEN_ENTRIES' id='WALLED_GARDEN_ENTRIES' value='0'/>

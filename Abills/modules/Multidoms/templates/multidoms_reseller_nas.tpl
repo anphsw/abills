@@ -1,7 +1,7 @@
 <div class='d-print-none'>
 <a name='FORM_NAS'></a> 
-<form action=$SELF_URL METHOD=post name=FORM_NAS>
-<input type=hidden name='index' value='$index'>
+<form action=%SELF_URL% METHOD=post name=FORM_NAS>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='NAS_ID' value='%NAS_ID%'>
 <TABLE>
 

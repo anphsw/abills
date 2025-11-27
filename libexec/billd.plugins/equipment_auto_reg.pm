@@ -64,15 +64,15 @@ require Equipment::Pon_mng;
 
 my @nas_ids;
 if ($argv->{NAS_IDS}) {
-  @nas_ids = split(/;/, $argv->{NAS_IDS});
+  @nas_ids = split(/;/x, $argv->{NAS_IDS});
 }
 
 my @branches;
 if ($argv->{BRANCHES}) {
-  @branches = split (/;/, lc($argv->{BRANCHES}));
+  @branches = split (/;/x, lc($argv->{BRANCHES}));
 }
 foreach my $branch_pattern (@branches) {
-  $branch_pattern =~ s/\*/\.\*/g;
+  $branch_pattern =~ s/\*/\.\*/xg;
 }
 
 if ($argv->{BRANCHES} && @nas_ids != 1) {
@@ -87,7 +87,7 @@ if ($argv->{DEREGISTER}) {
   _auto_deregister();
 }
 else {
-  _auto_reg();
+  _auto_reg($argv);
 }
 
 #**********************************************************
@@ -100,10 +100,10 @@ else {
 =cut
 #**********************************************************
 sub _auto_reg {
-  #my ($attr) = @_;
+  my ($attr) = @_;
 
-  my $Equipment_list = $Equipment->_list({
-    NAS_ID                        => $argv->{NAS_IDS} || '_SHOW',
+  my $Equipment_list = $Equipment->list({
+    NAS_ID                        => $attr->{NAS_IDS} || '_SHOW',
     NAS_NAME                      => '_SHOW',
     MODEL_ID                      => '_SHOW',
     REVISION                      => '_SHOW',
@@ -133,7 +133,7 @@ sub _auto_reg {
   foreach my $nas (@$Equipment_list) {
     my $SNMP_COMMUNITY = "$nas->{nas_mng_password}\@" . (($nas->{nas_mng_ip_port}) ? $nas->{nas_mng_ip_port} : $nas->{nas_ip});
 
-    if($SNMP_COMMUNITY =~ /(.+):(.+)/) {
+    if($SNMP_COMMUNITY =~ /(.+):(.+)/xm) {
       $SNMP_COMMUNITY = $1;
       my $SNMP_PORT = 161;
       $SNMP_COMMUNITY .= ':'.$SNMP_PORT;
@@ -141,7 +141,7 @@ sub _auto_reg {
 
     $nas->{SNMP_COMMUNITY} = $SNMP_COMMUNITY;
 
-    print "NAS_NAME: $nas->{NAS_NAME}, NAS_ID: $nas->{NAS_ID}\n" if ($debug);
+    _log('LOG_NOTICE', "NAS_NAME: $nas->{NAS_NAME}, NAS_ID: $nas->{NAS_ID}");
 
     my $nas_type = equipment_pon_init($nas);
     my $unregister_fn = $nas_type . '_unregister';
@@ -155,7 +155,7 @@ sub _auto_reg {
       my $unregister_list = &{\&$unregister_fn}({ %$nas, NAS_INFO => $nas});
 
       foreach my $unreg_ont_info (@$unregister_list) {
-        if ($argv->{BRANCHES}) {
+        if ($attr->{BRANCHES}) {
           my $found_branch;
           my $current_branch = lc($unreg_ont_info->{pon_type} . ':' . $unreg_ont_info->{branch});
 
@@ -188,7 +188,7 @@ sub _auto_reg {
 
         if ((lc $unreg_ont_info->{pon_type}) eq 'gpon' && $unreg_ont_info->{vendor} && $unreg_ont_info->{mac_serial}) {
           $unreg_ont_info->{vendor_mac_serial} = $unreg_ont_info->{vendor} . $unreg_ont_info->{mac_serial};
-          $unreg_ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
+          $unreg_ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/xg;
 
           my $internet_list2 = $Internet->user_list({
             INTERNET_ACTIVATE=> '_SHOW',
@@ -209,10 +209,10 @@ sub _auto_reg {
         my $ont_attached_to_abon = 0;
 
         foreach my $user_infos (@$internet_list) {
-          if ($argv->{FORCE_FILL_NAS}) {
+          if ($attr->{FORCE_FILL_NAS}) {
             delete $user_infos->{nas_id};
           }
-          if ($argv->{FORCE_FILL_NAS_AND_PORT}) {
+          if ($attr->{FORCE_FILL_NAS_AND_PORT}) {
             delete $user_infos->{nas_id};
             delete $user_infos->{port};
           }
@@ -259,12 +259,12 @@ sub _auto_reg {
           }
         }
 
-        if ($argv->{REGISTER_NOT_ATTACHED_TO_ABONENT} && !$ont_attached_to_abon) {
+        if ($attr->{REGISTER_NOT_ATTACHED_TO_ABONENT} && !$ont_attached_to_abon) {
           foreach my $key (keys %$unreg_ont_info) {
             $unreg_ont_info->{uc($key)} = $unreg_ont_info->{$key};
           }
 
-          my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $unreg_ont_info->{branch},  %{$unreg_ont_info} });
+          _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $unreg_ont_info->{branch},  %{$unreg_ont_info} });
         }
       }
     }
@@ -281,7 +281,7 @@ sub _auto_reg {
       NAS_INFO
 
   Returns:
-    TRUE or FALSE
+    $ont
 
 =cut
 #********************************************************
@@ -297,13 +297,15 @@ sub _register_onu {
   my $cmd = $SNMP_TPL_DIR . '/register' . $nas_type . '_custom';
   $cmd = $SNMP_TPL_DIR . '/register' . $nas_type if (!-x $cmd);
 
+  $attr->{CMD}=$cmd;
+  $attr->{NAS_TYPE}=$nas_type;
   $attr->{NAS_INFO}{NAS_MNG_PASSWORD} = $conf{EQUIPMENT_OLT_PASSWORD} || $attr->{NAS_INFO}{NAS_MNG_PASSWORD};
   $attr->{NAS_INFO}{PROFILE} = $conf{EQUIPMENT_ONU_PROFILE} if ($conf{EQUIPMENT_ONU_PROFILE});
   $attr->{NAS_INFO}{ONU_TYPE} = $conf{EQUIPMENT_ONU_TYPE} if ($conf{EQUIPMENT_ONU_TYPE});
 
   my $port_list = $Equipment->pon_port_list({
     %$attr,
-    COLS_NAME  => 1,
+    PAGE_ROWS  => 10000,
     COLS_UPPER => 1,
     NAS_ID     => $nas_id
   });
@@ -320,7 +322,7 @@ sub _register_onu {
 
     $port_list = $Equipment->pon_port_list({
       %$attr,
-      COLS_NAME  => 1,
+      PAGE_ROWS  => 10000,
       COLS_UPPER => 1,
       NAS_ID     => $nas_id
     });
@@ -340,7 +342,7 @@ sub _register_onu {
 
   my %extra_reg_params = ();
   if ($argv->{EXTRA_REG_PARAMS}) {
-    %extra_reg_params = split (/ |\=/, $argv->{EXTRA_REG_PARAMS});
+    %extra_reg_params = split (/\s+|\=/x, $argv->{EXTRA_REG_PARAMS});
   }
 
   if ($attr->{VENDOR_NAME} eq 'ZTE') {
@@ -351,10 +353,10 @@ sub _register_onu {
           OID => '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.7' . '.' . $attr->{BRANCH_NUM}
         });
 
-        if ($onu_count =~ m/(\d+)(,|$)/) {
+        if ($onu_count =~ m/(\d+)(,|$)/x) {
           my $free_llid = $1 + 1;
 
-          if ($onu_count !~ m/^1(\-|\,|$)/g) {
+          if ($onu_count !~ m/^1(\-|\,|$)/xg) {
             $attr->{LLID} = 1;
           }
           elsif ($free_llid != 65) {
@@ -373,7 +375,7 @@ sub _register_onu {
 
         foreach my $line (@$result) {
           print "$line<br>\n" if ($debug > 3);
-          my ($id) = split(/:/, $line);
+          my ($id) = split(/:/x, $line);
           if ($next_llid != $id) {
             last;
           }
@@ -400,12 +402,10 @@ sub _register_onu {
         $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
         foreach my $param_value (keys %$params_for_cmd) {
           next if (!$param_value);
-          $param_value =~ s/\0//g;
+          $param_value =~ s/\0//xg;
           #Remove non anscii symbols params
-          if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/i) {
-            if ($debug > 2) {
-              print "remove params -    $param_value: $params_for_cmd->{$param_value}\n";
-            }
+          if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/xmi) {
+            _log('LOG_DEBUG', "remove params -    $param_value: $params_for_cmd->{$param_value}");
             delete $params_for_cmd->{$param_value};
           }
         }
@@ -426,73 +426,7 @@ sub _register_onu {
     }
   }
   elsif ($attr->{VENDOR_NAME} eq 'Huawei') {
-    $attr->{TR_069_VLAN} = $attr->{NAS_INFO}->{tr_069_vlan} || '';
-    $attr->{IPTV_VLAN} = $attr->{NAS_INFO}->{iptv_vlan} || '';
-    $attr->{SRV_PROFILE} = $conf{HUAWEI_SRV_PROFILE_NAME} || 'ALL',
-    $attr->{LINE_PROFILE} = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
-
-    if ($conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
-      $attr->{SRV_PROFILE} = $conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
-    }
-    if ($conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
-      $attr->{LINE_PROFILE} = $conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
-    }
-
-    if ($conf{HUAWEI_TRIPLE_PLAY_ONU} && in_array($attr->{EQUIPMENT_ID}, $conf{HUAWEI_TRIPLE_PLAY_ONU})) {
-      $attr->{LINE_PROFILE} = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
-    }
-
-    my $parse_line_profile = $nas_type . '_prase_line_profile';
-    if (defined(&$parse_line_profile)) {
-      my $line_profiles = &{\&$parse_line_profile}({ %$attr });
-      foreach my $key (keys %$line_profiles) {
-        $attr->{LINE_PROFILE_DATA} .= "$key:";
-        $attr->{LINE_PROFILE_DATA} .= join(',', @{$line_profiles->{$key}});
-        $attr->{LINE_PROFILE_DATA} .= ";";
-      }
-
-      if (-x $cmd) {
-        $attr->{TR_069_PROFILE} = $conf{TR_069_PROFILE} || 'ACS';
-        $attr->{INTERNET_USER_VLAN} = $conf{INTERNET_USER_VLAN} || '101';
-        $attr->{TR_069_USER_VLAN} = $conf{TR_069_USER_VLAN} || '102';
-        $attr->{IPTV_USER_VLAN} = $conf{IPTV_USER_VLAN} || '103';
-
-        delete $attr->{NAS_INFO}->{ACTION_LNG};
-
-        my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
-        $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
-
-        foreach my $param_value (keys %$params_for_cmd) {
-          if (defined($params_for_cmd->{$param_value}) && $params_for_cmd->{$param_value} eq '') {
-            delete $params_for_cmd->{$param_value};
-            next;
-          }
-
-          next if (!$param_value);
-          $param_value =~ s/\0//g;
-
-          #Remove non anscii symbols params
-          if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/i) {
-            if ($debug > 2) {
-              print "remove params -    $param_value: $params_for_cmd->{$param_value}\n";
-            }
-            delete $params_for_cmd->{$param_value};
-          }
-        }
-
-        if ($debug > 3) {
-          $params_for_cmd->{DEBUG}=1;
-        }
-
-        $result = cmd($cmd, {
-          DEBUG   => ($debug > 1) ? $debug : 0,
-          PARAMS  => $params_for_cmd,
-          ARGV    => 1,
-          timeout => 30
-        });
-        $result_code = $? >> 8;
-      }
-    }
+    ($result_code, $result) = _register_huawei($attr);
   }
   elsif ($attr->{VENDOR_NAME} eq 'BDCOM') {
     if (-x $cmd) {
@@ -500,7 +434,7 @@ sub _register_onu {
       $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
       foreach my $param_value (keys %$params_for_cmd) {
         next if (!$param_value);
-        $param_value =~ s/\0//g;
+        $param_value =~ s/\0//xg;
       }
 
       $result = cmd($cmd, {
@@ -513,51 +447,15 @@ sub _register_onu {
     }
   }
 
-  if ($result_code) {
+  my $ont = equipment_onu_add($result_code, $result, $nas_id, $port_list, $attr);
+  if($ont) {
     print $result . "\n";
-    $result =~ s/\n/ /g;
-
-    if ($result =~ /ONU: \d+\/\d+\/\d+\:(\d+) ADDED/) {
-      my $onu = ();
-      $onu->{NAS_ID} = $nas_id;
-      $onu->{ONU_ID} = $1 || 0;
-      $onu->{ONU_DHCP_PORT} = $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
-      $onu->{PORT_ID} = $port_list->[0]->{ID};
-      $onu->{ONU_MAC_SERIAL} = $attr->{MAC_SERIAL};
-      $onu->{ONU_DESC} = $attr->{ONU_DESC};
-      $onu->{ONU_SNMP_ID} = $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
-      $onu->{LINE_PROFILE} = $attr->{LINE_PROFILE};
-      $onu->{SRV_PROFILE} = $attr->{SRV_PROFILE};
-      $onu->{VLAN} = $attr->{VLAN_ID};
-
-      if ($result =~ /SVLAN:CVLAN (\d+):(\d+)/) {
-        $onu->{SERVER_VLAN} = $1;
-        $onu->{VLAN} = $2;
-      }
-
-      my $onu_list = $Equipment->onu_list({ COLS_NAME => 1, PORT_ID => $onu->{PORT_ID}, ONU_SNMP_ID => $onu->{ONU_SNMP_ID} });
-      if ($onu_list->[0]->{id}) {
-        $Equipment->onu_change({ ID => $onu_list->[0]->{id}, ONU_STATUS => 0, DELETED => 0, %{$onu} });
-        $onu->{DATABASE_ID} = $onu_list->[0]->{id};
-      }
-      else {
-        $Equipment->onu_add({ %{$onu} });
-        $onu->{DATABASE_ID} = $Equipment->{INSERT_ID};
-      }
-      return $onu;
-    }
-    elsif ($result =~ /ONU ZTE: (\d+)\/(\d+)\/(\d+)\:(\d+) ADDED/) {
-      return equipment_register_onu_add_zte($result, $nas_id, $port_list, $attr);
-    }
-    elsif ($result =~ /ONU BDCOM: (\d+)\/(\d+)\:(\d+) .* SNMP ID (\d+) DHCP PORT ([0-9a-f]{4}) ADDED/) {
-      return equipment_register_onu_add_bdcom($result, $nas_id, $port_list, $attr);
-    }
   }
   else {
-    print $result . "\n";
+    _log('LOG_ERR', $result);
   }
 
-  return 0;
+  return $ont;
 }
 
 #**********************************************************
@@ -585,7 +483,7 @@ sub _auto_deregister {
   }
 
   my $nas_id = $nas_ids[0]; #there will be only one NAS
-  my $nas = $Equipment->_list({
+  my $nas = $Equipment->list({
     NAS_ID           => $nas_id,
     VENDOR_NAME      => '_SHOW',
     NAS_IP           => '_SHOW',
@@ -601,6 +499,7 @@ sub _auto_deregister {
   my $nas_type = equipment_pon_init($nas);
 
   my $all_port_list = $Equipment->pon_port_list({
+    PAGE_ROWS => 10000,
     NAS_ID    => $nas_id,
     COLS_NAME => 1
   });
@@ -657,7 +556,7 @@ sub _auto_deregister {
 
     my $result_code = $? >> 8;
 
-    if ($onu->{deleted} || $result_code && $result =~ /ONU.*DELETED/) {
+    if ($onu->{deleted} || $result_code && $result =~ /ONU.*DELETED/xm) {
       $Equipment->onu_del($onu->{id});
 
       if ($onu->{mac_serial}) {
@@ -683,7 +582,7 @@ sub _auto_deregister {
 
       if (!$onu->{deleted}) {
         print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id}\n";
-        print "$cmd exit code: $result_code, output: $result\n" if ($debug);
+        _log('LOG_DEBUG', "$cmd exit code: $result_code, output: $result");
       }
       else {
         print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id} from database\n";
@@ -693,7 +592,6 @@ sub _auto_deregister {
       my $comments = "Failed to delete ONU $onu->{branch}:$onu->{onu_id}\n $cmd exit code: $result_code, output: $result\n";
       print $comments;
       _generate_new_event('Failed to delete ONU', $comments);
-
     }
   }
 
@@ -702,6 +600,12 @@ sub _auto_deregister {
 
 #**********************************************************
 =head2 tr_069_setting($id, $attr) - Device setting
+
+  Arguments:
+    $id
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -740,4 +644,96 @@ sub _generate_new_event {
   return 1;
 }
 
-1
+#**********************************************************
+=head2 _generate_new_event($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _register_huawei {
+   my ($attr)=@_;
+
+  my $result_code;
+  my $result = q{};
+  my $nas_type = $attr->{NAS_TYPE};
+  my $cmd = $attr->{CMD};
+
+  my %extra_reg_params = ();
+  if ($argv->{EXTRA_REG_PARAMS}) {
+    %extra_reg_params = split (/\s+|\=/x, $argv->{EXTRA_REG_PARAMS});
+  }
+
+  $attr->{TR_069_VLAN} = $attr->{NAS_INFO}->{tr_069_vlan} || '';
+  $attr->{IPTV_VLAN} = $attr->{NAS_INFO}->{iptv_vlan} || '';
+  $attr->{SRV_PROFILE} = $conf{HUAWEI_SRV_PROFILE_NAME} || 'ALL';
+  $attr->{LINE_PROFILE} = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
+
+  if ($conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
+    $attr->{SRV_PROFILE} = $conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
+  }
+  if ($conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
+    $attr->{LINE_PROFILE} = $conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
+  }
+
+  if ($conf{HUAWEI_TRIPLE_PLAY_ONU} && in_array($attr->{EQUIPMENT_ID}, $conf{HUAWEI_TRIPLE_PLAY_ONU})) {
+    $attr->{LINE_PROFILE} = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
+  }
+
+  my $parse_line_profile = $nas_type . '_prase_line_profile';
+  if (defined(&$parse_line_profile)) {
+    my $line_profiles = &{\&$parse_line_profile}({ %$attr });
+    foreach my $key (keys %$line_profiles) {
+      $attr->{LINE_PROFILE_DATA} .= "$key:";
+      $attr->{LINE_PROFILE_DATA} .= join(',', @{$line_profiles->{$key}});
+      $attr->{LINE_PROFILE_DATA} .= ";";
+    }
+
+    if (-x $cmd) {
+      $attr->{TR_069_PROFILE} = $conf{TR_069_PROFILE} || 'ACS';
+      $attr->{INTERNET_USER_VLAN} = $conf{INTERNET_USER_VLAN} || '101';
+      $attr->{TR_069_USER_VLAN} = $conf{TR_069_USER_VLAN} || '102';
+      $attr->{IPTV_USER_VLAN} = $conf{IPTV_USER_VLAN} || '103';
+
+      delete $attr->{NAS_INFO}->{ACTION_LNG};
+
+      my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
+      $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
+
+      foreach my $param_value (keys %$params_for_cmd) {
+        if (defined($params_for_cmd->{$param_value}) && $params_for_cmd->{$param_value} eq '') {
+          delete $params_for_cmd->{$param_value};
+          next;
+        }
+
+        next if (!$param_value);
+        $param_value =~ s/\0//xg;
+
+        #Remove non anscii symbols params
+        if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/xmi) {
+          _log('LOG_DEBUG', "remove params -    $param_value: $params_for_cmd->{$param_value}");
+          delete $params_for_cmd->{$param_value};
+        }
+      }
+
+      if ($debug > 3) {
+        $params_for_cmd->{DEBUG}=1;
+      }
+
+      $result = cmd($cmd, {
+        DEBUG   => ($debug > 1) ? $debug : 0,
+        PARAMS  => $params_for_cmd,
+        ARGV    => 1,
+        timeout => 30
+      });
+      $result_code = $? >> 8;
+    }
+  }
+
+  return ($result_code, $result);
+}
+
+1;

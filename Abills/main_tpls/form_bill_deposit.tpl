@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='post' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='post'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='UID' value='%UID%'/>
   <input type='hidden' name='BILL_ID' value='%BILL_ID%'/>
   <input type='hidden' name='bill_correction' value='1'/>

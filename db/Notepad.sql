@@ -7,13 +7,15 @@ CREATE TABLE IF NOT EXISTS `notepad` (
   `end_stat`    TIME NOT NULL DEFAULT '00:00:00',
   `create_date` DATETIME    DEFAULT CURRENT_TIMESTAMP,
   `status`      INT(3)      UNSIGNED NOT NULL DEFAULT 0,
-  `subject`     VARCHAR(60) NOT NULL DEFAULT '',
+  `subject`     VARCHAR(150)NOT NULL DEFAULT '',
   `text`        TEXT,
   `aid`         SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
   `status_st`   TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0,
   UNIQUE `subject_text` (`subject`, `aid`, `status`),
   PRIMARY KEY (`id`),
-  KEY `aid` (`aid`)
+  KEY `aid` (`aid`),
+  KEY `status` (`status`),
+  KEY `show_at` (`show_at`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Notepad';
@@ -41,6 +43,7 @@ CREATE TABLE IF NOT EXISTS `notepad_checklist_rows` (
   `name`     VARCHAR(255) NOT NULL DEFAULT '',
   `state`    TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY `note_id` (`note_id`)
+  KEY `note_id` (`note_id`),
+  KEY `state` (`state`)
 )
  DEFAULT CHARSET = utf8 COMMENT = 'Notepad checklists rows';

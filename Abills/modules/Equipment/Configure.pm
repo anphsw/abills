@@ -20,6 +20,11 @@ our Abills::HTML $html;
 #********************************************************
 =head2 equipment_types()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #********************************************************
 sub equipment_types{
@@ -59,33 +64,36 @@ sub equipment_types{
 
   $html->tpl_show( _include( 'equipment_type', 'Equipment' ), { %{$Equipment}, %FORM } );
 
-  result_former(
-    {
-      INPUT_DATA      => $Equipment,
-      FUNCTION        => 'type_list',
-      BASE_FIELDS     => 2,
-      FUNCTION_FIELDS => 'change,del',
-      EXT_TITLES      => {
-        name => $lang{NAME},
-      },
-      SKIP_USER_TITLE => 1,
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{TYPES}",
-        qs      => $pages_qs,
-        ID      => 'EQUIPMENT_TYPES',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Equipment,
+    FUNCTION        => 'type_list',
+    BASE_FIELDS     => 2,
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      name => $lang{NAME},
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{TYPES}",
+      qs      => $pages_qs,
+      ID      => 'EQUIPMENT_TYPES',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
 
 #********************************************************
 =head2 equipment_vendor() - Vendor managment
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #********************************************************
@@ -126,29 +134,27 @@ sub equipment_vendor{
 
   $html->tpl_show( _include( 'equipment_vendor', 'Equipment' ), { %{$Equipment}, %FORM } );
 
-  result_former(
-    {
-      INPUT_DATA        => $Equipment,
-      FUNCTION        => 'vendor_list',
-      BASE_FIELDS     => 2,
-      FUNCTION_FIELDS => 'change,del',
-      EXT_TITLES      => {
-        name    => $lang{NAME},
-        support => $lang{COMMENTS},
-        site    => 'www'
-      },
-      SKIP_USER_TITLE => 1,
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{VENDOR}",
-        qs      => $pages_qs,
-        ID      => 'EQUIPMENT_VENDOR',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Equipment,
+    FUNCTION        => 'vendor_list',
+    BASE_FIELDS     => 2,
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      name    => $lang{NAME},
+      support => $lang{COMMENTS},
+      site    => 'www'
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{VENDOR}",
+      qs      => $pages_qs,
+      ID      => 'EQUIPMENT_VENDOR',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -156,6 +162,11 @@ sub equipment_vendor{
 
 #********************************************************
 =head2 equipment_model() - Equipment model list
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #********************************************************
@@ -189,7 +200,6 @@ sub equipment_model{
   };
 
   if ( $FORM{add} ) {
-
     my $EXTRA_PORTS_PARAMS = $parse_extra_ports->(\%FORM);
     $Equipment->model_add( { %FORM, %{ $EXTRA_PORTS_PARAMS || { } } } );
 
@@ -247,6 +257,7 @@ sub equipment_model{
       SELECTED       => $Equipment->{TYPE_ID} || 0,
       SEL_LIST       => $Equipment->type_list( { COLS_NAME => 1 } ),
       NO_ID          => 1,
+      SEL_OPTIONS    => { '' => '' },
       MAIN_MENU      => get_function_index( 'equipment_types' ),
       MAIN_MENU_ARGV => "chg=" . ($Equipment->{TYPE_ID} || '')
     }
@@ -258,6 +269,7 @@ sub equipment_model{
       SELECTED       => $Equipment->{VENDOR_ID},
       SEL_LIST       => $Equipment->vendor_list( { COLS_NAME => 1, PAGE_ROWS => 50 } ),
       NO_ID          => 1,
+      SEL_OPTIONS    => { '' => '' },
       MAIN_MENU      => get_function_index( 'equipment_vendor' ),
       MAIN_MENU_ARGV => "chg=" . ($Equipment->{VENDOR_ID} || '')
     }
@@ -309,7 +321,7 @@ sub equipment_model{
   my @contents = ();
 
   if ( opendir( my $fh, "$SNMP_TPL_DIR" ) ) {
-    @contents = sort grep !/^\.\.?$/, readdir $fh;
+    @contents = sort grep !/^\.\.?$/xm, readdir $fh;
     closedir $fh;
   }
   else {
@@ -362,7 +374,7 @@ sub equipment_model{
   });
 
   if ($Equipment->{MANAGE_WEB}) {
-    $Equipment->{MANAGE_WEB} =~ s/\%/\&#37;/g;
+    $Equipment->{MANAGE_WEB} =~ s/\%/\&#37;/xg;
   }
   $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %FORM, %{$Equipment} } );
   $LIST_PARAMS{PAGE_ROWS} = '100000';
@@ -392,17 +404,19 @@ sub equipment_model{
       qs      => $pages_qs,
       ID      => 'EQUIPMENT_MODELS_',
       EXPORT  => 1,
+      DATA_TABLE  => 1,
       MENU    => "$lang{ADD}:add_form=1&index=$index:add",
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
   });
 
-  print '<script>$(function () {
-  var $table = $(\'#EQUIPMENT_MODELS__\');
-  var correct = ($table.find(\'tbody\').find(\'tr\').first().find(\'td\').length - $table.find(\'thead th\').length );
+  print << "[END]";
+<script>\$(function () {
+  var \$table = \$('#EQUIPMENT_MODELS__');
+  var correct = (\$table.find('tbody').find('tr').first().find('td').length - \$table.find('thead th').length );
   for (var i = 0; i < correct; i++) {
-    $table.find(\'thead th:last-child\').after(\'<th></th>\');
+    \$table.find('thead th:last-child').after('<th></th>');
   }
     var dataTable = $("#EQUIPMENT_MODELS__")
       .DataTable({
@@ -423,9 +437,185 @@ sub equipment_model{
         "ordering": false,
         "lengthMenu": [[25, 50, -1], [25, 50, "' . $lang{ALL} . '"]]
       });
-    });</script>';
+    });</script>
+[END]
+
   return 1;
 }
 
+
+#********************************************************
+=head2 equipment_onu_models () - log with equipment model onu
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#********************************************************
+sub equipment_onu_models {
+
+  if ($FORM{IMAGE}){
+    my $file_name = $FORM{ONU_TYPE}.'.png';
+    my $allowed_picture_size = 500000;
+
+    if ($FORM{IMAGE} && $FORM{IMAGE}{Size} && $FORM{IMAGE}{Size} <= $allowed_picture_size){
+      my $is_uploaded = upload_file($FORM{IMAGE}, {
+        PREFIX     => 'equipment_onu',
+        FILE_NAME  => $file_name,
+        EXTENTIONS => 'gif, png, jpg, jpeg',
+        REWRITE    => 1
+      });
+      $FORM{IMAGE} = $file_name if ($is_uploaded);
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "$lang{PICTURE_SIZE_NOT_ALLOWED} 500 Kb");
+    }
+  }
+
+  if ($FORM{add}) {
+    $Equipment->onu_model_add(\%FORM);
+    if (!$Equipment->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "ONU $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "ONU $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Equipment->onu_model_change(\%FORM);
+    if (!$Equipment->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "ONU $lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "ONU $lang{NOT_CHANGED}");
+    }
+  }
+  elsif ($FORM{del}) {
+    $Equipment->onu_model_del({ ID => $FORM{del} });
+    if (!$Equipment->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "ONU $lang{DELETED}")
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "ONU $lang{NOT} $lang{DELETED}");
+    }
+  }
+
+  my %pon_types = ( 0 => 'PON', 1 => 'GPON' );
+  my %capabilities = ( 0 => 'Bridging', 1 => 'Bridging/Routing' );
+
+  if ($FORM{add_form} || $FORM{chg}) {
+    equipment_onu_model_form();
+    return 1;
+  }
+
+  my %ext_titles = (
+    id            => 'ID',
+    pon_type      => "PON $lang{TYPE}",
+    onu_type      => "ONU $lang{TYPE}",
+    wifi_ssids    => 'WiFi SSIDs',
+    ethernet_ports=> "Ethernet $lang{PORTS}",
+    voip_ports    => "Voip $lang{PORTS}",
+    catv          => 'CATV',
+    custom_profiles=> 'Custom profiles',
+    capability    => $lang{CAPABILITY},
+    image         => $lang{PICTURE}
+  );
+
+  result_former({
+    INPUT_DATA      => $Equipment,
+    FUNCTION        => 'onu_model_list',
+    FUNCTION_INDEX  => $index,
+    DEFAULT_FIELDS  => 'ID,PON_TYPE,ONU_TYPE,ETHERNET_PORTS',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES => {
+      capability => sub {
+        my $type = shift;
+        return $capabilities{$type},
+      },
+      pon_type => sub {
+        my $type = shift;
+        return $pon_types{$type},
+      },
+      image => sub {
+        my $image_name = shift;
+        return '' if (!$image_name);
+        return $html->img("/images/equipment_onu/$image_name", "ONU image", { EX_PARAMS => "style='width: 60px'" }),
+      },
+    },
+    SELECT_VALUE => {
+      catv => {
+        0 => ' ',
+        1 => '<i class="fa fa-check text-success"></i>'
+      },
+    },
+    EXT_TITLES   => \%ext_titles,
+    TABLE   => {
+      width      => '100%',
+      caption    => $lang{LOG_ONU},
+      qs         => $pages_qs,
+      ID         => 'EQUIPMENT_LOG_ONU',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
+
+  return 1;
+}
+
+#********************************************************
+=head2 equipment_onu_model_form () - log with equipment model onu
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#********************************************************
+sub equipment_onu_model_form {
+
+
+  my %pon_types = ( 0 => 'PON', 1 => 'GPON' );
+  my %capabilities = ( 0 => 'Bridging', 1 => 'Bridging/Routing' );
+
+
+  $Equipment->onu_model_info({ ID => $FORM{chg} });
+
+  $Equipment->{CATV} = ($Equipment->{CATV} && $Equipment->{CATV} == 1) ? 'checked' : '';
+  $Equipment->{CUSTOM_PROFILES} = ($Equipment->{CUSTOM_PROFILES} && $Equipment->{CUSTOM_PROFILES} == 1) ? 'checked' : '';
+  $Equipment->{SELECT_PON_TYPE} = $html->form_select('PON_TYPE', {
+    SELECTED    => $Equipment->{TYPE} || $FORM{TYPE} || 0,
+    SEL_HASH    => \%pon_types,
+    SORT_KEY    => 1,
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '' }
+  });
+  $Equipment->{SELECT_CAPABILITY} = $html->form_select('CAPABILITY', {
+    SELECTED    => $Equipment->{CAPABILITY} || $FORM{CAPABILITY} || 0,
+    SEL_HASH    => \%capabilities,
+    SORT_KEY    => 1,
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '' }
+  });
+
+  if ($Equipment->{IMAGE}){
+    $Equipment->{IMAGE} = $html->img("/images/equipment_onu/$Equipment->{IMAGE}", 'ONU image', { class => 'img-fluid mb-3' });
+  }
+
+  print $html->tpl_show(_include('equipment_onu_model_add', 'Equipment'), {
+    INDEX     => $index,
+    BTN_NAME  => $FORM{add_form} ? 'add' : 'change',
+    BTN_VALUE => $FORM{add_form} ? $lang{ADD} : $lang{CHANGE},
+    %$Equipment
+  }, { OUTPUT2RETURN => 1 });
+
+  return 1;
+}
 
 1;

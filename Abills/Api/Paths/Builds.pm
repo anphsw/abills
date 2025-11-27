@@ -51,8 +51,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/builds/',
-      controller  => 'Api::Controllers::Admin::Builds',
-      endpoint    => \&Api::Controllers::Admin::Builds::get_builds,
+      controller  => 'Api::Controllers::Common::Addresses',
+      endpoint    => \&Api::Controllers::Common::Addresses::get_builds,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]

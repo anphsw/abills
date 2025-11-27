@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='POST' class='form-horizontal' id='INTERNET_CLONE_FORM'>
+<form action='%SELF_URL%' method='POST' class='form-horizontal' id='INTERNET_CLONE_FORM'>
   <input type='hidden' name='index' value="%INDEX%">
   <input type='hidden' name='TP_ID' value="%TP_ID%">
   <input type='hidden' name='ADD_CLONE_TP' value="1">

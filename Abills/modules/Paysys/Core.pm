@@ -11,9 +11,10 @@ use warnings FATAL => 'all';
 
 use Encode;
 
-use Abills::Base qw(sendmail convert in_array is_number);
+use Abills::Base qw(convert in_array is_number);
 use Abills::Filters qw(_expr);
 use Abills::Fetcher qw(web_request);
+use Paysys::Constants qw(PROCESS_STATUSES);
 
 use Paysys;
 use Users;
@@ -37,8 +38,7 @@ my Users $Users;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db        => $db,
@@ -165,8 +165,7 @@ sub new {
 =cut
 #**********************************************************
 sub paysys_pay {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   # my attr
   my $debug = $attr->{DEBUG} || 0;
@@ -180,7 +179,7 @@ sub paysys_pay {
   # local vars
   $self->{paysys_id} = 0;
   my $domain = $ENV{DOMAIN_ID} // 0;
-  my $status = 0;
+  my $status = PROCESS_STATUSES->{SUCCESS};
   my $uid = 0;
   $attr->{_EXT_INFO} = $self->_paysys_pay_ext_info($attr);
 
@@ -188,18 +187,15 @@ sub paysys_pay {
 
   #Wrong sum
   if ($amount && $amount <= 0) {
-    return 5;
+    return PROCESS_STATUSES->{SUM_NOT_VALID};
   }
   #Small sum
   elsif ($attr->{MIN_SUM} && $amount < $attr->{MIN_SUM}) {
-    return 6;
+    return PROCESS_STATUSES->{SUM_TOO_SMALL};
   }
   # large sum
   elsif ($attr->{MAX_SUM} && $amount > $attr->{MAX_SUM}) {
-    return 7;
-  }
-  elsif ($ext_id eq 'no_ext_id') {
-    return 29;
+    return PROCESS_STATUSES->{SUM_TOO_BIG};
   }
 
   if ($debug > 6) {
@@ -225,17 +221,17 @@ sub paysys_pay {
 
     # if transaction not exist
     if ($Paysys->{errno} || $Paysys->{TOTAL} < 1) {
-      $status = 8;
+      $status = PROCESS_STATUSES->{PAYMENT_NOT_EXISTS};
       return $status;
     }
     #If transaction success
     elsif ($list->[0]->{status} == 2) {
-      $status = 9;
+      $status = PROCESS_STATUSES->{PAYMENT_EXISTS};
       return $status, $list->[0]->{id};
     }
 
     if (!$order_id) {
-      (undef, $ext_id) = split(/:/, $list->[0]->{transaction_id});
+      (undef, $ext_id) = split(':', $list->[0]->{transaction_id});
     }
 
     $uid                = $list->[0]->{uid};
@@ -248,7 +244,7 @@ sub paysys_pay {
     #Register success payments
     if ($attr->{REGISTRATION_ONLY} && !$attr->{ERROR}) {
       $self->_paysys_pay_update_transaction($attr);
-      return 0;
+      return PROCESS_STATUSES->{SUCCESS};
     }
   }
   else {
@@ -268,12 +264,12 @@ sub paysys_pay {
         });
       }
       else {
-        return 1;
+        return PROCESS_STATUSES->{USER_NOT_EXISTS};
       }
     }
 
     if ($list->[0]->{disable_paysys} && $self->{conf}->{SECOND_BILLING_DISABLE_PAYSYS}) {
-      return 11;
+      return PROCESS_STATUSES->{PAYMENTS_NOT_ALLOW_TO_GROUP};
     }
 
     if ($self->{conf}->{SECOND_BILLING_OUT_GROUPS} && $list->[0]->{gid}) {
@@ -291,7 +287,7 @@ sub paysys_pay {
 
     #disable paysys
     if ($list->[0]->{disable_paysys}) {
-      return 11;
+      return PROCESS_STATUSES->{PAYMENTS_NOT_ALLOW_TO_GROUP};
     }
 
     $uid = $list->[0]->{uid};
@@ -336,8 +332,7 @@ sub paysys_pay {
 =cut
 #**********************************************************
 sub _paysys_pay_error {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($self->{paysys_id}) {
     $self->_paysys_pay_update_transaction($attr);
@@ -385,8 +380,7 @@ sub _paysys_pay_error {
 =cut
 #**********************************************************
 sub _paysys_pay_ext_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $ext_info = '';
 
@@ -425,11 +419,10 @@ sub _paysys_pay_ext_info {
 =cut
 #**********************************************************
 sub _paysys_pay_payment_process {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
-  my $status = 0;
+  my $status = PROCESS_STATUSES->{SUCCESS};
   my $payments_id = 0;
   my $user = $attr->{_USER_INFO};
   my $user_account = $attr->{_USER_ACCOUNT};
@@ -447,7 +440,7 @@ sub _paysys_pay_payment_process {
       SHORT_NAME => $attr->{CURRENCY},
       ISO        => $attr->{CURRENCY_ISO} });
     if ($Payments->{errno} && $Payments->{errno} != 2) {
-      return 28;
+      return PROCESS_STATUSES->{WRONG_EXCHANGE};
     }
     elsif ($Payments->{TOTAL} > 0) {
       $er = $Payments->{ER_RATE};
@@ -492,6 +485,8 @@ sub _paysys_pay_payment_process {
     USER_INFO      => $user
   });
 
+  $payments_id = $Payments->{PAYMENT_ID} || 0;
+
   # Exists payments Duplicate
   if ($Payments->{errno} && $Payments->{errno} == 7) {
     my $list = $Paysys->list({
@@ -499,8 +494,6 @@ sub _paysys_pay_payment_process {
       STATUS         => '_SHOW',
       COLS_NAME      => 1
     });
-
-    $payments_id = $Payments->{ID};
 
     # paysys list not exist
     if ($Paysys->{TOTAL} == 0) {
@@ -512,7 +505,7 @@ sub _paysys_pay_payment_process {
         _TRANSACTION_REGISTRATION => 1
       });
 
-      $status = 3;
+      $status = PROCESS_STATUSES->{DUPLICATE_PAYMENT_NO_TRANSACTION};
     }
     else {
       $self->{paysys_id} = $list->[0]->{id};
@@ -524,7 +517,7 @@ sub _paysys_pay_payment_process {
         });
       }
 
-      $status = 13;
+      $status = PROCESS_STATUSES->{DUPLICATE_TRANSACTION};
     }
   }
   #Payments error
@@ -534,11 +527,11 @@ sub _paysys_pay_payment_process {
     }
 
     if ($Payments->{errno} == 14) {
-      $status = 14;
+      $status = PROCESS_STATUSES->{USER_NO_BILL_ID};
     }
     else {
       # happens if deadlock
-      $status = 12;
+      $status = PROCESS_STATUSES->{DATABASE_DEADLOCK};
     }
   }
   else {
@@ -561,12 +554,11 @@ sub _paysys_pay_payment_process {
 
     #Transactions registration error
     if ($Paysys->{errno} && $Paysys->{errno} == 7) {
-      $status = $attr->{FORCE_PAYMENT} ? 0 : 3;
-      $payments_id = $Payments->{ID};
+      $status = $attr->{FORCE_PAYMENT} ? PROCESS_STATUSES->{SUCCESS} : PROCESS_STATUSES->{DUPLICATE_PAYMENT_NO_TRANSACTION};
     }
     #Payments error
     elsif ($Paysys->{errno}) {
-      $status = 2;
+      $status = PROCESS_STATUSES->{DATABASE_ERROR};
     }
   }
 
@@ -603,8 +595,7 @@ sub _paysys_pay_payment_process {
 =cut
 #**********************************************************
 sub _paysys_pay_payments_made {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $payments_id = $attr->{_PAYMENTS_ID} || 0;
   my $user = $attr->{_USER_INFO};
@@ -676,8 +667,7 @@ sub _paysys_pay_payments_made {
 =cut
 #**********************************************************
 sub _paysys_pay_update_transaction {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %transaction = (
     ID          => $self->{paysys_id},
@@ -710,8 +700,7 @@ sub _paysys_pay_update_transaction {
 =cut
 #**********************************************************
 sub _paysys_pay_conf {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $method = $attr->{PAYMENT_METHOD} || 0;
   my $merchant_id = $attr->{MERCHANT_ID} || 0;
@@ -736,7 +725,7 @@ sub _paysys_pay_conf {
       elsif (!$attr->{PAYMENT_INNER_DESCRIBE} && $param->{param} =~ /INNER_DESCRIPTION/) {
         $inner_describe = $param->{value};
       }
-      elsif (!$attr->{PAYMENT_DESCRIBE} && $param->{param} =~ /PAYSYS\_[a-zA-Z0-9]+\_DESCRIPTION/ && $param->{value}) {
+      elsif (!$attr->{PAYMENT_DESCRIBE} && $param->{param} =~ /PAYSYS\_[a-zA-Z0-9]+\_DESCRIPTION/x && $param->{value}) {
         $payment_describe = $self->desc_former($param->{value}, $user->{UID});
       }
     }
@@ -797,19 +786,18 @@ sub _paysys_pay_conf {
 =cut
 #**********************************************************
 sub paysys_check_user {
-  my $self = shift;
-  my ($attr) = @_;
-  my $result = 0;
+  my ($self, $attr) = @_;
+  my $result = PROCESS_STATUSES->{SUCCESS};
 
   my $CHECK_FIELD = $attr->{CHECK_FIELD} || 'UID';
   my $user_account = $attr->{USER_ID} || q{};
 
-  $user_account =~ s/\*//;
+  $user_account =~ s/\*//x;
 
   $user_account = _expr($user_account, $self->{conf}->{PAYSYS_ACCOUNT_EXPR});
 
   if (!$user_account) {
-    return 30;
+    return PROCESS_STATUSES->{USER_EMPTY_IDENTIFIER};
   }
 
   if ($attr->{DEBUG} && $attr->{DEBUG} > 6) {
@@ -828,14 +816,14 @@ sub paysys_check_user {
     $self->mk_log('Mysql error ' . ($Users->{errno} || q{}));
     # need to make empty if call the same object multiple times
     delete $Users->{errno};
-    return 2;
+    return PROCESS_STATUSES->{DATABASE_ERROR};
   }
   elsif ($Users->{TOTAL} < 1) {
     if ($self->{conf}->{SECOND_BILLING_OUT} && !(defined($self->{conf}->{SECOND_BILLING_OUT_GROUPS}))) {
-      return $self->_paysys_check_user_second_bill({USER_ACCOUNT => $user_account});
+      return $self->_paysys_check_user_second_bill({ USER_ACCOUNT => $user_account });
     }
     else {
-      return 1;
+      return PROCESS_STATUSES->{USER_NOT_EXISTS};
     }
   }
   elsif ($self->{conf}->{SECOND_BILLING_OUT_GROUPS} && $list->[0]->{GID}) {
@@ -845,13 +833,14 @@ sub paysys_check_user {
     }
   }
   elsif ($list->[0]->{DISABLE_PAYSYS}) {
-    return 11;
+    return PROCESS_STATUSES->{PAYMENTS_NOT_ALLOW_TO_GROUP};
   }
   elsif (!$list->[0]->{BILL_ID}) {
-    return 14;
+    return PROCESS_STATUSES->{USER_NO_BILL_ID};
   }
-
-  return 11 if (defined $list->[0]->{GID} && $attr->{PAYSYS_ID} && $self->{conf}->{"PAYSYS_PAYMENTS_DISABLED_$list->[0]->{GID}_$attr->{PAYSYS_ID}"});
+  elsif (defined $list->[0]->{GID} && $attr->{PAYSYS_ID} && $self->{conf}->{"PAYSYS_PAYMENTS_DISABLED_$list->[0]->{GID}_$attr->{PAYSYS_ID}"}) {
+    return PROCESS_STATUSES->{PAYMENTS_NOT_ALLOW_TO_GROUP};
+  }
 
   foreach my $user (@{$list}) {
     if ($attr->{RECOMENDED_PAY}) {
@@ -859,9 +848,9 @@ sub paysys_check_user {
     }
 
     if ($user->{FIO}) {
-      $user->{FIO} =~ s/\'/_/g;
-      $user->{FIO} =~ s/\s+$//g;
-      $user->{FIO} =~ s/&|%//g;
+      $user->{FIO} =~ s/\'/_/xg;
+      $user->{FIO} =~ s/\s+$//xg;
+      $user->{FIO} =~ s/&|%//xg;
     }
 
     $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT} || 0);
@@ -900,7 +889,8 @@ sub paysys_check_user {
       2  - Error with mysql
       8  - Paysys not exist
       10 - Payments not exist
-      11 - no required parameter PAYSYS_ID or TRANSACTION_ID
+      21 - no required parameter PAYSYS_ID or TRANSACTION_ID
+      15 - unpaid and canceled
 
   Examples:
 
@@ -913,12 +903,10 @@ sub paysys_check_user {
 =cut
 #**********************************************************
 sub paysys_pay_cancel {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
   my $result = 0;
-  my $status = 0;
   my $canceled_payment_id = 0;
   my $cancel_status = $attr->{CANCEL_STATUS} || 3;
 
@@ -929,9 +917,9 @@ sub paysys_pay_cancel {
   }
 
   if (!$attr->{PAYSYS_ID} && !$attr->{TRANSACTION_ID}) {
-    $attr->{RETURN_CANCELED_ID} ?
-      return 11, 0 :
-      return 11;
+    return $attr->{RETURN_CANCELED_ID}
+      ? (PROCESS_STATUSES->{NO_EXT_ID_AND_PAYSYS_ID}, $canceled_payment_id)
+      : (PROCESS_STATUSES->{NO_EXT_ID_AND_PAYSYS_ID});
   }
 
   my $paysys_list = $Paysys->list({
@@ -943,7 +931,9 @@ sub paysys_pay_cancel {
 
   if (!$Paysys->{TOTAL}) {
     $self->{paysys_id} = 0;
-    $attr->{RETURN_CANCELED_ID} ? return 8, $canceled_payment_id : return 8;
+    return $attr->{RETURN_CANCELED_ID}
+      ? (PROCESS_STATUSES->{PAYMENT_NOT_EXISTS}, $canceled_payment_id)
+      : (PROCESS_STATUSES->{PAYMENT_NOT_EXISTS});
   }
 
   my $transaction_id = $paysys_list->[0]->{transaction_id};
@@ -956,38 +946,36 @@ sub paysys_pay_cancel {
     PAGE_ROWS => 1
   });
 
-  if ($status == 0) {
+  if ($Payments->{errno}) {
+    $result = PROCESS_STATUSES->{DATABASE_ERROR};
+  }
+  elsif ($Payments->{TOTAL} < 1) {
+    $result = PROCESS_STATUSES->{PAYMENT_NOT_FOUND};
+    # cancel transaction status if no payments
+    $Paysys->change({
+      ID     => $paysys_list->[0]->{id},
+      STATUS => $cancel_status
+    });
+  }
+  else {
+    my %user = (
+      BILL_ID => $list->[0]->{bill_id},
+      UID     => $list->[0]->{uid}
+    );
+
+    $Users->list({ UID => $list->[0]->{uid}, COLS_NAME => 1, COLS_UPPER => 1 }) if ($self->{conf}->{PAYSYS_LOG});
+    my $payment_id = $list->[0]->{id};
+
+    $Payments->del(\%user, $payment_id);
     if ($Payments->{errno}) {
-      $result = 2;
+      $result = PROCESS_STATUSES->{DATABASE_ERROR};
     }
-    elsif ($Payments->{TOTAL} < 1) {
-      $result = 10;
-      # cancel transaction status if no payments
+    else {
       $Paysys->change({
         ID     => $paysys_list->[0]->{id},
         STATUS => $cancel_status
       });
-    }
-    else {
-      my %user = (
-        BILL_ID => $list->[0]->{bill_id},
-        UID     => $list->[0]->{uid}
-      );
-
-      $Users->list({ UID => $list->[0]->{uid}, COLS_NAME => 1, COLS_UPPER => 1 }) if ($self->{conf}->{PAYSYS_LOG});
-      my $payment_id = $list->[0]->{id};
-
-      $Payments->del(\%user, $payment_id);
-      if ($Payments->{errno}) {
-        $result = 2;
-      }
-      else {
-        $Paysys->change({
-          ID     => $paysys_list->[0]->{id},
-          STATUS => $cancel_status
-        });
-        $canceled_payment_id = $paysys_list->[0]->{id};
-      }
+      $canceled_payment_id = $paysys_list->[0]->{id};
     }
   }
 
@@ -1029,8 +1017,7 @@ sub paysys_pay_cancel {
 =cut
 #**********************************************************
 sub paysys_pay_check {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $paysys_list = $Paysys->list({
     ID             => $attr->{PAYSYS_ID} || '_SHOW',
@@ -1069,8 +1056,7 @@ sub paysys_pay_check {
 =cut
 #**********************************************************
 sub paysys_info {
-  shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   return {} if (!$attr->{PAYSYS_ID} && !$attr->{TRANSACTION_ID});
 
@@ -1127,8 +1113,7 @@ sub paysys_info {
 =cut
 #**********************************************************
 sub mk_log {
-  my $self = shift;
-  my ($message, $attr) = @_;
+  my ($self, $message, $attr) = @_;
 
   my $base_dir = $main::base_dir // '';
   if (!$base_dir) {
@@ -1136,29 +1121,22 @@ sub mk_log {
     require FindBin;
     FindBin->import('$Bin');
 
-    if ($Bin =~ m/\/abills(\/)/){
+    if ($Bin =~ m/\/abills(\/)/x) {
       $base_dir = substr($Bin, 0, $-[1]);
       $base_dir .= '/';
     }
   }
 
-  my $paysys          = $attr->{PAYSYS_ID} || '';
+  my $paysys = $attr->{PAYSYS_ID} || '';
   my $paysys_log_file = $attr->{LOG_FILE} || ($base_dir // '/usr/abills/') . 'var/log/paysys_check.log';
 
   if ($attr->{HEADER}) {
     print "Content-Type: text/plain\n\n";
   }
 
-  if ($attr->{REPLY}) {
-    $paysys .= " REPLY: $attr->{REPLY}";
-  }
-
-  if ($attr->{TYPE}) {
-    $paysys .= " TYPE: $attr->{TYPE}";
-  }
-
-  if ($attr->{STATUS}) {
-    $paysys .= " STATUS: $attr->{STATUS}";
+  for my $key (qw(REPLY TYPE STATUS)) {
+    next if (!$attr->{$key});
+    $paysys .= " $key: $attr->{$key}";
   }
 
   if ($attr->{DATA} && ref $attr->{DATA} eq 'HASH') {
@@ -1171,6 +1149,12 @@ sub mk_log {
     $message .= $attr->{DATA};
   }
 
+  if ($attr->{SHOW}) {
+    print "Content-Type: text/plain\n\n";
+    print "$message";
+  }
+
+  # save to db
   if ($self->{conf}->{PAYSYS_LOG}) {
     my $buffer = $attr->{REQUEST_BODY} || q{};
 
@@ -1211,38 +1195,38 @@ sub mk_log {
         SUM            => $attr->{SUM} || 0
       });
     }
+
+    if ($self->{conf}->{PAYSYS_LOG} == 2) {
+      return 1;
+    }
   }
 
-  if (!defined($self->{conf}->{PAYSYS_LOG}) || ($self->{conf}->{PAYSYS_LOG} && $self->{conf}->{PAYSYS_LOG} != 2)) {
-    if (open(my $fh, '>>', $paysys_log_file)) {
-      if ($attr->{SHOW}) {
-        print "$message";
-      }
+  if (!$main::DATE) {
+    require POSIX;
+    POSIX->import(qw(strftime));
+    $main::DATE = strftime("%Y-%m-%d", localtime(time));
+    $main::TIME = strftime("%H:%M:%S", localtime(time));
+  }
 
-      if (!$main::DATE) {
-        require POSIX;
-        POSIX->import(qw( strftime ));
-        $main::DATE = strftime("%Y-%m-%d", localtime(time));
-        $main::TIME = strftime("%H:%M:%S", localtime(time));
-      }
+  $self->{REMOTE_ADDR} //= '127.0.0.1';
+  my $log_mess = "\n$main::DATE $main::TIME $self->{REMOTE_ADDR} $paysys =========================\n";
 
-      $self->{REMOTE_ADDR} //= '127.0.0.1';
-      print $fh "\n$main::DATE $main::TIME $self->{REMOTE_ADDR} $paysys =========================\n";
+  if ($attr->{REQUEST}) {
+    $log_mess .= "$attr->{REQUEST}\n=======\n";
+  }
 
-      if ($attr->{REQUEST}) {
-        print $fh "$attr->{REQUEST}\n=======\n";
-      }
+  $log_mess .= $message;
 
-      print $fh $message || q{};
-      close($fh);
-    }
-    else {
-      print "Content-Type: text/plain\n\n";
-      print "Can't open log file '$paysys_log_file' $!\n";
-      print "Error:\n";
-      print "================\n$message================\n";
-      die "Can't open log file '$paysys_log_file' $!\n";
-    }
+  if (open(my $fh, '>>', $paysys_log_file)) {
+    print $fh $log_mess || q{};
+    close($fh);
+  }
+  else {
+    print "Content-Type: text/plain\n\n";
+    print "Can't open log file '$paysys_log_file' $!\n";
+    print "Error:\n";
+    print "================\n$message================\n";
+    die "Can't open log file '$paysys_log_file' $!\n";
   }
 
   return 1;
@@ -1282,8 +1266,7 @@ sub mk_log {
 =cut
 #**********************************************************
 sub conf_gid_split {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 1 if (!$attr->{PAYSYS_ID});
 
@@ -1299,7 +1282,7 @@ sub conf_gid_split {
 
   foreach my $param (@{$merchant_params}) {
     # in config stored in one type in, in merchant params in second type
-    $param->{value} =~ s/\\"/"/g if ($param->{value});
+    $param->{value} =~ s/\\"/"/xg if ($param->{value});
     $self->{conf}->{$param->{param}} = $param->{value} || '';
   }
 
@@ -1325,8 +1308,7 @@ sub conf_gid_split {
 =cut
 #**********************************************************
 sub _check_max_payments {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $params = {};
   my $merchant_id = '--';
@@ -1348,7 +1330,7 @@ sub _check_max_payments {
   my $max_sum = $params->{$max_sum_key || ''} || 0;
 
   if ($max_sum) {
-    my ($year, $month) = $main::DATE =~ /(\d{4})\-(\d{2})\-(\d{2})/g;
+    my ($year, $month) = $main::DATE =~ /(\d{4})\-(\d{2})\-(\d{2})/xg;
     $Payments->list({
       PAYMENT_METHOD => $payment_method,
       FROM_DATE      => "$year-$month-01",
@@ -1400,8 +1382,7 @@ sub _check_max_payments {
 =cut
 #**********************************************************
 sub _hide_text {
-  shift;
-  my ($text) = @_;
+  my (undef, $text) = @_;
 
   my $hidden_text = '';
   if (!$text) {
@@ -1409,9 +1390,9 @@ sub _hide_text {
   }
 
   my @join_test = ();
-  $text =~ s/\s+$//gm;
-  $text =~ s/\'/_/g;
-  $text =~ s/&|%//g;
+  $text =~ s/\s+$//xgm;
+  $text =~ s/\'/_/xg;
+  $text =~ s/&|%//xg;
   my $str_utf8 = decode('UTF-8', $text);
 
   my @split_fio = split(/ /, $str_utf8);
@@ -1423,8 +1404,8 @@ sub _hide_text {
         $split_word[$i] = '*';
       }
     }
-    my $fio_hiden_1 = join('', @split_word);
-    push(@join_test, $fio_hiden_1);
+    my $hidden = join('', @split_word);
+    push(@join_test, $hidden);
   }
 
   $hidden_text = encode('UTF-8', join(' ', @join_test));
@@ -1445,8 +1426,7 @@ sub _hide_text {
 =cut
 #**********************************************************
 sub _paysys_check_user_second_bill {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $request_url = $self->{conf}->{SECOND_BILLING};
 
   my $response_second_billing = web_request($request_url, {
@@ -1460,18 +1440,19 @@ sub _paysys_check_user_second_bill {
     CURL_OPTIONS   => ' -L -k -s '
   });
 
-  $response_second_billing =~ /(?<=<result>)(\d+)(?=<\/result>)/g;
-  my $response_result = $1 // q{};
-  $response_second_billing =~ /((?<=<comment>)(.*)(?=<\/comment>))/g;
-  my $response_comment = $2 // q{};
+  my ($response_result)  = $response_second_billing =~ m{<result>(\d+)</result>}x;
+  $response_result  //= q{};
+
+  my ($response_comment) = $response_second_billing =~ m{<comment>(.*?)</comment>}x;
+  $response_comment //= q{};
 
   $self->mk_log("Status of Check: " . ($response_result || q{}) . ", comment: $response_comment");
 
   if ($response_result eq '0') {
-    return 0, { comment => $response_comment };
+    return PROCESS_STATUSES->{SUCCESS}, { comment => $response_comment };
   }
   else {
-    return 1;
+    return PROCESS_STATUSES->{DATABASE_ERROR};
   }
 }
 
@@ -1490,8 +1471,7 @@ sub _paysys_check_user_second_bill {
 =cut
 #**********************************************************
 sub _paysys_pay_second_bill {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $request_url = $self->{conf}->{SECOND_BILLING};
 
   my $response_second_billing = web_request($request_url, {
@@ -1506,23 +1486,21 @@ sub _paysys_pay_second_bill {
     CURL_OPTIONS   => ' -L -k -s '
   });
 
-  $response_second_billing =~ /(?<=<result>)(\d+)(?=<\/result>)/g;
-  my $response_result = $1 // q{};
-  $response_second_billing =~ /((?<=<prv_txn>)(.*)(?=<\/prv_txn>))/g;
-  my $response_pay_id = $2 // q{};
+  my ($response_result) = $response_second_billing =~ m{<result>(\d+)</result>}x;
+  $response_result //= q{};
+
+  my ($response_pay_id) = $response_second_billing =~ m{<prv_txn>(.*?)</prv_txn>}x;
+  $response_pay_id //= q{};
 
   $self->mk_log("Status of Payment: " . ($response_result || q{}) . " PayId: $response_pay_id");
 
   if ($response_result eq '0') {
-    if ($attr->{PAYMENT_ID}) {
-      return 0, $response_pay_id;
-    }
-    else {
-      return 0;
-    }
+    $attr->{PAYMENT_ID}
+      ? return PROCESS_STATUSES->{SUCCESS}, $response_pay_id
+      : return PROCESS_STATUSES->{SUCCESS};
   }
   else {
-    return 1;
+    return PROCESS_STATUSES->{USER_NOT_EXISTS};
   }
 }
 
@@ -1541,8 +1519,7 @@ sub _paysys_pay_second_bill {
 =cut
 #**********************************************************
 sub _paysys_extra_check_user {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $list = [];
   my @params_array = ({
@@ -1553,7 +1530,7 @@ sub _paysys_extra_check_user {
 
   if (scalar @{$attr->{EXTRA_USER_IDS}}) {
     foreach my $user_id (@{$attr->{EXTRA_USER_IDS}}) {
-      next unless ($attr->{MAIN_CHECK_FIELD} || $attr->{USER_ACCOUNT});
+      next if (!$attr->{MAIN_CHECK_FIELD} && !$attr->{USER_ACCOUNT});
       my $user_account = _expr($user_id->{USER_ACCOUNT}, $self->{conf}->{PAYSYS_ACCOUNT_EXPR});
       next if (!$user_account);
 
@@ -1569,11 +1546,11 @@ sub _paysys_extra_check_user {
     my @check_fields = ();
 
     if ($params->{USER_ACCOUNT}) {
-      $params->{USER_ACCOUNT} =~ s/[,*;]//g;
+      $params->{USER_ACCOUNT} =~ s/[,*;]//xg;
     }
 
     if ($self->{conf}->{PAYSYS_USER_MULTI_CHECK}) {
-      my @check_arr = split(/,\s?/, uc($self->{conf}->{PAYSYS_USER_MULTI_CHECK}));
+      my @check_arr = split(',\s?', uc($self->{conf}->{PAYSYS_USER_MULTI_CHECK}));
       @check_fields = grep {$_ ne $params->{CHECK_FIELD}} @check_arr;
     }
 
@@ -1582,7 +1559,7 @@ sub _paysys_extra_check_user {
     foreach my $CHECK_FIELD (@check_fields) {
 
       if ($CHECK_FIELD eq 'PHONE') {
-        if ($params->{USER_ACCOUNT} && $params->{USER_ACCOUNT} !~ /\d{10,}$/g) {
+        if ($params->{USER_ACCOUNT} && $params->{USER_ACCOUNT} !~ /\d{10,}$/xg) {
           $params->{USER_ACCOUNT} = '-------';
         }
         else {
@@ -1656,8 +1633,7 @@ sub _paysys_extra_check_user {
 =cut
 #**********************************************************
 sub sum2commission_sum {
-  my $self = shift;
-  my ($sum, $commission, $commission_type) = @_;
+  my (undef, $sum, $commission, $commission_type) = @_;
 
   my $total_sum = 0;
   my $commission_sum = 0;
@@ -1691,8 +1667,7 @@ sub sum2commission_sum {
 =cut
 #**********************************************************
 sub commission_sum2sum {
-  my $self = shift;
-  my ($sum, $commission, $commission_type) = @_;
+  my (undef, $sum, $commission, $commission_type) = @_;
 
   my $final_amount = 0;
 
@@ -1719,18 +1694,17 @@ sub commission_sum2sum {
 =cut
 #**********************************************************
 sub desc_former {
-  shift;
-  my ($desc, $uid) = @_;
+  my (undef, $desc, $uid) = @_;
 
   return $desc if (!$desc || !$uid);
 
   $Users->info($uid);
   $Users->pi({ UID => $uid });
 
-  my @vars = $desc =~ /\%(.+?)\%/g;
+  my @vars = $desc =~ /\%(.+?)\%/xg;
 
   foreach my $var (@vars) {
-    $desc =~ s/\%$var\%/($Users->{$var} || '')/ge;
+    $desc =~ s/\%$var\%/($Users->{$var} || '')/xge;
   }
 
   return $desc;

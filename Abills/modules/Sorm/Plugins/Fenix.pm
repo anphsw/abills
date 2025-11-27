@@ -20,7 +20,7 @@ use warnings FATAL => 'all';
 
 use Companies;
 use Time::Piece;
-use Abills::Misc qw(translate_list);
+use Abills::Misc;
 use Abills::Base qw(in_array ip2int);
 use Abon;
 

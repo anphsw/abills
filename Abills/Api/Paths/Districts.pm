@@ -51,8 +51,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/districts/',
-      controller  => 'Api::Controllers::Admin::Districts',
-      endpoint    => \&Api::Controllers::Admin::Districts::get_districts,
+      controller  => 'Api::Controllers::Common::Addresses',
+      endpoint    => \&Api::Controllers::Common::Addresses::get_districts,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -82,6 +82,15 @@ sub admin_routes {
       endpoint    => \&Api::Controllers::Admin::Districts::put_districts_id,
       credentials => [
         'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/districts/territorial_units/',
+      controller  => 'Api::Controllers::Admin::Districts',
+      endpoint    => \&Api::Controllers::Admin::Districts::get_territorial_units,
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
   ];

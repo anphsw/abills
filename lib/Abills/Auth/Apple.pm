@@ -27,6 +27,8 @@ sub check_access {
   my $self = shift;
   my ($attr) = @_;
 
+  return $self if (!$self->{conf}->{AUTH_APPLE_ID});
+
   my $token = $attr->{token};
 
   if ($attr->{API} && $token) {

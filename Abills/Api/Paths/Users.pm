@@ -137,6 +137,15 @@ sub admin_routes {
     },
     {
       method      => 'GET',
+      path        => '/users/:uid/recommendedPay/',
+      controller  => 'Api::Controllers::Common::Users',
+      endpoint    => \&Api::Controllers::Common::Users::get_user_recommendedPay,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
       path        => '/users/:uid/abon/',
       controller  => 'Api::Controllers::Admin::Users::Abon',
       endpoint    => \&Api::Controllers::Admin::Users::Abon::get_users_uid_abon,
@@ -195,7 +204,7 @@ sub admin_routes {
       controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::post_users_uid_contacts,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {

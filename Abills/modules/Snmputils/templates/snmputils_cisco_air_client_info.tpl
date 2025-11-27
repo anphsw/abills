@@ -1,5 +1,5 @@
 <FORM>
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 
 <TABLE width='100%' class=form>
     <TR class='odd'>

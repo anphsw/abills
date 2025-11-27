@@ -18,12 +18,12 @@ use Abills::Base qw/cmd in_array convert startup_files _bp int2ip/;
 use Abills::Fetcher qw/web_request/;
 use Users;
 use Finance;
-use Abills::Misc qw/form_purchase_module _function get_function_index/;
+use Abills::Misc;
 use utf8;
 use Log qw/log_print/;
 use Contacts;
 
-our ($db, $debug, $Admin, %permissions, $argv);
+our ($db, $debug, $Admin, $argv);
 
 my $Payments = Finance->payments($db, $admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
@@ -33,7 +33,7 @@ my $Contacts = Contacts->new($db, $admin, \%conf);
 
 our %date_key_hash;
 
-binmode STDOUT, ":utf8";
+#binmode STDOUT, ":utf8";
 
 $date_key_hash{USERS} = {
   'login'       => 'LOGIN',
@@ -148,20 +148,18 @@ sub info_coincidence {
 sub info_structure {
   my ($elemnt, $elemnt_last_key, $last_key, $info) = @_;
 
-  my $coincidence_on = info_coincidence(
-    {
+  my $coincidence_on = info_coincidence(    {
       ELEMENT          => $elemnt,
       FULL_KEY         => $elemnt_last_key || '',
       LAST_KEY_ELEMENT => $last_key,
       INFO             => $info,
-    }
-  );
+    }  );
 
   if (ref($elemnt) eq 'HASH' && !$coincidence_on) {
     my $del_element = 0;
     foreach my $key (keys %{$elemnt}) {
       if ($del_element == 1) {
-        ($elemnt_last_key) = $elemnt_last_key =~ /(.+)\./g;
+        ($elemnt_last_key) = $elemnt_last_key =~ /(.+)\./xmg;
       }
       if (ref($elemnt->{$key}) eq 'ARRAY' || ref($elemnt->{$key}) eq 'HASH') {
         $del_element = 1;
@@ -175,9 +173,7 @@ sub info_structure {
     }
   }
   elsif (ref($elemnt) eq 'ARRAY' && !$coincidence_on) {
-
     foreach my $value (@{$elemnt}) {
-
       info_structure($value, $elemnt_last_key, undef, $info);
     }
   }
@@ -219,13 +215,11 @@ sub info_structure {
 }
 
 sub _mac_structure {
-  my ($mac_list, $hash_ref, $attr) = @_;
+  my ($mac_list) = @_;
 
   foreach my $mac_info (%{$mac_list}) {
-
     if ($mac_info->{mac} && $mac_info->{ip}) {
       my $usr_mac = join(':', unpack("(A2)*", $mac_info->{mac}));
-
       return { MAC => $usr_mac, IP => int2ip($mac_info->{ip}) };
     }
   }
@@ -234,12 +228,12 @@ sub _mac_structure {
 }
 
 sub _phone_structure {
-  my ($phone, $hash_ref, $attr) = @_;
+  my ($phone, $hash_ref) = @_;
 
-  if ($hash_ref && $hash_ref =~ s/\d//) {
+  if ($hash_ref && $hash_ref =~ s/\d//x) {
     return $hash_ref;
   }
-  elsif ($phone && $phone =~ s/\d//) {
+  elsif ($phone && $phone =~ s/\d//x) {
     return $phone;
   }
 
@@ -250,7 +244,6 @@ sub insert_user {
 
   my $Finance    = Finance->new($db, $admin, \%conf);
   my $uid        = 0;
-  my $change_log = q{};
   my $login      = $user_info->{USERS}->{LOGIN} || q{};
 
   $user_info->{USERS}->{PASSWORD} = $user_info->{USERS}->{PASSWORD} || '';
@@ -473,4 +466,4 @@ sub year_month_day_format {
   return "$contract_year-$contract_month-$contract_day";
 }
 
-1
+1;

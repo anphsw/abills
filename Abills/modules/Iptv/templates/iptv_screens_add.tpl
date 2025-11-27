@@ -1,5 +1,5 @@
-<form action=$SELF_URL method=post class='form-horizontal'>
-  <input type=hidden name=index value=$index>
+<form action=%SELF_URL% method=post class='form-horizontal'>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name=ID value='$FORM{chg}'>
   <input type=hidden name=TP_ID value='$FORM{TP_ID}'>
   <input type=hidden name=subf value='$FORM{subf}'>

@@ -27,6 +27,8 @@ sub check_access {
   my $self = shift;
   my ($attr) = @_;
 
+  return $self if (!$self->{conf}->{AUTH_GOOGLE_ID});
+
   my $client_id    = $self->{conf}->{AUTH_GOOGLE_ID} || q{};
   my $redirect_uri = $self->{conf}->{AUTH_GOOGLE_URL} || q{};
 

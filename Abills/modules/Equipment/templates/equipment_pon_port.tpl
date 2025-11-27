@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST'>
-    <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='ID' value='$FORM{chg_pon_port}'>
     <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
     <input type='hidden' name='TYPE' value='$FORM{TYPE}'>

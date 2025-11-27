@@ -1,7 +1,7 @@
 <form name='FEEDBACK' id='form_FEEDBACK' class='form form-horizontal'
       action='https://support.abills.net.ua/bugs.cgi' target='_blank'
       method='post' >
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='SYS_ID' value='%SYS_ID%'/>
   <input type='hidden' name='CUR_VERSION' value='%VERSION%'/>
   <input type='hidden' name='FEEDBACK' value='1'/>

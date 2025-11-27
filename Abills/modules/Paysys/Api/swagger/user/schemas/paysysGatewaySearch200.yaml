@@ -1,0 +1,41 @@
+type: object
+properties:
+  deposit:
+    type: number
+    format: float
+    example: 128834.98
+  fio:
+    type: string
+    example: "Te** Us*e*"
+  recommendedPay:
+    type: number
+    format: float
+    example: 0.00
+  systems:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        module:
+          type: string
+          example: "Monobank.pm"
+        name:
+          type: string
+          example: "Monobank"
+        paysysId:
+          type: integer
+          example: 154
+        request:
+          type: object
+          properties:
+            method:
+              type: string
+              example: "GET"
+          required:
+            - method
+        subsystemId:
+          type: integer
+          example: 0

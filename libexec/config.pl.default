@@ -56,7 +56,6 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
-$conf{ERROR2DB}=1;
 
 #Octets direction
 # server - Count octets from server side
@@ -129,15 +128,10 @@ $conf{LOG_DEBUG} = $base_dir . 'var/log/abills.debug';
 $conf{LOGFILE}   = $base_dir . 'var/log/abills.log';
 
 use POSIX qw(strftime);
-our $DATE    = strftime "%Y-%m-%d", localtime(time);
-our $TIME    = strftime "%H:%M:%S", localtime(time);
+our $DATE    = strftime("%Y-%m-%d", localtime(time));
+our $TIME    = strftime("%H:%M:%S", localtime(time));
 our $curtime = strftime("%F %H.%M.%S", localtime(time));
 our $year    = strftime("%Y", localtime(time));
-
-$conf{info_fields_new}=1;
-$conf{CONTACTS_NEW}=1;
-
-$conf{NEW_WIKI}=1;
 
 # Msgs
 $conf{ATTACH2FILE} = 1;
@@ -146,4 +140,4 @@ $conf{MSGS_ATTACH2FILE} = 1;
 # Paysys
 $conf{PAYSYS_V4} = 1;
 
-1
+1;

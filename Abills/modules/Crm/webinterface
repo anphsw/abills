@@ -32,9 +32,20 @@ our Abills::HTML $html;
 if (form_purchase_module({
   HEADER          => $user->{UID} || $FORM{UID},
   MODULE          => 'Crm::db::Crm',
-  REQUIRE_VERSION => 1.19
+  REQUIRE_VERSION => 1.23
 })) {
   exit;
+}
+
+if ($conf{CRM_ECHAT}) {
+  if (form_purchase_module({
+    HEADER          => $user->{UID} || $FORM{UID},
+    MODULE          => 'Crm::db::Echat',
+    REQUIRE_VERSION => 0.01
+  })) {
+    exit;
+  }
+  require Crm::Echat;
 }
 
 our Crm $Crm = Crm->new($db, $admin, \%conf);
@@ -51,6 +62,12 @@ my %STATES = (
   1 => $html->color_mark($lang{CLOSED}, '#28a745'),
   2 => $html->color_mark('Очікування', '#ffc107')
 );
+
+use constant {
+  CRM_DIALOGUE_ADD_ACTION    => 10,
+  CRM_DIALOGUE_CHANGE_ACTION => 11,
+  CRM_DIALOGUE_DEL_ACTION    => 12
+};
 
 #**********************************************************
 =head2 crm_competitors($attr)
@@ -728,6 +745,8 @@ sub crm_dialogue {
     %{$right_menu}
   }, { ID => 'CRM_REGISTRATION' });
 
+  _crm_dialogue_history($lead->{LEAD_ID});
+
   return 1;
 }
 
@@ -800,6 +819,115 @@ sub _crm_dialogue_item {
 
   return $html->button($media, "index=$index&ID=$dialogue->{id}", {
     class => 'dropdown-item pt-1 pb-1 cursor-pointer'
+  });
+}
+
+#**********************************************************
+=head2 _crm_dialogue_history($lead_id)
+
+  Display dialogue history log for a specific lead
+
+  Arguments:
+    $lead_id - Lead ID to show dialogue history for
+
+=cut
+#**********************************************************
+sub _crm_dialogue_history {
+  my ($leag_id) = @_;
+
+  $LIST_PARAMS{LID} = $leag_id;
+  $LIST_PARAMS{TYPE} = join(';', (CRM_DIALOGUE_ADD_ACTION, CRM_DIALOGUE_CHANGE_ACTION, CRM_DIALOGUE_DEL_ACTION));
+  $LIST_PARAMS{DESC} = 'DESC';
+
+  my %action_names = (
+    CRM_DIALOGUE_ADD_ACTION()    => $lang{CRM_DIALOG_ADDED},
+    CRM_DIALOGUE_CHANGE_ACTION() => $lang{CRM_DIALOG_CHANGED},
+    CRM_DIALOGUE_DEL_ACTION()    => $lang{CRM_DIALOG_DELETED},
+  );
+
+  my $admin_hash = sel_admins({ HASH => 1 });
+
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_action_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,TYPE,ADMIN,ACTIONS,DATETIME,IP',
+    HIDDEN_FIELDS   => 'LID',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      action_type => sub {
+        my ($action_type) = @_;
+
+        return $action_names{$action_type} || $action_type;
+      },
+      actions => sub {
+        my ($actions) = @_;
+
+        my $br = $html->br();
+        my $action_text = ' ' . $actions;
+        while ($action_text =~ m/\s*([A-Z\_]+)\s*:\s*([^,;]+)/xg) {
+          my $marker = $1 || q{};
+          my $value = $2 || q{};
+
+          $value =~ s/^\s+|\s+$//g;
+
+          my $lang_res = $lang{$marker};
+          $lang_res = $marker if (!$lang_res);
+          $lang_res = $html->b($lang_res);
+
+          my $translated_value = $value;
+
+          if ($marker eq 'STATE') {
+            $value ||= 0;
+            if ($value =~ /(\d+)\s*->\s*(\d+)/) {
+              my ($old_state, $new_state) = ($1, $2);
+              my $old_state_name = $STATES{$old_state} || $old_state;
+              my $new_state_name = $STATES{$new_state} || $new_state;
+              $translated_value = "$old_state_name -> $new_state_name";
+            }
+            elsif ($value =~ /^\d+$/) {
+              $translated_value = $STATES{$value} || $value;
+            }
+          }
+          elsif ($marker eq 'AID') {
+            if ($value =~ /(\d+)\s*->\s*(\d+)/) {
+              my ($old_admin, $new_admin) = ($1, $2);
+              my $old_admin_name = $admin_hash->{$old_admin} || $lang{CRM_WITHOUT_RESPONSIBLE};
+              my $new_admin_name = $admin_hash->{$new_admin} || $lang{CRM_WITHOUT_RESPONSIBLE};
+              $translated_value = "$old_admin_name -> $new_admin_name";
+            }
+            elsif ($value =~ /^\d+$/) {
+              my $admin_name = $admin_hash->{$value} || $lang{CRM_WITHOUT_RESPONSIBLE};
+              $translated_value = $admin_name;
+            }
+          }
+
+          my $quoted_value = quotemeta($value);
+          $actions =~ s/$marker\s*:\s*$quoted_value/$lang_res: $translated_value/xg;
+        }
+        $actions =~ s/;/$br/xg;
+        $actions =~ s/,/$br/xg;
+
+        return $actions;
+      },
+    },
+    EXT_TITLES      => {
+      id          => '#',
+      action_type => $lang{TYPE},
+      admin       => $lang{ADMIN},
+      actions     => $lang{ACTION},
+      datetime    => $lang{DATE},
+      ip          => 'IP'
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{LOG},
+      qs      => $pages_qs,
+      ID      => 'CRM_DIALOGUE_HISTORY'
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Crm',
+    TOTAL           => 1,
   });
 }
 
@@ -919,7 +1047,8 @@ sub crm_open_lines {
         telegram  => 'Telegram',
         instagram => 'Instagram',
         viber_bot => 'Viber Bot',
-        mail      => 'Mail'
+        mail      => 'Mail',
+        ( $conf{CRM_ECHAT} ? (echat => 'E-chat') : () )
       },
       NO_ID    => 1
     })
@@ -1195,6 +1324,11 @@ sub crm_step_tasks {
 
   return {} if !$Tasks || !$step;
 
+  my $task_states = {
+    0 => $html->color_mark($lang{OPEN}, 'text-primary d-inline'),
+    1 => $html->color_mark($lang{CLOSED_SUCCESSFUL}, 'text-success d-inline'),
+    2 => $html->color_mark($lang{CLOSED_UNSUCCESSFUL}, 'text-danger d-inline')
+  };
   my $tasks_state_color = { 0 => 'bg-blue', 1 => 'bg-green', 2 => 'bg-red' };
   my $tasks_index = get_function_index('tasks_list');
   my $timeline_items_by_day = {};
@@ -1209,8 +1343,10 @@ sub crm_step_tasks {
   foreach my $task (@{$tasks}) {
     my ($day, $time) = split('\s', $task->{CONTROL_DATE});
 
-    my $task_responsible = $html->element('div', "$lang{RESPONSIBLE}: $task->{RESPONSIBLE_NAME}", { class => 'text-left float-left' });
-    # CONTROL DATE
+    $task->{RESPONSIBLE_NAME} ||= $lang{CRM_WITHOUT_RESPONSIBLE};
+    my $task_infos = [];
+    push @{$task_infos}, $html->element('div', "$lang{RESPONSIBLE}: $task->{RESPONSIBLE_NAME}");
+    push @{$task_infos}, $html->element('div', "$lang{STATUS}: " . ($task_states->{$task->{STATE}} || $lang{UNKNOWN}));
     my $del_button = '';
     my $done_btn = '';
     if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
@@ -1233,8 +1369,7 @@ sub crm_step_tasks {
         && $task->{CLOSED_DATE} && $task->{CLOSED_DATE} gt $task->{PLAN_DATE});
 
       if ($task->{STATE} && $task->{CLOSED_DATE} && $task->{CLOSED_DATE} ne '0000-00-00') {
-        $task_responsible = $html->element('div', "$lang{RESPONSIBLE}: $task->{RESPONSIBLE_NAME}\n$lang{EXECUTED}: $task->{CLOSED_DATE}",
-          { class => 'text-left float-left' });
+        push @{$task_infos}, $html->element('div', "$lang{EXECUTED}: $task->{CLOSED_DATE}");
       }
     }
 
@@ -1244,7 +1379,7 @@ sub crm_step_tasks {
       ICON    => 'fas fa-tasks ' . ($tasks_state_color->{$task->{STATE}} || 'bg-blue'),
       HEADER  => $done_btn . $html->button($task->{TYPE_NAME},
         "index=$tasks_index&show_task=$task->{ID}", { target => '_blank' }),
-      FOOTER  => $task_responsible . $del_button
+      FOOTER  => $html->element('div', join('', @{$task_infos}), { class => 'd-flex flex-column' }) . $del_button
     }, { OUTPUT2RETURN => 1 });
   }
 

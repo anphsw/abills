@@ -78,7 +78,6 @@ sub connect {
     });
   }
 
-
   return $self;
 }
 
@@ -179,52 +178,10 @@ sub query {
 
   if ($self->{db}->{db}) {
     $db = $self->{db}->{db};
-
     $self->{db}->{queries_count}++;
 
-    if ($self->{db}->{db_debug}) {
-      if ($self->{db}->{db_debug} > 4) {
-        $db->trace(1, '/tmp/sql_trace');
-      }
-      elsif ($self->{db}->{db_debug} > 3) {
-        $db->trace('SQL', '/tmp/sql_trace');
-      }
-      elsif ($self->{db}->{db_debug} > 2) {
-        require Log;
-        Log->import('log_print');
-        my $arguments = '';
-        if ($attr->{Bind}) {
-          $arguments .= join(', ', @{$attr->{Bind}});
-        }
-        Log::log_print(undef, 'LOG_ERR', '', "\n-----" . ($self->{queries_count} || q{}) . "------\n$query\n------\n$arguments\n",
-          { NAS => 0, LOG_FILE => "/tmp/sql_debug" });
-      }
-      #sequence
-      elsif ($self->{db}->{db_debug} > 1) {
-        # Usually, library is loaded by default, but since
-        # this is a critical script, we will check it just in case.
-        # Fact, that is only done during debugging is also not scary for performance.
-        unless ($Time::HiRes::VERSION) {
-          require Time::HiRes;
-          Time::HiRes->import();
-        }
-
-        my $caller = qq{\n\n};
-        my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
-        my $i = 1;
-        my @r = ();
-        while (@r = caller($i)) {
-          ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
-          $caller .= "  $filename:$line $subroutine\n";
-          $i++;
-        }
-
-        push @{$self->{db}->{queries_list}}, [ $query . $caller, 0, $caller ];
-      }
-      else {
-        #Queries typisation
-        $self->{db}->{queries_list}->{$query}++;
-      }
+    if ($self->{db}->{db_debug} && ! $self->{debug}) {
+      $self->db_debug($query, $type, $attr);
     }
   }
 
@@ -238,22 +195,11 @@ sub query {
   $self->{TOTAL} = 0;
 
   if ($self->{debug}) {
-    print "<pre><code>\n$query\n</code></pre>\n" if ($self->{debug});
-    if ($self->{debug} > 1) {
-      $db->trace(1, $self->{debug});
-    }
+    $self->db_debug($query, $type, $attr);
   }
 
   if (!$db || ref $db eq 'HASH') {
-    require Log;
-    Log->import('log_print');
-    $self->{sql_errno} = 0 if (!$self->{sql_errno});
-    $self->{sql_errstr} = '' if (!$self->{sql_errstr});
-    my $caller = join(', ', caller());
-    Log::log_print(undef, 'LOG_ERR', '',
-      "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db\n$caller",
-      { NAS => 0, LOG_FILE => (-w $sql_errors) ? $sql_errors : '/tmp/sql_errors' });
-    return $self;
+    return $self->db_error_log($query, $type, $attr);
   }
 
   if (defined($attr->{test})) {
@@ -277,24 +223,7 @@ sub query {
     $q = $db->prepare($query);
 
     if ($attr->{MULTI_QUERY}) {
-      foreach my $line (@{$attr->{MULTI_QUERY}}) {
-        $q->execute(@{$line});
-        if ($db->err) {
-          $self->{errno} = 3;
-          $self->{sql_errno} = $db->err;
-          $self->{sql_errstr} = $db->errstr;
-          $self->{errstr} = $db->errstr;
-          return $self->{errno};
-        }
-      }
-
-      if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
-        my $elapsed = Time::HiRes::tv_interval($start_query_time);
-        ${$self->{db}->{queries_list}}[-1]->[1] = $elapsed;
-      };
-
-      $self->{TOTAL} = $#{$attr->{MULTI_QUERY}} + 1;
-      return $self;
+      return $self->_multi_query($query, $type, { %$attr, start_query_time => $start_query_time }, $q);
     }
     else {
       $q->execute(@{$attr->{Bind}});
@@ -308,33 +237,7 @@ sub query {
   }
 
   if ($db->err) {
-    if ($db->err == 1062) {
-      $self->{errno} = 7;
-      $self->{errstr} = 'ERROR_DUPLICATE';
-    }
-    else {
-      $self->{sql_errno} = $db->err;
-      $self->{sql_errstr} = $db->errstr;
-      $self->{errno} = 3;
-      $self->{errstr} = 'SQL_ERROR';
-      $self->{sql_query} = $query;
-      my $caller = q{}; #join(', ', caller());
-      my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
-      my $i = 1;
-      my @r = ();
-      while (@r = caller($i)) {
-        ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
-        $caller .= "$filename:$line $subroutine\n";
-        $i++;
-      }
-      # require Log;
-      # Log->import( 'log_print' );
-      Log::log_print(undef, 'LOG_ERR', '',
-        "index:" . ($attr->{index} || q{}) . "\n"
-          . ($query || q{}) . "\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n$caller\n"
-        , { NAS => 0, LOG_FILE => (-w $sql_errors) ? $sql_errors : '/tmp/sql_errors' });
-    }
-    return $self;
+    return $self->db_error_log($query, $type, $attr);
   }
 
   if ($self->{TOTAL} > 0) {
@@ -400,7 +303,191 @@ sub query {
     delete $self->{COL_NAMES_ARR};
   }
 
-  #end
+  return $self;
+}
+
+#**********************************************************
+=head2 db_debug($query, $type, $attr) - Query maker
+
+  Arguments:
+    $query,
+    $type,
+    $attr
+      PRINT
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub db_debug {
+  my ($self, $query, $type, $attr) =@_;
+
+  my $db = $self->{db}->{db};
+
+  if($self->{debug}) {
+    my $bind_values = q{};
+    if ($attr->{Bind}) {
+      $bind_values = join(', ', @{$attr->{Bind}});
+    }
+
+    my $i = 0;
+    my $sql = $query;
+    $sql =~ s/\?/
+      defined $attr->{Bind}->[$i] ? "'" . $attr->{Bind}->[$i++] . "'" : 'NULL'
+    /xeg;
+
+    my ($package, undef, $line) = caller(1);
+    print "<pre><code>\n$sql\n$bind_values\n$package:$line\n</code></pre>\n";
+
+    if ($self->{debug} > 1) {
+      $db->trace(1, $self->{debug});
+    }
+
+    return $self if (! $self->{db}->{db_debug} || $self->{db}->{db_debug} < 4);
+  }
+
+  if ($self->{db}->{db_debug} > 4) {
+    $db->trace(1, '/tmp/sql_trace');
+  }
+  elsif ($self->{db}->{db_debug} > 3) {
+    $db->trace('SQL', '/tmp/sql_trace');
+  }
+  elsif ($self->{db}->{db_debug} > 2) {
+    require Log;
+    Log->import('log_print');
+    my $arguments = '';
+    if ($attr->{Bind}) {
+      $arguments .= join(', ', @{$attr->{Bind}});
+    }
+    Log::log_print(undef, 'LOG_ERR', '', "\n-----" . ($self->{queries_count} || q{})
+      . "TYPE: ". ($type || 'SELECT')
+      . "------\n$query\n------\n$arguments\n",
+      { NAS => 0, LOG_FILE => "/tmp/sql_debug" });
+  }
+  #sequence
+  elsif ($self->{db}->{db_debug} > 1) {
+    # Usually, library is loaded by default, but since
+    # this is a critical script, we will check it just in case.
+    # Fact, that is only done during debugging is also not scary for performance.
+    if (! defined($Time::HiRes::VERSION)) {
+      require Time::HiRes;
+      Time::HiRes->import();
+    }
+
+    my $caller = qq{\n\n};
+    my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+    my $i = 1;
+    my @r = ();
+    while (@r = caller($i)) {
+      ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+      $caller .= "  $filename:$line $subroutine\n";
+      $i++;
+    }
+
+    push @{$self->{db}->{queries_list}}, [ $query . $caller, 0, $caller ];
+  }
+  else {
+    #Queries typisation
+    $self->{db}->{queries_list}->{$query}++;
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 db_error_log($query, $type, $attr) - Query maker
+
+  Arguments:
+    $query,
+    $type,
+    $attr
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub db_error_log {
+  my ($self, $query, undef, $attr) = @_;
+
+  my $db =  $self->{db}->{db};
+
+  if ($db && $db->err == 1062) {
+    $self->{errno} = 7;
+    $self->{errstr} = 'ERROR_DUPLICATE';
+  }
+  else {
+    my $caller = q{};
+    my $autocommit = 0;
+    if ($db) {
+      $self->{sql_errno} = $db->err;
+      $self->{sql_errstr} = $db->errstr;
+      $self->{errno} = 3;
+      $self->{errstr} = 'SQL_ERROR';
+      $self->{sql_query} = $query;
+      $autocommit = $db->{AutoCommit};
+    }
+    else {
+      $caller = q{ UNDEFINED \$db };
+    }
+
+    my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+    my $i = 1;
+    my @r = ();
+    while (@r = caller($i)) {
+      ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+      $caller .= "$filename:$line $subroutine\n";
+      $i++;
+    }
+
+    my $bind_values = '';
+    if ($attr->{Bind}) {
+      $bind_values = ' Binds: ' . join(', ', @{$attr->{Bind}});
+      $self->{sql_query} .= "\n" . $bind_values;
+    }
+    Log::log_print(undef, 'LOG_ERR', '',
+      "index:" . ($attr->{index} || q{}) . "\n"
+        . ($query || q{}) . "\n$bind_values\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $autocommit \n$caller\n"
+      , { NAS => 0, LOG_FILE => (-w $sql_errors) ? $sql_errors : '/tmp/sql_errors' });
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 db_error_log($query, $type, $attr) - Query maker
+
+  Arguments:
+    $query,
+    $type,
+    $attr
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub _multi_query {
+  my ($self, $query, $type, $attr, $q) = @_;
+
+  my $db = $self->{db}{db};
+  my $start_query_time = $attr->{start_query_time};
+
+  foreach my $line (@{$attr->{MULTI_QUERY}}) {
+    $q->execute(@{$line});
+    if ($db->err) {
+      return $self->db_error_log($query, $type, $attr);
+    }
+  }
+
+  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
+    my $elapsed = Time::HiRes::tv_interval($start_query_time);
+    ${$self->{db}->{queries_list}}[-1]->[1] = $elapsed;
+  };
+
+  $self->{TOTAL} = $#{$attr->{MULTI_QUERY}} + 1;
+
   return $self;
 }
 

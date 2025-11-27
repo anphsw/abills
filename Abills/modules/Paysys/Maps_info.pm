@@ -80,13 +80,17 @@ sub maps_layers {
 }
 
 #**********************************************************
-=head2 paysys_terminals_show()
+=head2 paysys_terminals_show($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub paysys_terminals_show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $terminals = $Paysys->terminal_list_with_coords({
     COORDX_CENTER => '_SHOW',
@@ -125,7 +129,7 @@ sub paysys_terminals_show {
 
     my $count = 1;
     foreach my $day (@WEEKDAYS_WORK) {
-      push @works_days, $main::WEEKDAYS[$count] if $day;
+      push @works_days, $main::WEEKDAYS[$count] if ($day);
       $count++;
     }
     $terminal->{work_days} = join(', ', @works_days) || '';
@@ -142,7 +146,7 @@ sub paysys_terminals_show {
     $line_info .= join('', map {"<tr><td><strong>$_->[0]</strong></td><td>" . ($_->[1] || q{}) . ' </td></tr>'} @{$info_array});
     $line_info .= '</table>';
 
-    $line_info =~ s/\"/\\\"/g if $attr->{ESCAPE};
+    $line_info =~ s/\"/\\\"/xg if $attr->{ESCAPE};
 
     my %marker = (
       MARKER    => {
@@ -179,17 +183,21 @@ sub paysys_terminals_show {
 }
 
 #**********************************************************
-=head2 maps_report_info()
+=head2 maps_report_info($layer_id)
+
+  Arguments:
+    $layer_id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub maps_report_info {
-  my $self = shift;
-  my $layer_id = shift;
+  my ($self, $layer_id) = shift;
 
-  return '' if !$layer_id;
+  return '' if (!$layer_id);
 
-  my $terminals = $self->paysys_terminals_show({ RETURN_OBJECTS => 1 });
+  $self->paysys_terminals_show({ RETURN_OBJECTS => 1 });
 
   my $report_table = $html->table({
     width       => '100%',

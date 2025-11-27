@@ -118,6 +118,35 @@ $lang{IPTV_ERROR_DEVICES_COUNT} = 'Allowed number of devices exceeded';
 $lang{IPTV_MONTHLY_REPORT} = 'Monthly report';
 $lang{IPTV_DAYS_OF_USE} = 'Days of use';
 
-$lang{ERR_IPTV_DEL_ACTIVATED} = 'Before deleting a service, you need to disable it';
+$lang{ERR_IPTV_DELETE_ACTIVATED_SERVICE} = 'Before deleting a service, you need to disable it';
+$lang{ERR_IPTV_MISSING_TARIFF_PLAN_ID} = 'Tariff plan ID is missing';
+$lang{ERR_IPTV_SERVICE_NOT_FOUND_OR_INACTIVE} = 'Service not found or inactive';
+$lang{ERR_IPTV_MISSING_UID} = 'User ID (UID) is missing';
+$lang{ERR_IPTV_SUBSCRIPTION_LIMIT_EXCEEDED} = 'Subscription limit exceeded';
+$lang{ERR_IPTV_USER_ALREADY_HAS_TARIFF_PLAN} = 'User already has this tariff plan';
+$lang{ERR_IPTV_USER_SERVICE_NOT_FOUND} = 'User service not found';
+$lang{ERR_IPTV_ACCESS_DENIED} = 'Access denied';
+$lang{ERR_IPTV_TARIFF_PLAN_NOT_FOUND} = 'Tariff plan not found';
+$lang{ERR_IPTV_TARIFF_PLAN_ALREADY_ACTIVATED} = 'Tariff plan already activated';
+$lang{ERR_IPTV_GETTING_USER_CHANNELS} = 'Error retrieving user channels';
+$lang{ERR_IPTV_GETTING_USER_SCREENS} = 'Error retrieving user screens';
+$lang{ERR_IPTV_INSUFFICIENT_FUNDS_TO_ACTIVATE_SERVICE} = 'Insufficient funds to activate the service';
+$lang{ERR_IPTV_NO_FIELD} = 'No field %FIELD%';
+$lang{ERR_IPTV_USER_PASSWORD_LENGTH_INCORRECT} = 'Password length is incorrect';
+$lang{ERR_IPTV_MISSING_USER_SUBSCRIBE_ID} = 'User subscription ID is missing';
+$lang{ERR_IPTV_MISSING_MAC} = 'Device MAC address is missing';
+$lang{ERR_IPTV_DEVICE_NOT_FOUND} = 'Device not found';
+$lang{ERR_IPTV_DEVICE_ALREADY_USES} = 'Device is already used by another user';
+$lang{ERR_IPTV_DEVICE_CID_DIFFERENT_TO_DEVICE_ID} = 'Device CID does not match device ID';
+
+$lang{IPTV_LAST_IP} = 'Last IP address';
+$lang{IPTV_LAST_AUTHORIZATION} = 'Last authorization';
+$lang{IPTV_FIRMWARE} = 'Firmware';
+$lang{IPTV_DEVICE_TEMPERATURE} = 'Device temperature';
+$lang{IPTV_ANDROID_VERSION} = 'Android version';
+$lang{IPTV_INSTALLED_APPS} = 'Installed apps';
+$lang{IPTV_NETWORK_TYPE} = 'Network type';
+$lang{IPTV_DISABLE_AUTO_UPDATE} = 'Disable auto update';
+$lang{IPTV_REQUEST_SCREENSHOT} = 'Request screenshot';
 
 1;

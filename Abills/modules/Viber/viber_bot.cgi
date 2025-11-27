@@ -35,7 +35,7 @@ BEGIN {
 
   require $libpath . 'libexec/config.pl';
 
-  $conf{VIBER_LANG} = $conf{default_language} if (!$conf{VIBER_LANG});
+  $conf{VIBER_LANG} //= 'english';
 
   require $libpath . "language/$conf{VIBER_LANG}.pl";
   require $libpath . "Abills/modules/Msgs/lng_$conf{VIBER_LANG}.pl";
@@ -130,7 +130,7 @@ sub message_process {
     require Viber::Vauth;
     my $Vauth = Viber::Vauth->new($Bot, $APILayer);
 
-    if ($hash->{event} && $hash->{event} =~ m/^message/) {
+    if ($hash->{event} && $hash->{event} =~ m/^message/x) {
       crm_add_dialogue_message($hash);
     }
 
@@ -141,7 +141,7 @@ sub message_process {
       $try_to_auth = 1;
       $success = $Vauth->subscribe_phone($hash);
     }
-    elsif ($hash->{event} && $hash->{event} =~ m/^conversation_started/) {
+    elsif ($hash->{event} && $hash->{event} =~ m/^conversation_started/x) {
       $try_to_auth = 1;
       $success = $Vauth->subscribe($hash);
     }
@@ -185,9 +185,9 @@ sub message_process {
     main_menu(\%commands_list) if (!$ret);
   }
   else {
-    if ($hash->{event} && $hash->{event} =~ m/^message/) {
-      if ($text =~ /fn:([A-z 0-9 _-]*)&(.*)/) {
-        my @args = split /&/, $2;
+    if ($hash->{event} && $hash->{event} =~ m/^message/x) {
+      if ($text =~ /fn:([A-z 0-9 _-]*)&(.*)/xm) {
+        my @args = split(/&/x, $2);
         my $fn = shift @args;
         my $ret = $Buttons->viber_button_fn({
           button    => $1,
@@ -199,9 +199,9 @@ sub message_process {
         main_menu(\%commands_list) if (!$ret);
       }
       elsif ($Bot_db->{TOTAL} > 0 && $info->{fn}
-        && $info->{fn} =~ /fn:([A-z 0-9 _-]*)&(.*)/) {
+        && $info->{fn} =~ /fn:([A-z 0-9 _-]*)&(.*)/xm) {
 
-        my @args = split /&/, $2;
+        my @args = split(/&/x, $2);
         my $fn = shift @args;
 
         my $ret = $Buttons->viber_button_fn({
@@ -219,7 +219,7 @@ sub message_process {
         main_menu(\%commands_list);
       }
     }
-    elsif ($hash->{event} =~ m/^conversation_started/) {
+    elsif ($hash->{event} =~ m/^conversation_started/x) {
       main_menu(\%commands_list);
     }
   }
@@ -279,7 +279,7 @@ sub crm_add_dialogue_message {
   if ($message->{message}{media}) {
     my $file_id = $message->{message}{media}.'|'.$message->{message}{file_name}.'|'.$message->{message}{size};
     my ($file, $file_size, $file_content) = $Bot->get_file($file_id);
-    my ($file_extension) = $file =~ /\.([^.]+)$/;
+    my ($file_extension) = $file =~ /\.([^.]+)$/xm;
 
     $params->{ATTACHMENTS} = [{
       FILE_NAME    => $message->{message}{file_name},

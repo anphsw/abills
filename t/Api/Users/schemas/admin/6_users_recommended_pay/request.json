@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_USERS_RECOMMENDED_PAY",
+  "method": "GET",
+  "path": "users/:uid/recommendedPay/"
+}

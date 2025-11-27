@@ -74,7 +74,7 @@ start();
 =cut
 #**********************************************************
 sub start {
-  for my $dir (split /\;/, $dirs) {
+  for my $dir (split '\;', $dirs) {
     # Collect lang keys
     my @DIRS = ($dir,);
     my $options = { wanted => \&file_search };
@@ -97,6 +97,8 @@ sub start {
   else {
     help();
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -113,10 +115,10 @@ sub file_search {
 
   return if $name eq $dir;
 
-  if (my ($module) = $name =~ /\/([^\/]+)\/Errors.pm$/) {
+  if (my ($module) = $name =~ /\/([^\/]+)\/Errors.pm$/x) {
     return file_process($name, $module);
   }
-  elsif ($dir =~ /\/Errors\/?$/) {
+  elsif ($dir =~ /\/Errors\/?$/x) {
     return file_process($name, '-');
   }
 }
@@ -134,13 +136,14 @@ sub file_process {
   my ($file_path, $module) = @_;
 
   my $content = '';
-  open(my $fh, '<', $file_path);
-  while(<$fh>) {
-    $content .= $_;
+  if (open(my $fh, '<', $file_path)) {
+    while(<$fh>) {
+      $content .= $_;
+    }
+    close($fh);
   }
-  close($fh);
 
-  my %matches = $content =~ /(\d+)\s*=>\s*['"](.+?)['"]/gm;
+  my %matches = $content =~ /(\d+)\s*=>\s*['"](.+?)['"]/xgm;
   $ERRORS_LANG_KEYS{$module} //= {};
 
   while (my ($k, $v) = each %matches) {
@@ -167,7 +170,7 @@ sub code_file_search {
   }
   my $file_name = substr($name, length($dir) + 1);
 
-  my ($extension) = $name =~ /([^.]+)$/;
+  my ($extension) = $name =~ /([^.]+)$/x;
 
   if (grep { $_ eq $extension } @ALLOWED_EXTENSIONS) {
     code_file_process($name, $dir);
@@ -183,16 +186,19 @@ sub code_file_search {
 sub code_file_process {
   my ($file_path, $dir) = @_;
 
-  open(my $fh, '<', $file_path);
-  while(<$fh>) {
-    for my $regex (@KEYS_REGEXPS) {
-      my @matches = $_ =~ /$regex/g;
-      for my $match (@matches) {
-        $ERRORS_BASE_LIST{$match} = 1;
+  if (open(my $fh, '<', $file_path)) {
+    while(<$fh>) {
+      for my $regex (@KEYS_REGEXPS) {
+        my @matches = $_ =~ /$regex/xg;
+        for my $match (@matches) {
+          $ERRORS_BASE_LIST{$match} = 1;
+        }
       }
     }
+    close($fh);
   }
-  close($fh);
+
+  return 1;
 }
 
 #**********************************************************
@@ -201,12 +207,14 @@ sub code_file_process {
 =cut
 #**********************************************************
 sub error_keys_search {
-  for my $path (split /\;/, $dirs) {
+  for my $path (split('\;', $dirs)) {
     my @DIRS = ($path,);
     my $options = { wanted => \&code_file_search };
 
     find($options, @DIRS);
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -250,6 +258,11 @@ sub format_error_keys {
   return \@output;
 }
 
+#**********************************************************
+=head2 load_lang() - Small lang loader
+
+=cut
+#**********************************************************
 sub load_lang {
   my @langs = ('russian', 'english');
   for my $key (@langs) {
@@ -262,7 +275,7 @@ sub load_lang {
 
     find(
       sub {
-        if (/lng_$key\.pl$/) { # Match files named lng_english.pl
+        if (/lng_$key\.pl$/x) { # Match files named lng_english.pl
           push @files, $File::Find::name;
         }
       },
@@ -279,6 +292,8 @@ sub load_lang {
       }
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -290,7 +305,7 @@ sub load_lang {
 =cut
 #**********************************************************
 sub _get_configured_json {
-  JSON->new->utf8->space_before(0)->space_after(1)->indent(1)->canonical(1)
+  return JSON->new->utf8->space_before(0)->space_after(1)->indent(1)->canonical(1)
 }
 
 #**********************************************************
@@ -356,6 +371,8 @@ sub _upload_to_confluence {
     require Data::Dumper;
     print Data::Dumper::Dumper($output);
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -368,6 +385,7 @@ sub _upload_to_confluence {
 #**********************************************************
 sub _make_table {
   my ($errors) = @_;
+
   my $table = '<table><tr><th>Errno</th><th>Errstr</th><th>Errmsg</th><th>Type</th><th>Module</th></tr>';
   foreach my $err (@$errors) {
     my $module = $err->{module} || '';
@@ -375,6 +393,7 @@ sub _make_table {
     $table .= "<tr><td>$err->{errno}</td><td>$err->{errstr}</td><td>$err->{errmsg}</td><td>$type</td><td>$module</td></tr>";
   }
   $table .= '</table>';
+
   return $table;
 }
 

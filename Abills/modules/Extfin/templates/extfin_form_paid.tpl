@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' id='form_paid' class='form-horizontal'>
-  <input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST' id='form_paid' class='form-horizontal'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='OP_SID' value='%OP_SID%'>
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='ID' value='$FORM{chg}'>

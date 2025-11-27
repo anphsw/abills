@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS `extfin_paids_types` (
   `sum` DOUBLE(14, 6) NOT NULL DEFAULT '0.000000',
   `periodic` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `month_alignment` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `periodic` (`periodic`)
 )
   COMMENT = 'Extfin payments types';
 

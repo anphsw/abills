@@ -67,7 +67,7 @@ sub snmp_get {
 
   my $oid_text = ((ref $attr->{OID} eq 'ARRAY') ? ( '(' . join(', ', @{$attr->{OID}}) . ')' ) : ($attr->{OID}));
 
-  my ($snmp_community, $port, undef, $port3)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
+  my ($snmp_community, $port, undef, $port3)=split(/:/x, $attr->{SNMP_COMMUNITY} || q{});
   if($port3) {
     $port = $port3;
   }
@@ -212,7 +212,7 @@ sub snmp_set {
     $debug = $attr->{DEBUG};
   }
 
-  my ($snmp_community, $port, undef, $port3)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
+  my ($snmp_community, $port, undef, $port3)=split(/:/x, $attr->{SNMP_COMMUNITY} || q{});
   if($port3) {
     $port = $port3;
   }

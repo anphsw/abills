@@ -1,9 +1,11 @@
 <script language='JavaScript'>
   let statusKeys = {
-    0: 'SELL_PRICE',
-    1: 'SELL_PRICE',
-    2: 'RENT_PRICE',
-    3: 'IN_INSTALLMENTS_PRICE'
+    0: 'sellPrice',
+    1: 'sellPrice',
+    2: 'rentPrice',
+    3: 'inInstallmentsPrice',
+    5: 'inInstallmentsPrice',
+    6: 'rentPrice'
   };
 
   function selectArticles() {
@@ -112,7 +114,7 @@
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='COUNT1' value='%COUNT1%'>
   <input type=hidden name='ARTICLE_ID1' value='%ARTICLE_ID1%'>
-  <input type=hidden name='step' value='$FORM{step}'>
+  <input type=hidden name='step' value='%step%'>
   <input type=hidden name='STORAGE_MSGS_ID' value='$FORM{STORAGE_MSGS_ID}'>
 
   <div class='card card-primary card-outline container-md'>
@@ -289,7 +291,7 @@
       </div>
     </div>
     <div class='card-footer'>
-      %BACK_BUTTON% <input type=submit name='%ACTION%' value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+      %BACK_BUTTON% <input type=submit name='%ACTION%' value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary double_click_check'>
     </div>
   </div>
 </form>
@@ -314,30 +316,27 @@
         console.log("Value is empty");
         return 1;
       }
-      jQuery.post('$SELF_URL', 'header=2&get_index=storage_main&get_info_by_sn=' + val, function (data) {
-        var info;
-        try {
-          info = JSON.parse(data);
-        } catch (Error) {
-          console.log(Error);
-          alert("Cant handle info");
-          return 1;
-        }
-        if (info.error) {
-          jQuery(element).parent().removeClass('has-success').addClass('has-error');
-          jQuery(element).css('border', '3px solid red');
-          jQuery(parentElement).find('[name="ACTUAL_SELL_PRICE"]').val('');
-          jQuery(parentElement).find('.item_info_by_sn').text('');
-        } else {
+      sendRequest(`/api.cgi/storage/incoming_articles?SERIAL=${val}&SELL_PRICE&RENT_PRICE&IN_INSTALLMENTS_PRICE&ARTICLE_NAME&ARTICLE_TYPE_NAME`, {}, 'GET')
+        .then(result => {
+          if (!result.total || result.total < 1) {
+            jQuery(element).parent().removeClass('has-success').addClass('has-error');
+            jQuery(element).css('border', '3px solid red');
+            jQuery(parentElement).find('[name="ACTUAL_SELL_PRICE"]').val('');
+            jQuery(parentElement).find('.item_info_by_sn').text('');
+            return;
+          }
+
+          let incomingArticle = result?.list[0] || {};
           jQuery(element).parent().removeClass('has-error');
           jQuery(element).css('border', "");
           let status = jQuery(parentElement).parent().parent().find('[name="STATUS"]').val();
-          jQuery(parentElement).find('[name="ACTUAL_SELL_PRICE"]').val(statusKeys[status] ? info[statusKeys[status]] : info.SELL_PRICE);
+          jQuery(parentElement).find('[name="ACTUAL_SELL_PRICE"]').val(statusKeys[status] ? incomingArticle[statusKeys[status]] : incomingArticle?.sellPrice);
           jQuery(parentElement).find('.item_info_by_sn').html('<label class="control-label col-md-4">_{ARTICLE}_</label><div class="col-md-8">' +
-            '<input type="text" value="' + info.ARTICLE_TYPE_NAME + ' ' + info.ARTICLE_NAME + '" class="form-control" disabled></div>');
-        }
-
-      });
+            '<input type="text" value="' + incomingArticle?.articleTypeName + ' ' + incomingArticle?.articleName + '" class="form-control" disabled></div>');
+        })
+        .catch(err => {
+          console.log(err);
+        });
     }
 
     function addWorkBlock() {

@@ -324,13 +324,11 @@ sub tags_sel {
 
 #**********************************************************
 
-=head2 analiz_user_tags () -
+=head2 reports_user_tags () -
 
   Arguments:
-    $attr -
-  Returns:
 
-  Examples:
+  Returns:
 
 =cut
 
@@ -367,12 +365,15 @@ sub reports_user_tags {
       })
     );
 
-    $tag_info{active_total} += $user_tag->{active}   if $user_tag->{active};
-    $tag_info{disable_total} += $user_tag->{disable} if $user_tag->{disable};
-    $tag_info{tags_total} = $user_tag->{tags_total}  if $user_tag->{tags_total};
+    $tag_info{active_total}  += ($user_tag->{active}) ? $user_tag->{active} : 0;
+    $tag_info{disable_total} += ($user_tag->{disable}) ? $user_tag->{disable} : 0;
+    $tag_info{tags_total}     = ($user_tag->{tags_total}) ? $user_tag->{tags_total} : 0;
   }
 
-  $tags_table->addfooter("$lang{TOTAL}: $tag_info{tags_total}", $tag_info{active_total}, $tag_info{disable_total}, $tag_info{tags_total}, '');
+
+  if ($tag_info{tags_total}){
+    $tags_table->addfooter("$lang{TOTAL}: $tag_info{tags_total}", $tag_info{active_total}, $tag_info{disable_total}, $tag_info{tags_total}, '');
+  }
 
   print $tags_table->show();
 

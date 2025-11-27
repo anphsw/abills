@@ -35,7 +35,7 @@ our (
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
 my $Tariffs = Tariffs->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 $argv->{TO_DATE} ||= $DATE;
 

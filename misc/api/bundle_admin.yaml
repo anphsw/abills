@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS ADMIN API
-  version: 1.47.11
+  version: 1.59.17
   description: |
-    Last modified 2025-06-17 <br>
+    Last modified 2025-11-25 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_admin.yaml.
     Copy it and upload it to your favorite OPEN API viewer.
@@ -1612,6 +1612,78 @@ paths:
                 $ref: "#/components/schemas/ApiAddResponse400"
       security:
         - KEY: [ ]
+  /districts/territorial_units:
+    get:
+      tags:
+        - districts
+      summary: Получить КАТОТТГ (территориальные единицы)
+      description: Возвращает территориальные единицы КАТОТТГ
+      operationId: getDistrictsTerritorialUnits
+      parameters:
+        - name: id
+          in: query
+          description: ID территориальной единицы.
+          schema:
+            type: boolean
+            default: true
+        - name: name
+          in: query
+          description: Название территориальной единицы.
+          schema:
+            type: boolean
+            default: false
+        - name: code
+          in: query
+          description: КАТОТТГ.
+          schema:
+            type: boolean
+            default: false
+        - name: typeCode
+          in: query
+          description: Тип территориальной единицы.
+          schema:
+            type: boolean
+            default: false
+        - name: parentId
+          in: query
+          description: ID родительской территориальной единицы.
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 47
+                    description: ID территориальной единицы
+                  name:
+                    type: string
+                    example: "Київ"
+                    description: Название территориальной единицы
+                  code:
+                    type: string
+                    example: "UA80000000000093317"
+                    description: Код КАТОТТГ
+                  typeCode:
+                    type: string
+                    example: "М"
+                    description: Тип территориальной единицы
+                  parentId:
+                    type: integer
+                    example: 12
+                    description: ID родительской территориальной единицы
+      security:
+        - KEY: []
   /fees:
     get:
       tags:
@@ -1838,7 +1910,8 @@ paths:
       summary: Получить тип списания по ID
       parameters:
         - in: path
-          name: ID типа списания
+          name: id
+          description: ID типа списания
           required: true
           schema:
             type: integer
@@ -1860,7 +1933,8 @@ paths:
       summary: Добавить тип списания
       parameters:
         - in: path
-          name: ID типа списания
+          name: id
+          description: ID типа списания
           required: true
           schema:
             type: integer
@@ -1888,7 +1962,8 @@ paths:
       summary: Изменить тип списания
       parameters:
         - in: path
-          name: ID типа списания
+          name: id
+          description: ID типа списания
           required: true
           schema:
             type: integer
@@ -1916,7 +1991,8 @@ paths:
       summary: Удалить тип списания
       parameters:
         - in: path
-          name: ID типа списания
+          name: id
+          description: ID типа списания
           required: true
           schema:
             type: integer
@@ -3051,7 +3127,8 @@ paths:
       summary: Получить тип оплаты по ID
       parameters:
         - in: path
-          name: ID типа оплаты
+          name: id
+          description: ID типа оплаты
           required: true
           schema:
             type: integer
@@ -3073,7 +3150,8 @@ paths:
       summary: Добавить тип оплаты
       parameters:
         - in: path
-          name: ID типа оплаты
+          name: id
+          description: ID типа оплаты
           required: true
           schema:
             type: integer
@@ -3101,7 +3179,8 @@ paths:
       summary: Изменить тип оплаты
       parameters:
         - in: path
-          name: ID типа оплаты
+          name: id
+          description: ID типа оплаты
           required: true
           schema:
             type: integer
@@ -3129,7 +3208,8 @@ paths:
       summary: Удалить тип оплаты
       parameters:
         - in: path
-          name: ID типа оплаты
+          name: id
+          description: ID типа оплаты
           required: true
           schema:
             type: integer
@@ -3834,6 +3914,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: taxNumber
+          in: query
+          description: Tax identification number
+          schema:
+            type: boolean
+            default: false
         - $ref: "#/components/parameters/desc"
         - $ref: "#/components/parameters/pageRows"
         - $ref: "#/components/parameters/pg"
@@ -3938,6 +4024,22 @@ paths:
                 $ref: "#/components/schemas/UsersDeleteUserResponse400"
       security:
         - KEY: []
+  /users/{uid}/recommendedPay:
+    get:
+      tags:
+        - users
+      summary: Рекомендуемая сумма к оплате
+      parameters:
+        - $ref: "#/components/parameters/pathUid"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersRecommendedPay"
+      security:
+        - USERSID: [ ]
   /users/{uid}/pi:
     get:
       tags:
@@ -10961,18 +11063,23 @@ paths:
                 articleId:
                   type: integer
                   example: 164
+                  description: ID товара на складе
                 uid:
                   type: integer
                   example: 100
+                  description: UID пользователя
                 status:
                   type: integer
                   example: 1
+                  description: Статус установки (0 — установлено, 1 — продано, 2 — аренда, 3 — в рассрочку, 5 — не активирована рассрочка, 6 — не активирована аренда)
                 count:
                   type: integer
                   example: 1
+                  description: Количество товара
                 months:
                   type: integer
                   example: 12
+                  description: Срок рассрочки (в месяцах)
         required: true
       responses:
         200:
@@ -11031,7 +11138,7 @@ paths:
             default: false
         - name: status
           in: query
-          description: Статус установки
+          description: Статус установки (0 — установлено, 1 — продано, 2 — аренда, 3 — в рассрочку, 5 — не активирована рассрочка, 6 — не активирована аренда)
           schema:
             type: boolean
             default: false
@@ -11108,6 +11215,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: ident4
+          in: query
+          description: Доп. идентификатор 4 (IDENT4)
+          schema:
+            type: boolean
+            default: false
         - name: article_id
           in: query
           description: ID артикула
@@ -11171,6 +11284,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StorageIncomingArticlesList"
+      security:
+        - KEY: [ ]
+  /storage/invoices:
+    get:
+      tags:
+        - storage
+      summary: Список накладных
+      parameters:
+        - name: id
+          in: query
+          description: ID накладной
+          schema:
+            type: boolean
+            default: true
+        - name: invoice_number
+          in: query
+          description: Номер накладной
+          schema:
+            type: boolean
+            default: false
+        - name: date
+          in: query
+          description: Дата накладной
+          schema:
+            type: boolean
+            default: false
+        - name: supplier_id
+          in: query
+          description: ID поставщика
+          schema:
+            type: boolean
+            default: false
+        - name: payer_id
+          in: query
+          description: ID плательщика
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageInvoicesList"
       security:
         - KEY: [ ]
   /tags:
@@ -16843,6 +17005,33 @@ components:
           type: string
           example: 14GROUP88
           description: Суффикс договора пользователя
+    UsersRecommendedPay:
+      type: object
+      properties:
+        allServicesSum:
+          type: number
+          example: 10
+          description: >
+            Сумма за все сервисы за один учетный период
+        maxSum:
+          type: number
+          example: 5000
+          default: 0
+          description: >
+            Максимальная сумма к оплате определяется через опцию `PAYSYS_MAX_SUM`
+        minSum:
+          type: number
+          example: 5
+          default: 0
+          description: >
+            Минимальная сумма к оплате определяется через опцию `PAYSYS_MIN_SUM`
+            Если есть опция `PAYSYS_MIN_SUM_RECOMMENDED_PAY`, то поле `minSum` будет равно `sum`,
+            при условии, что изначальная `minSum` меньше `sum`.
+        sum:
+          type: number
+          example: 10
+          description: >
+            Рекомендуемая сумма к оплате
     UsersStatusList:
       type: object
       properties:
@@ -21440,6 +21629,20 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/StorageInstallation"
+    StorageInvoicesList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 456
+        total:
+          type: number
+          example: 1
     StorageStorageAddInstallResponse:
       type: object
       properties:

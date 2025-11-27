@@ -20,6 +20,7 @@ $lang{DETAILS} = 'Details';
 $lang{ON_MAIN_PAGE} = 'On main page';
 $lang{NO_MENU} = 'System hasn\'t menu';
 $lang{DATE_PUBLICATE} = 'Date publicate';
+$lang{DATE_END_PUBLICATE} = 'End of publication';
 $lang{CONTENT} = 'Article content';
 $lang{SIGN_IN} = 'Sign In';
 $lang{DATE_END} = 'Date end';

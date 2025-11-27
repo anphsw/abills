@@ -52,7 +52,7 @@
 
 
 CLASSES_NUMS='2 3'
-VERSION=7.21
+VERSION=7.22
 # REVISION: 20180110
 
 name="abills_shaper"
@@ -68,7 +68,7 @@ if [ "${abills_shaper_enable}" = "NO" ]; then
 fi;
 
 
-: ${abills_shaper_if=""}
+: "${abills_shaper_if=""}"
 : ${abills_nas_id=""}
 : ${abills_ip_sessions=""}
 
@@ -109,7 +109,7 @@ start_cmd="abills_shaper_start"
 stop_cmd="abills_shaper_stop"
 restart_cmd="abills_shaper_restart"
 
-if [ x${abills_mikrotik_shaper} != x ]; then
+if [ "${abills_mikrotik_shaper}" != "" ]; then
   ${BILLING_DIR}/libexec/billd checkspeed mikrotik NAS_IDS="${abills_mikrotik_shaper}" RECONFIGURE=1
 fi;
 
@@ -125,10 +125,10 @@ if [ "$2" = "test" ]; then
   echo "Test mode. After 10 minutes flush all rules"
 fi;
 
-EXTERNAL_INTERFACE=`/sbin/route get default | grep interface: | awk '{ print $2 }'`
+EXTERNAL_INTERFACE="$(/sbin/route get default | grep interface: | awk '{ print $2 }')"
 
 #Get external interface
-if [ x${abills_shaper_if} != x ]; then
+if [ "${abills_shaper_if}" != "" ]; then
   INTERNAL_INTERFACE=${abills_shaper_if}
 else
   INTERNAL_INTERFACE=ng\*
@@ -149,7 +149,7 @@ fi;
 abills_shaper_start() {
   ACTION=start
 
-sleep 5;
+  sleep 5;
 
   abills_zap_active
   abills_shaper
@@ -197,7 +197,7 @@ abills_shaper_restart() {
 abills_zap_active() {
 
 if [ -f "$BILLING_DIR}/misc/autozh.pl" ]; then
-  ${BILLING_DIR}/misc/autozh.pl NAS_ID=${abills_nas_id}
+  ${BILLING_DIR}/misc/autozh.pl NAS_ID="${abills_nas_id}"
   echo "Zapped ald session from NAS ID: ${abills_nas_id}"
 fi;
 
@@ -217,7 +217,7 @@ abills_shaper() {
   echo "ABillS Shapper ${ACTION}"
 
   #Octets direction
-  PKG_DIRECTION=`cat ${BILLING_DIR}/libexec/config.pl | grep octets_direction | ${SED} "s/\\$conf{octets_direction}='\(.*\)'.*/\1/"`
+  PKG_DIRECTION=$(cat "${BILLING_DIR}/libexec/config.pl" | grep octets_direction | ${SED} "s/\\$conf{octets_direction}='\(.*\)'.*/\1/")
 
   if [ "${PKG_DIRECTION}" = "user" ] ; then
     IN_DIRECTION="in recv ${INTERNAL_INTERFACE}"
@@ -227,8 +227,8 @@ abills_shaper() {
     OUT_DIRECTION="in recv ${EXTERNAL_INTERFACE}"
   fi;
 
-  #Enable NG shapper
-  if [ w != w`grep '^\$conf{ng_car}=1;' ${BILLING_DIR}/libexec/config.pl` ]; then
+   #Enable NG shapper
+  if [ "" != "$(grep '^\$conf{ng_car}=1;' ${BILLING_DIR}/libexec/config.pl)" ]; then
     NG_SHAPPER=1
   fi;
 
@@ -238,8 +238,8 @@ abills_shaper() {
   USER_CLASS_TRAFFIC_NUM=10
 
   #NG Shaper enable
-  if [ "${ACTION}" = start -a "${NG_SHAPPER}" != "" ]; then
-    echo -n "ng_car shapper"
+  if [ "${ACTION}" = start ] && [ "${NG_SHAPPER}" != "" ]; then
+    echo "ng_car shapper"
     #Load kernel modules
     kldload ng_ether
     kldload ng_car
@@ -249,29 +249,29 @@ abills_shaper() {
       #  FW_NUM=`expr  `;
       echo "Traffic: ${num} "
       #Shaped traffic
-      ${IPFW} add ` expr 10000 - ${num} \* 10 ` skipto ` expr 10100 + ${num} \* 10 ` ip from table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2  `\) to table\(${num}\) ${IN_DIRECTION}
-      ${IPFW} add ` expr 10000 - ${num} \* 10 + 5 ` skipto ` expr 10100 + ${num} \* 10 + 5 ` ip from table\(${num}\) to table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2 + 1 `\) ${OUT_DIRECTION}
+      ${IPFW} add ` expr 10000 - ${num} \* 10 ` skipto ` expr 10100 + ${num} \* 10 ` ip from table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2  `\) to table\(${num}\) "${IN_DIRECTION}"
+      ${IPFW} add ` expr 10000 - ${num} \* 10 + 5 ` skipto ` expr 10100 + ${num} \* 10 + 5 ` ip from table\(${num}\) to table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2 + 1 `\) "${OUT_DIRECTION}"
 
-      ${IPFW} add ` expr 10100 + ${num} \* 10 ` netgraph tablearg ip from table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2  `\) to any ${IN_DIRECTION}
-      ${IPFW} add ` expr 10100 + ${num} \* 10 + 5 ` netgraph tablearg ip from any to table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2 + 1 `\) ${OUT_DIRECTION}
+      ${IPFW} add ` expr 10100 + ${num} \* 10 ` netgraph tablearg ip from table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2  `\) to any "${IN_DIRECTION}"
+      ${IPFW} add ` expr 10100 + ${num} \* 10 + 5 ` netgraph tablearg ip from any to table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2 + 1 `\) "${OUT_DIRECTION}"
 
       #Unlim traffic
-      ${IPFW} add ` expr 10200 + ${num} \* 10 ` allow ip from table\(9\) to table\(${num}\) ${IN_DIRECTION}
-      ${IPFW} add ` expr 10200 + ${num} \* 10 + 5 ` allow ip from table\(${num}\) to table\(9\) ${OUT_DIRECTION}
+      ${IPFW} add ` expr 10200 + ${num} \* 10 ` allow ip from table\(9\) to table\(${num}\) "${IN_DIRECTION}"
+      ${IPFW} add ` expr 10200 + ${num} \* 10 + 5 ` allow ip from table\(${num}\) to table\(9\) "${OUT_DIRECTION}"
     done;
 
     echo "Global shaper"
-    ${IPFW} add 10000 netgraph tablearg ip from table\(10\) to any ${IN_DIRECTION}
-    ${IPFW} add 10010 netgraph tablearg ip from any to table\(11\) ${OUT_DIRECTION}
-    ${IPFW} add 10020 allow ip from table\(9\) to any ${IN_DIRECTION}
-    ${IPFW} add 10025 allow ip from any to table\(9\) ${OUT_DIRECTION}
+    ${IPFW} add 10000 netgraph tablearg ip from table\(10\) to any "${IN_DIRECTION}"
+    ${IPFW} add 10010 netgraph tablearg ip from any to table\(11\) "${OUT_DIRECTION}"
+    ${IPFW} add 10020 allow ip from table\(9\) to any "${IN_DIRECTION}"
+    ${IPFW} add 10025 allow ip from any to table\(9\) "${OUT_DIRECTION}"
 
     #if [ "${INTERNAL_INTERFACE}" = "ng*" ]; then
     #  ${IPFW} add 10030 allow ip from any to any via ${INTERNAL_INTERFACE}
     #fi;
   #done
-  #Stop ng_car shaper
-  elif [ w${ACTION} = wstop -a w$2 = w ]; then
+  #Stop ng_car shaper // -a w$2 = w
+  elif [ "${ACTION}" = "stop" ]; then
     echo "Stop shapper"
 
     for num in ${CLASSES_NUMS}; do
@@ -282,7 +282,7 @@ abills_shaper() {
   else
     echo "DUMMYNET shaper"
 
-    ${BILLING_DIR}/libexec/billd checkspeed RECONFIGURE=1 ${SKIP_FLUSH} NAS_IDS=${abills_nas_id} FW_DIRECTION_OUT="${OUT_DIRECTION}" FW_DIRECTION_IN="${IN_DIRECTION}";
+    ${BILLING_DIR}/libexec/billd checkspeed RECONFIGURE=1 ${SKIP_FLUSH} NAS_IDS="${abills_nas_id}" FW_DIRECTION_OUT="${OUT_DIRECTION}" FW_DIRECTION_IN="${IN_DIRECTION}";
   fi;
 
 }
@@ -307,12 +307,12 @@ abills_dhcp_shaper() {
     fi;
 
     if [ "${ACTION}" = start ]; then
-      ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} ${IPOE_SHAPPER_LOG}
+      ${BILLING_DIR}/libexec/ipoe_shapper.pl -d "${NAS_IDS}" "${IPOE_SHAPPER_LOG}"
     elif [ "${ACTION}" = stop ]; then
-      kill `cat ${BILLING_DIR}/var/log/ipoe_shapper.pid`
+      kill "$(cat ${BILLING_DIR}/var/log/ipoe_shapper.pid)"
     fi;
   else
-    echo "Can\'t find 'ipoe_shapper.pl' "
+    echo "Can't find 'ipoe_shapper.pl' "
   fi;
 
 }
@@ -337,28 +337,28 @@ abills_ipn() {
     fi;
 
     #Redirect unauth ips to portal
-    ${IPFW} add 60000 fwd ${FWD_WEB_SERVER_IP},80 tcp from any to any dst-port 80 ${IFACE} in
+    ${IPFW} add 60000 fwd "${FWD_WEB_SERVER_IP}",80 tcp from any to any dst-port 80 "${IFACE}" in
 
     # Allow ping to self
     ${IPFW} add 60100 allow icmp from any to me  ${IFACE}
     ${IPFW} add 60101 allow icmp from me to any  ${IFACE}
 
-    if [ x${abills_ipn_allow_ip} != x ]; then
+    if [ "${abills_ipn_allow_ip}" != "" ]; then
       # Access to auth page
-      ${IPFW} add 10 allow tcp from any to ${abills_ipn_allow_ip} 9443  ${IFACE}
-      ${IPFW} add 11 allow tcp from ${abills_ipn_allow_ip} 9443 to any  ${IFACE}
-      ${IPFW} add 12 allow tcp from any to ${abills_ipn_allow_ip} 80  ${IFACE}
-      ${IPFW} add 13 allow tcp from ${abills_ipn_allow_ip} 80 to any  ${IFACE}
+      ${IPFW} add 10 allow tcp from any to "${abills_ipn_allow_ip}" 9443  "${IFACE}"
+      ${IPFW} add 11 allow tcp from "${abills_ipn_allow_ip}" 9443 to any  "${IFACE}"
+      ${IPFW} add 12 allow tcp from any to "${abills_ipn_allow_ip}" 80  "${IFACE}"
+      ${IPFW} add 13 allow tcp from "${abills_ipn_allow_ip}" 80 to any  "${IFACE}"
 
       # Allow DNS requests
-      ${IPFW} add 60400 allow udp from any to ${abills_ipn_allow_ip} 53
-      ${IPFW} add 60450 allow udp from ${abills_ipn_allow_ip} 53 to any
+      ${IPFW} add 60400 allow udp from any to "${abills_ipn_allow_ip}" 53
+      ${IPFW} add 60450 allow udp from "${abills_ipn_allow_ip}" 53 to any
     fi;
 
     echo "Restart active sessions"
 
     INTERNET_MODULE='Ipn'
-    INTERNTE_CHECK=`grep Internet /usr/abills/libexec/config.pl`
+    INTERNTE_CHECK="$(grep Internet /usr/abills/libexec/config.pl)"
 
     if [ "${INTERNTE_CHECK}" != "" ]; then
       INTERNET_MODULE="Internet"
@@ -370,15 +370,15 @@ abills_ipn() {
     if [ "${abills_ipn_if}" != "" ] ; then
       INTERNAL_INTERFACE=${abills_ipn_if}
 
-      if [ "${abills_nas_id}" != "" -a "${abills_ipn_nas_id}" != "" ]; then
+      if [ "${abills_nas_id}" != "" ] && [ "${abills_ipn_nas_id}" != "" ]; then
         SKIP_FLUSH="SKIP_FLUSH=1"
       fi;
 
-      abills_shaper ;
+      abills_shaper;
     fi;
 
     # Block unauth ips
-    ${IPFW} add 63000 deny ip from not table\(10\) to any ${IFACE} in
+    ${IPFW} add 63000 deny ip from not table\(10\) to any "${IFACE}" in
     #${IPFW} add 65000 deny ip from any to any ${IFACE} in
   elif [ "${ACTION}" = "stop" ]; then
     ${IPFW} delete 10 11 12 13 60000 60100 60101  60400 60450 63000
@@ -396,20 +396,20 @@ external_fw_rules() {
   fi;
 
   if [ "${firewall_type}" = "/etc/fw.conf" ]; then
-    cat ${firewall_type} | while read line ;   do
+    cat "${firewall_type}" | while read line ;   do
       RULEADD=`echo ${line} | awk '{print \$1}'`;
       NUMBERIPFW=`echo ${line} | awk '{print \$2}'`;
 
       if [ "${RULEADD}" = add ]; then
-        NOEX=`${IPFW} show  ${NUMBERIPFW} 2>/dev/null | wc -l`;
+        NOEX=$(${IPFW} show "${NUMBERIPFW}" 2>/dev/null | wc -l);
 
-        if [ ${NOEX} -eq 0 ]; then
-          ${IPFW} ${line};
+        if [ "${NOEX}" -eq 0 ]; then
+          ${IPFW} "${line}";
         fi;
       elif [ "${RULEADD}" = delete ]; then
-        ${IPFW} ${line};
-      elif [ "${RULEADD}" = nat -o "${RULEADD}" = table ]; then
-        ${IPFW} ${line};
+        ${IPFW} "${line}";
+      elif [ "${RULEADD}" = nat ] || [ "${RULEADD}" = table ]; then
+        ${IPFW} "${line}";
       fi;
     done;
   fi;
@@ -427,16 +427,16 @@ external_fw_rules() {
 #**********************************************************
 abills_nat() {
 
-if [ x"${abills_nat}" = x ]; then
+if [ "${abills_nat}" = "" ]; then
   return 0;
 fi;
 
 echo "ABillS NAT ${ACTION}"
-abills_ips_nat=`echo ${abills_nat} | sed 's/ //g'`;
-abills_ips_nat=`echo ${abills_nat} | sed 's/;/ /g'`;
+abills_ips_nat=$(echo ${abills_nat} | sed 's/ //g');
+abills_ips_nat=$(echo ${abills_nat} | sed 's/;/ /g');
 
-NAT_TABLE=20
-NAT_FIRST_RULE=20
+#NAT_TABLE=20
+#NAT_FIRST_RULE=20
 NAT_USERS_RULE=21
 NAT_REAL_TO_FAKE_TABLE_NUM=33;
 
@@ -448,7 +448,7 @@ for IPS_NAT in ${abills_ips_nat}; do
   #NAT IF
   NAT_IF=`echo ${IPS_NAT} | awk -F: '{ print $3 }'`;
 
-  if [ x"${NAT_IPS}" = x ]; then
+  if [ "${NAT_IPS}" = "" ]; then
     IP=`ifconfig \`route -n get default | grep interface | awk '{ print $2 }'\` | grep "inet " | awk '{ print $2 }'`
     NAT_IPS=${IP}
   fi;
@@ -458,14 +458,14 @@ for IPS_NAT in ${abills_ips_nat}; do
   # nat configuration
   for IP in ${NAT_IPS}; do
     if [ "${ACTION}" = "start" ]; then
-      ${IPFW} nat ${NAT_USERS_RULE} config ip ${IP} log
+      ${IPFW} nat "${NAT_USERS_RULE}" config ip "${IP}" log
       ${IPFW} table ${NAT_REAL_TO_FAKE_TABLE_NUM} add ${IP} ${NAT_USERS_RULE}
 
       for f_net in ${FAKE_NET}; do
-        ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1` add ${f_net} ${NAT_USERS_RULE}
+        ${IPFW} table $((${NAT_REAL_TO_FAKE_TABLE_NUM} + 1)) add "${f_net}" "${NAT_USERS_RULE}"
       done;
-    elif [ w${ACTION} = wstop ]; then
-      ${IPFW} nat delete ${NAT_USERS_RULE}
+    elif [ "${ACTION}" = stop ]; then
+      ${IPFW} nat delete "${NAT_USERS_RULE}"
     fi;
   done;
   NAT_USERS_RULE=`expr ${NAT_USERS_RULE} + 1`
@@ -473,8 +473,8 @@ done;
 
 # ISP_GW2=1 For redirect to second way
 if [ "${abills_multi_gateway}" != "" ]; then
-  abills_gateways=`echo ${abills_multi_gateway} | sed 's/ /,/g'`;
-  abills_gateways=`echo ${abills_gateways} | sed 's/;/ /g'`;
+  abills_gateways=$(echo "${abills_multi_gateway}" | sed 's/ /,/g');
+  abills_gateways=$(echo "${abills_gateways}" | sed 's/;/ /g');
 
   for GATEWAY in ${abills_gateways}; do
     # NAT External IP
@@ -491,7 +491,7 @@ if [ "${abills_multi_gateway}" != "" ]; then
     ${IPFW} nat ${NAT_ID} config ip ${GW2_IF_IP} log
     #Redirect to second net IPS
     for ip_mask in ${GW2_REDIRECT_IPS} ; do
-      ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1` add ${ip_mask} ${NAT_ID}
+      ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1` add "${ip_mask}" "${NAT_ID}"
     done;
 
     #Forward traffic 2 second way
@@ -532,7 +532,7 @@ neg_deposit() {
   DNS_IP=""
 
   if [ "${DNS_IP}" = "" ]; then
-    DNS_IP=`cat /etc/resolv.conf | grep nameserver | awk '{ print $2 }' | head -1`
+    DNS_IP=$(cat /etc/resolv.conf | grep nameserver | awk '{ print $2 }' | head -1)
   fi;
 
   FWD_RULE=1014;
@@ -543,29 +543,29 @@ neg_deposit() {
       INTERNAL_INTERFACE="ng*";
     fi;
 
-    ${IPFW} add ${FWD_RULE} fwd ${FWD_WEB_SERVER_IP},80 tcp from table\(32\) to any dst-port 80,443 via ${INTERNAL_INTERFACE}
+    ${IPFW} add ${FWD_RULE} fwd "${FWD_WEB_SERVER_IP}",80 tcp from table\(32\) to any dst-port 80,443 via "${INTERNAL_INTERFACE}"
     #If use proxy
     #${IPFW} add ${FWD_RULE} fwd ${FWD_WEB_SERVER_IP},3128 tcp from table\(32\) to any dst-port 3128 via ${INTERNAL_INTERFACE}
-    # if allow usin net on neg deposit
-    if [ x${abills_neg_deposit_speed} != x ]; then
-      ${IPFW} add 9000 skipto ${FWD_RULE} ip from table\(32\) to any ${IN_DIRECTION}
-      ${IPFW} add 9001 skipto ${FWD_RULE} ip from any to table\(32\) ${OUT_DIRECTION}
+    # if allow using net on neg deposit
+    if [ "${abills_neg_deposit_speed}" != "" ]; then
+      ${IPFW} add 9000 skipto ${FWD_RULE} ip from table\(32\) to any "${IN_DIRECTION}"
+      ${IPFW} add 9001 skipto ${FWD_RULE} ip from any to table\(32\) "${OUT_DIRECTION}"
 
       #${IPFW} add 10020 pipe 1${abills_neg_deposit_speed} ip from any to not table\(10\) ${IN_DIRECTION}
       #${IPFW} add 10021 pipe 1${abills_neg_deposit_speed} ip from not table\(10\) to any ${OUT_DIRECTION}
       #${IPFW} pipe 1${abills_neg_deposit_speed} config bw ${abills_neg_deposit_speed}Kbit/s mask src-ip 0xfffffffff
 
-      ${IPFW} add `expr ${FWD_RULE} + 30` pipe 1${abills_neg_deposit_speed} ip from any to not table\(10\) ${IN_DIRECTION}
-      ${IPFW} add `expr ${FWD_RULE} + 31` pipe 1${abills_neg_deposit_speed} ip from not table\(10\) to any ${OUT_DIRECTION}
-      ${IPFW} pipe 1${abills_neg_deposit_speed} config bw ${abills_neg_deposit_speed}Kbit/s mask src-ip 0xfffffffff
+      ${IPFW} add "$((${FWD_RULE} + 30))" pipe 1"${abills_neg_deposit_speed}" ip from any to not table\(10\) "${IN_DIRECTION}"
+      ${IPFW} add "$((${FWD_RULE} + 31))" pipe 1"${abills_neg_deposit_speed}" ip from not table\(10\) to any "${OUT_DIRECTION}"
+      ${IPFW} pipe 1"${abills_neg_deposit_speed}" config bw "${abills_neg_deposit_speed}"Kbit/s mask src-ip 0xfffffffff
     else
-      ${IPFW} add `expr ${FWD_RULE} + 10` allow udp from table\(32\) to ${DNS_IP} dst-port 53 via ${INTERNAL_INTERFACE}
-      ${IPFW} add `expr ${FWD_RULE} + 20` allow tcp from table\(32\) to ${USER_PORTAL_IP} dst-port 9443 via ${INTERNAL_INTERFACE}
-      ${IPFW} add `expr ${FWD_RULE} + 30` deny ip from table\(32\) to any via ${INTERNAL_INTERFACE} in
+      ${IPFW} add "$((${FWD_RULE} + 10))" allow udp from table\(32\) to "${DNS_IP}" dst-port 53 via "${INTERNAL_INTERFACE}"
+      ${IPFW} add "$((${FWD_RULE} + 20))" allow tcp from table\(32\) to "${USER_PORTAL_IP}" dst-port 9443 via "${INTERNAL_INTERFACE}"
+      ${IPFW} add "$((${FWD_RULE} + 30))" deny ip from table\(32\) to any via "${INTERNAL_INTERFACE}" in
 #      ${IPFW} add `expr ${FWD_RULE} + 30` deny ip from any to table\(32\) via ${INTERNAL_INTERFACE} out
     fi;
   elif [ "${ACTION}" = "stop" ]; then
-    ${IPFW} delete ${FWD_RULE} ` expr ${FWD_RULE} + 10 ` ` expr ${FWD_RULE} + 20 ` ` expr ${FWD_RULE} + 30 `
+    ${IPFW} delete ${FWD_RULE} "$((${FWD_RULE} + 10))"  "$((${FWD_RULE} + 20))"  "$((${FWD_RULE} + 30))"
   elif [ "${ACTION}" = "show" ]; then
     ${IPFW} show ${FWD_RULE}
   fi;
@@ -576,25 +576,27 @@ neg_deposit() {
 #**********************************************************
 abills_ip_sessions() {
 
-if [ x${abills_ip_sessions} = x ]; then
-  return 0;
-fi;
+  if [ "${abills_ip_sessions}" = "" ]; then
+    return 0;
+  fi;
 
   echo "Session limit ${abills_ip_sessions}";
-  if [ w${ACTION} = wstart ]; then
-    ${IPFW} add 00400   skipto 65010 tcp from table\(34\) to any dst-port 80,443 via ${INTERNAL_INTERFACE}
-    ${IPFW} add 00401   skipto 65010 udp from table\(34\) to any dst-port 53 via ${INTERNAL_INTERFACE}
-    ${IPFW} add 00402   skipto 60010 tcp from table\(34\) to any via ${EXTERNAL_INTERFACE}
-    ${IPFW} add 64001   allow tcp from table\(34\) to any setup via ${INTERNAL_INTERFACE} in limit src-addr ${abills_ip_sessions}
-    ${IPFW} add 64002   allow udp from table\(34\) to any via ${INTERNAL_INTERFACE} in limit src-addr ${abills_ip_sessions}
-    ${IPFW} add 64003   allow icmp from table\(34\) to any via ${INTERNAL_INTERFACE} in limit src-addr ${abills_ip_sessions}
-  elif [ w${ACTION} = wstop ]; then
+  if [ "${ACTION}" = "start" ]; then
+    ${IPFW} add 00400   skipto 65010 tcp from table\(34\) to any dst-port 80,443 via "${INTERNAL_INTERFACE}"
+    ${IPFW} add 00401   skipto 65010 udp from table\(34\) to any dst-port 53 via "${INTERNAL_INTERFACE}"
+    ${IPFW} add 00402   skipto 60010 tcp from table\(34\) to any via "${EXTERNAL_INTERFACE}"
+    ${IPFW} add 64001   allow tcp from table\(34\) to any setup via "${INTERNAL_INTERFACE}" in limit src-addr "${abills_ip_sessions}"
+    ${IPFW} add 64002   allow udp from table\(34\) to any via "${INTERNAL_INTERFACE}" in limit src-addr "${abills_ip_sessions}"
+    ${IPFW} add 64003   allow icmp from table\(34\) to any via "${INTERNAL_INTERFACE}" in limit src-addr "${abills_ip_sessions}"
+  elif [ "${ACTION}" = "stop" ]; then
     ${IPFW} delete 00400 00401 00402 64001 64002 64003
   fi;
 }
 
 #**********************************************************
-#Squid Redirect
+# Squid Redirect
+#
+#
 #**********************************************************
 squid_redirect() {
 
@@ -605,13 +607,13 @@ squid_redirect() {
 
   SQUID_SERVER_IP=${abills_squid_ip};
 
-  SQUID_REDIRET_TABLE=40
+  SQUID_REDIRECT_TABLE=40
   FWD_RULE=10040;
 
   #Forwarding start
   if [ "${ACTION}" = "start" ]; then
     echo "Squid Forward Section - start";
-    ${IPFW} add ${FWD_RULE} fwd ${SQUID_SERVER_IP},8080 tcp from table\(${SQUID_REDIRET_TABLE}\) to any dst-port 80,443 via ${INTERNAL_INTERFACE}
+    ${IPFW} add ${FWD_RULE} fwd "${SQUID_SERVER_IP}",8080 tcp from table\(${SQUID_REDIRECT_TABLE}\) to any dst-port 80,443 via "${INTERNAL_INTERFACE}"
     #If use proxy
     #${IPFW} add ${FWD_RULE} fwd ${FWD_WEB_SERVER_IP},3128 tcp from table\(32\) to any dst-port 3128 via ${INTERNAL_INTERFACE}
   elif [ "${ACTION}" = "stop" ]; then
@@ -635,7 +637,6 @@ squid_redirect() {
 #**********************************************************
 netblock_active() {
 
-  #Netblock Section
   if [ "${abills_netblock}" = "NO" ]; then
     return 0;
   fi;
@@ -644,22 +645,21 @@ netblock_active() {
   NETBLOCK_REDIRECT_PORT=82;
   NETBLOCK_IF=${EXTERNAL_INTERFACE};
 
-
   if [ "${ACTION}" = "show" ]; then
     ${IPFW} table 13 list;
     ${IPFW} show 115 116;
   elif [ "${ACTION}" = "stop" ]; then
     ${IPFW} delete 115 116;
   else
-    if [ "${abills_netblock_type}" != "" -a -f /usr/abills/libexec/billd ]; then
+    if [ "${abills_netblock_type}" != "" ] && [ -f /usr/abills/libexec/billd ]; then
       NETBLOCK_CMD="/usr/abills/libexec/billd netblock ${abills_netblock_type}"
       ${NETBLOCK_CMD}
     fi;
     if [ "${NETBLOCK_REDIRECT_IP}" != "" ]; then
-      ${IPFW} add 115 fwd 127.0.0.1,${NETBLOCK_REDIRECT_PORT} tcp from any to "table(13)"  dst-port 80,443 via ${NETBLOCK_IF}
+      ${IPFW} add 115 fwd 127.0.0.1,${NETBLOCK_REDIRECT_PORT} tcp from any to "table(13)"  dst-port 80,443 via "${NETBLOCK_IF}"
     fi;
 
-    ${IPFW} add 116 deny all from any to "table(13)" via ${NETBLOCK_IF}
+    ${IPFW} add 116 deny all from any to "table(13)" via "${NETBLOCK_IF}"
   fi;
 
 }
@@ -682,18 +682,15 @@ paysys_tmp_access() {
     return 0;
   fi;
 
-
-
   if [ "${ACTION}" = "show" ]; then
     ${IPFW} table 16 list;
     ${IPFW} show 120 121;
   elif [ "${ACTION}" = "stop" ]; then
     ${IPFW} delete 120 121;
   else
-    ${IPFW} add 120 allow all from "table(16)" to any via ${NETBLOCK_IF}
-    ${IPFW} add 121 allow all from any to "table(16)" via ${NETBLOCK_IF}
+    ${IPFW} add 120 allow all from "table(16)" to any via "${NETBLOCK_IF}"
+    ${IPFW} add 121 allow all from any to "table(16)" via "${NETBLOCK_IF}"
   fi;
-
 }
 
 

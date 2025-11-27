@@ -1,5 +1,5 @@
-<form action='$SELF_URL'>
-<input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name=MAIL_ACCESS_ID value=%MAIL_ACCESS_ID%>
 
 <div class='card card-primary card-outline box-form form-horizontal'>

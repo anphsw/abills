@@ -16,7 +16,7 @@
 use Abills::Base qw/cmd in_array convert startup_files _bp int2ip/;
 use Abills::Fetcher qw/web_request/;
 use Users;
-use Abills::Misc qw/form_purchase_module _function get_function_index/;
+require Abills::Misc;
 use utf8;
 use Log qw/log_print/;
 use Maps;
@@ -41,12 +41,12 @@ require Cablecat::Configure;
 # require Cablecat::Layers;
 require Cablecat::Commutation;
 
-our %date_key_hash;
+our %date_key_hash = ();
 my %imported = (
   wells => {}
 );
 
-binmode STDOUT, ":utf8";
+#binmode STDOUT, ":utf8";
 
 import();
 
@@ -90,7 +90,9 @@ sub import {
 }
 
 sub import_connectors {
-  my ($connector) = shift;
+  #my ($connector) = shift;
+
+  return 1;
 }
 
 sub import_wells {
@@ -102,11 +104,12 @@ sub import_wells {
   else {
 
   }
+
+  return 1;
 }
 
 sub create_well {
   my ($well) = shift;
-  my ($parr) = shift;
 
   my $point_id = '';
 
@@ -120,7 +123,6 @@ sub create_well {
     });
   }
 
-
   $Cablecat->wells_add({
     ADD_OBJECT => 1,
     NAME       => $well->{name},
@@ -130,6 +132,8 @@ sub create_well {
     POINT_ID   => $point_id,
     PARENT_ID  => undef
   });
+
+  return 1;
 }
 
 1;

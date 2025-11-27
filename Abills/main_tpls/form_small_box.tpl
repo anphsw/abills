@@ -1,6 +1,6 @@
 <div class='modal fade' id='changeCreditModal' data-open='%OPEN_CREDIT_MODAL%'>
   <div class='modal-dialog modal-sm'>
-    <form action='$SELF_URL' class='pswd-confirm' id='changeCreditForm'>
+    <form action='%SELF_URL%' class='pswd-confirm' id='changeCreditForm'>
       <div class='modal-content'>
         <div class='modal-header'>
           <h6 class='modal-title text-center'>_{SET_CREDIT}_</h6>
@@ -9,7 +9,7 @@
         </div>
         <div class='modal-body' style='padding: 30px;'>
           <input type='hidden' name='index' value='10'>
-          <input type='hidden' name='sid' value='$sid'>
+          <input type='hidden' name='sid' value='%sid%'>
 
           <div class='form-group row'>
             <label class='col-sm-4 col-md-4' FOR='CREDIT_SUM'>_{CREDIT_SUM}_:</label>

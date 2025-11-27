@@ -8,20 +8,20 @@ package Sqlcmd;
 
 use strict;
 use parent qw(dbcore);
-my $MODULE = 'Sqlcmd';
-my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
+
+  my $MODULE = 'Sqlcmd';
 
   $admin->{MODULE} = $MODULE;
   my $self = {
-    db => $db
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
   };
 
   bless($self, $class);
@@ -35,8 +35,7 @@ sub new {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my DBI $db = $self->{db}->{db};
 
@@ -49,7 +48,7 @@ sub info {
   if ($type eq 'showtables') {
     if ($attr->{ACTION}) {
       if ($attr->{ACTION} eq 'ROTATE') {
-        $DATE =~ s/-/\_/g;
+        $DATE =~ s/\-/\_/xg;
 
         # CREATE TABLE LIKE work from version 4.1
         my $version = $self->db_version();
@@ -59,7 +58,7 @@ sub info {
           return $self;
         }
 
-        my @tables_arr = split(/, /, $attr->{TABLES});
+        my @tables_arr = split(/,\s/x, $attr->{TABLES});
         foreach my $table (@tables_arr) {
           print "CREATE TABLE IF NOT EXISTS " . $table . "_2 LIKE $table ;" . "RENAME TABLE $table TO $table" . "_$DATE, $table" . "_2 TO $table;";
           my $sth = $db->do("CREATE TABLE IF NOT EXISTS " . $table . "_2 LIKE $table ;");
@@ -67,78 +66,38 @@ sub info {
         }
       }
       elsif($attr->{ACTION} eq 'OPTIMIZE') {
-        my @tables_arr = split(/, /, $attr->{TABLES});
+        my @tables_arr = split(/,\s+/x, $attr->{TABLES});
         foreach my $table (@tables_arr) {
-          if ($table !~ /\d{4}\_\d{2}\_\d{2}$/) {
+          if ($table !~ /\d{4}\_\d{2}\_\d{2}$/xm) {
             my $sql = "OPTIMIZE TABLE $table;";
             print $sql;
-            my $sth = $db->do($sql);
+            $db->do($sql);
           }
         }
       }
       elsif($attr->{ACTION} eq 'DEL_BACKUP') {
-        my @tables_arr = split(/, /, $attr->{TABLES});
+        my @tables_arr = split(/,\s/x, $attr->{TABLES});
         foreach my $table (@tables_arr) {
-          if ($table =~ /\_\d{2,4}\_\d{2}$/) {
+          if ($table =~ /\_\d{2,4}\_\d{2}$/xm) {
             my $sql = "DROP TABLE $table;";
             print $sql;
-            my $sth = $db->do($sql);
+            $db->do($sql);
           }
         }
       }
       elsif($attr->{ACTION} eq 'SEARCH') {
-        my @tables_arr = split(/, /, $attr->{TABLES});
-        foreach my $table (@tables_arr) {
-          my $sth = $db->prepare("SHOW COLUMNS FROM $table;");
-          $sth->execute();
-          my @search_params = ();
-
-          while (my @row_array = $sth->fetchrow()) {
-            my $search_text = $row_array[0];
-            if($row_array[1] =~ /varchar|text/) {
-              $search_text .= " LIKE '%$attr->{VALUE}%' ";
-            }
-            else {
-              if($row_array[1] =~ /int|doub|floa/i && $attr->{VALUE} !~ /^[0-9\,\.]+$/) {
-                next;
-              }
-              if($row_array[1] =~ /date/i && $attr->{VALUE} !~ /^[0-9\-]+$/) {
-                next;
-              }
-              else {
-                $search_text .= "='$attr->{VALUE}'";
-              }
-            }
-
-            push @search_params, $search_text; 
-          }
-
-          if ($#search_params > -1) {
-            my $sql = "SELECT COUNT(*) FROM $table WHERE ". join(' or ', @search_params);
-
-            if($self->{debug}) {
-              print $sql.'<br>';
-            }
-
-            $sth = $db->prepare($sql);
-            $sth->execute();
-            my @row_array =$sth->fetchrow();
-
-            if($row_array[0]>0) {
-              $table_ext_info{$table}=$row_array[0];
-            }
-          }
-        }
+        $self->table_full_search({ %$attr, TABLE_EXT_INFO => \%table_ext_info });
       }
     }
 
     my $like = '';
     if ($attr->{TABLES} && $attr->{search} ) {
-      $attr->{TABLES} =~ s/\*/\%/g;
+      $attr->{TABLES} =~ s/\*/\%/xg;
       $like =  "LIKE '$attr->{TABLES}'";
     }
 
-    my $sth = $db->prepare("SHOW TABLE STATUS FROM $CONF->{dbname} $like");
+    my $dbname = $self->{conf}->{dbname};
+    my $sth = $db->prepare("SHOW TABLE STATUS FROM $dbname $like");
     $sth->execute();
     my $pri_keys = $sth->{mysql_is_pri_key};
     my $names    = $sth->{NAME};
@@ -159,7 +118,7 @@ sub info {
       }
 
       # check syntax
-      if ($attr->{'fields'} =~ /CHECK/) {
+      if ($attr->{'fields'} =~ /CHECK/xm) {
         my $q = $db->prepare("CHECK TABLE $row_array[0]");
         $q->execute();
         my @res = $q->fetchrow();
@@ -187,12 +146,66 @@ sub info {
 }
 
 
+
 #**********************************************************
-# table_full_search()
+=head2 table_full_search()
+
+  Arguments:
+    $attr
+      TABLE_EXT_INFO
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub table_full_search {
-  my $self = shift;
+  my ($self, $attr) = @_;
 
+  my $table_ext_info = $attr->{TABLE_EXT_INFO};
+  my $db = $self->{db}->{db};
+
+  my @tables_arr = split(/,\s+/x, $attr->{TABLES});
+  foreach my $table (@tables_arr) {
+    my $sth = $db->prepare("SHOW COLUMNS FROM $table;");
+    $sth->execute();
+    my @search_params = ();
+
+    while (my @row_array = $sth->fetchrow()) {
+      my $search_text = $row_array[0];
+      if($row_array[1] =~ /varchar|text/xm) {
+        $search_text .= " LIKE '%$attr->{VALUE}%' ";
+      }
+      else {
+        if($row_array[1] =~ /int|doub|floa/xmi && $attr->{VALUE} !~ /^[0-9\,\.]+$/xm) {
+          next;
+        }
+        elsif($row_array[1] =~ /date/xmi && $attr->{VALUE} !~ /^[0-9\-]+$/mx) {
+          next;
+        }
+        else {
+          $search_text .= "='$attr->{VALUE}'";
+        }
+      }
+
+      push @search_params, $search_text;
+    }
+
+    if ($#search_params > -1) {
+      my $sql = "SELECT COUNT(*) FROM $table WHERE ". join(' or ', @search_params);
+
+      if($self->{debug}) {
+        print $sql.'<br>';
+      }
+
+      $sth = $db->prepare($sql);
+      $sth->execute();
+      my @row_array =$sth->fetchrow();
+
+      if($row_array[0]>0) {
+        $table_ext_info->{$table}=$row_array[0];
+      }
+    }
+  }
 
   return $self;
 }
@@ -214,21 +227,13 @@ sub maintenance {
 =cut
 #**********************************************************
 sub list {
-  my $self   = shift;
-  my ($attr) = @_;
-
-#  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-#  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-#  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-#  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my DBI $db = $self->{db}->{db};
 
-  #my $search_fields = '';
-
   my @QUERY_ARRAY = ();
-  if ($attr->{QUERY} =~ /;\r?\n/) {
-    @QUERY_ARRAY = split(/;\r?\n/, $attr->{QUERY});
+  if ($attr->{QUERY} =~ /;\r?\n/mx) {
+    @QUERY_ARRAY = split(/;\r?\n/x, $attr->{QUERY});
   }
   else {
     push @QUERY_ARRAY, $attr->{QUERY};
@@ -239,9 +244,9 @@ sub list {
   foreach my $query (@QUERY_ARRAY) {
     next if (length($query) < 5);
     my $q;
-    $query =~ s/^ //g;
+    $query =~ s/^\s+//xg;
 
-    if ($query =~ /^CREATE |^UPDATE |^INSERT |^ALTER |^DROP/i) {
+    if ($query =~ /^CREATE\s+|^UPDATE\s+|^INSERT\s+|^ALTER\s+|^DROP/xi) {
       $db->{mysql_client_found_rows} = 1;
 
       if (my $count = $db->do($query)) {
@@ -255,7 +260,7 @@ sub list {
     }
     else {
       print $query if ($self->{debug});
-      $q = $db->prepare($query, { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || print $db->errstr;
+      $q = $db->prepare($query, { "mysql_use_result" => ($query !~ /!SELECT/gxi) ? 0 : 1 }) || print $db->errstr;
 
       if ($db->err) {
         $self->{errno}      = 3;
@@ -285,8 +290,22 @@ sub list {
       $self->{MYSQL_TYPE_NAME}      = $q->{mysql_type_name};
 
       $self->{TOTAL} = $q->rows;
-      if ($query !~ /^INSERT |^UPDATE |^CREATE |^DELETE |^ALTER |^DROP /i) {
-        if($attr->{COLS_NAME}) {
+
+      my $write_sql_regex = qr{
+    ^
+    (?:
+          INSERT
+        | UPDATE
+        | CREATE
+        | DELETE
+        | ALTER
+        | DROP
+    )
+    \s*
+}xim;
+
+      if ($query !~ $write_sql_regex) {
+        if ($attr->{COLS_NAME}) {
           while (my $row = $q->fetchrow_hashref()) {
             push @rows, $row;
           }
@@ -303,8 +322,8 @@ sub list {
     push @{ $self->{EXECUTED_QUERY} }, $query;
   }
 
-  $attr->{QUERY} =~ s/\'/\\\'/g;
-  $admin->system_action_add("SQLCMD:$attr->{QUERY}", { TYPE => 1 });
+  $attr->{QUERY} =~ s/\'/\\\'/xg;
+  $self->{admin}->system_action_add("SQLCMD:$attr->{QUERY}", { TYPE => 1 });
 
   my $list = \@rows;
   return $list || [];
@@ -329,7 +348,7 @@ sub sqlcmd_info {
   $query->execute();
   @row = $query->fetchrow_array();
 
-  my ($major, $minor, $patch) = ($row[1] =~ /(\d{1,2})\.(\d{1,2})\.(\d{1,2})/);
+  my ($major, $minor, $patch) = ($row[1] =~ /(\d{1,2})\.(\d{1,2})\.(\d{1,2})/xm);
 
   if ($major == 5 && (($minor == 0 && $patch >= 2) || $minor > 0)) {
     $query = $db_->prepare("SHOW GLOBAL STATUS;");
@@ -351,21 +370,23 @@ sub sqlcmd_info {
     $vars{ $row[0] } = $row[1];
   }
 
+  my $sql = <<'SQL';
+select SUBSTRING_INDEX(
+         SUBSTRING_INDEX(event_name, '/', 2),
+         '/',
+         -1
+       )                                                                    AS event_type,
+       CONCAT(ROUND(SUM(CURRENT_NUMBER_OF_BYTES_USED)/1024/1024, 2), ' Mb') as MB_CURRENTLY_USED
+FROM performance_schema.memory_summary_global_by_event_name
+GROUP BY event_type
+SQL
+
+
   #Get server memory usage
-  $query = $db_->prepare('
-  select substring_index(
-        substring_index(event_name, \'/\', 2),
-        \'/\',
-        -1
-      )  as event_type,
-      concat(round(sum(CURRENT_NUMBER_OF_BYTES_USED)/1024/1024, 2), \' Mb\') as MB_CURRENTLY_USED
-    from performance_schema.memory_summary_global_by_event_name
-    group by event_type'
-  );
+  $query = $db_->prepare($sql);
 
   if ($query) {
     $query->execute();
-
     while (@row = $query->fetchrow_array()) {
       $memory{ $row[0] } = $row[1];
     }
@@ -380,14 +401,18 @@ sub sqlcmd_info {
 =cut
 #**********************************************************
 sub history_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments, status)
-                VALUES (NOW(), ?, ?, ?, ?, ?);",
+  my $sql = <<'SQL';
+INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments, status)
+VALUES (NOW(), ?, ?, ?, ?, ?);
+SQL
+
+
+  $self->query($sql,
   'do',
   { Bind => [
-      $admin->{AID},
+      $self->{admin}->{AID},
       $attr->{QUERY},
       $attr->{DB_ID} || 0,
       $attr->{COMMENTS} || q{},
@@ -405,8 +430,7 @@ sub history_add {
 =cut
 #**********************************************************
 sub history_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('sqlcmd_history', $attr);
 
@@ -417,8 +441,7 @@ sub history_del {
 # list_allow nass
 #**********************************************************
 sub history_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
@@ -432,26 +455,29 @@ sub history_list {
     }
   );
 
-  $self->query("SELECT datetime, comments, id, sql_query, status
-    FROM sqlcmd_history sh
-    $WHERE
-    ORDER BY 1 DESC
-    LIMIT $PG, $PAGE_ROWS;",
-  undef, 
-  {
-    COLS_NAME => 1,
-  }
-  );
+  my $sql = <<"SQL";
+SELECT datetime, comments, id, sql_query, status
+FROM sqlcmd_history sh
+  $WHERE
+ORDER BY 1 DESC
+  LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1 });
 
   my $list = $self->{list} || [];
 
+  $sql = <<'SQL';
+SELECT COUNT(*) AS total
+FROM sqlcmd_history
+WHERE aid= ?;
+SQL
+
+
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM sqlcmd_history
-    WHERE aid= ?;",
-    undef,
+    $self->query($sql,  undef,
     { INFO => 1,
-      Bind      => [ $admin->{AID}  ]
+      Bind      => [ $self->{admin}->{AID}  ]
     }
     );
   }
@@ -463,21 +489,23 @@ sub history_list {
 # list_allow nass
 #**********************************************************
 sub history_query {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT datetime,
-      sql_query,
-      comments,
-      id
-    FROM sqlcmd_history
-    WHERE aid= ?
-    AND id= ?;",
-    undef,
+  my $sql = <<'SQL';
+SELECT datetime,
+       sql_query,
+       comments,
+       id
+FROM sqlcmd_history
+WHERE aid= ?
+  AND id= ?;
+SQL
+
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [
-        $admin->{AID},
+        $self->{admin}->{AID},
         $attr->{QUERY_ID}
       ] }
   );
@@ -495,24 +523,27 @@ sub history_query {
 sub columns {
   my $self = shift;
 
-  $self->query(
-    "SELECT
-      table_name,
-      column_name
-     FROM
-      information_schema.columns
-     WHERE
-      table_schema=?
-     ORDER BY table_name, ordinal_position;",
-    undef,
+  my $sql = <<'SQL';
+SELECT
+  table_name,
+  column_name
+FROM
+  information_schema.columns
+WHERE
+  table_schema=?
+ORDER BY table_name, ordinal_position;
+SQL
+
+
+  $self->query($sql, undef,
       {
         Bind => [
-          $CONF->{dbname}
+          $self->{conf}->{dbname}
         ]
       }
   );
 
-  return $self->{list} || {};
+  return $self->{list} || [];
 }
 
-1
+1;

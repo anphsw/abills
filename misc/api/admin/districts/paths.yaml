@@ -2,3 +2,5 @@
   $ref: "./paths/districts.yaml"
 /districts/{id}:
   $ref: "./paths/districtsId.yaml"
+/districts/territorial_units:
+  $ref: "./paths/districts_territorial_units.yaml"

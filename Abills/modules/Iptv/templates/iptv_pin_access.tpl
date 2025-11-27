@@ -1,5 +1,5 @@
-<form action=$SELF_URL METHOD=POST class='form-horizontal'>
-<input type=hidden name=qindex value=$index>
+<form action=%SELF_URL% METHOD=POST class='form-horizontal'>
+<input type=hidden name=qindex value=%index%>
 <input type=hidden name=sid value=$sid>
 <input type=hidden name=VOD value=$FORM{VOD}>
 <fieldset>

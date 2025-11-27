@@ -1,0 +1,1 @@
+ALTER TABLE `accident_log` ADD COLUMN `port` VARCHAR(20) NOT NULL DEFAULT '';

@@ -1,5 +1,5 @@
 <form name='STORAGE_USER_SEARCH' id='form-search' method='post' class='form form-horizontal'>
-  <input type='hidden' name='qindex' value='$index'/>
+  <input type='hidden' name='qindex' value='%index%'/>
   <input type='hidden' name='user_search_form' value='2'/>
   <input type='hidden' name='LOGIN' id='LOGIN_id'/>
 

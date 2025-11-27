@@ -109,7 +109,7 @@ sub nas_sync {
         $i_add++;
 
         if ($model_detect_id) {
-          $Equipment->_add({
+          $Equipment->add({
             NAS_ID        => $Nas->{INSERT_ID},
             MODEL_ID      => $model_detect_id,
             TYPE_ID       => $model_detect_type,
@@ -136,9 +136,9 @@ sub nas_sync {
       print "$us_device->{ip}. Updated NAS ID:$nas_info->{NAS_ID} \n" if ($debug);
       $i_update++;
 
-      $Equipment->_info($nas_info->{NAS_ID});
+      $Equipment->info($nas_info->{NAS_ID});
       if (!$Equipment->{MODEL_ID} && $model_detect_id) {
-        $Equipment->_add({
+        $Equipment->add({
           NAS_ID        => $Nas->{INSERT_ID},
           MODEL_ID      => $model_detect_id,
           TYPE_ID       => $model_detect_type,
@@ -150,7 +150,7 @@ sub nas_sync {
         delete($Equipment->{MODEL_ID});
       }
       else {
-        $Equipment->_change({
+        $Equipment->change({
           NAS_ID        => $nas_info->{NAS_ID},
           SNMP_VERSION  => $Equipment->{SNMP_VERSION} ? $Equipment->{SNMP_VERSION} : $snmp_version,
           FIRMWARE      => $Equipment->{FIRMWARE} ? $Equipment->{FIRMWARE} : $software_version,

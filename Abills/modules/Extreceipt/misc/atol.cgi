@@ -9,8 +9,7 @@ our (
   %conf,
   $DATE,
   $TIME,
-  $base_dir,
-  %lang
+  $base_dir
 );
 
 BEGIN {
@@ -37,7 +36,6 @@ our $admin    = Admins->new($db, \%conf);
 my $Receipt   = Extreceipt->new($db, $admin, \%conf);
 
 my $message = ();
-my $debug = 0;
 
 print "Content-type:text/html\n\n";
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/ if ($ENV{'REQUEST_METHOD'});
@@ -54,7 +52,6 @@ else {
 }
 
 message_process();
-exit 1;
 
 #**********************************************************
 =head2 message_process()

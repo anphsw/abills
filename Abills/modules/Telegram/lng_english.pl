@@ -139,4 +139,9 @@ $lang{THERE_IS_NO_GEO} = "There is no geolocation.\n\nTry again";
 $lang{TASK_DONE_OVERALL} = "Ticket #%MSG_ID% is ready.\n\nRun time: %RUN_TIME%\nGeolocation: %GEOLOCATION%";
 $lang{TICKET_END_CONFIRM} = 'Add a photo of your task completion.';
 
+$lang{TELEGRAM_REPORT_ON_REQUESTS} = 'Report on requests';
+$lang{TELEGRAM_OPEN} = 'Open';
+$lang{TELEGRAM_THIS_WEEK} = 'This week';
+$lang{TELEGRAM_LAST_WEEK} = 'Last week';
+
 1;

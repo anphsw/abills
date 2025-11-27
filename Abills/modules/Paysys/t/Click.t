@@ -32,7 +32,6 @@ if ($debug > 3) {
 }
 
 $user_id = $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || 5317;
-$payment_id = q{34367923}; # Your active transaction
 
 our @requests = (
   {

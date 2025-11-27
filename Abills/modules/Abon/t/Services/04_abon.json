@@ -1,0 +1,33 @@
+[
+  {
+    "COMMENTS": "45 2025-02-01 - 2025-03-15 Discount 50",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 500,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-01-01",
+      "END_DATE": "2025-03-15",
+      "DISCOUNT": "50",
+      "DISCOUNT_ACTIVATE": "2025-02-01",
+      "DISCOUNT_EXPIRE": "2025-06-30"
+    },
+    "RESULT": [
+      {
+        "NUM": 0,
+        "SUM": "sprintf('%.2f', (500 / 31 * 31))"
+      },
+      {
+        "NUM": 1,
+        "SUM": "250"
+      },
+      {
+        "NUM": 2,
+        "SUM": "sprintf('%.2f', (500 / 31 * 15) * 0.5)",
+        "DAYS": 15
+      }
+    ]
+  }
+]

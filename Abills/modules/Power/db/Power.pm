@@ -13,7 +13,7 @@ package Power::db::Power;
 =cut
 
 use strict;
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 use parent qw(dbcore);
 
 my ($admin, $CONF);
@@ -82,8 +82,7 @@ sub power_genset_type_add {
 =cut
 #**********************************************************
 sub power_genset_types_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -100,13 +99,14 @@ sub power_genset_types_list {
     [ 'POWER_KW',        'INT',   'pgt.power_kw',             1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pgt.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pgt.id
       FROM power_genset_types pgt
       $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -133,8 +133,7 @@ sub power_genset_types_list {
 =cut
 #**********************************************************
 sub power_genset_type_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_genset_types', $attr);
 
@@ -157,13 +156,13 @@ sub power_genset_type_del {
 =cut
 #**********************************************************
 sub power_genset_type_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_genset_types WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+SELECT * FROM power_genset_types WHERE id= ?
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -187,8 +186,7 @@ sub power_genset_type_info {
 =cut
 #**********************************************************
 sub power_genset_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -214,8 +212,7 @@ sub power_genset_type_change {
 =cut
 #**********************************************************
 sub power_fueltank_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_fueltanks', $attr);
 
@@ -236,8 +233,7 @@ sub power_fueltank_add {
 =cut
 #**********************************************************
 sub power_fueltanks_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -251,13 +247,14 @@ sub power_fueltanks_list {
     [ 'LITRES',          'INT',   'pf.litres',      1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pf.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pf.id
       FROM power_fueltanks pf
       $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -284,8 +281,7 @@ sub power_fueltanks_list {
 =cut
 #**********************************************************
 sub power_fueltank_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_fueltanks', $attr);
 
@@ -308,17 +304,16 @@ sub power_fueltank_del {
 =cut
 #**********************************************************
 sub power_fueltank_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_fueltanks WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+SELECT * FROM power_fueltanks WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
-    }
-  );
+    });
 
   return $self;
 }
@@ -338,8 +333,7 @@ sub power_fueltank_info {
 =cut
 #**********************************************************
 sub power_fueltank_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -365,8 +359,7 @@ sub power_fueltank_change {
 =cut
 #**********************************************************
 sub power_service_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_service_types', $attr);
 
@@ -387,8 +380,7 @@ sub power_service_type_add {
 =cut
 #**********************************************************
 sub power_service_types_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -401,13 +393,14 @@ sub power_service_types_list {
     [ 'DESCRIPTION',     'STR',   'pst.description', 1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pst.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pst.id
       FROM power_service_types pst
       $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -434,8 +427,7 @@ sub power_service_types_list {
 =cut
 #**********************************************************
 sub power_service_type_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_service_types', $attr);
 
@@ -458,13 +450,13 @@ sub power_service_type_del {
 =cut
 #**********************************************************
 sub power_service_type_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_service_types WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+SELECT * FROM power_service_types WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -488,8 +480,7 @@ sub power_service_type_info {
 =cut
 #**********************************************************
 sub power_service_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -515,8 +506,7 @@ sub power_service_type_change {
 =cut
 #**********************************************************
 sub power_genset_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_gensets', $attr);
 
@@ -537,8 +527,7 @@ sub power_genset_add {
 =cut
 #**********************************************************
 sub power_gensets_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -559,8 +548,8 @@ sub power_gensets_list {
     [ 'LITRES',       'INT',   'pg.litres',      1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pg.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pg.id
       FROM power_gensets pg
       LEFT JOIN power_genset_types pgt ON (pgt.id = pg.type_id)
       LEFT JOIN power_fueltanks pf ON (pf.id = pg.fueltank_id)
@@ -571,9 +560,10 @@ sub power_gensets_list {
       LEFT JOIN power_genset_runs pgr ON pgr.genset_id = pg.id
       $WHERE
       GROUP BY pg.id
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -600,8 +590,7 @@ sub power_gensets_list {
 =cut
 #**********************************************************
 sub power_genset_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_gensets', $attr);
 
@@ -624,13 +613,13 @@ sub power_genset_del {
 =cut
 #**********************************************************
 sub power_genset_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_gensets WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+SELECT * FROM power_gensets WHERE id= ?
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -654,8 +643,7 @@ sub power_genset_info {
 =cut
 #**********************************************************
 sub power_genset_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{STATE} //= 0;
 
@@ -683,8 +671,7 @@ sub power_genset_change {
 =cut
 #**********************************************************
 sub power_genset_run_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_genset_runs', $attr);
 
@@ -705,8 +692,7 @@ sub power_genset_run_add {
 =cut
 #**********************************************************
 sub power_genset_runs_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -726,8 +712,8 @@ sub power_genset_runs_list {
     [ 'FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(pgr.start_date, '%Y-%m-%d')" ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pgr.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pgr.id
       FROM power_genset_runs pgr
       LEFT JOIN power_gensets pg ON pg.id = pgr.genset_id
       LEFT JOIN power_genset_types pgt ON (pgt.id = pg.type_id)
@@ -737,9 +723,10 @@ sub power_genset_runs_list {
       LEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0
       $WHERE
       GROUP BY pgr.id
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -766,8 +753,7 @@ sub power_genset_runs_list {
 =cut
 #**********************************************************
 sub power_genset_run_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_genset_runs', $attr);
 
@@ -790,13 +776,13 @@ sub power_genset_run_del {
 =cut
 #**********************************************************
 sub power_genset_run_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_genset_runs WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+   SELECT * FROM power_genset_runs WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -820,8 +806,7 @@ sub power_genset_run_info {
 =cut
 #**********************************************************
 sub power_genset_run_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -847,8 +832,7 @@ sub power_genset_run_change {
 =cut
 #**********************************************************
 sub power_genset_service_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_genset_services', $attr);
 
@@ -869,8 +853,7 @@ sub power_genset_service_add {
 =cut
 #**********************************************************
 sub power_genset_services_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -889,8 +872,8 @@ sub power_genset_services_list {
     [ 'FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(pgs.service_date, '%Y-%m-%d')" ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pgs.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pgs.id
       FROM power_genset_services pgs
       LEFT JOIN power_service_types pst ON pst.id = pgs.service_type_id
       LEFT JOIN power_gensets pg ON pg.id = pgs.genset_id
@@ -901,9 +884,10 @@ sub power_genset_services_list {
       LEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0
       $WHERE
       GROUP BY pgs.id
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -930,8 +914,7 @@ sub power_genset_services_list {
 =cut
 #**********************************************************
 sub power_genset_service_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_genset_services', $attr);
 
@@ -954,13 +937,13 @@ sub power_genset_service_del {
 =cut
 #**********************************************************
 sub power_genset_service_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_genset_services WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+    SELECT * FROM power_genset_services WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -984,8 +967,7 @@ sub power_genset_service_info {
 =cut
 #**********************************************************
 sub power_genset_service_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -1011,8 +993,7 @@ sub power_genset_service_change {
 =cut
 #**********************************************************
 sub power_genset_refuel_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('power_genset_refuels', $attr);
 
@@ -1033,8 +1014,7 @@ sub power_genset_refuel_add {
 =cut
 #**********************************************************
 sub power_genset_refuels_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1054,8 +1034,8 @@ sub power_genset_refuels_list {
     [ 'FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(pgf.date, '%Y-%m-%d')" ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pgf.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} pgf.id
       FROM power_genset_refuels pgf
       LEFT JOIN power_gensets pg ON pg.id = pgf.genset_id
       LEFT JOIN power_genset_types pgt ON (pgt.id = pg.type_id)
@@ -1065,9 +1045,10 @@ sub power_genset_refuels_list {
       LEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0
       $WHERE
       GROUP BY pgf.id
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -1094,8 +1075,7 @@ sub power_genset_refuels_list {
 =cut
 #**********************************************************
 sub power_genset_refuel_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('power_genset_refuels', $attr);
 
@@ -1118,13 +1098,13 @@ sub power_genset_refuel_del {
 =cut
 #**********************************************************
 sub power_genset_refuel_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM power_genset_refuels WHERE id= ? ;",
-    undef,
-    {
+  my $sql = <<'SQL';
+    SELECT * FROM power_genset_refuels WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
     }
@@ -1148,8 +1128,7 @@ sub power_genset_refuel_info {
 =cut
 #**********************************************************
 sub power_genset_refuel_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',

@@ -16,8 +16,6 @@ use strict;
 our $VERSION = 2.02;
 use parent qw(dbcore);
 
-my ($admin, $CONF);
-
 #**********************************************************
 =head2 function new() - add TP\'s information to datebase
 
@@ -30,9 +28,7 @@ my ($admin, $CONF);
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
   my $self = {
     db    => $db,
@@ -65,8 +61,7 @@ sub new {
 =cut
 #**********************************************************
 sub portal_menu_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('portal_menu', { %{$attr}, DATE => 'now()' });
 
@@ -87,34 +82,29 @@ sub portal_menu_add {
 =cut
 #**********************************************************
 sub portal_menu_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = $attr->{PG} ? $attr->{PG} : 0;
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
-
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ID',       'INT',   'pm.id',                   1 ],
     [ 'NAME',     'STR',   'pm.name',                 1 ],
     [ 'URL',      'STR',   'pm.url',                  1 ],
     [ 'DATE',     'STR',   'DATE(pm.date) as date',   1 ],
-    [ 'STATUS',   'INT',   'pm.status',               1 ],
-  ], { WHERE => 1 });
-
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pm.id
-      FROM portal_menu pm
-      $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;;",
-    undef, $attr
+    [ 'STATUS',   'INT',   'pm.status',               1 ]
   );
+
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+  SELECT $self->{SEARCH_FIELDS} pm.id
+  FROM portal_menu pm
+  $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total FROM portal_menu pm
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM portal_menu pm $WHERE;",
     undef,
     { INFO => 1 }
   );
@@ -136,8 +126,7 @@ sub portal_menu_list {
 =cut
 #**********************************************************
 sub portal_menu_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('portal_menu', $attr);
 
@@ -160,11 +149,9 @@ sub portal_menu_del {
 =cut
 #**********************************************************
 sub portal_menu_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM portal_menu WHERE id= ? ;",
+  $self->query("SELECT * FROM portal_menu WHERE id= ? ;",
     undef,
     {
       INFO => 1,
@@ -195,8 +182,7 @@ sub portal_menu_info {
 =cut
 #**********************************************************
 sub portal_menu_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -230,8 +216,7 @@ sub portal_menu_change {
 =cut
 #**********************************************************
 sub portal_article_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('portal_articles', $attr);
 
@@ -253,14 +238,9 @@ sub portal_article_add {
 =cut
 #**********************************************************
 sub portal_articles_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'date';
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : 'desc';
-  my $PG = $attr->{PG} ? $attr->{PG} : 0;
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
 
   if (defined($attr->{ID})) {
     push @WHERE_RULES, "pa.id='$attr->{ID}' OR pa.permalink='$attr->{ID}'";
@@ -277,8 +257,8 @@ sub portal_articles_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT pa.id,
+  my $sql = <<"SQL";
+  SELECT pa.id,
       pa.title,
       pa.short_description,
       pa.content,
@@ -311,8 +291,10 @@ sub portal_articles_list {
       LEFT JOIN `streets` st ON (st.id=pa.street_id)
       LEFT JOIN `tags` tg ON (tg.id=pa.tags)
       $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr
-  );
+SQL
+
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
@@ -338,8 +320,7 @@ sub portal_articles_list {
 =cut
 #**********************************************************
 sub portal_article_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('portal_articles', $attr);
   $self->query_del('portal_newsletters', {}, { PORTAL_ARTICLE_ID => $attr->{ID} }) if ($attr->{ID});
@@ -363,12 +344,9 @@ sub portal_article_del {
 =cut
 #**********************************************************
 sub portal_article_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM portal_articles AS pa
-      WHERE pa.id= ? ;",
+  $self->query("SELECT * FROM portal_articles AS pa WHERE pa.id= ? ;",
     undef,
     {
       INFO => 1,
@@ -402,8 +380,7 @@ sub portal_article_info {
 =cut
 #**********************************************************
 sub portal_article_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{ON_MAIN_PAGE} //= 0;
   $attr->{GID} //= 0;
@@ -438,8 +415,7 @@ sub portal_article_change {
 =cut
 #**********************************************************
 sub portal_newsletter_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('portal_newsletters', $attr);
 
@@ -462,8 +438,7 @@ sub portal_newsletter_add {
 =cut
 #**********************************************************
 sub portal_newsletter_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -490,8 +465,7 @@ sub portal_newsletter_change {
 =cut
 #**********************************************************
 sub portal_newsletter_delete {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('portal_newsletters', $attr);
 
@@ -511,14 +485,9 @@ sub portal_newsletter_delete {
 =cut
 #**********************************************************
 sub portal_newsletter_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
-  my $DESC = (defined $attr->{DESC}) ? $attr->{DESC} : 'desc';
-  my $PG = $attr->{PG} ? $attr->{PG} : 0;
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
 
   if (defined($attr->{ID})) {
     push @WHERE_RULES, "pa.id='$attr->{ID}' OR pa.permalink='$attr->{ID}'";
@@ -538,54 +507,54 @@ sub portal_newsletter_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT
-      pn.id,
-      pa.title,
-      pn.send_method,
-      pn.status,
-      pn.sent,
-      pn.start_datetime,
-      DATE(pa.date) as date,
-      pa.id AS article_id,
-      pa.short_description,
-      pa.content,
-      pa.on_main_page,
-      pa.archive,
-      pa.importance,
-      pa.gid,
-      pa.domain_id,
-      pa.tags,
-      pa.street_id,
-      pa.district_id,
-      pa.build_id,
-      pa.address_flat,
-      pa.permalink,
-      DATE(pa.end_date) as end_date,
-      UNIX_TIMESTAMP(pa.end_date) as etimestamp,
-      UNIX_TIMESTAMP(pa.date) as utimestamp,
-      pa.portal_menu_id,
-      pa.picture,
-      pm.name,
-      pa.deeplink
-      FROM `portal_newsletters` pn
-      LEFT JOIN `portal_articles` pa ON (pa.id=pn.portal_article_id)
-      LEFT JOIN `portal_menu` pm ON (pm.id=pa.portal_menu_id)
-      $WHERE
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  pn.id,
+  pa.title,
+  pn.send_method,
+  pn.status,
+  pn.sent,
+  pn.start_datetime,
+  DATE(pa.date) as date,
+  pa.id AS article_id,
+  pa.short_description,
+  pa.content,
+  pa.on_main_page,
+  pa.archive,
+  pa.importance,
+  pa.gid,
+  pa.domain_id,
+  pa.tags,
+  pa.street_id,
+  pa.district_id,
+  pa.build_id,
+  pa.address_flat,
+  pa.permalink,
+  DATE(pa.end_date) as end_date,
+  UNIX_TIMESTAMP(pa.end_date) as etimestamp,
+  UNIX_TIMESTAMP(pa.date) as utimestamp,
+  pa.portal_menu_id,
+  pa.picture,
+  pm.name,
+  pa.deeplink
+FROM `portal_newsletters` pn
+       LEFT JOIN `portal_articles` pa ON (pa.id=pn.portal_article_id)
+       LEFT JOIN `portal_menu` pm ON (pm.id=pa.portal_menu_id)
+  $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total
+  $sql = <<"SQL";
+SELECT COUNT(*) AS total
     FROM portal_newsletters pn
     LEFT JOIN `portal_articles` pa ON (pa.id=pn.portal_article_id)
     LEFT JOIN `portal_menu` pm ON (pm.id=pa.portal_menu_id)
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+    $WHERE;
+SQL
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -602,15 +571,13 @@ sub portal_newsletter_list {
 =cut
 #**********************************************************
 sub attachment_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('portal_attachments', $attr);
 
   return $self;
 }
 
-#TODO: search_expr
 #**********************************************************
 =head2 function attachment_info() - attachment info by id
 
@@ -623,8 +590,7 @@ sub attachment_add {
 =cut
 #**********************************************************
 sub attachment_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query(
     "SELECT * FROM portal_attachments WHERE id = ?;",
@@ -650,13 +616,7 @@ sub attachment_info {
 =cut
 #**********************************************************
 sub attachment_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = $attr->{SORT} ? $attr->{SORT} : 'pa.id';
-  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
-  my $PG = $attr->{PG} ? $attr->{PG} : 0;
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',            'INT',   'pa.id',                                      1 ],
@@ -666,18 +626,11 @@ sub attachment_list {
     [ 'UPLOADED_AT',   'DATE',  "DATE(pa.uploaded_at) as uploaded_at",        1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} pa.id
-      FROM portal_attachments pa
-      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  $self->query_list("SELECT $self->{SEARCH_FIELDS} pa.id FROM portal_attachments pa $WHERE",  $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total FROM portal_attachments pa
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM portal_attachments pa $WHERE;",
     undef,
     { INFO => 1 }
   );
@@ -697,8 +650,7 @@ sub attachment_list {
 =cut
 #**********************************************************
 sub attachment_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('portal_attachments', { ID => $id });
 

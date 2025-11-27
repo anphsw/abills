@@ -117,8 +117,7 @@ sub get_user_msgs {
 =cut
 #**********************************************************
 sub post_user_msgs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %extra_params = ();
 
@@ -140,7 +139,7 @@ sub post_user_msgs {
     $extra_params{RESPONSIBLE} = $chapter->{RESPONSIBLE} if ($chapter->{RESPONSIBLE});
   }
 
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
+  #::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
   $Msgs->message_add({
     SUBJECT   => $query_params->{SUBJECT} || q{},
     MESSAGE   => $query_params->{MESSAGE} || q{},
@@ -248,7 +247,7 @@ sub get_user_msgs_id_reply {
 
       foreach my $attachment (@$attachments_list) {
         my $content = $attachment->{content} || '';
-        my ($file_path) = $content =~ /Abills\/templates(\/.+)/;
+        my ($file_path) = $content =~ /Abills\/templates(\/.+)/xm;
 
         push @{$reply->{attachments}}, {
           id           => $attachment->{id},
@@ -269,11 +268,17 @@ sub get_user_msgs_id_reply {
 
   Endpoint POST /user/msgs/:id/reply/
 
+  Arguments:
+    $path_params,
+    $query_params
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub post_user_msgs_id_reply {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Msgs->message_reply_add({
     REPLY_TEXT => $query_params->{REPLY_TEXT} || '',
@@ -281,8 +286,6 @@ sub post_user_msgs_id_reply {
     UID        => $path_params->{uid},
     STATE      => $query_params->{STATE} || 0,
   });
-
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
 
   $Msgs->message_change({
     ID         => $path_params->{id},
@@ -296,9 +299,12 @@ sub post_user_msgs_id_reply {
     UID      => $path_params->{uid}
   });
 
-  $Notify->notify_admins({ MSG_ID => $path_params->{id}, REPLY_ID => $Msgs->{INSERT_ID} });
+  $Notify->notify_admins({
+    MSG_ID => $path_params->{id},
+    REPLY_ID => $Msgs->{INSERT_ID}
+  });
 
-  ($Msgs->{errno}) ? return 0 : return 1;
+  return ($Msgs->{errno}) ?  0 : 1;
 }
 
 #**********************************************************

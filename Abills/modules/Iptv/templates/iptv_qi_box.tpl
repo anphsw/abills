@@ -7,6 +7,6 @@
   <div class='icon'>
     <i class='fas fa-chart-bar'></i>
   </div>
-  <a href='$SELF_URL?get_index=iptv_user_info' class='small-box-footer'>_{INFO}_ <i
+  <a href='%SELF_URL%?get_index=iptv_user_info' class='small-box-footer'>_{INFO}_ <i
       class='fa fa-arrow-circle-right'></i></a>
 </div>

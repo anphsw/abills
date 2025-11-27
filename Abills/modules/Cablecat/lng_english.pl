@@ -152,6 +152,7 @@ $lang{LINKED_MORE_THAN_ONE_COMMUTATION} = 'Equipment is linked on more than one 
 $lang{CANNOT_GET_USER_SERVICE_LIST} = 'Cannot get user service list';
 $lang{NO_SERVICE_PORTS_TO_TRACE} = 'No service ports to trace';
 $lang{CANNOT_DISPLAY_COMMUTATION_PATH} = 'Cannot display commutation path';
+$lang{ALLOW_PARALLEL_PORTS} = 'Allow parallel ports';
 
 $lang{NOT_USERS_FOR_EQUIPMENT} = 'No user was found on the commutation for this equipment';
 

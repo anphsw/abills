@@ -1,0 +1,33 @@
+post:
+  tags:
+    - storage
+  summary: Добавление установки
+  operationId: storageUserAddInstall
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            serial:
+              type: string
+              example: 1132395129abcd
+              required: true
+              description: Серийный номер оборудования
+            status:
+              type: integer
+              example: 1
+              description: Статус установки (0 — установлено, 1 — продано, 2 — аренда, 3 — в рассрочку, 5 — не активирована рассрочка, 6 — не активирована аренда)
+            months:
+              type: integer
+              example: 12
+              description: Срок рассрочки (в месяцах)
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/storageAddInstallResponse.yaml"

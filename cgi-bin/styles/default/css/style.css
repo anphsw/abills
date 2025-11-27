@@ -1264,3 +1264,48 @@ body:not(.dark-mode) {
 	transform: translateX(-50%) !important;
 	right: auto !important;
 }
+
+.fa-som-sign {
+	display: inline-block;
+	width: 1em;
+	text-align: center;
+	line-height: 1em;
+	font-size: inherit;
+}
+
+.fa-som-sign::before {
+	content: 'c';
+	text-decoration: underline;
+	font-weight: bold;
+	font-size: 1.5em;
+	display: inline-flex;
+}
+
+.fa-manat-sign {
+	display: inline-block;
+	width: 1em;
+	text-align: center;
+	line-height: 0.8em;
+	font-size: inherit;
+}
+
+.fa-manat-sign::before {
+	content: '\20BC';
+	font-weight: bold;
+	font-size: 1.5em;
+	display: inline-flex;
+}
+
+.fa-dram-sign {
+	display: inline-block;
+	width: 1em;
+	text-align: center;
+	font-size: inherit;
+}
+
+.fa-dram-sign::before {
+	content: '\058F';
+	font-weight: bold;
+	font-size: 1.3em;
+	display: inline-flex;
+}

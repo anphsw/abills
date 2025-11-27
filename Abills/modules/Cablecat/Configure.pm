@@ -314,6 +314,17 @@ sub cablecat_cables {
         $Maps->points_change({ ID => $cable->{POINT_ID}, COMMENTS => $FORM{COMMENTS} });
       }
     }
+
+    if ($FORM{ARTICLE_ID}) {
+      load_module('Storage', $html);
+      $FORM{add} = 1;
+      storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
+      $Cablecat->cablecat_storage_installation_add({
+        OBJECT_ID       => $FORM{ID},
+        INSTALLATION_ID => $FORM{INSTALLATION_ID},
+        TYPE            => $STORAGE_TYPES{CABLE}
+      }) if $FORM{INSTALLATION_ID};
+    }
   }
   elsif ($FORM{chg}) {
     $sub_create_cable_point->($FORM{chg}) if ($FORM{CREATE_OBJECT});
@@ -327,7 +338,13 @@ sub cablecat_cables {
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = sprintf("%.2f", _cablecat_cable_length($FORM{chg})) if !$TEMPLATE_ARGS{LENGTH_CALCULATED};
 
     $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = cablecat_storage_installations($FORM{chg}, $STORAGE_TYPES{CABLE});
-    $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
+    if (!$Cablecat->{TOTAL} || $Cablecat->{TOTAL} < 1) {
+      $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = '';
+      $TEMPLATE_ARGS{SHOW_STORAGE_FORM} = 1;
+    }
+    else {
+      $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
+    }
   }
   elsif ($FORM{del}) {
     $Cablecat->delete_links_for_element('CABLE', $FORM{del});
@@ -411,7 +428,7 @@ sub cablecat_cables {
 
     $html->tpl_show(_include('cablecat_cable', 'Cablecat'), {
       %TEMPLATE_ARGS,
-      %{_cablecat_storage_installation_template() || {}},
+      %{_cablecat_storage_installation_template(\%TEMPLATE_ARGS) || {}},
       CABLE_TYPE_SELECT => _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
       SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
       SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
@@ -1704,6 +1721,7 @@ sub cablecat_crosses {
   }
   elsif ($FORM{change}) {
     $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
+    $FORM{ALLOW_PARALLEL_PORTS} //= 0;
     $Cablecat->crosses_change({ %FORM });
     show_result($Cablecat, $lang{CHANGED});
     $show_add_form = 1;
@@ -1711,6 +1729,7 @@ sub cablecat_crosses {
   elsif ($FORM{chg}) {
     my $tp_info = $Cablecat->crosses_info($FORM{chg});
     if (!_error_show($Cablecat)) {
+      $tp_info->{ALLOW_PARALLEL_PORTS} = 'checked' if $tp_info->{ALLOW_PARALLEL_PORTS};
       %TEMPLATE_ARGS = %{$tp_info};
       $show_add_form = 1;
     }
@@ -2469,7 +2488,7 @@ sub cablecat_storage_installations {
 sub _cablecat_storage_installation_template {
   my ($attr) = @_;
 
-  return {} if (!in_array('Storage', \@MODULES) || $FORM{chg} || ($admin->{MODULES} && !$admin->{MODULES}{Storage}));
+  return {} if (!in_array('Storage', \@MODULES) || ($FORM{chg} && !$attr->{SHOW_STORAGE_FORM}) || ($admin->{MODULES} && !$admin->{MODULES}{Storage}));
 
   load_module('Storage', $html);
   my $Storage = Storage->new($db, $admin, \%conf);

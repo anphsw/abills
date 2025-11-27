@@ -65,7 +65,7 @@
 
     <div class='card card-primary card-outline card-form collapsed-card'>
       <div class='card-header with-border'>
-        <h4 class='card-title'>EPON</h4>
+        <h4 class='card-title'>EPON <span class="badge bg-primary">%EPON_BRANCH_QUANTITY%</span></h4>
         <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
         </div>
@@ -77,7 +77,7 @@
 
     <div class='card card-primary card-outline card-form collapsed-card'>
       <div class='card-header with-border'>
-        <h4 class='card-title'>GPON</h4>
+        <h4 class='card-title'>GPON <span class="badge bg-primary">%GPON_BRANCH_QUANTITY%</span></h4>
         <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
         </div>
@@ -97,7 +97,7 @@
 
 <script>
   jQuery(document).ready(function () {
-    fetch('$SELF_URL?header=2&get_index=equipment_info&visual=4&NAS_ID=%NAS_ID%&unreg_btn_ajax=1&PON_TYPE=%PON_TYPE%')
+    fetch('%SELF_URL%?header=2&get_index=equipment_info&visual=4&NAS_ID=%NAS_ID%&unreg_btn_ajax=1&PON_TYPE=%PON_TYPE%')
       .then(function (response) {
         if (!response.ok)
           throw Error(response.statusText);

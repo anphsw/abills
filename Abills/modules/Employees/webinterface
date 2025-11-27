@@ -423,7 +423,7 @@ sub _employees_change_geolocation {
   return '' if !$attr->{EID};
 
   if ($attr->{CLEAR}) {
-    $Employees->del_geo({ EMPLOYEE_ID => $attr->{EID} });
+    $Employees->geo_del({ EMPLOYEE_ID => $attr->{EID} });
     $html->message('info', $lang{GEO}, $lang{DELETED}) if (!_error_show($Employees));
     return '';
   }
@@ -438,11 +438,11 @@ sub _employees_change_geolocation {
   @builds = split(',\s?', $attr->{BUILD_ID}) if (defined $attr->{BUILD_ID});
   @districts = split(',\s?', $attr->{DISTRICT_ID}) if (defined $attr->{DISTRICT_ID});
 
-  $Employees->del_geo({ EMPLOYEE_ID => $attr->{EID} });
+  $Employees->geo_del({ EMPLOYEE_ID => $attr->{EID} });
 
-  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, BUILD_ID => $_ }), @builds;
-  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, STREET_ID => $_ }), @streets;
-  map $Employees->add_geo({ EMPLOYEE_ID => $attr->{EID}, DISTRICT_ID => $_ }), @districts;
+  map $Employees->geo_add({ EMPLOYEE_ID => $attr->{EID}, BUILD_ID => $_ }), @builds;
+  map $Employees->geo_add({ EMPLOYEE_ID => $attr->{EID}, STREET_ID => $_ }), @streets;
+  map $Employees->geo_add({ EMPLOYEE_ID => $attr->{EID}, DISTRICT_ID => $_ }), @districts;
 
   return 1;
 }
@@ -460,7 +460,7 @@ sub employees_positions {
 
   # add position
   if ($FORM{action} && $FORM{action} eq 'add') {
-    $Employees->add_position({ %FORM });
+    $Employees->position_add({ %FORM });
 
     if (!$Employees->{errno}) {
       $html->message('info', $lang{POSITION}, "$lang{ADDED}");
@@ -478,7 +478,7 @@ sub employees_positions {
   }
   #del position
   if ($FORM{del}) {
-    $Employees->del_position({ ID => $FORM{del} });
+    $Employees->position_del({ ID => $FORM{del} });
 
     if (!$Employees->{errno}) {
       $html->message('err', $lang{POSITION}, "$lang{DELETED}");
@@ -1049,7 +1049,7 @@ sub question_show {
   $info{SORT_POSITION_ID} = $FORM{SORT_POSITION_ID};
 
   if ($FORM{add}) {
-    $Employees->add_question(
+    $Employees->question_add(
       {
         QUESTION    => $FORM{QUESTION},
         POSITION_ID => $FORM{POSITION}
@@ -1057,7 +1057,7 @@ sub question_show {
     );
   }
   elsif ($FORM{del}) {
-    $Employees->del_question({ ID => $FORM{del} });
+    $Employees->question_del({ ID => $FORM{del} });
   }
   elsif ($FORM{chg}) {
     $info{BUTTON_NAME} = 'chang';
@@ -1158,7 +1158,7 @@ sub employees_registration {
     $html->tpl_show(_include('employees_question_list', 'Employees'), { %Registration, %$attr });
   }
   elsif ($FORM{add_data}) {
-    $Employees->add_profile(
+    $Employees->profile_add(
       {
         FIO           => $FORM{FIO},
         DATE_OF_BIRTH => $FORM{DATE},
@@ -1195,7 +1195,7 @@ sub employees_registration {
     #Add reply in and ID of profile
     foreach my $line (@$resul_list) {
       if ($FORM{ 'QUESTION_' . $line->{id} }) {
-        $Employees->add_reply(
+        $Employees->reply_add(
           {
             REPLY       => $FORM{ 'QUESTION_' . $line->{id} },
             QUESTION_ID => $line->{id},
@@ -1274,7 +1274,7 @@ sub profile_list_admin {
   my %info;
 
   if ($FORM{del}) {
-    $Employees->del_profile({ ID => $FORM{del} });
+    $Employees->profile_del({ ID => $FORM{del} });
   }
 
   if ($FORM{wtch}) {
@@ -1282,7 +1282,7 @@ sub profile_list_admin {
     $info{wtch} = $FORM{wtch};
 
     if ($FORM{add_rating}) {
-      $Employees->change_profile(
+      $Employees->profile_change(
         {
           ID     => $FORM{wtch},
           RATING => $FORM{RATING}
@@ -2721,13 +2721,15 @@ sub employees_send_sms_to_anyone {
   $html->message('info ', $lang{SEND_SMS_TO_ANYONE});
 
   if ($FORM{send}) {
-    load_module('Sms', $html);
+    require Abills::Sender::Core;
+    Abills::Sender::Core->import();
+    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
-    my $sms_id = sms_send(
-      {
-        NUMBER  => $FORM{PHONE_NUMBER},
-        MESSAGE => $FORM{MESSAGE},
-      });
+    my $sms_id = $Sender->send_message({
+      TO_ADDRESS  => $FORM{PHONE_NUMBER},
+      MESSAGE     => $FORM{MESSAGE},
+      SENDER_TYPE => 'Sms',
+    });
 
     if ($sms_id) {
       return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");

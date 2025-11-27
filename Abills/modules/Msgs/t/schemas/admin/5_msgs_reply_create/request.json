@@ -1,0 +1,19 @@
+{
+  "name": "ADMIN_MSGS_MSG_REPLY_CREATE",
+  "method": "POST",
+  "path": "msgs/:id/reply/",
+  "body": {
+    "replyText": "Reply text",
+    "runTime": "00:30:15",
+    "replyInnerMsg": 1,
+    "state": 3
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "reply_id",
+        "value": "insertId"
+      }
+    ]
+  }
+}

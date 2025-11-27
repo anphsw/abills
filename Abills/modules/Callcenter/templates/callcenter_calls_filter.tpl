@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' METHOD=POST class='form-horizontal'>
-    <input type='hidden' name='index' value=$index>
+    <input type='hidden' name='index' value=%index%>
     <input type='hidden' name='search_form' value='1'>
 
     <div class='card card-primary card-outline box-form container-md'>
@@ -65,7 +65,7 @@
 
         <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name='search' value='_{FILTER}_'>
-            <a href='%SELF_URL%?index=$index&refresh=1' type='button' class='btn btn-success'
+            <a href='%SELF_URL%?index=%index%&refresh=1' type='button' class='btn btn-success'
                data-tooltip='_{FILLING_DATA}_' data-visible='%REFRESH_VISIBILITY%'>
                 <span class='fas fa-sync' aria-hidden='true'></span>
             </a>

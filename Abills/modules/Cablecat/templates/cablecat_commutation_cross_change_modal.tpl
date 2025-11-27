@@ -3,7 +3,7 @@
   <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' id='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' method='post'
           class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='COMMUTATION_ID' value='%COMMUTATION_ID%'/>
 
       <input type='hidden' name='operation' value='SAVE_PORTS'/>

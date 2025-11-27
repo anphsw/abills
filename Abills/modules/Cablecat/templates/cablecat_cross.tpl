@@ -1,5 +1,5 @@
 <form name='CABLECAT_CROSS' id='form_CABLECAT_CROSS' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
@@ -32,6 +32,15 @@
         <label class='col-md-4 col-form-label text-md-right' for='COLOR_SCHEME_ID_SELECT'>_{COLOR_SCHEME}_:</label>
         <div class='col-md-8'>
           %COLOR_SCHEME_ID_SELECT%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ALLOW_PARALLEL_PORTS'>_{ALLOW_PARALLEL_PORTS}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='ALLOW_PARALLEL_PORTS' name='ALLOW_PARALLEL_PORTS' %ALLOW_PARALLEL_PORTS% value='1'>
+          </div>
         </div>
       </div>
 

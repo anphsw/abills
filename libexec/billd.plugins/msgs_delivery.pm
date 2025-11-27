@@ -20,6 +20,7 @@ use strict;
 use warnings;
 use Abills::Base qw(sendmail in_array);
 use Abills::Sender::Core;
+use Msgs::db::Delivery;
 use Msgs;
 use Users;
 
@@ -31,7 +32,6 @@ our (
   $db,
   $argv,
   %LIST_PARAMS,
-  %lang
 );
 
 my $Sender = Abills::Sender::Core->new(
@@ -42,7 +42,7 @@ my $Sender = Abills::Sender::Core->new(
 
 my $Log = Log->new($db, $Admin);
 my %list_params = %LIST_PARAMS;
-our $html = Abills::HTML->new({ CONF => \%conf });
+my $html = Abills::HTML->new({ CONF => \%conf });
 %LIST_PARAMS = %list_params;
 
 if ($debug > 2) {
@@ -53,24 +53,30 @@ else {
 }
 
 if ($argv->{CUSTOM_DELIVERY}) {
-  custom_delivery();
+  custom_delivery($argv);
 }
 else {
-  msgs_delivery();
+  msgs_delivery($argv);
 }
 
 #**********************************************************
-=head2 msgs_delivery($attr) - Msgs delivery function
+=head2 custom_delivery($attr) - Msgs delivery function
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub custom_delivery {
+  my($attr)=@_;
 
-  my $text = get_content($argv->{CUSTOM_DELIVERY});
+  my $text = get_content($attr->{CUSTOM_DELIVERY});
 
   my $addresses = '';
-  if ($argv->{ADDRESS_LIST}) {
-    $addresses = get_content($argv->{ADDRESS_LIST});
+  if ($attr->{ADDRESS_LIST}) {
+    $addresses = get_content($attr->{ADDRESS_LIST});
   }
   else {
     print "No address list ADDRESS_LIST=address_list\n";
@@ -79,11 +85,11 @@ sub custom_delivery {
 
   my $subject = '';
 
-  if ($text =~ s/Subject: (.+)//) {
+  if ($text =~ s/Subject:\s+(.+)//x) {
     $subject = $1;
   }
 
-  my @address_list = split(/\n\r?/, $addresses);
+  my @address_list = split(/[\n\r]+/x, $addresses);
 
   foreach my $to_address (@address_list) {
     print "$to_address // $subject \n\n $text \n" if ($debug > 3);
@@ -93,7 +99,6 @@ sub custom_delivery {
       MESSAGE     => $text,
       SUBJECT     => $subject,
       SENDER_TYPE => 'Mail',
-      #UID       => 1
     });
   }
 
@@ -101,7 +106,12 @@ sub custom_delivery {
 }
 
 #**********************************************************
-=head2 msgs_delivery($attr) - Msgs delivery function
+=head2 get_content($attr) - Get content
+
+  Arguments:
+    filename
+  Results:
+    $content
 
 =cut
 #**********************************************************
@@ -127,27 +137,39 @@ sub get_content {
 #**********************************************************
 =head2 msgs_delivery($attr) - Msgs delivery function
 
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub msgs_delivery {
-  #my ($attr) = @_;
+  my ($attr) = @_;
 
   my $debug_output = '';
   $debug_output .= "Mdelivery\n" if ($debug > 1);
 
   my $send_methods = $Sender->available_types({ HASH_RETURN => 1 });
 
-  my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
-  my $SEND_DATE = $argv->{DATE} || $DATE;
+  my $Delivery = Msgs::db::Delivery->new($db, $Admin, \%conf);
+  my $Msgs = Msgs->new($db, $Admin, \%conf);
+  my $SEND_DATE = $attr->{DATE} || $DATE;
   my $SEND_TIME = $TIME;
 
-  $LIST_PARAMS{STATUS} = 0;
-  $LIST_PARAMS{SEND_DATE} = "<=$SEND_DATE";
-  $LIST_PARAMS{SEND_TIME} = "<=$SEND_TIME" if (! $argv->{DATE});
+  if ($attr->{DELIVERY_ID}) {
+    $LIST_PARAMS{ID}        = $attr->{DELIVERY_ID} ;
+  }
+  else {
+    $LIST_PARAMS{STATUS} = 0;
+    $LIST_PARAMS{SEND_DATE} = "<=$SEND_DATE";
+    $LIST_PARAMS{SEND_TIME} = "<=$SEND_TIME" if (! $attr->{DATE});
+  }
 
-  $Msgs_delivery->{debug} = 1 if $debug > 6;
+  $Delivery->{debug} = 1 if ($debug > 6);
 
-  my $delivery_list = $Msgs_delivery->msgs_delivery_list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $delivery_list = $Delivery->delivery_list({ %LIST_PARAMS, COLS_NAME => 1 });
 
   my $users = Users->new($db, $Admin, \%conf);
   my $Internet;
@@ -158,14 +180,15 @@ sub msgs_delivery {
   }
 
   foreach my $mdelivery (@$delivery_list) {
-    $Msgs_delivery->msgs_delivery_info($mdelivery->{id});
+    $Delivery->delivery_info($mdelivery->{id});
 
-    my $send_method_id = $Msgs_delivery->{SEND_METHOD} ? $Msgs_delivery->{SEND_METHOD} : 0;
+    my $send_method_id = $Delivery->{SEND_METHOD} ? $Delivery->{SEND_METHOD} : 0;
 
     $LIST_PARAMS{PAGE_ROWS} = 1000000;
     $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
+    delete $LIST_PARAMS{ID};
 
-    my $attachments = $Msgs_delivery->attachments_list({
+    my $attachments = $Msgs->attachments_list({
       FILENAME     => '_SHOW',
       CONTENT_TYPE => '_SHOW',
       CONTENT_SIZE => '_SHOW',
@@ -175,7 +198,7 @@ sub msgs_delivery {
     });
 
     my @ATTACHMENTS = ();
-    if ($Msgs_delivery->{TOTAL} > 0) {
+    if ($Msgs->{TOTAL} > 0) {
       foreach my $attachment (@{$attachments}) {
         push @ATTACHMENTS, {
           ATTACHMENT_ID => $attachment->{id},
@@ -191,7 +214,7 @@ sub msgs_delivery {
       }
     }
 
-    my $user_list = $Msgs_delivery->delivery_user_list({
+    my $user_list = $Delivery->user_list({
       %LIST_PARAMS,
       PASSWORD  => '_SHOW',
       STATUS    => 0,
@@ -199,7 +222,7 @@ sub msgs_delivery {
     });
 
     foreach my $u (@$user_list) {
-      $Msgs_delivery->{SENDER} = ($Msgs_delivery->{SENDER}) ? $Msgs_delivery->{SENDER} : $conf{ADMIN_MAIL};
+      $Delivery->{SENDER} = ($Delivery->{SENDER}) ? $Delivery->{SENDER} : $conf{ADMIN_MAIL};
 
       $Log->log_print('LOG_DEBUG', $u->{uid}, "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) UID: $u->{uid}");
 
@@ -219,7 +242,7 @@ sub msgs_delivery {
         $internet_info->{DAY_FEE} = $internet_info->{DAY_FEE} - (($internet_info->{DAY_FEE} / 100) * $users->{REDUCTION}) if $internet_info->{DAY_FEE};
       }
 
-      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {
+      my $message = $html->tpl_show($Delivery->{TEXT}, {
         %$user_pi,
         %$internet_info,
         USER_LOGIN => $u->{login},
@@ -227,27 +250,27 @@ sub msgs_delivery {
       }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 
       if ($debug < 6) {
-        if (!$Msgs_delivery->{SEND_METHOD}) {
-          $Msgs_delivery->message_add({
+        if (!$Delivery->{SEND_METHOD}) {
+          $Msgs->message_add({
             UID        => $user_pi->{UID},
             STATE      => 6,
             ADMIN_READ => "$DATE $TIME",
-            SUBJECT    => $Msgs_delivery->{SUBJECT},
-            PRIORITY   => $Msgs_delivery->{PRIORITY},
-            MESSAGE    => $Msgs_delivery->{TEXT},
+            SUBJECT    => $Delivery->{SUBJECT},
+            PRIORITY   => $Delivery->{PRIORITY},
+            MESSAGE    => $Delivery->{TEXT},
           });
         }
         else {
           my $status = $Sender->send_message({
-            SENDER      => $Msgs_delivery->{SENDER},
+            SENDER      => $Delivery->{SENDER},
             MESSAGE     => $message,
-            SUBJECT     => $Msgs_delivery->{SUBJECT},
-            SENDER_TYPE => $Msgs_delivery->{SEND_METHOD} || 0,
+            SUBJECT     => $Delivery->{SUBJECT},
+            SENDER_TYPE => $Delivery->{SEND_METHOD} || 0,
             ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
             UID         => $user_pi->{UID}
           });
 
-          $Msgs_delivery->delivery_user_list_change({
+          $Delivery->user_list_change({
             MDELIVERY_ID => $mdelivery->{id} || '-',
             UID          => $u->{uid},
             STATUS       => $status ? 1 : 2
@@ -258,17 +281,17 @@ sub msgs_delivery {
           }
         }
 
-        if ($argv->{SLEEP}) {
-          sleep int($argv->{SLEEP});
+        if ($attr->{SLEEP}) {
+          sleep int($attr->{SLEEP});
         }
       }
       elsif ($debug > 7) {
-        $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: " . "$u->{id} " . "$message\n";
+        $debug_output .= "TYPE: $Delivery->{SEND_METHOD} TO: " . "$u->{id} " . "$message\n";
       }
     }
 
     if (!$LIST_PARAMS{LOGIN}) {
-      $Msgs_delivery->msgs_delivery_change({
+      $Delivery->delivery_change({
         ID          => $mdelivery->{id} || '-',
         SENDED_DATE => "$DATE $TIME",
         STATUS      => 2
@@ -281,5 +304,5 @@ sub msgs_delivery {
   return $debug_output;
 }
 
-1
+1;
 

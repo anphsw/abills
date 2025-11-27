@@ -44,8 +44,7 @@ sub new {
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
@@ -57,51 +56,57 @@ sub list {
   my $EXT_TABLES = '';
   my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
 
-  my $WHERE =  $self->search_former($attr, [
-      ['NAS_ID',           'INT', 'nas.id',      'nas.id AS nas_id'      ],
-      ['NAS_NAME',         'STR', 'nas.name',    'nas.name AS nas_name'  ],
-      ['NAS_IDENTIFIER',   'STR', 'nas.nas_identifier',                1 ],
-      ['NAS_IP',           'IP',  'nas.ip',      'INET_NTOA(ip) AS ip'   ],
-      ['NAS_TYPE',         'STR', 'nas.nas_type',                      1 ],
-      ['DISABLE',          'INT', 'nas.disable',                       1 ],
-      ['DESCR',            'STR', 'nas.descr',                         1 ],
-      ['NAS_GROUP_NAME',   'STR', 'ng.name',  'ng.name AS nas_group_name'],
-      ['ALIVE',            'INT', 'nas.alive',                         1 ],
-      ['DOMAIN_ID',        'INT', 'nas.domain_id',                     1 ],
-      ['MAC',              'STR', 'nas.mac',                           1 ],
-      ['GID',              'INT', 'nas.gid',                           1 ],
-      ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name'],
-      ['LOCATION_ID',      'INT', 'nas.location_id',                   1 ],
-      #['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
-      #['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
-      ['NAS_MNG_HOST_PORT','STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port' ],
-      ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user',       ],
-      ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
-      ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs'     ],
-      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'           ],
-      ['NAS_IDS',          'INT', 'nas.id'                                              ],
-      ['NAS_FLOOR',        'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
-      ['NAS_ENTRANCE',     'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'   ],
-      ['ADDRESS_FULL',     'STR', "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
-        "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat)",
-        "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
-          "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat) AS address_full" ],
-      ['ZABBIX_HOSTID',  'INT', 'nas.zabbix_hostid', 1 ]
-    ],
+  my @search_params = (
+    ['NAS_ID',           'INT', 'nas.id',      'nas.id AS nas_id'      ],
+    ['NAS_NAME',         'STR', 'nas.name',    'nas.name AS nas_name'  ],
+    ['NAS_IDENTIFIER',   'STR', 'nas.nas_identifier',                1 ],
+    ['NAS_IP',           'IP',  'nas.ip',      'INET_NTOA(ip) AS ip'   ],
+    ['NAS_TYPE',         'STR', 'nas.nas_type',                      1 ],
+    ['DISABLE',          'INT', 'nas.disable',                       1 ],
+    ['DESCR',            'STR', 'nas.descr',                         1 ],
+    ['NAS_GROUP_NAME',   'STR', 'ng.name',  'ng.name AS nas_group_name'],
+    ['ALIVE',            'INT', 'nas.alive',                         1 ],
+    ['DOMAIN_ID',        'INT', 'nas.domain_id',                     1 ],
+    ['MAC',              'STR', 'nas.mac',                           1 ],
+    ['GID',              'INT', 'nas.gid',                           1 ],
+    ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name'],
+    ['LOCATION_ID',      'INT', 'nas.location_id',                   1 ],
+    #['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+    #['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
+    ['NAS_MNG_HOST_PORT','STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port' ],
+    ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user',       ],
+    ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
+    ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs'     ],
+    ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'           ],
+    ['NAS_IDS',          'INT', 'nas.id'                                              ],
+    ['NAS_FLOOR',        'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
+    ['NAS_ENTRANCE',     'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'   ],
+    ['ADDRESS_FULL',     'STR', "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+      "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat)",
+      "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+        "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat) AS address_full" ],
+    ['ZABBIX_HOSTID',  'INT', 'nas.zabbix_hostid', 1 ]
+  );
+
+  my $WHERE =  $self->search_former($attr, \@search_params,
     { WHERE => 1 }
   );
 
   if ($attr->{SHOW_MAPS_GOOGLE}) {
     $EXT_TABLES = "INNER JOIN builds ON (builds.id=nas.location_id)";
     if ($attr->{DISTRICT_ID}) {
-      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
-      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+      $EXT_TABLES =<< "EXT_TABLES";
+    LEFT JOIN streets ON (streets.id=builds.street_id)
+    LEFT JOIN districts ON (districts.id=streets.district_id)
+EXT_TABLES
     }
   }
   elsif ($attr->{DISTRICT_ID} || $attr->{ADDRESS_FULL}) {
-    $EXT_TABLES = "LEFT JOIN builds ON (builds.id=nas.location_id)";
-    $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
-      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    $EXT_TABLES =<< "EXT_TABLES";
+    LEFT JOIN builds ON (builds.id=nas.location_id)
+    LEFT JOIN streets ON (streets.id=builds.street_id)
+    LEFT JOIN districts ON (districts.id=streets.district_id)
+EXT_TABLES
   }
 
   my $ext_fields = '';
@@ -144,14 +149,15 @@ SQL
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM nas
-    LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
-    $EXT_TABLES
-    $WHERE",
-      undef,
-      { INFO => 1 }
-    );
+    $sql = <<"SQL";
+SELECT COUNT(*) AS total
+FROM nas
+  LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
+  $EXT_TABLES
+  $WHERE
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list || [];
@@ -194,54 +200,60 @@ sub info {
   my $fields = '';
 
   if ( ! $attr->{SHORT}) {
-    $fields = " ,name AS nas_name,
+    $fields = << "FIELDS";
+ ,name AS nas_name,
     descr AS nas_describe,
     mng_host_port AS nas_mng_ip_port,
     mng_host_port AS nas_mng_host_port,
     mng_user AS nas_mng_user,
     nas.*,
     DECODE(mng_password, '$SECRETKEY') AS nas_mng_password
-  ";
+FIELDS
   }
 
-  $self->query(
-    "SELECT id as nas_id,
-      nas_identifier,
-      INET_NTOA(ip) AS nas_ip,
-      nas_type,
-      auth_type AS nas_auth_type,
-      alive AS nas_alive,
-      disable AS nas_disable,
-      ext_acct AS nas_ext_acct,
-      rad_pairs AS nas_rad_pairs,
-      mac,
-      domain_id
-      $fields
-    FROM nas
-    WHERE $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+  my $sql = <<"SQL";
+SELECT id as nas_id,
+       nas_identifier,
+       INET_NTOA(ip) AS nas_ip,
+       nas_type,
+       auth_type AS nas_auth_type,
+       alive AS nas_alive,
+       disable AS nas_disable,
+       ext_acct AS nas_ext_acct,
+       rad_pairs AS nas_rad_pairs,
+       mac,
+       domain_id
+         $fields
+FROM nas
+WHERE $WHERE;
+SQL
+
+
+
+  $self->query($sql, undef, { INFO => 1 });
 
   if (! $self->{errno} && $self->{LOCATION_ID}) {
-    $self->query(
-      "SELECT
-        d.id AS district_id,
-        d.name AS address_district,
-        s.name AS address_street,
-        b.number AS address_build
-      FROM builds b
-      LEFT JOIN streets s ON (s.id=b.street_id)
-      LEFT JOIN districts d ON (d.id=s.district_id)
-      WHERE b.id='$self->{LOCATION_ID}'",
-      undef,
-      { INFO => 1 }
+    $sql = <<'SQL';
+SELECT
+  d.id AS district_id,
+  d.name AS address_district,
+  s.name AS address_street,
+  b.number AS address_build
+FROM builds b
+       LEFT JOIN streets s ON (s.id=b.street_id)
+       LEFT JOIN districts d ON (d.id=s.district_id)
+WHERE b.id= ?
+SQL
+
+    $self->query($sql, undef,
+      { INFO => 1, Bind => [ $self->{LOCATION_ID} ] }
     );
 
     if ($self->{errno} && $self->{errno} == 2) {
       delete $self->{errno};
     }
   }
+
   return $self;
 }
 
@@ -251,8 +263,7 @@ sub info {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{NAS_DISABLE} = ($attr->{NAS_DISABLE}) ? 1 : 0;
 
@@ -327,8 +338,7 @@ sub change {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if($self->{admin} && $self->{admin}->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $self->{admin}->{DOMAIN_ID};
@@ -375,8 +385,7 @@ sub add {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('nas', undef,  { id => $id });
   $self->{nas_deleted} = $self->{AFFECTED};
@@ -412,19 +421,26 @@ sub users_list {
     { WHERE => 1 }
   );
 
-  $self->query("SELECT uid, nas_id
-    FROM users_nas
-    $WHERE
-    ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT uid, nas_id
+FROM users_nas
+$WHERE
+ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 nas_ip_pools_list($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    $list
 
 =cut
 #**********************************************************
@@ -447,7 +463,7 @@ sub nas_ip_pools_list {
     }
   );
 
-  my $search_columns = [
+  my @search_columns = (
     [ 'ID',                 'INT', 'pool.id',                                               1],
     [ 'NAS_NAME',           'STR', 'n.name AS nas_name',                                    1],
     [ 'POOL_NAME',          'STR', 'pool.name AS pool_name',                                1],
@@ -456,15 +472,15 @@ sub nas_ip_pools_list {
     [ 'IP',                 'INT', 'pool.ip',                                               1],
     [ 'LAST_IP_NUM',        'INT', '(pool.ip + if(pool.counts > 0, pool.counts - 1, 0)) AS last_ip_num',          1],
     [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
-    [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet
-      WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts AND uid > 0)) AS internet_ip_free', 1],
-    [ 'INTERNET_DYNAMIC_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_online online
-      WHERE online.framed_ip_address >= pool.ip AND online.framed_ip_address < pool.ip + pool.counts )) AS internet_dynamic_ip_free', 1],
+    [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet '
+      . 'WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts AND uid > 0)) AS internet_ip_free', 1],
+    [ 'INTERNET_DYNAMIC_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_online online '
+      . 'WHERE online.framed_ip_address >= pool.ip AND online.framed_ip_address < pool.ip + pool.counts )) AS internet_dynamic_ip_free', 1],
     [ 'PRIORITY',           'INT', 'pool.priority',                                         1],
     [ 'SPEED',              'INT', 'pool.speed',                                            1],
     [ 'NAME',               'STR', 'pool.name AS name',                                     1],
     [ 'NAS',                'INT', 'np.nas_id',                                             1],
-    [ 'NAS_ID',             'INT', 'np.nas_id',                                             1],
+#    [ 'NAS_ID',             'INT', 'np.nas_id',                                             1],
     [ 'NETMASK',            'IP',  'pool.netmask',                                          1],
     [ 'GATEWAY',            'IP',  'pool.gateway',                                          1],
     [ 'STATIC',             'INT', 'pool.static',                                           1],
@@ -474,11 +490,11 @@ sub nas_ip_pools_list {
     [ 'DNS',                'STR', 'pool.dns',                                              1],
     [ 'VLAN',               'INT', 'pool.vlan',                                             1],
     [ 'GUEST',              'INT', 'pool.guest',                                            1],
-    [ 'NEXT_POOL',          'INT', 'pool.next_pool_id AS next_pool',                        1],
-  ];
+    [ 'NEXT_POOL',          'INT', 'pool.next_pool_id AS next_pool',                        1]
+  );
 
   if ($IPV6) {
-    push @$search_columns, (
+    push @search_columns, (
       [ 'IPV6_PREFIX',        'STR', 'INET6_NTOA(pool.ipv6_prefix) AS ipv6_prefix',           1],
       [ 'IPV6_MASK',          'IP',  'pool.ipv6_mask',                                        1],
       [ 'IPV6_TEMP',          'STR', 'pool.ipv6_template AS ipv6_temp',                       1],
@@ -488,7 +504,7 @@ sub nas_ip_pools_list {
     );
   }
 
-  my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
+  my $WHERE = $self->search_former($attr, \@search_columns, {WHERE => 1});
 
   my $sql = <<"SQL";
    SELECT $self->{SEARCH_FIELDS} pool.id
@@ -604,14 +620,24 @@ sub ip_pools_info {
   my ($self, $id, $attr) = @_;
 
   my $EXT_FIELDS = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
-  $EXT_FIELDS .= ', (ippools.counts - (SELECT if(COUNT(*) > ippools.counts, ippools.counts, COUNT(*)) FROM internet_main internet
-      WHERE internet.ip >= ippools.ip AND internet.ip < ippools.ip + ippools.counts )) AS internet_ip_free' if $attr->{INTERNET_IP_FREE};
 
-  $self->query("SELECT *,
-      INET_NTOA(ip) AS ip
-      $EXT_FIELDS
-    FROM ippools  WHERE id= ? ;",
-    undef,
+  if ($attr->{INTERNET_IP_FREE}) {
+    $EXT_FIELDS .= <<"FIELDS";
+, (ippools.counts - (SELECT if(COUNT(*) > ippools.counts, ippools.counts, COUNT(*)) FROM internet_main internet
+      WHERE internet.ip >= ippools.ip AND internet.ip < ippools.ip + ippools.counts )) AS internet_ip_free
+FIELDS
+  }
+
+  my $sql = <<"SQL";
+SELECT *,
+  INET_NTOA(ip) AS ip
+  $EXT_FIELDS
+  FROM ippools
+  WHERE id= ?
+SQL
+
+
+  $self->query($sql,  undef,
     { INFO => 1,
       Bind => [ $id ] }
   );
@@ -673,26 +699,27 @@ sub ip_pools_list {
 
     my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
 
-    $self->query(
-      "SELECT
-        '',
-        pool.name,
-        pool.ip,
-        pool.ip + pool.counts AS last_ip_num,
-        pool.counts,
-        pool.priority,
-        INET_NTOA(pool.ip) AS first_ip,
-        INET_NTOA(pool.ip + pool.counts) AS last_ip,
-        pool.id,
-        pool.nas,
-        pool.netmask as netmask,
-        pool.gateway,
-        pool.dns
-      FROM ippools pool
-      WHERE $WHERE  ORDER BY $SORT $DESC",
-      undef,
-      $attr
-    );
+    my $sql = <<"SQL";
+SELECT
+  '',
+  pool.name,
+  pool.ip,
+  pool.ip + pool.counts AS last_ip_num,
+  pool.counts,
+  pool.priority,
+  INET_NTOA(pool.ip) AS first_ip,
+  INET_NTOA(pool.ip + pool.counts) AS last_ip,
+  pool.id,
+  pool.nas,
+  pool.netmask as netmask,
+  pool.gateway,
+  pool.dns
+FROM ippools pool
+WHERE $WHERE
+ORDER BY $SORT $DESC
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return $self->{list} || [];
   }
@@ -703,25 +730,25 @@ sub ip_pools_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' AND ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT
-      nas.name,
-      pool.name,
-      pool.ip,
-      pool.ip + pool.counts AS last_ip_num,
-      pool.counts, pool.priority,
-      INET_NTOA(pool.ip) AS first_ip,
-      INET_NTOA(pool.ip + pool.counts - 1) AS last_ip,
-      pool.id,
-      pool.nas,
-      pool.gateway,
-      pool.netmask as netmask
-    FROM ippools pool, nas
-    WHERE pool.nas=nas.id
-    $WHERE  ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  nas.name,
+  pool.name,
+  pool.ip,
+  pool.ip + pool.counts AS last_ip_num,
+  pool.counts, pool.priority,
+  INET_NTOA(pool.ip) AS first_ip,
+  INET_NTOA(pool.ip + pool.counts - 1) AS last_ip,
+  pool.id,
+  pool.nas,
+  pool.gateway,
+  pool.netmask as netmask
+FROM ippools pool, nas
+WHERE pool.nas=nas.id
+  $WHERE  ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -732,8 +759,7 @@ sub ip_pools_list {
 =cut
 #**********************************************************
 sub ip_pools_add {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $attr->{IPV6_PREFIX} if (! $IPV6);
 
@@ -755,8 +781,7 @@ sub ip_pools_add {
 =cut
 #**********************************************************
 sub ip_pools_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('ippools', { ID => $id });
 
@@ -778,8 +803,7 @@ sub ip_pools_del {
 =cut
 #**********************************************************
 sub stats {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = "WHERE DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')";
   my $SORT  = ($attr->{SORT} && $attr->{SORT} == 1) ? "1,2" : ($attr->{SORT} || 1);
@@ -791,21 +815,22 @@ sub stats {
 
   my $internet_log_table = 'internet_log';
 
+  my $sql = <<"SQL";
+SELECT
+  n.name,
+  l.port_id,
+  COUNT(*),
+  IF(DATE_FORMAT(MAX(l.start), '%Y-%m-%d')=CURDATE(), DATE_FORMAT(MAX(l.start), '%H-%i-%s'), MAX(l.start)),
+  SEC_TO_TIME(AVG(l.duration)), SEC_TO_TIME(MIN(l.duration)), SEC_TO_TIME(MAX(l.duration)),
+  l.nas_id
+FROM $internet_log_table l
+LEFT JOIN nas n ON (n.id=l.nas_id)
+$WHERE
+GROUP BY l.nas_id, l.port_id
+ORDER BY $SORT $DESC;
+SQL
 
-  $self->query(
-    "SELECT
-      n.name,
-      l.port_id,
-      COUNT(*),
-      IF(DATE_FORMAT(MAX(l.start), '%Y-%m-%d')=CURDATE(), DATE_FORMAT(MAX(l.start), '%H-%i-%s'), MAX(l.start)),
-      SEC_TO_TIME(AVG(l.duration)), SEC_TO_TIME(MIN(l.duration)), SEC_TO_TIME(MAX(l.duration)),
-      l.nas_id
-    FROM $internet_log_table l
-    LEFT JOIN nas n ON (n.id=l.nas_id)
-    $WHERE
-    GROUP BY l.nas_id, l.port_id
-    ORDER BY $SORT $DESC;"
-  );
+  $self->query($sql);
 
   return $self->{list} || [];
 }
@@ -816,8 +841,7 @@ sub stats {
 =cut
 #**********************************************************
 sub nas_group_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -833,20 +857,20 @@ sub nas_group_list {
     $EXT_TABLES =  'LEFT JOIN nas n ON (n.gid=g.id)';
   }
 
-  $self->query(
-    "SELECT
-      g.id, g.name,
-      g.comments,
-      g.disable,
-      $self->{SEARCH_FIELDS} g.id AS gid
-    FROM nas_groups g
-    $EXT_TABLES
-    $WHERE
-    GROUP BY g.id
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  g.id, g.name,
+  g.comments,
+  g.disable,
+  $self->{SEARCH_FIELDS} g.id AS gid
+FROM nas_groups g
+  $EXT_TABLES
+  $WHERE
+GROUP BY g.id
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -857,8 +881,7 @@ sub nas_group_list {
 =cut
 #***************************************************************
 sub nas_group_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM nas_groups WHERE id = ?;",
   undef,
@@ -875,8 +898,7 @@ sub nas_group_info {
 =cut
 #**********************************************************
 sub nas_group_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{DISABLE} = (defined($attr->{DISABLE})) ? 1 : 0;
 
@@ -898,8 +920,7 @@ sub nas_group_change {
 =cut
 #**********************************************************
 sub nas_group_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('nas_groups', $attr);
 
@@ -917,8 +938,7 @@ sub nas_group_add {
 =cut
 #**********************************************************
 sub nas_group_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('nas_groups', { ID => $id });
 
@@ -929,295 +949,6 @@ sub nas_group_del {
 
   return $self;
 }
-
-#**********************************************************
-=head2 function add_radtest_query() - add query to datebase
-
-  Arguments:
-    $attr
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->add_radtest_query({
-      COMMENTS   => 'test',
-      RAD_QUERY  => 'User-Name=test',
-      DATETIME   => 'NOW()'
-    });
-
-    $nas->add_radtest_query({
-      %FORM
-    });
-
-=cut
-#**********************************************************
-sub add_radtest_query {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('radtest_history', { %$attr });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 function query_list() - queries list
-
-  Arguments:
-    $attr
-
-  Returns:
-    $self object
-
-  Examples:
-    $query_list = $nas->query_list({COLS_NAME => 1});
-
-=cut
-#**********************************************************
-sub query_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  $self->query(
-    "SELECT * FROM `radtest_history`
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
-
-  my $list = $self->{list};
-
-  return [] if ($self->{TOTAL} < 1);
-
-  $self->query(
-    "SELECT COUNT(*) AS total
-    FROM radtest_history",
-    undef,
-    { INFO => 1 }
-  );
-
-  return $list;
-}
-
-#**********************************************************
-=head2 function del_query() - del query from datebase
-
-  Arguments:
-    ID   - query identificator
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->del_query({ID => $FORM{query_del}});
-
-=cut
-#**********************************************************
-sub del_query {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('radtest_history', $attr);
-
-  return $self;
-}
-
-#***************************************************************
-=head2 function query_info() - query info from datebase
-
-  Arguments:
-    ID   - query identificator
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->query_info({ID => $FORM{query_info}});
-
-=cut
-#***************************************************************
-sub query_info {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("SELECT * FROM `radtest_history` WHERE id = ?;",
-    undef, {
-      INFO => 1,
-      Bind => [ $attr->{ID} ]
-    });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 function add_radtest_query() - add query to datebase
-
-  Arguments:
-    $attr
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->nas_cmd_add({
-      COMMENTS   => 'test',
-      RAD_QUERY  => 'User-Name=test',
-      DATETIME   => 'NOW()'
-    });
-
-    $nas->nas_cmd_add({
-      %FORM
-    });
-
-=cut
-#**********************************************************
-sub nas_cmd_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('nas_cmd', { %$attr });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 function nas_cmd_del() - del query from datebase
-
-  Arguments:
-    ID   - query identificator
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->nas_cmd_del({ID => $FORM{del}});
-
-=cut
-#**********************************************************
-sub nas_cmd_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('nas_cmd', $attr);
-
-  return $self;
-}
-
-#***************************************************************
-=head2 function nas_cmd_info() - query info from datebase
-
-  Arguments:
-    ID   - query identificator
-
-  Returns:
-    $self object
-
-  Examples:
-    $nas->nas_cmd_info({ID => $FORM{ID}});
-
-=cut
-#***************************************************************
-sub nas_cmd_info {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("SELECT * FROM nas_cmd WHERE id = ?;",
-  undef,
-  { INFO => 1,
-    Bind => [ $attr->{ID} ] }
-  );
-
-  return $self;
-}
-
-#**********************************************************
-=head2 function nas_cmd_list() - queries list
-
-  Arguments:
-    $attr
-
-  Returns:
-    $self object
-
-  Examples:
-    $cmd_list = $Nas->nas_cmd_list({COLS_NAME => 1});
-
-=cut
-#**********************************************************
-sub nas_cmd_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  my @WHERE_RULES = ();
-
-  my $WHERE = $self->search_former($attr, [
-      ['ID',             'INT',  'id',         1 ],
-      ['NAS_ID',         'INT',  'nas_id',     1 ],
-      ['CMD',            'STR',  'cmd',        1 ],
-      ['TYPE',           'STR',  'type',       1 ],
-      ['COMMENTS',       'STR',  'comments',   1 ],
-    ],
-    {
-      WHERE            => 1,
-      WHERE_RULES      => \@WHERE_RULES,
-    }
-  );
-
-  $self->query(
-    "SELECT 
-    id,
-    nas_id,
-    cmd,
-    type,
-    comments FROM nas_cmd
-    $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
-
-  my $list = $self->{list};
-
-  return [] if ($self->{TOTAL} < 1);
-
-  $self->query(
-    "SELECT COUNT(*) AS total FROM nas_cmd",
-    undef,
-    { INFO => 1 }
-  );
-
-  return $list;
-}
-
-#**********************************************************
-=head2 nas_cmd_change($attr)
-
-=cut
-#**********************************************************
-sub nas_cmd_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes({
-    CHANGE_PARAM => 'ID',
-    TABLE        => 'nas_cmd',
-    DATA         => $attr,
-  });
-
-  return $self;
-}
-
 
 #*******************************************************************
 =head2 divide_ips($attr) - divide ip pool to ips
@@ -1238,7 +969,7 @@ sub divide_ips{
   my $sql = <<"SQL";
 INSERT INTO ippools_ips (ip, ippool_id)
 SELECT
-  (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) SeqValue, ?
+  (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) AS SeqValue, ?
 FROM
   (SELECT 0 SeqValue UNION ALL SELECT 1 SeqValue) TWO_1
     CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2 SeqValue) TWO_2
@@ -1276,35 +1007,19 @@ SQL
 =head2 remove_ippools_ips($POLL_ID) - remove ippools_ips
 
   Arguments:
-    POLL_ID - id of ip pool
+    POOL_ID - id of ip pool
 
   Returns:
-    1
+    $self
+
 =cut
 #*******************************************************************
-sub remove_ippools_ips{
-  my $self = shift;
-  my $POLL_ID = shift;
+sub remove_ippools_ips {
+  my ($self, $attr) = @_;
 
-  if ($POLL_ID->{CHG} || $POLL_ID->{DEL}) {
-    $self->query(
-      "DELETE FROM ippools_ips WHERE ippool_id = ?",
-      undef,
-      {
-        Bind => [ ($POLL_ID->{CHG} ? $POLL_ID->{CHG} : $POLL_ID->{DEL}) ]
-      }
-    );
-  }
-  elsif ($POLL_ID->{IPPOOL_ID} && $POLL_ID->{IP}) {
-    $self->query(
-      "DELETE FROM ippools_ips WHERE ippools_ips.ippool_id = ? AND ippools_ips.ip = ?",
-      undef,
-      {
-        Bind => [ $POLL_ID->{IPPOOL_ID}, $POLL_ID->{IP} ]
-      }
-    );
-  }
-  return 1;
+  $self->query_del('ippools_ips', undef,  { ippool_id => $attr->{POOL_ID} || $attr->{DEL}, IP => $attr->{IP} });
+
+  return $self;
 }
 
 #*******************************************************************
@@ -1320,10 +1035,7 @@ sub remove_ippools_ips{
 sub ippools_ips_list{
   my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+  $attr->{PAGE_ROWS} //= 1000;
 
   my $WHERE =  $self->search_former($attr, [
     [ 'IP_POOL_ID',           'INT', 'ii.ippool_id',              1 ],
@@ -1341,11 +1053,9 @@ sub ippools_ips_list{
       ii.status
     FROM ippools_ips ii
     $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef, $attr);
+  $self->query_list($sql, $attr);
 
   return $self->{list};
 }

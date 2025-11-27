@@ -1,5 +1,5 @@
-<form action=$SELF_URL name='storage_form' method=POST class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form action=%SELF_URL% name='storage_form' method=POST class='form form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ID' value='%ID%'>
 
   <div class='card card-primary card-outline card-form'>
@@ -10,6 +10,12 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{NAME}_:</label>
         <div class='col-md-8'><input class='form-control' name='NAME' type='text' value='%NAME%'/></div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{RESPONSIBLE}_:</label>
+        <div class='col-md-8'>
+          %RESPONSIBLE_SEL%
+        </div>
       </div>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{COMMENTS}_</label>

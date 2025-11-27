@@ -1,5 +1,5 @@
 <form name='PAYSYS_EXTERNAL_COMMAND' class='form form-horizontal hidden-print form-main'>
-  <input type='hidden' name='index' value=$index>
+  <input type='hidden' name='index' value=%index%>
   <div class='card card-primary card-outline col-md-8 container'>
 
     <div class='card-header with-border'>_{EXTERNAL_COMMAND}_</div>

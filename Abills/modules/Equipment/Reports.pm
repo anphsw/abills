@@ -10,12 +10,9 @@
 
 use strict;
 use warnings FATAL => 'all';
-use POSIX qw/strftime/;
 use Equipment;
 use Internet;
-use Abills::Base qw(in_array int2byte ip2int mk_unique_value
-  load_pmodule date_format _bp int2ip);
-use Abills::Filters qw(_mac_former dec2hex);
+use Abills::Base qw(in_array load_pmodule);
 use Nas;
 
 our (
@@ -26,7 +23,7 @@ our (
   $var_dir,
   $DATE,
   $TIME,
-  %permissions,
+  #%permissions,
   @ONU_ONLINE_STATUSES
 );
 
@@ -60,11 +57,11 @@ sub equipment_start_page {
 #*******************************************************************
 sub equipment_count_report {
 
-  $Equipment->_list();
+  $Equipment->list();
   my $total_count = $Equipment->{TOTAL} || '0';
-  $Equipment->_list({ STATUS => 0 });
+  $Equipment->list({ STATUS => 0 });
   my $active_count = $Equipment->{TOTAL} || '0';
-  $Equipment->_list({ STATUS => 1 });
+  $Equipment->list({ STATUS => 1 });
   my $inactive_count = $Equipment->{TOTAL} || '0';
   $Equipment->mac_log_list({ MAC_UNIQ_COUNT => '_SHOW', COLS_NAME => 1 });
   my $mac_uniq_count = $Equipment->{MAC_UNIQ_COUNT} || '0';
@@ -85,7 +82,7 @@ sub equipment_count_report {
     }
   );
 
-  my $report_equipment .= $table->show();
+  my $report_equipment = $table->show();
 
   return $report_equipment;
 
@@ -97,7 +94,7 @@ sub equipment_count_report {
 =cut
 #*******************************************************************
 sub equipment_pon_report {
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     TYPE_ID              => '4',
     STATUS               => '0;3', #enable, error
     EPON_SUPPORTED_ONUS  => '_SHOW',
@@ -112,10 +109,11 @@ sub equipment_pon_report {
   my $olt_count = $Equipment->{TOTAL} || '0';
 
   my $branches = $Equipment->pon_port_list({
-    STATUS => '0;3', #enable, error
-    GROUP_BY => 'p.nas_id, p.branch',
-    COLS_NAME => 1
+    PAGE_ROWS => 10000,
+    STATUS    => '0;3', #enable, error
+    GROUP_BY  => 'p.nas_id, p.branch'
   });
+
   my $branch_count = $Equipment->{TOTAL} || '0';
 
   my $possible_onu_count = 0;
@@ -202,9 +200,9 @@ sub equipment_unreg_report {
 =cut
 #**********************************************************
 sub equipment_unreg_report_date {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
-  my $pon_list = $Equipment->_list({
+  my $pon_list = $Equipment->list({
     NAS_ID           => '_SHOW',
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
@@ -283,7 +281,7 @@ sub equipment_switch_report {
 
   my ($free_ports, $busy_ports, $ports, $switch_count) = 0;
   my $Internet = Internet->new($db, $admin, \%conf);
-  my $switch_list = $Equipment->_list({
+  my $switch_list = $Equipment->list({
     PORTS      => '_SHOW',
     TYPE_ID    => '1',
     COLS_NAME  => 1,
@@ -330,7 +328,7 @@ sub equipment_switch_report {
 sub equipment_onu_report {
   my $Nas = Nas->new($db, \%conf, $admin);
 
-  my $list = $Equipment->_list({
+  my $list = $Equipment->list({
     TYPE_ID              => 4,
     NAS_IP               => '_SHOW',
     NAS_ID               => '_SHOW',
@@ -342,7 +340,8 @@ sub equipment_onu_report {
   });
 
   my $full_branch_list = $Equipment->pon_port_list({
-    GROUP_BY => 'p.nas_id, p.branch',
+    GROUP_BY  => 'p.nas_id, p.branch',
+    PAGE_ROWS => 10000,
     COLS_NAME => 1
   });
 
@@ -363,6 +362,7 @@ sub equipment_onu_report {
       PON_TYPE    => '_SHOW',
       BRANCH      => '_SHOW',
       BRANCH_DESC => '_SHOW',
+      PAGE_ROWS   => 10000,
       COLS_NAME   => 1,
     });
 
@@ -425,9 +425,11 @@ sub equipment_onu_report {
         $total_count += $branch_list{$branch->{branch}}->{total_count} || 0;
       }
     }
+
     if ($total_possible != 0) {
       $busy = sprintf("%.2f", $total_count / $total_possible * 100);
     }
+
     if ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE'){
       $title_count .= " $lang{OFFLINE}";
     }
@@ -435,7 +437,7 @@ sub equipment_onu_report {
 
     my $table = $html->table({
       ID      => 'info_' . $line->{nas_id},
-      title   => [ $lang{INTERFACE}, $title_count, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %', $lang{COMMENTS} ],
+      title   => [ $lang{INTERFACE}, $title_count, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %', "$lang{BRANCH} $lang{DESCRIBE}" ],
       caption => $html->button(
           "$nas_info->[0]->{nas_id}: $nas_info->[0]->{nas_name} ($nas_info->[0]->{nas_ip})",
           "index=" . $index_equipment_info. "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}"
@@ -460,19 +462,20 @@ sub equipment_onu_report {
       my $good = $branch_list{$key}->{good_count};
       my $worth = $branch_list{$key}->{worth_count};
       my $bad = $branch_list{$key}->{bad_count} || 0;
+      my $olt_port = $branch_list{$key}->{id} || q{};
       next if ($FORM{ONU} && $FORM{ONU} eq 'BAD' && $bad == 0);
 
       $table->addrow(
         $html->button(
-          $branch_list{$key}->{pon_type} . ' ' . $key,
-          "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}"
+           $branch_list{$key}->{pon_type} . ' ' . $key,
+           "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port"
         ).' '.$rx_notification,
         $total,
         $html->badge($good, { TYPE => 'badge-success' }),
         $good ? sprintf("%.2f", $good / $online * 100) . '%' : '',
-        $html->button($html->badge($worth, { TYPE => 'badge-warning' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}&RX_POWER_SIGNAL=WORTH", {target => '_blank' }),
+        $html->button($html->badge($worth, { TYPE => 'badge-warning' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=WORTH", {target => '_blank' }),
         $worth ? sprintf("%.2f", $worth / $online * 100) . '%' : '',
-        $html->button($html->badge($bad, { TYPE => 'badge-danger' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}&RX_POWER_SIGNAL=BAD", {target => '_blank' }),
+        $html->button($html->badge($bad, { TYPE => 'badge-danger' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=BAD", {target => '_blank' }),
         $bad ? sprintf("%.2f", $bad / $online * 100) . '%' : '',
         $branch_list{$key}->{branch_desc}
       );

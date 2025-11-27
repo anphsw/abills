@@ -216,7 +216,7 @@
     }
 
     document.getElementById('SUBMIT_FORM_BUTTON').disabled = true;
-    jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
       document.getElementById('SUBMIT_FORM_BUTTON').disabled = false;
       if (data === 'success') {
         jQuery('#SN').parent().parent().removeClass('has-error').addClass('has-success');

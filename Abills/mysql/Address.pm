@@ -23,7 +23,12 @@ sub new {
   my $db    = shift;
   ($admin, $CONF) = @_;
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
   bless($self, $class);
 
   $admin->{MODULE} = '';
@@ -36,10 +41,6 @@ sub new {
     print "Address ADMIN_NOT_FOUND//// $admin ///";
     exit;
   }
-
-  $self->{db}    = $db;
-  $self->{admin} = $admin;
-  $self->{conf}  = $CONF;
 
   return $self;
 }
@@ -64,28 +65,30 @@ sub new {
 =cut
 #**********************************************************
 sub address_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT d.id AS district_id,
-        d.name AS address_district,
-        GROUP_CONCAT(DISTINCT dp.name ORDER BY dp.path SEPARATOR ' / ') AS address_district_full,
-        s.name AS address_street,
-        b.number AS address_build,
-        b.block AS address_block,
-        s.id AS street_id,
-        s.type AS street_type,
-        d.zip,
-        s.second_name,
-        b.coordx,
-        s.second_name AS address_street2,
-        b.flors AS address_flors
-      FROM builds b
-      LEFT JOIN streets s  ON (s.id=b.street_id)
-      LEFT JOIN districts d  ON (d.id=s.district_id)
-      LEFT JOIN districts dp ON FIND_IN_SET(dp.id, REPLACE(IF(d.path, d.path, d.id), '/', ',')) > 0
-      WHERE b.id= ? ",
-      undef,
+  my $sql = <<'SQL';
+SELECT d.id AS district_id,
+       d.name AS address_district,
+       GROUP_CONCAT(DISTINCT dp.name ORDER BY dp.path SEPARATOR ' / ') AS address_district_full,
+       s.name AS address_street,
+       b.number AS address_build,
+       b.block AS address_block,
+       s.id AS street_id,
+       s.type AS street_type,
+       d.zip,
+       s.second_name,
+       b.coordx,
+       s.second_name AS address_street2,
+       b.flors AS address_flors
+FROM builds b
+       LEFT JOIN streets s  ON (s.id=b.street_id)
+       LEFT JOIN districts d  ON (d.id=s.district_id)
+       LEFT JOIN districts dp ON FIND_IN_SET(dp.id, REPLACE(IF(d.path, d.path, d.id), '/', ',')) > 0
+WHERE b.id= ?
+SQL
+
+  $self->query($sql, undef,
       { INFO => 1,
         Bind => [ $id ]
         }
@@ -114,8 +117,7 @@ sub address_info {
 =cut
 #**********************************************************
 sub address_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ('b.id IS NOT NULL');
 
@@ -123,7 +125,8 @@ sub address_list {
     [ 'STREET_ID',           'INT',  's.id'                    ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+  SELECT
       d.id            AS district_id,
       d.name          AS district_name,
       s.id            AS street_id,
@@ -138,12 +141,13 @@ sub address_list {
     LEFT JOIN streets s ON (d.id = s.district_id)
     LEFT JOIN builds b ON (s.id = b.street_id)
     $WHERE
-    ORDER BY district_name;",
-    undef,
-    { COLS_NAME => 1 }
-  );
+    ORDER BY district_name;
+SQL
 
-  return $self->{list};
+
+  $self->query($sql, undef, { COLS_NAME => 1 });
+
+  return $self->{list} || [];
 };
 
 #**********************************************************
@@ -165,8 +169,7 @@ sub address_list {
 =cut
 #**********************************************************
 sub address_parentness {
-  my $self = shift;
-  my ($in_array_func, $attr) = @_;
+  my ($self, $in_array_func, $attr) = @_;
 
   my $list = $self->address_list();
 
@@ -222,15 +225,21 @@ sub address_parentness {
 #**********************************************************
 =head2 district_list($attr) - District list
 
+  Arguments:
+    $attr
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub district_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $GROUP_BY = $attr->{GROUP_BY} || 'GROUP BY d.id';
+
+  delete $attr->{GROUP_BY};
 
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
@@ -250,56 +259,66 @@ sub district_list {
     }
   }
 
-  my $WHERE = $self->search_former($attr, [
-    [ 'ID',            'INT',  'd.id'                    ],
-    [ 'NAME',          'STR',  'd.name'                  ],
-    [ 'DISTRICT_NAME', 'STR',  'd.name',  'd.name AS district_name'        ],
-    [ 'COMMENTS',      'STR',  'd.comments'              ],
-    [ 'DOMAIN_ID',     'INT',  'd.domain_id'             ],
-    [ 'COORDX',        'INT',  'd.coordx',             1 ],
-    [ 'COORDY',        'INT',  'd.coordy',             1 ],
-    [ 'PATH',          'STR',  'd.path',               1 ],
-    [ 'PARENT_ID',     'INT',  'd.parent_id',          1 ],
-    [ 'TYPE_ID',       'INT',  'd.type_id',            1 ],
-    [ 'TYPE_NAME',     'STR',  'at.name AS type_name', 1 ],
+  my @search_column = (
+    [ 'ID',                  'INT',  'd.id'                    ],
+    [ 'NAME',                'STR',  'd.name'                  ],
+    [ 'DISTRICT_NAME',       'STR',  'd.name',  'd.name AS district_name'        ],
+    [ 'COMMENTS',            'STR',  'd.comments'              ],
+    [ 'DOMAIN_ID',           'INT',  'd.domain_id'             ],
+    [ 'COORDX',              'INT',  'd.coordx',             1 ],
+    [ 'COORDY',              'INT',  'd.coordy',             1 ],
+    [ 'PATH',                'STR',  'd.path',               1 ],
+    [ 'PARENT_ID',           'INT',  'd.parent_id',          1 ],
+    [ 'TYPE_ID',             'INT',  'd.type_id',            1 ],
+    [ 'TYPE_NAME',           'STR',  'at.name AS type_name', 1 ],
     [ 'DISTRICT_POPULATION', 'INT',  '(COUNT(DISTINCT u.uid) / d.households) AS district_population',  1 ],
-    [ 'POPULATION',    'INT',  'd.population',         1 ],
-    [ 'HOUSEHOLDS',    'INT',  'd.households',         1 ],
-    [ 'ZIP',           'INT',  'd.zip',                1 ],
-    [ 'FULL_NAME',     'STR',  "GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name",  1 ],
-    [ 'PARENT_NAME',   'STR',  'dp.name AS parent_name',  1 ],
-    [ 'STREET_COUNT',  'INT',  'COUNT(DISTINCT CASE WHEN s.district_id = d.id THEN s.id END) AS street_count',  1 ],
-  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+    [ 'POPULATION',          'INT',  'd.population',         1 ],
+    [ 'HOUSEHOLDS',          'INT',  'd.households',         1 ],
+    [ 'ZIP',                 'INT',  'd.zip',                1 ],
+    [ 'FULL_NAME',           'STR',  "GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name",  1 ],
+    [ 'PARENT_NAME',         'STR',  'dp.name AS parent_name',  1 ],
+    [ 'STREET_COUNT',        'INT',  'COUNT(DISTINCT CASE WHEN s.district_id = d.id THEN s.id END) AS street_count',  1 ],
+  );
+
+  if ($self->{conf}{TERRITORIAL_UNITS}) {
+    push @search_column, [ 'TERRITORIAL_UNITS_CODE', 'STR',  'tu.code AS territorial_units_code', 1 ];
+  }
+
+  my $WHERE = $self->search_former($attr, \@search_column, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   my $EXT_TABLES = '';
   if ($attr->{DISTRICT_POPULATION}) {
-    $EXT_TABLES .= "LEFT JOIN districts dc ON dc.path LIKE CONCAT(d.path, '/%')\n";
-    $EXT_TABLES .= "LEFT JOIN streets s ON s.district_id = d.id OR s.district_id = dc.id\n";
-    $EXT_TABLES .= "LEFT JOIN builds b ON b.street_id = s.id\n";
-    $EXT_TABLES .= "LEFT JOIN users_pi pi ON (b.id = pi.location_id)\n";
-    $EXT_TABLES .= "LEFT JOIN users u ON (pi.uid = u.uid AND u.disable = 0)\n";
+    $EXT_TABLES .= << "EXT_TABLES";
+    LEFT JOIN districts dc ON dc.path LIKE CONCAT(d.path, '/%')
+    LEFT JOIN streets s ON s.district_id = d.id OR s.district_id = dc.id
+    LEFT JOIN builds b ON b.street_id = s.id
+    LEFT JOIN users_pi pi ON (b.id = pi.location_id)
+    LEFT JOIN users u ON (pi.uid = u.uid AND u.disable = 0)
+EXT_TABLES
   }
   else {
     $EXT_TABLES .= 'LEFT JOIN streets s ON (d.id=s.district_id)';
   }
-  $EXT_TABLES .= "\nLEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0" if ($self->{SEARCH_FIELDS} =~ /dfp\./);
-  $EXT_TABLES .= "\nLEFT JOIN address_types AS at ON (d.type_id = at.id)" if ($self->{SEARCH_FIELDS} =~ /at\./);
-  $EXT_TABLES .= "\nLEFT JOIN districts AS dp ON (d.parent_id = dp.id)" if ($self->{SEARCH_FIELDS} =~ /dp\./);
+  $EXT_TABLES .= "\nLEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0" if ($self->{SEARCH_FIELDS} =~ /dfp\./xm);
+  $EXT_TABLES .= "\nLEFT JOIN address_types AS at ON (d.type_id = at.id)" if ($self->{SEARCH_FIELDS} =~ /at\./xm);
+  $EXT_TABLES .= "\nLEFT JOIN districts AS dp ON (d.parent_id = dp.id)" if ($self->{SEARCH_FIELDS} =~ /dp\./xm);
+  $EXT_TABLES .= "\nLEFT JOIN territorial_units AS tu ON (d.territorial_units_id = tu.id)" if ($self->{SEARCH_FIELDS} =~ /tu\./xm);
 
-  $self->query("SELECT d.id,
-        $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT d.id,
+       $self->{SEARCH_FIELDS}
         d.name,
         d.zip,
         COUNT(DISTINCT CASE WHEN s.district_id = d.id THEN s.id END) AS street_count
-      FROM districts d
-      $EXT_TABLES
-    $WHERE
-    $GROUP_BY
-    $HAVING
-    ORDER BY $SORT $DESC $LIMIT",
-    undef,
-    $attr
-  );
+FROM districts d
+  $EXT_TABLES
+  $WHERE
+  $GROUP_BY
+  $HAVING
+ORDER BY $SORT $DESC $LIMIT
+SQL
+
+  $self->query($sql, undef, $attr);
 
   if($self->{errno}) {
     return [];
@@ -311,17 +330,21 @@ sub district_list {
     $self->query("SELECT COUNT(DISTINCT d.id) AS total FROM districts d $EXT_TABLES $WHERE", undef, { INFO => 1 });
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
 =head2 district_info($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub district_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM districts WHERE id = ? ;",
    undef, { INFO => 1, Bind => [ $attr->{ID} ] });
@@ -332,11 +355,15 @@ sub district_info {
 #**********************************************************
 =head2 district_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub district_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $old_info = $self->district_info({ ID => $attr->{ID} });
   my $old_path = $old_info->{PATH};
@@ -371,11 +398,15 @@ sub district_change {
 #**********************************************************
 =head2 district_add($attr) - Add district
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub district_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('districts', {
     %$attr,
@@ -407,11 +438,15 @@ sub district_add {
 #**********************************************************
 =head2 district_del($id) - District name
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub district_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->district_info({ ID => $id });
   my $path = $self->{PATH};
@@ -428,40 +463,39 @@ sub district_del {
 #**********************************************************
 =head2 street_list($attr) - Street list
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub street_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   if($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
 
-  my $WHERE = $self->search_former($attr, [
-      ['STREET_NAME',   'STR', 's.name',  's.name AS street_name'        ],
-      ['SECOND_NAME',   'STR', 's.second_name',                        1 ],
-      ['BUILD_COUNT',   'INT', 'COUNT(DISTINCT b.id) AS build_count', 'COUNT(DISTINCT b.id) AS build_count' ],
-      (! $admin->{MAX_ROWS}) ? ['USERS_COUNT',   'STR', '',    'COUNT(pi.uid) AS users_count' ] : [],
-      ['DISTRICT_NAME', 'STR', 'd.name',  'd.name AS district_name'      ],
-      ['DISTRICT_ID',   'STR', 's.district_id',                        1 ],
-      ['TYPE',          'INT', 's.type',                               1 ],
-      ['BUILD_NUMBER',  'STR', 'b.number',  'b.number AS build_number',1 ],
-      ['BUILD_FLATS',   'INT', 'b.flats','b.number AS build_flats',    1 ],
-      ['STREET_POPULATION', 'INT',  'COUNT(DISTINCT pi.uid) AS street_population',  1 ],
-      ['POPULATION',    'INT', 's.population',                         1 ],
-      ['HOUSEHOLDS',    'INT', 's.households',                         1 ],
-      ['DOMAIN_ID',     'INT', 'd.domain_id',                            ],
-      ['TYPE',          'INT', 's.type',                                 ],
-      ['ID',            'INT', 's.id',                                   ]
-    ],
-    { WHERE => 1 }
+  my @search_params = (
+    ['STREET_NAME',   'STR', 's.name',  's.name AS street_name'        ],
+    ['SECOND_NAME',   'STR', 's.second_name',                        1 ],
+    ['BUILD_COUNT',   'INT', 'COUNT(DISTINCT b.id) AS build_count', 'COUNT(DISTINCT b.id) AS build_count' ],
+    (! $admin->{MAX_ROWS}) ? ['USERS_COUNT',   'STR', '',    'COUNT(pi.uid) AS users_count' ] : [],
+    ['DISTRICT_NAME', 'STR', 'd.name',  'd.name AS district_name'      ],
+    ['DISTRICT_ID',   'STR', 's.district_id',                        1 ],
+    ['TYPE',          'INT', 's.type',                               1 ],
+    ['BUILD_NUMBER',  'STR', 'b.number',  'b.number AS build_number',1 ],
+    ['BUILD_FLATS',   'INT', 'b.flats','b.number AS build_flats',    1 ],
+    ['STREET_POPULATION', 'INT',  'COUNT(DISTINCT pi.uid) AS street_population',  1 ],
+    ['POPULATION',    'INT', 's.population',                         1 ],
+    ['HOUSEHOLDS',    'INT', 's.households',                         1 ],
+    ['DOMAIN_ID',     'INT', 'd.domain_id',                            ],
+    ['TYPE',          'INT', 's.type',                                 ],
+    ['ID',            'INT', 's.id',                                   ]
   );
+
+  my $WHERE = $self->search_former($attr, \@search_params,  { WHERE => 1 });
 
   my $EXT_TABLE        = '';
   my $EXT_TABLE_TOTAL  = '';
@@ -477,29 +511,34 @@ sub street_list {
     $EXT_TABLE = 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
   }
 
-  my $sql = "SELECT s.id,
-    $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT s.id,
+       $self->{SEARCH_FIELDS}
     s.id AS street_id,
     s.type
-  FROM streets s
+FROM streets s
   LEFT JOIN districts d ON (s.district_id=d.id)
   LEFT JOIN builds b ON (b.street_id=s.id)
   $EXT_TABLE
   $WHERE
-  GROUP BY s.id
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;";
+GROUP BY s.id
+SQL
 
-  $self->query($sql, undef, $attr);
+  $self->query_list($sql, $attr);
 
   return [] if $self->{errno};
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $sql = "SELECT COUNT(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s
-      LEFT JOIN districts d ON (s.district_id=d.id)
-      $EXT_TABLE_TOTAL  $WHERE";
+    $sql = <<"SQL";
+SELECT COUNT(DISTINCT s.id) $EXT_FIELDS_TOTAL
+  FROM streets s
+  LEFT JOIN districts d ON (s.district_id=d.id)
+  $EXT_TABLE_TOTAL
+  $WHERE
+SQL
+
     $self->query($sql);
 
     if($self->{TOTAL} > 0) {
@@ -512,17 +551,21 @@ sub street_list {
     }
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
 =head2 street_info($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub street_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM streets WHERE id = ?;",
     undef,
@@ -536,19 +579,21 @@ sub street_info {
 #**********************************************************
 =head2 street_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub street_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'streets',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'streets',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -556,11 +601,15 @@ sub street_change {
 #**********************************************************
 =head2 street_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub street_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ADD_ADDRESS_STREET}) {
     my $streets = $self->street_list({
@@ -592,11 +641,15 @@ sub street_add {
 #**********************************************************
 =head2 street_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub street_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('streets', { ID => $id });
 
@@ -607,11 +660,15 @@ sub street_del {
 #**********************************************************
 =head2 build_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub build_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
@@ -619,8 +676,6 @@ sub build_list {
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
 
@@ -628,38 +683,40 @@ sub build_list {
     $SORT = "b.number*1";
   }
 
-  my $WHERE = $self->search_former($attr, [
-      [ 'NUMBER',            'STR', 'b.number',                                                            ],
-      [ 'BLOCK',             'STR', 'b.block',                                                           1 ],
-      [ 'ID',                'INT', 'b.id',                                                              1 ],
-      [ 'FLORS',             'INT', 'b.flors',                                                           1 ],
-      [ 'ENTRANCES',         'INT', 'b.entrances',                                                       1 ],
-      [ 'FLATS',             'INT', 'b.flats',                                                           1 ],
-      [ 'BUILD_SCHEMA',      'INT', 'b.build_schema',                                                          1 ],
-      [ 'DISTRICT_ID',       'INT', 's.district_id',                                                     1 ],
-      [ 'DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'                                    ],
-      [ 'DISTRICT_PARENT_ID','INT', 'd.parent_id', 'd.parent_id AS district_parent_id'                     ],
-      [ 'DISTRICT_PARENT_NAME','INT','dp.name', 'dp.name AS district_parent_name'                          ],
-      [ 'DISTRICT_TYPE_ID',  'INT', 'd.type_id', 'd.type_id AS district_type_id'                           ],
-      [ 'STREET_NAME',       'STR', 's.name', 's.name AS street_name'                                      ],
-      [ 'STREET_SECOND_NAME','STR', 's.second_name', 's.second_name AS street_second_name'                 ],
-      [ 'USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count'                                     ],
-      [ 'USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections'   ],
-      [ 'ADDED',             'DATE','b.added',                                                           1 ],
-      [ 'LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id'                                        ],
-      [ 'COORDX',            'INT', 'b.coordx',                                                          1 ],
-      [ 'COORDY',            'INT', 'b.coordy',                                                          1 ],
-      [ 'STREET_ID',         'INT', 'b.street_id',                                                         ],
-      [ 'ZIP',               'INT', 'b.zip',    'b.zip'                                                    ],
-      [ 'PUBLIC_COMMENTS',   'STR', 'b.public_comments',                                                 1 ],
-      [ 'NUMBERING_DIRECTION','STR','b.numbering_direction',                                             1 ],
-      [ 'DOMAIN_ID',         'INT', 'd.domain_id',                                                       1 ],
-      [ 'USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users',                            1 ],
-      [ 'TYPE_ID',           'INT', 'b.type_id',                                                         1 ],
-      [ 'TYPE_NAME',         'STR', 'bt.name', 'bt.name AS type_name'                                      ],
-      [ 'STATUS_ID',         'INT', 'b.status_id',                                                       1 ],
-      [ 'STATUS_NAME',       'STR', 'bs.name', 'bs.name AS status_name'                                    ],
-    ],
+  my @search_params = (
+    [ 'NUMBER',            'STR', 'b.number',                                                            ],
+    [ 'BLOCK',             'STR', 'b.block',                                                           1 ],
+    [ 'ID',                'INT', 'b.id',                                                              1 ],
+    [ 'FLORS',             'INT', 'b.flors',                                                           1 ],
+    [ 'ENTRANCES',         'INT', 'b.entrances',                                                       1 ],
+    [ 'FLATS',             'INT', 'b.flats',                                                           1 ],
+    [ 'BUILD_SCHEMA',      'INT', 'b.build_schema',                                                          1 ],
+    [ 'DISTRICT_ID',       'INT', 's.district_id',                                                     1 ],
+    [ 'DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'                                    ],
+    [ 'DISTRICT_PARENT_ID','INT', 'd.parent_id', 'd.parent_id AS district_parent_id'                     ],
+    [ 'DISTRICT_PARENT_NAME','INT','dp.name', 'dp.name AS district_parent_name'                          ],
+    [ 'DISTRICT_TYPE_ID',  'INT', 'd.type_id', 'd.type_id AS district_type_id'                           ],
+    [ 'STREET_NAME',       'STR', 's.name', 's.name AS street_name'                                      ],
+    [ 'STREET_SECOND_NAME','STR', 's.second_name', 's.second_name AS street_second_name'                 ],
+    [ 'USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count'                                     ],
+    [ 'USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections'   ],
+    [ 'ADDED',             'DATE','b.added',                                                           1 ],
+    [ 'LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id'                                        ],
+    [ 'COORDX',            'INT', 'b.coordx',                                                          1 ],
+    [ 'COORDY',            'INT', 'b.coordy',                                                          1 ],
+    [ 'STREET_ID',         'INT', 'b.street_id',                                                         ],
+    [ 'ZIP',               'INT', 'b.zip',    'b.zip'                                                    ],
+    [ 'PUBLIC_COMMENTS',   'STR', 'b.public_comments',                                                 1 ],
+    [ 'NUMBERING_DIRECTION','STR','b.numbering_direction',                                             1 ],
+    [ 'DOMAIN_ID',         'INT', 'd.domain_id',                                                       1 ],
+    [ 'USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users',                            1 ],
+    [ 'TYPE_ID',           'INT', 'b.type_id',                                                         1 ],
+    [ 'TYPE_NAME',         'STR', 'bt.name', 'bt.name AS type_name'                                      ],
+    [ 'STATUS_ID',         'INT', 'b.status_id',                                                       1 ],
+    [ 'STATUS_NAME',       'STR', 'bs.name', 'bs.name AS status_name'                                    ],
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     }
@@ -667,7 +724,7 @@ sub build_list {
 
   my $EXT_TABLES = '';
 
-  if ($self->{SEARCH_FIELDS} =~ /s\.|d\./) {
+  if ($self->{SEARCH_FIELDS} =~ /s\.|d\./xm) {
     if($attr->{WITH_STREETS_ONLY}) {
       $EXT_TABLES = 'INNER JOIN streets s ON (s.id=b.street_id)';
     }
@@ -675,7 +732,7 @@ sub build_list {
       $EXT_TABLES = 'LEFT JOIN streets s ON (s.id=b.street_id)';
     }
 
-    if ($self->{SEARCH_FIELDS} =~ /d\./) {
+    if ($self->{SEARCH_FIELDS} =~ /d\./xm) {
       $EXT_TABLES .= 'LEFT JOIN districts d ON (d.id=s.district_id)';
     }
 
@@ -684,43 +741,48 @@ sub build_list {
     }
   }
 
-  $EXT_TABLES .= "\nLEFT JOIN users_pi pi ON (b.id=pi.location_id)" if ($self->{SEARCH_FIELDS} =~ /pi\./);
-  $EXT_TABLES .= "\nLEFT JOIN building_types bt ON (b.type_id=bt.id)" if ($self->{SEARCH_FIELDS} =~ /bt\./);
-  $EXT_TABLES .= "\nLEFT JOIN building_statuses bs ON (b.status_id=bs.id)" if ($self->{SEARCH_FIELDS} =~ /bs\./);
+  $EXT_TABLES .= "\nLEFT JOIN users_pi pi ON (b.id=pi.location_id)" if ($self->{SEARCH_FIELDS} =~ /pi\./xm);
+  $EXT_TABLES .= "\nLEFT JOIN building_types bt ON (b.type_id=bt.id)" if ($self->{SEARCH_FIELDS} =~ /bt\./xm);
+  $EXT_TABLES .= "\nLEFT JOIN building_statuses bs ON (b.status_id=bs.id)" if ($self->{SEARCH_FIELDS} =~ /bs\./xm);
 
-  $self->query("SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
-      FROM builds b
-      $EXT_TABLES
-      $WHERE
-      GROUP BY b.id
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-      undef,
-      $attr
-    );
+  my $sql = <<"SQL";
+SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
+FROM builds b
+  $EXT_TABLES
+  $WHERE
+GROUP BY b.id
+SQL
+
+
+  $self->query_list($sql,  $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} && $self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total FROM builds b
-    $EXT_TABLES
-    $WHERE",
-    undef,
-    { INFO => 1 }
-    );
+    $sql = <<"SQL";
+SELECT COUNT(*) AS total FROM builds b
+  $EXT_TABLES
+  $WHERE
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
 =head2 build_info($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub build_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM builds WHERE id= ? ;",
     undef,
@@ -735,19 +797,25 @@ sub build_info {
 #**********************************************************
 =head2 build_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub build_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'builds',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'builds',
+    DATA         => $attr
+  });
+
+  if ($attr->{COMMENTS}){
+    $admin->system_action_add("BUILD ID:$attr->{ID}, COMMENTS:" . $attr->{COMMENTS}, { TYPE => 2 });
+  }
 
   return $self;
 }
@@ -755,11 +823,15 @@ sub build_change {
 #**********************************************************
 =head2 build_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub build_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ADD_ADDRESS_BUILD}) {
     my $list = $self->build_list({
@@ -792,15 +864,20 @@ sub build_add {
 #**********************************************************
 =head2 build_del($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub build_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('builds', {ID => $id });
 
   $admin->system_action_add("BUILD:$id", { TYPE => 10 }) if (!$self->{errno});
+
   return $self;
 }
 
@@ -810,8 +887,7 @@ sub build_del {
 =cut
 #**********************************************************
 sub location_media_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM location_media WHERE location_id= ? ;",
     undef,
@@ -820,20 +896,22 @@ sub location_media_list {
      %$attr
     });
 
-  my $list = $self->{list};
-
-  return $list;
+  return $self->{list} || [];
 }
 
 
 #**********************************************************
 =head2 location_media_info($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub location_media_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM location_media WHERE id= ? ;",
     undef,
@@ -849,19 +927,21 @@ sub location_media_info {
 #**********************************************************
 =head2 location_media_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub location_media_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'location_media',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'location_media',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -869,11 +949,15 @@ sub location_media_change {
 #**********************************************************
 =head2 location_media_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub location_media_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('location_media', $attr);
 
@@ -885,11 +969,15 @@ sub location_media_add {
 #**********************************************************
 =head2 location_media_del($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub location_media_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('location_media', {ID => $id });
 
@@ -901,11 +989,15 @@ sub location_media_del {
 #**********************************************************
 =head2 address_type_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub address_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('address_types', { %$attr });
 
@@ -915,11 +1007,15 @@ sub address_type_add {
 #**********************************************************
 =head2 address_type_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub address_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -933,11 +1029,15 @@ sub address_type_change {
 #**********************************************************
 =head2 address_type_del($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub address_type_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('address_types', { ID => $id });
 
@@ -947,11 +1047,15 @@ sub address_type_del {
 #**********************************************************
 =head2 address_type_info($id) - Address type info
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub address_type_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM address_types WHERE id = ? ;", undef, {
     INFO => 1,
@@ -964,11 +1068,15 @@ sub address_type_info {
 #**********************************************************
 =head2 address_type_list($attr) - Address types list
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub address_type_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -979,19 +1087,22 @@ sub address_type_list {
   if ($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
+
   my $WHERE = $self->search_former($attr, [
     [ 'ID',       'INT',  'at.id',         1 ],
     [ 'NAME',     'STR',  'at.name',       1 ],
     [ 'POSITION', 'INT',  'at.position',   1 ]
   ], { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} at.id
-      FROM address_types at
-    $WHERE
-    ORDER BY $SORT $DESC $LIMIT",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} at.id
+FROM address_types at
+  $WHERE
+ORDER BY $SORT $DESC
+$LIMIT
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -999,11 +1110,15 @@ sub address_type_list {
 #**********************************************************
 =head2 building_type_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('building_types', { %$attr });
 
@@ -1016,8 +1131,7 @@ sub building_type_add {
 =cut
 #**********************************************************
 sub building_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -1031,11 +1145,15 @@ sub building_type_change {
 #**********************************************************
 =head2 building_type_del($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_type_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('building_types', { ID => $id });
 
@@ -1045,11 +1163,15 @@ sub building_type_del {
 #**********************************************************
 =head2 building_type_info($id) - Building type info
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_type_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM building_types WHERE id = ? ;", undef, {
     INFO => 1,
@@ -1062,11 +1184,15 @@ sub building_type_info {
 #**********************************************************
 =head2 building_type_list($attr) - Building types list
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_type_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1082,13 +1208,14 @@ sub building_type_list {
     [ 'NAME',     'STR',  'bt.name',       1 ]
   ], { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} bt.id
-      FROM building_types bt
-    $WHERE
-    ORDER BY $SORT $DESC $LIMIT",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} bt.id
+FROM building_types bt
+  $WHERE
+ORDER BY $SORT $DESC $LIMIT
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -1096,11 +1223,15 @@ sub building_type_list {
 #**********************************************************
 =head2 building_status_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_status_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('building_statuses', { %$attr });
 
@@ -1110,11 +1241,15 @@ sub building_status_add {
 #**********************************************************
 =head2 building_status_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_status_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -1131,8 +1266,7 @@ sub building_status_change {
 =cut
 #**********************************************************
 sub building_status_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM building_statuses WHERE id = ? ;", undef, {
     INFO => 1,
@@ -1145,11 +1279,15 @@ sub building_status_info {
 #**********************************************************
 =head2 building_status_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub building_status_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('building_statuses', { ID => $id });
 
@@ -1178,8 +1316,7 @@ sub building_get_default_status {
 =cut
 #**********************************************************
 sub building_status_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1196,15 +1333,110 @@ sub building_status_list {
     [ 'IS_DEFAULT', 'INT',  'bs.is_default', 1 ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} bs.id
-      FROM building_statuses bs
-    $WHERE
-    ORDER BY $SORT $DESC $LIMIT",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} bs.id
+FROM building_statuses bs
+  $WHERE
+ORDER BY $SORT $DESC
+$LIMIT
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
 
-1
+#**********************************************************
+=head2 territorial_units_info($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub territorial_units_info {
+  my ($self, $attr) = @_;
+
+  $self->query("SELECT * FROM territorial_units WHERE id = ? ;",
+    undef, { INFO => 1, Bind => [ $attr->{ID} ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 territorial_units_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub territorial_units_change {
+  my ($self, $attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'territorial_units',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 territorial_units_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub territorial_units_list {
+  my ($self, $attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
+  my $LIMIT = ($PAGE_ROWS) ? "LIMIT $PG, $PAGE_ROWS" : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',         'INT',  'tu.id',         1 ],
+    [ 'NAME',       'STR',  'tu.name',       1 ],
+    [ 'CODE',       'STR',  'tu.code',       1 ],
+    [ 'TYPE_CODE',  'STR',  'tu.type_code',  1 ],
+    [ 'LEVEL',      'INT',  'tu.level',      1 ],
+    [ 'PARENT_ID',  'INT',  'tu.parent_id',  1 ]
+  ], { WHERE => 1 });
+
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} tu.id
+FROM territorial_units tu
+  $WHERE
+ORDER BY $SORT $DESC $LIMIT
+SQL
+
+  $self->query($sql, undef, $attr);
+
+  my $list = $self->{list} || [];
+
+  if (!$self->{errno}){
+    $sql = <<"SQL";
+SELECT COUNT(tu.id) AS total
+FROM territorial_units tu
+  $WHERE
+SQL
+
+    $self->query($sql, undef,  { INFO => 1 });
+  }
+
+  return $list || [];
+}
+
+1;

@@ -99,6 +99,7 @@ $lang{ACTIVE_APPEALS} = 'Активные обращения';
 $lang{WAITING} = 'В ожидании';
 $lang{DIALOGUE_CLOSED} = 'Диалог закрыт';
 $lang{THE_USER_JOINED_VIA_TELEGRAM} = 'Пользователь присоединился через Telegram';
+$lang{THE_USER_JOINED_VIA_ECHAT} = 'Пользователь присоединился через E-chat';
 $lang{THE_USER_JOINED_VIA_VIBER_BOT} = 'Пользователь присоединился через VIber-бот';
 $lang{OPEN_LINES} = 'Открытые линии';
 $lang{OPEN_LINE} = 'Открытая линия';
@@ -131,6 +132,7 @@ $lang{SELECT_STEP} = 'Выберите шаг...';
 $lang{CRM_SELECT_RESPONSIBLE} = 'Выберите ответственного...';
 $lang{CRM_SET_RESPONSIBLE} = 'Установить ответственного';
 $lang{CRM_SEND_MESSAGE} = 'Отправить сообщение';
+$lang{CRM_SEND_MESSAGE_TO_RESPONSIBLE} = 'Отправка сообщения ответственному';
 $lang{CRM_ENTER_MESSAGE} = 'Введите сообщение...';
 $lang{SET_PRIORITY} = 'Установить приоритет';
 $lang{CRM_ADD_ACTION} = 'Добавить действие';
@@ -138,6 +140,7 @@ $lang{CRM_PLANNING_DATE} = 'Запланированная дата';
 $lang{CRM_ADD_TASK} = 'Добавить задачу';
 $lang{CRM_TASK_TYPE} = 'Тип задачи';
 $lang{CRM_TASK_NAME} = 'Название задачи';
+$lang{CRM_DAYS_TO_COMPLETE_TASK} = 'Количество дней на выполнение задачи';
 $lang{CRM_DUE_DATE} = 'Выполнить до...';
 $lang{ADDED_NEW_ACTION} = 'Добавлено новое действие';
 $lang{CRM_LEAD_WAS_CHANGED} = 'Изменения коснулись потенциального клиента';
@@ -174,10 +177,33 @@ $lang{CRM_PROGRESS_MESSAGE_CHANGED} = 'Обновлено сообщение в 
 $lang{CRM_PROGRESS_MESSAGE_DELETED} = 'Удалено сообщение из ленты событий';
 $lang{CRM_PROCESSED_LEADS} = 'Обработанные потенциальные клиенты';
 
+$lang{CRM_DIALOG_ADDED} = 'Диалог добавлен';
+$lang{CRM_DIALOG_CHANGED} = 'Изменения диалога';
+$lang{CRM_DIALOG_DELETED} = 'Диалог удалён';
+
 $lang{ERR_CRM_BOT_USER_ID_ERROR} = 'Ошибка ID пользователя бота';
 $lang{ERR_CRM_MESSAGE_SOURCE_ERROR} = 'Ошибка источника сообщения';
 $lang{ERR_CRM_GET_LEAD_BY_BOT_ERROR} = 'Ошибка получения потенциального клиента по боту';
 $lang{ERR_CRM_LEAD_NOT_FOUND} = 'Потенциальный клиент не найден';
 $lang{ERR_CRM_SEND_DIALOGUE_MESSAGE_ERROR} = 'Ошибка отправки сообщения в диалоге';
+$lang{ERR_CRM_NUMBER_NOT_FOUND} = 'Номер не найден';
+$lang{ERR_CRM_NUMBER_ALREADY_ACTIVATED} = 'Номер уже активирован';
+$lang{ERR_CRM_NUMBER_ALREADY_DEACTIVATED} = 'Номер уже деактивирован';
+$lang{ERR_CRM_EXTERNAL_API_ERROR} = 'Ошибка внешнего API';
+$lang{ERR_CRM_NO_FIELD} = 'Отсутствует поле %FIELD%';
+$lang{ERR_CRM_UNKNOWN_MESSENGER_TYPE} = 'Неизвестный тип мессенджера: %TYPE%';
+$lang{ERR_CRM_API_TIMEOUT} = 'Превышено время ожидания ответа API';
+$lang{ERR_CRM_INVALID_JSON_RESPONSE} = 'Ошибка декодирования JSON: %ERROR%';
+$lang{ERR_CRM_INVALID_RESPONSE_STRUCTURE} = 'Невалидная структура ответа API';
+
+$lang{CRM_NUMBER_ADDED} = 'Номер добавлен';
+$lang{CRM_NUMBER_CHANGED} = 'Номер изменён';
+$lang{CRM_NUMBER_DELETED} = 'Номер удалён';
+$lang{CRM_NUMBER_ACTIVATED} = 'Номер успешно активирован';
+$lang{CRM_NUMBER_DEACTIVATED} = 'Номер успешно деактивирован';
+$lang{CRM_CONNECTED_NUMBERS} = 'Подключённые номера';
+$lang{CRM_CONNECT_PHONE_NUMBER} = 'Подключить номер телефона';
+$lang{CRM_API_KEY} = 'API ключ';
+$lang{CRM_PHONE_NUMBER} = 'Номер телефона';
 
 1

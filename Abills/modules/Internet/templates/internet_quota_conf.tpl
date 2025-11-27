@@ -1,6 +1,6 @@
-<form action='$SELF_URL' method='post' name=pay_to class='form-horizontal'>
+<form action='%SELF_URL%' method='post' name=pay_to class='form-horizontal'>
 
-    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='index' value='%index%'>
 
     <div class='card card-primary card-outline box-form'>
         <div class='card-header with-border'>

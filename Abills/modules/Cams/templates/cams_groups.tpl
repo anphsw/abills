@@ -3,8 +3,8 @@
     <h3 class="card-title">_{CAMERAS}_: _{GROUP}_</h3>
   </div>
   <div class='card-body'>
-    <form method='POST' action='$SELF_URL' class='form-horizontal'>
-      <input type='hidden' name='index' value='$index'>
+    <form method='POST' action='%SELF_URL%' class='form-horizontal'>
+      <input type='hidden' name='index' value='%index%'>
       <input type='hidden' name='ID' value='%ID%'>
       <div class='form-group row'>
         <label class='control-label col-md-4 required'>_{SERVICE}_:</label>

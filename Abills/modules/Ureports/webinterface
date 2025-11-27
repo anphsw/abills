@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 8.24,
+  REQUIRE_VERSION => 8.27,
 })) {
   exit;
 }
@@ -28,7 +28,7 @@ use Tariffs;
 use Abills::Api::Handle;
 use Abills::Base qw(in_array cmd load_pmodule date_diff json_former);
 use Abills::Loader;
-use Abills::Sender::Core qw(load_plugin);
+use Abills::Sender::Core;
 use Ureports::Base;
 use Abills::Filters qw(email_valid);
 
@@ -39,8 +39,8 @@ our (
   %lang,
   %permissions,
   @bool_vals,
-  @MONTHES,
-  @WEEKDAYS,
+  # @MONTHES,
+  # @WEEKDAYS,
   %ADMIN_REPORT,
   $base_dir
 );
@@ -53,12 +53,12 @@ my $Ureports_base = Ureports::Base->new($db, $admin, \%conf, { HTML => $html, LA
 my $Fees = Fees->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
-  html    => $html,
-  lang    => \%lang,
-  cookies => \%COOKIES,
-  direct  => 1
-});
+# my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
+#   html    => $html,
+#   lang    => \%lang,
+#   cookies => \%COOKIES,
+#   direct  => 1
+# });
 
 my %service_type = %{$Sender->available_types(
   { CLIENT => 1, HASH_RETURN => 1, SOFT_CHECK => 1 }
@@ -169,6 +169,18 @@ sub ureports_users_list {
 
   $Ureports->{LAST_MESSAGE} = 1;
 
+  my %ext_titles = (
+    user_send_type_id => '#',
+    tp_name           => $lang{TARIF_PLAN},
+    status            => $lang{STATUS},
+    type              => $lang{TYPE},
+    destination       => $lang{DESTINATION},
+    reports_count     => "$lang{REPORTS} $lang{COUNT}",
+    last_message      => $lang{LAST_MESSAGE},
+    error_code        => $lang{UREPORTS_ERROR_CODE},
+    error_msg         => $lang{ERROR}
+  );
+
   result_former({
     INPUT_DATA      => $Ureports,
     FUNCTION        => 'user_send_types_list',
@@ -176,20 +188,10 @@ sub ureports_users_list {
     DEFAULT_FIELDS  => 'USER_SEND_TYPE_ID,LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION,ERROR_CODE,ERROR_MSG',
     HIDDEN_FIELDS   => 'DESTINATION_ID,USER_SEND_TYPE_ID',
     FUNCTION_FIELDS => 'ureports_user:show:uid',
-    EXT_TITLES      => {
-      user_send_type_id => '#',
-      tp_name           => $lang{TARIF_PLAN},
-      status            => $lang{STATUS},
-      type              => $lang{TYPE},
-      destination       => $lang{DESTINATION},
-      reports_count     => $lang{REPORTS},
-      last_message      => $lang{LAST_MESSAGE},
-      error_code        => $lang{UREPORTS_ERROR_CODE},
-      error_msg         => $lang{ERROR},
-    },
+    EXT_TITLES      => \%ext_titles,
     FILTER_COLS     => {
-      destination => '_ureports_destination_filter',
-      type        => '_ureports_type_filter'
+      destination => 'ureports_destination_filter',
+      type        => 'ureports_type_filter'
     },
     FILTER_VALUES   => {
       error_code => sub {
@@ -486,7 +488,7 @@ sub ureports_user {
 }
 
 #**********************************************************
-=head2 form_tp()
+=head2 ureports_tp()
 
 =cut
 #**********************************************************
@@ -495,8 +497,6 @@ sub ureports_tp {
   my $tarif_info = $Tariffs->defaults();
   $tarif_info->{LNG_ACTION} = $lang{ADD};
   $tarif_info->{ACTION} = 'ADD_TP';
-
-  my @Payment_Types = ($lang{PREPAID}, $lang{POSTPAID});
 
   if ($FORM{ADD_TP}) {
     $Ureports->tp_add({ %FORM, MODULE => 'Ureports' });
@@ -597,9 +597,23 @@ sub ureports_tp {
     $html->tpl_show(_include('ureports_tp', 'Ureports'), $tarif_info);
   }
 
+  ureports_tp_list();
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 ureports_tp_list()
+
+=cut
+#**********************************************************
+sub ureports_tp_list {
+
   $LIST_PARAMS{NEW_MODEL_TP} = 1;
   $LIST_PARAMS{MODULE} = 'Ureports';
-  $Tariffs->{COL_NAMES_ARR} = undef;
+  delete $Tariffs->{COL_NAMES_ARR};
+  my @payment_types = ($lang{PREPAID}, $lang{POSTPAID});
 
   my Abills::HTML $table;
   my $list;
@@ -658,10 +672,10 @@ sub ureports_tp {
         $line->{id} = $html->b($line->{id});
       }
       elsif ($col_name eq 'name') {
-        $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}"),
+        $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}");
       }
       elsif ($col_name eq 'payment_type') {
-        $line->{payment_type} = $Payment_Types[ $line->{payment_type}  ];
+        $line->{payment_type} = $payment_types[ $line->{payment_type}  ];
       }
       elsif ($col_name =~ m/time_tarifs|traf_tarifs/x) {
         $line->{$col_name} = $bool_vals[ $line->{$col_name} ];
@@ -905,11 +919,6 @@ sub ureports_user_info {
     $Ureports->{TP_NAME} = '';
   }
   else {
-    # if ($Ureports->{STATUS} && $Ureports->{STATUS} == 2) {
-    #   $html->message('info', $lang{INFO}, "$lang{NOT_ACTIVE}");
-    #   return 0;
-    # }
-
     $Ureports->{ACTION} = 'set';
     $Ureports->{LNG_ACTION} = $lang{CHANGE};
 
@@ -952,11 +961,7 @@ sub ureports_user_info {
             TYPE          => 'number',
             class         => 'form-control',
           }),
-
-          # Price
           (($line->{msg_price}) ? $line->{msg_price} : '0.00'),
-
-          # Date
           $line->{date}
         );
       }
@@ -1780,7 +1785,7 @@ sub ureports_monthly_periodic {
 }
 
 #**********************************************************
-=head2 _ureports_destination_filter($destination)
+=head2 ureports_destination_filter($destination)
 
   Argumnets:
     $destination
@@ -1790,15 +1795,16 @@ sub ureports_monthly_periodic {
 
 =cut
 #**********************************************************
-sub _ureports_destination_filter {
+sub ureports_destination_filter {
   my $destination = shift;
 
   return '' if (!$destination);
-  return join('; ', map($_ || ' ', split(/,\s?/x, $destination)));
+
+  return join('; ', map { $_ || ' '} split(/,\s?/x, $destination));
 }
 
 #**********************************************************
-=head2 _ureports_type_filter($type)
+=head2 ureports_type_filter($type)
 
   Arguments:
     $type
@@ -1808,12 +1814,13 @@ sub _ureports_destination_filter {
 
 =cut
 #**********************************************************
-sub _ureports_type_filter {
+sub ureports_type_filter {
   my $type = shift;
 
   return '' if (!$type);
-  return join('; ', map($service_type{$_} || $_, split(/,\s?/x, $type)));
+
+  return join('; ', map {$service_type{$_} || $_} split(/,\s?/x, $type));
 }
 
-1
+1;
 

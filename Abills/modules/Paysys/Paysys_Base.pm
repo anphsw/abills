@@ -1,3 +1,4 @@
+#@deprecated
 =head1 Paysys_Base
 
   Paysys_Base - module for payments
@@ -1481,98 +1482,6 @@ sub paysys_show_result {
 }
 
 #**********************************************************
-=head2 paysys_import_parse($content, $import_expr, $BINDING_FIELD) - Parce file
-
-  Arguments:
-    $content
-    $import_expr
-    $BINDING_FIELD
-    $attr
-      DEBUG
-      ENCODE
-      SKIP_ROWS - Skip [SKIP_ROWS] count
-
-  Returns:
-    return \@DATA_ARR, \@BINDING_IDS;
-
-=cut
-#**********************************************************
-sub paysys_import_parse {
-  my ($content, $import_expr, $BINDING_FIELD, $attr) = @_;
-
-  my $debug = $attr->{DEBUG} || 0;
-
-  my @DATA_ARR    = ();
-  my @BINDING_IDS = ();
-
-  $import_expr =~ s/ //g;
-  $import_expr =~ s/\n//g;
-  my ($expration, $columns) = split(/:/, $import_expr);
-  my @EXPR_IDS = split(/,/, $columns);
-  print "EXPRESSION: $expration\nColumns: $columns\n" if ($debug > 0);
-
-  my @rows = split(/[\r]{0,1}\n/, $content);
-  my $line_count = 1;
-  my $first_row = 0;
-  if ($attr->{SKIP_ROWS}) {
-    $first_row = $attr->{SKIP_ROWS};
-  }
-
-  for (my $row = $first_row; $row <= $#rows; $row++) {
-    my $line = $rows[$row];
-    my %DATA_HASH = ();
-
-    if ($attr->{ENCODE}) {
-      $line = convert($line, { $attr->{ENCODE} => 1 });
-    }
-
-    if (my @res = ($line =~ /$expration/)) {
-      for (my $i = 0; $i <= $#res; $i++) {
-        my $field_name = $EXPR_IDS[$i] || q{};
-        print "$field_name => $res[$i]\n" . $html->br() if ($debug > 5);
-        next if ($field_name eq 'UNDEF');
-        $DATA_HASH{ $field_name } = $res[$i];
-
-        if ($field_name eq 'PHONE') {
-          $DATA_HASH{ $field_name } =~ s/-//g;
-        }
-        elsif ($field_name eq 'CONTRACT_ID') {
-          $DATA_HASH{ $field_name } =~ s/-//g;
-        }
-        elsif ($field_name eq 'LOGIN') {
-          $DATA_HASH{ $field_name } =~ s/ //g;
-        }
-        elsif ($field_name eq 'SUM') {
-          $DATA_HASH{ $field_name } =~ s/,/\./g;
-        }
-        elsif ($field_name eq 'DATE') {
-          if ($DATA_HASH{DATE} =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/) {
-            $DATA_HASH{DATE} = "$1-$2-$3";
-            $DATA_HASH{TIME} = "$4:$5:$6";
-          }
-          elsif ($DATA_HASH{DATE} =~ /^(\d{2})[.-](\d{2})[.-](\d{4})$/) {
-            $DATA_HASH{DATE} = "$3-$2-$1";
-          }
-          elsif ($DATA_HASH{DATE} =~ /^(\d{4})[.-](\d{2})[.-](\d{2})$/) {
-            $DATA_HASH{DATE} = "$1-$2-$3";
-          }
-        }
-      }
-
-      push @DATA_ARR, \%DATA_HASH;
-      push @BINDING_IDS, $DATA_HASH{$BINDING_FIELD} if ($DATA_HASH{$BINDING_FIELD});
-    }
-    elsif ($line ne '') {
-      print $html->b("$lang{ERROR}: line: $line_count") . " '$line'" . $html->br();
-    }
-
-    $line_count++;
-  }
-
-  return \@DATA_ARR, \@BINDING_IDS;
-}
-
-#**********************************************************
 =head2 _account_expression($user_account) -
 
   Arguments:
@@ -1641,39 +1550,6 @@ sub _hide_text {
   $hidden_text = encode("UTF-8", join(' ', @join_test));
 
   return $hidden_text;
-}
-
-#**********************************************************
-=head2 date_convert($date) - Convert fate to system format
-
-  Arguments:
-     $date
-     $attr
-
-  Returns:
-    $converted_date (YYYY-MM-DD)
-
-=cut
-#**********************************************************
-sub date_convert {
-  my ($date, $attr) = @_;
-
-  my $system_date = $date || $DATE;
-
-  if (!$date) {
-    if ($attr->{DATE_DMY}) {
-      $attr->{DATE_DMY} =~ /^(\d{2})(\d{2})(\d{4})/;
-      $system_date = "$3-$2-$1";
-    }
-  }
-  elsif ($date =~ /^(202\d{1})(\d{2})(\d{2})/) {
-    $system_date = "$1-$2-$3";
-  }
-  elsif ($date =~ /^(\d{2})\.(\d{2})\.(\d{4})/) {
-    $system_date = "$3-$2-$1";
-  }
-
-  return $system_date;
 }
 
 #**********************************************************

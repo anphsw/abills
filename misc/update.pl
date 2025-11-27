@@ -10,8 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.14
-  UPDATED: 20250403
+  VERSION: 0.17
+  UPDATED: 20251009
 
 =head1 SYNOPSIS
 
@@ -51,7 +51,7 @@ use feature 'say';
 
 =cut
 
-our $VERSION = 0.14;
+our $VERSION = 0.15;
 
 # Core modules from at least Perl 5.6
 use Getopt::Long qw/GetOptions HelpMessage :config auto_help auto_version ignore_case/;
@@ -120,7 +120,7 @@ use lib $OPTIONS{PREFIX} . '/';
 
 do "libexec/config.pl";
 use Abills::Fetcher qw/web_request/;
-use Abills::Base qw/_bp urlencode dirname/;
+use Abills::Base qw/_bp urlencode dirname cmd in_array/;
 
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
 
@@ -133,6 +133,9 @@ my $GIT_REPO_HOST = $OPTIONS{GIT_REPO_HOST};
 
 my $ABILLS_UPDATE_URL = "http://abills.net.ua/misc/update.php";
 my $SUPPORT_URL = 'https://support.abills.net.ua/index.cgi';
+
+my $hostname = cmd("hostname");
+chomp($hostname);
 
 if ($DEBUG) {
   require Carp::Always;
@@ -215,12 +218,12 @@ sub update {
     }
     return 0;
   }
-  elsif($OPTIONS{LOG}) {
+  elsif ($OPTIONS{LOG}) {
     print "SHOW LOG: $OPTIONS{LOG}\n\n";
     log_show();
     return 0;
   }
-  elsif($OPTIONS{FIX}) {
+  elsif ($OPTIONS{FIX}) {
     print "SHOW FIX: $OPTIONS{FIX}\n\n";
     log_show({ FIX => 1 });
     return 0;
@@ -262,6 +265,7 @@ sub full_update {
   print "Checking for updated modules \n";
   update_modules();
   renew_license();
+  _check_conf();
 
   #add update date
   if (-f "$OPTIONS{PREFIX}/VERSION") {
@@ -279,14 +283,19 @@ sub full_update {
 #**********************************************************
 =head2 get_os_information()
 
+  Arguments:
+
+  Results:
+
 =cut
 #**********************************************************
 sub get_os_information {
 
-  # if ($<) {
-  #   print " Program need root privileges! \n\n";
-  #   exit 0;
-  # }
+  my $system_uid = $< // 1;
+  if ($system_uid != 0) {
+    print " Program need root privileges! UID: $system_uid \n\n";
+    exit 0;
+  }
 
   return %SYSTEM_INFO if (%SYSTEM_INFO);
 
@@ -404,8 +413,7 @@ sub get_hardware_info {
   my $hdd_size = '';
   my $interfaces = '';
 
-  my $IFCONFIG = `which ifconfig`;
-  chomp($IFCONFIG);
+  my $IFCONFIG = _get_program('ifconfig');
 
   $ENV{PATH} = "$ENV{PATH}:/sbin/:usr/sbin";
 
@@ -421,7 +429,6 @@ sub get_hardware_info {
     if ($IFCONFIG) {
       $interfaces = `$IFCONFIG | grep "[a-z0-9]: f" | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
     }
-
 
     $ram = `grep -i "real memory" /var/run/dmesg.boot | sed 's/.*(\([0-9]*\) MB)/\1/' | tail -1`;
     $ram ||= `sysctl hw.physmem | awk '{ print \$2 "/ 1048576" }' | bc`;
@@ -446,14 +453,13 @@ sub get_hardware_info {
       $net_if = `ifconfig | grep '^[a-z0-9]' | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
     }
 
-
     $interfaces = `lspci -mm | grep Ethernet |cut -f4- -d " "`;
 
     $hdd_size = `fdisk -l |head -2 |tail -1|awk '{print \$3,\$4}'|sed 's/,//'`;
     my $hdd_disk_name = `fdisk -l | head -2 | tail -1 | awk '{ print \$2 }' | sed 's/://'`;
 
-    my $hdparam = `which hdparm`;
-    if ($hdd_disk_name && $hdd_disk_name =~ /dev/ && $hdparam) {
+    my $hdparam = _get_program('hdparm');
+    if ($hdd_disk_name && $hdd_disk_name =~ /dev/xm && $hdparam) {
       chomp $hdd_disk_name;
       chomp $hdparam;
 
@@ -512,26 +518,32 @@ sub get_hardware_info {
 
 
 #**********************************************************
-=head2 authenticate()
+=head2 authenticate($attr)
+
+  Arguments:
+    $attr
+      RENEW -
+
+  Results:
 
 =cut
 #**********************************************************
 sub authenticate {
+  my ($attr) = @_;
+
+  my $renew = $attr->{RENEW} || 0;
 
   return $ABILLS_SIGN if ($ABILLS_SIGN);
 
   my $update_sign = $ENV{'HOME'} . '/.updater' || '/usr/abills/libexec/.updater';
 
-  if (-f $update_sign) {
+  if (-f $update_sign && !$renew) {
     $ABILLS_SIGN = _read_file($update_sign);
     chomp $ABILLS_SIGN;
   }
 
   if (!$ABILLS_SIGN) {
     my ($username, $password) = _get_support_credentials();
-
-    my $hostname = `hostname`;
-    chomp($hostname);
 
     my $request_result = web_request($ABILLS_UPDATE_URL, {
       CURL           => 1,
@@ -548,7 +560,7 @@ sub authenticate {
     );
 
     if (!$request_result || $request_result !~ 'Registration complete') {
-      say 'Authorization failed SIGN: '. $HARDWARE_INFO{id};
+      say 'Authorization failed SIGN: ' . $HARDWARE_INFO{id};
       return 0;
     }
 
@@ -572,8 +584,8 @@ sub sources_update {
 
   if ($type eq 'git' && check_ssh_access()) {
     # Check git is present
-    my $git = `which git`;
-    chomp($git);
+    my $git = _get_program('git');
+
     if (!$git) {
       print "Git is not installed. Please install git \n";
       exit 1;
@@ -606,13 +618,13 @@ sub sources_update {
 
     my $update_error = system($cmd);
     if ($update_error) {
-      print "
+      print <<"[END]";
       #################################################################
       #                    Git update error                           #
       #################################################################
-      
-        Check git errors below.\n";
+      Check git errors below.
 
+[END]
       return 0;
     }
   }
@@ -668,13 +680,13 @@ sub sources_backup {
   my $df_reply_kb = `$df_cmd`;
   chomp $df_reply_kb;
 
-  if (!($sources_size_kb && $df_reply_kb) || ($sources_size_kb !~ /^\d+$/ && $df_reply_kb !~ /^\d+$/)) {
+  if (!($sources_size_kb && $df_reply_kb) || ($sources_size_kb !~ /^\d+$/xm && $df_reply_kb !~ /^\d+$/xm)) {
     if (Term::Complete::Complete("Can't check free space. Continue anyway? [y/N]") !~ /y/i) {
       exit 0;
     }
   }
 
-  if ($df_reply_kb && $df_reply_kb =~ /^(\d+)/) {
+  if ($df_reply_kb && $df_reply_kb =~ /^(\d+)/xm) {
     $df_reply_kb = $1 || 0;
   };
 
@@ -712,7 +724,7 @@ sub update_sql {
 
   print "Check SQL updates\n";
   #if ($debug > 3) {
-    print "$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1\n";
+  print "$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1\n";
   #}
   `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1`;
 
@@ -766,7 +778,7 @@ sub update_sql {
   }
 
   say "Last updated file - $last_updated";
-  use Abills::Misc qw/_get_files_in/;
+  require Abills::Misc;
 
   my $update_files = _get_files_in($TEMP_DIR . '/abills/db/update');
 
@@ -827,13 +839,16 @@ sub renew_license {
       get_key   => 1,
     },
     DEBUG          => $DEBUG > 4
-  }
-  );
+  });
 
-  if (!$request_result || $request_result !~ /^\d+$/) {
+  if (!$request_result || $request_result !~ /^\d+$/xm) {
     say "  !! Failed to receive new license\n";
     print $request_result;
     if (_read_input('PROCCEED_WITH_WRONG_LICENSE', "Do you want to proceed without license?", 'n') eq 'n') {
+
+      $ABILLS_SIGN = undef;
+      authenticate({ RENEW => 1 });
+
       say "Exit";
       exit 1;
     };
@@ -846,7 +861,6 @@ sub renew_license {
     unlink "$TEMP_DIR/abills/libexec/license.key" if (-f "$TEMP_DIR/abills/libexec/license.key");
     _write_to_file($request_result, "$TEMP_DIR/abills/libexec/license.key");
     say 'License saved to new sources';
-
   }
   # Else if we do not have temp_dir (WHY?)
   elsif (-f "$OPTIONS{PREFIX}/libexec/license.key") {
@@ -1010,21 +1024,21 @@ sub download_module {
     DEBUG          => $DEBUG > 4
   });
 
-  if (! $module_info || !$module_info->{purchased}) {
+  if (!$module_info || !$module_info->{purchased}) {
     my $time = $module_info->{time} || q{};
     my $price = $module_info->{price};
     my $file_id = $module_info->{id};
 
     my $agree_to_buy = _read_input(
       'BUY_' . uc($module_name),
-      "\nDo you agree to buy $module_name for $time days? Price is ". ($price || q{}) ." USD (y/N)",
+      "\nDo you agree to buy $module_name for $time days? Price is " . ($price || q{}) . " USD (y/N)",
       undef,
       {
-        CHECK => sub {$_[0] =~ /y|n/i}
+        CHECK => sub {$_[0] =~ /y|n/xmi}
       }
     );
 
-    if ($agree_to_buy =~ /n/i) {
+    if ($agree_to_buy =~ /n/xmi) {
       print "Can't update without $module_name.\nPlease disable it and repeat again \n";
       exit 1;
     }
@@ -1067,13 +1081,15 @@ sub download_module {
   if (!$file_content || length($file_content) < 100) {
 
     # Show error if any
-    if ($file_content && $file_content =~ /^ERROR:/) {
+    if ($file_content && $file_content =~ /^ERROR:/xm) {
       say $file_content;
     }
 
-    say "There was an error while receiving module.
+    print <<"[END]";
+There was an error while receiving module.
     Please try again or download it manually.
-    https://support.abills.net.ua/index.cgi?get_index=sharing_user_main";
+    https://support.abills.net.ua/index.cgi?get_index=sharing_user_main
+[END]
     return 0;
   }
 
@@ -1110,12 +1126,11 @@ sub get_abills_version {
 #**********************************************************
 sub check_used_perl_modules {
 
-  my $cpanm = `which cpanm`;
-  chomp($cpanm);
+  my $cpanm = _get_program("cpanm");
 
   if (!$cpanm) {
-    print "cpanminus is not installed \n";
-    `cpan App::cpanminus`;
+    print "cpanminus is not installed. \nInstalling cpan... (Wait few minutes)\n";
+    cmd("cpan App::cpanminus");
   }
 
   if ($DEBUG > 2) {
@@ -1126,7 +1141,7 @@ sub check_used_perl_modules {
   my $cant_require_module = sub {
     my ($name) = shift;
     undef $@;
-    $name =~ s/::/\//g;
+    $name =~ s/::/\//xg;
     eval {require $name . '.pm'};
     $@;
   };
@@ -1158,17 +1173,17 @@ sub check_used_perl_modules {
         if ($cant_require_module->($perl_mod)) {
           print "  Installing Perl module : $perl_mod \n";
           sleep 1;
-          `cpanm $perl_mod`
+          cmd("cpanm $perl_mod");
         }
       }
     }
-
   }
 
   if ($DEBUG) {
     print "Finished checking perl modules \n";
   }
 
+  return 1;
 }
 
 #**********************************************************
@@ -1181,7 +1196,7 @@ sub check_perl_version {
 
   my $normalize = sub {
     my $literal = shift;
-    my ($major, $minor, $subv) = $literal =~ /^(\d+)\.(\d{3})(\d*)/;
+    my ($major, $minor, $subv) = $literal =~ /^(\d+)\.(\d{3})(\d*)/xm;
 
     $minor = int($minor || 0);
     $subv = int($subv || 0);
@@ -1201,19 +1216,19 @@ sub check_perl_version {
     die "Your PERL version ($normalized_current) is lower then minimal $normalized_minimal. \n"
   }
   elsif ($] lt $recommended_version) {
-    print "
+    print <<"[END]";
   #################################################################
   #                    Outdated perl version                      #
   #################################################################
-  
+
   Your PERL version ($normalized_current) is lower then recommended.
   Perl community works hard to make Perl faster and more stable.
   We as developers are using new stable features, so code needs higher versions of Perl
   Consider upgrading Perl at least to $normalized_recommended\n
-  
-  ";
+[END]
   }
 
+  return 1;
 }
 
 #**********************************************************
@@ -1227,7 +1242,7 @@ sub check_sql_version {
   $admin->query("SELECT version();");
   my $version_str = $admin->{list}->[0]->[0] || 0;
   my $sql_version = 0;
-  if ($version_str && $version_str =~ /([0-9]+\.[0-9]+)/) {
+  if ($version_str && $version_str =~ /([0-9]+\.[0-9]+)/xm) {
     $sql_version = $1;
   }
 
@@ -1235,13 +1250,14 @@ sub check_sql_version {
 
   # Compare with recommended and show warning if less
   if ($recommended_sql_version > $sql_version) {
-    print "
+    print <<"[END]";
   #################################################################
   #                    Outdated MySQL version                     #
   #################################################################
-  
+
   Your MySQL version ($sql_version) is lower then recommended.
-  Consider upgrading MySQL at least to $recommended_sql_version\n\n";
+  Consider upgrading MySQL at least to $recommended_sql_version
+[END]
     return 0;
   }
 
@@ -1252,6 +1268,10 @@ sub check_sql_version {
 #**********************************************************
 =head2 check_ssh_access()
 
+  Arguments:
+
+  Results:
+
 =cut
 #**********************************************************
 sub check_ssh_access {
@@ -1260,34 +1280,35 @@ sub check_ssh_access {
 
   # Check for SSH key present
   my $system_wide_identity_file_str =
-    `cat '/etc/ssh/ssh_config' | grep -E '^\ +IdentityFile' | awk -F' ' '{ print \$2 }'`;
+    cmd(q{cat '/etc/ssh/ssh_config' | grep -E '^\ +IdentityFile' | awk -F' ' '{ print \$2 }'});
 
+  $OPTIONS{EXPERIMENTAL_SSH_REGISTRATION}=1;
   if ($OPTIONS{EXPERIMENTAL_SSH_REGISTRATION}) {
     check_or_create_ssh();
   }
 
   my $user_idenity_file_str = '';
   if (-f '/root/.ssh/config') {
-    $user_idenity_file_str =
-      `cat '/root/.ssh/config' | grep -E '^\ +IdentityFile' | awk -F' ' '{ print \$2 }'`;
-    print "User identities : \n" . $user_idenity_file_str if ($DEBUG);
+    my $get_idenity = q{cat '/root/.ssh/config' | grep -E '^ +IdentityFile' | awk -F' ' '{ print $2 }'};
+    $user_idenity_file_str = cmd($get_idenity);
+    print "User identities : ($get_idenity)\n" . $user_idenity_file_str if ($DEBUG);
   }
 
   push(@identities, split('\n', $user_idenity_file_str)) if ($user_idenity_file_str);
   push(@identities, split('\n', $system_wide_identity_file_str)) if ($system_wide_identity_file_str);
 
   # Check each identity for connection to git@abills.net.ua
-  my $ssh = `which ssh`;
-  chomp($ssh);
+  my $ssh = _get_program('ssh');
+
   my $has_access_with_identity = sub {
     my $key = shift;
-    my $args = join(' ', $ssh, ($key ? "-i $key" : ""), '-o BatchMode=yes', '-q', $GIT_REPO_HOST, '> /dev/null 2>&1');
+    my $args = join(' ', $ssh, ($key ? "-i $key" : ""), '-o BatchMode=yes -o StrictHostKeychecking=no', '-q', $GIT_REPO_HOST, '> /dev/null 2>&1');
     print "Checking SSH access with : $args \n" if ($DEBUG);
     system($args) == 0;
   };
 
   # Find identity
-  my $valid_identity = undef;
+  my $valid_identity = q{};
 
   foreach my $file (@identities) {
     if ($has_access_with_identity->($file)) {
@@ -1298,16 +1319,18 @@ sub check_ssh_access {
 
   if (!$valid_identity) {
     print " ### Don't have access to repo \n\n";
+
+    print << "[TEXT]";
+      TODO: Look for key and save it to /root/.ssh/config
+
+      Host abills.net.ua
+          User git
+          Hostname abills.net.ua
+          IdentityFile ~/.ssh/id_dsa.yourisp
+
+[TEXT]
+
     return 0;
-
-    # TODO: Look for key and save it to /root/.ssh/config
-    # TODO: Ask for credentials and save it to $PREFIX/.credentials
-
-    #    Host abills.net.ua
-    #      User git
-    #      Hostname abills.net.ua
-    #      IdentityFile ~/.ssh/id_dsa.anton
-
   }
 
   return 1;
@@ -1355,10 +1378,10 @@ sub _get_support_credentials {
         "Do you want to proceed? (y/n)",
         undef,
         {
-          CHECK => sub {$_[0] && $_[0] =~ /y|n/i}
+          CHECK => sub {$_[0] && $_[0] =~ /y|n/xmi}
         }
       );
-      if ($user_confirmed_json_is_ok =~ /n/i) {
+      if ($user_confirmed_json_is_ok =~ /n/xmi) {
         die " No confirmation to skip broken JSON \n";
       }
     }
@@ -1435,19 +1458,19 @@ sub _read_file {
 
   my $content = '';
 
-  if ( -f $filename ) {
+  if (-f $filename) {
     open(my $fh, '<', $filename) or return 0;
     while (my $line = <$fh>) {
       if ($attr->{GET_VERSION}) {
-        if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/) {
+        if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/xm) {
           $content = $1;
           return $content;
         }
-        elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/) {
+        elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/xm) {
           $content = $1;
           return $content;
         }
-        elsif ($line =~ /VERSION\:\s+([0-9.]+)/) {
+        elsif ($line =~ /VERSION\:\s+([0-9.]+)/xm) {
           $content = $1;
           return $content;
         }
@@ -1481,7 +1504,7 @@ sub _write_to_file {
 
   #Check fiolder
   my $dirname = dirname($destination);
-  if (! -d $dirname) {
+  if (!-d $dirname) {
     if (mkdir $dirname) {
       print "folder: $dirname created\n";
     }
@@ -1516,7 +1539,7 @@ sub _get_directory_size {
 
   chomp $size;
 
-  if ($size && $size =~ /^(\d+)/) {
+  if ($size && $size =~ /^(\d+)/xm) {
     $size = $1;
   }
   else {
@@ -1542,7 +1565,7 @@ sub _db_execute_from_file {
   say " --------------------- ";
   say "|Update file $file.|";
   say " --------------------- ";
-  my $update_content .= _read_file($TEMP_DIR . '/abills/db/update/' . $file);
+  my $update_content = _read_file($TEMP_DIR . '/abills/db/update/' . $file);
 
   _db_statements_execute($update_content);
 
@@ -1556,6 +1579,7 @@ sub _db_execute_from_file {
      $sql_content - sql content from changelog or update files
 
   Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1563,7 +1587,7 @@ sub _db_statements_execute {
   my ($sql_content) = @_;
   return 0 unless $sql_content;
 
-  $sql_content =~ s/\n+//gm;
+  $sql_content =~ s/\n+//xgm;
 
   my @commands_to_execute = split('\;', $sql_content);
 
@@ -1598,14 +1622,13 @@ sub _download_and_parse_sql_updates {
     REQUEST_PARAMS => {
     },
     DEBUG          => $DEBUG > 4
-  }
-  );
+  });
 
   # make array of all changelog dates
-  my (@changelog_dates_array) = $update_sql_result =~ /(\d{2}\.\d{2}\.\d{4})/gm;
+  my (@changelog_dates_array) = $update_sql_result =~ /(\d{2}\.\d{2}\.\d{4})/xgm;
 
   foreach my $changelog_each_date (@changelog_dates_array) {
-    $changelog_each_date =~ s/(\d{2})\.(\d{2})\.(\d{4})/$3$2$1/gm;
+    $changelog_each_date =~ s/(\d{2})\.(\d{2})\.(\d{4})/$3$2$1/xgm;
 
     # check if right date
     if ($changelog_each_date > $update_date) {
@@ -1616,7 +1639,7 @@ sub _download_and_parse_sql_updates {
       my $start_accordion = "<accordion title=\"$changelog_each_date\"><panel title=\"MySQL\"><code mysql>";
       my $end_accordion = "<\/code><\/panel><\/accordion>";
 
-      my ($sql_content) = $update_sql_result =~ /$start_accordion(.+?)$end_accordion/gsm;
+      my ($sql_content) = $update_sql_result =~ /$start_accordion(.+?)$end_accordion/xgsm;
       _db_statements_execute($sql_content);
     }
   }
@@ -1640,7 +1663,7 @@ sub apache_check {
 
   if (-f $filter_expr) {
     $filters = `cat $filter_expr`;
-    my @filter_rows = split(/\n/, $filters);
+    my @filter_rows = split(/\n/x, $filters);
     if (-d $apache_log_dir) {
       foreach my $filter (@filter_rows) {
         my $cmd = qq{grep "$filter" $apache_log_dir/*};
@@ -1678,7 +1701,7 @@ sub modules_list {
   printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n", 'Module', 'Remote', 'Local', 'Subsribe', 'Path', '-');
   print("-----------------------------------------------------------------------------------------------\n");
 
-  if (! $module_info) {
+  if (!$module_info) {
     print "[ERROR] Can't access to module list.\nTry again later\n";
     exit;
   }
@@ -1690,9 +1713,9 @@ sub modules_list {
   foreach my $module (@$module_info) {
     my $path = $module->{path} || q{};
     my $module_name = $module->{name};
-    my $local_file = $OPTIONS{PREFIX} . '/'. $module->{path} .'/' . $module_name;
+    my $local_file = $OPTIONS{PREFIX} . '/' . $module->{path} . '/' . $module_name;
 
-    if ($module_name =~ /Paysys_old|Alite/ ) {
+    if ($module_name =~ /Paysys_old|Alite/xm) {
       next;
     }
 
@@ -1702,12 +1725,12 @@ sub modules_list {
       print " ($module->{version} || 0) > $local_version) / $local_file\n\n";
     }
 
-    if ($local_version =~ /(\d+)\.(\d+)\.\d+/) {
-      $local_version  = "$1.$2";
+    if ($local_version =~ /(\d+)\.(\d+)\.\d+/xm) {
+      $local_version = "$1.$2";
     }
 
-    if ($module->{version} =~ /(\d+)\.(\d+)\.\d+/) {
-      $module->{version}  = "$1.$2";
+    if ($module->{version} =~ /(\d+)\.(\d+)\.\d+/xm) {
+      $module->{version} = "$1.$2";
     }
 
     printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n",
@@ -1720,10 +1743,10 @@ sub modules_list {
     );
 
     if ($cur_version eq '-1'
-       || ( $OPTIONS{FORCE_UPDATE} && ($module->{version} || 0) > $local_version )
-       || ($OPTIONS{module} && $OPTIONS{module} eq $module_name)) {
+      || ($OPTIONS{FORCE_UPDATE} && ($module->{version} || 0) > $local_version)
+      || ($OPTIONS{module} && $OPTIONS{module} eq $module_name)) {
       my $downloaded_module = $module_name;
-      $downloaded_module =~ s/\.pm//;
+      $downloaded_module =~ s/\.pm//x;
       my $res = download_module($downloaded_module, $local_file);
       if ($res) {
         my $new_version = _read_file($local_file, { GET_VERSION => 1 });
@@ -1754,14 +1777,13 @@ sub update_self {
 
   say "Verifying please wait...";
 
-  my $hostname = `hostname`;
   my $file = web_request($ABILLS_UPDATE_URL, {
-    CURL => 1,
+    CURL           => 1,
     REQUEST_PARAMS => {
-      sign    => $ABILLS_SIGN,
-      hn      => $hostname,
-      SYS_ID  => $SYS_ID,
-      VERSION => $ABILLS_VERSION,
+      sign      => $ABILLS_SIGN,
+      hn        => $hostname,
+      SYS_ID    => $SYS_ID,
+      VERSION   => $ABILLS_VERSION,
       getupdate => 1,
     },
   });
@@ -1777,7 +1799,7 @@ sub update_self {
   close($fh);
 
   if ($DEBUG) {
-    say ("$ABILLS_UPDATE_URL $ABILLS_SIGN $SYS_ID");
+    say("$ABILLS_UPDATE_URL $ABILLS_SIGN $SYS_ID");
   }
 
   if (!-f "$TEMP_DIR/update.pl") {
@@ -1801,7 +1823,7 @@ sub update_self {
       'UPDATE_UPDATER',
       "!!! New version '$version_new' of update.pl available, update it [Y/n]: ",
       undef,
-      { CHECK => sub {$_[0] =~ /y|n/i} }
+      { CHECK => sub {$_[0] =~ /y|n/xmi} }
     );
 
     if ($update_confirm) {
@@ -1810,6 +1832,8 @@ sub update_self {
       exit;
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -1819,12 +1843,12 @@ sub update_self {
 #**********************************************************
 sub _get_version_from_new {
   my ($path) = @_;
-  if (open (my $fh, '<', $path)) {
+  if (open(my $fh, '<', $path)) {
     my $content = '';
     while (<$fh>) {
       $content .= $_;
     }
-    my ($matched) = $content =~ /VERSION\s*=\s*([\d.]+)/;
+    my ($matched) = $content =~ /VERSION\s*=\s*([\d.]+)/xm;
     return $matched;
   }
   return 0;
@@ -1833,13 +1857,27 @@ sub _get_version_from_new {
 #**********************************************************
 =head2 check_or_install_module($module_info)
 
+  Arguments:
+    $module_info
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub check_or_install_module {
   my ($module_info) = @_;
 
+  my @skip_modules = (
+    'Mx802',
+    'Mx80',
+    'Mac_auth2',
+    'Mac_auth',
+    'ring',
+    'Me60'
+  );
+
   # Support only for Abills/mysql modules.
-  if ($module_info->{path} !~ /Abills\/mysql/) {
+  if ($module_info->{path} !~ /Abills\/mysql/xm) {
     return 0;
   }
 
@@ -1848,20 +1886,24 @@ sub check_or_install_module {
 
   my ($original_modules) = $config_file =~ /\@MODULES\s*=\s*\((.*?)\);/xsg;
 
-  my @lines = split(/\n/, $original_modules);
+  my @lines = split(/\n/x, $original_modules);
 
   my @config_modules = ();
   for my $line (@lines) {
-    $line =~ s/^\s+|\s+$//g; # Trim leading and trailing whitespace
-    next if $line =~ /^\s*#/; # Skip commented lines
-    if ($line =~ /['"]([^'"]+)['"],?/) {
+    $line =~ s/^\s+|\s+$//xg;     # Trim leading and trailing whitespace
+    next if ($line =~ /^\s*\#/xm); # Skip commented lines
+    if ($line =~ /['"]([^'"]+)['"],?/xm) {
       push @config_modules, $1;
     }
   }
   my $current_module_name = $module_info->{name};
-  $current_module_name =~ s/\.pm//;
+  $current_module_name =~ s/\.pm//x;
 
-  if (grep { $_ eq $current_module_name } @config_modules) {
+  if (in_array($current_module_name, \@skip_modules)) {
+    return 0;
+  }
+
+  if (grep {$_ eq $current_module_name} @config_modules) {
     return 0;
   }
 
@@ -1870,23 +1912,34 @@ sub check_or_install_module {
     "You have purchased but not installed the $current_module_name module, should we install it? (y/N)",
     undef,
     {
-      CHECK => sub {$_[0] =~ /y|n/i}
+      CHECK => sub {$_[0] =~ /y|n/xmi}
     }
   );
 
-  if ($agree_to_install =~ /n/i) {
+  if ($agree_to_install =~ /n/xmi) {
     say "Skip install $current_module_name.";
     return 0;
   }
 
-  my $sql_content = _read_file("$FindBin::Bin/../db/$current_module_name.sql");
-  _db_statements_execute($sql_content);
+  my $module_dump = "$FindBin::Bin/../db/$current_module_name.sql";
+  if (! -f $module_dump) {
+    $module_dump = "$FindBin::Bin/../Abills/modules/$current_module_name/$current_module_name.sql";
+  }
 
+  if (-f $module_dump) {
+    my $res = cmd("mysql --default-character-set=$conf{dbcharset} -D $conf{dbname} -u $conf{dbuser} --password=$conf{dbpasswd} < $module_dump");
+    print "Dump: $res";
+  }
+
+  #my $sql_content = _read_file("$FindBin::Bin/../db/$current_module_name.sql");
+  #_db_statements_execute($sql_content);
+
+  require Abills::Misc;
   my $files = _get_files_in($libexec);
   my $max_index = 0;
 
   foreach my $file (@$files) {
-    if ($file =~ /^config\.pl(\.bak(\d*)?)$/) {
+    if ($file =~ /^config\.pl(\.bak(\d*)?)$/xm) {
       my $index = $2 // '';
       $index = 1 if $index eq '';
       if ($index > $max_index) {
@@ -1897,24 +1950,28 @@ sub check_or_install_module {
 
   my $array_content = $original_modules;
 
-  my @config_lines = split /\n/, $array_content;
-  s/^\s+|\s+$//g for @config_lines;
-  @config_lines = grep { $_ !~ /^\s*#/ } @config_lines;
-  @config_lines = grep { $_ ne '' } @config_lines;
+  my @config_lines = split /\n/xm, $array_content;
+  s/^\s+|\s+$//xg for @config_lines;
+  #@config_lines = grep {$_ !~ /^\s*\#/xm} @config_lines;
+  @config_lines = grep {$_ ne ''} @config_lines;
 
-  if ($config_lines[-1] !~ /,$/) {
+  if ($config_lines[-1] && $config_lines[-1] !~ /,$/xm) {
     $config_lines[-1] .= ',';
   }
 
   my $new_item = "'$current_module_name'\n";
   push @config_lines, $new_item;
 
-  @config_lines = map { "  $_" } @config_lines;
+  @config_lines = map {"  $_"} @config_lines;
 
   my $new_array_content = join("\n", @config_lines);
 
   my $new_config_file = $config_file;
-  $new_config_file =~ s/$array_content/$new_array_content/s;
+  $array_content =~ s/\n+/\\n\+/gx;
+  $array_content =~ s/\s+/\\s\+/gx;
+  $array_content =~ s/\#/\\#/gx;
+  $new_config_file =~ s/$array_content/$new_array_content/gx;
+  print "s/$array_content/$new_array_content/x\n";
 
   my $show_index = $max_index ? $max_index + 1 : '';
   _write_to_file($config_file, "$libexec/config.pl.bak$show_index");
@@ -1923,7 +1980,7 @@ sub check_or_install_module {
   my $err = qx(perl -c $libexec/config.pl 2>&1 | grep 'error');
 
   if ($err) {
-    say "Error! Script cannot modify your config.pl due to syntax error";
+    say "Error! Script cannot modify your config.pl due to syntax error: $err";
     say "Try to add $current_module_name TO \@MODULES by yourself.";
     my $latest_backup_content = _read_file("$libexec/config.pl.bak$show_index");
     _write_to_file($latest_backup_content, "$libexec/config.pl");
@@ -1938,10 +1995,15 @@ sub check_or_install_module {
 #**********************************************************
 =head2 check_or_create_ssh()
 
+  Arguments:
+
+  Results:
+
 =cut
 #**********************************************************
 sub check_or_create_ssh {
-  my $search_key = `ls \`pwd\`/id_rsa.* 2> /dev/null | head -1`;
+
+  my $search_key = cmd(q{ls \`pwd\`/id_rsa.* 2> /dev/null | head -1});
   chomp($search_key);
   my $default_auth_key = '';
 
@@ -1952,12 +2014,12 @@ sub check_or_create_ssh {
     say "Found key: $search_key ($basedir $key_dir)";
   }
 
-  if (!-f '$ENV{HOME}/.ssh/config') {
+  if (!-f "$ENV{HOME}/.ssh/config") {
     my $install_auth_key = _read_input(
       'INSTALL_AUTH_KEY_AGREE',
       "Please, install auth key\nYou have auth key? [Y/n]: ",
       undef,
-      { CHECK => sub {$_[0] =~ /y|n/i} }
+      { CHECK => sub {$_[0] =~ /y|n/xmi} }
     );
 
     if ($install_auth_key !~ 'n') {
@@ -1966,7 +2028,7 @@ sub check_or_create_ssh {
         "Enter path to auth key [$default_auth_key]: ",
       );
       $auth_key_path ||= $default_auth_key;
-      my ($default_auth_user) = $auth_key_path =~ s/^[a-z_\/]*\.//r;
+      my ($default_auth_user) = $auth_key_path =~ s/^[a-z_\/]*\.//xr;
 
       my $auth_user = _read_input(
         'ENTER_AUTH_LOGIN',
@@ -1989,20 +2051,26 @@ Host abills.net.ua
 [END]
         close $fh;
         return 1;
-      } else {
+      }
+      else {
         say "Wrong key $auth_key_path";
         return 0;
       }
     }
   }
 
-  my $check_key = `grep abills.net.ua $ENV{HOME}/.ssh/config`;
+  my $check_key = cmd(qq{grep abills.net.ua $ENV{HOME}/.ssh/config});
+
   chomp($check_key);
   if ($check_key eq '') {
-    say "You don't have update key";
-    say "Please, contact ABillS Support Team";
+    print <<"[END]";
+  You don't have update key
+  Please, contact ABillS Support Team
+[END]
     return 0;
   }
+
+  return 1;
 }
 
 
@@ -2018,7 +2086,7 @@ Host abills.net.ua
 sub log_show {
   my ($attr) = @_;
 
-  my $git = `which git`;
+  my $git = _get_program('git');
   my $git_cmd = '';
   my @git_options = ();
   my @command_options = ();
@@ -2045,6 +2113,70 @@ sub log_show {
   print $logs;
 
   return 1;
+}
+
+#**********************************************************
+=head2 _check_conf()
+
+=cut
+#**********************************************************
+sub _check_conf {
+  if (in_array('Paysys', \@MODULES) && !$conf{PAYSYS_V4}) {
+    print "\n\e[34m Please check abills/Abills/modules/Paysys/Plugins/ and add \$conf{PAYSYS_V4}=1 to config.pl \e[0m\n";
+  }
+
+  if (in_array('Paysys', \@MODULES) && $conf{PAYSYS_V4}) {
+    _check_paysys();
+  }
+
+  return 1;
+};
+
+#**********************************************************
+=head2 _check_paysys()
+
+=cut
+#**********************************************************
+sub _check_paysys {
+
+  my $plugin_dir = '';
+
+  if (-d "$base_dir/Abills/modules/Paysys/Plugins") {
+    $plugin_dir = $base_dir . '/Abills/modules/Paysys/Plugins';
+
+    opendir(my $dh, $plugin_dir) or die "Cannot open $plugin_dir: $!";
+    my @plugins = grep {-f "$plugin_dir/$_"} readdir($dh);
+    closedir($dh);
+
+    foreach my $plugin (@plugins) {
+      if ($plugin =~ /\.pm$/xm) {
+        $plugin =~ s/\.pm$//x;
+        print "\e[34m Testing payment system $plugin \e[0m\n";
+        print cmd("cd $base_dir/Abills/modules/Paysys/t; perl $plugin.t");
+      }
+    }
+  }
+
+  return 1;
+};
+
+#**********************************************************
+=head2 _check_paysys($program)
+
+  Arguments:
+    $program
+  Results:
+    $program
+
+=cut
+#**********************************************************
+sub _get_program {
+  my ($program) = @_;
+
+  $program = cmd(qq{which $program});
+  chomp($program);
+
+  return $program;
 }
 
 1;

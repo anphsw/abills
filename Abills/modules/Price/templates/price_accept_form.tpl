@@ -1,4 +1,4 @@
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
     <input type='hidden' name='CECKED_MAS_NAME' value='%MAS%'>
     <input type='hidden' name='CECKED_SUMM_NAME' value='%SUMM%'>
     <input type='hidden' id='CURRENT_D' name='CURRENT_D' value='%CURRENT_D%'>

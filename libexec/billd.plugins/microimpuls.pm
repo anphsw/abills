@@ -27,7 +27,7 @@ our (
 );
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 microimpuls_online();
 

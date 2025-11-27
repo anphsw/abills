@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' METHOD='POST'>
-<input type=hidden name='index' value='$index'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='ID' value='%ID%'>
 
 <div class='card box-big-form box-primary '>

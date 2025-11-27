@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='SCRUB_BOX' id='scrub_box'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='SCRUB_BOX' id='scrub_box'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' id='MSGS_INDEX' name='MSGS_INDEX' value='%MSGS_INDEX%'/>
 
   <nav class='navbar navbar-default'>

@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <form name='WORDPRESS_OPTIONS' id='form_WORDPRESS_OPTIONS' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       %HIDDEN_INPUTS%
 
       <div class='form-group'>

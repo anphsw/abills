@@ -104,7 +104,7 @@
               <!-- <p>Domain ID: %DOMAIN_ID% Domain name: %DOMAIN_NAME%</p> -->
               <div class='row center-block'>
                 <a class='btn btn-success btn-lg' href='%LOGIN_URL%'>_{I_HAVE_LOGIN_AND_PASSWORD}_</a>
-                <a class='btn btn-secondary top-margin' href='$SELF_URL?GUEST_ACCOUNT=1&DOMAIN_ID=%DOMAIN_ID%%PAGE_QS%'>_{I_WANT_TO_TRY}_</a>
+                <a class='btn btn-secondary top-margin' href='%SELF_URL%?GUEST_ACCOUNT=1&DOMAIN_ID=%DOMAIN_ID%%PAGE_QS%'>_{I_WANT_TO_TRY}_</a>
               </div>
               %ADDRESS_STREET% %ADDRESS_BUILD% %ADDRESS_FLAT%
             </div> <!-- END OF box-BODY -->

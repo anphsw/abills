@@ -3,7 +3,7 @@
   <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_ONU_MODAL' id='CABLECAT_COMMUTATION_ADD_ONU_MODAL' method='post'
           class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='operation' value='ADD'/>
       <input type='hidden' name='entity' value='ONU'/>
       <input type='hidden' name='COMMUTATION_ID' value='%COMMUTATION_ID%'/>
@@ -41,7 +41,7 @@
       jQuery("#SERVICE_SELECT").html("<span class='offset-6 fa fa-spin fa-spinner'></span>");
 
       jQuery.ajax({
-        url: '/admin/index.cgi?qindex=$index&header=2&entity=ONU&operation=ADD&COMMUTATION_ID=%COMMUTATION_ID%&getServices=1&UID='+val,
+        url: '/admin/index.cgi?qindex=%index%&header=2&entity=ONU&operation=ADD&COMMUTATION_ID=%COMMUTATION_ID%&getServices=1&UID='+val,
         type: 'GET',
         contentType: false,
         cache: false,

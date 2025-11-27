@@ -14,7 +14,6 @@ our (
   $debug,
   $user_id,
   $payment_sum,
-  $payment_id,
   $argv
 );
 
@@ -33,7 +32,6 @@ if ($debug > 3) {
 }
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-$payment_id = int(rand(10000));
 
 my %FORM = (
   LMI_MERCHANT_ID      => '1234',

@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(int2byte sec2time days_in_month);
+use Abills::Base qw(int2byte sec2time days_in_month sec2time_str);
 
 our(
   $db,
@@ -22,7 +22,7 @@ our(
   $pages_qs,
   $users,
   $index,
-  $user,
+  #$user,
   $DATE
 );
 
@@ -84,9 +84,9 @@ sub internet_stats {
         $html->message('info', $lang{INFO}, "$lang{ADDED}: SUM $FORM{sum}, BILL_ID: $FORM{BILL_ID}");
       }
     }
-    elsif ($FORM{SESSION_ID}) {
-      $pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
-      internet_session_detail({ USER_INFO => $attr->{USER_INFO} });
+    elsif ($FORM{SESSION_ID} || $FORM{session_detail}) {
+      $pages_qs .= "session_detail=1&SESSION_ID=$FORM{SESSION_ID}";
+      internet_session_detail({ %FORM, USER_INFO => $attr->{USER_INFO} });
       return 0;
     }
   }
@@ -119,18 +119,18 @@ sub internet_stats {
       $Sessions->del($uid, $session_id, $nas_id, $session_info->{start});
 
       if (! _error_show($Sessions)) {
-        my $info = qq{
-          $lang{LOGIN}:    $session_info->{login}
-          SESSION_ID:      $session_id
-          NAS_ID:          $nas_id
-          $lang{START}:    $session_info->{start}
-          $lang{DURATION}: $session_info->{duration}
-          $lang{SUM}:      $session_info->{sum}
-        };
+        my $info = <<"TEXT";
+        $lang{LOGIN}:    $session_info->{login}
+        SESSION_ID:      $session_id
+        NAS_ID:          $nas_id
+        $lang{START}:    $session_info->{start}
+        $lang{DURATION}: $session_info->{duration}
+        $lang{SUM}:      $session_info->{sum}
+TEXT
 
         $html->message( 'info', $lang{DELETED}, $info);
         require Control::Payments;
-        form_back_money( 'log', $session_info->{sum}, { UID => $uid } );    #
+        form_back_money( 'log', $session_info->{sum}, { UID => $uid } );
         return 0;
       }
     }
@@ -142,15 +142,13 @@ sub internet_stats {
   if ($users->{COMPANY_ID}) {
     if ($Internet->{JOIN_SERVICE}) {
       my @uids = ();
-      my $list = $Internet->user_list(
-        {
-          JOIN_SERVICE => ($Internet->{JOIN_SERVICE}==1) ? $Internet->{UID} : $Internet->{JOIN_SERVICE},
-          COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
-          LOGIN        => '_SHOW',
-          PAGE_ROWS    => 10000,
-          COLS_NAME    => 1
-        }
-      );
+      my $list = $Internet->user_list({
+        JOIN_SERVICE => ($Internet->{JOIN_SERVICE} == 1) ? $Internet->{UID} : $Internet->{JOIN_SERVICE},
+        COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
+        LOGIN        => '_SHOW',
+        PAGE_ROWS    => 10000,
+        COLS_NAME    => 1
+      });
 
       foreach my $line (@$list) {
         if ($Internet->{JOIN_SERVICE} && $Internet->{JOIN_SERVICE} == 1) {
@@ -264,7 +262,7 @@ sub internet_stats {
     rows        => [
       [
         $Sessions->{TOTAL},
-        _sec2time_str($Sessions->{DURATION}),
+        sec2time_str($Sessions->{DURATION}),
         int2byte($Sessions->{TRAFFIC_IN}, { DIMENSION => $FORM{DIMENSION} }),
         int2byte($Sessions->{TRAFFIC_OUT}, { DIMENSION => $FORM{DIMENSION} }),
         int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
@@ -376,7 +374,7 @@ sub internet_stats_calculation {
     {
       title_plain => [ "-", $lang{MIN}, $lang{MAX}, $lang{AVG}, $lang{TOTAL} ],
       rows        => [
-        [ $lang{DURATION},         _sec2time_str($Sessions_->{MIN_DUR}),  _sec2time_str($Sessions_->{MAX_DUR}), _sec2time_str($Sessions_->{AVG_DUR}), _sec2time_str($Sessions_->{TOTAL_DUR}) ],
+        [ $lang{DURATION},         sec2time_str($Sessions_->{MIN_DUR}),  sec2time_str($Sessions_->{MAX_DUR}), sec2time_str($Sessions_->{AVG_DUR}), sec2time_str($Sessions_->{TOTAL_DUR}) ],
         [ "$lang{TRAFFIC} $lang{SENT}", int2byte($Sessions_->{MIN_SENT}), int2byte($Sessions_->{MAX_SENT}), int2byte($Sessions_->{AVG_SENT}), int2byte($Sessions_->{TOTAL_SENT}) ],
         [ "$lang{TRAFFIC} $lang{RECV}", int2byte($Sessions_->{MIN_RECV}), int2byte($Sessions_->{MAX_RECV}), int2byte($Sessions_->{AVG_RECV}), int2byte($Sessions_->{TOTAL_RECV}) ],
         [ "$lang{TRAFFIC} $lang{SUM}",  int2byte($Sessions_->{MIN_SUM}),  int2byte($Sessions_->{MAX_SUM}),  int2byte($Sessions_->{AVG_SUM}),  int2byte($Sessions_->{TOTAL_SUM}) ]
@@ -389,7 +387,72 @@ sub internet_stats_calculation {
 }
 
 #**********************************************************
+=head2 internet_session_recalculate($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_session_recalculate {
+  my ($attr) = @_;
+
+  $Sessions->session_detail($attr);
+
+  require Billing;
+  Billing->import();
+  my $Billing = Billing->new($db, \%conf);
+
+  my (undef, $SUM, undef, $TARIF_PLAN) = $Billing->session_sum(
+    $Sessions->{LOGIN},
+    $Sessions->{START_UNIXTIME},
+    $Sessions->{DURATION},
+    {
+      OUTBYTE  => $Sessions->{SENT},
+      INBYTE   => $Sessions->{RECV},
+      OUTBYTE2 => $Sessions->{SENT2},
+      INBYTE2  => $Sessions->{RECV2}
+    },
+    {
+      disable_rt_billing => 1,
+      TP_NUM             => $Sessions->{TP_ID}
+    }
+  );
+
+  my $change = '';
+
+  if ($Sessions->{SUM} != $SUM) {
+    $change = "$lang{CHANGE}  " . $html->button($lang{YES}, "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$user->{UID}&change=1", { BUTTON => 1 }) . ' ?';
+
+    if ($FORM{change}) {
+      require Bills;
+      Bills->import();
+      my $Bill = Bills->new($db, $admin, \%conf);
+      $Bill->action('add',  $Sessions->{BILL_ID}, $Sessions->{SUM}) if ($Sessions->{SUM});
+      $Bill->action('take', $Sessions->{BILL_ID}, $SUM)             if ($SUM > 0);
+
+      $Sessions->query("UPDATE internet_log SET sum='$SUM' WHERE acct_session_id='$Sessions->{SESSION_ID}';", 'do');
+
+      if (! _error_show($Bill)) {
+        $html->message('info', $lang{INFO}, "$lang{ADDED}: SUM $FORM{sum}, BILL_ID: $FORM{BILL_ID}");
+      }
+      $change = $lang{CHANGED};
+    }
+  }
+
+  $html->message('info', "$lang{RECALCULATE}", "$lang{TARIF_PLAN}: $TARIF_PLAN, $lang{SUM}: $Sessions->{SUM} -> $SUM  $change");
+
+  return 1;
+}
+
+#**********************************************************
 =head2 internet_session_detail($attr)
+
+  Arguments:
+    $attr
 
 =cut
 #**********************************************************
@@ -397,78 +460,37 @@ sub internet_session_detail {
   my ($attr) = @_;
   my $user;
 
-  my $uid= $FORM{UID} || 0;
+  my $uid = $attr->{UID} || 0;
   if (defined($attr->{USER_INFO})) {
     $user = $attr->{USER_INFO};
     $LIST_PARAMS{LOGIN} = $user->{LOGIN};
 
-    if ($FORM{RECALC}) {
-      $Sessions->session_detail({%FORM});
-
-      require Billing;
-      Billing->import();
-      my $Billing = Billing->new($db, \%conf);
-
-      my (undef, $SUM, undef, $TARIF_PLAN) = $Billing->session_sum(
-        $Sessions->{LOGIN},
-        $Sessions->{START_UNIXTIME},
-        $Sessions->{DURATION},
-        {
-          OUTBYTE  => $Sessions->{SENT},
-          INBYTE   => $Sessions->{RECV},
-          OUTBYTE2 => $Sessions->{SENT2},
-          INBYTE2  => $Sessions->{RECV2}
-        },
-        {
-          disable_rt_billing => 1,
-          TP_NUM             => $Sessions->{TP_ID}
-        }
-      );
-
-      my $change = '';
-
-      if ($Sessions->{SUM} != $SUM) {
-        $change = "$lang{CHANGE}  " . $html->button($lang{YES}, "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$user->{UID}&change=1", { BUTTON => 1 }) . ' ?';
-
-        if ($FORM{change}) {
-          require Bills;
-          Bills->import();
-          my $Bill = Bills->new($db, $admin, \%conf);
-          $Bill->action('add',  "$Sessions->{BILL_ID}", $Sessions->{SUM}) if ($Sessions->{SUM});
-          $Bill->action('take', "$Sessions->{BILL_ID}", $SUM)             if ($SUM > 0);
-
-          $Sessions->query("UPDATE internet_log SET sum='$SUM' WHERE acct_session_id='$Sessions->{SESSION_ID}';", 'do');
-
-          if (! _error_show($Bill)) {
-            $html->message('info', $lang{INFO}, "$lang{ADDED}: SUM $FORM{sum}, BILL_ID: $FORM{BILL_ID}");
-          }
-          $change = $lang{CHANGED};
-        }
-      }
-
-      $html->message('info', "$lang{RECALCULATE}", "$lang{TARIF_PLAN}: $TARIF_PLAN, $lang{SUM}: $Sessions->{SUM} -> $SUM  $change");
+    if ($attr->{RECALC}) {
+      internet_session_recalculate($attr);
     }
   }
-  elsif (defined($LIST_PARAMS{LOGIN})) {
+  elsif ($LIST_PARAMS{LOGIN}) {
 
   }
-  elsif ($FORM{UID}) {
+  elsif ($attr->{UID}) {
     internet_user();
     return 0;
   }
 
   my $ACCT_TERMINATE_CAUSES = internet_terminate_causes({ REVERSE => 1 });
-  $Sessions->session_detail({%FORM});
+  $Sessions->session_detail($attr);
+
   if(_error_show($Sessions, { MESSAGE => "$lang{SESSIONS}: $FORM{SESSION_ID}" })) {
     return 0;
   }
+
   $Sessions->{ACCT_TERMINATE_CAUSE} = ($Sessions->{ACCT_TERMINATE_CAUSE}) ? "$Sessions->{ACCT_TERMINATE_CAUSE} : " . $ACCT_TERMINATE_CAUSES->{ $Sessions->{ACCT_TERMINATE_CAUSE} } : q{};
 
   $Sessions->{_SENT}  = int2byte($Sessions->{SENT});
   $Sessions->{_RECV}  = int2byte($Sessions->{RECV});
   $Sessions->{_RECV2} = int2byte($Sessions->{RECV2});
   $Sessions->{_SENT2} = int2byte($Sessions->{SENT2});
-  $Sessions->{RECALC} = $html->button($lang{RECALCULATE}, "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$uid", { BUTTON => 1 });
+  $Sessions->{RECALC} = $html->button($lang{RECALCULATE}, "index=$index&RECALC=1&SESSION_ID=$attr->{SESSION_ID}&UID=$uid&session_detail=1", { BUTTON => 1 });
   $Sessions->{SUM}    = sprintf("%.6f", $Sessions->{SUM});
 
   $Internet->user_info($uid);
@@ -496,55 +518,52 @@ sub internet_session_detail {
     sessions => $lang{SESSIONS}
   );
 
-  print $html->form_main(
-    {
-      CONTENT => $html->form_select(
-        'PERIOD',
-        {
-          SELECTED => $FORM{PERIOD},
-          SEL_HASH => \%ORDERS,
-          NO_ID    => 1
-        }
-      )
-        . "SESSION_ID:"
-        . $html->form_select(
-        'SESSION_ID',
-        {
-          SELECTED    => $FORM{SESSION_ID},
-          SEL_OPTIONS => {
-            $FORM{SESSION_ID} => $FORM{SESSION_ID},
-            '0'               => $lang{ALL}
-          },
-          NO_ID => 1
-        }
-      ),
-      HIDDEN => {
-        index => $index,
-        UID   => $user->{UID}
-      },
-      SUBMIT => { SHOW => $lang{SHOW} }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $html->form_select(
+      'PERIOD',
+      {
+        SELECTED => $attr->{PERIOD},
+        SEL_HASH => \%ORDERS,
+        NO_ID    => 1
+      }
+    )
+      . "SESSION_ID:"
+      . $html->form_select(
+      'SESSION_ID',
+      {
+        SELECTED    => $attr->{SESSION_ID},
+        SEL_OPTIONS => {
+          $attr->{SESSION_ID} => $attr->{SESSION_ID},
+          '0'                 => $lang{ALL}
+        },
+        NO_ID       => 1
+      }
+    ),
+    HIDDEN  => {
+      index          => $index,
+      session_detail => 1,
+      UID            => $user->{UID}
+    },
+    SUBMIT  => { SHOW => $lang{SHOW} },
+    class   => 'form-inline ml-auto flex-nowrap',
+  });
 
-  $pages_qs .= "&PERIOD=$FORM{PERIOD}" if (defined($FORM{PERIOD}));
+  $pages_qs .= "&PERIOD=$attr->{PERIOD}" if (defined($attr->{PERIOD}));
 
-  #Log intervals
   my $list = $Sessions->list_log_intervals({
-    ACCT_SESSION_ID => $FORM{SESSION_ID},
+    ACCT_SESSION_ID => $attr->{SESSION_ID},
     UID             => $user->{UID},
     COLS_NAME       => 1
   });
 
   if ($Sessions->{TOTAL} > 0) {
-    my $table = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{INTERVALS},
-        title      => [ $lang{INTERVALS}, $lang{TRAFFIC}, $lang{SENT}, $lang{RECV}, $lang{DURATION}, $lang{SUM} ],
-        qs         => $pages_qs,
-        ID         => 'INTERNET_SESSION_DETAIL'
-      }
-    );
+    my $table = $html->table({
+      width   => '100%',
+      caption => $lang{INTERVALS},
+      title   => [ $lang{INTERVALS}, $lang{TRAFFIC}, $lang{SENT}, $lang{RECV}, $lang{DURATION}, $lang{SUM} ],
+      qs      => $pages_qs,
+      ID      => 'INTERNET_SESSION_DETAIL'
+    });
 
     foreach my $line (@$list) {
       $table->addrow(
@@ -567,35 +586,32 @@ sub internet_session_detail {
   }
 
   $list = $Sessions->detail_list({ %LIST_PARAMS, %FORM });
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ "LAST_UPDATE", $lang{SESSION_ID}, "NAS ID", $lang{RECV}, $lang{SENT}, "$lang{SENT} 2", "$lang{RECV} 2", $lang{SUM} ],
-      pages      => $Sessions->{TOTAL},
-      qs         => $pages_qs,
-      ID         => 'DETAIL_LIST'
-    }
-  );
+  my $table = $html->table({
+    width => '100%',
+    title => [ "LAST_UPDATE", $lang{SESSION_ID}, "NAS ID", $lang{RECV}, $lang{SENT}, "$lang{SENT} 2", "$lang{RECV} 2", $lang{SUM} ],
+    pages => $Sessions->{TOTAL},
+    qs    => $pages_qs,
+    ID    => 'DETAIL_LIST'
+  });
 
-  foreach my $line (@$list) {
-    $table->addrow($line->[0], $html->button($line->[1], "index=$index&UID=$uid&SESSION_ID=$line->[1]"),
-      $line->[2],
-      int2byte($line->[3]),
-      int2byte($line->[4]),
-      int2byte($line->[5]),
-      int2byte($line->[6]),
-      $line->[7]);
+  foreach my $detail (@$list) {
+    $table->addrow($detail->{date}, $html->button($detail->{acct_session_id}, "index=$index&UID=$uid&SESSION_ID=$detail->{acct_session_id}&session_detail=1"),
+      $detail->{nas_id},
+      int2byte($detail->{sent1}),
+      int2byte($detail->{recv1}),
+      int2byte($detail->{sent2}),
+      int2byte($detail->{recv2}),
+      $detail->{sum}
+    );
   }
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($Sessions->{TOTAL}) ] ],
-      ID    => 'DETAIL_LIST_TOTAL'
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Sessions->{TOTAL}) ] ],
+    ID    => 'DETAIL_LIST_TOTAL'
+  });
 
   print $table->show();
 
@@ -620,7 +636,7 @@ sub internet_stats_periods {
   for (my $i = 0 ; $i < 5 ; $i++) {
     $table->addrow(
       $html->button($PERIODS[$i], "index=$index&PERIOD=$i$pages_qs"),
-      _sec2time_str($Sessions->{ 'duration_' . $i }),
+      sec2time_str($Sessions->{ 'duration_' . $i }),
       int2byte($Sessions->{ 'recv_' . $i }),
       int2byte($Sessions->{ 'sent_' . $i }),
       int2byte($Sessions->{ 'sum_' . $i })
@@ -716,6 +732,32 @@ sub internet_sessions {
     }
   }
 
+  my %ext_titles = (
+    'ip'                 => 'IP',
+    'netmask'            => 'NETMASK',
+    'framed_ipv6_prefix' => 'FRAMED_IPV6_PREFIX',
+    'duration_sec'       => $lang{DURATION},
+    'speed'              => $lang{SPEED},
+    'port_id'            => $lang{PORT},
+    'cid'                => 'CID',
+    'filter_id'          => 'Filter ID',
+    'tp_id'              => $lang{TARIF_PLAN} . ' (Inner ID)',
+    'tp_num'             => $lang{TARIF_PLAN} . ' (ID)',
+    'tp_name'            => $lang{TARIF_PLAN},
+    'internet_status'    => "Internet $lang{STATUS}",
+    'terminate_cause'    => $lang{ACCT_TERMINATE_CAUSE},
+    'start'              => "$lang{START} $lang{SESSIONS}",
+    'end'                => "$lang{END} $lang{SESSIONS}",
+    'duration'           => $lang{DURATION},
+    'sent'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{SENT}",
+    'recv'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
+    'sum'                => $lang{SUM},
+    'nas_id'             => $lang{NAS},
+    'nas_name'           => "$lang{NAME} $lang{NAS}",
+    'acct_session_id'    => 'Acct-Session-Id',
+    'guest'              => $lang{GUEST}
+  );
+
   my Abills::HTML $table;
   ($table, $list) = result_former({
     INPUT_DATA      => $sessions,
@@ -723,33 +765,9 @@ sub internet_sessions {
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => $default_fields,
     FUNCTION_FIELDS => ($user->{UID}) ? undef : 'internet_stats, del',
-    EXT_TITLES      => {
-      'ip'                 => 'IP',
-      'netmask'            => 'NETMASK',
-      'framed_ipv6_prefix' => 'FRAMED_IPV6_PREFIX',
-      'duration_sec'       => $lang{DURATION},
-      'speed'              => $lang{SPEED},
-      'port_id'            => $lang{PORT},
-      'cid'                => 'CID',
-      'filter_id'          => 'Filter ID',
-      'tp_id'              => $lang{TARIF_PLAN} . ' (Inner ID)',
-      'tp_num'             => $lang{TARIF_PLAN} . ' (ID)',
-      'tp_name'            => $lang{TARIF_PLAN},
-      'internet_status'    => "Internet $lang{STATUS}",
-      'terminate_cause'    => $lang{ACCT_TERMINATE_CAUSE},
-      'start'              => "$lang{START} $lang{SESSIONS}",
-      'end'                => "$lang{END} $lang{SESSIONS}",
-      'duration'           => $lang{DURATION},
-      'sent'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{SENT}",
-      'recv'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
-      'sum'                => $lang{SUM},
-      'nas_id'             => $lang{NAS},
-      'nas_name'           => "$lang{NAME} $lang{NAS}",
-      'acct_session_id'    => 'Acct-Session-Id',
-      'guest'              => $lang{GUEST}
-    },
+    EXT_TITLES      => \%ext_titles,,
     FILTER_COLS  => {
-      duration_sec    => '_sec2time_str',
+      duration_sec    => 'sec2time_str',
       sent            => 'int2byte',
       recv            => 'int2byte',
       terminate_cause => 'internet_terminate_causes',
@@ -795,7 +813,7 @@ sub internet_sessions {
         $line->{terminate_cause} = $ACCT_TERMINATE_CAUSES->{ $line->{terminate_cause} };
       }
       elsif ($field_name eq 'duration_sec') {
-        $line->{duration_sec} = _sec2time_str($line->{duration_sec});
+        $line->{duration_sec} = sec2time_str($line->{duration_sec});
       }
       elsif($field_name eq 'sum') {
         $line->{sum} = sprintf("%.6f", $line->{sum});
@@ -914,6 +932,9 @@ sub internet_get_chart_query {
     $users_
     $attr
       NO_PAYMENT_BTN
+
+  Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************

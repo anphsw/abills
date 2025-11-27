@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object",
+            "properties": {
+              "closed": {
+                "type": "integer"
+              },
+              "messages": {
+                "type": "integer"
+              },
+              "replies": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "closed",
+              "messages",
+              "replies"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "value"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

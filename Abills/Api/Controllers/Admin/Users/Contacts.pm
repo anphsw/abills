@@ -15,9 +15,11 @@ use warnings FATAL => 'all';
 
 use Control::Errors;
 use Contacts;
+use Control::Contacts;
 
 my Control::Errors $Errors;
 my Contacts $Contacts;
+my Control::Contacts $Contacts_control;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -33,12 +35,13 @@ sub new {
     conf  => $conf,
     attr  => $attr,
     html  => $attr->{html},
-    lang  => $attr->{lang}
+    lang  => $attr->{lang} || {}
   };
 
   bless($self, $class);
 
   $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
+  $Contacts_control = Control::Contacts->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $self->{lang} });
 
   $Errors = $self->{attr}->{Errors};
 
@@ -106,12 +109,13 @@ sub post_users_uid_contacts {
   return {
     errno  => 10,
     errstr => 'Access denied'
-  } if !$self->{admin}->{permissions}{0}{1};
+  } if !$self->{admin}->{permissions}{0}{4};
 
-  $Contacts->contacts_add({
-    %$query_params,
-    UID => $path_params->{uid},
-  });
+  if ($query_params->{CONTACTS} && ref $query_params->{CONTACTS} eq 'ARRAY') {
+    return $Contacts_control->renew_contacts($path_params->{uid}, $query_params->{CONTACTS});
+  }
+
+  return $Contacts_control->add_contact($path_params->{uid}, $query_params);
 }
 
 #**********************************************************
@@ -130,10 +134,7 @@ sub delete_users_uid_contacts_id {
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{5};
 
-  $Contacts->contacts_del({
-    ID  => $path_params->{id},
-    UID => $path_params->{uid}
-  });
+  return $Contacts_control->del_contact($path_params->{uid}, $path_params->{id});
 }
 
 #**********************************************************
@@ -152,10 +153,9 @@ sub put_users_uid_contacts_id {
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{4};
 
-  $Contacts->contacts_change({
+  return $Contacts_control->change_contact($path_params->{uid}, {
     %$query_params,
-    ID  => $path_params->{id},
-    UID => $path_params->{uid}
+    ID  => $path_params->{id}
   });
 }
 

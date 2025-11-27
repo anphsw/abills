@@ -11,8 +11,6 @@ package Tariffs;
 
 use strict;
 use parent 'dbcore';
-my $CONF;
-my $admin;
 
 #**********************************************************
 =head2 new($db, \%conf, $admin)
@@ -20,9 +18,7 @@ my $admin;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  ($CONF, $admin) = @_;
+  my ($class, $db, $CONF, $admin) = @_;
 
   my $self = {
     db   => $db,
@@ -41,8 +37,7 @@ sub new {
 =cut
 #**********************************************************
 sub ti_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('intervals', { ID => $id });
   $self->query_del('trafic_tarifs', undef, { interval_id => $id });
@@ -57,16 +52,15 @@ sub ti_del {
 =cut
 #**********************************************************
 sub ti_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('intervals', {
-        TP_ID => $self->{TP_ID}, 
-        DAY   => $attr->{TI_DAY}, 
-        BEGIN => $attr->{TI_BEGIN}, 
-        END   => $attr->{TI_END}, 
-        TARIF => $attr->{TI_TARIF} 
-      });
+    TP_ID => $self->{TP_ID},
+    DAY   => $attr->{TI_DAY},
+    BEGIN => $attr->{TI_BEGIN},
+    END   => $attr->{TI_END},
+    TARIF => $attr->{TI_TARIF}
+  });
 
   $self->{INTERVAL_ID} = $self->{INSERT_ID};
 
@@ -87,8 +81,7 @@ sub ti_add {
 =cut
 #**********************************************************
 sub ti_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
@@ -103,20 +96,21 @@ sub ti_list {
     $TP_ID     = $attr->{TP_ID};
   }
 
-  $self->query("SELECT i.id,
-      i.day,
-      $begin_end
-      i.tarif,
-      COUNT(tt.id) AS traffic_classes,
-      i.id
-    FROM intervals i
-    LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
-    WHERE i.tp_id='$TP_ID'
-    GROUP BY i.id
-    ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT i.id,
+       i.day,
+       $begin_end
+  i.tarif,
+  COUNT(tt.id) AS traffic_classes,
+       i.id
+FROM intervals i
+       LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
+WHERE i.tp_id='$TP_ID'
+GROUP BY i.id
+ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -127,8 +121,7 @@ sub ti_list {
 =cut
 #**********************************************************
 sub ti_change {
-  my $self = shift;
-  my ($ti_id, $attr) = @_;
+  my ($self, $ti_id, $attr) = @_;
 
   my %FIELDS = (
     TI_DAY   => 'day',
@@ -138,15 +131,13 @@ sub ti_change {
     TI_ID    => 'id'
   );
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'TI_ID',
-      TABLE        => 'intervals',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->ti_info($ti_id),
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'TI_ID',
+    TABLE        => 'intervals',
+    FIELDS       => \%FIELDS,
+    OLD_INFO     => $self->ti_info($ti_id),
+    DATA         => $attr
+  });
 
   if ($ti_id == $attr->{TI_ID}) {
     $self->ti_info($ti_id);
@@ -164,17 +155,19 @@ sub ti_change {
 =cut
 #**********************************************************
 sub ti_info {
-  my $self = shift;
-  my ($ti_id) = @_;
+  my ($self, $ti_id) = @_;
 
-  $self->query("SELECT day AS ti_day,
-     begin AS ti_begin, 
-     end AS ti_end, 
-     tarif AS ti_tarif, 
-     id
-    FROM intervals 
-    WHERE id= ? ;",
-    undef,
+  my $sql = <<'SQL';
+SELECT day AS ti_day,
+       begin AS ti_begin,
+       end AS ti_end,
+       tarif AS ti_tarif,
+       id
+FROM intervals
+WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [ $ti_id ] 
     }
@@ -211,8 +204,7 @@ sub ti_defaults {
 =cut
 #**********************************************************
 sub tp_group_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('tp_groups', { ID => $id });
 
@@ -225,14 +217,15 @@ sub tp_group_del {
 #
 #**********************************************************
 sub tp_group_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_add('tp_groups', { %$attr,
-  	                              ID => $attr->{GID} 
-  	                             });
+  $self->query_add('tp_groups', {
+    %$attr,
+    ID => $attr->{GID}
+  });
 
   $self->{admin}->system_action_add("TP_GROUP:$attr->{GID}", { TYPE => 1 });
+
   return $self;
 }
 
@@ -242,22 +235,23 @@ sub tp_group_add {
 =cut
 #**********************************************************
 sub tp_group_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT} && $attr->{SORT} =~ /^\d$/ && $attr->{SORT} < 5) ? $attr->{SORT} : "2, 3";
+  my $SORT = ($attr->{SORT} && $attr->{SORT} =~ /^\d$/xm && $attr->{SORT} < 5) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp,
-    COUNT(tp.id) AS tarif_plans_count,
-    GROUP_CONCAT(DISTINCT tp.id SEPARATOR ';') AS tarif_plans_ids
-   FROM tp_groups tg
-   LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
-   GROUP BY tg.id
-   ORDER BY $SORT $DESC",
-   undef,
-   $attr
-  );
+  my $sql = <<"SQL";
+SELECT tg.id, tg.name, tg.user_chg_tp,
+       COUNT(tp.id) AS tarif_plans_count,
+       GROUP_CONCAT(DISTINCT tp.id SEPARATOR ';') AS tarif_plans_ids
+FROM tp_groups tg
+       LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
+GROUP BY tg.id
+ORDER BY $SORT $DESC
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -268,20 +262,18 @@ sub tp_group_list {
 =cut
 #**********************************************************
 sub tp_group_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{USER_CHG_TP} = (defined($attr->{USER_CHG_TP}) && $attr->{USER_CHG_TP} == 1) ? 1 : 0;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'tp_groups',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'tp_groups',
+    DATA         => $attr
+  });
 
   $self->tp_group_info($attr->{GID});
+
   return $self;
 }
 
@@ -291,12 +283,15 @@ sub tp_group_change {
 =cut
 #**********************************************************
 sub tp_group_info {
-  my $self = shift;
-  my ($tp_group_id) = @_;
+  my ($self, $tp_group_id) = @_;
 
-  $self->query("SELECT *
-    FROM tp_groups 
-    WHERE id= ? ;",
+  my $sql = <<'SQL';
+SELECT *
+FROM tp_groups
+WHERE id= ?
+SQL
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $tp_group_id ] 
@@ -345,6 +340,7 @@ sub defaults {
     EXT_BILL_ACCOUNT        => 0,
     SIMULTANEOUSLY          => 0,
     AGE                     => 0,
+    AGE_ALIGNMENT           => 0,
     DAY_TIME_LIMIT          => 0,
     WEEK_TIME_LIMIT         => 0,
     MONTH_TIME_LIMIT        => 0,
@@ -402,10 +398,9 @@ sub defaults {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $domain_id = $self->{admin}->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0;
+  my $domain_id = $self->{admin}->{DOMAIN_ID} || 0;
 
   if (!$attr->{ID}) {
     $self->query("SELECT MAX(id) FROM tarif_plans WHERE domain_id= ? ORDER BY 1 DESC LIMIT 1",
@@ -418,14 +413,16 @@ sub add {
     }
   }
 
+  $self->create_fess_type($attr);
+
   $self->query_add('tarif_plans', {
-     %$attr,
-     UPLIMIT        => $attr->{ALERT}, 
-     LOGINS         => $attr->{SIMULTANEOUSLY}, 
-     ACTIVATE_PRICE => $attr->{ACTIV_PRICE}, 
-     GID            => $attr->{TP_GID}, 
-     NEXT_TP_ID     => $attr->{NEXT_TARIF_PLAN},
-     DOMAIN_ID      => $domain_id
+    %$attr,
+    UPLIMIT        => $attr->{ALERT},
+    LOGINS         => $attr->{SIMULTANEOUSLY},
+    ACTIVATE_PRICE => $attr->{ACTIV_PRICE},
+    GID            => $attr->{TP_GID},
+    NEXT_TP_ID     => $attr->{NEXT_TARIF_PLAN},
+    DOMAIN_ID      => $domain_id
   });
 
   if(! $self->{errno}) {
@@ -441,11 +438,17 @@ sub add {
 #**********************************************************
 =head2 change($tp_id, $attr) - change
 
+  Argumnets:
+    $tp_id
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($tp_id, $attr) = @_;
+  my ($self, $tp_id, $attr) = @_;
 
   my %FIELDS = (
     ID                      => 'id',
@@ -463,6 +466,7 @@ sub change {
     EXT_BILL_ACCOUNT        => 'ext_bill_account',
     SIMULTANEOUSLY          => 'logins',
     AGE                     => 'age',
+    AGE_ALIGNMENT           => 'age_alignment',
     DAY_TIME_LIMIT          => 'day_time_limit',
     WEEK_TIME_LIMIT         => 'week_time_limit',
     MONTH_TIME_LIMIT        => 'month_time_limit',
@@ -514,6 +518,7 @@ sub change {
   $attr->{POSTPAID_MONTH_FEE}   = 0 if (!$attr->{POSTPAID_MONTH_FEE});
   $attr->{EXT_BILL_ACCOUNT}     = 0 if (!$attr->{EXT_BILL_ACCOUNT});
   $attr->{PERIOD_ALIGNMENT}     = 0 if (!$attr->{PERIOD_ALIGNMENT});
+  $attr->{AGE_ALIGNMENT}        = 0 if (!$attr->{AGE_ALIGNMENT});
   $attr->{ABON_DISTRIBUTION}    = 0 if (!$attr->{ABON_DISTRIBUTION});
   $attr->{SMALL_DEPOSIT_ACTION} = 0 if (!$attr->{SMALL_DEPOSIT_ACTION});
   $attr->{BILLS_PRIORITY}       = 0 if (!$attr->{BILLS_PRIORITY});
@@ -523,6 +528,8 @@ sub change {
   $attr->{STATUS}               = 0 if (!$attr->{STATUS});
   $attr->{PROMOTIONAL}          = 0 if (!$attr->{PROMOTIONAL});
   $attr->{POPULAR}              = 0 if (!$attr->{POPULAR});
+
+  $self->create_fess_type($attr);
 
   $self->changes({
     CHANGE_PARAM    => 'TP_ID',
@@ -545,8 +552,7 @@ sub change {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   $self->query_del('tarif_plans', undef, { tp_id => $id, module => $attr->{MODULE} });
   my $comments = ($attr->{COMMENTS}) ? ' COMMENTS: ' . $attr->{COMMENTS} : q{};
@@ -572,8 +578,7 @@ sub del {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my @WHERE_FIELDS = ();
   my @WHERE_VALUES = ();
@@ -601,26 +606,30 @@ sub info {
     push @WHERE_VALUES, $id;
   }
 
-  if(defined($admin->{DOMAIN_ID})) {
-    if($attr->{TP_ID} && $admin->{DOMAIN_ID}) {
+  if(defined($self->{admin}->{DOMAIN_ID})) {
+    if($attr->{TP_ID} && $self->{admin}->{DOMAIN_ID}) {
       push @WHERE_FIELDS, 'domain_id = ?';
-      push @WHERE_VALUES, $admin->{DOMAIN_ID};
+      push @WHERE_VALUES, $self->{admin}->{DOMAIN_ID};
     }
   }
 
-  $self->query("SELECT *,
-      postpaid_daily_fee AS postpaid_day_fee,
-      postpaid_monthly_fee AS postpaid_month_fee,
-      logins AS simultaneously,
-      activate_price AS activ_price,
-      uplimit AS alert,
-      gid AS tp_gid,
-      next_tp_id AS next_tarif_plan
-    FROM tarif_plans
-    WHERE ". join(' AND ', @WHERE_FIELDS),
-    undef,
-    { INFO => 1,
-      Bind => \@WHERE_VALUES }
+  my $sql = <<'SQL';
+SELECT *,
+       postpaid_daily_fee AS postpaid_day_fee,
+       postpaid_monthly_fee AS postpaid_month_fee,
+       logins AS simultaneously,
+       activate_price AS activ_price,
+       uplimit AS alert,
+       gid AS tp_gid,
+       next_tp_id AS next_tarif_plan
+FROM tarif_plans
+SQL
+
+  $self->query($sql. ' WHERE ' . join(' AND ', @WHERE_FIELDS),  undef,
+    {
+      INFO => 1,
+      Bind => \@WHERE_VALUES
+    }
   );
 
   return $self;
@@ -637,8 +646,7 @@ sub info {
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
   my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
@@ -646,7 +654,7 @@ sub list {
   my @WHERE_RULES = ();
   $self->{SEARCH_FIELDS} = '';
 
-  if ($attr->{CHANGE_PRICE}) {
+  if ($attr->{CHANGE_PRICE} && $attr->{CHANGE_PRICE} ne '_SHOW') {
     my $sql = '';
 
     if (defined($attr->{TP_CHG_PRIORITY})) {
@@ -683,6 +691,7 @@ sub list {
     [ 'SMALL_DEPOSIT_ACTION','INT', 'tp.small_deposit_action',     1 ],
     [ 'REDUCTION_FEE',       'INT', 'tp.reduction_fee',            1 ],
     [ 'FEES_METHOD',         'INT', 'tp.fees_method',              1 ],
+    [ 'FEES_METHOD_NAME',    'STR', 'ft.name', 'ft.name AS fees_method_name', 1 ],
     [ 'DAY_TIME_LIMIT',      'INT', 'tp.day_time_limit',           1 ],
     [ 'WEEK_TIME_LIMIT',     'INT', 'tp.week_time_limit',          1 ],
     [ 'MONTH_TIME_LIMIT',    'INT', 'tp.month_time_limit',         1 ],
@@ -700,6 +709,7 @@ sub list {
     [ 'MAX_SESSION_DURATION','INT', 'tp.max_session_duration',     1 ],
     [ 'FILTER_ID',           'STR', 'tp.filter_id',                1 ],
     [ 'AGE',                 'INT', 'tp.age',                      1 ],
+    [ 'AGE_ALIGNMENT',       'INT', 'tp.age_alignment',            1 ],
     [ 'PAYMENT_TYPE',        'INT', 'tp.payment_type',             1 ],
     [ 'MIN_SESSION_COST',    'STR', 'min_session_cost',            1 ],
     [ 'MIN_USE',             'INT', 'tp.min_use',                  1 ],
@@ -732,10 +742,6 @@ sub list {
     [ 'POPULAR',             'INT', 'tp.popular',                  1 ],
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @search_columns;
-  }
-
   my $WHERE = $self->search_former($attr, \@search_columns, {
     WHERE       => 1,
     WHERE_RULES => \@WHERE_RULES
@@ -744,7 +750,8 @@ sub list {
   my $fields = '';
 
   if (! $attr->{NEW_MODEL_TP} ) {
-    $fields = "IF(SUM(i.tarif) is null or sum(i.tarif)=0, 0, 1) AS time_tarifs,
+    $fields = << "FIELDS";
+IF(SUM(i.tarif) is null or sum(i.tarif)=0, 0, 1) AS time_tarifs,
     IF(SUM(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs,
     tp.payment_type,
     tp.day_fee, tp.month_fee,
@@ -759,29 +766,37 @@ sub list {
     tp.credit,
     tp.min_use,
     tp.abon_distribution,
-    ";
+FIELDS
   }
 
-  $self->query("SELECT tp.id,
-    tp.name,
-    $fields
-    $self->{SEARCH_FIELDS}
+  my $EXT_TABLES = '';
+  if ($self->{SEARCH_FIELDS} =~ /ft\./xm || $WHERE =~ /ft\./xm) {
+    $EXT_TABLES .= " LEFT JOIN fees_types ft ON (ft.id=tp.fees_method)";
+  }
+
+  my $sql = <<"SQL";
+SELECT tp.id,
+       tp.name,
+       $fields
+         $self->{SEARCH_FIELDS}
     tp.small_deposit_action,
     tp.active_day_fee,
     tp.fine,
     tp.next_tp_id,
     tp.fees_method,
     tp.tp_id
-    FROM tarif_plans tp
-    LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
-    LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
-    LEFT JOIN tp_groups tp_g ON (tp.gid=tp_g.id)
-    $WHERE
-    GROUP BY tp.tp_id
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+FROM tarif_plans tp
+  LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
+  LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
+  LEFT JOIN tp_groups tp_g ON (tp.gid=tp_g.id)
+  $EXT_TABLES
+  $WHERE
+GROUP BY tp.tp_id
+ORDER BY $SORT $DESC;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -792,8 +807,7 @@ sub list {
 =cut
 #**********************************************************
 sub nas_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{NAS_ID}) {
     $self->query("SELECT tp_id FROM tp_nas WHERE nas_id= ? ;",
@@ -813,8 +827,7 @@ sub nas_list {
 =cut
 #**********************************************************
 sub nas_add {
-  my $self = shift;
-  my ($nas) = @_;
+  my ($self, $nas) = @_;
 
   $self->nas_del();
   my @MULTI_QUERY = ();
@@ -826,12 +839,12 @@ sub nas_add {
      ];
   }
 
-  $self->query("INSERT INTO tp_nas (nas_id, tp_id)
-        VALUES (?, ?);", undef,
+  $self->query("INSERT INTO tp_nas (nas_id, tp_id) VALUES (?, ?);", undef,
     { MULTI_QUERY => \@MULTI_QUERY }
     );
 
   $self->{admin}->system_action_add("TP_NAS:$self->{TP_ID} NAS:" . (join(',', @$nas)), { TYPE => 1 });
+
   return $self;
 }
 
@@ -842,9 +855,11 @@ sub nas_add {
 #**********************************************************
 sub nas_del {
   my $self = shift;
+
   $self->query_del('tp_nas', undef, { tp_id => $self->{TP_ID} });
 
-  #$admin->action_add($uid, "DELETE NAS");
+  $self->{admin}->system_action_add("TP_NAS:$self->{TP_ID} NAS:", { TYPE => 10 });
+
   return $self;
 }
 
@@ -875,30 +890,31 @@ sub tt_defaults {
 =cut
 #**********************************************************
 sub tt_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (defined($attr->{TI_ID})) {
     my $show_nets = ($attr->{SHOW_NETS}) ? ', tc.nets' : '';
 
-    $self->query("SELECT tt.id, in_price, out_price, prepaid, in_speed,
-      out_speed, descr, tc.name, expression, tt.net_id $show_nets
-     FROM trafic_tarifs  tt 
-     LEFT JOIN  traffic_classes tc ON (tc.id=tt.net_id)
-     WHERE tt.interval_id='$attr->{TI_ID}'
-     ORDER BY tt.id DESC;",
-     undef,
-     $attr
-    );
+    my $sql = <<"SQL";
+SELECT tt.id, in_price, out_price, prepaid, in_speed,
+       out_speed, descr, tc.name, expression, tt.net_id $show_nets
+FROM trafic_tarifs  tt
+       LEFT JOIN  traffic_classes tc ON (tc.id=tt.net_id)
+WHERE tt.interval_id='$attr->{TI_ID}'
+ORDER BY tt.id DESC;
+SQL
+
+    $self->query($sql, undef, $attr);
   }
   else {
-    $self->query("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
-     FROM trafic_tarifs tt
-     WHERE tp_id='$self->{TP_ID}'
-     ORDER BY tt.id;",
-     undef,
-     $attr
-    );
+    my $sql = <<"SQL";
+SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
+FROM trafic_tarifs tt
+WHERE tp_id='$self->{TP_ID}'
+ORDER BY tt.id;
+SQL
+
+    $self->query($sql, undef, $attr);
   }
 
   return $self->{list};
@@ -910,14 +926,16 @@ sub tt_list {
 =cut
 #**********************************************************
 sub tt_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT *
-     FROM trafic_tarifs 
-     WHERE 
-       interval_id= ? AND id= ? ;",
-  undef,
+  my $sql = <<'SQL';
+SELECT *
+FROM trafic_tarifs
+WHERE
+  interval_id= ? AND id= ? ;
+SQL
+
+  $self->query($sql, undef,
   { INFO => 1,
     Bind => [ $attr->{TI_ID}, $attr->{TT_ID} ] } 
   );
@@ -933,8 +951,7 @@ sub tt_info {
 =cut
 #**********************************************************
 sub tt_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{ID}=$attr->{TT_ID};
   $attr->{INTERVAL_ID}=$attr->{tt};
@@ -952,8 +969,7 @@ sub tt_add {
 =cut
 #**********************************************************
 sub tt_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{ID}=$attr->{TT_ID};
   $attr->{INTERVAL_ID}=$attr->{tt};
@@ -973,12 +989,12 @@ sub tt_change {
 =cut
 #**********************************************************
 sub tt_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_del('trafic_tarifs', undef, { interval_id=> $attr->{TI_ID},
-                                             id         => $attr->{TT_ID} 
-                                            });
+  $self->query_del('trafic_tarifs', undef, {
+    interval_id => $attr->{TI_ID},
+    id          => $attr->{TT_ID}
+  });
 
   $self->{admin}->system_action_add("TT:$attr->{TT_ID} TI:$attr->{TI_ID}", { TYPE => 10 });
 
@@ -991,31 +1007,32 @@ sub tt_del {
 =cut
 #**********************************************************
 sub holidays_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query(
-    "SELECT * FROM holidays
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT * FROM holidays
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total 
-   FROM holidays",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+SELECT COUNT(*) AS total
+FROM holidays
+SQL
+
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -1026,16 +1043,13 @@ sub holidays_list {
 =cut
 #**********************************************************
 sub holidays_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'DAY',
-      TABLE        => 'holidays',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'DAY',
+    TABLE        => 'holidays',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1043,17 +1057,24 @@ sub holidays_change {
 #**********************************************************
 =head2 holiday_info($attr)
 
+  Arguments:
+    $attr
+     DAYS
+  Returns:
+    $self
+
 =cut
 #**********************************************************
 sub holidays_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{DAY}) {
-    $self->query(
-      "SELECT * FROM holidays
-      WHERE day = ?;", undef, { INFO => 1, Bind => [ $attr->{DAY} ] }
-    );
+    my $sql = <<'SQL';
+SELECT * FROM holidays
+WHERE day = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{DAY} ] });
   }
 
   return $self;
@@ -1065,24 +1086,7 @@ sub holidays_info {
 =cut
 #**********************************************************
 sub holidays_add {
-  #my $self = shift;
-  #my ($attr) = @_;
-#
-  #$attr->{MONTH} = (defined($attr->{MONTH})) ? $attr->{MONTH} : 1;
-  #$attr->{DAY}   = (defined($attr->{DAY}))   ? $attr->{DAY}   : 1;
-  #$attr->{DESCR} = (defined($attr->{DESCR}))   ? $attr->{DESCR}   : '';
-  #$self->query("INSERT INTO holidays (day)
-  #     VALUES ('$attr->{MONTH}-$attr->{DAY});", 'do'
-  #);
-  #$self->query("INSERT INTO holidays (descr)
-  #     VALUES ('$attr->{DESCR});", 'do'
-  #);
-#
-  #$admin->system_action_add("HOLIDAYS:$self->{INSERT_ID} $attr->{MONTH}-$attr->{DAY}", { TYPE => 1 });
-  #return $self;
-
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('holidays', $attr);
   $self->{admin}->system_action_add("HOLIDAYS:$self->{INSERT_ID} $attr->{MONTH}-$attr->{DAY}", { TYPE => 1 });
@@ -1096,8 +1100,7 @@ sub holidays_add {
 =cut
 #**********************************************************
 sub holidays_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('holidays', undef, { day => $id });
 
@@ -1111,8 +1114,7 @@ sub holidays_del {
 =cut
 #**********************************************************
 sub traffic_class_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('traffic_classes', $attr );
 
@@ -1128,16 +1130,13 @@ sub traffic_class_add {
 =cut
 #**********************************************************
 sub traffic_class_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'traffic_classes',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'traffic_classes',
+    DATA         => $attr
+  });
 
   $self->traffic_class_info($attr->{ID});
   return $self;
@@ -1149,8 +1148,7 @@ sub traffic_class_change {
 =cut
 #**********************************************************
 sub traffic_class_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('traffic_classes', $attr);
 
@@ -1164,23 +1162,24 @@ sub traffic_class_del {
 =cut
 #**********************************************************
 sub traffic_class_list {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $WHERE =  $self->search_former($attr, [
-        [ 'NETS',          'STR', 'nets' ],
-    ],
-    { 
-    	WHERE => 1
+  my $WHERE = $self->search_former($attr, [
+    [ 'NETS', 'STR', 'nets' ],
+  ],
+    {
+      WHERE => 1
     }
   );
 
-  $self->query("SELECT id, name, nets, comments, changed
-     FROM traffic_classes
-     $WHERE;",
-     undef,
-     $attr
-  );
+  my $sql = <<"SQL";
+SELECT id, name, nets, comments, changed
+FROM traffic_classes
+$WHERE;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -1193,13 +1192,16 @@ sub traffic_class_list {
 =cut
 #**********************************************************
 sub traffic_class_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-     FROM traffic_classes
-   WHERE id=?;",
-   undef,
+  my $sql = <<'SQL';
+SELECT *
+FROM traffic_classes
+WHERE id=?;
+SQL
+
+
+  $self->query($sql, undef,
    { INFO => 1,
      Bind => [ $id ] 
    }
@@ -1228,8 +1230,7 @@ sub traffic_class_info {
 =cut
 #*******************************************************************
 sub add_tp_geo {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('tp_geolocation', { %$attr });
 
@@ -1258,8 +1259,7 @@ sub add_tp_geo {
 =cut
 #*******************************************************************
 sub del_tp_geo {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('tp_geolocation', undef, { tp_gid => $attr->{TP_GID} });
 
@@ -1280,8 +1280,7 @@ sub del_tp_geo {
 =cut
 #**********************************************************
 sub tp_geo_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1291,10 +1290,14 @@ sub tp_geo_list {
   my @WHERE_RULES = ();
 
   if ($attr->{EMPTY_GEOLOCATION}) {
-    $self->query(
-      "SELECT id AS gid FROM tp_groups WHERE id NOT IN(SELECT tp_gid FROM tp_geolocation GROUP BY tp_gid)
-      ORDER BY $SORT $DESC;", undef, $attr
-    );
+    my $sql = <<"SQL";
+SELECT id AS gid
+FROM tp_groups
+WHERE id NOT IN (SELECT tp_gid FROM tp_geolocation GROUP BY tp_gid)
+ORDER BY $SORT $DESC;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return $self->{list};
   }
@@ -1311,17 +1314,23 @@ sub tp_geo_list {
     [ 'DISTRICT_ID', 'INT', 'tpg.district_id', 1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
-  $self->query("SELECT tpg.tp_gid, tpg.street_id, tpg.build_id,
-    SUBSTRING_INDEX(d.path, CONCAT('/', tpg.district_id), 1) AS district_path, IF(tpg.build_id, s.id, null) AS build_street,
-    tpg.district_id $EXT_COLUMNS
-    FROM tp_geolocation AS tpg
-    LEFT JOIN builds b ON tpg.build_id = b.id
-    LEFT JOIN streets s ON b.street_id = s.id OR tpg.street_id = s.id
-    LEFT JOIN districts d ON d.id = s.district_id OR tpg.district_id = d.id
-    $EXT_TABLE
-    $WHERE
-    ORDER BY $SORT $DESC;", undef, $attr
-  );
+  my $sql = <<"SQL";
+SELECT tpg.tp_gid,
+       tpg.street_id,
+       tpg.build_id,
+       SUBSTRING_INDEX(d.path, CONCAT('/', tpg.district_id), 1) AS district_path, IF(tpg.build_id, s.id, null) AS build_street,
+       tpg.district_id
+       $EXT_COLUMNS
+FROM tp_geolocation AS tpg
+LEFT JOIN builds b ON tpg.build_id = b.id
+LEFT JOIN streets s ON b.street_id = s.id OR tpg.street_id = s.id
+LEFT JOIN districts d ON d.id = s.district_id OR tpg.district_id = d.id
+$EXT_TABLE
+$WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -1339,8 +1348,7 @@ sub tp_geo_list {
 =cut
 #*******************************************************************
 sub add_tp_group_users_groups {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('tp_groups_users_groups', { %$attr });
 
@@ -1361,8 +1369,7 @@ sub add_tp_group_users_groups {
 =cut
 #*******************************************************************
 sub del_tp_group_users_groups {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('tp_groups_users_groups', undef, { tp_gid => $attr->{TP_GID} });
 
@@ -1380,8 +1387,7 @@ sub del_tp_group_users_groups {
 =cut
 #**********************************************************
 sub tp_group_users_groups_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1406,26 +1412,30 @@ sub tp_group_users_groups_info {
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   if ($attr->{EMPTY_GROUP}) {
-    $self->query(
-      "SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
-    FROM tp_groups g
-    LEFT JOIN tp_groups_users_groups tpug ON (tpug.tp_gid=g.id)
-    $WHERE
-    $GROUP_BY
-    ORDER BY $SORT $DESC;", undef, $attr
-    );
+    my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
+FROM tp_groups g
+  LEFT JOIN tp_groups_users_groups tpug ON (tpug.tp_gid=g.id)
+  $WHERE
+  $GROUP_BY
+ORDER BY $SORT $DESC;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return $self->{list} || [];
   }
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
-    FROM tp_groups_users_groups tpug
-    $EXT_TABLE
-    $WHERE
-    $GROUP_BY
-    ORDER BY $SORT $DESC;", undef, $attr
-  );
+  my $sql = <<"SQL";
+  SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
+  FROM tp_groups_users_groups tpug
+  $EXT_TABLE
+  $WHERE
+  $GROUP_BY
+  ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -1437,8 +1447,7 @@ sub tp_group_users_groups_info {
 =cut
 #**********************************************************
 sub tp_gradients_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1450,13 +1459,15 @@ sub tp_gradients_list {
     [ 'PRICE',       'INT', 'price',       1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} id
-     FROM tariff_plan_gradients
-     $WHERE ORDER BY $SORT $DESC;",
-    undef,
-    { COLS_NAME => 1 }
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM tariff_plan_gradients
+$WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+
+  $self->query($sql, undef, { COLS_NAME => 1 });
 
   return $self->{list} || [];
 }
@@ -1467,8 +1478,7 @@ sub tp_gradients_list {
 =cut
 #**********************************************************
 sub tp_gradients_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self if !$attr->{TP_ID};
 
@@ -1485,14 +1495,41 @@ sub tp_gradients_change {
     push @MULTI_QUERY, [ $attr->{TP_ID}, $gradient->{START_VALUE}, $gradient->{PRICE} ];
   }
 
-  $self->query(
-    "INSERT INTO tariff_plan_gradients
-     (tp_id, start_value, price) VALUES (?, ?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY }
-  );
+  my $sql = <<'SQL';
+INSERT INTO tariff_plan_gradients
+(tp_id, start_value, price) VALUES (?, ?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
 
-1
+#**********************************************************
+=head2 create_fess_type($attr)
+
+  Arguments:
+    NAME
+    create_fees_type
+
+  Result:
+    $self
+    $self->{FEES_METHOD}
+
+=cut
+#**********************************************************
+sub create_fess_type {
+   my ($self, $attr) = @_;
+
+  if ($attr->{create_fees_type}) {
+    require Fees;
+    Fees->import();
+    my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
+    $Fees->fees_type_add({ NAME => $attr->{NAME}});
+    $attr->{FEES_METHOD} = $Fees->{INSERT_ID};
+  }
+
+  return $self;
+}
+
+1;

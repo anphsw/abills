@@ -240,7 +240,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_crosses` (
   `name`            VARCHAR(80) NOT NULL DEFAULT '',
   `well_id`         INT(11) UNSIGNED REFERENCES `cablecat_wells` (`id`) ON DELETE RESTRICT,
   `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `type_id`         SMALLINT(6) UNSIGNED DEFAULT 1 REFERENCES `cablecat_cross_types` (`id`) ON DELETE RESTRICT
+  `type_id`         SMALLINT(6) UNSIGNED DEFAULT 1 REFERENCES `cablecat_cross_types` (`id`) ON DELETE RESTRICT,
+  `allow_parallel_ports` TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0
 )
   CHARSET = 'utf8';
 

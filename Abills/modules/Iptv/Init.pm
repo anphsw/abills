@@ -33,7 +33,7 @@ sub init_iptv_service {
     my $Iptv = Iptv->new($db, $admin, $conf);
     $Iptv->services_info($attr->{SERVICE_ID});
 
-    if ($Iptv->{TOTAL} && $Iptv->{MODULE}) {
+    if ($Iptv->{TOTAL} && $Iptv->{MODULE} && !$Iptv->{STATUS}) {
       $Tv_service = load_plugin('Iptv::Plugins::' . ($Iptv->{MODULE} || ''), {
         SERVICE      => $Iptv,
         HTML         => $attr->{HTML},

@@ -12,9 +12,9 @@
     }
 </style>-->
 
-<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
+<form class='form-horizontal' action='%SELF_URL%' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
 
-    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='index' value='%index%'>
     %MAIN_USER_TPL%
     <input type=hidden name=UID value='%UID%'>
 
@@ -62,7 +62,7 @@
                             <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'
                                    class='form-control' type="email">
                     <span class='input-group-addon'>
-                    <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
+                    <a href='%SELF_URL%?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
                        class='fa fa-envelope'></a>
                     </span>
                         </div>
@@ -82,7 +82,7 @@
                                 <ul class='dropdown-menu dropdown-menu-right' role='menu'>
                                     <li><span class='input-group-addon'>%PRINT_CONTRACT%</span></li>
                                     <li><span class='input-group-addon'><a
-                                            href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
+                                            href='%SELF_URL%?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
                                             class='fa fa-envelope' target=_new>
                                     </a></span></li>
                                 </ul>

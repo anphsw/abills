@@ -11,7 +11,6 @@ our(
   $db,
   %conf,
   $admin,
-  %ADMIN_REPORT,
   %lang,
   $html,
   $DATE,
@@ -48,7 +47,7 @@ sub triplay_daily_fees {
   #my $fees_priority = $conf{FEES_PRIORITY} || q{};
   $debug_output .= "Triplay: Daily periodic payments\n" if ($debug > 1);
 
-  my $date = $attr->{DATE} || $ADMIN_REPORT{DATE};
+  my $date = $attr->{DATE};
   $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
 
   my %USERS_LIST_PARAMS = ();
@@ -131,7 +130,6 @@ sub triplay_daily_fees {
         METHOD          => $tariff->{FEES_METHOD} ? $tariff->{FEES_METHOD} : 1,
       );
 
-
       my %PARAMS = (
         DESCRIBE => fees_dsc_former(\%FEES_DSC),
         DATE     => "$date $TIME",
@@ -173,12 +171,9 @@ sub triplay_monthly_fees {
     return $debug_output;
   }
 
-  #my $fees_priority = $conf{FEES_PRIORITY} || q{};
-
   $debug_output .= "Triplay: Monthly periodic payments\n" if ($debug > 1);
 
-  #$ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  my $date = $attr->{DATE} || $ADMIN_REPORT{DATE};
+  my $date = $attr->{DATE};
 
   if ($attr->{TP_ID}) {
     $LIST_PARAMS{INNER_TP_ID} = $attr->{TP_ID};
@@ -193,7 +188,7 @@ sub triplay_monthly_fees {
   $USERS_LIST_PARAMS{GID} = $attr->{GID} if ($attr->{GID});
 
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
-  my ($y, $m, $d) = split(/-/, $date, 3);
+  my ($y, $m, $d) = split(/-/x, $date, 3);
 
   $debug_output .= triplay_monthly_next_tp($attr);
 
@@ -206,7 +201,7 @@ sub triplay_monthly_fees {
   my $cure_month_begin = "$y-$m-01";
   my $cure_month_end   = "$y-$m-$days_in_month";
   $m--;
-  my $date_unixtime = POSIX::mktime(0, 0, 0, $d, $m, $y - 1900, 0, 0, 0);
+  #my $date_unixtime = POSIX::mktime(0, 0, 0, $d, $m, $y - 1900, 0, 0, 0);
 
   #Get Preview month begin end days
   if ($m == 0) {
@@ -215,10 +210,9 @@ sub triplay_monthly_fees {
   }
 
   $m = sprintf("%02d", $m);
-  my $days_in_pre_month = days_in_month({ DATE => "$y-$m-01" });
-
-  my $pre_month_begin = "$y-$m-01";
-  my $pre_month_end   = "$y-$m-$days_in_pre_month";
+  #my $days_in_pre_month = days_in_month({ DATE => "$y-$m-01" });
+  #my $pre_month_begin = "$y-$m-01";
+  #my $pre_month_end   = "$y-$m-$days_in_pre_month";
 
   my $FEES_METHODS = get_fees_types({ SHORT => 1 });
 
@@ -240,9 +234,18 @@ sub triplay_monthly_fees {
     PAGE_ROWS     => 1000
   });
 
+  my %discounts = ();
+  if (in_array('Discounts', \@MODULES)) {
+    %discounts = (
+      DISCOUNT_SUM       => '_SHOW',
+      DISCOUNT_PERCENT   => '_SHOW',
+      DISCOUNT_FROM_DATE => "<=$attr->{DATE}",
+      DISCOUNT_TO_DATE   => "0000-00-00,>$attr->{DATE}",
+    );
+  }
+
   foreach my $TP_INFO (@$list) {
     my $month_fee = $TP_INFO->{MONTH_FEE} || 0;
-    #my $activate_date = "<=$ADMIN_REPORT{DATE}";
     my $postpaid = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
     $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
 
@@ -268,7 +271,8 @@ sub triplay_monthly_fees {
         PERSONAL_TP  => '_SHOW',
         EXT_DEPOSIT  => '_SHOW',
         COLS_NAME    => 1,
-        %USERS_LIST_PARAMS
+        %USERS_LIST_PARAMS,
+        %discounts
       });
 
       foreach my $u (@$user_list) {
@@ -317,7 +321,16 @@ sub triplay_monthly_fees {
           }
         }
 
-        if ($TP_INFO->{REDUCTION_FEE} && $user{REDUCTION} > 0) {
+        if ($u->{discount_sum} || $u->{discount_percent}) {
+          if ($u->{discount_percent}) {
+            $sum = ($u->{discount_percent} > 100) ? 0 : $sum * (100 - $u->{discount_percent}) / 100;
+          }
+
+          if ($u->{discount_sum}) {
+            $sum = ($sum > $u->{discount_sum}) ? $sum - $u->{discount_sum} : 0;
+          }
+        }
+        elsif ($TP_INFO->{REDUCTION_FEE} && $user{REDUCTION} > 0) {
           $sum = $sum * (100 - $user{REDUCTION}) / 100;
           if ($user{REDUCTION} == 100) {
             $debug_output .= " REDUCTION: $user{REDUCTION}\n";
@@ -327,7 +340,7 @@ sub triplay_monthly_fees {
 
         if (! $postpaid && $user{DEPOSIT} + $user{CREDIT} < $sum) {
           #Block services
-          $debug_output .= "$user{LOGIN} deactivate";
+          $debug_output .= "$user{LOGIN} deactivate\n";
           _triplay_service_deactivate({
             TP_INFO   => $TP_INFO,
             USER_INFO => \%user,
@@ -363,7 +376,7 @@ sub triplay_monthly_fees {
           if ($Fees->{errno}) {
             print "Triplay Error: [ $user{UID} ] $user{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr} ";
             if ($Fees->{errno} == 14) {
-              print "[ $user{UID} ] $user{LOGIN} - Don't have money account";
+              print "ERROR: [ $user{UID} ] $user{LOGIN} - Don't have money account";
             }
             print "\n";
           }
@@ -458,7 +471,6 @@ sub _triplay_service_deactivate {
   my ($attr)=@_;
 
   my $debug_output = q{};
-  #my $TP_INFO = $attr->{TP_INFO};
   my $user_info = $attr->{USER_INFO};
   my $debug = $attr->{DEBUG} || 0;
   my $action = 0;
@@ -468,11 +480,14 @@ sub _triplay_service_deactivate {
       UID    => $user_info->{UID},
       DISABLE => 5
     });
+    if ($Triplay->{errno}) {
+      print "ERROR: $Triplay->{errno} $Triplay->{errstr}\n";
+    }
   }
 
   $Triplay->{debug}=1 if ($debug > 6);
   my $service_list = $Triplay->service_list({
-    UID        => $attr->{USER_INFO}->{UID},
+    UID        => $user_info->{UID},
     MODULE     => '_SHOW',
     SERVICE_ID => '_SHOW'
   });
@@ -529,8 +544,8 @@ sub triplay_sheduler {
 
   my $debug = $attr->{DEBUG} || 0;
   $action //= q{};
-  my $date = $attr->{DATE} || $ADMIN_REPORT{DATE};
-  my $d  = (split(/-/, $date, 3))[2];
+  my $date = $attr->{DATE};
+  my $d  = (split(/-/x, $date, 3))[2];
   my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
   my $users = Users->new($db, $admin, \%conf);
   my $user = $users->info($uid);
@@ -538,7 +553,7 @@ sub triplay_sheduler {
   if ($type eq 'tp') {
     my $service_id;
     my $tp_id = 0;
-    if($action =~ /(\d{0,16}):(\d+)/) {
+    if($action =~ /(\d{0,16}):(\d+)/xm) {
       $service_id = $1;
       $tp_id      = $2;
     }
@@ -593,8 +608,8 @@ sub triplay_sheduler {
   }
   elsif ($type eq 'status') {
 
-    if($action =~ /:/) {
-      (undef, $action)=split(/:/, $action);
+    if($action =~ /:/xm) {
+      (undef, $action)=split(/:/xm, $action);
     }
 
     $Triplay->user_change({
@@ -612,7 +627,7 @@ sub triplay_sheduler {
       }
 
       if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
-        $active_fees = (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
+        $active_fees = (split(/:/x, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
       }
 
       if ($active_fees && $active_fees > 0) {
@@ -682,7 +697,7 @@ sub triplay_monthly_next_tp {
   my $Tariffs      = Tariffs->new($db, \%conf, $admin);
   my $debug        = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  my $date         = $attr->{DATE} || $ADMIN_REPORT{DATE};
+  my $date         = $attr->{DATE};
 
   $debug_output  = "Triplay: Next tp\n" if ($debug > 1);
 
@@ -728,7 +743,7 @@ sub triplay_monthly_next_tp {
     COLS_NAME       => 1
   });
 
-  my ($y, $m, $d)   = split(/-/, $date, 3);
+  my ($y, $m, $d)   = split('-', $date, 3);
   my $date_unixtime = POSIX::mktime(0, 0, 0, $d, ($m - 1), $y - 1900, 0, 0, 0);
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
   my %CHANGED_TPS = ();
@@ -801,7 +816,7 @@ sub triplay_monthly_next_tp {
           }
         }
         elsif ($user_info{ACTIVATE} ne '0000-00-00') {
-          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user_info{ACTIVATE}, 3);
+          my ($activate_y, $activate_m, $activate_d) = split('-', $user_info{ACTIVATE}, 3);
           my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
           if ($date_unixtime - $active_unixtime < 31 * 86400) {
             next;

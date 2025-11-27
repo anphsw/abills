@@ -1,5 +1,5 @@
-<form class='form-horizontal' action='$SELF_URL' METHOD='POST' role='form'>
-    <input type=hidden name='index' value='$index'>
+<form class='form-horizontal' action='%SELF_URL%' METHOD='POST' role='form'>
+    <input type=hidden name='index' value='%index%'>
     <input type=hidden name='chg'   value='$FORM{chg}'>
 
     <fieldset>

@@ -1,6 +1,6 @@
-<form action=$SELF_URL method='post'>
-  <input type='hidden' name='index' value='$index'>
-  <input type='hidden' name='sid' value='$sid'>
+<form action=%SELF_URL% method='post'>
+  <input type='hidden' name='index' value='%index%'>
+  <input type='hidden' name='sid' value='%sid%'>
 
   <div class='row'>
     <div class='col-md-12'>

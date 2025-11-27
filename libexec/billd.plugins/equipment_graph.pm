@@ -40,7 +40,7 @@ _equipment_graph();
 =cut
 #**********************************************************
 sub _equipment_graph {
-  my $equipment_list = $Equipment->_list({COLS_NAME => 1,
+  my $equipment_list = $Equipment->list({COLS_NAME => 1,
                                           PAGE_ROWS => 100000,
                                           STATUS    => '0',
                                           });
@@ -62,7 +62,7 @@ sub _equipment_graph_parse {
   load_module('Equipment');
   our $SNMP_TPL_DIR = "/usr/abills/Abills/modules/Equipment/snmp_tpl/";
 
-  my $Equipment_list = $Equipment->_list( {
+  my $Equipment_list = $Equipment->list( {
           NAS_ID           => $nas_id,
           NAS_NAME         => '_SHOW',
           MODEL_ID         => '_SHOW',

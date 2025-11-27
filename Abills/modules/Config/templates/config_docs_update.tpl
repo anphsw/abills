@@ -41,7 +41,7 @@
 */
 
   function updateFromDocumentation(force) {
-    return fetch('$SELF_URL?get_index=config_update_docs&header=2&FORCE=' + force)
+    return fetch('%SELF_URL%?get_index=config_update_docs&header=2&FORCE=' + force)
       .then(res => {
         if(!res.ok) {
           return res.text().then(text => { throw new Error(text) })

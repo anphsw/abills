@@ -1,11 +1,12 @@
-<form METHOD=POST action='%SELF_URL%'>
+<form METHOD=POST action='%SELF_URL%' name='accident_add' id='accident_add'>
   <input type='hidden' name='index' value='%index%'>
-  <input type='hidden' name='ID' value='%chg%'>
+  <input type='hidden' name='ID' id='ID' value='%chg%'>
+  <input type='hidden' name='add_form' id='add_form' value='$FORM{add_form}'/>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
       <h4 class='card-title'>
-        _{ADD_ACCIDENT}_
+        %LNG_ACTION%
       </h4>
     </div>
     <div class='card-body'>
@@ -24,27 +25,48 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{PRIORITY}_:</label>
         <div class='col-md-8'>
-          %SELECT_PRIORITY%
+          %PRIORITY_SEL%
         </div>
       </div>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{STATUS}_:</label>
         <div class='col-md-8'>
-          %SELECT_STATUS%
+          %STATUS_SEL%
         </div>
       </div>
-      <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
-        <div class='col-md-8'>
-          %SELECT_TYPE%
-        </div>
-      </div>
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{ADMIN}_:</label>
         <div class='col-md-8'>
-          %ADMIN_SELECT%
+          %ADMIN_SEL%
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='NAS_SEL'>_{NAS}_:</label>
+        <div class='col-md-8 col-sm-8'>
+          %NAS_SEL%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_SEL'>_{PORT}_:</label>
+        <div class='col-md-8 col-sm-8'>
+          %PORT_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='GROUP_SEL'>_{GROUP}_:</label>
+        <div class='col-md-8 col-sm-8'>
+          %GROUP_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
+        <div class='col-md-8'>
+          %TYPE_SEL%
+        </div>
+      </div>
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{DATE}_:</label>
         <div class='col-md-8'>
@@ -129,5 +151,24 @@
       parent.parent().addClass('text-info');
       checkParent(parent);
     }
+
+    jQuery('#NAS_ID').change(function(){
+      var name = jQuery('#NAME').val();
+      var descr = jQuery('#DESCR').val();
+      var priority = jQuery('#PRIORITY').val();
+      var nas_id = jQuery('#NAS_ID').val();
+      var chg = jQuery('#ID').val();
+      var link = 'index.cgi?index=%index%&NAS_ID=' + nas_id + '&NAME=' + name + '&DESCR=' + descr + '&PRIORITY=' + priority;
+
+      if (jQuery('#add_form').val()){
+        link += '&add_form=1';
+      }
+      else if (chg) {
+        link += '&chg=' + chg;
+      }
+
+      window.location.assign(link);
+    });
+
   });
 </script>

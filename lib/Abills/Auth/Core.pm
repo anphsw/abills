@@ -42,7 +42,7 @@ sub new {
 
   bless($self, $class);
 
-  if ($auth_type !~ /^\w+$/) {
+  if ($auth_type !~ /^\w+$/xm) {
     print "Content-Type: text/html\n\n";
     print "Can't load auth module";
 
@@ -51,7 +51,7 @@ sub new {
 
   my $name = "Abills::Auth::$auth_type";
   my $plugin_path = $name . '.pm';
-  $plugin_path =~ s{::}{/}g;
+  $plugin_path =~ s{::}{/}xg;
   eval { require $plugin_path };
 
   if(! $@) {
@@ -73,8 +73,7 @@ sub new {
 =cut
 #**********************************************************
 sub check_access {
-  my $self = shift;
-  my ($attr)=@_;
+  my ($self, $attr)=@_;
 
   delete ($attr->{__BUFFER});
   my $request = show_hash($attr, { OUTPUT2RETURN => 1 });
@@ -118,8 +117,7 @@ sub check_access {
 =cut
 #**********************************************************
 sub get_info {
-  my $self = shift;
-  my ($attr)=@_;
+  my ($self, $attr)=@_;
 
   return $self->SUPER::get_info($attr);
 }

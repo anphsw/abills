@@ -4,8 +4,8 @@
   </div>
   <div class='card-body'>
 
-    <form action=$SELF_URL method=post class='form-horizontal'>
-      <input type=hidden name=index value=$index>
+    <form action=%SELF_URL% method=post class='form-horizontal'>
+      <input type=hidden name=index value=%index%>
       <input type=hidden name=ID value='$FORM{chg}'>
 
       <div class='form-group row'>

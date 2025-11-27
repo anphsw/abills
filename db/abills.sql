@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `admin_actions` (
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
-  key `module` (`module`),
+  KEY `module` (`module`),
   KEY `action_type` (`action_type`)
 )
   DEFAULT CHARSET = utf8
@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
   KEY `domain_id` (`domain_id`),
   KEY `sip_number` (`sip_number`),
   KEY `gid` (`gid`),
+  KEY `gps_imei` (`gps_imei`),
   KEY `disable` (`disable`)
 )
   DEFAULT CHARSET = utf8
@@ -355,7 +356,8 @@ CREATE TABLE IF NOT EXISTS `docs_invoices` (
   KEY `payment_id` (`payment_id`),
   KEY `domain_id` (`domain_id`),
   KEY `uid` (`uid`),
-  KEY `aid` (`aid`)
+  KEY `aid` (`aid`),
+  KEY `date` (`date`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Docs Invoices';
@@ -394,6 +396,7 @@ CREATE TABLE IF NOT EXISTS `docs_acts` (
   UNIQUE KEY `date` (`date`, `company_id`, `uid`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
+  KEY `date` (`date`),
   KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
@@ -442,6 +445,7 @@ CREATE TABLE IF NOT EXISTS `docs_tax_invoices` (
   UNIQUE KEY `date` (`date`, `company_id`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
+  KEY `date` (`date`),
   KEY `domain_id` (`domain_id`)
 )
   DEFAULT CHARSET = utf8
@@ -685,6 +689,7 @@ CREATE TABLE IF NOT EXISTS `internet_online` (
   KEY `nas_id` (`nas_id`),
   KEY `uid` (`uid`),
   KEY `status` (`status`),
+  KEY `guest` (`guest`),
   KEY `switch_mac` (`switch_mac`)
 )
   DEFAULT CHARSET = utf8
@@ -960,7 +965,8 @@ CREATE TABLE IF NOT EXISTS `msgs_dispatch` (
   KEY `aid` (`aid`),
   KEY `resposible` (`resposible`),
   KEY `plan_date` (`plan_date`, `state`),
-  KEY `domain_id` (`domain_id`)
+  KEY `domain_id` (`domain_id`),
+  KEY `created_by` (`created_by`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs dispatches';
@@ -1003,53 +1009,75 @@ CREATE TABLE IF NOT EXISTS `msgs_message_pb` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Messages work progress bar';
 
-CREATE TABLE IF NOT EXISTS `msgs_messages` (
-  `id`               INT(11)     UNSIGNED     NOT NULL  AUTO_INCREMENT,
-  `par`              INT(11)     UNSIGNED     NOT NULL  DEFAULT '0',
-  `uid`              INT(11)     UNSIGNED     NOT NULL  DEFAULT '0',
-  `chapter`          SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
-  `message`          TEXT                     NOT NULL,
-  `reply`            TEXT                     NOT NULL,
-  `ip`               INT(11)     UNSIGNED     NOT NULL  DEFAULT '0',
-  `date`             DATETIME                 NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-  `state`            TINYINT(2)  UNSIGNED               DEFAULT '0',
-  `aid`              SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Admin ID',
-  `subject`          VARCHAR(150)             NOT NULL  DEFAULT '',
-  `gid`              SMALLINT(4) UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Users gid',
-  `priority`         TINYINT(4)  UNSIGNED     NOT NULL  DEFAULT '0',
-  `lock_msg`         TINYINT(1)  UNSIGNED     NOT NULL  DEFAULT '0',
-  `closed_date`      DATETIME                 NOT NULL  DEFAULT '0000-00-00' COMMENT 'Close date',
-  `done_date`        DATE                     NOT NULL  DEFAULT '0000-00-00' COMMENT 'Msg done date',
-  `plan_date`        DATE                     NOT NULL  DEFAULT '0000-00-00' COMMENT 'Planing for execute date',
-  `plan_time`        TIME                     NOT NULL  DEFAULT '00:00:00'   COMMENT 'Planing for execute time',
-  `user_read`        DATETIME                 NOT NULL,
-  `admin_read`       DATETIME                 NOT NULL,
-  `resposible`       SMALLINT(6) UNSIGNED     NULL      DEFAULT '0',
-  `inner_msg`        TINYINT(1)  UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Inner message',
-  `phone`            VARCHAR(16)              NOT NULL  DEFAULT '',
-  `dispatch_id`      INTEGER(11) UNSIGNED     NOT NULL  DEFAULT '0',
-  `deligation`       TINYINT(4)  UNSIGNED     NOT NULL  DEFAULT '0',
-  `deligation_level` TINYINT(4)  UNSIGNED     NOT NULL  DEFAULT '0',
-  `survey_id`        SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
-  `rating`           TINYINT(4)  UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Message rating',
-  `rating_comment`   TEXT                     NOT NULL,
-  `location_id`      INT(11)     UNSIGNED     NOT NULL  DEFAULT '0',
-  `domain_id`        SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
-  `plan_interval`    SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
-  `plan_position`    SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
-  `closed_aid`       SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Closed Admin ID',
-  `client_responsible` VARCHAR(60)            NOT NULL  DEFAULT '',
-  PRIMARY KEY (`id`),
-  KEY `aid` (`aid`),
-  KEY `resposible` (`resposible`),
-  KEY `uid` (`uid`),
-  KEY `chapter` (`chapter`),
-  KEY `state` (`state`),
-  KEY `dispatch_id` (`dispatch_id`),
-  KEY `date` (`date`)
+CREATE TABLE IF NOT EXISTS `msgs_messages`
+(
+    `id`                 INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `par`                INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `uid`                INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `chapter`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `message`            TEXT                 NOT NULL,
+    `reply`              TEXT                 NOT NULL,
+    `ip`                 INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `date`               DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `state`              TINYINT(2) UNSIGNED           DEFAULT 0,
+    `aid`                SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Admin ID',
+    `subject`            VARCHAR(150)         NOT NULL DEFAULT '',
+    `gid`                SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Users gid',
+    `priority`           TINYINT(4) UNSIGNED  NOT NULL DEFAULT 0,
+    `lock_msg`           TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+    `closed_date`        DATETIME             NOT NULL DEFAULT '0000-00-00' COMMENT 'Close date',
+    `done_date`          DATE                 NOT NULL DEFAULT '0000-00-00' COMMENT 'Msg done date',
+    `plan_date`          DATE                 NOT NULL DEFAULT '0000-00-00' COMMENT 'Planing for execute date',
+    `plan_time`          TIME                 NOT NULL DEFAULT '00:00:00' COMMENT 'Planing for execute time',
+    `user_read`          DATETIME             NOT NULL,
+    `admin_read`         DATETIME             NOT NULL,
+    `resposible`         SMALLINT(6) UNSIGNED NULL     DEFAULT 0,
+    `inner_msg`          TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0 COMMENT 'Inner message',
+    `phone`              VARCHAR(16)          NOT NULL DEFAULT '',
+    `dispatch_id`        INTEGER(11) UNSIGNED NOT NULL DEFAULT 0,
+    `deligation`         TINYINT(4) UNSIGNED  NOT NULL DEFAULT 0,
+    `deligation_level`   TINYINT(4) UNSIGNED  NOT NULL DEFAULT 0,
+    `survey_id`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `rating`             TINYINT(4) UNSIGNED  NOT NULL DEFAULT 0 COMMENT 'Message rating',
+    `rating_comment`     TEXT                 NOT NULL,
+    `location_id`        INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `external_chat_id`   INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `domain_id`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `plan_interval`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `plan_position`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `closed_aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Closed Admin ID',
+    `client_responsible` VARCHAR(60)          NOT NULL DEFAULT '',
+    PRIMARY KEY (`id`),
+    KEY `aid` (`aid`),
+    KEY `resposible` (`resposible`),
+    KEY `uid` (`uid`),
+    KEY `chapter` (`chapter`),
+    KEY `external_chat_id` (`external_chat_id`),
+    KEY `state` (`state`),
+    KEY `dispatch_id` (`dispatch_id`),
+    KEY `closed_aid` (`closed_aid`),
+    KEY `domain_id` (`domain_id`),
+    KEY `gid` (`gid`),
+    KEY `admin_read` (`admin_read`),
+    KEY `date` (`date`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs Messages';
+
+CREATE TABLE IF NOT EXISTS `msgs_external_chats` (
+  `id`        INT(11) UNSIGNED NOT NULL  AUTO_INCREMENT,
+  `chat_id`   VARCHAR(32)      NOT NULL  DEFAULT '',
+  `date`      DATETIME         NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `name`      VARCHAR(60)      NOT NULL  DEFAULT '',
+  `type`      VARCHAR(32)      NOT NULL  DEFAULT '',
+  `uid`       INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `chat_id` (`chat_id`),
+  KEY `uid` (`uid`),
+  UNIQUE KEY `chat_id_type` (`chat_id`, `type`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Message external chats';
 
 CREATE TABLE IF NOT EXISTS `msgs_watch` (
   `main_msg` INT(11) UNSIGNED  NOT NULL  DEFAULT 0  REFERENCES `msgs_messages` (`id`),
@@ -1074,6 +1102,7 @@ CREATE TABLE IF NOT EXISTS `msgs_reply` (
   `inner_msg` TINYINT(1) UNSIGNED  NOT NULL  DEFAULT '0',
   `survey_id` SMALLINT(6) UNSIGNED NOT NULL  DEFAULT '0',
   `run_time`  INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
+  `contact_id` INT(11) UNSIGNED    NOT NULL  DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`),
   KEY `main_msg` (`main_msg`),
@@ -1099,7 +1128,7 @@ CREATE TABLE IF NOT EXISTS `msgs_survey_questions` (
 
 CREATE TABLE IF NOT EXISTS `msgs_survey_subjects` (
   `id`                SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`              VARCHAR(80)          NOT NULL DEFAULT '',
+  `name`              VARCHAR(150)         NOT NULL DEFAULT '',
   `comments`          TEXT                 NOT NULL,
   `tpl`               TEXT                 NOT NULL,
   `filename`          VARCHAR(250)         NOT NULL DEFAULT '',
@@ -1151,7 +1180,7 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery` (
   `added`       DATETIME              NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `aid`         SMALLINT(6) UNSIGNED  NOT NULL DEFAULT '0',
   `text`        TEXT                  NOT NULL,
-  `subject`     VARCHAR(250)          NOT NULL DEFAULT '',
+  `subject`     VARCHAR(150)          NOT NULL DEFAULT '',
   `send_method` TINYINT(2) UNSIGNED   NOT NULL DEFAULT '0',
   `priority`    TINYINT(2) UNSIGNED   NOT NULL DEFAULT '0',
   `status`      TINYINT(1) UNSIGNED   NOT NULL DEFAULT '0',
@@ -1176,7 +1205,7 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery_users` (
 
 CREATE TABLE IF NOT EXISTS `msgs_subjects` (
   `id`            SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`          VARCHAR(80)          NOT NULL DEFAULT '',
+  `name`          VARCHAR(150) NOT NULL DEFAULT '',
   `domain_id`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`, `domain_id`)
@@ -1276,7 +1305,7 @@ CREATE TABLE IF NOT EXISTS `nas` (
   `city`           VARCHAR(20)          NOT NULL  DEFAULT '',
   `country`        TINYINT(6) UNSIGNED  NOT NULL  DEFAULT '0',
   `gid`            SMALLINT(6) UNSIGNED NOT NULL  DEFAULT 0,
-  `mac`            VARCHAR(17)          NOT NULL  DEFAULT '',
+  `mac`            VARCHAR(20)          NOT NULL  DEFAULT '',
   `changed`        DATETIME             NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `location_id`    INTEGER(11) UNSIGNED NOT NULL  DEFAULT '0',
   `floor`          VARCHAR(10)          NOT NULL DEFAULT '',
@@ -1285,6 +1314,7 @@ CREATE TABLE IF NOT EXISTS `nas` (
   PRIMARY KEY (`id`),
   KEY `mac` (`mac`),
   KEY `gid` (`gid`),
+  KEY `nas_type` (`nas_type`),
   UNIQUE KEY `domain_id` (`domain_id`, `ip`, `nas_identifier`)
 )
   DEFAULT CHARSET = utf8
@@ -1369,7 +1399,7 @@ CREATE TABLE IF NOT EXISTS `sender_log` (
   `destination` VARCHAR(60)          NOT NULL DEFAULT '',
   `source`      VARCHAR(60)          NOT NULL DEFAULT '',
   `message`     TEXT,
-  `subject`     TEXT,
+  `subject`     VARCHAR(150)         NOT NULL DEFAULT '',
   `created`     DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `result`      SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `uid`         INT(11) UNSIGNED     NOT NULL DEFAULT 0,
@@ -1450,6 +1480,9 @@ CREATE TABLE IF NOT EXISTS `docs_receipts` (
   PRIMARY KEY (`id`),
   KEY `payment_id` (`payment_id`),
   KEY `domain_id` (`domain_id`),
+  KEY `date` (`date`),
+  KEY `aid` (`aid`),
+  KEY `uid` (`uid`),
   FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -1576,6 +1609,7 @@ CREATE TABLE IF NOT EXISTS `tarif_plans` (
   `activate_price`          DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `credit_tresshold`        DOUBLE(8, 2) UNSIGNED  NOT NULL DEFAULT '0.00',
   `age`                     SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
+  `age_alignment`           TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
   `octets_direction`        TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
   `max_session_duration`    INT(11) UNSIGNED       NOT NULL DEFAULT '0',
   `filter_id`               VARCHAR(150)           NOT NULL DEFAULT '',
@@ -1588,7 +1622,7 @@ CREATE TABLE IF NOT EXISTS `tarif_plans` (
   `module`                  VARCHAR(15)            NOT NULL DEFAULT '',
   `traffic_transfer_period` TINYINT(4) UNSIGNED    NOT NULL DEFAULT '0',
   `gid`                     SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `neg_deposit_filter_id`   VARCHAR(150)           NOT NULL DEFAULT '',
+  `neg_deposit_filter_id`   VARCHAR(240)           NOT NULL DEFAULT '',
   `tp_id`                   SMALLINT(6) UNSIGNED   NOT NULL AUTO_INCREMENT,
   `ext_bill_account`        TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
   `credit`                  DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
@@ -1616,7 +1650,9 @@ CREATE TABLE IF NOT EXISTS `tarif_plans` (
   `popular`                 TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
   UNIQUE KEY (`id`, `module`, `domain_id`),
   PRIMARY KEY `tp_id` (`tp_id`),
-  KEY `name` (`name`, `domain_id`)
+  KEY `module` (`module`),
+  KEY `status` (`status`),
+  KEY gid (`gid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Tarif plans';
@@ -1840,7 +1876,8 @@ CREATE TABLE IF NOT EXISTS `users_contact_types`
   `id`         SMALLINT(6) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
   `name`       VARCHAR(80)                      NOT NULL DEFAULT '',
   `is_default` TINYINT(1) UNSIGNED              NOT NULL DEFAULT 0,
-  `hidden`     TINYINT(1) UNSIGNED NOT NULL DEFAULT 0
+  `hidden`     TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  KEY `hidden` (`hidden`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Types of user contacts';
@@ -1938,16 +1975,35 @@ CREATE TABLE IF NOT EXISTS `districts` (
   `domain_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   `population` INT UNSIGNED        NOT NULL DEFAULT 0,
   `households` INT UNSIGNED        NOT NULL DEFAULT 0,
+  `territorial_units_id` INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_path` (`path`),
   KEY `parent_id` (`parent_id`),
   KEY `type_id` (`type_id`),
+  KEY `territorial_units_id` (`territorial_units_id`),
+  KEY `name` (`name`),
   UNIQUE KEY `name` (`name`, `domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Locations districts';
 
 INSERT INTO `districts` (`name`, `comments`) VALUES ('Main District', '');
+
+CREATE TABLE IF NOT EXISTS `territorial_units` (
+  `id`        INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `code`      VARCHAR(20)      NOT NULL DEFAULT '',
+  `name`      VARCHAR(200)     NOT NULL DEFAULT '',
+  `type_code` CHAR(1)          NOT NULL DEFAULT '',
+  `level`     TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `parent_id` INT UNSIGNED     NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `code` (`code`),
+  KEY `parent_id` (`parent_id`),
+  KEY `type_level` (`type_code`, `level`),
+  KEY `name` (`name`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Administrative territorial units (KATOTTG)';
 
 CREATE TABLE IF NOT EXISTS `builds` (
   `id`                  INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1973,7 +2029,10 @@ CREATE TABLE IF NOT EXISTS `builds` (
   `type_id`             SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `status_id`           SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `street_id` (`street_id`, `number`, `block`)
+  UNIQUE KEY `street_id` (`street_id`, `number`, `block`),
+  KEY `street_id2` (`street_id`),
+  KEY `type_id` (`type_id`),
+  KEY `status_id` (`status_id` )
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Address Builds';
@@ -2412,7 +2471,13 @@ INSERT INTO `ippools` (`id`, `nas`, `ip`, `counts`, `name`, `priority`) VALUES (
 INSERT INTO `nas_ippools` (`pool_id`, `nas_id`) VALUES (1, 1);
 INSERT INTO `msgs_chapters` (`name`) VALUES ('-');
 
-REPLACE INTO `fees_types` (`id`, `name`) VALUES (1, '$lang{ABON}'), (2, '$lang{FINE}'), (3, '$lang{ACTIVATE}'), (4, '$lang{MONEY_TRANSFER}'), (5, '$lang{CREDIT}'), (0, '$lang{ONE_TIME}');
+REPLACE INTO `fees_types` (`id`, `name`)
+VALUES (1, '$lang{ABON}'),
+       (2, '$lang{FINE}'),
+       (3, '$lang{ACTIVATE}'),
+       (4, '$lang{MONEY_TRANSFER}'),
+       (5, '$lang{CREDIT}'),
+       (0, '$lang{ONE_TIME}');
 
 UPDATE `fees_types` SET `id` = 0 WHERE `name` = '$lang{ONE_TIME}';
 
@@ -2437,6 +2502,8 @@ REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (2, '$lang{N
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (3, '$lang{HOLD_UP}', '2196F3', '');
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (4, '$lang{DISABLE} $lang{NON_PAYMENT}', '607D8B', '');
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (5, '$lang{ERR_SMALL_DEPOSIT}', '009688', '');
+REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (6, '$lang{IN_TERMINATION_PROCESS}', 'f20791', '');
+REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (7, '$lang{TERMINATED_CONTRACT}', '9f040c', '');
 
 REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
   (1, 'CELL_PHONE', 0, 0),
@@ -2640,7 +2707,8 @@ CREATE TABLE IF NOT EXISTS `users_registration_pin`
 
 CREATE TABLE `admin_group_templates` (
   `type` varchar(60)         NOT NULL DEFAULT '',
-  `gid` smallint(6) unsigned NOT NULL DEFAULT '0'
+  `gid` smallint(6) unsigned NOT NULL DEFAULT '0',
+  KEY `gid` (`gid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Admin group type permits';
@@ -2652,3 +2720,11 @@ CREATE TABLE IF NOT EXISTS `companies_bics` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Companies Bics';
+
+CREATE TABLE IF NOT EXISTS `fees_subconto_codes` (
+  `code`    VARCHAR(20)      NOT NULL DEFAULT '',
+  `name`    VARCHAR(80)      NOT NULL DEFAULT '',
+  UNIQUE KEY `code` (`code`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Code Subconto types for fees';

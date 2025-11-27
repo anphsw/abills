@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Account Services Schema",
+  "type": "object",
+  "properties": {
+    "accountInfo": {
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "account": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fullName",
+        "account"
+      ]
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "companyCode": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "companyInfo": {
+            "type": "object",
+            "properties": {
+              "edrpou": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "bankName": {
+                "type": "string"
+              },
+              "iban": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "edrpou",
+              "name",
+              "bankName",
+              "iban"
+            ]
+          },
+          "amountToPay": {
+            "type": "number"
+          },
+          "debtAmount": {
+            "type": "number"
+          },
+          "debtDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "companyCode",
+          "serviceCode",
+          "name",
+          "companyInfo",
+          "amountToPay",
+          "debtAmount",
+          "debtDate"
+        ]
+      }
+    }
+  },
+  "required": [
+    "accountInfo",
+    "services"
+  ]
+}

@@ -9,7 +9,6 @@ package Equipment;
 use strict;
 use parent 'dbcore';
 use warnings FATAL => 'all';
-
 use Abills::Base qw(int2ip);
 
 my $admin;
@@ -23,12 +22,12 @@ sub new {
   my $db = shift;
   ($admin, $CONF) = @_;
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
   bless($self, $class);
-
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -36,16 +35,15 @@ sub new {
 #**********************************************************
 =head2 vendor_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub vendor_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',   'INT', 'id',   1 ],
@@ -54,14 +52,13 @@ sub vendor_list {
   ],
     { WHERE => 1, });
 
-  $self->query("SELECT name, site, support, id
-    FROM equipment_vendors
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT name, site, support, id
+FROM equipment_vendors
+$WHERE
+SQL
+
+  $self->query_list($sql, $attr);
   my $list = $self->{list};
 
   $self->query("SELECT COUNT(*) AS total FROM equipment_vendors $WHERE;", undef, { INFO => 1 });
@@ -75,8 +72,7 @@ sub vendor_list {
 =cut
 #**********************************************************
 sub vendor_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_vendors', $attr);
 
@@ -84,17 +80,19 @@ sub vendor_add {
 }
 
 #**********************************************************
-=head2 vendor_info($id, $attr) - Vendor info
+=head2 vendor_info($id) - Vendor info
+
+  Arguments:
+    $id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub vendor_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_vendors
-    WHERE id= ? ;",
+  $self->query("SELECT * FROM equipment_vendors WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -106,11 +104,15 @@ sub vendor_info {
 #**********************************************************
 =head2 vendor_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub vendor_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -124,55 +126,68 @@ sub vendor_change {
 #**********************************************************
 =head2 vendor_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub vendor_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_vendors', { ID => $id });
 
   return $self;
 }
 
-
 #**********************************************************
 =head2 type_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub type_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ID',   'INT', 'id',   1 ],
     [ 'NAME', 'STR', 'name', 1 ]
-  ],
-    { WHERE => 1, });
-
-  $self->query("SELECT name, id
-    FROM equipment_types
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
   );
 
-  return $self->{list};
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1, });
+
+  my $sql = <<"SQL";
+SELECT name, id
+FROM equipment_types
+       $WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 type_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_types', $attr);
 
@@ -182,19 +197,21 @@ sub type_add {
 #**********************************************************
 =head2 type_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_types',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_types',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -202,30 +219,35 @@ sub type_change {
 #**********************************************************
 =head2 type_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub type_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_types', { ID => $id });
 
   return $self;
 }
 
-
 #**********************************************************
-=head2 type_info($id, $attr)
+=head2 type_info($id)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub type_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_types
-    WHERE id=  ? ;",
+  $self->query("SELECT * FROM equipment_types WHERE id=  ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ]
@@ -238,20 +260,31 @@ sub type_info {
 #**********************************************************
 =head2 model_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub model_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   delete $self->{COL_NAMES_ARR};
 
-  my $WHERE = $self->search_former($attr, [
+  my $ports_with_extra = << "FIELD";
+IF(
+        (SELECT
+          \@extra_ports := COUNT(*) FROM equipment_extra_ports
+          WHERE model_id = m.id
+        ) > 0,
+        CONCAT(m.ports, "+", \@extra_ports),
+        m.ports
+      ) AS ports_with_extra
+FIELD
+
+
+  my @search_params = (
     [ 'MODEL_NAME', 'STR', 'm.model_name', 1 ],
     [ 'TYPE_ID', 'INT', 'm.type_id', 1 ],
     [ 'TYPE_NAME', 'STR', 't.name AS type_name', 1 ],
@@ -264,72 +297,60 @@ sub model_list {
     [ 'MANAGE_SSH', 'STR', 'm.manage_ssh', 1 ],
     [ 'COMMENTS', 'STR', 'm.comments', 1 ],
     [ 'MODEL_ID', 'INT', 'm.id', 1 ],
-    [ 'ELECTRIC_POWER', 'INT', 'm.electric_power', 1 ],
-    [ 'PORTS_WITH_EXTRA', 'STR',
-      'IF(
-        (SELECT
-          @extra_ports := COUNT(*) FROM equipment_extra_ports
-          WHERE model_id = m.id
-        ) > 0,
-        CONCAT(m.ports, "+", @extra_ports),
-        m.ports
-      ) AS ports_with_extra',
-      1
-    ],
-  ],
-    { WHERE => 1,
-    }
+    [ 'ELECTRIC_POWER', 'INT', 'm.electric_power',   1  ],
+    [ 'PORTS_WITH_EXTRA', 'STR', $ports_with_extra,  1  ]
   );
 
-  $self->query("SELECT
-        m.model_name,
-        v.name AS vendor_name,
-        $self->{SEARCH_FIELDS}
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+SELECT
+  m.model_name,
+  v.name AS vendor_name,
+  $self->{SEARCH_FIELDS}
         m.id
-    FROM equipment_models m
-    LEFT JOIN equipment_types t ON (t.id=m.type_id)
-    LEFT JOIN equipment_vendors v ON (v.id=m.vendor_id)
-    $WHERE
-    GROUP BY m.id
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_models m
+  LEFT JOIN equipment_types t ON (t.id=m.type_id)
+  LEFT JOIN equipment_vendors v ON (v.id=m.vendor_id)
+  $WHERE
+GROUP BY m.id
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM equipment_models m
-    $WHERE;", undef, { INFO => 1 }
+    $self->query("SELECT COUNT(*) AS total  FROM equipment_models m  $WHERE;",
+      undef, { INFO => 1 }
     );
   }
 
-  return $list;
+  return $list || [];
 }
-
 
 #**********************************************************
 =head2 model_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub model_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_models', $attr);
 
   if (!$self->{errno} && $attr->{EXTRA_PORT_TYPES}) {
-    $self->extra_port_update(
-      {
-        MODEL_ID              => $self->{INSERT_ID},
-        EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
-        EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
-        EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
-      }
-    );
+    $self->extra_port_update({
+      MODEL_ID              => $self->{INSERT_ID},
+      EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
+      EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
+      EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
+    });
   }
 
   return $self;
@@ -338,33 +359,33 @@ sub model_add {
 #**********************************************************
 =head2 model_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub model_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{AUTO_PORT_SHIFT} = ($attr->{AUTO_PORT_SHIFT}) ? $attr->{AUTO_PORT_SHIFT} : 0;
   $attr->{FDB_USES_PORT_NUMBER_INDEX} = ($attr->{FDB_USES_PORT_NUMBER_INDEX}) ? $attr->{FDB_USES_PORT_NUMBER_INDEX} : 0;
   $attr->{CONT_NUM_EXTRA_PORTS} = ($attr->{CONT_NUM_EXTRA_PORTS}) ? $attr->{CONT_NUM_EXTRA_PORTS} : 0;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_models',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_models',
+    DATA         => $attr
+  });
 
   if (!$self->{errno} && $attr->{EXTRA_PORT_TYPES}) {
-    $self->extra_port_update(
-      {
-        MODEL_ID              => $attr->{ID},
-        EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
-        EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
-        EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
-      }
-    );
+    $self->extra_port_update({
+      MODEL_ID              => $attr->{ID},
+      EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
+      EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
+      EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
+    });
   }
 
   return $self;
@@ -373,11 +394,15 @@ sub model_change {
 #**********************************************************
 =head2 model_del($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub model_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_models', { ID => $id });
 
@@ -385,22 +410,19 @@ sub model_del {
 }
 
 #**********************************************************
-=head2 model_info($id, $attr) - Get model information
+=head2 model_info($id) - Get model information
 
   Arguments:
     $id
-    $attr
 
   Returns:
     Object
 =cut
 #**********************************************************
 sub model_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM equipment_models
-    WHERE id= ? ;",
+  $self->query("SELECT * FROM equipment_models WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -410,24 +432,34 @@ sub model_info {
 }
 
 #**********************************************************
-=head2 _list($attr) - Equipment list
+=head2 list($attr) - Equipment list
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub _list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+sub list {
+  my ($self, $attr) = @_;
 
   my $SECRETKEY = $CONF->{secretkey} || '';
 
   $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID} if $admin->{DOMAIN_ID};
 
-  my $WHERE = $self->search_former($attr, [
+  my $ports_with_extra = << "FIELD";
+IF(
+        (SELECT
+          \@extra_ports := COUNT(*) FROM equipment_extra_ports
+          WHERE model_id = m.id
+        ) > 0,
+        CONCAT(m.ports, "+", \@extra_ports),
+        m.ports
+      ) AS ports_with_extra
+FIELD
+
+  my @search_params = (
     [ 'TYPE',                          'STR',  't.id',                            1 ],
     [ 'NAS_NAME',                      'STR',  'nas.name', 'nas.name AS nas_name'   ],
     [ 'SYSTEM_ID',                     'STR',  'i.system_id',                     1 ],
@@ -443,17 +475,7 @@ sub _list {
     [ 'DISABLE',                       'INT',  'nas.disable',                     1 ],
     [ 'TYPE_NAME',                     'INT',  'm.type_id', 't.name AS type_name'   ],
     [ 'PORTS',                         'INT',  'm.ports',                         1 ],
-    [ 'PORTS_WITH_EXTRA',              'STR',
-      'IF(
-        (SELECT
-          @extra_ports := COUNT(*) FROM equipment_extra_ports
-          WHERE model_id = m.id
-        ) > 0,
-        CONCAT(m.ports, "+", @extra_ports),
-        m.ports
-      ) AS ports_with_extra',
-      1
-    ],
+    [ 'PORTS_WITH_EXTRA',              'STR',  $ports_with_extra,                 1 ],
     [ 'MAC',                           'STR',  'nas.mac',                         1 ],
     [ 'PORT_SHIFT',                    'INT',  'm.port_shift',                    1 ],
     [ 'AUTO_PORT_SHIFT',               'INT',  'm.auto_port_shift',               1 ],
@@ -497,11 +519,13 @@ sub _list {
     [ 'CONT_NUM_EXTRA_PORTS',          'INT',  'm.cont_num_extra_ports',          1 ],
     [ 'USERS',                         'INT',  'COUNT(im.uid)',            'COUNT(im.uid) AS users' ],
     [ 'USERS_ONLINE',                  'INT',  'COUNT(io.uid)',     'COUNT(io.uid) AS users_online' ]
-  ], { WHERE => 1 });
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
 
-  if ($WHERE . $self->{SEARCH_FIELDS} =~ /nas\./) {
+  if ($WHERE . $self->{SEARCH_FIELDS} =~ /nas\./xm) {
     $EXT_TABLE_JOINS_HASH{nas} = 1;
   }
 
@@ -518,7 +542,7 @@ sub _list {
     $EXT_TABLE_JOINS_HASH{streets} = 1;
     $EXT_TABLE_JOINS_HASH{disctrict} = 1;
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
-    $self->{SEARCH_FIELDS} .= $self->{SEARCH_FIELDS} =~ /\s?,\s?$/gm ? '' : ', ';
+    $self->{SEARCH_FIELDS} .= $self->{SEARCH_FIELDS} =~ /\s?,\s?$/xgm ? '' : ', ';
   }
 
   if ($attr->{NAS_GROUP_NAME}) {
@@ -540,22 +564,21 @@ sub _list {
   $EXT_TABLES .= "LEFT JOIN internet_main im ON (im.nas_id=i.nas_id)" if $attr->{USERS};
   $EXT_TABLES .= "LEFT JOIN internet_online io ON (io.uid=im.uid)" if $attr->{USERS};
 
-  $self->query("SELECT
-        $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
         m.id,
         i.nas_id
-    FROM equipment_infos i
-      INNER JOIN equipment_models m ON (m.id=i.model_id)
-      INNER JOIN equipment_types t ON (t.id=m.type_id)
-      INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
-      $EXT_TABLES
-    $WHERE
-    GROUP BY i.nas_id
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_infos i
+  INNER JOIN equipment_models m ON (m.id=i.model_id)
+  INNER JOIN equipment_types t ON (t.id=m.type_id)
+  INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
+  $EXT_TABLES
+  $WHERE
+GROUP BY i.nas_id
+SQL
+
+  $self->query_list($sql, $attr);
 
   if ($self->{TOTAL} > 0) {
     foreach my $eq (@{$self->{list}}) {
@@ -570,28 +593,34 @@ sub _list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT( DISTINCT i.nas_id) AS total
+    $sql = <<"SQL";
+    SELECT COUNT( DISTINCT i.nas_id) AS total
       FROM equipment_infos i
       INNER JOIN equipment_models m ON (m.id=i.model_id)
       INNER JOIN equipment_types t ON (t.id=m.type_id)
       INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
       $EXT_TABLES
-      $WHERE;", undef, { INFO => 1 }
-    );
+      $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
-  return $list;
+  return $list || [];
 }
 
-
 #**********************************************************
-=head2 _add($attr)
+=head2 add($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub _add {
-  my $self = shift;
-  my ($attr) = @_;
+sub add {
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_infos', $attr);
 
@@ -599,13 +628,17 @@ sub _add {
 }
 
 #**********************************************************
-=head2  _change($attr)
+=head2 change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub _change {
-  my $self = shift;
-  my ($attr) = @_;
+sub change {
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'NAS_ID',
@@ -618,7 +651,7 @@ sub _change {
 }
 
 #**********************************************************
-=head2 _del($id) - delete equipment and its data from all equipment tables
+=head2 del($id) - delete equipment and its data from all equipment tables
 
   Arguments:
     $id - NAS_ID
@@ -628,34 +661,33 @@ sub _change {
 
 =cut
 #**********************************************************
-sub _del {
-  my $self = shift;
-  my ($id) = @_;
+sub del {
+  my ($self, $id) = @_;
 
-  $self->query('DELETE tr_069
-    FROM equipment_tr_069_settings tr_069
-    INNER JOIN equipment_pon_onu onu ON tr_069.onu_id = onu.id
-    INNER JOIN equipment_pon_ports p ON onu.port_id = p.id
-    WHERE p.nas_id = ?;',
-    undef,
-    { Bind => [ $id ] }
-  );
+  my $sql = <<'SQL';
+DELETE tr_069
+FROM equipment_tr_069_settings tr_069
+       INNER JOIN equipment_pon_onu onu ON tr_069.onu_id = onu.id
+       INNER JOIN equipment_pon_ports p ON onu.port_id = p.id
+WHERE p.nas_id = ?;
+SQL
 
-  $self->query('DELETE onu
-    FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON onu.port_id = p.id
-    WHERE p.nas_id = ?;',
-    undef,
-    { Bind => [ $id ] }
-  );
+  $self->query($sql, undef, { Bind => [ $id ] });
+
+  $sql = <<'SQL';
+DELETE onu
+FROM equipment_pon_onu onu
+       INNER JOIN equipment_pon_ports p ON onu.port_id = p.id
+WHERE p.nas_id = ?;
+SQL
+
+
+  $self->query($sql, undef, { Bind => [ $id ] });
 
   $self->query_del('equipment_pon_ports', undef, { nas_id => $id });
 
   $self->query_del('equipment_ports', undef, { nas_id => $id });
-  $self->query('UPDATE equipment_ports
-    SET uplink = 0
-    WHERE uplink = ?',
-    undef,
+  $self->query('UPDATE equipment_ports SET uplink = 0 WHERE uplink = ?', undef,
     { Bind => [ $id ] }
   );
 
@@ -667,14 +699,13 @@ sub _del {
 
   $self->query_del('equipment_backup', undef, { nas_id => $id });
 
-
   $self->query_del('equipment_infos', undef, { nas_id => $id });
 
   return $self;
 }
 
 #**********************************************************
-=head2 _info($id, $attr) - Equipment unit information
+=head2 info($id, $attr) - Equipment unit information
 
   Arguments:
     $id
@@ -685,22 +716,25 @@ sub _del {
 
 =cut
 #**********************************************************
-sub _info {
-  my $self = shift;
-  my ($id) = @_;
+sub info {
+  my ($self, $id) = @_;
 
-  $self->query("SELECT equipment_infos.*,
-     IF(
-        (SELECT
-          \@extra_ports := COUNT(*) FROM equipment_extra_ports
+  my $sql = <<'SQL';
+SELECT equipment_infos.*,
+       IF(
+         (SELECT
+            @extra_ports := COUNT(*) FROM equipment_extra_ports
           WHERE equipment_infos.model_id = equipment_extra_ports.model_id
-        ) > 0,
-        CONCAT(m.ports, '+', \@extra_ports),
-        m.ports
-      ) AS ports_with_extra
-    FROM equipment_infos
-    LEFT JOIN equipment_models m ON (m.id=equipment_infos.model_id)
-    WHERE equipment_infos.nas_id= ? ;",
+         ) > 0,
+         CONCAT(m.ports, '+', @extra_ports),
+         m.ports
+       ) AS ports_with_extra
+FROM equipment_infos
+       LEFT JOIN equipment_models m ON (m.id=equipment_infos.model_id)
+WHERE equipment_infos.nas_id= ? ;
+SQL
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -712,68 +746,70 @@ sub _info {
 #**********************************************************
 =head2 port_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   $self->{SEARCH_FIELDS} = '';
   $self->{EXT_TABLES} = '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ADMIN_PORT_STATUS', 'INT', 'p.status', 'p.status AS admin_port_status' ],
-    [ 'UPLINK', 'INT', 'p.uplink', 1 ],
-    [ 'STATUS', 'INT', 'p.status', 1 ],
+    [ 'UPLINK',   'INT', 'p.uplink', 1 ],
+    [ 'STATUS',   'INT', 'p.status', 1 ],
     [ 'PORT_COMMENTS', 'INT', 'p.comments', 'p.comments AS port_comments' ],
     [ 'PORT',     'INT', 'p.port', 1 ],
     [ 'VLAN',     'INT', 'p.vlan', 1 ],
     [ 'DATETIME', 'DATE','p.datetime',  1 ],
-    [ 'NAS_ID',   'INT', 'p.nas_id', ],
-  ],
-    { WHERE => 1,
-      #    USERS_FIELDS=> 1,
-      #    USE_USER_PI => 1,
-    });
+    [ 'NAS_ID',   'INT', 'p.nas_id', ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
+    { WHERE => 1 });
 
   my $EXT_TABLE = $self->{EXT_TABLES};
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|tp\.|internet\./ || $WHERE =~ /pi\.|u\.|tp\.|internet\./) {
+  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|tp\.|internet\./xm || $WHERE =~ /pi\.|u\.|tp\.|internet\./xm) {
     $EXT_TABLE = "LEFT JOIN users u ON (u.uid=dhcp.uid)" . $EXT_TABLE;
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /internet\./ || $WHERE =~ /internet\./) {
-    $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.uid=u.uid)
-      LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id) ";
+  if ($self->{SEARCH_FIELDS} =~ /internet\./xm || $WHERE =~ /internet\./xm) {
+    $EXT_TABLE .= << "EXT_TABLE";
+  LEFT JOIN internet_main internet ON (internet.uid=u.uid)
+  LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
+EXT_TABLE
   }
 
-  $self->query("SELECT p.port,
-   $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT p.port,
+       $self->{SEARCH_FIELDS}
    p.nas_id,
    p.id
-    FROM equipment_ports p
-    $EXT_TABLE
-    $WHERE
-    GROUP BY p.port
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_ports p
+  $EXT_TABLE
+  $WHERE
+GROUP BY p.port
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0 && !$attr->{_SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(*) AS total
+    $sql = <<"SQL";
+    SELECT COUNT(*) AS total
     FROM equipment_ports p
     $EXT_TABLE
-    $WHERE;", undef, { INFO => 1 }
-    );
+    $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list;
@@ -782,78 +818,83 @@ sub port_list {
 #**********************************************************
 =head2 port_list_without_group_by($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_list_without_group_by {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   $self->{SEARCH_FIELDS} = '';
   $self->{EXT_TABLES} = '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ADMIN_PORT_STATUS', 'INT', 'p.status', 'p.status AS admin_port_status' ],
     [ 'UPLINK', 'INT', 'p.uplink', 1 ],
     [ 'STATUS', 'INT', 'p.status', 1 ],
     [ 'PORT_COMMENTS', 'INT', 'p.comments', 'p.comments AS port_comments' ],
     [ 'PORT', 'INT', 'p.port', 1 ],
     [ 'VLAN', 'INT', 'p.vlan', 1 ],
-    [ 'NAS_ID', 'INT', 'p.nas_id', ],
-  ],
-    { WHERE => 1,
-    });
+    [ 'NAS_ID', 'INT', 'p.nas_id', ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
   my $EXT_TABLE = $self->{EXT_TABLES};
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|tp\.|internet\./ || $WHERE =~ /pi\.|u\.|tp\.|internet\./) {
+  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|tp\.|internet\./xm || $WHERE =~ /pi\.|u\.|tp\.|internet\./xm) {
     $EXT_TABLE = "LEFT JOIN users u ON (u.uid=dhcp.uid)" . $EXT_TABLE;
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /internet\./ || $WHERE =~ /internet\./) {
-    $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.uid=u.uid)
-      LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id) ";
+  if ($self->{SEARCH_FIELDS} =~ /internet\./xm || $WHERE =~ /internet\./xm) {
+    $EXT_TABLE .= << "EXT_TABLES";
+   LEFT JOIN internet_main internet ON (internet.uid=u.uid)
+   LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
+EXT_TABLES
   }
 
-  $self->query("SELECT p.port,
-   $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT p.port,
+       $self->{SEARCH_FIELDS}
    p.nas_id,
    p.id
-    FROM equipment_ports p
-    $EXT_TABLE
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_ports p
+  $EXT_TABLE
+  $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0 && !$attr->{_SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM equipment_ports p
-    $EXT_TABLE
-    $WHERE;", undef, { INFO => 1 }
-    );
+    $sql = <<"SQL";
+SELECT COUNT(*) AS total  FROM equipment_ports p
+  $EXT_TABLE
+  $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list;
 }
 
-
 #**********************************************************
 =head2  port_add($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub port_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $attr->{ID};
   $self->query_add('equipment_ports', $attr);
@@ -864,19 +905,21 @@ sub port_add {
 #**********************************************************
 =head2 port_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_ports',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_ports',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -884,11 +927,15 @@ sub port_change {
 #**********************************************************
 =head2 port_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_ports', { ID => $id });
 
@@ -898,17 +945,20 @@ sub port_del {
 #**********************************************************
 =head2 port_del_nas($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_del_nas {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('equipment_ports', {}, { NAS_ID => $attr->{NAS_ID} });
 
   return $self;
 }
-
 
 #**********************************************************
 =head2 port_info($attr)
@@ -918,15 +968,21 @@ sub port_del_nas {
       NAS_ID
       PORT
 
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_ports
-    WHERE nas_id = ? AND port = ? ;",
+  my $sql = <<'SQL';
+SELECT *
+FROM equipment_ports
+WHERE nas_id = ? AND port = ? ;
+SQL
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [
@@ -942,11 +998,15 @@ sub port_info {
 #**********************************************************
 =head2 equipment_box_type_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub equipment_box_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_box_types', $attr);
   return [] if ($self->{errno});
@@ -958,13 +1018,17 @@ sub equipment_box_type_add {
 #**********************************************************
 =head2 equipment_box_type_info()
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub equipment_box_type_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM equipment_box_types WHERE id= ? ;",
+  $self->query('SELECT * FROM equipment_box_types WHERE id= ? ;',
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -974,11 +1038,17 @@ sub equipment_box_type_info {
 }
 
 #**********************************************************
-# equipment_box_type_del
+=head2 equipment_box_type_del($id)
+
+  Arguments:
+    $id
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_type_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_box_types', { ID => $id });
 
@@ -990,52 +1060,56 @@ sub equipment_box_type_del {
 }
 
 #**********************************************************
-# equipment_box_type_change()
+=head2 equipment_box_type_change($id)
+
+  Arguments:
+    $id
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{DISABLE} = (!defined($attr->{DISABLE})) ? 0 : 1;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_box_types',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_box_types',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 #**********************************************************
-# equipment_box_type_list()
+=head2 equipment_box_type_list($id)
+
+  Arguments:
+    $id
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_type_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'MARKING', 'STR', 'marking', ],
     [ 'VENDOR', 'STR', 'vendor', ],
   ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
   );
 
-  $self->query("SELECT marking, vendor, units, width, hieght, length, diameter, id
-     FROM equipment_box_types
-     $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT marking, vendor, units, width, hieght, length, diameter, id
+FROM equipment_box_types
+$WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno});
 
@@ -1049,13 +1123,18 @@ sub equipment_box_type_list {
   return $list;
 }
 
-
 #**********************************************************
-# equipment_box_add
+=head2 equipment_box_add($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_boxes', $attr);
   return [] if ($self->{errno});
@@ -1065,11 +1144,17 @@ sub equipment_box_add {
 }
 
 #**********************************************************
-# equipment_box_info()
+=head2 equipment_box_info($attr)
+
+  Arguments:
+    $id
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query("SELECT * FROM equipment_boxes WHERE id= ? ;",
     undef,
@@ -1081,11 +1166,17 @@ sub equipment_box_info {
 }
 
 #**********************************************************
-# equipment_box_del
+=head2 equipment_box_del($attr)
+
+  Arguments:
+    $id
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_boxes', { ID => $id });
 
@@ -1097,53 +1188,58 @@ sub equipment_box_del {
 }
 
 #**********************************************************
-# equipment_box_change()
+=head2 equipment_box_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{DISABLE} = (!defined($attr->{DISABLE})) ? 0 : 1;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_boxes',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_boxes',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 #**********************************************************
-# equipment_box_list()
+=head2 equipment_box_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub equipment_box_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'SERIAL', 'STR', 'serial', ],
     [ 'VENDOR', 'STR', 'vendor', ],
   ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
   );
 
-  $self->query("SELECT b.serial, bt.marking, b.datetime, b.id
-     FROM equipment_boxes b
-     LEFT JOIN equipment_box_types bt ON (b.type_id=bt.id)
-     $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT b.serial, bt.marking, b.datetime, b.id
+FROM equipment_boxes b
+LEFT JOIN equipment_box_types bt ON (b.type_id=bt.id)
+$WHERE
+SQL
+
+
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno});
 
@@ -1173,8 +1269,7 @@ sub equipment_box_list {
 =cut
 #**********************************************************
 sub extra_port_update {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   #clear and update
   $self->{db}{AutoCommit} = 0;
@@ -1213,8 +1308,7 @@ sub extra_port_update {
 =cut
 #**********************************************************
 sub extra_ports_list {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query("SELECT * FROM equipment_extra_ports WHERE model_id= ?", undef, { COLS_NAME => 1, Bind => [ $id ] });
 
@@ -1225,6 +1319,7 @@ sub extra_ports_list {
 =head2 vlan_add($attr) - add vlan to db
 
   Arguments:
+     $attr
 
   Returns:
 
@@ -1234,13 +1329,11 @@ sub extra_ports_list {
 =cut
 #**********************************************************
 sub vlan_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_vlans', $attr);
 
   return $self;
-
 }
 
 #**********************************************************
@@ -1256,16 +1349,13 @@ sub vlan_add {
 =cut
 #**********************************************************
 sub vlan_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_vlans',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_vlans',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1274,6 +1364,7 @@ sub vlan_change {
 =head2 vlan_del($attr) - delete vlan from db
 
   Arguments:
+    $attr
 
   Returns:
 
@@ -1283,8 +1374,7 @@ sub vlan_change {
 =cut
 #**********************************************************
 sub vlan_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('equipment_vlans', $attr);
 
@@ -1295,8 +1385,10 @@ sub vlan_del {
 =head2 vlan_info($attr) - get vlan info
 
   Arguments:
+    $attr
 
   Returns:
+    $self
 
   Example:
     $vlan_info = $Equipment->vlan_info({ID => $FORM{chg}});
@@ -1304,13 +1396,11 @@ sub vlan_del {
 =cut
 #**********************************************************
 sub vlan_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query("SELECT *
-    FROM equipment_vlans
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+    $self->query("SELECT * FROM equipment_vlans  WHERE id = ?;", undef,
+      { INFO => 1, Bind => [ $attr->{ID} ] }
     );
   }
 
@@ -1321,43 +1411,36 @@ sub vlan_info {
 =head2 vlan_list($attr) - get vlans list
 
   Arguments:
+    $attr
 
   Returns:
-
+    $list
   Example:
-    $Equipment->vlan_list({COLS_NAME => 1});
+    my $vlan_list = $Equipment->vlan_list({COLS_NAME => 1});
 
 =cut
 #**********************************************************
 sub vlan_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $self->{COL_NAMES_ARR};
 
   my @WHERE_RULES = ();
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
-  $self->query("SELECT *
-    FROM equipment_vlans
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT *
+FROM equipment_vlans
+$WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list};
 
   if($self->{TOTAL} && $self->{TOTAL} > 0) {
-    $self->query(
-      "SELECT COUNT(*) AS total
-     FROM equipment_vlans",
+    $self->query("SELECT COUNT(*) AS total FROM equipment_vlans",
       undef,
       { INFO => 1 }
     );
@@ -1369,11 +1452,15 @@ sub vlan_list {
 #**********************************************************
 =head2 trap_add
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub trap_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_traps', {
     %$attr,
@@ -1386,13 +1473,18 @@ sub trap_add {
 #**********************************************************
 =head2 traps_del($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub traps_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("DELETE FROM equipment_traps WHERE traptime < CURDATE() - INTERVAL $attr->{PERIOD} day;", 'do');
+  $self->query("DELETE FROM equipment_traps WHERE traptime < CURDATE() - INTERVAL ? day;", 'do',
+    { Bind => $attr->{PERIOD} || 30 });
 
   return $self;
 }
@@ -1400,20 +1492,18 @@ sub traps_del {
 #**********************************************************
 =head2 trap_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub trap_list {
-  my $self = shift;
-  my ($attr) = @_;
-  my $GROUP;
+  my ($self, $attr) = @_;
+  my $GROUP = ($attr->{GROUP}) ? "GROUP BY $attr->{GROUP}" : '';
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? !$attr->{DESC} : 'DESC';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $GROUP = ($attr->{GROUP}) ? "GROUP BY $attr->{GROUP}" : '';
-
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'TRAP_ID', 'STR', 'e.id', ],
     [ 'TRAPTIME', 'STR', 'traptime', 1 ],
     [ 'NAME', 'STR', 'name', 1 ],
@@ -1422,33 +1512,37 @@ sub trap_list {
     [ 'VARBINDS', 'STR', 'varbinds', 1 ],
     [ 'TRAPOID', 'STR', 'trapoid', 1 ],
     [ 'NAS_ID', 'STR', 'nas.id', 'nas.id AS nas_id', ],
-    [ 'DOMAIN_ID', 'STR', 'nas.domain_id', ],
-  ],
+    [ 'DOMAIN_ID', 'STR', 'nas.domain_id', ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     { WHERE => 1,
     }
   );
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} e.id AS trap_id
-     FROM equipment_traps e
-     INNER JOIN nas ON (nas.ip=e.ip)
-     $WHERE
-     $GROUP
-     ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} e.id AS trap_id
+FROM equipment_traps e
+  INNER JOIN nas ON (nas.ip=e.ip)
+  $WHERE
+  $GROUP
+SQL
+
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{MONIT}) {
-    $self->query("SELECT COUNT(e.id) AS total
-      FROM equipment_traps e
-      INNER JOIN nas ON (nas.ip=e.ip)
-    $WHERE",
-      undef, { INFO => 1 });
+    $sql = <<"SQL";
+SELECT COUNT(e.id) AS total
+FROM equipment_traps e
+       INNER JOIN nas ON (nas.ip=e.ip)
+  $WHERE
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
   return $self->{list_hash} if ($attr->{LIST2HASH});
 
@@ -1458,16 +1552,15 @@ sub trap_list {
 #**********************************************************
 =head2 cvlan_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub cvlan_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $SECRETKEY = $CONF->{secretkey} || '';
 
@@ -1475,7 +1568,7 @@ sub cvlan_list {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'TYPE', 'STR', 't.id', 1 ],
     [ 'NAS_NAME', 'STR', 'nas.name', 'nas.name AS nas_name' ],
     [ 'SYSTEM_ID', 'STR', 'i.system_id', 1 ],
@@ -1516,17 +1609,14 @@ sub cvlan_list {
     [ 'IPTV_VLAN', 'STR', 'i.iptv_vlan', 1 ],
     [ 'PORT', 'INT', 'p.port', 1 ],
     [ 'VLAN', 'INT', 'p.vlan', 1 ],
-    [ 'STATUS', 'INT', 'p.status', 1 ],
-
-
-  ],
-    { WHERE => 1,
-    }
+    [ 'STATUS', 'INT', 'p.status', 1 ]
   );
+
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
 
-  if ($WHERE . $self->{SEARCH_FIELDS} =~ /nas\./) {
+  if ($WHERE . $self->{SEARCH_FIELDS} =~ /nas\./xm) {
     $EXT_TABLE_JOINS_HASH{nas} = 1;
   }
 
@@ -1560,79 +1650,86 @@ sub cvlan_list {
     EXTRA_PRE_ONLY                                    => 1,
   });
 
-  $self->query("SELECT
-        $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
         m.id,
         i.nas_id
-    FROM equipment_infos i
-      INNER JOIN equipment_models m ON (m.id=i.model_id)
-      INNER JOIN equipment_types t ON (t.id=m.type_id)
-      INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
-      INNER JOIN equipment_ports p ON (i.nas_id=p.nas_id)
-      $EXT_TABLES
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_infos i
+  INNER JOIN equipment_models m ON (m.id=i.model_id)
+  INNER JOIN equipment_types t ON (t.id=m.type_id)
+  INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
+  INNER JOIN equipment_ports p ON (i.nas_id=p.nas_id)
+  $EXT_TABLES
+  $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM equipment_infos i
-      INNER JOIN equipment_models m ON (m.id=i.model_id)
-      INNER JOIN equipment_types t ON (t.id=m.type_id)
-      INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
-    $EXT_TABLES
-    $WHERE;", undef, { INFO => 1 }
-    );
+    $sql = <<"SQL";
+SELECT COUNT(*) AS total
+FROM equipment_infos i
+       INNER JOIN equipment_models m ON (m.id=i.model_id)
+       INNER JOIN equipment_types t ON (t.id=m.type_id)
+       INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
+  $EXT_TABLES
+  $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list;
 }
 
-
 #**********************************************************
 =head2 cvlan_svlan_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+  
 =cut
 #**********************************************************
 sub cvlan_svlan_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'PORT', 'INT', 'p.port', 1 ],
     [ 'NAS_NAME', 'STR', 'n.name', 1 ],
     [ 'VLAN', 'INT', 'p.vlan', 1 ],
     [ 'NAS_ID', 'INT', 'i.nas_id', ],
     [ 'SERVER_VLAN', 'STR', 'i.server_vlan', 1 ],
     [ 'ONU_VLAN', 'STR', 'onu.vlan', 1 ],
-    [ 'ONU_DHCP_PORT', 'STR', 'onu.onu_dhcp_port', 1 ],
-  ],
-    { WHERE => 1 }
+    [ 'ONU_DHCP_PORT', 'STR', 'onu.onu_dhcp_port', 1 ]
   );
 
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
+
   if ($attr->{ONU}) {
-    $self->query("SELECT
-      $self->{SEARCH_FIELDS}
+    my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
       i.nas_id,
       onu.onu_dhcp_port,
       onu.vlan,
       i.server_vlan
-      FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    INNER JOIN nas n ON (n.id=p.nas_id)
-    LEFT JOIN equipment_infos i ON (i.nas_id=n.id)
-      $WHERE;",
-      undef,
-      { COLS_NAME => 1, COLS_UPPER => 1 }
-    );
+FROM equipment_pon_onu onu
+  INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+  INNER JOIN nas n ON (n.id=p.nas_id)
+  LEFT JOIN equipment_infos i ON (i.nas_id=n.id)
+  $WHERE;
+SQL
+
+    $self->query($sql, undef, { COLS_NAME => 1, COLS_UPPER => 1 });
   }
   else {
-    $self->query("SELECT
+    my $sql = <<"SQL";
+    SELECT
       $self->{SEARCH_FIELDS}
       i.nas_id,
       p.port,
@@ -1641,53 +1738,56 @@ sub cvlan_svlan_list {
       FROM equipment_ports p
       INNER JOIN nas n ON (n.id=p.nas_id)
       LEFT JOIN equipment_infos i ON (i.nas_id=n.id)
-      $WHERE;",
-      undef,
-      { COLS_NAME => 1, COLS_UPPER => 1 }
-    );
+      $WHERE;
+SQL
+
+    $self->query($sql, undef, { COLS_NAME => 1, COLS_UPPER => 1 });
   }
 
   return [] if ($self->{errno});
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 graph_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub graph_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
-    [ 'OBJ_ID', 'INT', 'obj_id', 1 ],
-    [ 'PORT',   'STR', 'port',   1 ],
-    [ 'PARAM',  'STR', 'param',  1 ],
+  my @search_params = (
+    [ 'OBJ_ID',   'INT', 'obj_id', 1 ],
+    [ 'PORT',     'STR', 'port',   1 ],
+    [ 'PARAM',    'STR', 'param',  1 ],
     [ 'COMMENTS', 'STR', 'comments', 1 ],
-    [ 'DATE',   'STR', 'date',   1 ],
-    [ 'NAS_ID', 'INT', 'nas_id', 1 ],
+    [ 'DATE',     'STR', 'date',   1 ],
+    [ 'NAS_ID',   'INT', 'nas_id', 1 ],
     [ 'MEASURE_TYPE', 'STR', 'measure_type', 1 ],
-    [ 'NAME',   'STR', 'name',   1 ],
-    [ 'TYPE',   'STR', 'type',   1 ],
-
-  ],
-    { WHERE => 1,
-    }
+    [ 'NAME',     'STR', 'name',   1 ],
+    [ 'TYPE',     'STR', 'type',   1 ]
   );
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} g.id, nas_id
-    FROM equipment_graphs g
-    INNER JOIN equipment_snmp_params p ON (p.id=g.param)
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} g.id, nas_id
+FROM equipment_graphs g
+  INNER JOIN equipment_snmp_params p ON (p.id=g.param)
+  $WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -1695,11 +1795,15 @@ sub graph_list {
 #**********************************************************
 =head2 graph_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub graph_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_graphs', {
     %$attr,
@@ -1712,19 +1816,21 @@ sub graph_add {
 #**********************************************************
 =head2 graph_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub graph_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_graphs',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_graphs',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1732,30 +1838,35 @@ sub graph_change {
 #**********************************************************
 =head2 graph_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub graph_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_graphs', { ID => $id });
 
   return $self;
 }
 
-
 #**********************************************************
 =head2 graph_info($id, $attr)
+
+  Arguments:
+    $id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub graph_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_graphs
-    WHERE id=  ? ;",
+  $self->query("SELECT * FROM equipment_graphs WHERE id=  ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ]
@@ -1779,8 +1890,7 @@ sub graph_info {
 =cut
 #**********************************************************
 sub mac_log_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1796,8 +1906,7 @@ sub mac_log_list {
     $SORT = 'LPAD(port, 6, 0)';
   }
 
-  my $WHERE = $self->search_former($attr, [
-    #      ['ID',        'STR', 'ml.id',    1 ],
+  my @search_params = (
     [ 'PORT',         'STR', 'ml.port',      1 ],
     [ 'PORT_NAME',    'STR', 'ml.port_name', 1 ],
     [ 'MAC',          'STR', 'ml.mac',    1 ],
@@ -1809,11 +1918,11 @@ sub mac_log_list {
     [ 'UNIX_REM_TIME','STR', 'ml.rem_time', 'unix_timestamp(ml.rem_time) AS unix_rem_time' ],
     [ 'NAS_ID',       'INT', 'ml.nas_id',    1 ],
     [ 'NAS_NAME',     'STR', 'nas.name',  'nas.name AS nas_name' ],
-    [ 'MAC_UNIQ_COUNT','STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ],
-  ],
-    { WHERE => 1,
-    }
+    [ 'MAC_UNIQ_COUNT','STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ]
   );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
+    { WHERE => 1 });
 
   my $EXT_TABLES = q{};
 
@@ -1835,30 +1944,28 @@ sub mac_log_list {
     $ORDER = '';
   }
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+  SELECT
     $self->{SEARCH_FIELDS} ml.id AS id
     FROM equipment_mac_log ml
     $EXT_TABLES
     $WHERE
     $GROUP_BY
     $ORDER
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
-    FROM equipment_mac_log ml
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM equipment_mac_log ml $WHERE;",
     undef,
     { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
-
 
 #**********************************************************
 =head2 mac_flood_search($attr)
@@ -1866,23 +1973,30 @@ sub mac_log_list {
   Arguments:
     MIN_COUNT
 
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub mac_flood_search {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT PORT, NAS_ID, NAME, COUNT(port) as CNT
-          FROM equipment_mac_log
-              LEFT JOIN nas n ON (n.id=nas_id)
-          WHERE rem_time < datetime
-          GROUP BY port, nas_id HAVING CNT >= $attr->{MIN_COUNT};",
+  my $sql = <<'SQL';
+SELECT PORT, NAS_ID, NAME, COUNT(port) as CNT
+FROM equipment_mac_log
+       LEFT JOIN nas n ON (n.id=nas_id)
+WHERE rem_time < datetime
+GROUP BY port, nas_id HAVING CNT >= ? ;
+SQL
+
+
+  $self->query($sql,
     undef,
-    $attr
+    { Bind => [ $attr->{MIN_COUNT} ] }
   );
 
   my $list = $self->{list};
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -1891,47 +2005,31 @@ sub mac_flood_search {
   Arguments:
     $attr
 
+  Results:
+    $slf
+
 =cut
 #**********************************************************
 sub mac_log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{MULTI_QUERY}) {
     #REPLACE - if there will be duplicates, don't raise UNIQUE KEY error
-    $self->query("REPLACE INTO equipment_mac_log (
-      mac,
-      nas_id,
-      vlan,
-      port,
-      port_name,
-      datetime
-    ) VALUES (?, ?, ?, ?, ?, NOW());",
+    my $sql = <<'SQL';
+REPLACE INTO equipment_mac_log (
+  mac,
+  nas_id,
+  vlan,
+  port,
+  port_name,
+  datetime
+) VALUES (?, ?, ?, ?, ?, NOW());
+SQL
+
+    $self->query($sql,
       undef,
       { MULTI_QUERY => $attr->{MULTI_QUERY} });
   }
-  #else {
-  #  $self->query("SELECT ip FROM equipment_mac_log  WHERE nas_id='$attr->{NAS_ID}'
-  #     AND mac='$attr->{MAC}'
-  #     AND vlan='$attr->{VLAN}'
-  #     AND port='$attr->{PORT}'" #XXX rewrite as Bind?
-  #  );
-
-  #  if ($self->{TOTAL}) {
-  #    $self->query("UPDATE equipment_mac_log SET datetime=NOW()
-  #      WHERE nas_id='$attr->{NAS_ID}'
-  #        AND mac='$attr->{MAC}'
-  #        AND vlan='$attr->{VLAN}'
-  #        AND port='$attr->{PORT}'",
-  #      'do'
-  #    );
-  #  }
-  #  else {
-  #    $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name, datetime) VALUES
-  #                  ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW());", 'do'
-  #    );
-  #  }
-  #}
 
   return $self;
 }
@@ -1947,19 +2045,26 @@ sub mac_log_add {
                     or
                     [ [ $port_name, $id ], ... ] - if REM_TIME is not set
 
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub mac_log_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $time = ($attr->{REM_TIME}) ? "rem_time" : "datetime";
+  my $port_name = (($attr->{REM_TIME}) ? '' : ', port_name = ? ');
 
   if ($attr->{MULTI_QUERY}) {
-    $self->query("UPDATE equipment_mac_log SET
-      $time = NOW() " .
-      (($attr->{REM_TIME}) ? '' : ', port_name = ? ') .
-      "WHERE id= ? ; ", undef,
+    my $sql = <<"SQL";
+UPDATE equipment_mac_log SET
+  $time = NOW()
+      $port_name
+      WHERE id= ? ;
+SQL
+
+    $self->query($sql, undef,
       { MULTI_QUERY => $attr->{MULTI_QUERY} }
     );
   }
@@ -1973,33 +2078,43 @@ sub mac_log_change {
   Arguments:
     $attr
 
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub mac_notif_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $time = ($attr->{DATETIME}) ? 'datetime' : 'rem_time';
-  $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name $time) VALUES
-                ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW())
-                ON DUPLICATE KEY UPDATE $time=NOW();", 'do'
-  );
+
+  my $sql = <<"SQL";
+INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name $time) VALUES
+  ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW())
+ON DUPLICATE KEY UPDATE $time=NOW();
+SQL
+
+  $self->query($sql, 'do');
 
   return $self;
 }
 
-
 #**********************************************************
 =head2 mac_log_del($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub mac_log_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{DEL_PERIOD}) {
-    $self->query("DELETE FROM equipment_mac_log WHERE datetime < curdate() - INTERVAL $attr->{DEL_PERIOD} DAY; ", "do");
+    $self->query("DELETE FROM equipment_mac_log WHERE datetime < CURDATE() - INTERVAL ? DAY; ",
+      "do", { Bind => [ $attr->{DEL_PERIOD} ] });
   }
   else {
     $self->query_del('equipment_mac_log', $attr, (($attr->{NAS_ID}) ? $attr : undef), { CLEAR_TABLE => $attr->{ALL} });
@@ -2009,20 +2124,19 @@ sub mac_log_del {
 }
 
 #**********************************************************
-=head2 onu_list($attr)
+=head2 onu_list($attr) -
+ Pay attention to DELETED param - you may want only ONUs without DELETED flag
 
-  Pay attention to DELETED param - you may want only ONUs without DELETED flag
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub onu_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
   my @WHERE_RULES = ();
 
   if ($attr->{RX_POWER_SIGNAL}){
@@ -2035,18 +2149,19 @@ sub onu_list {
     push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max_bad OR onu.onu_rx_power < $level_min_bad))";
     }
     elsif ($attr->{RX_POWER_SIGNAL} eq 'WORTH') {
-      push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (
+      push @WHERE_RULES, << "WHERE";
+(onu.onu_rx_power < 0 AND (
       onu.onu_rx_power > $level_max_worth AND onu.onu_rx_power < $level_max_bad
-      OR onu.onu_rx_power < $level_min_worth AND onu.onu_rx_power > $level_min_bad))";
+      OR onu.onu_rx_power < $level_min_worth AND onu.onu_rx_power > $level_min_bad))
+WHERE
     }
   }
 
-  my $GROUP_BY = $attr->{GROUP_BY} ? 'GROUP BY ' . $attr->{GROUP_BY} : '';
   $self->{SEARCH_FIELDS} = '';
   $attr->{SKIP_DEL_CHECK}= 1;
   $attr->{SKIP_GID} = 1;
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'BRANCH',           'STR', 'p.branch',                      1 ],
     [ 'BRANCH_DESC',      'STR', 'p.branch_desc',                 1 ],
     [ 'VLAN_ID',          'STR', 'p.vlan_id',                     1 ],
@@ -2073,8 +2188,10 @@ sub onu_list {
     [ 'DELETED',          'INT', 'onu.deleted',                   1 ],
     [ 'SERVER_VLAN',      'STR', 'i.server_vlan',                 1 ],
     [ 'TARIFF_PLAN',      'STR', 'tp.name AS tariff_plan',        1 ],
-    [ 'ONU_TYPE',         'STR', 'onu.onu_type',                  1 ],
-  ], {
+    [ 'ONU_TYPE',         'STR', 'onu.onu_type',                  1 ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params, {
     WHERE             => 1,
     USERS_FIELDS      => ($attr->{SKIP_USER_INFO}) ? undef : 1,
     USE_USER_PI       => 1,
@@ -2086,56 +2203,38 @@ sub onu_list {
     $WHERE .= ' AND (' . (join ' OR ', @{$self->search_expr($attr->{GID}, 'INT', 'u.gid')}, 'u.gid IS NULL') . ')';
   }
 
-  if ($attr->{TRAFFIC}) {
-    my @fields = @{$self->search_expr($attr->{TRAFFIC}, "STR", "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{LOGIN}) {
-    my @fields = @{$self->search_expr($attr->{LOGIN}, "STR", "CONCAT('--') AS login", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{USER_MAC}) {
-    my @fields = @{$self->search_expr($attr->{USER_MAC}, "STR", "CONCAT('--') AS user_mac", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{MAC_BEHIND_ONU}) {
-    my @fields = @{$self->search_expr($attr->{MAC_BEHIND_ONU}, "STR", "CONCAT('--') AS mac_behind_onu", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{DISTANCE}) {
-    my @fields = @{$self->search_expr("$attr->{DISTANCE}", "STR", "CONCAT('--') AS distance", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{EXTERNAL_SYSTEM_LINK}) {
-    my @fields = @{$self->search_expr("$attr->{EXTERNAL_SYSTEM_LINK}", "STR", "CONCAT('--') AS external_system_link", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{ONU_NAME}) {
-    my @fields = @{$self->search_expr("$attr->{ONU_NAME}", "STR", "CONCAT('--') AS onu_name", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
+  my %reserved_fields = (
+    TRAFFIC              => "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic",
+    LOGIN                => "CONCAT('--') AS login",
+    USER_MAC             => "CONCAT('--') AS user_mac",
+    MAC_BEHIND_ONU       => "CONCAT('--') AS mac_behind_onu",
+    DISTANCE             => "CONCAT('--') AS distance",
+    EXTERNAL_SYSTEM_LINK => "CONCAT('--') AS external_system_link",
+    ONU_NAME             => "CONCAT('--') AS onu_name"
+  );
 
-  # if ($attr->{FIO}) {
-  #   my @fields = @{$self->search_expr($attr->{FIO}, "STR", "CONCAT('--') AS fio", { EXT_FIELD => 1 })};
-  #   $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  # }
-  # if ($attr->{ADDRESS_FULL}) {
-  #   my @fields = @{$self->search_expr($attr->{ADDRESS_FULL}, "STR", "CONCAT('--') AS address_full", { EXT_FIELD => 1 })};
-  #   $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  # }
+  foreach my $key (keys %reserved_fields) {
+    if ($attr->{$key}) {
+      my @fields = @{$self->search_expr($attr->{$key}, "STR", $reserved_fields{$key}, { EXT_FIELD => 1 })};
+      $self->{SEARCH_FIELDS} .= join(', ', @fields);
+    }
+  }
 
   my $EXT_TABLES = q{};
 
-  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /\bu\./ || $WHERE =~ /\bu\./ || $attr->{TARIFF_PLAN}) {
-    $EXT_TABLES = '
+  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /\bu\./xm || $WHERE =~ /\bu\./xm || $attr->{TARIFF_PLAN}) {
+    $EXT_TABLES = << "EXT_TABLE";
       LEFT JOIN internet_main internet FORCE INDEX FOR JOIN (`port`) ON (onu.onu_dhcp_port=internet.port AND p.nas_id=internet.nas_id)
       LEFT JOIN users u ON (u.uid=internet.uid)
-      LEFT JOIN tarif_plans tp ON (internet.tp_id = tp.tp_id)';
+      LEFT JOIN tarif_plans tp ON (internet.tp_id = tp.tp_id)
+EXT_TABLE
+
     $EXT_TABLES .= $self->{EXT_TABLES};
   }
 
-  $self->query("SELECT
-      $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
       onu.id,
       p.id AS port_id,
       p.nas_id,
@@ -2145,41 +2244,45 @@ sub onu_list {
       onu.onu_snmp_id,
       onu.vlan AS vlan,
       onu.onu_dhcp_port AS dhcp_port
-    FROM equipment_pon_ports p
-    INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
-    INNER JOIN nas n ON (n.id=p.nas_id)
-    INNER JOIN equipment_infos i ON (i.nas_id = n.id)
-    $EXT_TABLES
-    $WHERE
-    $GROUP_BY
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_pon_ports p
+  INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
+  INNER JOIN nas n ON (n.id=p.nas_id)
+  INNER JOIN equipment_infos i ON (i.nas_id = n.id)
+  $EXT_TABLES
+  $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
+    $sql = <<"SQL";
+    SELECT COUNT(*) AS total
     FROM equipment_pon_ports p
     INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
     $EXT_TABLES
-    $WHERE;", undef, { INFO => 1 }
-    );
+    $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
-=head2 onu_date_status($attr)
-  Uploads date, status
+=head2 onu_date_status($attr) -  Uploads date, status
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_date_status {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
 
@@ -2203,19 +2306,21 @@ sub onu_date_status {
     }
   );
 
-  $self->query("SELECT
-      onu.id AS ID,
-      onu.datetime,
-      onu.onu_status
-    FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    INNER JOIN nas n ON (n.id=p.nas_id)
-    $WHERE",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  onu.id AS ID,
+  onu.datetime,
+  onu.onu_status
+FROM equipment_pon_onu onu
+       INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+       INNER JOIN nas n ON (n.id=p.nas_id)
+  $WHERE
+SQL
+
+  $self->query($sql, undef, $attr);
   my $list = $self->{list};
-  return $list;
+
+  return $list || [];
 }
 
 #**********************************************************
@@ -2237,8 +2342,7 @@ sub onu_date_status {
 =cut
 #**********************************************************
 sub pon_onus_report {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $onu_status_where = $self->search_former($attr, [
     [ 'ONU_ONLINE_STATUS', 'INT', 'onu.onu_status', 1 ],
@@ -2254,17 +2358,18 @@ sub pon_onus_report {
   my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
   my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
 
-  $self->query("SELECT
-    COUNT(*) onu_count,
-    SUM($onu_status_where) active_onu_count,
-    SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min)) bad_onu_count
-    FROM equipment_pon_onu onu
-    LEFT JOIN equipment_pon_ports p ON (onu.port_id=p.id)
-    LEFT JOIN equipment_infos i ON (p.nas_id = i.nas_id)
-    $WHERE;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  COUNT(*) onu_count,
+  SUM($onu_status_where) active_onu_count,
+  SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min)) bad_onu_count
+FROM equipment_pon_onu onu
+       LEFT JOIN equipment_pon_ports p ON (onu.port_id=p.id)
+       LEFT JOIN equipment_infos i ON (p.nas_id = i.nas_id)
+  $WHERE;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list}->[0];
 }
@@ -2272,33 +2377,40 @@ sub pon_onus_report {
 #**********************************************************
 =head2 onu_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{MULTI_QUERY}) {
-    $self->query("INSERT INTO equipment_pon_onu (
-      olt_rx_power,
-      onu_rx_power,
-      onu_tx_power,
-      onu_status,
-      onu_in_byte,
-      onu_out_byte,
-      onu_dhcp_port,
-      port_id,
-      onu_mac_serial,
-      vlan,
-      onu_desc,
-      onu_id,
-      onu_snmp_id,
-      line_profile,
-      srv_profile,
-      datetime,
-      onu_type
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?);",
-      undef,
+    my $sql = <<'SQL';
+INSERT INTO equipment_pon_onu (
+  olt_rx_power,
+  onu_rx_power,
+  onu_tx_power,
+  onu_status,
+  onu_in_byte,
+  onu_out_byte,
+  onu_dhcp_port,
+  port_id,
+  onu_mac_serial,
+  vlan,
+  onu_desc,
+  onu_id,
+  onu_snmp_id,
+  line_profile,
+  srv_profile,
+  datetime,
+  onu_type
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?);
+SQL
+
+    $self->query($sql, undef,
       { MULTI_QUERY => $attr->{MULTI_QUERY} });
   }
   else {
@@ -2313,45 +2425,50 @@ sub onu_add {
 #**********************************************************
 =head2 onu_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   #MULTI_QUERY
   #`olt_rx_power`, `onu_rx_power`, `onu_tx_power`, `onu_status`, `onu_in_byte`, `onu_out_byte`, `onu_dhcp_port`
 
   if ($attr->{MULTI_QUERY}) {
-    $self->query("UPDATE equipment_pon_onu SET
-      olt_rx_power= ? ,
-      onu_rx_power= ? ,
-      onu_tx_power= ? ,
-      onu_status= ? ,
-      onu_in_byte= ? ,
-      onu_out_byte= ? ,
-      onu_dhcp_port= ? ,
-      port_id= ? ,
-      onu_mac_serial= ? ,
-      vlan = ?,
-      onu_desc= ? ,
-      onu_id= ? ,
-      line_profile= ?,
-      srv_profile= ?,
-      deleted= ?,
-      datetime = NOW()
-      WHERE id= ? ; ", undef,
-      { MULTI_QUERY => $attr->{MULTI_QUERY} }
-    );
+    my $sql = <<'SQL';
+UPDATE equipment_pon_onu
+SET
+  olt_rx_power  = ? ,
+  onu_rx_power  = ? ,
+  onu_tx_power  = ? ,
+  onu_status    = ? ,
+  onu_in_byte   = ? ,
+  onu_out_byte  = ? ,
+  onu_dhcp_port = ? ,
+  port_id       = ? ,
+  onu_mac_serial= ? ,
+  vlan          = ?,
+  onu_desc      = ? ,
+  onu_id        = ? ,
+  line_profile  = ?,
+  srv_profile   = ?,
+  deleted       = ?,
+  datetime      = NOW()
+WHERE id= ? ;
+SQL
+
+    $self->query($sql, undef, { MULTI_QUERY => $attr->{MULTI_QUERY} });
   }
   else {
-    $self->changes(
-      {
-        CHANGE_PARAM => 'ID',
-        TABLE        => 'equipment_pon_onu',
-        DATA         => $attr,
-        SKIP_LOG     => $self->{conf}{EQUIPMENT_PON_ONU_SKIP_LOG}
-      }
-    );
+    $self->changes({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'equipment_pon_onu',
+      DATA         => $attr,
+      SKIP_LOG     => $self->{conf}{EQUIPMENT_PON_ONU_SKIP_LOG}
+    });
   }
 
   return $self;
@@ -2367,11 +2484,13 @@ sub onu_change {
       ALL - delete all ONU's
       COMMENTS
 
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_del {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my $del_info = '';
   if ($attr->{ALL}) {
@@ -2399,20 +2518,28 @@ sub onu_del {
   return $self;
 }
 
-
 #**********************************************************
 =head2 onu_info($id, $attr)
+
+  Arguments:
+    $id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub onu_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    WHERE onu.id=  ? ;",
+  my $sql = <<'SQL';
+SELECT *
+FROM equipment_pon_onu onu
+       INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+WHERE onu.id=  ? ;
+SQL
+
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $id ]
@@ -2425,18 +2552,17 @@ sub onu_info {
 #**********************************************************
 =head2 pon_port_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pon_port_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
-
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'NAS_ID',      'STR', 'p.nas_id',                    1 ],
     [ 'ONU_COUNT',   'STR', '', 'COUNT(onu.id) AS onu_count' ],
     [ 'BRANCH',      'STR', 'p.branch',                    1 ],
@@ -2445,8 +2571,10 @@ sub pon_port_list {
     [ 'STATUS',      'INT', 'i.status',                    1 ],
     [ 'PON_TYPE',    'STR', 'p.pon_type',                  1 ],
     [ 'ID',          'INT', 'p.id',                        1 ],
-    [ 'VLAN_ID',     'INT', 'p.vlan_id',                   1 ],
-  ],
+    [ 'VLAN_ID',     'INT', 'p.vlan_id',                   1 ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     { WHERE => 1 }
   );
 
@@ -2461,7 +2589,8 @@ sub pon_port_list {
     $EXT_TABLE .= " LEFT JOIN equipment_infos i ON (p.nas_id = i.nas_id)";
   }
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+  SELECT
     p.snmp_id,
     p.nas_id,
     p.pon_type,
@@ -2474,31 +2603,36 @@ sub pon_port_list {
     $EXT_TABLE
     $WHERE
     $GROUP_BY
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total
+  $sql = <<"SQL";
+  SELECT COUNT(*) AS total
     FROM equipment_pon_ports p
     $EXT_TABLE
-    $WHERE;", undef, { INFO => 1 }
-  );
+    $WHERE;
+SQL
 
-  return $list;
+  $self->query($sql, undef, { INFO => 1 });
+
+  return $list || [];
 }
 
 #**********************************************************
 =head2 pon_port_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pon_port_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_pon_ports', $attr);
 
@@ -2508,11 +2642,15 @@ sub pon_port_add {
 #**********************************************************
 =head2 pon_port_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pon_port_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -2534,8 +2672,7 @@ sub pon_port_change {
 =cut
 #**********************************************************
 sub pon_port_del {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   $self->onu_list({ OLT_PORT => $id });
 
@@ -2553,15 +2690,17 @@ sub pon_port_del {
 #**********************************************************
 =head2 type_info($id, $attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pon_port_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM equipment_pon_ports
-    WHERE id=  ? ;",
+  $self->query("SELECT * FROM equipment_pon_ports WHERE id=  ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ]
@@ -2584,8 +2723,7 @@ sub pon_port_info {
 =cut
 #**********************************************************
 sub trap_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_trap_types', $attr);
 
@@ -2604,12 +2742,12 @@ sub trap_type_add {
 =cut
 #**********************************************************
 sub trap_type_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $WHERE = $self->search_former($attr, [
+
+  my @search_params = (
     [ 'ID', 'INT', 'id', 1 ],
     [ 'NAME', 'STR', 'name', 1 ],
     [ 'OBJECT_ID', 'STR', 'object_id', 1 ],
@@ -2617,22 +2755,23 @@ sub trap_type_list {
     [ 'EVENT', 'INT', 'event', 1 ],
     [ 'SKIP', 'INT', 'skip', 1 ],
     [ 'COLOR', 'INT', 'color', 1 ],
-    [ 'VARBIND', 'STR', 'varbind', 1 ],
-  ],
-    {
-      WHERE => 1,
-    }
+    [ 'VARBIND', 'STR', 'varbind', 1 ]
   );
 
-  $self->query("SELECT
+  my $WHERE = $self->search_former($attr, \@search_params,
+    { WHERE => 1 });
+
+  my $sql = <<"SQL";
+  SELECT
     $self->{SEARCH_FIELDS}
     id
     FROM equipment_trap_types
     $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
   return $self->{list_hash} if ($attr->{LIST2HASH});
@@ -2643,13 +2782,17 @@ sub trap_type_list {
 }
 
 #**********************************************************
-=head2 trap_type_del() -
+=head2 trap_type_del($id) -
+
+  Arguments:
+    $id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub trap_type_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_trap_types', { ID => $id });
 
@@ -2657,10 +2800,10 @@ sub trap_type_del {
 }
 
 #**********************************************************
-=head2 trap_type_change() -
+=head2 trap_type_change($attr) -
 
   Arguments:
-     -
+    $attr
   Returns:
 
   Examples:
@@ -2668,8 +2811,7 @@ sub trap_type_del {
 =cut
 #**********************************************************
 sub trap_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -2683,25 +2825,34 @@ sub trap_type_change {
 #**********************************************************
 =head2 graphs_clean($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
-sub graphs_clean {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("DELETE FROM equipment_counter64_stats WHERE datetime < CURDATE() - INTERVAL $attr->{PERIOD} day;", 'do');
-
-  return $self;
-}
+# sub graphs_clean {
+#   my ($self, $attr) = @_;
+#
+#   $self->query("DELETE FROM equipment_counter64_stats WHERE datetime < CURDATE() - INTERVAL ? day;",
+#     'do', { Bind => [ $attr->{PERIOD} || 30 ] });
+#
+#   return $self;
+# }
 
 #**********************************************************
 =head2 ping_log_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub ping_log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_ping_log', $attr);
 
@@ -2719,13 +2870,12 @@ sub ping_log_add {
 =cut
 #**********************************************************
 sub tr_069_settings_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ID',          'INT', 'id', 1 ],
     [ 'ONU_ID',      'INT', 'tr.onu_id', 1 ],
     [ 'NAS_NAME',    'STR', 'n.name', 'n.name AS nas_name' ],
@@ -2734,42 +2884,44 @@ sub tr_069_settings_list {
     [ 'UNIX_UPDATETIME', 'STR', 'tr.updatetime', 'UNIX_TIMESTAMP(tr.updatetime) AS unix_updatetime' ],
     [ 'UNIX_CHANGETIME', 'STR', 'tr.changetime', 'UNIX_TIMESTAMP(tr.changetime) AS unix_changetime' ],
     [ 'SETTINGS',    'STR', 'tr.settings', 1 ],
-    [ 'SERIAL',      'STR', 'o.onu_mac_serial', 1 ],
-  ],
-    {
-      WHERE => 1,
-    }
+    [ 'SERIAL',      'STR', 'o.onu_mac_serial', 1 ]
   );
 
-  $self->query("SELECT
-    $self->{SEARCH_FIELDS}
+  my $WHERE = $self->search_former($attr, \@search_params,
+    { WHERE => 1 });
+
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
     tr.id
-    FROM equipment_pon_onu o
-    LEFT JOIN equipment_pon_ports p ON (p.id=o.port_id)
-    LEFT JOIN nas n ON (n.id=p.nas_id)
-    LEFT JOIN equipment_tr_069_settings tr ON (tr.onu_id=o.id)
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+FROM equipment_pon_onu o
+  LEFT JOIN equipment_pon_ports p ON (p.id=o.port_id)
+  LEFT JOIN nas n ON (n.id=p.nas_id)
+  LEFT JOIN equipment_tr_069_settings tr ON (tr.onu_id=o.id)
+  $WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
   return $self->{list_hash} if ($attr->{LIST2HASH});
 
-  my $list = $self->{list};
-
-  return $list;
+  return $self->{list} || [];
 }
 
 #**********************************************************
-=head2 tr_069_settings_del() -
+=head2 tr_069_settings_del($attr) -
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub tr_069_settings_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('equipment_tr_069_settings', { ONU_ID => $id });
 
@@ -2777,10 +2929,12 @@ sub tr_069_settings_del {
 }
 
 #**********************************************************
-=head2 tr_069_settings_change() -
+=head2 tr_069_settings_change($id, $attr) -
 
   Arguments:
-     -
+    $id
+    $attr
+
   Returns:
 
   Examples:
@@ -2788,22 +2942,19 @@ sub tr_069_settings_del {
 =cut
 #**********************************************************
 sub tr_069_settings_change {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   $self->query("SELECT id FROM equipment_tr_069_settings  WHERE onu_id='$id'");
   if ($self->{TOTAL}) {
     my $time = ($attr->{UPDATE}) ? 'updatetime' : 'changetime';
     my $settings = ($attr->{SETTINGS}) ? ", settings='$attr->{SETTINGS}'" : '';
-    $self->query("UPDATE equipment_tr_069_settings SET $time=NOW() $settings
-      WHERE onu_id='$id'",
+    $self->query("UPDATE equipment_tr_069_settings SET $time=NOW() $settings WHERE onu_id='$id'",
       'do'
     );
   }
   else {
-    $self->query("INSERT INTO equipment_tr_069_settings (onu_id, changetime, settings) VALUES
-                      ('$id', NOW(), '$attr->{SETTINGS}');", 'do'
-    );
+    $self->query("INSERT INTO equipment_tr_069_settings (onu_id, changetime, settings) VALUES ('$id', NOW(), '$attr->{SETTINGS}');",
+      'do');
   }
 
   return $self;
@@ -2823,8 +2974,7 @@ sub tr_069_settings_change {
 =cut
 #**********************************************************
 sub onu_and_internet_cpe_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
@@ -2849,63 +2999,70 @@ sub onu_and_internet_cpe_list {
     $EXT_TABLE = qq{ INNER JOIN internet_main i ON (REPLACE(REPLACE(onu.onu_mac_serial, ':', ''),'.','')=REPLACE(REPLACE(i.cpe_mac, ':', ''),'.','') AND i.cpe_mac<>'') };
   }
 
-  $self->query("SELECT
-    onu.id,
-    onu.onu_dhcp_port AS onu_port,
-    p.nas_id AS onu_nas,
-    onu.onu_mac_serial AS cpe,
-    onu.onu_status,
-    onu.vlan AS onu_vlan,
-    ei.server_vlan AS onu_server_vlan,
-    i.nas_id AS user_nas,
-    i.port AS user_port,
-    i.id AS service_id,
-    i.vlan AS user_vlan,
-    i.server_vlan AS user_server_vlan,
-    i.uid,
-    p.vlan_id AS pon_port_vlan,
-    REPLACE(REPLACE(onu.onu_mac_serial, ':', ''),'.','') AS cpe_unify
-    FROM equipment_pon_onu onu
-    LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
-    $EXT_TABLE
-    $WHERE
-    LIMIT $PG, $PAGE_ROWS
-    ;",
-    undef,
-    { COLS_NAME => 1 }
-  );
+  my $sql = <<"SQL";
+SELECT
+  onu.id,
+  onu.onu_dhcp_port AS onu_port,
+  p.nas_id AS onu_nas,
+  onu.onu_mac_serial AS cpe,
+  onu.onu_status,
+  onu.vlan AS onu_vlan,
+  ei.server_vlan AS onu_server_vlan,
+  i.nas_id AS user_nas,
+  i.port AS user_port,
+  i.id AS service_id,
+  i.vlan AS user_vlan,
+  i.server_vlan AS user_server_vlan,
+  i.uid,
+  p.vlan_id AS pon_port_vlan,
+  REPLACE(REPLACE(onu.onu_mac_serial, ':', ''),'.','') AS cpe_unify
+FROM equipment_pon_onu onu
+  LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+  LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
+  $EXT_TABLE
+  $WHERE
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef,{ COLS_NAME => 1 });
 
   return $self->{list} || [ ];
 }
 
 #**********************************************************
-=head2 mac_duplicate_list() -
+=head2 mac_duplicate_list($attr) -
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub mac_duplicate_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT
-    el.mac,
-    el.ip,
-    el.vlan,
-    el.port,
-    el.port_name,
-    el.datetime,
-    el.rem_time
-    FROM equipment_mac_log el
-    WHERE el.mac IN (
-      SELECT mac
-      FROM equipment_mac_log
-      WHERE nas_id = ?
-      GROUP BY mac
-      HAVING COUNT(*) > 1
-    )
-    ORDER BY el.mac;",
-    undef,
+  my $sql = <<'SQL';
+SELECT
+  el.mac,
+  el.ip,
+  el.vlan,
+  el.port,
+  el.port_name,
+  el.datetime,
+  el.rem_time
+FROM equipment_mac_log el
+WHERE el.mac IN (
+  SELECT mac
+  FROM equipment_mac_log
+  WHERE nas_id = ?
+  GROUP BY mac
+  HAVING COUNT(*) > 1
+)
+ORDER BY el.mac;
+SQL
+
+  $self->query($sql, undef,
     { Bind => [ $attr->{NAS_ID} ], COLS_NAME => 1, COLS_UPPER => 1 }
   );
 
@@ -2915,11 +3072,16 @@ sub mac_duplicate_list {
 #**********************************************************
 =head2 _list_with_coords($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
+#@deprecated change to list
 #**********************************************************
 sub _list_with_coords {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -2930,7 +3092,7 @@ sub _list_with_coords {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'TYPE',           'STR', 't.id',                                     1 ],
     [ 'NAS_NAME',       'STR', 'nas.name', 'nas.name AS nas_name'            ],
     [ 'SYSTEM_ID',      'STR', 'i.system_id',                              1 ],
@@ -2956,8 +3118,10 @@ sub _list_with_coords {
     [ 'DOMAIN_NAME',    'INT', 'domains.name', 'domains.name AS domain_name' ],
     [ 'COORDX',         'INT', 'builds.coordx',                            1 ],
     [ 'COORDY',         'INT', 'builds.coordy',                            1 ],
-    [ 'LAST_ACTIVITY',  'DATE', 'i.last_activity',                         1 ],
-  ],
+    [ 'LAST_ACTIVITY',  'DATE', 'i.last_activity',                         1 ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     { WHERE => 1, }
   );
 
@@ -2967,54 +3131,52 @@ sub _list_with_coords {
     $EXT_TABLES .= "LEFT JOIN domains on (domains.id=nas.domain_id)"
   }
 
-  $self->query("SELECT
-        $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
         i.nas_id, nas.location_id, builds.coordx, builds.coordy,
         mp.created,
         m.id,
         i.nas_id,
         SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordx_2,
         SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordy_2
-    FROM equipment_infos i
-      INNER JOIN equipment_models m ON (m.id=i.model_id)
-      INNER JOIN equipment_types t ON (t.id=m.type_id)
-      INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
-      LEFT JOIN nas ON (nas.id=i.nas_id)
-      LEFT JOIN builds ON (builds.id=nas.location_id)
-      LEFT JOIN maps_points mp ON (builds.id=mp.location_id)
-      LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
-      LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
-      LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
-      LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
-      $EXT_TABLES
-    $WHERE
-    GROUP BY nas.location_id HAVING (coordx <> 0 AND coordy <> 0) OR (coordx_2 <> 0 AND coordy_2 <> 0)
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM equipment_infos i
+  INNER JOIN equipment_models m ON (m.id=i.model_id)
+  INNER JOIN equipment_types t ON (t.id=m.type_id)
+  INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
+  LEFT JOIN nas ON (nas.id=i.nas_id)
+  LEFT JOIN builds ON (builds.id=nas.location_id)
+  LEFT JOIN maps_points mp ON (builds.id=mp.location_id)
+  LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
+  LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
+  LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
+  LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+  $EXT_TABLES
+  $WHERE
+GROUP BY nas.location_id HAVING (coordx <> 0 AND coordy <> 0) OR (coordx_2 <> 0 AND coordy_2 <> 0)
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
   return $list;
 }
 
-
 #**********************************************************
 =head2 calculator_list($attr) - List of calculator data
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub calculator_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
-
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'TYPE',       'STR', 'c.type',        1 ],
@@ -3024,31 +3186,32 @@ sub calculator_list {
     { WHERE => 1, }
   );
 
-  $self->query("SELECT
-        c.type,
-        c.name,
-        c.value
-    FROM equipment_calculator c
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  c.type,
+  c.name,
+  c.value
+FROM equipment_calculator c
+  $WHERE
+SQL
 
-  my $list = $self->{list} || [];
+  $self->query_list($sql, $attr);
 
-  return $list;
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 calculator_delete($attr) - delete from calculator by type
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub calculator_delete {
-  my $self = shift;
-  my ($type) = @_;
+  my ($self, $type) = @_;
 
   $self->query_del('equipment_calculator', undef,{ TYPE => $type });
 
@@ -3058,11 +3221,15 @@ sub calculator_delete {
 #**********************************************************
 =head2 calculator_add($attr) - add to calculator types
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub calculator_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_calculator', $attr);
 
@@ -3072,11 +3239,15 @@ sub calculator_add {
 #**********************************************************
 =head2 port_errors_add ($attr) - add port errors
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_errors_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_ports_errors', $attr);
 
@@ -3086,54 +3257,57 @@ sub port_errors_add {
 #**********************************************************
 =head2 port_errors_list($attr) - list port errors
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub port_errors_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
-
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'DATE',            'INT', 'epe.date',                       1 ],
     [ 'NAS_NAME',        'STR', 'nas.name',  'nas.name AS nas_name' ],
     [ 'NAS_ID',          'INT', 'epe.nas_id',                     1 ],
     [ 'PORT_ID',         'STR', 'epe.port_id',                    1 ],
     [ 'IN_ERRORS',       'INT', 'epe.in_errors',                  1 ],
     [ 'OUT_ERRORS',      'INT', 'epe.out_errors',                 1 ],
-    ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(epe.date, '%Y-%m-%d')" ],
-  ],
+    ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(epe.date, '%Y-%m-%d')" ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     { WHERE => 1 }
   );
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} id
-    FROM equipment_ports_errors epe
-    LEFT JOIN nas ON (nas.id=epe.nas_id)
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM equipment_ports_errors epe
+  LEFT JOIN nas ON (nas.id=epe.nas_id)
+  $WHERE
+SQL
 
-  return $self->{list};
+  $self->query_list($sql, undef, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 onu_log_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_model_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('equipment_onu_models', $attr);
 
-  return [ ] if ($self->{errno});
   return $self;
 }
 
@@ -3149,12 +3323,9 @@ sub onu_model_add {
 =cut
 #**********************************************************
 sub onu_model_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT *
-   FROM equipment_onu_models
-   WHERE id = ?;",
+  $self->query("SELECT * FROM equipment_onu_models WHERE id = ?;",
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ]
@@ -3170,11 +3341,13 @@ sub onu_model_info {
   Arguments:
     $attr
 
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_model_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -3197,8 +3370,7 @@ sub onu_model_change {
 =cut
 #**********************************************************
 sub onu_model_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('equipment_onu_models', $attr);
 
@@ -3208,18 +3380,17 @@ sub onu_model_del {
 #**********************************************************
 =head2 onu_model_list($attr) - onu log list
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub onu_model_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
-
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'ID',                  'INT', 'eom.id',                           1 ],
     [ 'PON_TYPE',            'INT', 'eom.pon_type',                     1 ],
     [ 'ONU_TYPE',            'STR', 'eom.onu_type',                     1 ],
@@ -3229,32 +3400,34 @@ sub onu_model_list {
     [ 'CATV',                'INT', 'eom.catv',                         1 ],
     [ 'CUSTOM_PROFILES',     'STR', 'eom.custom_profiles',              1 ],
     [ 'CAPABILITY',          'INT', 'eom.capability',                   1 ],
-    [ 'IMAGE',               'INT', 'eom.image',                        1 ],
-  ],
-    { WHERE => 1 }
+    [ 'IMAGE',               'INT', 'eom.image',                        1 ]
   );
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} id
-    FROM equipment_onu_models eom
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
-  return $self->{list};
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM equipment_onu_models eom
+  $WHERE
+SQL
 
+  $self->query_list($sql, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 equipment_netmap_position_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub equipment_netmap_position_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self if !$attr->{POSITIONS} || ref $attr->{POSITIONS} ne 'ARRAY';
 
@@ -3273,16 +3446,15 @@ sub equipment_netmap_position_add {
 #**********************************************************
 =head2 equipment_netmap_positions_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub equipment_netmap_positions_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'NAS_ID', 'INT', 'enp.nas_id', 1 ],
@@ -3290,17 +3462,15 @@ sub equipment_netmap_positions_list {
     [ 'COORDY', 'STR', 'enp.coordy', 1 ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} enp.nas_id
-    FROM equipment_netmap_positions enp
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} enp.nas_id
+FROM equipment_netmap_positions enp
+  $WHERE
+SQL
 
-  return $self->{list};
+  $self->query_list($sql, $attr);
 
+  return $self->{list} || [];
 }
 
 1;

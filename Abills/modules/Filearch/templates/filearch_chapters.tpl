@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL'>
-<input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='ID' value='$FORM{ID}'>
 <table>
 <tr><td>_{NAME}_:</td><td><input type='text' name='NAME' value='%NAME%'></td></tr>

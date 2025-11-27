@@ -51,8 +51,7 @@ sub new {
 =cut
 #**********************************************************
 sub notes_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $self->{COL_NAMES_ARR};
 
@@ -89,19 +88,22 @@ sub notes_list{
   
   my $WHERE =  $self->search_former($attr, $search_columns, {  WHERE => 1 } );
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} n.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} n.id
               FROM notepad n
               LEFT JOIN notepad_reminders nr FORCE INDEX FOR JOIN (`PRIMARY`) ON ( n.id = nr.id )
               LEFT JOIN notepad_checklist_rows ncl ON (n.id = ncl.note_id)
               LEFT JOIN admins adm ON ( adm.aid = n.aid )
    $WHERE
     GROUP BY n.id
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      %{ $attr // {}}
-    }
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, {
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+    %{ $attr // {}}
+  });
 
   return [] if $self->{errno};
 
@@ -109,7 +111,7 @@ sub notes_list{
 }
 
 #**********************************************************
-=head2 notes_info($id)
+=head2 notes_info($id, $attr)
 
   Arguments:
     $id - id for notes
@@ -120,8 +122,7 @@ sub notes_list{
 =cut
 #**********************************************************
 sub notes_info{
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my $list = $self->notes_list( {
     ID               => $id,
@@ -140,8 +141,7 @@ sub notes_info{
 =cut
 #**********************************************************
 sub notes_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('notepad', {
     %{$attr},
@@ -158,8 +158,7 @@ sub notes_add{
 =cut
 #**********************************************************
 sub notes_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -176,8 +175,7 @@ sub notes_change{
 =cut
 #**********************************************************
 sub notes_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del( 'notepad', $attr );
 
@@ -197,8 +195,7 @@ sub notes_del{
 =cut
 #**********************************************************
 sub periodic_rules_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   delete $self->{COL_NAMES_ARR};
   
@@ -228,10 +225,14 @@ sub periodic_rules_list{
       WHERE => 1
     }
   );
-  
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM notepad_reminders
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} id FROM notepad_reminders
    $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+  
+  $self->query($sql, undef, {
       COLS_NAME => 1,
       COLS_UPPER => 1,
       %{ $attr ? $attr : {}}}
@@ -245,7 +246,7 @@ sub periodic_rules_list{
 
 
 #**********************************************************
-=head2 periodic_rules_info($id)
+=head2 periodic_rules_info($id,$attr)
 
   Arguments:
     $id - id for notepad_reminders
@@ -256,8 +257,7 @@ sub periodic_rules_list{
 =cut
 #**********************************************************
 sub periodic_rules_info {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my $list = $self->periodic_rules_list({
     ID               => $id,
@@ -282,8 +282,7 @@ sub periodic_rules_info {
 =cut
 #**********************************************************
 sub periodic_rules_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_add('notepad_reminders', $attr, { REPLACE => 1 });
   
@@ -302,8 +301,7 @@ sub periodic_rules_add{
 =cut
 #**********************************************************
 sub periodic_rules_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_del('notepad_reminders', undef, $attr);
   
@@ -322,8 +320,7 @@ sub periodic_rules_del{
 =cut
 #**********************************************************
 sub periodic_rules_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   # Can save different rules with overlapping fields
   my @fields = qw(
@@ -380,10 +377,14 @@ sub checklist_rows_list{
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query( "SELECT $self->{SEARCH_FIELDS} ncl.id
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} ncl.id
    FROM notepad_checklist_rows ncl
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+  
+  $self->query($sql, undef, {
     COLS_NAME => 1,
     %{ $attr // {}}}
   );
@@ -405,8 +406,7 @@ sub checklist_rows_list{
 =cut
 #**********************************************************
 sub checklist_rows_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
   
   my $list = $self->checklist_rows_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
   
@@ -425,8 +425,7 @@ sub checklist_rows_info{
 =cut
 #**********************************************************
 sub checklist_rows_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_add('notepad_checklist_rows', $attr, { REPLACE => 1 });
   
@@ -445,8 +444,7 @@ sub checklist_rows_add{
 =cut
 #**********************************************************
 sub checklist_rows_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_del('notepad_checklist_rows', undef, $attr);
   
@@ -465,8 +463,7 @@ sub checklist_rows_del{
 =cut
 #**********************************************************
 sub checklist_rows_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $attr->{STATE} = (defined $attr->{STATE} && $attr->{STATE}) ? 1 : '0';
 
@@ -485,17 +482,17 @@ sub checklist_rows_change{
 =cut
 #**********************************************************
 sub notepad_get_active_count{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query( "SELECT SUM(IF(DATE_FORMAT(show_at, '%Y-%m-%d') = CURDATE(), 1, 0)) AS today,
-    SUM(IF(status = 0, 1, 0)) AS active
-    FROM notepad n
-    WHERE n.aid= ?;",
-    undef,
-    { Bind => [ $attr->{AID} ],
-      INFO => 1 }
-  );
+  my $sql = <<'SQL';
+  SELECT SUM(IF(DATE_FORMAT(show_at, '%Y-%m-%d') = CURDATE(), 1, 0)) AS today,
+       SUM(IF(status = 0, 1, 0)) AS active
+  FROM notepad n
+  WHERE n.aid= ?;
+SQL
+
+
+  $self->query($sql, undef, { Bind => [ $attr->{AID} ], INFO => 1 });
 
   $self->{TODAY} = 0 if (!$self->{TODAY});
   $self->{ACTIVE} = 0 if (!$self->{ACTIVE});
@@ -515,8 +512,7 @@ sub notepad_get_active_count{
 =cut
 #**********************************************************
 sub show_reminders_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self->notes_list({
     SHOW_ALL_COLUMNS => 1,
@@ -582,9 +578,9 @@ sub _date_is {
       $is = $date_value <= $min
     }
     elsif ( $date_type eq MONTH_DAY && $date_value != 0 ){
-      if ( $date_value =~ /\,/ ){
+      if ( $date_value =~ /\,/x ){
         my $result = 0;
-        my @days_list = split ( /,\s?/, $date_value );
+        my @days_list = split ( /,\s?/x, $date_value );
         foreach my $day ( @days_list ){
           print "Checking ($day == $mday) \n" if ($attr->{DEBUG});
           $result = ($day == $mday);
@@ -643,7 +639,7 @@ sub _date_is {
 }
 
 #**********************************************************
-=head2 notepad_now_is($attr)
+=head2 _now_is($attr)
 
   translates now to notepad_date_is(). See notepad_date_is() for comments
 
@@ -676,20 +672,18 @@ sub _now_is{
 =cut
 #**********************************************************
 sub get_sticker {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{AID} //= 0;
-  $self->query(
-    "SELECT id,status,subject,text,status_st,aid
-    FROM notepad
-    WHERE aid = ?
-    AND status <> 2",
-    undef, {
-      COLS_NAME => 1,
-      Bind      => [ $attr->{AID} ]
-    }
-  );
+
+  my $sql = <<'SQL';
+  SELECT id,status,subject,text,status_st,aid
+  FROM notepad
+  WHERE aid = ?
+  AND status <> 2;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{AID} ] });
 
   return $self->{list};
 }

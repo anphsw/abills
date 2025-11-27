@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post' name='add_message' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' method='post' name='add_message' class='form form-horizontal'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='AID' value='%AID%'/>
   <div class='container-fluid'>

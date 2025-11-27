@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <form name='HOTSPOT_CONFIG' id='form_HOTSPOT_CONFIG' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index' />
+      <input type='hidden' name='index' value='%index%' />
       <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}' />
 
       <div class='form-group'>

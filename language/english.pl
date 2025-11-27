@@ -118,7 +118,7 @@ $lang{NEXT_FEES} = 'Next Fees';
 $lang{SENT} = 'Sent';
 $lang{RECV} = 'Received';
 $lang{LAST_PAYMENT} = 'Last payment';
-$lang{LAST_LOGIN} = 'Last session';
+$lang{LAST_LOGIN} = 'Authorizations';
 $lang{FIRST_LOGIN} = 'First session';
 $lang{LAST_ENTRIES} = 'Last sessions';
 $lang{NOT_LOGINED} = 'Not logged in';
@@ -273,6 +273,7 @@ $lang{DEFAULT} = 'Default';
 $lang{GO} = 'Go';
 $lang{LANGUAGE} = 'Language';
 $lang{LOG} = 'History';
+$lang{LOG_ACTIONS} = 'Action log';
 $lang{SHEDULE} = 'Schedule';
 
 $lang{ERROR_DIR} = 'Cannot open directory:';
@@ -1167,6 +1168,16 @@ $lang{ERR_UNAUTHENTICATED} = 'Incorrect authentication credentials';
 $lang{ERR_HOLD_UP_MIN_PERIOD} = 'The minimum service suspension period is %DAYS% days';
 $lang{ERR_HOLD_UP_MAX_PERIOD} = 'The maximum service suspension period is %DAYS% days';
 $lang{ERR_PASSWORD_NOT_ALLOWED} = 'Password not allowed';
+$lang{ERR_CONTACTS_UNKNOWN_METHOD} = 'Unknown contacts method';
+$lang{ERR_CONTACTS_METHOD_NOT_FOUND} = 'Contacts method not found';
+$lang{ERR_AID_NOT_DEFINED} = 'Admin ID not defined';
+$lang{ERR_CONTACTS_INVALID_FORMAT} = 'Invalid contacts format';
+$lang{ERR_CONTACT_TYPE_REQUIRED} = 'Contact type is required';
+$lang{ERR_CONTACT_TYPE_INVALID} = 'Invalid contact type';
+$lang{ERR_CONTACT_VALUE_REQUIRED} = 'Contact value is required';
+$lang{ERR_WRONG_CELL_PHONE_FORMAT} = 'Invalid cell phone format';
+$lang{ERR_WRONG_PHONE_FORMAT} = 'Invalid phone format';
+$lang{ERR_CONTACT_ID_REQUIRED} = 'Contact ID is required';
 
 $lang{FIXED_FEES_FREE_PERIOD} = 'Free period to next month';
 
@@ -1181,6 +1192,9 @@ $lang{AVAILABILITY_PERIOD} = 'Availability period';
 $lang{PENETRATION_RATE} = 'Penetration rate';
 $lang{POPULATION} = 'Population';
 $lang{HOUSEHOLDS} = 'Households';
+$lang{TERRITORIAL_UNITS_CODE} = 'Territorial unit ID';
+$lang{TERRITORIAL_UNITS} = 'Territorial units';
+$lang{LEVEL} = 'Level';
 $lang{ARCHIVAL} = 'Archival';
 $lang{FINANCE} = 'Finance';
 
@@ -1203,5 +1217,9 @@ $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Number of allowed failed login attempts';
 $lang{ADMIN_LOGIN_ATTEMPT_PERIOD} = 'Check period (in seconds)';
 $lang{ADMIN_ATTEMPT_COUNTER_RESET_PERIOD} = 'Attempt counter reset interval (in seconds, 0 — do not set)';
 $lang{SUBCONTO} = 'Code of Cubconto';
+
+$lang{IN_TERMINATION_PROCESS} = 'In the process of terminating';
+$lang{TERMINATED_CONTRACT} = 'Contract is terminated';
+$lang{EXTERNAL_CMD} = 'External command';
 
 1;

@@ -2,7 +2,7 @@
     <form name='%FORM_NAME%' id='form_%FORM_NAME%' method='GET' class='form form-horizontal'>
     <div class='card-header with-border'><h4 class='card-title'>%TITLE%</h4></div>
     <div class='card-body'>
-            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='index' value='%index%'/>
             <input type='hidden' name='ID' value='%ID%'/>
             <div class='form-group row'>
                 <label class='control-label col-md-3' for='ELEMENT_ID'>_{ELEMENT}_:</label>

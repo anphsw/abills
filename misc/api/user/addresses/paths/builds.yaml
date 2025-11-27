@@ -1,0 +1,22 @@
+get:
+  tags:
+    - addresses
+  summary: Получить дома
+  description: Возвращает список домов. Работает если включен модуль Referral
+  operationId: getBuilds
+  parameters:
+    - name: streetId
+      in: query
+      description: ID улицы.
+      schema:
+        type: boolean
+        default: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/builds.yaml"
+  security:
+    - USERSID: []

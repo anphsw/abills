@@ -316,9 +316,9 @@ CREATE TABLE IF NOT EXISTS `employees_cashboxes_moving`
     `amount`          DOUBLE(10, 2)                    NOT NULL DEFAULT 0.00,
     `moving_type_id`  SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
     `cashbox_spending`SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
-    `id_spending`     SMALLINT(6) UNSIGNED             NOT NULL DEFAULT 0,
+    `id_spending`     INT(11)  UNSIGNED                NOT NULL DEFAULT 0,
     `cashbox_coming`  SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
-    `id_coming`       SMALLINT(6) UNSIGNED             NOT NULL DEFAULT 0,
+    `id_coming`       INT(11)  UNSIGNED                NOT NULL DEFAULT 0,
     `date`            DATE                             NOT NULL DEFAULT '0000-00-00',
     `aid`             SMALLINT(6) UNSIGNED             NOT NULL DEFAULT 0,
     `comments`        TEXT,
@@ -347,5 +347,15 @@ CREATE TABLE IF NOT EXISTS `employees_cashboxes_admins`
   `add_date`    DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY cashbox_id (aid,cashbox_id)
 )
-DEFAULT CHARSET=utf8
-COMMENT='List of admins for cashboxes';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Admins permissions for cashboxes';
+
+CREATE TABLE IF NOT EXISTS `employees_spending_types_admins`
+(
+  `type_id`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `add_date`    DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY type_id (aid,type_id)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Admins permissions of spending types';

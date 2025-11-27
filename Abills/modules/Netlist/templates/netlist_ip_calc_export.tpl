@@ -1,7 +1,7 @@
-<div class='card box-primary'>
+<div class='card card-primary card-outline box-primary'>
     <div class='card-header with-border'><h4 class='card-title'>_{EXPORT}_</h4></div>
     <form name='NETLIST_CALC_EXPORT' id='form_NETLIST_CALC_EXPORT' method='post' class='form form-horizontal'>
-        <input type='hidden' name='index' value='$index'/>
+        <input type='hidden' name='index' value='%index%'/>
         <input type='hidden' name='COUNTS' value='$FORM{HOSTS_NUMBER}'/>
         <input type='hidden' name='SUBNET_NETMASK' value='$FORM{SUBNET_MASK}'/>
 

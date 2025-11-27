@@ -158,6 +158,7 @@ sub paysys_import_fees_new {
 =cut
 #**********************************************************
 sub paysys_import_form_new {
+  #TODO: try unify it with paysys_reports, already present familiar logic for uploading files and advanced preview, search etc
   my ($attr) = @_;
 
   return 0 if (!$attr->{TYPE});
@@ -181,15 +182,10 @@ sub paysys_import_form_new {
 
   my %import_types = ();
   if ($attr->{IMPORT_RULES}) {
-    my @import_types = split(/,/, $attr->{IMPORT_RULES});
+    my @import_types = split(',', $attr->{IMPORT_RULES});
     for (my $i = 0; $i < scalar @import_types; $i++) {
       $import_types{$i} = $import_types[$i];
     }
-  }
-
-  if ($attr->{TYPE} eq 'PAYMENTS') {
-    my $module_rules = _paysys_import_types();
-    %import_types = (%{$module_rules}, %import_types);
   }
 
   my $debug = $attr->{DEBUG} || 0;
@@ -209,31 +205,6 @@ sub paysys_import_form_new {
   }
 
   if ($FORM->{IMPORT}) {
-    if ($attr->{TYPE} eq 'PAYMENTS' && $FORM{IMPORT_TYPE} && $FORM{IMPORT_TYPE} =~ /\S+.pm+/) {
-      my ($Module, $Module_name, $Module_id) = split(/,/, $FORM{IMPORT_TYPE});
-      require Paysys::Init;
-      Paysys::Init->import('_configure_load_payment_module');
-      my $Plugin = _configure_load_payment_module($Module, 0, \%conf);
-
-      if ($Plugin->can('import')) {
-        my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, {
-          HTML        => $html,
-          LANG        => \%lang,
-          INDEX       => $index,
-          SELF_URL    => $SELF_URL,
-          CUSTOM_NAME => $Module_name,
-          NAME        => $Module_name,
-          CUSTOM_ID   => $Module_id,
-        });
-        $Paysys_plugin->import(\%FORM);
-      }
-      else {
-        $html->message('err', $lang{ERROR}, "Cant load module $FORM{IMPORT_TYPE}", { OUTPUT2RETURN => 1 });
-      }
-
-      return 1;
-    }
-
     #Default import extraction
     my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
 
@@ -252,7 +223,7 @@ sub paysys_import_form_new {
 
     #Confirmation
     if (defined($FORM->{IDS})) {
-      my @IDS = split(/, /, $FORM->{IDS});
+      my @IDS = split(',\s?', $FORM->{IDS});
       for (my $i = 0 ; $i <= $#IDS ; $i++) {
         my $ID        = $IDS[$i];
         my %DATA_HASH = (
@@ -284,68 +255,26 @@ sub paysys_import_form_new {
     }
     #Get data from file
     elsif ($FORM->{FILE_DATA}) {
-      ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($FORM->{FILE_DATA}{Contents}, $import_expr,
-        $BINDING_FIELD, { DEBUG => $debug ? 6 : 0, ENCODE => $FORM->{ENCODE} });
+      require Paysys::Statements;
+      Paysys::Statements->import();
+      my $Paysys_Statements = Paysys::Statements->new($db, $admin, \%conf);
 
-      if($FORM{METHOD} == 113){
-        my $Address = Address->new($db, $admin, \%conf);
-        for(my $i=0; $i <= $#{$DATA_ARR}; $i++){
-          if($DATA_ARR->[$i]->{UID} =~ /\D+/ || $DATA_ARR->[$i]->{UID} eq ''){
-            my %BUILDS_LETTERS =  (1 => "А", 2 => "Б", 3 => "В");
-            my ($bank_street, $bank_build, $bank_flat) = $DATA_ARR->[$i]->{ADDRESS} =~ /(\d+)","(.+)","(.+)/;
-            my $street_info = $Address->street_list({COLS_NAME => 1, NAME => '_SHOW', SECOND_NAME => $bank_street});
-
-            $bank_street = $street_info->[0]->{street_name};
-
-            if($bank_build =~ /-/){
-              my ($num, $letter_num) = split('-', $bank_build);
-              $bank_build = $num . "-" . $BUILDS_LETTERS{$letter_num};
-            }
-
-            if($bank_flat =~ /-/){
-              my ($num, $letter_num) = split('-', $bank_flat);
-              $bank_flat = $num . "-" . $BUILDS_LETTERS{$letter_num};
-            }
-
-            my $user_info = $users->list({
-              COLS_NAME       => 1,
-              FIO             => '_SHOW',
-              ADDRESS_STREET  => $street_info->[0]->{street_name},
-              ADDRESS_FLAT    => $bank_flat,
-              ADDRESS_BUILD   => $bank_build
-            });
-
-            if($#{$user_info} == 0){
-              $DATA_ARR->[$i]->{UID} = $user_info->[0]->{uid};
-              $DATA_ARR->[$i]->{ADDRESS} = "$bank_street $bank_build, $bank_flat";
-            }
-            elsif($#{$user_info} == -1){
-              $html->message( "err", "ID $lang{NOT_EXIST}", "$lang{LINE} $i - $DATA_ARR->[$i]->{FIO}" );
-            }
-            else{
-              my $users_without_id = '';
-              foreach my $user_ (@$user_info){
-                if($user_->{fio} eq $DATA_ARR->[$i]->{FIO}){
-                  $DATA_ARR->[$i]->{UID} = $user_->{uid};
-                  $DATA_ARR->[$i]->{ADDRESS} = "$bank_street $bank_build, $bank_flat";
-                }
-                else{
-                  $users_without_id .= "$lang{FIO} - $user_->{fio};  UID - " . $html->button( "$user_->{uid}",
-                    "index=30&UID=$user_->{uid}" ) . "\n";
-                }
-              }
-              if($DATA_ARR->[$i]->{UID} eq ''){
-                $html->message( "err", "MORE THEN ONE ID", "$lang{LINE} $i:\n $users_without_id" );
-              }
-            }
-          }
-        }
-      }
+      ($DATA_ARR, $BINDING_IDS) = $Paysys_Statements->paysys_import_parse(
+        $FORM->{FILE_DATA}{Contents},
+        $import_expr,
+        $BINDING_FIELD,
+        {
+          DEBUG  => $debug ? 6 : 0,
+          ENCODE => $FORM->{ENCODE}
+        });
 
       $table = $html->table({
         width => '100%',
-        rows  => [ [ $lang{NAME}, $FORM->{FILE_DATA}{filename} ], [ $lang{TOTAL}, $#{$DATA_ARR} + 1 ],
-          [ "$lang{SIZE}", $FORM->{FILE_DATA}{Size} ] ]
+        rows  => [
+          [ $lang{NAME}, $FORM->{FILE_DATA}{filename} ],
+          [ $lang{TOTAL}, $#{$DATA_ARR} + 1 ],
+          [ "$lang{SIZE}", $FORM->{FILE_DATA}{Size} ]
+        ]
       });
 
       print $table->show();
@@ -366,7 +295,7 @@ sub paysys_import_form_new {
     }
 
     my $accounts_list;
-    if(in_array($BINDING_FIELD, [ 'BANK_ACCOUNT', 'TAX_NUMBER' ])) {
+    if(in_array($BINDING_FIELD, [ 'BANK_ACCOUNT', 'TAX_NUMBER', 'EDRPOU' ])) {
 
       print "Company ids: $BINDING_FIELD // $ids !!!\n" if($debug > 4);
 
@@ -415,7 +344,7 @@ sub paysys_import_form_new {
           $uid = $DATA_ARR->[$i]->{UID};
         }
         elsif ($binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) } ) {
-          ($uid, $login, $fio) = split(/:/, $binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) });
+          ($uid, $login, $fio) = split(':', $binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) });
         }
 
         my $ext_id = $DATA_ARR->[$i]->{EXT_ID} || "$DATA_ARR->[$i]->{DATE}_$attr->{IMPORT_TYPE}.'.'.$ID";
@@ -470,8 +399,7 @@ sub paysys_import_form_new {
       for (my $i = 0 ; $i <= $#{$DATA_ARR} ; $i++) {
         my $ID = $DATA_ARR->[$i]->{PAYSYS_EXT_ID} || $i;
         if ($binding_hash{ $DATA_ARR->[$i]->{$BINDING_FIELD} }) {
-          #($uid, $login, $fio)
-          my ($uid) = split(/:/, $binding_hash{ $DATA_ARR->[$i]->{$BINDING_FIELD} });
+          my ($uid) = split(':', $binding_hash{ $DATA_ARR->[$i]->{$BINDING_FIELD} });
           my $user_ = $users->info($uid);
           $Fees->take(
             $user_,
@@ -577,7 +505,7 @@ sub paysys_import_form_new {
         my $info = '';
 
         if ($binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) }) {
-          my ($uid, $login, $fio) = split(/:/, $binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) });
+          my ($uid, $login, $fio) = split(':', $binding_hash{ lc($DATA_ARR->[$i]->{$BINDING_FIELD}) });
           $info = $html->button($fio, "&index=11&UID=$uid", { TARGET => $uid }) . "/$login/$uid";
           $table->{rowcolor} = undef;
         }
@@ -683,42 +611,6 @@ sub paysys_import_form_new {
   $html->tpl_show(_include('paysys_file_import', 'Paysys'), \%info);
 
   return 1;
-}
-
-#**********************************************************
-=head2 _paysys_import_types($attr) - get modules which support import
-
-  Arguments:
-
-  Returns:
-    modules: array - modules which support import payments
-
-=cut
-#**********************************************************
-sub _paysys_import_types {
-  require Paysys::Init;
-  Paysys::Init->import('_configure_load_payment_module');
-
-  my $connected_systems = $Paysys->paysys_connect_system_list({
-    SHOW_ALL_COLUMNS => 1,
-    STATUS           => 1,
-    COLS_NAME        => 1,
-  });
-
-  return {} if ($Paysys->{errno} || !scalar @{$connected_systems});
-
-  my %modules = ();
-
-  foreach my $system (@{$connected_systems}) {
-    my $Plugin = _configure_load_payment_module($system->{module}, 0, \%conf);
-    next if (ref $Plugin eq 'HASH');
-
-    if ($Plugin->can('import')) {
-      $modules{"$system->{module},$system->{name},$system->{paysys_id}"} = $system->{name};
-    }
-  }
-
-  return \%modules;
 }
 
 1;

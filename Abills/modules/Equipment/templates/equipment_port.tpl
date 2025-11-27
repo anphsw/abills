@@ -1,5 +1,5 @@
 <FORM action='%SELF_URL%' METHOD='POST' class='form'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
   <input type='hidden' name='visual' value='%visual%'>

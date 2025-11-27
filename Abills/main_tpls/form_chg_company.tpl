@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST'>
+<form action='%SELF_URL%' METHOD='POST'>
 <input type=hidden name='index' value='11'>
 <input type=hidden name='UID' value='%UID%'>
 <TABLE>

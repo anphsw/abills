@@ -18,9 +18,9 @@ package Sorm::Plugins::Kzt;
 
 =head1 VERSION
 
-  VERSION: 1.2
+  VERSION: 1.5
   CREATED: 20240821
-  UPDATED: 202506027
+  UPDATED: 202510015
 
 =cut
 
@@ -54,6 +54,7 @@ my $upload_date = "$upload_year-$upload_month-$upload_day";
 
 my $sufix = $upload_year . $upload_month . $upload_day . 'T' . $hour . $min . '.csv';
 my %reports = ();
+my $local_path = '';
 
 #**********************************************************
 =head2 new($conf, $attr)
@@ -94,10 +95,10 @@ sub init {
   $Storage = Storage->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $argv = $self->{argv};
+  $local_path = ($self->{conf}->{SORM_SERVER_DIR_LOCAL}) ? $self->{conf}->{SORM_SERVER_DIR_LOCAL} : $main::var_dir;
 
   if ($argv->{START}) {
-    mkdir($main::var_dir . 'sorm/');
-    mkdir($main::var_dir . 'sorm/Kzt');
+    mkdir($local_path.'sorm/');
   }
 
   if ($argv->{DATE}){
@@ -119,12 +120,17 @@ sub init {
 
   print "Upload period: $begin_date/$upload_date\n" if ($debug);
 
+  my $users_exception_by_tags = ($self->{conf}->{SORM_USERS_EXCEPTION_TAGS}) ? $self->{conf}->{SORM_USERS_EXCEPTION_TAGS} : '';
+
   # ABONENT
   my $users_list = $User->list({
     REGISTRATION_FROM_REGISTRATION_TO => "$begin_date/$upload_date",
     DELETED       => 0,
     REGISTRATION  => '_SHOW',
     DISABLE       => 0,
+    SORT          => 'u.uid',
+    TAGS          => $users_exception_by_tags,
+    TAG_SEARCH_VAL=> 2,
     COLS_NAME     => 1,
     PAGE_ROWS     => 99999,
   });
@@ -185,24 +191,32 @@ sub ABD_report {
   my $service_type = 'фиксированный интернет ';
   my $phone = '';
   my $imsi = '';
-  my $user_status = '';
-  my $install_date = ($User->{ACTIVATE} && $User->{ACTIVATE} ne '0000-00-00') ? date_format($User->{ACTIVATE}, "%d.%m.%Y") : q{};
+  my $install_date = ($Internet->{REGISTRATION} && $Internet->{REGISTRATION} ne '0000-00-00') ? date_format($Internet->{REGISTRATION}, "%d.%m.%Y") : q{};
 
-  my $region_id = _region($User->{ADDRESS_FULL_LOCATION});
+  my $user_status = '';
+  if (defined($Internet->{DISABLE})){
+    $user_status = 'A' if (defined($Internet->{DISABLE}) && $Internet->{DISABLE} == 0);
+    $user_status = 'C' if ($Internet->{DISABLE} == 1);
+    $user_status = 'S' if ($Internet->{DISABLE} > 1);
+  }
+  $phone = $User->{CELL_PHONE} || $User->{PHONE} || '';
+
+  my $user_address = '';
+  if ($User->{ADDRESS_FULL_LOCATION}) {
+    $user_address = $User->{ADDRESS_FULL_LOCATION};
+  }
+  elsif (!$User->{ADDRESS_FULL_LOCATION} && $self->{conf}->{SORM_ADDITIONAL_ADDRESS}){
+    $user_address = ($User->{$self->{conf}->{SORM_ADDITIONAL_ADDRESS}}) ? $User->{$self->{conf}->{SORM_ADDITIONAL_ADDRESS}} : '';
+  }
+
+  my $region_id = _region($user_address);
 
   # Mobile subscribers
   if ($self->{conf}->{SORM_IMSI_PREFIX} && $Internet->{CID} && $Internet->{CID} =~ /^$self->{conf}->{SORM_IMSI_PREFIX}/){
     $prefix = 'Mob_';
     $network_type = 'FWA';
     $service_type = 'мобильная связь ';
-    $phone = $User->{CELL_PHONE} || $User->{PHONE} || '';
     $imsi = $Internet->{CID};
-
-    if ($User->{DISABLE}){
-      $user_status = 'A' if ($User->{DISABLE} == 0);
-      $user_status = 'C' if ($User->{DISABLE} == 1);
-      $user_status = 'S' if ($User->{DISABLE} > 1);
-    }
 
     my $user_storage = $Storage->storage_installation_list({ UID => $uid, DATE => '_SHOW', COLS_NAME => 1 });
     $install_date = $user_storage->[0]->{date} || '';
@@ -213,7 +227,6 @@ sub ABD_report {
       $mob_header = 1;
     }
   }
-
 
   my @arr = ();
 
@@ -228,7 +241,7 @@ sub ABD_report {
     # IMEI (empty)
   $arr[4] = '';
     # Адрес проживания/Адрес регистрации
-  $arr[5] = $User->{ADDRESS_FULL_LOCATION} || q{};
+  $arr[5] = $user_address || q{};
     # Номер и дата выдачи документа
   $arr[6] = ($passport) ? "$passport от $passport_date, выдан $passport_grant" : '';
     # Дата рождения
@@ -247,7 +260,7 @@ sub ABD_report {
   $arr[13] = '';
   $arr[14] = $email;
     # Дата активации абонента (empty)
-  $arr[15] = '';
+  $arr[15] = ($User->{REGISTRATION} && $User->{REGISTRATION} ne '0000-00-00') ? date_format($User->{REGISTRATION}, "%d.%m.%Y") : q{};
     # Номер SIM-карты (empty)
   $arr[16] = '';
     # Дата смены статуса SIM (empty)
@@ -263,13 +276,13 @@ sub ABD_report {
     # Дата и время актуализации информации
   $arr[22] = ($User->{REGISTRATION} && $User->{REGISTRATION} ne '0000-00-00') ? date_format($User->{REGISTRATION}, "%d.%m.%Y") : q{};
     # Адрес регистрации абонентского оборудования
-  $arr[23] = $User->{ADDRESS_FULL_LOCATION} || q{};
+  $arr[23] = $user_address || q{};
     # Свидетельство о постановке на учет по НДС (юр лицо)
   $arr[24] = ($User->{COMPANY_ID} > 0) ? $Company->{TAX_NUMBER} : '';
     # Дата заключения договора
   $arr[25] = ($User->{CONTRACT_DATE} && $User->{CONTRACT_DATE} ne '0000-00-00') ? date_format($User->{CONTRACT_DATE}, "%d.%m.%Y") : q{};
     # Адрес установки абонентского оборудования
-  $arr[26] = $User->{ADDRESS_FULL_LOCATION} || q{};
+  $arr[26] = $user_address || q{};
     # Статические IP-адреса для выделенных линий, начало диапазона
   $arr[27] = ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : '';
     # Статические IP-адреса для выделенных линий, конец диапазона
@@ -279,15 +292,13 @@ sub ABD_report {
     # Дата активации SIM абонента (empty)
   $arr[30] = '';
     # Адрес, с которого оплачивается услуга
-  $arr[31] = $User->{ADDRESS_FULL_LOCATION} || q{};
+  $arr[31] = $user_address || q{};
     # UserName
   $arr[32] = $User->{LOGIN}|| q{};
     # Номера устройств абонентского оборудования
   $arr[33] = $user_mac;
-    # Адрес регистрации абонентского оборудования
-  $arr[34] = $User->{ADDRESS_FULL_LOCATION} || q{};
     # Дата установки оборудования
-  $arr[35] = $install_date;
+  $arr[34] = $install_date;
 
   delete($User->{FIO});
   delete($User->{ADDRESS_FULL_LOCATION});
@@ -348,7 +359,7 @@ sub _save_report {
   print "$content\n" if ($debug > 5);
 
   %reports = (
-    ABD  => $main::var_dir.'sorm/Kzt/'.$prefix.$sufix,
+    ABD  => $local_path.'sorm/'.$prefix.$sufix,
   );
 
   my $filename = $reports{$type};
@@ -410,7 +421,6 @@ sub _add_header {
       'Адрес, с которого оплачивается услуга',
       'UserName',
       'Номера устройств абонентского оборудования',
-      'Адрес регистрации абонентского оборудования',
       'Дата установки оборудования',
     ]
   );
@@ -435,13 +445,17 @@ sub _add_header {
 sub send {
   my $self = shift;
   %reports = (
-    ABD  => $main::var_dir.'sorm/Kzt/'.$prefix.$sufix,
+    ABD  => $local_path.'sorm/'.$prefix.$sufix,
   );
 
   for my $report (values %reports) {
     if (-e $report) {
+      my $ftp_dir = '/';
+      $ftp_dir = $self->{conf}->{SORM_SERVER_DIR_FIX} if ($self->{conf}->{SORM_SERVER_DIR_FIX} && $report =~ /Fix/);
+      $ftp_dir = $self->{conf}->{SORM_SERVER_DIR_MOB} if ($self->{conf}->{SORM_SERVER_DIR_MOB} && $report =~ /Mob/);
+
       main::_ftp_upload({
-        DIR  => $self->{conf}->{SORM_SERVER_DIR} ? $self->{conf}->{SORM_SERVER_DIR} : '/',
+        DIR  => $ftp_dir,
         FILE => $report
       });
 

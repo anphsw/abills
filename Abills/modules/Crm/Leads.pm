@@ -94,6 +94,11 @@ sub crm_lead_search {
     ARRAY_NUM_ID => 1
   });
 
+  my $l_schema_info = $Conf->config_info({ PARAM => 'LSCHEMA_LEAD_FOR_' . $admin->{AID}, COLS_NAME => 1 });
+  $FORM{L_SCHEMA} = $l_schema_info->{VALUE};
+  my $r_schema_info = $Conf->config_info({ PARAM => 'RSCHEMA_LEAD_FOR_' . $admin->{AID}, COLS_NAME => 1 });
+  $FORM{R_SCHEMA} = $r_schema_info->{VALUE};
+
   my $current_step_select = _progress_bar_step_sel();
 
   my $tpl = $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
@@ -197,7 +202,6 @@ sub crm_lead_search_old {
     $id_hidden = 'hidden';
   }
 
-  # добавляет нового лида и перенаправляет на страницу профиля
   if ($FORM{add}) {
     $Crm->crm_lead_add({ %FORM });
 
@@ -262,6 +266,11 @@ sub crm_leads {
 
   my $client_info = $FORM{UID} ? crm_client_to_lead() : {};
   $client_info = {} if !$client_info || ref $client_info ne 'Users';
+
+  my $l_schema_info = $Conf->config_info({ PARAM => 'LSCHEMA_LEAD_FOR_' . $admin->{AID}, COLS_NAME => 1 });
+  $FORM{L_SCHEMA} = $l_schema_info->{VALUE};
+  my $r_schema_info = $Conf->config_info({ PARAM => 'RSCHEMA_LEAD_FOR_' . $admin->{AID}, COLS_NAME => 1 });
+  $FORM{R_SCHEMA} = $r_schema_info->{VALUE};
 
   if ($FORM{add_form}) {
     my $submit_button_name = $lang{ADD};
@@ -384,7 +393,8 @@ sub crm_leads {
       }),
       TP_ID             => $lead_info->{TP_ID},
       COMPETITOR_ID     => $lead_info->{COMPETITOR_ID},
-      INFO_FIELDS       => crm_lead_info_field_tpl({ %$lead_info, REGISTRATION => undef })
+      INFO_FIELDS       => crm_lead_info_field_tpl({ %$lead_info, REGISTRATION => undef }),
+      %FORM,
     });
 
     return 1 if ($FORM{TEMPLATE_ONLY});
@@ -1138,16 +1148,16 @@ sub crm_source_types {
     INPUT_DATA      => $Crm,
     FUNCTION        => 'leads_source_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
+    DEFAULT_FIELDS  => 'ID,NAME,COMMENTS',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => {
       name => '_translate'
     },
     EXT_TITLES      => {
-      'id'       => "ID",
-      'name'     => $lang{NAME},
-      'comments' => $lang{COMMENTS},
+      id       => 'ID',
+      name     => $lang{NAME},
+      comments => $lang{COMMENTS},
     },
     TABLE           => {
       width   => '100%',
@@ -1158,7 +1168,7 @@ sub crm_source_types {
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
     MODULE          => 'Crm',
-    TOTAL           => "TOTAL:$lang{TOTAL}",
+    TOTAL           => 1
   });
 
   return 1;

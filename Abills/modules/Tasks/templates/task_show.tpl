@@ -1,4 +1,4 @@
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='ID' value='%ID%'>
 <div class='card card-primary card-outline'>
   <div class='card-header with-border'><h3 class='card-title'>%TYPE_NAME% : %NAME%</h3>

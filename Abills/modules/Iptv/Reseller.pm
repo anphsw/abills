@@ -150,20 +150,23 @@ sub iptv_reseller_users_list {
     $html->tpl_show('', $Iptv, { TPL => 'iptv_reseller_user', MODULE => 'Iptv' });
   }
   elsif ($FORM->{change}) {
-    require Abills::Misc;
-    require Iptv::Users;
     require Iptv::Services;
+    Iptv::Services->import();
+    my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
 
-    my $tv_service_id = iptv_user_add({
-      %$FORM,
+    my $result = $Iptv_services->user_add({
+      %$attr,
       UID         => $FORM->{UID},
-      SERVICE_ADD => 1,
-      USER_INFO   => $users,
       ACTIVATE    => $FORM->{IPTV_ACTIVATE},
       EXPIRE      => $FORM->{IPTV_EXPIRE},
     });
 
-    if($tv_service_id) {
+    my $tv_service_id = 0;
+    if ($result->{INSERT_ID} && !$result->{errno}) {
+      $tv_service_id = $result->{INSERT_ID};
+    }
+
+    if ($tv_service_id) {
       $html->message('info', $lang{CHANGED}, "# $tv_service_id");
     }
   }
@@ -232,18 +235,21 @@ sub iptv_reseller_user_add {
   return 0 if ($users->{errno});
 
   if (!$FORM->{STATUS}) {
-    require Abills::Misc;
-    require Iptv::Users;
     require Iptv::Services;
+    Iptv::Services->import();
+    my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
 
-    my $tv_service_id = iptv_user_add({
-      %$FORM,
-      UID         => $uid,
-      SERVICE_ADD => 1,
-      USER_INFO   => $users,
+    my $result = $Iptv_services->user_add({
+      %$attr,
+      UID         => $FORM->{UID},
       ACTIVATE    => $FORM->{IPTV_ACTIVATE},
       EXPIRE      => $FORM->{IPTV_EXPIRE},
     });
+
+    my $tv_service_id = 0;
+    if ($result->{INSERT_ID} && !$result->{errno}) {
+      $tv_service_id = $result->{INSERT_ID};
+    }
 
     if($tv_service_id) {
       $html->message('info', $lang{ADDED}, "# $tv_service_id");

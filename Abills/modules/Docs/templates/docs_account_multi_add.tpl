@@ -1,5 +1,5 @@
-<form action=$SELF_URL name=multi_create>
-<input type=hidden name=index value=$index>
+<form action=%SELF_URL% name=multi_create>
+<input type=hidden name=index value=%index%>
 
 %USERS_TABLE%
 

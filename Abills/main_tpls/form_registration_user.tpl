@@ -17,7 +17,7 @@
     </div>
 
     <div id='MAIN_CONTAINER'>
-      <form action='$SELF_URL' METHOD='post' name='form_registration' id='form_registration'>
+      <form action='%SELF_URL%' METHOD='post' name='form_registration' id='form_registration'>
         <input type='hidden' name='PIN_CONFIRM_FORM' value='1'>
         <input type='hidden' name='REFERRER' value='%REFERRER%'>
         <div class='form-group row p-0 m-0'>

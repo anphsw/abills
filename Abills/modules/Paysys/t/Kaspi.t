@@ -22,7 +22,6 @@ our (
 
 my $Payment_plugin = Paysys::Plugins::Kaspi->new($db, $admin, \%conf);
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = int(rand(10000));
 my $transaction_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());
 $transaction_date =~ s/[-: ]//g;
 
@@ -35,46 +34,86 @@ $date =~ s/\d+$|-//g;
 
 our @requests = (
   {
-    name    => 'CHECK',
-    request => qq{
-command=check
-txn_id=$transaction_id
-sum=$payment_sum
-account=$user_id},
-    get     => 1,
-    result  => qq{}
+    name          => 'CHECK',
+    request       => {
+      account => {
+        name    => 'account',
+        val     => $user_id,
+        tooltip => "Идентификатор абонента в зависимости от настроек системы. (По умолчанию вводить UID абонента)",
+      },
+      command => {
+        name      => 'command',
+        val       => 'check',
+        ex_params => 'readonly="readonly"',
+      },
+      sum     => {
+        name    => 'sum',
+        val     => $payment_sum,
+        tooltip => 'Сумма платежа',
+      },
+      txn_id  => {
+        name    => 'txn_id',
+        val     => $payment_id,
+        tooltip => 'Transaction ID(случайный номер)',
+      },
+    },
+    query_params  => 1,
+    result_schema => 'Kaspi/check-response.json',
+    result_type   => 'json',
   },
   {
-    name    => 'PAY',
-    request => qq{
-command=pay
-account=$user_id
-txn_date=$transaction_date
-txn_id=$transaction_id
-sum=$payment_sum},
-    get     => 1,
-    result  => qq{}
+    name          => 'PAY',
+    request       => {
+      command => {
+        name      => 'command',
+        val       => 'pay',
+        ex_params => 'readonly="readonly"',
+      },
+      account => {
+        name    => 'account',
+        val     => $user_id,
+        tooltip => "Идентификатор абонента в зависимости от настроек системы.(По умолчанию вводить UID абонента)",
+      },
+      sum     => {
+        name    => 'sum',
+        val     => $payment_sum,
+        tooltip => 'Сумма платежа',
+      },
+      txn_id  => {
+        name    => 'txn_id',
+        val     => $payment_id,
+        tooltip => 'Transaction ID(случайный номер)',
+      },
+    },
+    query_params  => 1,
+    result_schema => 'Kaspi/pay-response.json',
+    result_type   => 'json',
   },
   {
-    name    => 'CANCEL',
-    request => qq{
-command=cancel
-prv_txn=},
-    get     => 1,
-    result  => qq{}
-  },
-  {
-    name    => 'USER_LIST',
-    request => qq{
-date=$date
-page=1
-rows=10},
-    get     => 1,
-    result  => qq{}
+    name          => 'USER_LIST',
+    request       => {
+      date => {
+        name => 'date',
+        val  => $date,
+      },
+      page => {
+        name    => 'page',
+        val     => '1',
+        tooltip => "Номер страницы",
+      },
+      rows => {
+        name    => 'rows',
+        val     => '100',
+        tooltip => 'Количество лицевых счетов на странице',
+      },
+    },
+    query_params  => 1,
+    result_schema => 'Kaspi/user-push-list.json',
+    result_type   => 'json',
   },
 );
 
-test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });
+test_runner($Payment_plugin, \@requests, { VALIDATE => 'json_compare' });
 
 1;
 

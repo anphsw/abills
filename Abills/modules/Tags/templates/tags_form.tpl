@@ -1,10 +1,10 @@
-<form action='$SELF_URL' method='post' class='form-horizontal'>
+<form action='%SELF_URL%' method='post' class='form-horizontal'>
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{TAGS}_</h4>
     </div>
     <div class='card-body'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='ID' value='$FORM{chg}'/>
 
       <div class='form-group row'>

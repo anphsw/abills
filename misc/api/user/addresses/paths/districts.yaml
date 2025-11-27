@@ -1,0 +1,29 @@
+get:
+  tags:
+    - addresses
+  summary: Получить районы
+  description: Возвращает список районов. Работает если включен модуль Referral
+  operationId: getDistricts
+  parameters:
+    - name: id
+      in: query
+      description: ID района.
+      schema:
+        type: boolean
+        default: true
+    - name: parentId
+      in: query
+      description: ID родительский адресной единицы
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/pageRows"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/builds.yaml"
+  security:
+    - USERSID: []

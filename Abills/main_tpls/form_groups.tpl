@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='post' class='form hidden-print form-main'>
+<form action='%SELF_URL%' METHOD='post' class='form hidden-print form-main'>
   <input type='hidden' name='index' value='27' />
   <input type='hidden' name='chg' value='%GID%' />
 

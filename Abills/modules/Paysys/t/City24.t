@@ -36,13 +36,13 @@ if ($debug > 3) {
 }
 
 $payment_sum = int($payment_sum * 100);
-$payment_id = int(rand(10000));
+$payment_id = int(rand(100)) + 100;
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $date = POSIX::strftime('%Y%m%d%H%M%S', localtime());
 
 our @requests = (
   {
-    name    => 'GET_USER',
+    name    => 'CHECK',
     request => qq{<?xml version="1.0" encoding="UTF-8"?>
 <commandCall>
     <login>$login</login>
@@ -55,8 +55,9 @@ our @requests = (
     <userEnterAmount>$payment_sum</userEnterAmount>
 </commandCall>
     },
-    result  => qq{
-    }
+    result_schema => 'City24/check-response.xsd',
+    result_type => 'xml',
+    result  => ''
   },
   {
     name    => 'PAY',
@@ -74,6 +75,8 @@ our @requests = (
   <terminalId>11352</terminalId>
 </commandCall>
 },
+    result_schema => 'City24/pay-response.xsd',
+    result_type => 'xml',
     result  => q{}
   },
   {
@@ -89,10 +92,12 @@ our @requests = (
 	<account>120487</account>
 	<amount>100</amount>
 </commandCall>},
+    result_schema => 'City24/cancel-response.xsd',
+    result_type => 'xml',
     result  => q{}
   },
   {
-    name    => 'CHECK',
+    name    => 'STATUS',
     request => qq{<?xml version="1.0" encoding="UTF-8"?>
 <commandCall>
   <login>$login</login>
@@ -101,6 +106,8 @@ our @requests = (
   <transactionID>1111</transactionID>
   <PayID>$payment_id</PayID>
 </commandCall>},
+    result_schema => 'City24/status-response.xsd',
+    result_type => 'xml',
     result  => q{}
   },
 );

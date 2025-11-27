@@ -107,6 +107,8 @@ sub storage_docs {
     $info{service_name} = ($lang{HARDWARE} || q{}) . ':' . ($hardware->{describe} || q{}) . ' ' . ($hardware->{sta_name} || q{}) . ' ' .
       ($item_status[$hardware->{status}] || q{}) . ' (' . ($hardware->{count} || 0) . ' ' . ($lang{UNIT} || q{}) . ")";
     $info{service_name} .= ($lang{STORAGE_MONTHS_LEFT} || q{}) . ' : ' . ($hardware->{monthes} || 0) . ')';
+    $info{module_name} = $lang{STORAGE} || 'Storage';
+    $info{module} = 'Storage';
     $info{month} = $hardware->{sum_total};
 
     if ($attr->{FULL_INFO}) {
@@ -271,6 +273,93 @@ sub storage_payments_maked {
       }
     }
   }
+}
+
+#***************************************************************
+=head2 storage_search($attr)
+
+=cut
+#***************************************************************
+sub storage_search {
+  my ($self, $attr) = @_;
+
+  my @default_search = ('SERIAL', 'IDENT1', 'IDENT2', 'IDENT3', 'IDENT4', '_MULTI_HIT');
+  my %LIST_PARAMS = ();
+  my @qs = ();
+  my @info = ();
+
+  foreach my $field (@default_search) {
+    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+  }
+
+  if ($attr->{DEBUG}) {
+    $Storage->{debug} = 1;
+  }
+
+  my $url = '&full=1&get_index=storage_main&' . join('&', @qs) . '&search=1';
+
+  $Storage->storage_installation_list({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE} . ": " . $lang{INSTALLATION},
+      SEARCH_INDEX => $url . '&show_installation=1'
+    };
+  }
+
+  $Storage->storage_accountability_list({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE} . ": " . $lang{ACCOUNTABILITY},
+      SEARCH_INDEX => $url . '&show_accountability=1'
+    };
+  }
+
+  $Storage->storage_reserve_list({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE} . ": " . $lang{RESERVE},
+      SEARCH_INDEX => $url . '&show_reserve=1'
+    };
+  }
+
+  $Storage->storage_inner_use_list({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE} . ": " . $lang{INNER_USE},
+      SEARCH_INDEX => $url . '&show_inner_use=1'
+    };
+  }
+
+  $Storage->storage_discard_list({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE} . ": " . $lang{DISCARDED},
+      SEARCH_INDEX => $url . '&storage_status=5'
+    };
+  }
+
+  $Storage->storage_incoming_articles_list2({ %LIST_PARAMS });
+  if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+    push @info, {
+      TOTAL        => $Storage->{TOTAL},
+      MODULE       => 'Storage',
+      MODULE_NAME  => $lang{STORAGE},
+      SEARCH_INDEX => $url . '&storage_status=1'
+    };
+  }
+
+  return \@info;
 }
 
 1;

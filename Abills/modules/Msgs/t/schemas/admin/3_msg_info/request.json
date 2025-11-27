@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_MSG_INFO",
+  "method": "GET",
+  "path": "msgs/:id/",
+  "params": {}
+}

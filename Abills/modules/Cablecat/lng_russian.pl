@@ -163,6 +163,7 @@ $lang{LINKED_MORE_THAN_ONE_COMMUTATION} = 'Оборудование подклю
 $lang{CANNOT_GET_USER_SERVICE_LIST} = 'Не удается получить список услуг пользователя';
 $lang{NO_SERVICE_PORTS_TO_TRACE} = 'Нет сервисных портов для отслеживания';
 $lang{CANNOT_DISPLAY_COMMUTATION_PATH} = 'Невозможно отобразить путь коммутации';
+$lang{ALLOW_PARALLEL_PORTS} = 'Разрешить параллельные порты';
 
 $lang{NOT_USERS_FOR_EQUIPMENT} = 'На коммутации для этого оборудования не найдено ни одного пользователя';
 

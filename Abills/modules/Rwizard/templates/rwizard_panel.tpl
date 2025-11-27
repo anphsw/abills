@@ -5,8 +5,8 @@
   }
 </script>
 
-<form action='$SELF_URL' METHOD='post' class='form-horizontal' role='form' id='REPORTS_SHOW'>
-  <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' METHOD='post' class='form-horizontal' role='form' id='REPORTS_SHOW'>
+  <input type=hidden name=index value=%index%>
   <div class='card card-primary card-outline'>
 
     <div class='card-header with-border'>

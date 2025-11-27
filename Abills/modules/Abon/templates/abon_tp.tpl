@@ -118,6 +118,14 @@
           </div>
         </div>
         <div class='card-body'>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='MAIN_TP_ID'>_{ABON_MAIN_TARIFF_PLAN}_:</label>
+            <div class='col-md-8'>
+              %SEL_MAIN_TP%
+            </div>
+          </div>
+
           <div class='form-group row'>
             <label class='col-sm-4 col-md-4 control-label' for='ACTIVATE_PRICE'>_{ACTIVATE}_:</label>
             <div class='col-sm-8 col-md-8'>

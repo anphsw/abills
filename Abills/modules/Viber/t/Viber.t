@@ -57,7 +57,7 @@ my $db = Abills::SQL->connect(
 );
 
 # Just init Tokens from Config
-my $Conf = Conf->new($db, undef, \%conf);
+Conf->new($db, undef, \%conf);
 
 if (!$conf{VIBER_TOKEN}) {
   plan skip_all => 'Undefined $conf{VIBER_TOKEN}';
@@ -132,5 +132,7 @@ sub help {
     DEBUG=
 
 [END]
+
+  return 1;
 }
 1;

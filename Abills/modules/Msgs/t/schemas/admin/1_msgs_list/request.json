@@ -1,0 +1,7 @@
+{
+  "name": "ADMIN_MSGS_LIST",
+  "method": "GET",
+  "path": "msgs/list/",
+  "params": {}
+}
+

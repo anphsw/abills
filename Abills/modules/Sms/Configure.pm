@@ -29,7 +29,7 @@ use Sms;
 my $Sms = Sms->new($db, $admin, \%conf);
 our Abills::HTML $html;
 
-require Abills::Template;
+use Abills::Template;
 my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 use Sms::Services;
@@ -47,13 +47,13 @@ sub sms_services {
 
   if ($FORM{add}) {
     my $result = $Services->sms_service_add(\%FORM);
-    $result->{message} = $result->{errmsg} if $result->{errmsg};
-    $html->message('info', $lang{ADDED}) if !_error_show($result);
+    $result->{message} = $result->{errmsg} if ($result->{errmsg});
+    $html->message('info', $lang{ADDED}) if (!_error_show($result));
   }
   elsif ($FORM{change}) {
     my $result = $Services->sms_service_change(\%FORM);
-    $result->{message} = $result->{errmsg} if $result->{errmsg};
-    $html->message('info', $lang{CHANGED}) if !_error_show($result);
+    $result->{message} = $result->{errmsg} if ($result->{errmsg});
+    $html->message('info', $lang{CHANGED}) if (!_error_show($result));
   }
   elsif ($FORM{chg}) {
     $Sms->service_info({ ID => $FORM{chg} });
@@ -63,7 +63,20 @@ sub sms_services {
   }
   elsif ($FORM{del}) {
     $Sms->service_del({ ID => $FORM{del} });
-    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Services);
+    if (!_error_show($Services)) {
+      $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}");
+
+      require Users;
+      Users->import();
+      my $Users = Users->new($db, $admin, \%conf);
+
+      my $groups = $Users->groups_list({ SMS_SERVICE => $FORM{del}, COLS_NAME => 1, COLS_UPPER => 1 });
+      if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
+        foreach my $group (@{$groups}) {
+          $Users->group_change($group->{ID}, { SMS_SERVICE => 0 });
+        }
+      }
+    }
   }
   elsif ($FORM{import}) {
     sms_service_import();
@@ -74,14 +87,14 @@ sub sms_services {
       SELECTED  => $Sms->{DEBUG} || 0,
       SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
     });
-    $Sms->{STATUS} = 'checked' if $Sms->{STATUS};
-    $Sms->{BY_DEFAULT} = 'checked' if $Sms->{BY_DEFAULT};
+    $Sms->{STATUS} = 'checked' if ($Sms->{STATUS});
+    $Sms->{BY_DEFAULT} = 'checked' if ($Sms->{BY_DEFAULT});
 
     $Sms->{PLUGIN_SEL} = sel_plugins('Sms', { SELECT => 'PLUGIN', SELECTED => $Sms->{PLUGIN} });
     $Sms->{PLUGINS_SETTINGS} = json_former(sms_plugins_settings({
       SERVICE_PARAMS  => $Sms->{SERVICE_PARAMS},
       PLUGIN          => $Sms->{PLUGIN},
-      SKIP_CONNECTION => $Sms->{PLUGIN} && $Sms->{PLUGIN} eq 'Turbosms' ? 0 : 1
+      SKIP_CONNECTION => ($Sms->{PLUGIN} && $Sms->{PLUGIN} eq 'Turbosms') ? 0 : 1
     }));
 
     $html->tpl_show($Templates->_include('sms_services', 'Sms'), { %FORM, %{$Sms} });
@@ -168,13 +181,15 @@ sub sms_service_import {
     my $settings = $sms_plugin->get_settings();
     my $params = {};
 
-    next if !$settings || !$settings->{CONF} || ref $settings->{CONF} ne 'HASH';
+    next if (!$settings || !$settings->{CONF} || ref $settings->{CONF} ne 'HASH');
     foreach my $key (keys %{$settings->{CONF}}) {
       $params->{$key} = $conf{$key};
     }
 
     $Services->sms_service_add({ PLUGIN => $sms_systems{$config_key}, NAME => $sms_systems{$config_key}, %{$params} });
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -203,23 +218,14 @@ sub sms_plugins_settings {
   }
 
   opendir(my $folder, $plugins_folder);
-  my @plugins = map {s/\.pm$//r} grep(/\.pm$/, readdir($folder));
+  my @plugins = map { s/\.pm$//xr } grep { /\.pm$/x } readdir($folder);
   closedir $folder;
 
-  my $service_params = {};
-  if ($attr->{PLUGIN} && $attr->{SERVICE_PARAMS} && ref($attr->{SERVICE_PARAMS}) eq 'ARRAY') {
-    foreach my $param (@{$attr->{SERVICE_PARAMS}}) {
-      next if !$param->{PARAM};
-
-      $service_params->{$attr->{PLUGIN}}{$param->{PARAM}} = $param->{VALUE};
-    }
-  }
   my %settings = ();
-
   foreach my $plugin (@plugins) {
-    next if !$plugin;
+    next if (!$plugin);
 
-    my $params = { SKIP_CONNECTION => $attr->{SKIP_CONNECTION} || 0 };
+    my $params = {};
     if ($attr->{SERVICE_PARAMS} && ref $attr->{SERVICE_PARAMS} eq 'ARRAY') {
       foreach my $param (@{$attr->{SERVICE_PARAMS}}) {
         next if !$param->{PARAM};
@@ -231,18 +237,22 @@ sub sms_plugins_settings {
     my $Plugin = load_plugin("Sms::Plugins::$plugin", {
       SERVICE => {
         %{$params},
-        db    => $db,
-        admin => $admin,
-        conf  => \%conf,
+        db              => $db,
+        admin           => $admin,
+        conf            => \%conf,
+        SKIP_CONNECTION => $attr->{SKIP_CONNECTION} || 0
       }
     });
 
-    next if !$Plugin || (ref $Plugin eq 'HASH') || !$Plugin->can('get_settings');
+    next if (!$Plugin || (ref $Plugin eq 'HASH') || !$Plugin->can('get_settings'));
 
     $settings{$plugin} = $Plugin->get_settings();
 
     if ($attr->{PLUGIN} && $plugin eq $attr->{PLUGIN}) {
-      $settings{$plugin}{CONF} = $service_params->{$plugin};
+      foreach my $prop (keys %{ $settings{$plugin}{CONF} }) {
+        next if (!exists $params->{$prop});
+        $settings{$plugin}{CONF}{$prop} = $params->{$prop};
+      }
     }
   }
 

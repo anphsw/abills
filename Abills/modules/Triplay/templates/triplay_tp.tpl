@@ -162,6 +162,16 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-md-4 control-label' for='AGE_ALIGNMENT'>_{PERIOD_ALIGNMENT}_:</label>
+        <div class='col-md-8 p-2'>
+          <div class='form-check text-left'>
+            <input type='checkbox' class='form-check-input' id='AGE_ALIGNMENT' name='AGE_ALIGNMENT'
+                   %AGE_ALIGNMENT% value='1'>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='col-sm-4 col-md-4 control-label' for='CREDIT'>_{CREDIT}_:</label>
         <div class='col-sm-8 col-md-8'>
           <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>

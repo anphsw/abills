@@ -42,6 +42,49 @@ $(function () {
     }
   });
 
+  $(function() {
+    $('[data-storage-invoice-select2-ajax]').each(function() {
+      var $select = $(this);
+      var ajaxUrl = $select.data('ajax-url');
 
+      $select.select2({
+        ajax: {
+          url: ajaxUrl,
+          dataType: 'json',
+          delay: 250,
+          data: function(params) {
+            return {
+              INVOICE_NUMBER: params.term ? `*${params.term}*` : '',
+              INVOICE_DATE: params.term ? `*${params.term}*` : '',
+              ID: params.term ? `*${params.term}*` : '',
+              _MULTI_HIT: 1,
+              PAGE_ROWS: 50,
+              SORT: 'id',
+              DESC: 'DESC'
+            };
+          },
+          processResults: function(data, params) {
+            let results = [];
+            if (!data.list || !data.total) return { results: results };
+            jQuery.each(data.list, function (i, val) {
+              results.push({
+                id: val.id,
+                text: val.id + ' ' + (val?.invoiceNumber || val?.invoice_number || '') + ' : ' + val?.date
+              });
+            });
+
+            return {
+              results: results,
+            };
+          },
+          cache: true
+        },
+        minimumInputLength: 0,
+        placeholder: '',
+        allowClear: true,
+        width: '100%'
+      });
+    });
+  });
 
 });

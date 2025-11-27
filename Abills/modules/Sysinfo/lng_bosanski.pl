@@ -1,0 +1,22 @@
+$lang{MEMORY} = 'Memorija';
+$lang{CPU} = 'CPU';
+$lang{DISC} = 'HDD';
+$lang{NETWORK} = 'Mreža';
+$lang{LOAD} = 'Učitaj';
+$lang{FREE} = 'Slobodno';
+$lang{PROCCESS_LIST} = 'Lista procesa';
+$lang{RUNNING} = 'Pokrenuto';
+$lang{SYSTEM_INFO} = 'Informacije o sistemu';
+$lang{UPTIME} = 'Vreme rada';
+$lang{RECOMMENDED_MODULES} = 'Preporučeni moduli';
+$lang{YOU_SHOULD_DEFINE} = 'Trebalo bi da definišete';
+$lang{EXECUTE} = 'Izvrši';
+$lang{TO_GRANT_PERMISSIONS} = 'dati dozvole';
+
+$lang{REMOTE_SERVERS} = 'Udaljeni serveri';
+$lang{MANAGEMENT} = 'Upravljanje';
+$lang{PRIVATE_KEY} = 'Privatni ključ';
+$lang{COPY_FROM_NAS_SERVER} = 'Kopiraj parametre sa NAS servera';
+$lang{CHECK_STATUS_COMMAND} = 'Komanda za provjeru statusa';
+$lang{SERVER_SERVICE} = 'Usluga';
+$lang{SERVER_SERVICES} = 'Usluge';

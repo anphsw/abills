@@ -68,6 +68,8 @@ sub check_access {
   my $self = shift;
   my ($attr) = @_;
 
+  return $self if (!$self->{conf}->{AUTH_FACEBOOK_ID});
+
   if ($attr->{API} && $attr->{token}) {
     $self->validate_token({ TOKEN => $attr->{token} });
   }

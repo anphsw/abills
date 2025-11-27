@@ -107,7 +107,7 @@ sub _equipment_pon {
   if ($debug > 6) {
     $Equipment->{debug} = 1;
   }
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     NAS_ID           => $argv->{NAS_IDS},
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
@@ -222,7 +222,7 @@ sub _equipment_pon_load {
     if (defined(&{$onu_list_fn})) {
       my $olt_ports = ();
       my $port_list = $Equipment->pon_port_list({
-        COLS_NAME  => 1,
+        PAGE_ROWS  => 10000,
         COLS_UPPER => 1,
         NAS_ID     => $nas_id
       });
@@ -266,7 +266,7 @@ sub _equipment_pon_load {
         });
 
         $port_list = $Equipment->pon_port_list({
-          COLS_NAME  => 1,
+          PAGE_ROWS  => 10000,
           COLS_UPPER => 1,
           NAS_ID     => $nas_id
         });
@@ -300,7 +300,8 @@ sub _equipment_pon_load {
         DEBUG          => $debug,
         MODEL_NAME     => $nas_info->{model_name},
         QUERY_OIDS     => $query_oids,
-        TYPE           => 'dhcp'
+        TYPE           => 'dhcp',
+        DONT_USE_GETBULK => $argv->{DONT_USE_GETBULK} ? 1 : 0,
       });
 
       if (! $onu_snmp_list || $#{$onu_snmp_list} < 0) {
@@ -572,7 +573,7 @@ sub pon_alert {
 #**********************************************************
 sub _scan_mac_serial {
 
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     COLS_NAME  => 1,
     PAGE_ROWS  => 100000,
     STATUS     => '0',
@@ -649,7 +650,7 @@ sub _generate_new_event {
 #**********************************************************
 sub _scan_mac_serial_on_all_nas {
 
-  my $Equipment_list = $Equipment->_list({
+  my $Equipment_list = $Equipment->list({
     NAS_ID           => '_SHOW',
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
@@ -677,6 +678,7 @@ sub _scan_mac_serial_on_all_nas {
 
   foreach my $nas (@$Equipment_list) {
     my $port_type = $Equipment->pon_port_list({
+      PAGE_ROWS => 10000,
       NAS_ID    => $nas->{NAS_ID},
       COLS_NAME => 1,
     });
@@ -998,7 +1000,7 @@ sub _clean_deleted_onu {
   my $total_deleted = 0;
 
   foreach my $deleted_onu(@$equipment_list){
-    $onu_list_id .= "$deleted_onu->{id},",
+    $onu_list_id .= "$deleted_onu->{id},";
     $total_deleted ++;
   }
 
@@ -1059,9 +1061,9 @@ sub _pon_fill_switch_port_from_cid {
 
   my %mac_behind_onu = ();
   foreach my $line (@$mac_log_list) {
-    $line->{port_name} =~ s/EPON//g;
-    $line->{port_name} =~ s/GPON//g;
-    $line->{port_name} =~ s/ //g;
+    $line->{port_name} =~ s/EPON//xg;
+    $line->{port_name} =~ s/GPON//xg;
+    $line->{port_name} =~ s/\s+//xg;
     $mac_behind_onu{$line->{mac}}{port}= $onu_dhcp{$line->{port_name}} if ($line->{port_name});
     $mac_behind_onu{$line->{mac}}{nas}= $line->{nas_id} if ($line->{nas_id});
   }
@@ -1097,4 +1099,4 @@ sub _pon_fill_switch_port_from_cid {
   return 1;
 }
 
-1
+1;

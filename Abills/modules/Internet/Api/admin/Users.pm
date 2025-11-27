@@ -182,8 +182,7 @@ sub put_internet_uid {
 =cut
 #**********************************************************
 sub delete_internet_users_uid_services_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my $result = $Internet_services->user_del({
     ID  => $path_params->{id},
@@ -192,7 +191,7 @@ sub delete_internet_users_uid_services_id {
 
   return $Internet_services if ($Internet_services->{errno});
 
-  if ($Internet_services->{affected} && $Internet_services->{affected} !~ /^[0-9]$/) {
+  if ($Internet_services->{affected} && $Internet_services->{affected} !~ /^[0-9]$/xm) {
     return $Errors->throw_error(1360030);
   }
 

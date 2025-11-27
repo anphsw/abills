@@ -44,26 +44,21 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_districts($path_params, $query_params)
+=head2 get_territorial_units($path_params, $query_params)
 
-  Endpoint GET /districts/
+  Endpoint GET /districts/territorial_units/
 
 =cut
 #**********************************************************
-sub get_districts {
+sub get_territorial_units {
   my $self = shift;
   my ($path_params, $query_params) = @_;
-
-  # return {
-  #   errno  => 10,
-  #   errstr => 'Access denied'
-  # } if !$self->{admin}->{permissions}{0}{35};
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
-  $Address->district_list({
+  $Address->territorial_units_list({
     %$query_params,
     COLS_NAME => 1,
   });

@@ -180,7 +180,7 @@ sub admin_routes {
       controller  => 'Abon::Api::admin::Users',
       endpoint    => \&Abon::Api::admin::Users::get_abon_users,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {

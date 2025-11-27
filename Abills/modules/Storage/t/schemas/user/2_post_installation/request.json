@@ -1,0 +1,8 @@
+{
+  "name": "STORAGE_USER_ADD_INSTALL",
+  "method": "POST",
+  "path": "/user/storage/installation/",
+  "body": {
+    "serial": "testserial"
+  }
+}

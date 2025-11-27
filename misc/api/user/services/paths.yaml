@@ -1,2 +1,4 @@
 /user/services:
   $ref: "./paths/services.yaml"
+/user/services/statuses:
+  $ref: "./paths/servicesStatuses.yaml"

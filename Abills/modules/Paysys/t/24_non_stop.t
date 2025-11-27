@@ -31,7 +31,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 my $sign_check = $Payment_plugin->mk_checksum({

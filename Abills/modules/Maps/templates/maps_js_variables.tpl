@@ -1,5 +1,5 @@
 <script>
-  var index     = '$index';
+  var index     = '%index%';
   var map_index = '%MAP_INDEX%';
   var map_edit_index = '%MAP_EDIT_INDEX%';
 

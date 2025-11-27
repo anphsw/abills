@@ -16,7 +16,6 @@ our(
   %err_strs,
   %LANG,
   %permissions,
-  %OUTPUT,
   %FORM,
   $index,
   %COOKIES,
@@ -28,6 +27,7 @@ our(
   $PAGE_ROWS,
   $PROGRAM,
   %LIST_PARAMS,
+  $libpath
 );
 
 our Admins $admin;
@@ -45,7 +45,18 @@ our Abills::HTML $html;
 =cut
 #**********************************************************
 sub auth_admin {
+  my ($attr)=@_;
   my $lang_loaded = 0;
+
+  load_lang();
+  template_init({
+    LIB   => $libpath,
+    ADMIN => $admin,
+    HTML  => $html,
+    FORM  => \%FORM,
+    LANG  => \%lang,
+    CONF  => \%conf
+  });
 
   #Cookie auth
   if ($conf{AUTH_METHOD}) {
@@ -53,13 +64,11 @@ sub auth_admin {
       $admin->online_del({ SID => $COOKIES{admin_sid} });
     }
 
-    load_lang();
     $lang_loaded = 1;
-
-    my $res = check_permissions($FORM{user}, $FORM{passwd}, $COOKIES{admin_sid}, \%FORM);
+    my $res = check_permissions($attr->{user}, $attr->{passwd}, $COOKIES{admin_sid}, \%FORM);
 
     if (! $res) {
-      if ($FORM{REFERER} && $FORM{REFERER} =~ m/$SELF_URL/x && $FORM{REFERER} !~ m/index=10/x) {
+      if ($attr->{REFERER} && $attr->{REFERER} =~ m/$SELF_URL/x && $attr->{REFERER} !~ m/index=10/x) {
         $html->set_cookies('admin_sid', $admin->{SID}, '', '');
         $COOKIES{admin_sid} = $admin->{SID};
         $admin->online({
@@ -67,126 +76,15 @@ sub auth_admin {
           TIMEOUT  => $conf{web_session_timeout},
           EXT_INFO => $ENV{HTTP_USER_AGENT}
         });
-        print "Location: $FORM{REFERER}\n\n";
+        print "Location: $attr->{REFERER}\n\n";
       }
     }
     else {
-      my $cookie_sid = ($COOKIES{admin_sid} || '');
-      my $admin_sid = ($admin->{SID} || '');
-
-      if ($FORM{AJAX} || $FORM{json}){
-        print "Content-Type:application/json\n\n";
-
-        print qq{{"TYPE":"error","errstr":"Access Deny","sid":"$cookie_sid","aid":"$admin_sid","errno":"$res"}};
-      }
-      elsif($FORM{xml}){
-        print "Content-Type:application/xml\n\n";
-        print qq{<?xml version="1.0" encoding="UTF-8"?>
-        <error>
-          <TYPE>error</TYPE>
-          <errstr>Access Deny</errstr>
-          <errno>$res</errno>
-          <sid>$cookie_sid</sid>
-          <aid>$admin_sid</aid>
-        </error>
-        };
-      }
-      else {
-        $html->{METATAGS} = templates('metatags');
-        print $html->header();
-        my $err = '';
-
-        if ( $admin->{errno} ) {
-          if ( $admin->{errno} == 4 ) {
-            $err = $lang{ERR_WRONG_PASSWD};
-          }
-          elsif ($FORM{user} && $FORM{passwd}) {
-            $err = $admin->{errstr};
-          }
-        }
-
-        form_login({ ERROR => $err });
-        print "<!-- Access Deny. Auth cookie: $cookie_sid System: $admin_sid .$res -->";
-      }
-
-      if ($ENV{DEBUG}) {
-        die();
-      }
-      else {
-        exit 0;
-      }
+      auth_admin_fail({ %$attr, RES => $res });
     }
   }
-
-  #**********************************************************
-  #IF Mod rewrite enabled Basic Auth
-  #
-  #    <IfModule mod_rewrite.c>
-  #        RewriteEngine on
-  #        RewriteCond %{HTTP:Authorization} ^(.*)
-  #        RewriteRule ^(.*) - [E=HTTP_CGI_AUTHORIZATION:%1]
-  #        Options Indexes ExecCGI SymLinksIfOwnerMatch
-  #    </IfModule>
-  #    Options Indexes ExecCGI FollowSymLinks
-  #
-  #**********************************************************
   else {
-    if (defined($ENV{HTTP_CGI_AUTHORIZATION})){
-      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//ix;
-      my ($REMOTE_USER, $REMOTE_PASSWD) = split(':', decode_base64( $ENV{HTTP_CGI_AUTHORIZATION} ) );
-
-      if ( $REMOTE_USER ){
-        $REMOTE_USER = substr( $REMOTE_USER, 0, 20 );
-        $REMOTE_USER =~ s/\\//xg;
-      }
-      else {
-        $REMOTE_USER = q{};
-      }
-      if ($REMOTE_PASSWD) {
-        $REMOTE_PASSWD = substr($REMOTE_PASSWD, 0, 20);
-        $REMOTE_PASSWD=~s/\\//xg;
-      }
-
-      my $res = check_permissions($REMOTE_USER, $REMOTE_PASSWD);
-      if ($res == 1) {
-        print "WWW-Authenticate: Basic realm=\"$conf{WEB_TITLE} Billing System\"\n";
-        print "Status: 401 Unauthorized\n";
-      }
-      elsif ($res == 2) {
-        print "WWW-Authenticate: Basic realm=\"Billing system / '$REMOTE_USER' Account Disabled\"\n";
-        print "Status: 401 Unauthorized\n";
-      }
-    }
-    else {
-      print "'mod_rewrite' not install";
-    }
-
-    if ($admin->{errno}) {
-      load_lang();
-      $html->{METATAGS} = templates('metatags');
-      print $html->header();
-
-      my $message = $lang{ERR_ACCESS_DENY};
-
-      if ($admin->{errno} == 2) {
-        $message = "$lang{ACCOUNT_DISABLE} $lang{OR} $admin->{errstr}";
-      }
-      elsif ($admin->{errno} == 3) {
-        $message = $lang{ERR_UNALLOW_IP};
-      }
-      elsif ($admin->{errno} == 4) {
-        $message = $lang{ERR_WRONG_PASSWD} || 'ERR_WRONG_PASSWD';
-      }
-      else {
-        $message = $err_strs{ $admin->{errno} };
-      }
-
-      print $html->element('div',
-        $html->message('err', $lang{ERROR}, $message, { OUTPUT2RETURN => 1 }),
-        { class => 'p-5' }
-      );
-      exit;
-    }
+    auth_apache_basic($attr);
   }
 
   if (!$lang_loaded) {
@@ -194,6 +92,66 @@ sub auth_admin {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head3 auth_admin_fail($attr) - Admin http login page
+
+  Arguments:
+    $attr
+      ERROR
+
+  Returns:
+
+=cut
+#**********************************************************
+sub auth_admin_fail {
+  my ($attr)=@_;
+
+  my $cookie_sid = ($COOKIES{admin_sid} || '');
+  my $admin_sid = ($admin->{SID} || '');
+  my $res = $attr->{RES};
+
+  if ($attr->{AJAX} || $attr->{json}){
+    print "Content-Type:application/json\n\n";
+    print qq{{"TYPE":"error","errstr":"Access Deny","sid":"$cookie_sid","aid":"$admin_sid","errno":"$res"}};
+  }
+  elsif($attr->{xml}){
+    print "Content-Type:application/xml\n\n";
+    print << "[END]";
+    <?xml version="1.0" encoding="UTF-8"?>
+        <error>
+          <TYPE>error</TYPE>
+          <errstr>Access Deny</errstr>
+          <errno>$res</errno>
+          <sid>$cookie_sid</sid>
+          <aid>$admin_sid</aid>
+        </error>
+[END]
+  }
+  else {
+    $html->{METATAGS} = templates('metatags');
+    print $html->header();
+    my $err = '';
+
+    if ( $admin->{errno} ) {
+      if ( $admin->{errno} == 4 ) {
+        $err = $lang{ERR_WRONG_PASSWD};
+      }
+      elsif ($attr->{user} && $attr->{passwd}) {
+        $err = $admin->{errstr};
+      }
+    }
+
+    form_login({ ERROR => $err });
+    print "<!-- Access Deny. Auth cookie: $cookie_sid System: $admin_sid .$res -->";
+  }
+
+  if ($ENV{DEBUG}) {
+    die();
+  }
+
+   exit 0;
 }
 
 #**********************************************************
@@ -378,7 +336,7 @@ sub check_permissions {
   }
 
   if ($conf{ADMINS_ALLOW_IP}) {
-    $conf{ADMINS_ALLOW_IP} =~ s/ //xg;
+    $conf{ADMINS_ALLOW_IP} =~ s/\s//xg;
     my @allow_ips_arr = split(',', $conf{ADMINS_ALLOW_IP});
     my %allow_ips_hash = ();
     foreach my $ip (@allow_ips_arr) {
@@ -478,8 +436,6 @@ sub check_permissions {
     }
   }
 
-
-
   $admin->info($admin->{AID}, \%PARAMS);
 
   if ($login && $password) {
@@ -532,6 +488,7 @@ sub check_permissions {
       if($conf{HIDE_WRONG_PASSWORD}) {
         $password = '****';
       }
+      $admin->{MODULE}=q{};
       $admin->system_action_add("$login:$password", { TYPE => 11 });
       $admin->{errno} = 4;
     }
@@ -591,27 +548,27 @@ sub check_permissions {
   }
 
   if ($admin->{ADMIN_ACCESS}) {
-    my $list = $admin->access_list({
+    my $access_list = $admin->access_list({
       AID       => $admin->{AID},
       DISABLE   => 0,
       COLS_NAME => 1
     });
 
     my $deny = ($admin->{TOTAL}) ? 1 : 0;
-    foreach my $line (@$list) {
+    foreach my $access (@$access_list) {
       my $time       = $TIME;
       $time          =~ s/://xg;
-      $line->{begin} =~ s/://xg;
-      $line->{end}   =~ s/://xg;
+      $access->{begin} =~ s/://xg;
+      $access->{end}   =~ s/://xg;
       my $wday = (localtime(time))[6];
 
-      if ((! $line->{day} || $wday+1 == $line->{day})
-        && $time > $line->{begin} && $time < $line->{end}) {
-        if ($line->{bit_mask} && check_ip($REMOTE_ADDR, "$line->{ip}/$line->{bit_mask}")) {
+      if ((! $access->{day} || $wday+1 == $access->{day})
+        && $time > $access->{begin} && $time < $access->{end}) {
+        if ($access->{bit_mask} && check_ip($REMOTE_ADDR, "$access->{ip}/$access->{bit_mask}")) {
           $deny = 0;
           last;
         }
-        elsif ($line->{ip} eq '0.0.0.0' || !$line->{bit_mask} && check_ip($REMOTE_ADDR, $line->{ip})) {
+        elsif ($access->{ip} eq '0.0.0.0' || !$access->{bit_mask} && check_ip($REMOTE_ADDR, $access->{ip})) {
           $deny = 0;
           last;
         }
@@ -663,556 +620,556 @@ sub check_permissions {
   return 0;
 }
 
-#**********************************************************
-=head2 auth_user($user_name, $password, $session_id, $attr) - AUth user sessions
+# #**********************************************************
+# =head2 auth_user($user_name, $password, $session_id, $attr) - AUth user sessions
+#
+#   Arguments:
+#     $user_name
+#     $password
+#     $session_id
+#     $attr
+#       FORM - Input form
+#       HTML - HTML
+#       LANG - %lang
+#       USER - User Obj
+#
+#   Returns:
+#     ($ret, $session_id, $login)
+#
+# =cut
+# #**********************************************************
+# sub auth_user {
+#   my ($login, $password, $session_id, $attr) = @_;
+#
+#   my $params;
+#   if ($attr->{FORM}) {
+#     $params = $attr->{FORM};
+#   }
+#   else {
+#     $params = \%FORM;
+#   }
+#
+#   my $lang;
+#   if ($attr->{LANG}) {
+#     $lang = $attr->{LANG};
+#   }
+#   else {
+#     $lang = \%lang;
+#   }
+#
+#   if ($attr->{HTML}) {
+#     $html = $attr->{HTML};
+#   }
+#
+#   if($attr->{USER}) {
+#     $user = $attr->{USER};
+#   }
+#
+#   if (!$user) {
+#     $user = Users->new($db, $admin, \%conf);
+#   }
+#
+#   my $ret                  = 0;
+#   my $res                  = 0;
+#   my $REMOTE_ADDR          = $ENV{'REMOTE_ADDR'} || '';
+#   my $uid                  = 0;
+#   require Abills::Auth::Core;
+#   Abills::Auth::Core->import();
+#
+#   my $Auth;
+#
+#   # request from apple only POST without custom own prop, we dont handle query params in POST request
+#   if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ m/external_auth=Apple/x) {
+#     $params->{external_auth} = 'Apple';
+#   }
+#
+#   if ($params->{external_auth}) {
+#     $Auth = Abills::Auth::Core->new({
+#       CONF      => \%conf,
+#       DB        => $db,
+#       ADMIN     => $admin,
+#       # HTML      => $html,
+#       AUTH_TYPE => $params->{external_auth},
+#       USERNAME  => $login,
+#       SELF_URL  => $SELF_URL,
+#       FORM      => $params
+#     });
+#
+#     $Auth->check_access($params);
+#
+#     if($Auth->{auth_url}) {
+#       print "Location: $Auth->{auth_url}\n\n";
+#       exit;
+#     }
+#     elsif ($Auth->{RETURN_RESULT}) {
+#       return $Auth->{RETURN_RESULT};
+#     }
+#     elsif($Auth->{USER_ID}) {
+#       $user->list({
+#         $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+#         LOGIN                => '_SHOW',
+#         DELETED              => 0,
+#         COLS_NAME            => 1
+#       });
+#
+#       if ($conf{AUTH_EMAIL} && $Auth->{USER_EMAIL} && !$user->{TOTAL} && !$sid && !($attr->{API} && $session_id)) {
+#         $user->list({
+#           EMAIL     => $Auth->{USER_EMAIL} || '--',
+#           LOGIN     => '_SHOW',
+#           DELETED   => 0,
+#           COLS_NAME => 1
+#         });
+#         $Auth->{EXTERNAL_AUTH_EMAIL} = 1;
+#       }
+#
+#       if ($user->{TOTAL}) {
+#         $uid = $user->{list}->[0]->{uid};
+#         $user->{LOGIN} = $user->{list}->[0]->{login};
+#         $user->{UID} = $uid;
+#         $res = $uid;
+#         $Auth->{USER_EXISTS} = 1;
+#         $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>" if (!$attr->{API});
+#
+#         if ($conf{AUTH_EMAIL} && $Auth->{EXTERNAL_AUTH_EMAIL}) {
+#           $user->pi_change({
+#             $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+#             UID                  => $user->{UID}
+#           });
+#         }
+#       }
+#       else {
+#         if (!$sid && !($attr->{API} && $session_id)) {
+#           $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_UNKNOWN_SN_ACCOUNT}, { OUTPUT2RETURN => 1 });
+#           return 0;
+#         }
+#       }
+#     }
+#     else {
+#       $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_SN_ERROR}, {OUTPUT2RETURN => 1});
+#       return 0;
+#     }
+#   }
+#
+#   if (!$conf{PASSWORDLESS_ACCESS}) {
+#     if($ENV{USER_CHECK_DEPOSIT}) {
+#       $conf{PASSWORDLESS_ACCESS} = $ENV{USER_CHECK_DEPOSIT};
+#     }
+#     elsif($attr->{PASSWORDLESS_ACCESS}) {
+#       $conf{PASSWORDLESS_ACCESS}=1;
+#     }
+#     elsif($conf{PASSWORDLESS_CREDIT} && $params->{change_credit}) {
+#       $conf{PASSWORDLESS_ACCESS}=1;
+#     }
+#   }
+#
+#   #Passwordless Access
+#   if ($conf{PASSWORDLESS_ACCESS} && !$login && !$password && !$session_id) {
+#     ($ret, $session_id, $login) = passwordless_access($REMOTE_ADDR, $session_id, $login,
+#       { PASSWORDLESS_GUEST_ACCESS => $conf{PASSWORDLESS_GUEST_ACCESS} });
+#
+#     if ($conf{user_portal_debug}) {
+#       my $total = $user->{TOTAL} // 'N/D';
+#       $session_id //= q{};
+#       $session_id =~ s/\W+//xg;
+#       my $p = $conf{PASSWORDLESS_ACCESS} || 0;
+#       `echo "PA: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+#     }
+#
+#     if ($ret) {
+#       if ($conf{user_portal_debug}) {
+#         my $total = $user->{TOTAL} // 'N/D';
+#         $session_id //= q{};
+#         $session_id =~ s/\W+//xg;
+#         my $p = $conf{PASSWORDLESS_ACCESS} || 0;
+#         `echo "PA ADD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+#       }
+#
+#       $user->web_session_info({ IP => $REMOTE_ADDR });
+#       if ($user->{errno} && $user->{errno} == 2) {
+#         if ($conf{user_portal_debug}) {
+#           my $total = $user->{TOTAL} // 'N/D';
+#           $session_id //= q{};
+#           $session_id =~ s/\W+//xg;
+#           my $p = $conf{PASSWORDLESS_ACCESS} || 0;
+#           `echo "PA ADDD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+#         }
+#         $user->web_session_add({
+#           UID         => $ret,
+#           SID         => $session_id,
+#           LOGIN       => $login,
+#           REMOTE_ADDR => $REMOTE_ADDR,
+#           EXT_INFO    => $ENV{HTTP_USER_AGENT},
+#           COORDX      => $params->{coord_x} || '',
+#           COORDY      => $params->{coord_y} || ''
+#         });
+#       }
+#       else {
+#         $session_id = $user->{SID};
+#         if ($conf{user_portal_debug}) {
+#           my $total = $user->{TOTAL} // 'N/D';
+#           $session_id //= q{};
+#           $session_id =~ s/\W+//xg;
+#           my $p = $conf{PASSWORDLESS_ACCESS} || 0;
+#           `echo "PA UPDATE: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+#         }
+#
+#         $user->web_session_update({ SID => $session_id });
+#       }
+#
+#       return ($ret, $session_id, $login);
+#     }
+#   }
+#
+#   if ($index == 1000) {
+#     $user->web_session_del({ SID => $session_id });
+#     return 0;
+#   }
+#   elsif ($session_id) {
+#     $user->web_session_info({ SID => $session_id });
+#
+#     if ($user->{TOTAL} < 1) {
+#       delete $params->{REFERER};
+#       delete $user->{errno};
+#       if ($conf{user_portal_debug}) {
+#         #$html->message('err', $lang->{ERROR}, $lang->{NOT_LOGINED}, { ID => 9999 });
+#         my $total = $user->{TOTAL} // 'N/D';
+#         $session_id =~ s/\W+//xg;
+#         my $p = $conf{PASSWORDLESS_ACCESS} || 0;
+#         `echo "NOT_FOUND_SESSION IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
+#       }
+#       #$html->message('err', "$lang->{ERROR}", "$lang->{NOT_LOGINED}");
+#       #return 0;
+#     }
+#     elsif ($user->{errno}) {
+#       $html->message( 'err', $lang->{ERROR} );
+#     }
+#     elsif ( $conf{web_session_timeout} < $user->{SESSION_TIME} ){
+#       $html->message( 'info', $lang->{INFO}, 'SESSION_EXPIRE' );
+#       $user->web_session_del({ SID => $session_id });
+#       return 0;
+#     }
+#     elsif (! $conf{USERPORTAL_MULTI_SESSIONS} && $user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
+#       $html->message( 'err', $lang->{ERROR}, 'WRONG_IP' );
+#       $user->web_session_del({ SID => $session_id });
+#       return 0;
+#     }
+#     else {
+#       $user->info($user->{UID}, { USERS_AUTH => 1 });
+#       $admin->{DOMAIN_ID} = $user->{DOMAIN_ID};
+#       $user->web_session_update({ SID => $session_id, REMOTE_ADDR => $REMOTE_ADDR  });
+#       #Add social id
+#       if ($Auth->{USER_ID}) {
+#         if (!$Auth->{USER_EXISTS}) {
+#           $user->pi_change({
+#             $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+#             UID                  => $user->{UID}
+#           });
+#
+#           if (!$attr->{API}) {
+#             $html->message('info', $lang->{INFO}, $lang->{SN_ADDED});
+#           }
+#         }
+#         else {
+#           return {
+#             errno  => 10002,
+#             errstr => 'You already linked this social auth account to another account identifier.',
+#           } if ($attr->{API});
+#         }
+#       }
+#
+#       return ($user->{UID}, $session_id, $user->{LOGIN});
+#     }
+#   }
+#
+#   if ($login && $password) {
+#     if ($conf{wi_bruteforce}) {
+#       $user->bruteforce_list({
+#         LOGIN    => $login,
+#         PASSWORD => $password,
+#         CHECK    => 1
+#       });
+#
+#       if ($user->{TOTAL} > $conf{wi_bruteforce}) {
+#         if ($attr->{API}) {
+#           return {
+#             errno  => 10000,
+#             errstr => 'You try to brute password and system block your account. Please contact system administrator.'
+#           };
+#         }
+#         $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
+#         return 0;
+#       }
+#     }
+#
+#     #check password from RADIUS SERVER if defined $conf{check_access}
+#     if ($conf{check_access}) {
+#       $Auth = Abills::Auth::Core->new({
+#         CONF      => \%conf,
+#         AUTH_TYPE => 'Radius',
+#         FORM      => \%FORM
+#       });
+#
+#       $res = $Auth->check_access({
+#         LOGIN    => $login,
+#         PASSWORD => $password
+#       });
+#     }
+#     #check password direct from SQL
+#     else {
+#       $res = auth_sql($login, $password, $params) if ($res < 1);
+#     }
+#   }
+#   elsif ($login && !$password) {
+#     $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
+#   }
+#   #Get user ip
+#   if (defined($res) && $res > 0) {
+#     $user->info($user->{UID} || 0, {
+#       LOGIN      => ($user->{UID}) ? undef : $login,
+#       DOMAIN_ID  => $params->{DOMAIN_ID},
+#       USERS_AUTH => 1
+#     });
+#
+#     if($conf{AUTH_G2FA}) {
+#       $user->pi();
+#       if(!$params->{g2fa}){
+#         if ($user->{_G2FA}) {
+#           $params->{user} = $login;
+#           $params->{password} = $password;
+#           $params->{G2FA} = 1;
+#           delete $params->{logined};
+#           return (0, $session_id, $login);
+#         }
+#       }
+#       else {
+#         my $OATH = Abills::Auth::Core->new({
+#           CONF      => \%conf,
+#           AUTH_TYPE => 'OATH'
+#         });
+#
+#         if (!$OATH->check_access({SECRET => $user->{_G2FA}, PIN => $params->{g2fa}})) {
+#           $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{G2FA_WRONG_CODE}, {OUTPUT2RETURN => 1} );
+#           $params->{G2FA} = 1;
+#           delete $params->{logined};
+#           return (0, $session_id, $login);
+#         }
+#       }
+#     }
+#
+#     if ($user->{TOTAL} > 0) {
+#       $session_id          = mk_unique_value(16);
+#       $ret                 = $user->{UID};
+#       $user->{REMOTE_ADDR} = $REMOTE_ADDR;
+#       $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
+#       $login               = $user->{LOGIN};
+#
+#       if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
+#         $user->group_info($user->{GID});
+#
+#         if ($user->{DISABLE_ACCESS}) {
+#           delete $params->{logined};
+#
+#           if ($attr->{API}) {
+#             return {
+#               errno  => 10440,
+#               errstr => 'Access denied.',
+#             };
+#           }
+#
+#           $user->bruteforce_add({
+#             LOGIN       => $login,
+#             PASSWORD    => $password,
+#             REMOTE_ADDR => $REMOTE_ADDR,
+#             AUTH_STATE  => 0
+#           });
+#
+#           $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
+#           return 0;
+#         }
+#       }
+#
+#       $user->web_session_add({
+#         UID         => $user->{UID},
+#         SID         => $session_id,
+#         LOGIN       => $login,
+#         REMOTE_ADDR => $REMOTE_ADDR,
+#         EXT_INFO    => $ENV{HTTP_USER_AGENT},
+#         COORDX      => $params->{coord_x} || '',
+#         COORDY      => $params->{coord_y} || ''
+#       });
+#     }
+#     else {
+#       $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
+#     }
+#   }
+#   else {
+#     if ($login || $password) {
+#       $user->bruteforce_add({
+#         LOGIN       => $login,
+#         PASSWORD    => $password,
+#         REMOTE_ADDR => $REMOTE_ADDR,
+#         AUTH_STATE  => $ret
+#       });
+#
+#       $OUTPUT{MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{ERR_WRONG_PASSWD},
+#         { OUTPUT2RETURN => 1, ID => 900 } );
+#     }
+#     $ret = 0;
+#   }
+#
+#   return ($ret, $session_id, $login);
+# }
 
-  Arguments:
-    $user_name
-    $password
-    $session_id
-    $attr
-      FORM - Input form
-      HTML - HTML
-      LANG - %lang
-      USER - User Obj
-
-  Returns:
-    ($ret, $session_id, $login)
-
-=cut
-#**********************************************************
-sub auth_user {
-  my ($login, $password, $session_id, $attr) = @_;
-
-  my $params;
-  if ($attr->{FORM}) {
-    $params = $attr->{FORM};
-  }
-  else {
-    $params = \%FORM;
-  }
-
-  my $lang;
-  if ($attr->{LANG}) {
-    $lang = $attr->{LANG};
-  }
-  else {
-    $lang = \%lang;
-  }
-
-  if ($attr->{HTML}) {
-    $html = $attr->{HTML};
-  }
-
-  if($attr->{USER}) {
-    $user = $attr->{USER};
-  }
-
-  if (!$user) {
-    $user = Users->new($db, $admin, \%conf);
-  }
-
-  my $ret                  = 0;
-  my $res                  = 0;
-  my $REMOTE_ADDR          = $ENV{'REMOTE_ADDR'} || '';
-  my $uid                  = 0;
-  require Abills::Auth::Core;
-  Abills::Auth::Core->import();
-
-  my $Auth;
-
-  # request from apple only POST without custom own prop, we dont handle query params in POST request
-  if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ m/external_auth=Apple/x) {
-    $params->{external_auth} = 'Apple';
-  }
-
-  if ($params->{external_auth}) {
-    $Auth = Abills::Auth::Core->new({
-      CONF      => \%conf,
-      DB        => $db,
-      ADMIN     => $admin,
-      # HTML      => $html,
-      AUTH_TYPE => $params->{external_auth},
-      USERNAME  => $login,
-      SELF_URL  => $SELF_URL,
-      FORM      => $params
-    });
-
-    $Auth->check_access($params);
-
-    if($Auth->{auth_url}) {
-      print "Location: $Auth->{auth_url}\n\n";
-      exit;
-    }
-    elsif ($Auth->{RETURN_RESULT}) {
-      return $Auth->{RETURN_RESULT};
-    }
-    elsif($Auth->{USER_ID}) {
-      $user->list({
-        $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-        LOGIN                => '_SHOW',
-        DELETED              => 0,
-        COLS_NAME            => 1
-      });
-
-      if ($conf{AUTH_EMAIL} && $Auth->{USER_EMAIL} && !$user->{TOTAL} && !$sid && !($attr->{API} && $session_id)) {
-        $user->list({
-          EMAIL     => $Auth->{USER_EMAIL} || '--',
-          LOGIN     => '_SHOW',
-          DELETED   => 0,
-          COLS_NAME => 1
-        });
-        $Auth->{EXTERNAL_AUTH_EMAIL} = 1;
-      }
-
-      if ($user->{TOTAL}) {
-        $uid = $user->{list}->[0]->{uid};
-        $user->{LOGIN} = $user->{list}->[0]->{login};
-        $user->{UID} = $uid;
-        $res = $uid;
-        $Auth->{USER_EXISTS} = 1;
-        $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>" if (!$attr->{API});
-
-        if ($conf{AUTH_EMAIL} && $Auth->{EXTERNAL_AUTH_EMAIL}) {
-          $user->pi_change({
-            $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-            UID                  => $user->{UID}
-          });
-        }
-      }
-      else {
-        if (!$sid && !($attr->{API} && $session_id)) {
-          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_UNKNOWN_SN_ACCOUNT}, { OUTPUT2RETURN => 1 });
-          return 0;
-        }
-      }
-    }
-    else {
-      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_SN_ERROR}, {OUTPUT2RETURN => 1});
-      return 0;
-    }
-  }
-
-  if (!$conf{PASSWORDLESS_ACCESS}) {
-    if($ENV{USER_CHECK_DEPOSIT}) {
-      $conf{PASSWORDLESS_ACCESS} = $ENV{USER_CHECK_DEPOSIT};
-    }
-    elsif($attr->{PASSWORDLESS_ACCESS}) {
-      $conf{PASSWORDLESS_ACCESS}=1;
-    }
-    elsif($conf{PASSWORDLESS_CREDIT} && $params->{change_credit}) {
-      $conf{PASSWORDLESS_ACCESS}=1;
-    }
-  }
-
-  #Passwordless Access
-  if ($conf{PASSWORDLESS_ACCESS} && !$login && !$password && !$session_id) {
-    ($ret, $session_id, $login) = passwordless_access($REMOTE_ADDR, $session_id, $login,
-      { PASSWORDLESS_GUEST_ACCESS => $conf{PASSWORDLESS_GUEST_ACCESS} });
-
-    if ($conf{user_portal_debug}) {
-      my $total = $user->{TOTAL} // 'N/D';
-      $session_id //= q{};
-      $session_id =~ s/\W+//xg;
-      my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-      `echo "PA: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
-    }
-
-    if ($ret) {
-      if ($conf{user_portal_debug}) {
-        my $total = $user->{TOTAL} // 'N/D';
-        $session_id //= q{};
-        $session_id =~ s/\W+//xg;
-        my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-        `echo "PA ADD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
-      }
-
-      $user->web_session_info({ IP => $REMOTE_ADDR });
-      if ($user->{errno} && $user->{errno} == 2) {
-        if ($conf{user_portal_debug}) {
-          my $total = $user->{TOTAL} // 'N/D';
-          $session_id //= q{};
-          $session_id =~ s/\W+//xg;
-          my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-          `echo "PA ADDD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
-        }
-        $user->web_session_add({
-          UID         => $ret,
-          SID         => $session_id,
-          LOGIN       => $login,
-          REMOTE_ADDR => $REMOTE_ADDR,
-          EXT_INFO    => $ENV{HTTP_USER_AGENT},
-          COORDX      => $params->{coord_x} || '',
-          COORDY      => $params->{coord_y} || ''
-        });
-      }
-      else {
-        $session_id = $user->{SID};
-        if ($conf{user_portal_debug}) {
-          my $total = $user->{TOTAL} // 'N/D';
-          $session_id //= q{};
-          $session_id =~ s/\W+//xg;
-          my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-          `echo "PA UPDATE: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
-        }
-
-        $user->web_session_update({ SID => $session_id });
-      }
-
-      return ($ret, $session_id, $login);
-    }
-  }
-
-  if ($index == 1000) {
-    $user->web_session_del({ SID => $session_id });
-    return 0;
-  }
-  elsif ($session_id) {
-    $user->web_session_info({ SID => $session_id });
-
-    if ($user->{TOTAL} < 1) {
-      delete $params->{REFERER};
-      delete $user->{errno};
-      if ($conf{user_portal_debug}) {
-        #$html->message('err', $lang->{ERROR}, $lang->{NOT_LOGINED}, { ID => 9999 });
-        my $total = $user->{TOTAL} // 'N/D';
-        $session_id =~ s/\W+//xg;
-        my $p = $conf{PASSWORDLESS_ACCESS} || 0;
-        `echo "NOT_FOUND_SESSION IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $DATE $TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
-      }
-      #$html->message('err', "$lang->{ERROR}", "$lang->{NOT_LOGINED}");
-      #return 0;
-    }
-    elsif ($user->{errno}) {
-      $html->message( 'err', $lang->{ERROR} );
-    }
-    elsif ( $conf{web_session_timeout} < $user->{SESSION_TIME} ){
-      $html->message( 'info', $lang->{INFO}, 'SESSION_EXPIRE' );
-      $user->web_session_del({ SID => $session_id });
-      return 0;
-    }
-    elsif (! $conf{USERPORTAL_MULTI_SESSIONS} && $user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
-      $html->message( 'err', $lang->{ERROR}, 'WRONG_IP' );
-      $user->web_session_del({ SID => $session_id });
-      return 0;
-    }
-    else {
-      $user->info($user->{UID}, { USERS_AUTH => 1 });
-      $admin->{DOMAIN_ID} = $user->{DOMAIN_ID};
-      $user->web_session_update({ SID => $session_id, REMOTE_ADDR => $REMOTE_ADDR  });
-      #Add social id
-      if ($Auth->{USER_ID}) {
-        if (!$Auth->{USER_EXISTS}) {
-          $user->pi_change({
-            $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-            UID                  => $user->{UID}
-          });
-
-          if (!$attr->{API}) {
-            $html->message('info', $lang->{INFO}, $lang->{SN_ADDED});
-          }
-        }
-        else {
-          return {
-            errno  => 10002,
-            errstr => 'You already linked this social auth account to another account identifier.',
-          } if ($attr->{API});
-        }
-      }
-
-      return ($user->{UID}, $session_id, $user->{LOGIN});
-    }
-  }
-
-  if ($login && $password) {
-    if ($conf{wi_bruteforce}) {
-      $user->bruteforce_list({
-        LOGIN    => $login,
-        PASSWORD => $password,
-        CHECK    => 1
-      });
-
-      if ($user->{TOTAL} > $conf{wi_bruteforce}) {
-        if ($attr->{API}) {
-          return {
-            errno  => 10000,
-            errstr => 'You try to brute password and system block your account. Please contact system administrator.'
-          };
-        }
-        $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
-        return 0;
-      }
-    }
-
-    #check password from RADIUS SERVER if defined $conf{check_access}
-    if ($conf{check_access}) {
-      $Auth = Abills::Auth::Core->new({
-        CONF      => \%conf,
-        AUTH_TYPE => 'Radius',
-        FORM      => \%FORM
-      });
-
-      $res = $Auth->check_access({
-        LOGIN    => $login,
-        PASSWORD => $password
-      });
-    }
-    #check password direct from SQL
-    else {
-      $res = auth_sql($login, $password, $params) if ($res < 1);
-    }
-  }
-  elsif ($login && !$password) {
-    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
-  }
-  #Get user ip
-  if (defined($res) && $res > 0) {
-    $user->info($user->{UID} || 0, {
-      LOGIN      => ($user->{UID}) ? undef : $login,
-      DOMAIN_ID  => $params->{DOMAIN_ID},
-      USERS_AUTH => 1
-    });
-
-    if($conf{AUTH_G2FA}) {
-      $user->pi();
-      if(!$params->{g2fa}){
-        if ($user->{_G2FA}) {
-          $params->{user} = $login;
-          $params->{password} = $password;
-          $params->{G2FA} = 1;
-          delete $params->{logined};
-          return (0, $session_id, $login);
-        }
-      }
-      else {
-        my $OATH = Abills::Auth::Core->new({
-          CONF      => \%conf,
-          AUTH_TYPE => 'OATH'
-        });
-
-        if (!$OATH->check_access({SECRET => $user->{_G2FA}, PIN => $params->{g2fa}})) {
-          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{G2FA_WRONG_CODE}, {OUTPUT2RETURN => 1} );
-          $params->{G2FA} = 1;
-          delete $params->{logined};
-          return (0, $session_id, $login);
-        }
-      }
-    }
-
-    if ($user->{TOTAL} > 0) {
-      $session_id          = mk_unique_value(16);
-      $ret                 = $user->{UID};
-      $user->{REMOTE_ADDR} = $REMOTE_ADDR;
-      $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
-      $login               = $user->{LOGIN};
-
-      if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
-        $user->group_info($user->{GID});
-
-        if ($user->{DISABLE_ACCESS}) {
-          delete $params->{logined};
-
-          if ($attr->{API}) {
-            return {
-              errno  => 10440,
-              errstr => 'Access denied.',
-            };
-          }
-
-          $user->bruteforce_add({
-            LOGIN       => $login,
-            PASSWORD    => $password,
-            REMOTE_ADDR => $REMOTE_ADDR,
-            AUTH_STATE  => 0
-          });
-
-          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang->{ERROR}, $lang->{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
-          return 0;
-        }
-      }
-
-      $user->web_session_add({
-        UID         => $user->{UID},
-        SID         => $session_id,
-        LOGIN       => $login,
-        REMOTE_ADDR => $REMOTE_ADDR,
-        EXT_INFO    => $ENV{HTTP_USER_AGENT},
-        COORDX      => $params->{coord_x} || '',
-        COORDY      => $params->{coord_y} || ''
-      });
-    }
-    else {
-      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
-    }
-  }
-  else {
-    if ($login || $password) {
-      $user->bruteforce_add({
-        LOGIN       => $login,
-        PASSWORD    => $password,
-        REMOTE_ADDR => $REMOTE_ADDR,
-        AUTH_STATE  => $ret
-      });
-
-      $OUTPUT{MESSAGE} = $html->message( 'err', $lang->{ERROR}, $lang->{ERR_WRONG_PASSWD},
-        { OUTPUT2RETURN => 1, ID => 900 } );
-    }
-    $ret = 0;
-  }
-
-  return ($ret, $session_id, $login);
-}
-
-#**********************************************************
-=head2 passwordless_access($remote_addr, $session_id, $login, $attr) - Get passwordless access info
-
-   Arguments:
-     $remote_addr
-     $session_id
-     $login
-     $attr
-       PASSWORDLESS_GUEST_ACCESS
-
-   Return:
-     $uid, $session_id, $login
-
-=cut
-#**********************************************************
-sub passwordless_access {
-  my ($remote_addr, $session_id, $login, $attr) = @_;
-  my $auth_uid = 0;
-
-  require Internet::Sessions;
-  Internet::Sessions->import();
-  my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-
-  my %params = ();
-
-  if($attr->{PASSWORDLESS_GUEST_ACCESS}) {
-    $params{GUEST} = 1;
-    if($attr->{PASSWORDLESS_GUEST_ACCESS} ne '1') {
-      $params{SERVICE_STATUS} = $attr->{PASSWORDLESS_GUEST_ACCESS};
-      $params{INTERNET_STATUS}= $attr->{PASSWORDLESS_GUEST_ACCESS};
-      delete $conf{PASSWORDLESS_ACCESS};
-    }
-  }
-
-  my $list = $Sessions->online({
-    USER_NAME         => '_SHOW',
-    FRAMED_IP_ADDRESS => $remote_addr,
-    %params
-  });
-
-  if ($Sessions->{TOTAL} && $Sessions->{TOTAL} == 1) {
-    $login     = $list->[0]->{user_name} || $login;
-    $auth_uid  = $list->[0]->{uid};
-    $user->info($auth_uid, { USERS_AUTH => 1 });
-
-    $user->{REMOTE_ADDR} = $remote_addr;
-
-    if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
-      $user->group_info($user->{GID});
-
-      if ($user->{DISABLE_ACCESS}) {
-        delete $FORM{logined};
-
-        if ($attr->{API}) {
-          return {
-            errno  => 10500,
-            errstr => 'Access denied.',
-          };
-        }
-
-        $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
-        return 0;
-      }
-    }
-  }
-  else {
-    require Internet;
-    Internet->import();
-
-    my $Internet = Internet->new($db, $admin, \%conf);
-
-    my $internet_list = $Internet->user_list({
-      IP        => $remote_addr,
-      %params,
-      LOGIN     => '_SHOW',
-      COLS_NAME => 1
-    });
-
-    if ($Internet->{TOTAL} && $Internet->{TOTAL} == 1) {
-      $login     = $internet_list->[0]->{login} || $login;
-      $auth_uid  = $internet_list->[0]->{uid} || 0;
-      $user->info($auth_uid);
-      $user->{REMOTE_ADDR} = $remote_addr;
-    }
-  }
-
-  if ($conf{PASSWORDLESS_ACCESS_DEBUG}) {
-    `echo "IP: $remote_addr UID: $auth_uid TOTAL: $Sessions->{TOTAL}" >> /tmp/passwordles.log`;
-  }
-
-  $session_id= mk_unique_value(14) if ($auth_uid);
-
-  return ($auth_uid, $session_id, $login);
-}
+# #**********************************************************
+# =head2 passwordless_access($remote_addr, $session_id, $login, $attr) - Get passwordless access info
+#
+#    Arguments:
+#      $remote_addr
+#      $session_id
+#      $login
+#      $attr
+#        PASSWORDLESS_GUEST_ACCESS
+#
+#    Return:
+#      $uid, $session_id, $login
+#
+# =cut
+# #**********************************************************
+# sub passwordless_access {
+#   my ($remote_addr, $session_id, $login, $attr) = @_;
+#   my $auth_uid = 0;
+#
+#   require Internet::Sessions;
+#   Internet::Sessions->import();
+#   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+#
+#   my %params = ();
+#
+#   if($attr->{PASSWORDLESS_GUEST_ACCESS}) {
+#     $params{GUEST} = 1;
+#     if($attr->{PASSWORDLESS_GUEST_ACCESS} ne '1') {
+#       $params{SERVICE_STATUS} = $attr->{PASSWORDLESS_GUEST_ACCESS};
+#       $params{INTERNET_STATUS}= $attr->{PASSWORDLESS_GUEST_ACCESS};
+#       delete $conf{PASSWORDLESS_ACCESS};
+#     }
+#   }
+#
+#   my $list = $Sessions->online({
+#     USER_NAME         => '_SHOW',
+#     FRAMED_IP_ADDRESS => $remote_addr,
+#     %params
+#   });
+#
+#   if ($Sessions->{TOTAL} && $Sessions->{TOTAL} == 1) {
+#     $login     = $list->[0]->{user_name} || $login;
+#     $auth_uid  = $list->[0]->{uid};
+#     $user->info($auth_uid, { USERS_AUTH => 1 });
+#
+#     $user->{REMOTE_ADDR} = $remote_addr;
+#
+#     if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
+#       $user->group_info($user->{GID});
+#
+#       if ($user->{DISABLE_ACCESS}) {
+#         delete $FORM{logined};
+#
+#         if ($attr->{API}) {
+#           return {
+#             errno  => 10500,
+#             errstr => 'Access denied.',
+#           };
+#         }
+#
+#         $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
+#         return 0;
+#       }
+#     }
+#   }
+#   else {
+#     require Internet;
+#     Internet->import();
+#
+#     my $Internet = Internet->new($db, $admin, \%conf);
+#
+#     my $internet_list = $Internet->user_list({
+#       IP        => $remote_addr,
+#       %params,
+#       LOGIN     => '_SHOW',
+#       COLS_NAME => 1
+#     });
+#
+#     if ($Internet->{TOTAL} && $Internet->{TOTAL} == 1) {
+#       $login     = $internet_list->[0]->{login} || $login;
+#       $auth_uid  = $internet_list->[0]->{uid} || 0;
+#       $user->info($auth_uid);
+#       $user->{REMOTE_ADDR} = $remote_addr;
+#     }
+#   }
+#
+#   if ($conf{PASSWORDLESS_ACCESS_DEBUG}) {
+#     `echo "IP: $remote_addr UID: $auth_uid TOTAL: $Sessions->{TOTAL}" >> /tmp/passwordles.log`;
+#   }
+#
+#   $session_id= mk_unique_value(14) if ($auth_uid);
+#
+#   return ($auth_uid, $session_id, $login);
+# }
 
 #**********************************************************
 =head2 auth_sql($login, $password) - Authentification from SQL DB
 
 =cut
 #**********************************************************
-sub auth_sql {
-  my ($user_name, $password, $attr) = @_;
-  my $ret = 0;
-
-  $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
-
-  if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
-    $user->info(0, {
-      LOGIN      => $user_name,
-      PASSWORD   => $password,
-      DOMAIN_ID  => $attr->{DOMAIN_ID} || 0,
-      USERS_AUTH => 1
-    });
-  }
-  else {
-    my @a_method = split(',', $conf{WEB_AUTH_KEY});
-    foreach my $auth_param (@a_method) {
-      $user->list({
-        $auth_param => $user_name,
-        PASSWORD    => $password,
-        DELETED     => 0,
-        DOMAIN_ID   => $attr->{DOMAIN_ID} || 0,
-        COLS_NAME   => 1
-      });
-
-      if ($user->{TOTAL}) {
-        $user->info($user->{list}->[0]->{uid});
-        last;
-      }
-    }
-  }
-
-  if ($user->{TOTAL} < 1) {
-    if (! $conf{PORTAL_START_PAGE}) {
-      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR},
-        $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
-    }
-  }
-  elsif (_error_show($user)) {
-  }
-  elsif ($user->{DELETED}) {
-  }
-  else {
-    $ret = $user->{UID} || $user->{list}->[0]->{uid};
-  }
-
-  $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
-
-  return $ret;
-}
+# sub auth_sql {
+#   my ($user_name, $password, $attr) = @_;
+#   my $ret = 0;
+#
+#   $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
+#
+#   if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
+#     $user->info(0, {
+#       LOGIN      => $user_name,
+#       PASSWORD   => $password,
+#       DOMAIN_ID  => $attr->{DOMAIN_ID} || 0,
+#       USERS_AUTH => 1
+#     });
+#   }
+#   else {
+#     my @a_method = split(',', $conf{WEB_AUTH_KEY});
+#     foreach my $auth_param (@a_method) {
+#       $user->list({
+#         $auth_param => $user_name,
+#         PASSWORD    => $password,
+#         DELETED     => 0,
+#         DOMAIN_ID   => $attr->{DOMAIN_ID} || 0,
+#         COLS_NAME   => 1
+#       });
+#
+#       if ($user->{TOTAL}) {
+#         $user->info($user->{list}->[0]->{uid});
+#         last;
+#       }
+#     }
+#   }
+#
+#   if ($user->{TOTAL} < 1) {
+#     if (! $conf{PORTAL_START_PAGE}) {
+#       $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR},
+#         $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
+#     }
+#   }
+#   elsif (_error_show($user)) {
+#   }
+#   elsif ($user->{DELETED}) {
+#   }
+#   else {
+#     $ret = $user->{UID} || $user->{list}->[0]->{uid};
+#   }
+#
+#   $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
+#
+#   return $ret;
+# }
 
 #**********************************************************
 =head2 load_lang() - Small lang loader
@@ -1242,6 +1199,89 @@ sub load_lang {
     print ">> language/$html->{language}.pl << ";
     exit;
   }
+}
+
+#**********************************************************
+=head2 auth_apache_basic($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+
+
+apache.conf - IF Mod rewrite enabled Basic Auth
+
+      <IfModule mod_rewrite.c>
+          RewriteEngine on
+          RewriteCond %{HTTP:Authorization} ^(.*)
+          RewriteRule ^(.*) - [E=HTTP_CGI_AUTHORIZATION:%1]
+          Options Indexes ExecCGI SymLinksIfOwnerMatch
+      </IfModule>
+      Options Indexes ExecCGI FollowSymLinks
+
+=cut
+#**********************************************************
+sub auth_apache_basic {
+
+  if (! defined($ENV{HTTP_CGI_AUTHORIZATION})) {
+    print "'mod_rewrite' not install";
+    return 0;
+  }
+
+  $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//ix;
+  my ($REMOTE_USER, $REMOTE_PASSWD) = split(':', decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
+
+  if ($REMOTE_USER) {
+    $REMOTE_USER = substr($REMOTE_USER, 0, 20);
+    $REMOTE_USER =~ s/\\//xg;
+  }
+  else {
+    $REMOTE_USER = q{};
+  }
+  if ($REMOTE_PASSWD) {
+    $REMOTE_PASSWD = substr($REMOTE_PASSWD, 0, 20);
+    $REMOTE_PASSWD =~ s/\\//xg;
+  }
+
+  my $res = check_permissions($REMOTE_USER, $REMOTE_PASSWD);
+  if ($res == 1) {
+    print "WWW-Authenticate: Basic realm=\"$conf{WEB_TITLE} Billing System\"\n";
+    print "Status: 401 Unauthorized\n";
+  }
+  elsif ($res == 2) {
+    print "WWW-Authenticate: Basic realm=\"Billing system / '$REMOTE_USER' Account Disabled\"\n";
+    print "Status: 401 Unauthorized\n";
+  }
+
+  if ($admin->{errno}) {
+    #load_lang();
+    $html->{METATAGS} = templates('metatags');
+    print $html->header();
+
+    my $message = $lang{ERR_ACCESS_DENY};
+
+    if ($admin->{errno} == 2) {
+      $message = "$lang{ACCOUNT_DISABLE} $lang{OR} $admin->{errstr}";
+    }
+    elsif ($admin->{errno} == 3) {
+      $message = $lang{ERR_UNALLOW_IP};
+    }
+    elsif ($admin->{errno} == 4) {
+      $message = $lang{ERR_WRONG_PASSWD} || 'ERR_WRONG_PASSWD';
+    }
+    else {
+      $message = $err_strs{ $admin->{errno} };
+    }
+
+    print $html->element('div',
+      $html->message('err', $lang{ERROR}, $message, { OUTPUT2RETURN => 1 }),
+      { class => 'p-5' }
+    );
+    exit;
+  }
+
+  return 1;
 }
 
 1;

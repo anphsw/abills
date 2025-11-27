@@ -362,13 +362,11 @@ sub sysinfo_cpu {
 #**********************************************************
 sub sysinfo_disk {
 
-  my $table = $html->table(
-    {
-      caption     => "Disk usage",
-      width       => '100%',
-      title_plain => [ 'Filesystem', 'Size', 'Used', 'Avail', 'Capacity', 'Mounted' ],
-    }
-  );
+  my $table = $html->table({
+    caption     => "Disk usage",
+    width       => '100%',
+    title_plain => [ 'Filesystem', 'Size', 'Used', 'Avail', 'Capacity', 'Mounted' ],
+  });
 
   my $info       = $sysinfo_hash{$os}{'disk'}->();
   my $i          = 0;
@@ -478,10 +476,10 @@ sub sysinfo_processes {
 
   #all
   my $table = $html->table({
-      caption    => "$lang{PROCESSES}",
-      width      => '100%',
-      title      => [ 'USER', 'PID', '%CPU', '%MEM', 'VSZ', 'RSS', 'TT', 'STAT', 'STARTED', 'TIME', 'COMMAND', '-' ],
-      ID         => 'SYSINFO_PROCESSES'
+    caption => "$lang{PROCESSES}",
+    width   => '100%',
+    title   => [ 'USER', 'PID', '%CPU', '%MEM', 'VSZ', 'RSS', 'TT', 'STAT', 'STARTED', 'TIME', 'COMMAND', '-' ],
+    ID      => 'SYSINFO_PROCESSES'
   });
 
   my $info = $sysinfo_hash{$os}{'processes'}->();
@@ -775,7 +773,7 @@ $sysinfo_hash{'FreeBSD'}{'cpu'} = sub {
   my %cpu = (cpu_count => 0);
 
   foreach my $line ( split(/\n/x, $cpu_output) ) {
-    if ( $line =~ m/^(.+): (.+)\s?$/xs ) {
+    if ( $line =~ m/^(.+):\s+(.+)\s?$/xs ) {
       my $key = $1;
       my $val = $2;
 
@@ -879,7 +877,7 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
 # Show system info swap
 #*******************************************************************
 $sysinfo_hash{'Linux'}{'swap'} = sub {
-  my $memmory_output = _cmd(q* /sbin/swapon -s |/usr/bin/tail -1 |awk '{print \$3" " \$4}' *);
+  my $memmory_output = _cmd(q* /sbin/swapon -s |/usr/bin/tail -1 |awk '{print $3" " $4}' *);
 
   my %memmory = ();
   ($memmory{swap_total}, $memmory{swap_used}) = split(/\s+/x, $memmory_output);
@@ -1412,9 +1410,8 @@ sub module_desc {
       elsif ($in_name) {
         $desc .= $_;
       }
-      if (m/^\s*(our\s+)?\$VERSION\s*=\s*"([0-9\.]+)"/x
-        || m/^\s*(our\s+)?\$VERSION\s*=\s*'([0-9\.]+)'/x
-        || m/^\s*(our\s+)?\$VERSION\s*=\s*([0-9\.]+)/x) {
+
+      if (m/^\s*(our\s+)?\$VERSION\s*=\s*["']?([0-9\.]+)["']?/x) {
         $ver = $2;
         $got_version++;
       }
@@ -1495,6 +1492,7 @@ sub sysinfo_sp_info {
         $memmory{$1} = $2;
       }
     }
+
     if ($memmory{MemTotal}){
       $memmory{MemTotal} =~ m/(\d+)/x;
       $memmory{MemTotal} = $1 || 0;

@@ -93,18 +93,17 @@ sub accident_report {
   my @labels_chart = ();
   my @data_chart = ();
   my $priority = defined($FORM{PRIORITY}) ? ($FORM{PRIORITY}) : '';
-  my $admin = defined($FORM{AID}) ? ($FORM{AID}) : '';
+  my $aid = defined($FORM{AID}) ? ($FORM{AID}) : '';
   my $index = get_function_index('accident_log');
-
 
   foreach my $line (@$accident_report) {
     if (defined($FORM{TYPE}) && $FORM{TYPE} eq 'months') {
       $from_date = "$line->{month}-01";
       $to_date = "$line->{month}-" . days_in_month({ DATE => $line->{month} });
-      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$from_date&TO_DATE=$to_date&FROM_DATE_TO_DATE=$from_date/$to_date", { ex_params => "class=new" });
+      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$aid&FROM_DATE=$from_date&TO_DATE=$to_date&FROM_DATE_TO_DATE=$from_date/$to_date", { ex_params => "class=new" });
     }
     else {
-      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$line->{date}&TO_DATE=$line->{date}&FROM_DATE_TO_DATE=$line->{date}/$line->{date}", { ex_params => "class=new" });
+      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$aid&FROM_DATE=$line->{date}&TO_DATE=$line->{date}&FROM_DATE_TO_DATE=$line->{date}/$line->{date}", { ex_params => "class=new" });
     }
 
     $table->addrow(
@@ -114,7 +113,7 @@ sub accident_report {
     );
 
     $total_quantity += $line->{quantity};
-    $total_time += $line->{hour_diff};
+    $total_time += $line->{hour_diff} || 0;
     push @labels_chart, ($line->{date});
     push @data_chart, $line->{quantity};
   }
@@ -129,7 +128,6 @@ sub accident_report {
   print $table->show();
 
   return 0;
-
 }
 
 
@@ -143,7 +141,6 @@ sub accident_report {
 =cut
 # **********************************************************
 sub _accident_report_chart {
-
   my ($labels_chart, $data_chart) = @_;
 
   print $html->chart({
@@ -160,5 +157,7 @@ sub _accident_report_chart {
     IN_CONTAINER      => 1
   });
 
+  return 1;
 }
-1
+
+1;

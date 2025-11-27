@@ -54,10 +54,14 @@ sub new {
 =cut
 #**********************************************************
 sub post_msgs_workflow {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  $Msgs->msgs_workflow_add($query_params);
+  my $workflow_id = $Msgs->msgs_workflow_add($query_params);
+
+  return {
+    INSERT_ID   => $workflow_id,
+    WORKFLOW_ID => $workflow_id
+  }
 }
 
 #**********************************************************
@@ -68,10 +72,10 @@ sub post_msgs_workflow {
 =cut
 #**********************************************************
 sub post_msgs_workflow_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  #TODO: why its post not put like all paths
+  my ($self, $path_params, $query_params) = @_;
 
-  $Msgs->msgs_workflow_change({ %{$query_params}, ID => $path_params->{id} });
+  return $Msgs->msgs_workflow_change({ %{$query_params}, ID => $path_params->{id} });
 }
 
 1;

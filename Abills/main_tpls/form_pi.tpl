@@ -1,6 +1,5 @@
 <form action='%SELF_URL%' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
-
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type=hidden name=UID value='%UID%'>
 
   <div class='%FORM_ATTR%'>
@@ -9,54 +8,62 @@
   <div id='form_2' class='card for_sort card-primary card-outline %FORM_ATTR%'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{INFO}_</h3>
-      <div class='card-tools float-right'>
-        <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
-        </button>
-      </div>
-    </div>
+   </div>
 
-    <div class='card-body'>
-      <div class='form-group row' id='simple_fio'>
-        <label class='col-sm-3 col-md-2 text-right control-label %FIO_REQ%' for='FIO'>_{FIO}_:</label>
-        <div class='col-sm-9 col-md-10'>
-          <div class='input-group'>
-            <input name='FIO' class='form-control' %FIO_REQ% %FIO_READONLY% id='FIO' value='%FIO%'>
-            <div class='input-group-append'>
-              <button id='show_fio' type='button' class='btn btn-default' tabindex='-1'>
-                <i class='fa fa-bars'></i>
-              </button>
-            </div>
-          </div>
+    <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>_{FIO}_: <b>%FIO%</b></h3>
+        %BTN_FIO_COPY%
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+            <i class='fa fa-plus'></i>
+          </button>
         </div>
       </div>
 
-      <div id='full_fio' style='display:none'>
-        <div class='form-group row'>
-          <label class='col-form-label text-md-right col-md-4' for='FIO1'>_{FIO1}_:</label>
-          <div class='col-sm-8 col-md-8'>
+      <div class='card-body'>
+        <div class='form-group row' id='simple_fio'>
+          <label class='col-sm-3 col-md-2 text-right control-label %FIO_REQ%' for='FIO'>_{FIO}_:</label>
+          <div class='col-sm-9 col-md-10'>
             <div class='input-group'>
-              <input name='FIO1' class='form-control' id='FIO1' value='%FIO1%'>
+              <input name='FIO' class='form-control' %FIO_REQ% %FIO_READONLY% id='FIO' value='%FIO%'>
               <div class='input-group-append'>
-                <button id='hide_fio' type='button' class='btn btn-default' tabindex='-1'>
-                  <i class='fa fa-reply'></i>
+                <button id='show_fio' type='button' class='btn btn-default' tabindex='-1'>
+                  <i class='fa fa-bars'></i>
                 </button>
               </div>
             </div>
           </div>
         </div>
-        <div class='form-group row'>
-          <label class='col-form-label text-md-right col-md-4' for='FIO2'>_{FIO2}_:</label>
-          <div class='col-sm-8 col-md-8'>
-            <div class='input-group'>
-              <input name='FIO2' class='form-control' id='FIO2' value='%FIO2%'>
+
+        <div id='full_fio' style='display:none'>
+          <div class='form-group row'>
+            <label class='col-form-label text-md-right col-md-4' for='FIO1'>_{FIO1}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <div class='input-group'>
+                <input name='FIO1' class='form-control' id='FIO1' value='%FIO1%'>
+                <div class='input-group-append'>
+                  <button id='hide_fio' type='button' class='btn btn-default' tabindex='-1'>
+                    <i class='fa fa-reply'></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class='form-group row'>
-          <label class='col-form-label text-md-right col-md-4' for='FIO3'>_{FIO3}_:</label>
-          <div class='col-sm-8 col-md-8'>
-            <div class='input-group'>
-              <input name='FIO3' class='form-control' id='FIO3' value='%FIO3%'>
+          <div class='form-group row'>
+            <label class='col-form-label text-md-right col-md-4' for='FIO2'>_{FIO2}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <div class='input-group'>
+                <input name='FIO2' class='form-control' id='FIO2' value='%FIO2%'>
+              </div>
+            </div>
+          </div>
+          <div class='form-group row'>
+            <label class='col-form-label text-md-right col-md-4' for='FIO3'>_{FIO3}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <div class='input-group'>
+                <input name='FIO3' class='form-control' id='FIO3' value='%FIO3%'>
+              </div>
             </div>
           </div>
         </div>
@@ -68,7 +75,7 @@
 
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
       <div class='card-header with-border'>
-        <h3 class='card-title'>_{PASPORT}_</h3>
+        <h3 class='card-title'>_{PASPORT}_: <b>%PASPORT_NUM%</b></h3>
         <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'>
             <i class='fa fa-plus'></i>

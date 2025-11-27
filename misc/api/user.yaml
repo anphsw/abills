@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS USER API
-  version: 1.47.16
+  version: 1.54.09
   description: |
-    Last modified 2025-06-27 <br>
+    Last modified 2025-09-10 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_user.yaml
     Copy it and upload it to your favorite OPEN API viewer.
@@ -21,6 +21,8 @@ servers:
   - url: https://demo.abills.net.ua:9443/api.cgi
     description: Test Demo Server
 tags:
+  - name: addresses
+    description: Работа с адресами
   - name: bots
     description: Пути ботов пользователя
   - name: config
@@ -35,6 +37,8 @@ tags:
     description: Работа с услугами абонента
   - name: user
     description: Работа с пользователем
+  - name: accident
+    description: Работа с авариями
   - name: abon
     description: Работа с периодическими списаниями
   - name: cards
@@ -64,6 +68,7 @@ tags:
   - name: storage
     description: Работа с Storage
 paths:
+  $ref: "./user/addresses/paths.yaml"
   $ref: "./user/bots/paths.yaml"
   $ref: "./user/config/paths.yaml"
   $ref: "./user/contacts/paths.yaml"
@@ -71,6 +76,7 @@ paths:
   $ref: "./user/holdup/paths.yaml"
   $ref: "./user/services/paths.yaml"
   $ref: "./user/user/paths.yaml"
+  $ref: "../../Abills/modules/Accident/Api/swagger/user/path.yaml"
   $ref: "../../Abills/modules/Abon/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Cards/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Docs/Api/swagger/user/paths.yaml"

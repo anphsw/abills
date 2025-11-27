@@ -1,4 +1,4 @@
-<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
+<form class='form-horizontal' action='%SELF_URL%' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
   <div class='card card-primary card-outline box-big-form'>
     <div class='card-header with-border'><h3 class='card-title'>_{INFO}_</h3></div>
     <div class='card-body'>

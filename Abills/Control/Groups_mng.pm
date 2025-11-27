@@ -22,6 +22,47 @@ our Abills::HTML $html;
 our Users $users;
 
 #**********************************************************
+=head2 form_groups_add() - users groups
+
+=cut
+#**********************************************************
+sub form_groups_add {
+
+  if ($permissions{0} && !$permissions{0}{28}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0
+  }
+
+  if(! $users->{ACTION}) {
+    $users->{ACTION} = 'add';
+    $users->{LNG_ACTION} = $lang{ADD};
+  }
+
+  if(in_array('Multidoms', \@MODULES)) {
+    load_module('Multidoms', $html);
+    $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
+      ID    => '',
+      NAME  => $lang{DOMAIN},
+      VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $admin->{DOMAIN_ID} })
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  if(in_array('Sms', \@MODULES)) {
+    require Sms::Services;
+    my $Sms_services = Sms::Services->new($db, $admin, \%conf, { HTML => $html });
+    $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
+      ID    => '',
+      NAME  => $lang{SMS_GATEWAY},
+      VALUE => $Sms_services->sms_services_sel({ SELECTED => $users->{SMS_SERVICE} })
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  $html->tpl_show(templates('form_groups'), $users);
+
+  return 1;
+}
+
+#**********************************************************
 =head2 form_groups() - users groups
 
 =cut
@@ -29,33 +70,7 @@ our Users $users;
 sub form_groups {
 
   if ($FORM{add_form}) {
-    if ($permissions{0} && !$permissions{0}{28}) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-      return 0
-    }
-    $users->{ACTION}     = 'add';
-    $users->{LNG_ACTION} = $lang{ADD};
-    if(in_array('Multidoms', \@MODULES)) {
-      load_module('Multidoms', $html);
-      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
-        ID    => '',
-        NAME  => $lang{DOMAIN},
-        VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $admin->{DOMAIN_ID} })
-      }, { OUTPUT2RETURN => 1 });
-    }
-
-    if(in_array('Sms', \@MODULES)) {
-      require Sms::Services;
-      my $Sms_services = Sms::Services->new($db, $admin, \%conf, { HTML => $html });
-      $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
-        ID    => '',
-        NAME  => $lang{SMS_GATEWAY},
-        VALUE => $Sms_services->sms_services_sel({ SELECTED => $users->{SMS_SERVICE} })
-      }, { OUTPUT2RETURN => 1 });
-    }
-
-    $html->tpl_show(templates('form_groups'), $users);
-    return 0;
+    form_groups_add();
   }
   elsif ($FORM{add}) {
     if (!$permissions{0}{1}) {
@@ -67,9 +82,10 @@ sub form_groups {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     }
     else {
-      if ($FORM{GID} && $FORM{GID} =~ /^(?!0\d{1,4}$)([1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$/gm) {
+      my $expr = q{^(?!0\d{1,4}$)([1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$};
+      if ($FORM{GID} && $FORM{GID} =~ /$expr/xgm) {
         $users->group_add({ %FORM });
-        $html->message('info', $lang{ADDED}, "$lang{ADDED} [" . ($FORM{GID} || q{}) . "]") if !$users->{errno};
+        $html->message('info', $lang{ADDED}, "$lang{ADDED} [" . ($FORM{GID} || q{}) . "]") if (!$users->{errno});
       }
       else {
         $html->message('err', $lang{ERROR}, $lang{ERR_GID});
@@ -130,7 +146,7 @@ sub form_groups {
       ]
     );
 
-    return 0 if !$permissions{0}{4};
+    return 0 if (!$permissions{0}{4});
 
     $users->{ACTION} = 'change';
     $users->{LNG_ACTION} = $lang{CHANGE};
@@ -141,29 +157,10 @@ sub form_groups {
     $users->{DISABLE_CHG_TP} = ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
     $users->{BONUS} = ($users->{BONUS}) ? 'checked' : '';
     $users->{DOCUMENTS_ACCESS} = ($users->{DOCUMENTS_ACCESS}) ? 'checked' : '';
-    $users->{GID_DISABLE} = 'disabled';
+    $users->{GID_DISABLE} = 'disabled' if ($users->{GID_DISABLE});
     $users->{DISABLE_ACCESS} = ($users->{DISABLE_ACCESS}) ? 'checked' : '';
 
-    if(in_array('Multidoms', \@MODULES)) {
-      load_module('Multidoms', $html);
-      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
-        ID    => '',
-        NAME  => $lang{DOMAIN},
-        VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $users->{DOMAIN_ID} })
-      }, { OUTPUT2RETURN => 1 });
-    }
-
-    if(in_array('Sms', \@MODULES)) {
-      require Sms::Services;
-      my $Sms_services = Sms::Services->new($db, $admin, \%conf, { HTML => $html });
-      $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
-        ID    => '',
-        NAME  => $lang{SMS_GATEWAY},
-        VALUE => $Sms_services->sms_services_sel({ SELECTED => $users->{SMS_SERVICE} })
-      }, { OUTPUT2RETURN => 1 });
-    }
-
-    $html->tpl_show(templates('form_groups'), $users);
+    form_groups_add();
 
     return 0;
   }
@@ -223,7 +220,7 @@ sub form_groups {
       bonus            => sub {return $bool_vals[ shift ]},
       sms_service      => sub {
         my $service_id = shift;
-        return $sms_services->{$service_id}->{name} if $sms_services;
+        return $sms_services->{$service_id}->{name} if ($sms_services);
       },
       users_count => sub {
         my ($users_count, $line) = @_;

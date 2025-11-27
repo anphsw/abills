@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' class='form-inline'>
-    <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' class='form-inline'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='NAS_GID' value='$FORM{NAS_GID}'>
 
 

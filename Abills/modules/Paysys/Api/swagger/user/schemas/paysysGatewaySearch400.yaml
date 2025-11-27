@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: "User does not exist"
+  errno:
+    type: integer
+    example: 1170120
+  errstr:
+    type: string
+    example: "USER_NOT_EXIST"

@@ -25,7 +25,6 @@ if ($debug > 3) {
 }
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || q{};
-$payment_id = int(rand(10000));
 my $start_date = POSIX::strftime('%Y%m%d%H%M%S', localtime(time - 86400 * 3));
 my $end_date = POSIX::strftime('%Y%m%d%H%M%S', localtime());
 

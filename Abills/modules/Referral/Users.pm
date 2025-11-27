@@ -100,7 +100,7 @@ sub referral_user_manage {
   if ($attr->{add}) {
     my $result = $Referral->add_request({
       %params,
-      REFERRER      => $attr->{UID},
+      REFERRER      => $attr->{UID} || $attr->{REFERRER},
       LOCATION_ID   => $attr->{LOCATION_ID},
       ADDRESS_FLAT  => $attr->{ADDRESS_FLAT},
     });
@@ -177,7 +177,7 @@ sub referrals_user {
   if (scalar @main::REGISTRATION || $self->{conf}->{NEW_REGISTRATION_FORM}) {
     my $referral_link = $main::SELF_URL || q{};
     my $script_name = $ENV{SCRIPT_NAME} || q{};
-    $referral_link =~ s/$script_name/\/registration.cgi?REFERRER=$Users->{UID}/;
+    $referral_link =~ s/$script_name/\/registration.cgi?module=Referral&REFERRER=$Users->{UID}/;
 
     $params{referral_link} = $referral_link;
   }

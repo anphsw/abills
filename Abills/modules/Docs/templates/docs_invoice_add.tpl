@@ -1,7 +1,7 @@
 %MENU%
 
 <form action='%SELF_URL%' method='post' name='invoice_add' id='invoice_add'>
-  <input type=hidden name=index value=$index>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='DOC_ID' value='%DOC_ID%'>
   <input type=hidden name='sid' value='$FORM{sid}'>

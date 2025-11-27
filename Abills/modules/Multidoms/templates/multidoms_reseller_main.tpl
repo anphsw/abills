@@ -4,7 +4,7 @@
     <a href='#' class='sidebar-toggle' data-toggle='offcanvas' role='button'>
         <span class='sr-only'>Toggle navigation</span>
     </a>
-    <a href='$SELF_URL' class='header-btn-link' role='button'>
+    <a href='%SELF_URL%' class='header-btn-link' role='button'>
         <span class='fa fa-home'></span>
     </a>
 </nav>

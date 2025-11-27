@@ -30,14 +30,14 @@
                   class='form-control' type='text'>
               </div>
               <div class='col-md-2'>
-                <input placeholder='UID' pattern='\d+,?\*?' id='UID' name='UID' value='%UID%' type='text' class='form-control' />
+                <input placeholder='UID' pattern='\d+\,?\*?' id='UID' name='UID' value='%UID%' type='text' class='form-control' />
               </div>
             </div>
 
             <div class='form-group row'>
               <label class='col-md-4 col-form-label text-md-right' for='PAGE_ROWS'>_{ROWS}_:</label>
               <div class='col-md-8'>
-                <input id='PAGE_ROWS' name='PAGE_ROWS' value='%PAGE_ROWS%' placeholder='$PAGE_ROWS'
+                <input id='PAGE_ROWS' name='PAGE_ROWS' value='%PAGE_ROWS%' placeholder='%PAGE_ROWS%'
                   class='form-control' type='text'>
               </div>
             </div>

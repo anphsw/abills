@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post' name='account_add'>
-  <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' method='post' name='account_add'>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='sid' value='$FORM{sid}'>
   <input type=hidden name='UNINVOICED' value='1'>

@@ -74,6 +74,8 @@ $lang{QUANTITY_OF_GOODS} = 'Quantity of goods';
 $lang{CHOOSE_TYPE} = 'Choose type';
 $lang{RENT} = 'Rent';
 $lang{SOLD} = 'Sold';
+$lang{STORAGE_AVAILABLE} = 'Available';
+$lang{STORAGE_RENT_PERIOD_INFO} = 'Rental for 1 month with extension option';
 $lang{CANT_DELETE_ERROR4} = 'Can\'t add - do not select items to add';
 $lang{HOSTS_NETWORKS} = "Networks";
 $lang{HOSTS_NETWORKS_NAME} = "Networks name";
@@ -202,6 +204,8 @@ $lang{STORAGE_NOT_ACTIVATED_INSTALLMENT} = 'Not activated installment';
 $lang{STORAGE_NOT_ACTIVATED_RENT} = 'Not activated rent';
 $lang{STORAGE_IDENT} = 'Additional Identifier %IDENT%';
 $lang{STORAGE_INSTALLATION_SOURCE} = 'Installation Source';
+$lang{STORAGE_WITH_SERIAL_NUMBERS} = 'With Serial Numbers';
+$lang{STORAGE_WITHOUT_SERIAL_NUMBERS} = 'Without Serial Numbers';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'The quantity of goods is incorrect';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'No permissions to manage storage';
@@ -212,5 +216,18 @@ $lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Installation recipient is n
 $lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Installed equipment not found';
 
 $lang{RETURN} = 'Return';
+$lang{QUANTITY} = 'Quantity';
+$lang{RESERVE_ITEM} = 'Reserve';
+$lang{RESERVED_ITEM} = 'Reserved';
+$lang{EQUIPMENT_RESERVED_SUCCESSFULLY} = 'Equipment reserved successfully';
+$lang{PRODUCT_RESERVE_ERROR} = 'Product reservation error';
+
+$lang{STORAGE_RESERVE_NOTIFY_SUBJECT} = 'Product Reservation';
+$lang{STORAGE_RESERVE_NOTIFY_USER} = 'User';
+$lang{STORAGE_RESERVE_NOTIFY_ARTICLE} = 'Product';
+$lang{STORAGE_RESERVE_NOTIFY_COUNT} = 'Quantity';
+$lang{STORAGE_RESERVE_NOTIFY_PRICE} = 'Price';
+$lang{STORAGE_RESERVE_NOTIFY_STORAGE} = 'Storage';
+$lang{STORAGE_RESERVE_NOTIFY_ACTION} = 'Please process the reservation request';
 
 1;

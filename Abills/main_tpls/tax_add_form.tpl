@@ -2,7 +2,7 @@
   <div class='card-header with-border'><h4 class='card-title'>_{TAX_MAGAZINE}_</h4></div>
   <div class='card-body'>
     <form name='%FORM_NAME%' id='form_%FORM_NAME%' method='GET' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='ID' value='%ID%'/>
 
       <div class="form-group row">

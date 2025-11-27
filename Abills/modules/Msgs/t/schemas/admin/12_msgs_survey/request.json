@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_SURVEY",
+  "method": "GET",
+  "path": "msgs/survey/",
+  "params": {}
+}

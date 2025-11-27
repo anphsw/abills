@@ -3,7 +3,7 @@
     <div class='card-body'>
 
         <form name='UNIFI_SETTINGS' id='form_UNIFI_SETTINGS' method='post' class='form form-horizontal'>
-            <input type='hidden' name='index' value='$index' />
+            <input type='hidden' name='index' value='%index%' />
 
             <div class='form-group'>
                 <label class='control-label col-md-3' for='UNIFI_URL_id'>UniFi URL</label>

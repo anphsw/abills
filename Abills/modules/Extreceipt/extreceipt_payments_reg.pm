@@ -33,7 +33,7 @@ our (
   $db,
   $argv,
   $DATE,
-  $TIME,
+  $TIME
 );
 
 use Abills::Base qw(show_hash);
@@ -107,10 +107,13 @@ else {
 }
 
 #**********************************************************
-=head2 check_payments()
-
-  Checks whether new payments appear in the payments table.
+=head2 check_payments()  Checks whether new payments appear in the payments table.
   If there are new payments, they are entered into the Receipts_main table with the status 0.
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -136,6 +139,11 @@ sub check_payments {
 #**********************************************************
 =head2 send_payments() - Sends all payments with status 0, status changes to 1.
 
+  Arguments:
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub send_payments {
@@ -148,7 +156,7 @@ sub send_payments {
   foreach my $line (@$list) {
     next if (!$line->{api_id});
     next if (!$Receipt_api->{$line->{api_id}});
-    $line->{phone} =~ s/[^0-9\+]//g if(defined($line->{phone}));
+    $line->{phone} =~ s/[^0-9\+]//xg if(defined($line->{phone}));
     if (!$line->{mail} && !$line->{phone}) {
       $line->{mail} = $conf{EXTRECEIPTS_FAIL_EMAIL} || ($line->{uid} . '@myisp.ru');
     }
@@ -183,10 +191,17 @@ sub send_payments {
 #**********************************************************
 =head2 cancel_payments($id) -  Cancel payment, set status 3
 
+  Arguments:
+    $id
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub cancel_payments {
   my ($id) = @_;
+
   my $info = $Receipt->info($id);
   return print("You have deleted the KKT or API, therefore actions with this check are not available\n")
     if (!defined($info->[0]{api_id}));
@@ -214,9 +229,14 @@ sub cancel_payments {
 }
 
 #**********************************************************
-=head2 check_receipts()
-  Checks the status of previously sent payments with status 1.
-??If a check is made for them, it changes the status to 2, and fills with the ID check.
+=head2 check_receipts() - Checks the status of previously sent payments with status 1.
+??If a check is made for them, it changes the status to 2, and fills with the ID check
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub check_receipts {
@@ -257,8 +277,8 @@ sub check_receipts {
         next;
       }
 
-      if ($payments_id =~ m/\-e/) {
-        $payments_id =~ s/\-e//;
+      if ($payments_id =~ m/\-e/x) {
+        $payments_id =~ s/\-e//x;
         $Receipt->change({
           PAYMENTS_ID => $payments_id,
           STATUS      => 5,
@@ -273,9 +293,9 @@ sub check_receipts {
       next;
     }
 
-    $payments_id =~ s/\-e//;
-    $date =~ s/T/ /;
-    $date =~ s/\+.*//;
+    $payments_id =~ s/\-e//x;
+    $date =~ s/T/ /x;
+    $date =~ s/\+.*//x;
     if ($fda) {
       $Receipt->change({
         PAYMENTS_ID  => $payments_id,
@@ -293,6 +313,11 @@ sub check_receipts {
 #**********************************************************
 =head2 resend_errors() - Resend payments with status 4, status changes to 1.
 
+  Arguments:
+    $id
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -323,7 +348,13 @@ sub resend_errors {
 }
 
 #**********************************************************
-=head2 renew_shifts() - manage cashier shifts.
+=head2 renew_shifts($attr) - manage cashier shifts.
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -366,7 +397,7 @@ sub renew_shifts {
           kkt_key => $kkt->{kkt_key}
         }) || q{};
 
-        if ($new_shift && $new_shift =~ /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/gm) {
+        if ($new_shift && $new_shift =~ /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/xgm) {
           $Receipt->kkt_change({
             KKT_ID     => $kkt->{kkt_id},
             SHIFT_UUID => $new_shift
@@ -386,6 +417,11 @@ sub renew_shifts {
 
 #**********************************************************
 =head2 renew_shifts() - get all cash.
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -408,10 +444,18 @@ sub cash_collection {
       print "Get all cash from cash register with ID $api->{api_id} and name $api->{conf_name}. Amount - $result->{AMOUNT}\n";
     }
   }
+
+  return  1;
 }
 
 #**********************************************************
-=head2 _extreceipt_receipt_ext_info()
+=head2 _extreceipt_receipt_ext_info($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -428,9 +472,9 @@ sub _extreceipt_receipt_ext_info {
     my $users_pi = $Users->pi({ UID => $attr->{uid} });
     $users_pi->info($attr->{uid});
 
-    my @vars = $kkt_info->[0]->{check_desc} =~ /\&(.+?)\&/g;
+    my @vars = $kkt_info->[0]->{check_desc} =~ /\&(.+?)\&/mxg;
     foreach my $var (@vars) {
-      $kkt_info->[0]->{check_desc} =~ s/\&$var\&/($users_pi->{$var} || '')/ge;
+      $kkt_info->[0]->{check_desc} =~ s/\&$var\&/($users_pi->{$var} || '')/xge;
     }
     $desc = $kkt_info->[0]->{check_desc};
   }

@@ -1,9 +1,11 @@
 <div class='card'>
-  <div class='card-header'><h4 class='card-title'>_{CONNECT_BY_NUMBER}_</h4></div>
+  <div class='card-header'>
+    <h4 class='card-title'>_{CONNECT_BY_NUMBER}_</h4>
+  </div>
   <div class='card-body'>
 
-    <div class='form-group' id='cables_chooser'>
-      <p>_{CHOOSE}_ _{CABLES}_</p>
+    <label class='col-form-label text-md-right'>_{CHOOSE}_ _{CABLES}_:</label>
+    <div class='form-group row' id='cables_chooser'>
       <div class='col-md-12'>
         <label for='CABLE_1'>
           %CABLE_1_SELECT%
@@ -16,35 +18,37 @@
       </div>
     </div>
 
-    <div class='form-group' id='fibers_chooser'>
-      <!--<div class='row' id='fibers_chooser' style="display: none">-->
-      <p>_{CHOOSE}_ _{FIBERS}_</p>
-
-      <div class="col-md-6">
-        <div class="col-md-5">
-          <label for="cable_1_start">
-            <select class="form-control" name="cable_1_start" id="cable_1_start"></select>
-          </label>
-        </div>
-        <div class="col-md-2">-</div>
-        <div class="col-md-5">
-          <label for="cable_1_end">
-            <select class="form-control" name="cable_1_end" id="cable_1_end"></select>
-          </label>
+    <label class='col-form-label text-md-right'>_{CHOOSE}_ _{FIBERS}_:</label>
+    <div class='form-group row' id='fibers_chooser'>
+      <div class='col-md-6'>
+        <div class='row'>
+          <div class='col-md-5'>
+            <label for='cable_1_start'>
+              <select class='form-control' name='cable_1_start' id='cable_1_start'></select>
+            </label>
+          </div>
+          <div class='col-md-2'>-</div>
+          <div class='col-md-5'>
+            <label for='cable_1_end'>
+              <select class='form-control' name='cable_1_end' id='cable_1_end'></select>
+            </label>
+          </div>
         </div>
       </div>
 
-      <div class="col-md-6">
-        <div class="col-md-5">
-          <label for="cable_2_start">
-            <select class="form-control" name="cable_2_start" id="cable_2_start"></select>
-          </label>
-        </div>
-        <div class="col-md-2">-</div>
-        <div class="col-md-5">
-          <label for="cable_2_end">
-            <select class="form-control" readonly="readonly" name="cable_2_end" id="cable_2_end"></select>
-          </label>
+      <div class='col-md-6'>
+        <div class='row'>
+          <div class='col-md-5'>
+            <label for='cable_2_start'>
+              <select class='form-control' name='cable_2_start' id='cable_2_start'></select>
+            </label>
+          </div>
+          <div class='col-md-2'>-</div>
+          <div class='col-md-5'>
+            <label for='cable_2_end'>
+              <select class='form-control' readonly='readonly' name='cable_2_end' id='cable_2_end'></select>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -53,7 +57,7 @@
 
   </div>
   <div class='card-footer'>
-    <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
+    <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
     <button type='button' class='btn btn-primary' id='connect_by_numbers_btn'>_{CONNECT}_</button>
   </div>
 </div>

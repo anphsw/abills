@@ -9,21 +9,20 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(in_array convert is_html datetime_diff sec2time);
+use Abills::Base qw(in_array convert datetime_diff sec2time is_html);
 
 our (
   $db,
   $admin,
   %conf,
   %lang,
-  $html,
-  %permissions,
-  @REGISTRATION,
   $users
 );
 
 use Power::db::Power;
 my $Power = Power::db::Power->new($db, $admin, \%conf);
+
+our Abills::HTML $html;
 
 require Power::Reports;
 
@@ -574,5 +573,6 @@ sub _power_genset_fuel {
     })
   });
 }
+
 
 1;

@@ -33,7 +33,7 @@ BEGIN {
 
   require $libpath . 'libexec/config.pl';
 
-  $conf{TELEGRAM_LANG} = $conf{default_language} if (!$conf{TELEGRAM_LANG});
+  $conf{TELEGRAM_LANG} //= 'english';
 
   do $libpath . "language/$conf{TELEGRAM_LANG}.pl";
   do $libpath . "Abills/modules/Telegram/lng_$conf{TELEGRAM_LANG}.pl";
@@ -150,6 +150,8 @@ sub message_process {
   }
 
   $APILayer->{for_admins} = undef;
+
+  handle_group_message($message);
 
   my ($user_config) = $APILayer->fetch_api({ PATH => '/user/config' });
 
@@ -390,6 +392,76 @@ sub file_content_type {
   }
 
   return $file_content_type;
+}
+
+#**********************************************************
+=head2 handle_group_message($message) - Process incoming message from a Telegram group
+
+  Arguments:
+    $message - Hash reference representing Telegram message
+       chat      - Chat information { id, type, title, ... }
+       text      - Message text (optional)
+       photo     - ArrayRef of photos (optional)
+       document  - Document info { file_id, mime_type } (optional)
+       from      - Sender info { id, first_name, last_name, username }
+
+  Returns:
+    Nothing. Processes the message:
+      - Checks if the message is from a group
+      - Adds the group to system if not registered
+      - Downloads attachments (photo/document) if present
+      - Adds message and attachments into the system
+
+  Example:
+    handle_group_message($telegram_update->{message});
+
+=cut
+#**********************************************************
+sub handle_group_message {
+  my ($message) = @_;
+
+  if (!$message->{chat} || !$message->{chat}{type} || !in_array($message->{chat}{type}, [ 'group', 'supergroup' ])) {
+    return;
+  }
+
+  use Telegram::Groups;
+  my $Telegram_groups = Telegram::Groups->new($db, $admin, \%conf, { lang => \%lang });
+
+  my $chat_info = $Telegram_groups->telegram_group_info($message->{chat});
+
+  if (!$chat_info) {
+    $Telegram_groups->telegram_group_add($message->{chat});
+    exit 1;
+  }
+
+  my $file_id;
+  my $mime_type;
+
+  if ($message->{photo}) {
+    my $photo = pop @{$message->{photo}};
+    $file_id = $photo->{file_id};
+    $mime_type = 'image/jpeg';
+  }
+  elsif ($message->{document}) {
+    $file_id = $message->{document}{file_id};
+    $mime_type = $message->{document}{mime_type};
+  }
+
+  if ($file_id) {
+    my ($file_path, $file_size, $file_content) = $Bot->get_file($file_id);
+    return 0 if !$file_path || !$file_size;
+
+    $message->{attachments} = [{
+      FILE_NAME    => $file_path,
+      CONTENT_TYPE => $mime_type,
+      SIZE         => $file_size,
+      CONTENTS     => $file_content
+    }];
+  }
+
+  $Telegram_groups->telegram_group_add_message($message->{chat}, $message);
+
+  exit 1;
 }
 
 #**********************************************************

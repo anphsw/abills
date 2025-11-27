@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST' name='extfin'>
-  <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST' name='extfin'>
+  <input type='hidden' name='index' value='%index%'>
 <div class='card card-primary card-outline card-form'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{EXPORT}_ : _{USERS}_</h4>

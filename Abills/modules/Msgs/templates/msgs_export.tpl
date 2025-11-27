@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal' name='msgs_export' id='msgs_export'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='POST' class='form-horizontal' name='msgs_export' id='msgs_export'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>
   <input type='hidden' name='PLUGIN' value='%PLUGIN%'/>

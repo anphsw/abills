@@ -430,6 +430,10 @@ sub maps_show_object_button {
     $params .= '&header=2&SMALL=1&MODAL=1&CLEAR_LAYERS=1';
   }
 
+  if ($attr->{ADD_POINT}) {
+    $button_params{title} = $lang->{ADD_HOUSE};
+  }
+
   return (!$html || ref $html eq 'HASH') ? '' : $html->button($name, $params, \%button_params);
 }
 

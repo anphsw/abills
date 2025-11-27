@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `iptv_main` (
   `dvcrypt_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `expire` DATE NOT NULL DEFAULT '0000-00-00',
   `activate` DATE NOT NULL DEFAULT '0000-00-00',
-  `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External service ID for syncronization',
+  `subscribe_id` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'External service ID for synchronization',
   `email` VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Extra email for service',
   `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
   `iptv_login` VARCHAR(32) NOT NULL DEFAULT '',
@@ -133,7 +133,8 @@ CREATE TABLE IF NOT EXISTS `iptv_screens` (
   `month_fee` DOUBLE(15, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
   `day_fee` DOUBLE(15, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `tp_id` (`tp_id`, `num`)
+  UNIQUE KEY `tp_id_num` (`tp_id`, `num`),
+  KEY `num` (`num`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV Extra screens';
 
@@ -146,7 +147,9 @@ CREATE TABLE IF NOT EXISTS `iptv_users_screens` (
   `serial` VARCHAR(60) NOT NULL DEFAULT '',
   `hardware_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `comment` VARCHAR(250) DEFAULT '',
-  UNIQUE KEY `service_id` (`service_id`, `screen_id`)
+  UNIQUE KEY `service_id_screen_id` (`service_id`, `screen_id`),
+  KEY `service_id` (`service_id`),
+  KEY `screen_id` (`screen_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV Extra screens';
 

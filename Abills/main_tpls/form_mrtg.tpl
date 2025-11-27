@@ -1,5 +1,5 @@
-<form action=$SELF_URL METHOD=POST class='form-horizontal'>
-  <input type='hidden' name=index value=$index>
+<form action=%SELF_URL% METHOD=POST class='form-horizontal'>
+  <input type='hidden' name=index value=%index%>
   <input type=hidden name='NAS_ID' value='%NAS_ID%'>
   <input type=hidden name='mrtg_cfg' value='1'>
   <div class='card card-primary card-outline box-form'>

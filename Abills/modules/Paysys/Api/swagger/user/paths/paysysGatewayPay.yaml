@@ -1,0 +1,23 @@
+post:
+  tags:
+    - paysys
+  summary: Формирование ссылки на быструю оплату
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/paysysGatewayPayRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: URL на проведение оплаты создан
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/payResponse.yaml"
+    400:
+      description: Ошибка создания
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paysysGatewaySearch400.yaml"

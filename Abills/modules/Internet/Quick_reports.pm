@@ -1,6 +1,6 @@
 =head1 NAME
 
-  Quick reports for Dv
+  Quick reports for Internet
 
 =cut
 
@@ -47,23 +47,21 @@ sub internet_sp_online {
 
   my $internet_online_index = get_function_index('internet_online');
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{INTERNET} - Online",
-      ID         => 'INTERNET_ONLINE',
-      rows       => [
-        [$html->button('Online', "index=$internet_online_index"   ),
-          $Sessions->{ONLINE_COUNT}  ],
-        [$html->button('Reconnect', "STATUS=6&index=$internet_online_index"),
-          $Sessions->{RECONNECT_COUNT} ],
-        [$html->button('Recovery',    "STATUS=9&index=$internet_online_index"),
-          $Sessions->{RECOVER_COUNT}  ],
-        [$html->button('Zaped',    "ZAPED=2&index=$internet_online_index"),
-          $Sessions->{ZAPPED_COUNT}  ]
-      ],
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{INTERNET} - Online",
+    ID      => 'INTERNET_ONLINE',
+    rows    => [
+      [ $html->button('Online', "index=$internet_online_index"),
+        $Sessions->{ONLINE_COUNT} ],
+      [ $html->button('Reconnect', "STATUS=6&index=$internet_online_index"),
+        $Sessions->{RECONNECT_COUNT} ],
+      [ $html->button('Recovery', "STATUS=9&index=$internet_online_index"),
+        $Sessions->{RECOVER_COUNT} ],
+      [ $html->button('Zaped', "ZAPED=2&index=$internet_online_index"),
+        $Sessions->{ZAPPED_COUNT} ]
+    ],
+  });
 
   my $reports = $table->show();
 
@@ -78,20 +76,18 @@ sub internet_sp_online {
 #***************************************************************
 sub internet_sp_errors {
 
-  my $Log     = Log->new($db, \%conf);
+  my $Log  = Log->new($db, \%conf);
   my $list = $Log->log_reports({
     RETRIES   => 10,
     COLS_NAME => 1
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{INTERNET} $lang{ERROR}",
-      ID         => 'INTERNET_ERRORS',
-      title_plain=> [ $lang{USER}, $lang{COUNT} ],
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{INTERNET} $lang{ERROR}",
+    ID          => 'INTERNET_ERRORS',
+    title_plain => [ $lang{USER}, $lang{COUNT} ],
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
@@ -125,7 +121,7 @@ sub internet_users_summary {
     MONTH_FEE       => '_SHOW',
     INTERNET_STATUS => 5,
     COLS_NAME       => 1
-});
+  });
 
   foreach my $line (@$user_list) {
     $deposit += $line->{deposit} if ($line->{deposit});

@@ -14,7 +14,7 @@
 
 <script>
 
-    let selfUrl = '$SELF_URL';
+    let selfUrl = '%SELF_URL%';
 
     try {
         document['LANG'] = {

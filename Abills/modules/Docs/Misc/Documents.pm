@@ -23,8 +23,7 @@ my Abills::HTML $html;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db    => $db,
@@ -58,8 +57,7 @@ sub new {
 =cut
 #**********************************************************
 sub document_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $doc_info_result = $self->_get_filepath($attr);
   return $doc_info_result if ($doc_info_result->{errno});
@@ -107,8 +105,7 @@ sub document_info {
 =cut
 #**********************************************************
 sub document_print {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $doc_info = $self->document_info($attr);
 
@@ -164,8 +161,7 @@ sub document_print {
 =cut
 #**********************************************************
 sub document_save {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return {
     errno  => 1054200,
@@ -238,8 +234,7 @@ sub document_save {
 =cut
 #**********************************************************
 sub document_delete {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   # get filepath where can be stored file
   my $doc_info_result = $self->_get_filepath($attr);
@@ -277,8 +272,7 @@ sub document_delete {
 =cut
 #**********************************************************
 sub _document_validation {
-  my $self = shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   return {
     errno  => 1054201,
@@ -323,8 +317,7 @@ sub _document_validation {
 =cut
 #**********************************************************
 sub _get_filepath {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %docs_types = reverse %{ Docs::Constants->DOC_TYPES };
 
@@ -424,8 +417,8 @@ sub _get_filepath {
 =cut
 #**********************************************************
 sub _make_dir {
-  my $self = shift;
-  my ($directory) = @_;
+  my (undef, $directory) = @_;
+
   require File::Path;
   File::Path->import('make_path');
 
@@ -482,8 +475,7 @@ sub _make_dir {
 =cut
 #**********************************************************
 sub document_hash {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $doc_info = $self->document_info($attr);
 
@@ -492,7 +484,7 @@ sub document_hash {
   my $result = cmd("md5sum $doc_info->{filepath} | awk '{print \$1}' | tr -d '\n'");
 
   my $base64 = encode_base64($result);
-  $base64 =~ s/[\r\n]+//g;
+  $base64 =~ s/[\r\n]+//xg;
 
   return {
     %$doc_info,

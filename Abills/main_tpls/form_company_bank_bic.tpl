@@ -1,5 +1,5 @@
 <form id='form_company_bank_bic' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index' />
+  <input type='hidden' name='index' value='%index%' />
   <input type='hidden' name='chg' value='$FORM{chg}' />
   <input type='hidden' name='BANK_BIC' value='%BANK_BIC%' />
 

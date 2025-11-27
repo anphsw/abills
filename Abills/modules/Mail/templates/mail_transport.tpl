@@ -1,6 +1,6 @@
 
-<form action=$SELF_URL METHOD=POST>
-<input type=hidden name='index' value='$index'>
+<form action=%SELF_URL% METHOD=POST>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='MAIL_TRANSPORT_ID' value='%MAIL_TRANSPORT_ID%'>
 <table class=form>
 <tr><th class=form_title colspan=2>E-Mail Transport</th></tr>

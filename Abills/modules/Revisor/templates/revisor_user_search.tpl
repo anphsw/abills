@@ -1,5 +1,5 @@
 <form class='form-horizontal'>
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
   
     <div class='card card-form card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>%TITLE%</h3>

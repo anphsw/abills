@@ -2,7 +2,6 @@ package Triplay::Base;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::HTML;
 use Users;
 
 my ($admin, $CONF, $db);
@@ -15,7 +14,7 @@ use Control::Errors;
 my Control::Errors $Errors;
 
 #**********************************************************
-=head2 new($html, $lang)
+=head2 new($db, $admin, $CONF, $attr)
 
 =cut
 #**********************************************************
@@ -26,10 +25,13 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  #$html = $attr->{HTML} if ($attr->{HTML});
   %lang = %{$attr->{LANG}} if ($attr->{LANG});
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   require Triplay;
   Triplay->import();
@@ -38,8 +40,6 @@ sub new {
   $Errors = Control::Errors->new($db, $admin, $CONF, { lang => \%lang || {}, module => 'Triplay' });
 
   bless($self, $class);
-
-  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub triplay_quick_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my $uid = $form->{UID};
@@ -75,6 +74,7 @@ sub triplay_quick_info {
     FEES_INFO
     SKIP_DISABLED
     FULL_INFO
+    SKIP_NEXT_MONTH_SERVICE
 
   Returns:
 
@@ -82,13 +82,13 @@ sub triplay_quick_info {
 =cut
 #**********************************************************
 sub triplay_docs {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my $uid = $attr->{UID} || $form->{UID};
   my @services = ();
   my %info = ();
+  #my $debug = $attr->{DEBUG} || 0;
 
   my $service_list = $Triplay->user_list({
     UID               => $uid,
@@ -97,17 +97,35 @@ sub triplay_docs {
     SERVICE_STATUS    => '_SHOW',
     ABON_DISTRIBUTION => '_SHOW',
     TP_NAME           => '_SHOW',
+    TP_NEXT_TP_ID     => '_SHOW',
     FEES_METHOD       => '_SHOW',
     TP_ID             => '_SHOW',
     TP_NUM            => '_SHOW',
     TP_FIXED_FEES_DAY => '_SHOW',
     TP_REDUCTION_FEE  => '_SHOW',
     PERSONAL_TP       => '_SHOW',
+    TRIPLAY_EXPIRE    => '_SHOW',
     COLS_NAME         => 1
   });
 
   if ($attr->{FEES_INFO} || $attr->{FULL_INFO}) {
     foreach my $service_info (@{$service_list}) {
+      if (!$service_info->{day_fee} && !$service_info->{abon_distribution} && !$service_info->{personal_tp} && !$attr->{SKIP_NEXT_MONTH_SERVICE}) {
+        require Control::Service_control;
+        Control::Service_control->import();
+        my $Service_control = Control::Service_control->new($db, $admin, $CONF);
+        my $next_service_info = $Service_control->next_month_service({
+          MODULE     => 'Triplay',
+          UID        => $uid,
+          SERVICE_ID => $service_info->{id},
+          TP_ID      => $service_info->{tp_next_tp_id},
+          EXPIRE     => $service_info->{triplay_expire}
+        });
+        foreach my $key (keys %$next_service_info) {
+          $service_info->{$key}=$next_service_info->{$key};
+        }
+      }
+
       my %FEES_DSC = (
         MODULE          => 'Triplay',
         SERVICE_NAME    => 'Triplay',
@@ -145,38 +163,15 @@ sub triplay_docs {
         }
       }
 
-      return \%info if !$attr->{FULL_INFO};
+      return \%info if (!$attr->{FULL_INFO});
 
       push @services, { %info };
     }
   }
 
-  return \@services if $attr->{FULL_INFO} || $Triplay->{TOTAL} < 1;
+  return \@services if ($attr->{FULL_INFO} || $Triplay->{TOTAL} < 1);
 
-  foreach my $service_info (@$service_list) {
-    next if $service_info->{service_status} && $service_info->{service_status} != 5 && !$attr->{SHOW_ALL};
-
-    if ($service_info->{month_fee} && $service_info->{month_fee} > 0) {
-      my %FEES_DSC = (
-        MODULE          => 'Triplay',
-        TP_ID           => $service_info->{tp_id},
-        TP_NAME         => $service_info->{tp_name},
-        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD     => $service_info->{fees_method} ? $main::FEES_METHODS{$service_info->{fees_method}} : undef,
-      );
-
-      #Fixme / make hash export
-      push @services, ::fees_dsc_former(\%FEES_DSC) . "||$service_info->{month_fee}||$service_info->{tp_name}"
-        . "|||$service_info->{service_status}";
-    }
-
-    if ($service_info->{day_fee} && $service_info->{day_fee} > 0) {
-      my $days_in_month = days_in_month({ DATE => next_month({ DATE => $main::DATE }) });
-      push @services, "Triplay: $lang{MONTH_FEE_SHORT}: $service_info->{tp_name} ($service_info->{tp_id})|$days_in_month $lang{DAY}|"
-        . sprintf("%.2f", ($service_info->{day_fee} * $days_in_month)) . "||$service_info->{tp_name}"
-        . "||";
-    }
-  }
+  $self->{SERVICES}=\@services;
 
   return \@services;
 }
@@ -195,8 +190,7 @@ sub triplay_docs {
 =cut
 #**********************************************************
 sub triplay_payments_maked {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
 
@@ -228,7 +222,7 @@ sub triplay_payments_maked {
     if (in_array($Triplay->{DISABLE}, [ 2 ])) {
       if ($Triplay->{TP_PERIOD_ALIGNMENT}) {
         my $days_in_month = days_in_month({ DATE => $attr->{DATE} });
-        my (undef, undef, $d)=split(/\-/, $main::DATE);
+        my (undef, undef, $d)=split(/\-/x, $main::DATE);
         $abon_fees = ($abon_fees / $days_in_month) * ($days_in_month - $d + 1);
       }
     }
@@ -251,7 +245,7 @@ sub triplay_payments_maked {
       #Skip month fee before month periodic
       if ($CONF->{MONTH_FEE_TIME}) {
         my $start_day = $CONF->{START_PERIOD_DAY} || 1;
-        my (undef, undef, $d) = split(/\-/, $main::DATE, 3);
+        my (undef, undef, $d) = split(/\-/x, $main::DATE, 3);
         if (($start_day == $d || $Triplay->{ABON_DISTRIBUTION}) && time2sec($main::TIME) < time2sec($CONF->{MONTH_FEE_TIME})) {
           $attr->{SHEDULER} = 1;
         }
@@ -279,8 +273,7 @@ sub triplay_payments_maked {
 =cut
 #**********************************************************
 sub triplay_user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
 
@@ -318,8 +311,7 @@ sub triplay_user_del {
 =cut
 #**********************************************************
 sub triplay_service_activate {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $INC{'Control/Services.pm'};
   eval {
@@ -414,28 +406,32 @@ sub triplay_service_activate {
     my $service_id = $attr->{IPTV_SERVICE_ID} || 0;
 
     if (!$service_id) {
-      ::load_module("Iptv") if (!exists($INC{"Iptv"}));
-      # do not adding if not enough money $Iptv->{user_add} will return errno 15
-      $service_id = ::iptv_user_add({
+      require Iptv::Services;
+      Iptv::Services->import();
+      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
+
+      my $result = $Iptv_services->user_add({
         %$attr,
-        SERVICE_ADD => 1,
-        USER_INFO   => $user_info,
         UID         => $uid,
         TP_ID       => $attr->{IPTV_TP_ID},
         STATUS      => $status
       });
+
+      if ($result->{INSERT_ID} && !$result->{errno}) {
+        $service_id = $result->{INSERT_ID};
+      }
     }
     elsif ($service_id) {
-      ::load_module("Iptv") if (!exists($INC{"Iptv"}));
-      ::iptv_user_change({
+      require Iptv::Services;
+      Iptv::Services->import();
+      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
+
+      $Iptv_services->user_change({
         %$attr,
-        USER_INFO => $user_info,
-        UID       => $uid,
-        #STATUS    => $attr->{DISABLE} && !in_array($attr->{DISABLE}, [ 5 ]) ? $attr->{DISABLE} : $status,
-        STATUS    => (in_array($status, [0, 2])) ? $status : 1,
-        ID        => $service_id,
-        TP_ID     => $attr->{IPTV_TP_ID},
-        QUITE     => 1
+        UID    => $uid,
+        TP_ID  => $attr->{IPTV_TP_ID},
+        STATUS => (in_array($status, [ 0, 2 ])) ? $status : 1,
+        ID     => $service_id
       });
     }
 
@@ -448,15 +444,13 @@ sub triplay_service_activate {
     }
   }
   elsif ($attr->{TP_INFO_OLD} && $attr->{TP_INFO_OLD}{IPTV_TP}) {
-    #TODO: Added using packages
-    ::load_module("Iptv") if (!exists($INC{"Iptv"}));
-    ::iptv_user_del({
-      %$attr,
-      USER_INFO => $user_info,
-      UID       => $uid,
-      # ID        => $service_id,
-      TP_ID     => $attr->{TP_INFO_OLD}{IPTV_TP},
-      QUITE     => 1
+    require Iptv::Services;
+    Iptv::Services->import();
+    my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
+
+    $Iptv_services->user_del({
+      UID   => $uid,
+      TP_ID => $attr->{TP_INFO_OLD}{IPTV_TP}
     });
   }
 
@@ -515,8 +509,7 @@ sub triplay_service_activate {
 =cut
 #**********************************************************
 sub triplay_user_services {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
 
@@ -569,5 +562,6 @@ sub triplay_user_services {
 
   return $tariffs;
 }
+
 
 1;

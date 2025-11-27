@@ -87,12 +87,12 @@ sub web_request {
   my $result = '';
   my $info = '{}';
 
-  if ($request_url =~ /^https/ || $attr->{CURL} || $attr->{POST} || $attr->{METHOD}) {
+  if ($request_url =~ m/^https/x || $attr->{CURL} || $attr->{POST} || $attr->{METHOD}) {
     my $response = _curl_request($request_url, $attr);
 
     if ($attr->{MORE_INFO}) {
-      ($result) = $response =~ /.+?(?=<MORE_INFO>)/gsm;
-      ($info) = $response =~ /(?<=<MORE_INFO>).*$/gm;
+      ($result) = $response =~ m/.+?(?=<MORE_INFO>)/gsx;
+      ($info) = $response =~ m/(?<=<MORE_INFO>).*$/gx;
     }
     else {
       $result = $response;
@@ -111,7 +111,7 @@ sub web_request {
   }
 
   if ($attr->{JSON_RETURN} && $result) {
-    if ($result =~ /500 Internal Server/) {
+    if ($result =~ m/500\s+Internal\s+Server/x) {
       return { errno => 9, errstr => '500 Internal Server Error' };
     }
     else {
@@ -187,7 +187,7 @@ sub _curl_request {
   my $debug = $attr->{DEBUG} || 0;
 
   my $CURL = $attr->{FILE_CURL} || $conf{FILE_CURL} || _find_curl();
-  $CURL =~ /^([a-z\/]+)\s{0,1}/;
+  $CURL =~ m/^([a-z\/]+)\s{0,1}/x;
   my $CURL_ = $1 || q{};
   if (!-f $CURL_) {
     print "Content-Type: text/html\n\n";
@@ -223,7 +223,7 @@ sub _curl_request {
     my $version_curl = cmd("$CURL --version | head -n 1 | awk '{ print \$2 }' | cut -d '.' -f 1,2");
 
     # support to generate JSON output with '%{json}' only in curl 7.70.0+ release
-    if ($version_curl && $version_curl =~ /^\s?-?\d*\.?\d+\s?$/ && $version_curl > 7.69) {
+    if ($version_curl && $version_curl =~ m/^\s?-?\d*\.?\d+\s?$/x && $version_curl > 7.69) {
       $curl_options .= q{ -w "<MORE_INFO>%{json}" };
     }
     else {
@@ -300,11 +300,11 @@ sub _curl_request {
   }
 
   # delete in next 6 months if all works
-  $request_params =~ s/\`/\\\`/g;
-  $request_url =~ s/\n/%20/g;
-  $request_url =~ s/ /%20/g;
-  $request_url =~ s/"/\\"/g;
-  $request_url =~ s/\`/\\\`/g;
+  $request_params =~ s/\`/\\\`/xg;
+  $request_url =~ s/\n/%20/xg;
+  $request_url =~ s/\s+/%20/xg;
+  $request_url =~ s/"/\\"/xg;
+  $request_url =~ s/\`/\\\`/xg;
   my $request_cmd = qq{};
 
   if ($attr->{METHOD}){
@@ -324,38 +324,9 @@ sub _curl_request {
   }
 
   if ($debug) {
-    my $request_ = (($attr->{REQUEST_COUNT}) ? $attr->{REQUEST_COUNT} : 0);
-    if ($attr->{DEBUG2FILE}) {
-      my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
-      my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
-
-      my $caller = q{};
-      if ($debug > 3) {
-        $caller = qq{\nCALLER:===============================\n};
-        $caller .= _caller({ NO_PRINT => 1 });
-
-        $caller .= "\n";
-      }
-
-      if (open(my $fh, '>>', $attr->{DEBUG2FILE})) {
-        print $fh "===============================\n";
-        print $fh " $DATE : $TIME ($request_) " . $request_cmd . "\n";
-        print $fh "$result\n$caller" if ($debug > 1);
-        close($fh);
-      }
-      else {
-        print "$attr->{DEBUG2FILE} $!\n";
-      }
-    }
-    else {
-      if ($attr->{PAGE_HEADER}) {
-        print "Content-Type: text/html\n\n";
-      }
-      print "\n<br>DEBUG: $debug COUNT:" . $request_ . "=====REQUEST=====<br>\n";
-      print "<textarea cols=90 rows=10>$request_cmd</textarea><br>\n";
-      print "=====RESPONSE=====<br>\n";
-      print "<textarea cols=90 rows=15>$result</textarea>\n\n";
-    }
+    $attr->{RESULT}=$result || q{};
+    $attr->{REQUEST_CMD} = $request_cmd || q{};
+    _debug($attr);
   }
 
   if ($attr->{CLEAR_COOKIE}) {
@@ -366,7 +337,66 @@ sub _curl_request {
 }
 
 #**********************************************************
-=head2 _socket_request()
+=head2 _debug($request_url, $attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _debug {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $request_ = (($attr->{REQUEST_COUNT}) ? $attr->{REQUEST_COUNT} : 0);
+  if ($attr->{DEBUG2FILE}) {
+    my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+    my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
+    my $admin = $attr->{AID} || q{};
+    my $caller = q{};
+    if ($debug > 3) {
+      $caller = qq{\nCALLER:===============================\n};
+      $caller .= _caller({ NO_PRINT => 1 });
+
+      $caller .= "\n";
+    }
+
+    if (open(my $fh, '>>', $attr->{DEBUG2FILE})) {
+      print $fh "===============================\n";
+      print $fh " $DATE : $TIME AID: $admin ($request_) " . $attr->{REQUEST_CMD} . "\n";
+      print $fh "$attr->{RESULT}\n$caller" if ($debug > 1);
+      close($fh);
+    }
+    else {
+      print "$attr->{DEBUG2FILE} $!\n";
+    }
+  }
+  else {
+    if ($attr->{PAGE_HEADER}) {
+      print "Content-Type: text/html\n\n";
+    }
+    print "\n<br>DEBUG: $debug COUNT:" . $request_ . "=====REQUEST=====<br>\n";
+    print "<textarea cols=90 rows=10>$attr->{REQUEST_CMD}</textarea><br>\n";
+    print "=====RESPONSE=====<br>\n";
+    print "<textarea cols=90 rows=15>$attr->{RESULT}</textarea>\n\n";
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _socket_request($request_url, $attr)
+
+  Arguments:
+    $request_url
+    $attr
+
+  Results:
+    $result
 
 =cut
 #**********************************************************
@@ -389,14 +419,14 @@ sub _socket_request {
   my $debug = $attr->{DEBUG} || 0;
 
   # Parse
-  $request_url =~ /http:\/\/([a-zA-Z.0-9:-]+)(\/?(.+))?/;
+  $request_url =~ m/http:\/\/([a-zA-Z.0-9:-]+)(\/?(.+))?/x;
   $host = $1;
   $request_url = '/' . ($3 || '');
 
-  return '' if !$host;
+  return '' if (!$host);
 
-  if ($host =~ /:/) {
-    ($host, $port) = split(/:/, $host, 2);
+  if ($host =~ m/:/x) {
+    ($host, $port) = split(':', $host, 2);
   }
 
   my $socket = IO::Socket::INET->new(
@@ -414,7 +444,7 @@ sub _socket_request {
     $request_url .= '?' . join('&', @request_params_arr);
   }
 
-  $request_url =~ s/ /%20/g;
+  $request_url =~ s/\s+/%20/xg;
   my $raw_request = "GET $request_url HTTP/1.0\r\n";
   $raw_request .= ($attr->{'User-Agent'}) ? $attr->{'User-Agent'} : "User-Agent: Mozilla/4.0 (compatible; MSIE 5.5; Windows 98;Win 9x 4.90)\r\n";
   $raw_request .= "Accept: text/html, image/png, image/x-xbitmap, image/gif, image/jpeg, */*\r\n";
@@ -436,14 +466,14 @@ sub _socket_request {
   close($socket);
 
   $res //= q{};
-  my ($header) = split(/\n\n/, $res);
+  my ($header) = split(/\n\n/x, $res);
 
   # Allow to be redirected
-  if ($header =~ /HTTP\/1.\d 302/) {
-    $header =~ /Location: (.+)[\r\n]{1,2}/;
+  if ($header =~ m/HTTP\/1.\d\s+302/x) {
+    $header =~ m/Location:\s+(.+)[\r\n]{1,2}/x;
 
     my $new_location = $1;
-    if ($new_location !~ /^http:\/\//) {
+    if ($new_location !~ m/^http:\/\//x) {
       $new_location = "http://$host" . $new_location;
     }
 
@@ -454,9 +484,9 @@ sub _socket_request {
     );
   }
 
-  if ($res =~ /\<meta\s+http-equiv='Refresh'\s+content='\d;\sURL=(.+)'\>/ig) {
+  if ($res =~ m/\<meta\s+http-equiv='Refresh'\s+content='\d;\sURL=(.+)'\>/xig) {
     my $new_location = $1;
-    if ($new_location !~ /^http:\/\//) {
+    if ($new_location !~ m/^http:\/\//x) {
       $new_location = "http://$host" . $new_location;
     }
 
@@ -468,7 +498,7 @@ sub _socket_request {
   }
 
   if ($attr->{BODY_ONLY}) {
-    (undef, $res) = split(/\r?\n\r?\n/, $res, 2);
+    (undef, $res) = split(/\r?\n\r?\n/x, $res, 2);
   }
 
   return $res;
@@ -546,7 +576,7 @@ sub _parse_request_data_hash {
       else {
         $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS_JSON}->{$k}, $attr);
 
-        if ($attr->{REQUEST_PARAMS}->{$k} =~ /true|false/) {
+        if ($attr->{REQUEST_PARAMS}->{$k} =~ /true|false/mx) {
           push @params, qq{ \\\"$k\\\" : $attr->{REQUEST_PARAMS}->{$k} };
         }
         else {
@@ -571,7 +601,7 @@ sub _find_curl {
   my $curl_file = `which curl` || '/usr/local/bin/curl';
   chomp($curl_file);
 
-  if ($curl_file =~ /(\S+)/) {
+  if ($curl_file =~ m/(\S+)/x) {
     $curl_file = $1 || '';
   }
 
@@ -590,25 +620,25 @@ sub _parse_headers {
 
   return \%headers, $result if (!$result);
 
-  my ($headers_string) = $result =~ /.+?(?=\r\n\r\n)/gsm;
-  my ($res) = $result =~ /(?<=\r\n\r\n).*$/gsm;
+  my ($headers_string) = $result =~ /.+?(?=\r\n\r\n)/xgsm;
+  my ($res) = $result =~ /(?<=\r\n\r\n).*$/xgsm;
 
   if (!defined $headers_string || !defined $res) {
-    ($headers_string) = $result =~ /.+?(?=\n\n)/gsm;
-    ($res) = $result =~ /(?<=\n\n).*$/gsm;
+    ($headers_string) = $result =~ /.+?(?=\n\n)/xgsm;
+    ($res) = $result =~ /(?<=\n\n).*$/xgsm;
   }
 
-  my @headers_names = $headers_string =~ /^.+?(?=:)/mg;
-  my @headers_values = $headers_string =~ /(?<=: ).*$/mg;
+  my @headers_names = $headers_string =~ /^.+?(?=:)/xmg;
+  my @headers_values = $headers_string =~ /(?<=:\s).*$/xmg;
 
   for (my $i = 0; $i <= $#headers_names; $i++) {
-    $headers_values[$i] =~ s/[\n\r]//;
+    $headers_values[$i] =~ s/[\n\r]//x;
     if ($headers_names[$i] eq 'Set-Cookie') {
-      my @cookies_params = split(/;/, $headers_values[$i]);
+      my @cookies_params = split(/;/x, $headers_values[$i]);
       my $cookie_name = q{};
       for (my $j = 0; $j <= $#cookies_params; $j++) {
-        $cookies_params[$j] =~ s/^\s*(.*?)\s*$/$1/;
-        my ($name, $value) = split(/=/, $cookies_params[$j]);
+        $cookies_params[$j] =~ s/^\s*(.*?)\s*$/$1/x;
+        my ($name, $value) = split(/=/x, $cookies_params[$j]);
         if ($j == 0) {
           $cookie_name = $name;
           $headers{$headers_names[$i]}{$cookie_name}{name} = $cookie_name;
@@ -634,7 +664,7 @@ sub _parse_headers {
 #**********************************************************
 sub _build_query_string {
   my ($data, $prefix) = @_;
-  my @pairs;
+  my @pairs = ();
 
   if (ref $data eq 'HASH') {
     for my $key (keys %$data) {

@@ -65,6 +65,7 @@ sub get_equipment_pon_ports {
   my $ports = $Equipment->pon_port_list({
     STATUS    => '_SHOW',
     %$query_params,
+    PAGE_ROWS => 1000,
     COLS_NAME => 1,
   });
 

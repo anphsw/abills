@@ -17,7 +17,7 @@ use strict;
 our (%EXPORT_TAGS);
 
 use POSIX qw(locale_h strftime mktime);
-use Abills::Base qw/decode_base64 load_pmodule urldecode decode_quoted_printable/;
+use Abills::Base qw/decode_base64 load_pmodule urldecode/;
 use parent 'Exporter';
 use utf8;
 

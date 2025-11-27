@@ -78,8 +78,7 @@ sub new {
 =cut
 #**********************************************************
 sub api_call {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my ($status, $router, $response, $content_type) = (200, {}, q{}, q{});
 
@@ -138,7 +137,7 @@ sub api_call {
           $response = $response->{CONTENT};
         }
         else {
-          $content_type = ($router->{content_type} =~ /image/ && ref $response eq 'HASH') ? q{} : $router->{content_type};
+          $content_type = ($router->{content_type} =~ /image/xm && ref $response eq 'HASH') ? q{} : $router->{content_type};
         }
       }
       $response = {} if (!defined $response || !$response);
@@ -182,25 +181,36 @@ sub api_call {
 #**********************************************************
 =head2 api_add_log($router, $request_body, $response, $status, $request_method, $path)
 
+  Arguments:
+    $router
+    $request_body
+    $response
+    $status
+    $request_method
+    $path
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub api_add_log {
-  my $self = shift;
-  my ($router, $request_body, $response, $status, $request_method, $path) = @_;
+  my ($self, $router, $request_body, $response, $status, $request_method, $path) = @_;
 
   require Api;
   Api->import();
-
-  my $begin_time = $main::begin_time || $self->{begin_time} || 0;
   my $Api = Api->new($self->{db}, $self->{admin}, $self->{conf});
-  my $response_time = gen_time($begin_time, { TIME_ONLY => 1 });
 
   my %headers = ();
   foreach my $var (keys %ENV) {
-    if ($var =~ /(?<=HTTP_).*/) {
-      my ($header) = $var =~ /(?<=HTTP_).*/g;
+    if ($var =~ /(?<=HTTP_).*/xm  ) {
+      my ($header) = $var =~ /(?<=HTTP_).*/xmg;
       $headers{$header} = $ENV{$var};
     }
+  }
+
+  my $response_time = 0;
+  if ($self->{begin_time}) {
+    $response_time = gen_time($self->{begin_time}, { TIME_ONLY => 1 });
   }
 
   $Api->add({
@@ -217,10 +227,17 @@ sub api_add_log {
     HTTP_METHOD     => $request_method || 'GET',
     ERROR_MSG       => $router->{error_msg} || q{}
   });
+
+  return 1;
 }
 
 #**********************************************************
-=head2 add_credentials()
+=head2 add_credentials($router)
+
+  Arguments:
+    $router
+
+  Results:
 
 =cut
 #**********************************************************
@@ -265,7 +282,10 @@ sub add_credentials {
     my $request = shift;
 
     my $SID = $ENV{HTTP_USERSID} || $self->{cookies}->{sid} || '';
-    return $self->_validate_user_session($SID, $request);
+
+    my $ret = $self->_validate_user_session($SID, $request);
+    $router->{USER_INFO} = $self->{USER_INFO} if ($self->{USER_INFO});
+    return $ret;
   });
 
   $router->add_credential('PUBLIC', sub {
@@ -354,13 +374,19 @@ sub add_credentials {
 }
 
 #**********************************************************
-=head2 _validate_user_session()
+=head2 _validate_user_session($sid, $request)
+
+  Arguments:
+    $sid
+    $request
+
+  Results:
+    $uid
 
 =cut
 #**********************************************************
 sub _validate_user_session {
-  my $self = shift;
-  my ($SID, $request) = @_;
+  my ($self, $sid, $request) = @_;
 
   $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} || 3, {
     DOMAIN_ID => $request->{req_params}->{DOMAIN_ID} || 0,
@@ -368,17 +394,23 @@ sub _validate_user_session {
     SHORT     => 1
   });
 
-  require Abills::Control::Auth::User;
-  Abills::Control::Auth::User->import();
-  my $Auth_User = Abills::Control::Auth::User->new($self->{db}, $self->{admin}, $self->{conf}, { libpath => $self->{libpath} });
+  require Control::Auth::User;
+  Control::Auth::User->import();
+  my $Auth_User = Control::Auth::User->new($self->{db}, $self->{admin}, $self->{conf}, { libpath => $self->{libpath} });
 
-  my ($uid) = $Auth_User->auth_user('', '', $SID);
+  my ($uid) = $Auth_User->auth_user('', '', $sid);
 
   return 0 if ref $uid ne '';
 
   $request->{path_params}{uid} = $uid;
+
+  if ($Auth_User->{USER_INFO}) {
+    $request->{path_params}{user_object} = $Auth_User->{USER_INFO};
+    $self->{USER_INFO}=$Auth_User->{USER_INFO};
+  }
+
   # please do not delete this line, bot authorization is linked to it
-  $request->{query_params}{REQUEST_USERSID} = $SID;
+  $request->{query_params}{REQUEST_USERSID} = $sid;
 
   return $uid != 0;
 }

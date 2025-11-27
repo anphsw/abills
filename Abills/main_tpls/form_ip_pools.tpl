@@ -145,7 +145,7 @@
     })
 </script>
 
-<form action='$SELF_URL' METHOD='post' class='form form-horizontal'>
+<form action='%SELF_URL%' METHOD='post' class='form form-horizontal'>
   <input type='hidden' name='index' value='%INDEX%'/>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'/>
   <input type='hidden' name='IP_POOLS' value='1'/>
@@ -232,9 +232,13 @@
     <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
       <div class='card-header with-border'>
         <div class='card-title'>
-          <h3 class="card-title">IPv6</h3>
+          <h3 class="card-title">IPv6 </h3>
         </div>
         <div class='card-tools float-right'>
+            <a href='%SELF_URL%?get_index=netlist_ipv6_calc&full=1&IP=%IPV6_PREFIX%&MASK=%IPV6_MASK%&PD=%IPV6_PD%&PD_MASK=%IPV6_PD_MASK%&POOL_ID=%ID%'
+               title='IPv6 Calculator' class='btn btn-tool btn-success'>
+                IPAM
+            </a>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'
                   data-parent='#accordion'
                   href='#pool_v6' aria-expanded='false' aria-controls='pool_v6'><i

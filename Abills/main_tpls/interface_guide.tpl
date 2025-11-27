@@ -72,7 +72,7 @@
                   TYPE    : 'EVENT',
                   TITLE   : 'TEST',
                   TEXT    : '_{EVENT}_',
-                  EXTRA   : '$SELF_URL',
+                  EXTRA   : '%SELF_URL%',
                   MODULE  : "WEB",
                   GROUP_ID: '1',
                   ID      : '2586'

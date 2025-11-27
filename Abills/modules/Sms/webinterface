@@ -490,27 +490,30 @@ sub send_user_memo {
       });
     }
 
-    unless ($attr->{PHONE} || $attr->{CALL_PHONE}) {
-      $users->list(
-        {
-          UID         => $uid,
-          PHONE       => '_SHOW',
-          COLS_NAME   => 1
-        });
-
-        if ($users->{list}->[0]->{phone}) {
-          ($attr->{PHONE}, $attr->{CALL_PHONE}) = split(/;/, $users->{list}->[0]->{phone});
-        }
-    }
-
-    my $sms_id = sms_send(
-      {
-        NUMBER  => $attr->{PHONE} || $attr->{CALL_PHONE},
-        MESSAGE => $message,
-        UID     => $attr->{UID},
+    if (!$attr->{PHONE} && !$attr->{CALL_PHONE}) {
+      $users->list({
+        UID       => $uid,
+        PHONE     => '_SHOW',
+        COLS_NAME => 1
       });
 
-    if ($sms_id && $sms_id > 1) {
+      if ($users->{list}->[0]->{phone}) {
+        ($attr->{PHONE}, $attr->{CALL_PHONE}) = split(';', $users->{list}->[0]->{phone});
+      }
+    }
+
+    require Abills::Sender::Core;
+    Abills::Sender::Core->import();
+    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+    my $sms_id = $Sender->send_message({
+      TO_ADDRESS  => $attr->{PHONE} || $attr->{CALL_PHONE},
+      MESSAGE     => $message,
+      UID         => $attr->{UID},
+      SENDER_TYPE => 'Sms',
+    });
+
+    if ($sms_id && $sms_id > 0) {
       return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
     }
     else {
@@ -593,6 +596,7 @@ sub sms_send_register {
     DESC         => $FORM{sort} ? $FORM{desc} : 'DESC',
     COLS_NAME    => 1,
   });
+
   return 1 if (!$Sms->{TOTAL});
 
   my $table = $html->table({
@@ -613,6 +617,7 @@ sub sms_send_register {
 
   print $table->show();
 
+  return 1;
 }
 
 1

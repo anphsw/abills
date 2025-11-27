@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_STATUSES",
+  "method": "GET",
+  "path": "msgs/statuses/",
+  "params": {}
+}

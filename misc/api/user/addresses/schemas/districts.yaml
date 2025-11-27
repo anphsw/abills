@@ -1,0 +1,28 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: number
+      example: 47
+      description: ID района
+    streetCount:
+      type: number
+      example: 2
+      description: Количество улиц привязанных к району
+    parentId:
+      type: number
+      example: 2
+      description: ID родительский адресной единицы
+    parentName:
+      type: string
+      example: Україна
+      description: Название района
+    name:
+      type: string
+      example: Івано-Франківська область
+      description: Название района
+    zip:
+      type: number
+      example: 1900
+      description: Почтовый индекс района

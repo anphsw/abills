@@ -29,12 +29,12 @@
 <input type='hidden' name='DEFAULT_CONTACT_TYPES' value='%DEFAULT_TYPES%'>
 
 <div class='form-group %SIZE_CLASS% mb-0'>
-  <div class='card card-outline card-big-form mb-0 border-top'>
+  <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
     <div class='card-header with-border'>
-      <h3 class='card-title'>_{CONTACTS}_</h3>
+      <h3 class='card-title'>_{CONTACTS}_: <b>%PHONE%</b></h3>
       <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-          <i class='fa fa-minus'></i>
+          <i class='fa fa-plus'></i>
         </button>
       </div>
     </div>
@@ -138,6 +138,23 @@
     </div>
 
   </li>
+</script>
+
+<script>
+  var ERRORS_DESC = {
+    ERR_CONTACTS_UNKNOWN_METHOD: '_{ERR_CONTACTS_UNKNOWN_METHOD}_',
+    ERR_CONTACTS_METHOD_NOT_FOUND: '_{ERR_CONTACTS_METHOD_NOT_FOUND}_',
+    ERR_AID_NOT_DEFINED: '_{ERR_AID_NOT_DEFINED}_',
+    ERR_CONTACTS_INVALID_FORMAT: '_{ERR_CONTACTS_INVALID_FORMAT}_',
+    ERR_CONTACT_TYPE_REQUIRED: '_{ERR_CONTACT_TYPE_REQUIRED}_',
+    ERR_CONTACT_TYPE_INVALID: '_{ERR_CONTACT_TYPE_INVALID}_',
+    ERR_CONTACT_VALUE_REQUIRED: '_{ERR_CONTACT_VALUE_REQUIRED}_',
+    ERR_WRONG_CELL_PHONE_FORMAT: '_{ERR_WRONG_CELL_PHONE_FORMAT}_',
+    ERR_WRONG_PHONE_FORMAT: '_{ERR_WRONG_PHONE_FORMAT}_',
+    ERR_CONTACT_ID_REQUIRED: '_{ERR_CONTACT_ID_REQUIRED}_',
+    ERR_UID_NOT_DEFINED: '_{ERR_UID_NOT_DEFINED}_',
+    ERR_WRONG_EMAIL: '_{ERR_WRONG_EMAIL}_'
+  };
 </script>
 
 <script src='/styles/default/js/contacts_form.js'></script>

@@ -75,6 +75,7 @@ $lang{QUANTITY_OF_GOODS} = 'Кількість товару';
 $lang{CHOOSE_TYPE} = 'Виберіть тип';
 $lang{RENT} = 'Оренда';
 $lang{SOLD} = 'Продано';
+$lang{STORAGE_AVAILABLE} = 'Доступно';
 $lang{CANT_DELETE_ERROR4} = 'Неможливо додати - не вибраний товар для додавання';
 $lang{HOSTS_NETWORKS} = "Мережі";
 $lang{HOSTS_NETWORKS_NAME} = "Назва мережі";
@@ -203,6 +204,8 @@ $lang{STORAGE_NOT_ACTIVATED_INSTALLMENT} = 'Не активована розст
 $lang{STORAGE_NOT_ACTIVATED_RENT} = 'Не активована оренда';
 $lang{STORAGE_IDENT} = 'Дод. ідентифікатор %IDENT%';
 $lang{STORAGE_INSTALLATION_SOURCE} = 'Джерело встановлення обладнання';
+$lang{STORAGE_WITH_SERIAL_NUMBERS} = 'З серійними номерами';
+$lang{STORAGE_WITHOUT_SERIAL_NUMBERS} = 'Без серійних номерів';
 
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'Кількість товару вказана невірно';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'Немає прав на керування складом';
@@ -213,5 +216,18 @@ $lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Не визначено о�
 $lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Встановлене обладнання не знайдено';
 
 $lang{RETURN} = 'Повернення';
+$lang{QUANTITY} = 'Кількість';
+$lang{RESERVE_ITEM} = 'Зарезервувати';
+$lang{RESERVED_ITEM} = 'Зарезервовано';
+$lang{EQUIPMENT_RESERVED_SUCCESSFULLY} = 'Обладнання успішно зарезервовано';
+$lang{PRODUCT_RESERVE_ERROR} = 'Помилка резервування товару';
+
+$lang{STORAGE_RESERVE_NOTIFY_SUBJECT} = 'Резервування товару';
+$lang{STORAGE_RESERVE_NOTIFY_USER} = 'Користувач';
+$lang{STORAGE_RESERVE_NOTIFY_ARTICLE} = 'Товар';
+$lang{STORAGE_RESERVE_NOTIFY_COUNT} = 'Кількість';
+$lang{STORAGE_RESERVE_NOTIFY_PRICE} = 'Ціна';
+$lang{STORAGE_RESERVE_NOTIFY_STORAGE} = 'Склад';
+$lang{STORAGE_RESERVE_NOTIFY_ACTION} = 'Необхідно опрацювати заявку на резервування';
 
 1;

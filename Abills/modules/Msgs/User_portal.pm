@@ -16,14 +16,12 @@ our(
   %lang,
   $admin,
   $SELF_URL,
-  %COOKIES
+  @priority,
+  @priority_colors
+#  %COOKIES
 );
 
 our Abills::HTML $html;
-# Todo: generalize ( Now there are separate arrays in almost each Msgs .pm file)
-my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
-my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $html});
 
@@ -48,69 +46,7 @@ sub msgs_user_show {
   my $msgs_status = $attr->{MSGS_STATUS};
 
   if ($FORM{reply}) {
-    my %params = ();
-    $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
-    $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
-    $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
-
-    $Msgs->message_change({
-      UID            => $LIST_PARAMS{UID},
-      ID             => $msgs_id,
-      STATE          => $FORM{STATE},
-      RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
-      RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
-      %params
-    });
-
-    if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
-      $Msgs->message_reply_add({
-        AID        => 0,
-        IP         => $admin->{SESSION_IP},
-        UID        => $LIST_PARAMS{UID},
-        REPLY_TEXT => $FORM{REPLY_TEXT},
-        ID         => $FORM{ID}
-      });
-
-      if (!$Msgs->{errno}) {
-        #Save signature
-        msgs_receive_signature($LIST_PARAMS{UID}, $FORM{ID}, $FORM{signature}) if ($FORM{signature} && $FORM{ID});
-
-        #Add attachment
-        if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
-          my $attachment_saved = msgs_receive_attachments($msgs_id, {
-            REPLY_ID => $Msgs->{REPLY_ID},
-            MSG_INFO => { UID => $LIST_PARAMS{UID} }
-          });
-
-          if (!$attachment_saved) {
-            _error_show($Msgs);
-            $html->message('err', $lang{ERROR}, "Can't save attachment");
-          }
-        }
-      }
-      $html->message( 'info', $lang{INFO}, $lang{REPLY});
-
-      my $attachments_list = $Msgs->attachments_list({
-        REPLY_ID     => $Msgs->{INSERT_ID},
-        FILENAME     => '_SHOW',
-        CONTENT      => '_SHOW',
-        CONTENT_TYPE => '_SHOW',
-      });
-
-      $Notify->notify_admins({
-        MSG_ID        => $msgs_id,
-        SENDER_UID    => $LIST_PARAMS{UID},
-        MESSAGE_STATE => $FORM{STATE},
-        ATTACHMENTS   => $attachments_list
-      });
-
-      # Instant redirect
-      my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? ": $Msgs->{INSERT_ID}" : ''));
-      $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
-        ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
-      exit 0;
-    }
-    return 1;
+    return msgs_user_reply($attr);
   }
   elsif ($FORM{change}) {
     $Msgs->message_change({
@@ -206,7 +142,7 @@ sub msgs_user_show {
     });
 
     $line->{text} = msgs_text_formatting($line->{text});
-    while ($line->{text} =~ /#(\d+)/g) {
+    while ($line->{text} && $line->{text} =~ /\#(\d+)/xg) {
       my $message_id = $1;
       if (defined $found_linked_tickets->{$message_id}) {
         next;
@@ -220,8 +156,10 @@ sub msgs_user_show {
     }
 
     foreach my $message_id (keys %{$found_linked_tickets}) {
-      $line->{text} =~ s/#\Q$message_id\E/$found_linked_tickets->{$message_id}/g;
+      $line->{text} =~ s/\#\Q$message_id\E/$found_linked_tickets->{$message_id}/xg if ($line->{text});
     }
+
+    $Msgs->message_info($msgs_id, { UID => $LIST_PARAMS{UID} });
 
     push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
       LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
@@ -236,8 +174,8 @@ sub msgs_user_show {
     }, { OUTPUT2RETURN => 1, ID => 'REPLY_' . $line->{id} });
 
     if ($reply ne '') {
-      $reply =~ s/^/>  /g;
-      $reply =~ s/\n/> /g;
+      $reply =~ s/^/>  /xg;
+      $reply =~ s/\n/> /xg;
     }
   }
 
@@ -307,14 +245,13 @@ sub msgs_user_show {
   $html->tpl_show(_include('msgs_client_show', 'Msgs'), { %{$Msgs}, ID => $main_msgs_id, ID_BUTTON_COPY => $button_msgs_id}, { ID => 'MSGS_CLIENT_INFO' });
 
   my %params = ();
-  my $state = $FORM{STATE};
-  $params{CLOSED_DATE} = $DATE if ($state && $state > 0);
-  $params{DONE_DATE} = $DATE if ($state && $state > 1);
+  $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
+  $params{DONE_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
 
   $Msgs->message_change({ UID => $LIST_PARAMS{UID}, ID => $FORM{ID}, USER_READ => "$DATE $TIME", %params });
 
   msgs_redirect_filter({ DEL => 1, UID => $LIST_PARAMS{UID} });
-  
+
   if (scalar(keys %{$found_linked_tickets}) > 0) {
     $LIST_PARAMS{CHG_MSGS} = join(';', keys %{$found_linked_tickets});
     $LIST_PARAMS{INNER_MSG} = 0;
@@ -340,8 +277,7 @@ sub msgs_user_show {
           return $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
         },
         state   => sub {
-          my $state = shift;
-          my ($line) = @_;
+          my ($state, $line) = @_;
 
           $html->color_mark($msgs_status->{ $state }) . (($line->{resposible} && !$state) ? " ($lang{TAKEN_TO_WORK})" : "")
         }
@@ -372,7 +308,184 @@ sub msgs_user_show {
 }
 
 #**********************************************************
+=head2 msgs_user_reply($attr) - Reply message
+
+  Arguments:
+    $attr
+      ID
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub msgs_user_reply {
+  my ($attr)=@_;
+
+  my $msgs_id = $attr->{ID} || $attr->{LAST_ID} ;
+
+  my %params = ();
+  $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
+  $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
+  $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
+
+  $Msgs->message_change({
+    UID            => $LIST_PARAMS{UID},
+    ID             => $msgs_id,
+    STATE          => $FORM{STATE},
+    RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
+    RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
+    %params
+  });
+
+  if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
+    $Msgs->message_reply_add({
+      AID        => 0,
+      IP         => $admin->{SESSION_IP},
+      UID        => $LIST_PARAMS{UID},
+      REPLY_TEXT => $FORM{REPLY_TEXT},
+      ID         => $FORM{ID}
+    });
+
+    if (!$Msgs->{errno}) {
+      #Save signature
+      msgs_receive_signature($LIST_PARAMS{UID}, $FORM{ID}, $FORM{signature}) if ($FORM{signature} && $FORM{ID});
+
+      #Add attachment
+      if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
+        my $attachment_saved = msgs_receive_attachments($msgs_id, {
+          REPLY_ID => $Msgs->{REPLY_ID},
+          MSG_INFO => { UID => $LIST_PARAMS{UID} }
+        });
+
+        if (!$attachment_saved) {
+          _error_show($Msgs);
+          $html->message('err', $lang{ERROR}, "Can't save attachment");
+        }
+      }
+    }
+    $html->message( 'info', $lang{INFO}, $lang{REPLY});
+
+    my $attachments_list = $Msgs->attachments_list({
+      REPLY_ID     => $Msgs->{INSERT_ID},
+      FILENAME     => '_SHOW',
+      CONTENT      => '_SHOW',
+      CONTENT_TYPE => '_SHOW',
+    });
+
+    $Notify->notify_admins({
+      MSG_ID        => $msgs_id,
+      SENDER_UID    => $LIST_PARAMS{UID},
+      REPLY_ID      => $Msgs->{REPLY_ID},
+      MESSAGE_STATE => $FORM{STATE},
+      ATTACHMENTS   => $attachments_list
+    });
+
+    # Instant redirect
+    my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? ": $Msgs->{INSERT_ID}" : ''));
+    $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
+      ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
+    exit 0;
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_user_send($attr) - Client web interface
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub msgs_user_send {
+
+  if ($conf{MSGS_USER_REPLY_SECONDS_LIMIT}){
+    my $fresh_messages = $Msgs->messages_list({
+      UID       => $user->{UID},
+      STATE     => $FORM{STATE},
+      GET_NEW   => $conf{MSGS_USER_REPLY_SECONDS_LIMIT},
+      COLS_NAME => 1
+    });
+
+    if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
+      my $message_sent = $fresh_messages->[0] || {};
+      my $message_sent_id = $message_sent->{id} || 0;
+
+      my $header_message = vars2lang($lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE}, {
+        SECONDS => $conf{MSGS_USER_REPLY_SECONDS_LIMIT}
+      });
+      $header_message .= "\n$lang{LAST_MESSAGE_ID}: $message_sent_id\n";
+
+      $html->redirect("?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid}) . "&ID=$message_sent_id#last_msg", {
+        WAIT    => 3,
+        MESSAGE => $header_message
+      });
+
+      exit 0;
+    }
+  }
+
+  my $chapter = $Msgs->chapter_info($FORM{CHAPTER});
+  $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} ? $chapter->{RESPONSIBLE} : 0;
+
+  $Msgs->message_add({
+    UID                => $user->{UID},
+    STATE              => ($FORM{STATE}) ? $FORM{STATE} : 0,
+    USER_READ          => "$DATE  $TIME",
+    IP                 => $ENV{'REMOTE_ADDR'},
+    RESPOSIBLE         => $chapter->{RESPONSIBLE} || 0,
+    SUBJECT            => $FORM{SUBJECT} || '',
+    CHAPTER            => $FORM{CHAPTER} || 0,
+    MESSAGE            => $FORM{MESSAGE} || '',
+    PRIORITY           => $FORM{PRIORITY} || 0,
+    CLIENT_RESPONSIBLE => $FORM{CLIENT_RESPONSIBLE} || '',
+    USER_SEND          => 1
+  });
+  return 1 if _error_show($Msgs);
+
+  my $new_msg_id = $Msgs->{MSG_ID} || 0;
+  if ($FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID}) {
+    my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, { MSG_INFO => { UID => $user->{UID} } });
+
+    if (!$attachment_saved) {
+      _error_show($Msgs);
+      $html->message('err', $lang{ERROR}, "Can't save attachment");
+    }
+  }
+
+  $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
+
+  $Notify->notify_admins({ MSG_ID => $new_msg_id });
+  $Notify->notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
+  _msgs_send_support_request_mail();
+
+  my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
+  my $header_message = urlencode($message_added_text);
+  my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
+    . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
+
+  $html->redirect($message_link, {
+    MESSAGE_HTML => $html->message(
+      'info',
+      $lang{INFO},
+      $html->button($message_added_text, $message_link, { class => 'alert-link' }), { OUTPUT2RETURN => 1 }
+    ),
+    WAIT         => '0'
+  });
+
+  return 1;
+}
+
+#**********************************************************
 =head2 msgs_user() - Client web interface
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -383,18 +496,19 @@ sub msgs_user {
     return 1;
   }
 
-  #If User have new unread msg, open it
-  #(Return msg object with LAST_ID)
+  #If User have new unread msg, open it (Return msg object with LAST_ID)
   if($user->{UID} && !($FORM{ID} || $Msgs->{LAST_ID} || $Msgs->{INSERT_ID} || $Msgs->{ID}) ){
+    require Msgs::db::New;
+    Msgs::db::New->import();
+    my $Msgs_new = Msgs::db::New->new($db, $admin, \%conf);
 
-    my %SHOW_PARAMS = (
+    $Msgs_new->messages_new({
       UID        => $user->{UID},
       USER_READ  => '0000-00-00  00:00:00',
       ADMIN_READ => '>0000-00-00 00:00:00',
       INNER_MSG  => 0,
-    );
-
-    $Msgs->messages_new({ %SHOW_PARAMS });
+    });
+    $FORM{ID} //= $Msgs_new->{MSG_ID};
   }
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
@@ -413,79 +527,7 @@ sub msgs_user {
   $Msgs->{PRIORITY_SEL} = msgs_sel_priority();
 
   if ($FORM{send}) {
-    if ($conf{MSGS_USER_REPLY_SECONDS_LIMIT}){
-      my $fresh_messages = $Msgs->messages_list({
-        UID       => $user->{UID},
-        STATE     => $FORM{STATE},
-        GET_NEW   => $conf{MSGS_USER_REPLY_SECONDS_LIMIT},
-        COLS_NAME => 1
-      });
-
-      if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
-        my $message_sent = $fresh_messages->[0] || {};
-        my $message_sent_id = $message_sent->{id} || 0;
-
-        my $header_message = vars2lang($lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE}, {
-          SECONDS => $conf{MSGS_USER_REPLY_SECONDS_LIMIT}
-        });
-        $header_message .= "\n$lang{LAST_MESSAGE_ID}: $message_sent_id\n";
-
-        $html->redirect("?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid}) . "&ID=$message_sent_id#last_msg", {
-          WAIT    => 3,
-          MESSAGE => $header_message
-        });
-
-        exit 0;
-      }
-    }
-
-    my $chapter = $Msgs->chapter_info($FORM{CHAPTER});
-    $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} ? $chapter->{RESPONSIBLE} : 0;
-
-    $Msgs->message_add({
-      UID                => $user->{UID},
-      STATE              => ($FORM{STATE}) ? $FORM{STATE} : 0,
-      USER_READ          => "$DATE  $TIME",
-      IP                 => $ENV{'REMOTE_ADDR'},
-      RESPOSIBLE         => $chapter->{RESPONSIBLE} || 0,
-      SUBJECT            => $FORM{SUBJECT} || '',
-      CHAPTER            => $FORM{CHAPTER} || 0,
-      MESSAGE            => $FORM{MESSAGE} || '',
-      PRIORITY           => $FORM{PRIORITY} || 0,
-      CLIENT_RESPONSIBLE => $FORM{CLIENT_RESPONSIBLE} || '',
-      USER_SEND          => 1
-    });
-    return 1 if _error_show($Msgs);
-
-    my $new_msg_id = $Msgs->{MSG_ID} || 0;
-    if ($FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID}) {
-      my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, { MSG_INFO => { UID => $user->{UID} } });
-
-      if (!$attachment_saved) {
-        _error_show($Msgs);
-        $html->message('err', $lang{ERROR}, "Can't save attachment");
-      }
-    }
-
-    $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
-
-    $Notify->notify_admins({ MSG_ID => $new_msg_id });
-    $Notify->notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
-    _msgs_send_support_request_mail();
-
-    my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
-    my $header_message = urlencode($message_added_text);
-    my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
-      . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
-
-    $html->redirect($message_link, {
-      MESSAGE_HTML => $html->message(
-        'info',
-        $lang{INFO},
-        $html->button($message_added_text, $message_link, { class => 'alert-link' }), { OUTPUT2RETURN => 1 }
-      ),
-      WAIT         => '0'
-    });
+    msgs_user_send();
     exit 0;
   }
   elsif ($FORM{ATTACHMENT}) {
@@ -514,6 +556,35 @@ sub msgs_user {
   $html->message('info', '', $FORM{MESSAGE}) if ($FORM{MESSAGE});
   _error_show($Msgs, { ID => 799 });
 
+  msgs_user_list({
+    MSGS_STATUS => $msgs_status
+  });
+
+  delete $LIST_PARAMS{SORT};
+  if($conf{MSGS_CHAT}) {
+    require Msgs::Chat;
+    show_user_chat();
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_user_list() - Create table with find msgs
+
+  Arguments:
+    $attr -
+
+  Returns:  HTML Table
+
+  Examples:
+=cut
+#**********************************************************
+sub msgs_user_list {
+  my ($attr) = @_;
+
+  my $msgs_status = $attr->{MSGS_STATUS};
+
   my %statusbar_status = (
     0 => $msgs_status->{0},
     1 => $msgs_status->{1},
@@ -535,12 +606,14 @@ sub msgs_user {
     }
   }
 
-  my $expiration = gmtime(time() + (90 * 86400)) . " GMT";
-  $html->set_cookies('MSGS_SORT', $FORM{sort}, $expiration, '') if $FORM{sort};
-  $html->set_cookies('MSGS_DESC', $FORM{desc}, $expiration, '') if $FORM{desc};
+  if (!$FORM{qindex}) {
+    my $expiration = gmtime(time() + (90 * 86400)) . " GMT";
+    $html->set_cookies('MSGS_SORT', $FORM{sort}, $expiration, '') if $FORM{sort};
+    $html->set_cookies('MSGS_DESC', $FORM{desc}, $expiration, '') if $FORM{desc};
 
-  if (!$FORM{desc} && $FORM{sort}){
-    $html->set_cookies('MSGS_DESC', $FORM{desc}, '-1d', '');
+    if (!$FORM{desc} && $FORM{sort}) {
+      $html->set_cookies('MSGS_DESC', $FORM{desc}, '-1d', '');
+    }
   }
 
   my $cookies = get_cookies();
@@ -551,16 +624,20 @@ sub msgs_user {
   # delete($LIST_PARAMS{STATE}) if ($FORM{STATE} && $FORM{STATE} =~ /\d+/ && $FORM{STATE} == 3);
   delete($LIST_PARAMS{PRIORITY}) if ($FORM{PRIORITY} && $FORM{PRIORITY} == 5);
 
-  $FORM{ALL_OPENED} = 1 if !defined($FORM{STATE}) && !$FORM{ALL_MSGS};
+  $FORM{ALL_OPENED} = 1 if (!defined($FORM{STATE}) && !$FORM{ALL_MSGS});
 
   my $ext_titles = {
     id                 => '#',
     subject            => $lang{SUBJECT},
     datetime           => $lang{ADDED},
     state              => $lang{STATUS},
+    priority_id        => $lang{PRIORITY},
     client_responsible => $lang{MSGS_RESPONSIBLE_PERSON},
     plan_date          => $lang{EXECUTION},
-    last_replie_date   => $lang{LAST_ACTIVITY}
+    last_replie_date   => $lang{LAST_ACTIVITY},
+    replies_counts     => $lang{REPLYS},
+    message            => $lang{MESSAGE},
+    chapter_name       => $lang{CHAPTER}
   };
 
   $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {
@@ -569,110 +646,53 @@ sub msgs_user {
     STATUSES     => Abills::Base::json_former($msgs_status),
   }, { ID => 'MSGS_USER_SEARCH_FORM' });
 
-  # my $table;
-  #
-  # if ($FORM{SEARCH_MSG_TEXT}) {
-  #   my $request_search_word = $FORM{SEARCH_MSG_TEXT};
-  #   $request_search_word =~ s/\\/\\\\/gi;
-  #   $request_search_word =~ s/\%/\\%/gi;
-  #   $request_search_word =~ s/\'/\\'/gi;
-  #
-  #   my $list = $Msgs->messages_list({
-  #     SUBJECT             => '_SHOW',
-  #     CHAPTER_NAME        => '_SHOW',
-  #     DATETIME            => '_SHOW',
-  #     STATE               => '_SHOW',
-  #     USER_READ           => '_SHOW',
-  #     REPLY_TEXT          => '_SHOW',
-  #     MESSAGE             => '_SHOW',
-  #     SEARCH_MSGS_BY_WORD => $request_search_word,
-  #     %LIST_PARAMS,
-  #     COLS_NAME           => 1
-  #   });
-  #
-  #   $table = msgs_user_search_table({
-  #     ID          => $FORM{ID},
-  #     SID         => $sid,
-  #     TOTAL_MSGS  => $Msgs->{TOTAL},
-  #     JSON        => $FORM{json},
-  #     STATUS_BAR  => $status_bar,
-  #     SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
-  #   }, $msgs_status, $list);
-  #   print $table->show();
-  # }
-  # else {
-    # my $list = $Msgs->messages_list({
-    #   SUBJECT            => '_SHOW',
-    #   LAST_REPLIE_DATE   => '_SHOW',
-    #   DATETIME           => '_SHOW',
-    #   STATE              => '_SHOW',
-    #   RESPOSIBLE         => '_SHOW',
-    #   USER_READ          => '_SHOW',
-    #   CLIENT_RESPONSIBLE => '_SHOW',
-    #   %LIST_PARAMS,
-    #   COLS_NAME          => 1
-    # });
-    #
-    # $table = $html->table({
-    #   width   => '100%',
-    #   caption => $lang{MESSAGES},
-    #   title   => [ '#', $lang{SUBJECT}, $lang{ADDED}, $lang{STATUS}, $lang{LAST_ACTIVITY}, $lang{MSGS_RESPONSIBLE_PERSON}, '-' ],
-    #   qs      => $pages_qs,
-    #   pages   => $Msgs->{TOTAL},
-    #   ID      => 'MSGS_LIST',
-    #   header  => $status_bar,
-    #   FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
-    # });
-    #
-    # foreach my $line (@$list) {
-    #   $table->{rowcolor} = ($FORM{ID} && $line->{id} == $FORM{ID}) ? 'row_active' : undef;
-    #   $line->{subject} = convert($line->{subject}, { text2html => 1, json => $FORM{json} });
-    #
-    #   my $msgs_id = $html->button($line->{id}, '', {
-    #     COPY      => $line->{id},
-    #     class     => 'btn btn-default btn-sm p-0',
-    #     ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
-    #   });
-    #
-    #   $table->addrow(
-    #     $msgs_id,
-    #     ($line->{user_read} ne '0000-00-00 00:00:00')
-    #     ? $html->button((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
-    #     : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
-    #     $line->{datetime},
-    #     $html->color_mark($msgs_status->{ $line->{state} }) . (($line->{resposible} && !$line->{state}) ? " ($lang{TAKEN_TO_WORK})" : ""),
-    #     $line->{last_replie_date},
-    #     $line->{client_responsible},
-    #     $html->button($lang{SHOW}, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
-    #   );
-    # }
-  # }
-
-  # $Msgs->{TOTAL_MSG} = $Msgs->{TOTAL};
-
-  # $table = $html->table({
-  #   width         => '100%',
-  #   rows          => [
-  #     [
-  #       "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
-  #       "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
-  #     ]
-  #   ],
-  #   ID            => 'MSGS_LIST_TOTAL',
-  #   OUTPUT2RETURN => 1
-  # });
-  # print $table->show();
-
+  $html->{EXPORT_LIST} = 1;
+  my $replies = {};
   result_former({
     INPUT_DATA      => $Msgs,
     FUNCTION        => 'messages_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,SUBJECT,DATETIME,STATE,LAST_REPLIE_DATE',
-    HIDDEN_FIELDS   => 'INNER_MSG,UID,LOGIN,CHG_MSGS',
+    HIDDEN_FIELDS   => 'INNER_MSG,UID,LOGIN,CHG_MSGS,REPLIES_COUNTS,MESSAGE,PRIORITY,PRIORITY_ID,CHAPTER_NAME',
     FUNCTION_FIELDS => 'msgs_user:show:id:',
     FUNCTION_INDEX  => $index,
     SKIP_USER_TITLE => 1,
     FILTER_VALUES   => {
+      replies_counts         => sub {
+        my ($replies_counts, $line, $col_name, $list) = @_;
+
+        if (scalar(keys %{$replies}) < 1 && scalar(@{$list}) > 0) {
+          my $ids = join(';', map { $_->{id} } @{$list});
+          my $Temp_msgs = Msgs->new($db, $admin, \%conf);
+          my $replies_list = $Temp_msgs->messages_reply_list({
+            MSG_ID    => $ids,
+            UID       => '_SHOW',
+            INNER_MSG => 0,
+            COLS_NAME => '_SHOW',
+            DESC      => 'DESC',
+            PAGE_ROWS => 1000000
+          });
+
+          foreach my $reply (@{$replies_list}) {
+            push @{$replies->{$reply->{main_msg}}}, {
+              text    => convert($reply->{text} || '', { text2html => ($FORM{xml}) ? undef : 1, json => $FORM{json} }),
+              creator => $reply->{creator_fio} || $reply->{creator_id} || '',
+              date    => $reply->{datetime} || '',
+              aid     => $reply->{aid}
+            };
+          }
+        }
+
+        return '' unless $replies->{$line->{id}};
+
+        if ($html && $html->{TYPE} eq 'html') {
+          return _msgs_generate_replies_html($replies->{$line->{id}});
+        }
+
+        return join("\n\n", map {
+          "$_->{creator}\n$_->{date}\n$_->{text}"
+        } @{$replies->{$line->{id}}});
+      },
       id      => sub {
         my $id = shift;
 
@@ -683,8 +703,7 @@ sub msgs_user {
         })
       },
       subject => sub {
-        my $subject = shift;
-        my ($line) = @_;
+        my ($subject, $line) = @_;
 
         if ($line->{aid} && $line->{aid} != ($conf{USERS_WEB_ADMIN_ID} || 3)) {
           return $html->element('span', '', { class => 'fa fa-chevron-right', title => $lang{OUTGOING}, OUTPUT2RETURN => 1 }) .
@@ -694,11 +713,16 @@ sub msgs_user {
         return $html->button(($subject ? $subject : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
       },
       state   => sub {
-        my $state = shift;
-        my ($line) = @_;
+        my ($state, $line) = @_;
 
         $html->color_mark($msgs_status->{ $state }) . (($line->{resposible} && !$state) ? " ($lang{TAKEN_TO_WORK})" : "")
-      }
+      },
+      priority_id            => sub {
+        my ($priority_id) = @_;
+        $priority_id ||= 3;
+        $priority_id = 3 if (!defined($priority[$priority_id]));
+        return $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
+      },
     },
     EXT_TITLES      => $ext_titles,
     TABLE           => {
@@ -707,18 +731,13 @@ sub msgs_user {
       qs      => $pages_qs,
       ID      => 'MSGS_LIST',
       header  => $status_bar,
+      EXPORT  => 1
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Msgs',
     TOTAL           => 1,
     SEARCH_FORMER   => 1,
   });
-
-  delete $LIST_PARAMS{SORT};
-  if($conf{MSGS_CHAT}) {
-    require Msgs::Chat;
-    show_user_chat();
-  }
 
   return 1;
 }
@@ -801,7 +820,7 @@ sub _msgs_send_support_request_mail {
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   my $img_url = $SELF_URL;
-  $img_url =~ s/index\.cgi//;
+  $img_url =~ s/index\.cgi//x;
 
   my $message_link = "$SELF_URL?index=$index&ID=" . ($Msgs->{MSG_ID} || q{});
 
@@ -845,30 +864,35 @@ sub _add_color_search {
   if ($attr->{SLICE}) {
 
     #Slice and search word
-    my ($result_text) = $full_text =~ m/.{0,40}$quote_word.{0,40}/gi;
+    my ($result_text) = $full_text =~ m/.{0,40}$quote_word.{0,40}/xgi;
 
     #If see search word add color else onle slice
     if ($result_text) {
 
       #Add color
-      $result_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
+      $result_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/xgi;
 
       return $result_text, 1;
     }
     else {
-      ($result_text) = $full_text =~ m/.{0,95}/g;
+      ($result_text) = $full_text =~ m/.{0,95}/xg;
       return $result_text, 0;
     }
   }
 
   #If see search word add color
-  $full_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
+  $full_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/xgi;
 
   return $full_text;
 }
 
 #**********************************************************
 =head2 _user_edit_reply() 
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -893,6 +917,7 @@ sub _user_edit_reply {
       TEXT => $FORM{replyText}
     });
   };
+
   return 1;
 }
 

@@ -6,8 +6,8 @@ package Storage::Api;
 =head VERSION
 
   DATE: 20231120
-  UPDATE: 20231120
-  VERSION: 0.01
+  UPDATE: 20250910
+  VERSION: 0.02
 
 =cut
 
@@ -82,6 +82,17 @@ sub admin_routes {
         'ADMIN',
         'ADMINSID'
       ]
+    },
+
+    {
+      method      => 'GET',
+      path        => '/storage/invoices/',
+      controller  => 'Storage::Api::admin::Invoices',
+      endpoint    => \&Storage::Api::admin::Invoices::get_storage_invoices,
+      credentials => [
+        'ADMIN',
+        'ADMINSID'
+      ]
     }
   ];
 }
@@ -129,6 +140,15 @@ sub user_routes {
       path        => '/user/storage/incoming_articles/',
       controller  => 'Storage::Api::user::Incoming_articles',
       endpoint    => \&Storage::Api::user::Incoming_articles::get_incoming_articles_by_serial_number,
+      credentials => [
+        'USER'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/user/storage/installation/',
+      controller  => 'Storage::Api::user::Installation',
+      endpoint    => \&Storage::Api::user::Installation::post_user_storage_installation,
       credentials => [
         'USER'
       ]

@@ -1,0 +1,22 @@
+[
+  {
+    "COMMENTS": "45 2025-06-01 - 2025-06-15 half month",
+    "REQUEST": {
+      "TP_INFO": {
+        "PRICE": 5000,
+        "PERIOD": 1,
+        "PERIOD_ALIGNMENT": 1,
+        "PAYMENT_TYPE": 1
+      },
+      "SERVICE_ACTIVATE": "2025-06-01",
+      "END_DATE": "2025-06-15"
+    },
+    "RESULT": [
+      {
+        "NUM": 0,
+        "SUM": "sprintf('%.2f', (5000 / 30 * 15))"
+      }
+    ]
+  }
+]
+

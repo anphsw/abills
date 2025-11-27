@@ -16,7 +16,7 @@
   }
 </style>
 
-<form method='get' action='$SELF_URL' name='PAGE_IPPOOLS' id='PAGE_IPPOOLS'>
+<form method='get' action='%SELF_URL%' name='PAGE_IPPOOLS' id='PAGE_IPPOOLS'>
   <input type='hidden' name='%PG_INDEX%' id='pg_index' value='%PG_INDEX%'/>
   <div class='pagination'>
     <a href='%FAST_FIST_PAGE%'>&laquo;</a>

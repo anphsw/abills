@@ -1,5 +1,5 @@
 <form method='POST'>
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='TABLE_FILE' value='$FORM{TABLE_FILE}'>
 
 <div class='card'>

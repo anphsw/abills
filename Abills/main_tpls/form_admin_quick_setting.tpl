@@ -1,6 +1,6 @@
 <!-- Tab panes -->
-<form action='$SELF_URL' method='post' id='FORM_ADMIN_QUICK_SETTINGS'>
-  <input type='hidden' name='index' value='%INDEX%'/>
+<form action='%SELF_URL%' method='post' id='FORM_ADMIN_QUICK_SETTINGS'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
   <input type='hidden' name='SKIN' value='%SKIN%' id='skin'/>
   <input type='hidden' name='QUICK' value='1'/>
@@ -14,7 +14,7 @@
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{ROWS}_
-      <input type='text' name='PAGE_ROWS' value='$PAGE_ROWS' class='form-control'/>
+      <input type='text' name='PAGE_ROWS' value='%PAGE_ROWS%' class='form-control'/>
     </label>
   </div>
   <h4 class='control-sidebar-heading'>_{EVENTS}_</h4>

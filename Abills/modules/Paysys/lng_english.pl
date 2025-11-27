@@ -104,7 +104,8 @@ $lang{PAYMENT_COMMAND} = 'Payment recharge command';
 $lang{BALANCE_RECHARCHE}='Balance recharge';
 $lang{ENTER_ID}='Enter your';
 $lang{SUBSCRIBES}='Subscribes';
-$lang{ERR_TRANSACTION_ERROR}='Result process error. Call support!';
+$lang{VALIDATION_ERROR}='Result process error. Call support!';
+$lang{VALIDATION_SUCCESSFUL}='Success! The result is correct.';
 $lang{TINKOF_OFFER} = 'I agree to regular payments that will be debited from the card once a month automatically';
 $lang{DOCUMENTATION} = 'DOCUMENTATION';
 $lang{SUCCESS_PAYMENT} = 'Payment was successfully processed';
@@ -163,6 +164,9 @@ $lang{EVENT_PAYSYS_GROUP_CHANGED_TITLE}   = 'Paysys group settings changed';
 $lang{EVENT_PAYSYS_GROUP_CHANGED_MESSAGE} = 'Changed configure for group with id %GID%';
 $lang{EVENT_PAYSYS_GROUP_DELETED_TITLE}   = 'Paysys group settings changed';
 $lang{EVENT_PAYSYS_GROUP_DELETED_MESSAGE} = 'Deleted all configure for group with id %GID%';
+
+$lang{RECOGNIZED_NOT_ENTERED} = 'Recognized but not entered';
+$lang{NOT_RECOGNIZED} = 'Not recognized';
 
 $lang{STATUS_0}   = 'Operation was successfully completed';
 $lang{STATUS_1}   = 'User not present in the system';

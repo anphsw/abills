@@ -37,6 +37,10 @@ sub errors {
     1170108 => 'ERROR_UNSUBSCRIBE',
     1170109 => 'ERR_NOW_ALLOWED_PAYMENT_SYSTEM',
     1170110 => 'ERR_DUPLICATE_TRANSACTION_ID',
+    1170111 => 'ERR_WRONG_SUM',
+
+    # Paysys Gateway
+    1170120 => 'USER_NOT_EXIST',
   };
 }
 

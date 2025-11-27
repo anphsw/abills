@@ -258,7 +258,7 @@ sub reports {
       }
       else {
         push @rows, $html->element('label', $attr->{EXT_SELECT_NAME} ? "$attr->{EXT_SELECT_NAME}: " : " ", { class => 'col-md-2 control-label' })
-          . $html->element('div', $attr->{EXT_SELECT}, { class => 'col-md-10' });
+          . $html->element('div', $attr->{EXT_SELECT}, { class => 'col-md-8' });
       }
     }
     if ($attr->{EX_INPUTS}) {
@@ -938,7 +938,8 @@ sub form_system_changes {
     63 => "$lang{FILE_DELETED}",
     65 => "$lang{CHANGE_ADMIN_PERMITS}",
     70 => "SERVICE RESTART",
-    80 => $lang{FIRED}
+    80 => $lang{FIRED},
+    99 => 'Periodic'
   );
 
   if ($permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}) {
@@ -992,7 +993,7 @@ sub form_system_changes {
     index         => $FORM{subf} || $index
   }) if (!$FORM{HIDE_SEARCH});
 
-  my $list = $admin->system_action_list({ %LIST_PARAMS, ADMIN_DISABLE => '_SHOW' });
+  my $action_list = $admin->system_action_list({ %LIST_PARAMS, ADMIN_DISABLE => '_SHOW' });
   my $table = $html->table({
     width  => '100%',
     title  => [ '#', $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', $lang{MODULES}, $lang{TYPE}, '-' ],
@@ -1004,22 +1005,22 @@ sub form_system_changes {
 
   my $br = $html->br();
 
-  my @list = (@{$list});
+  my @list = (@{$action_list});
   for (my $idx = 0; $idx < scalar(@list); $idx++) {
     my $line = $list[$idx];
-    my $delete = ($permissions{4}{3}) ? $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]",
-      { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' }) : '';
+    my $delete = ($permissions{4}{3}) ? $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->{id}",
+      { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' }) : '';
 
     $table->{rowcolor} = undef;
     my $color = undef;
-    if (in_array($line->[6], [ 10, 28, 13, 61, 63 ])) {
+    if (in_array($line->{action_type}, [ 10, 28, 13, 61, 63 ])) {
       $color = 'red';
     }
-    elsif (in_array($line->[6], [ 1, 7 ])) {
+    elsif (in_array($line->{action_type}, [ 1, 7 ])) {
       $table->{rowcolor} = $_COLORS[3];
     }
 
-    my $message = $line->[2] || q{};
+    my $message = $line->{actions} || q{};
 
     while ($message =~ m/([A-Z\_]+)[:|\s]{1}/xg) {
       my $marker = $1;
@@ -1028,7 +1029,7 @@ sub form_system_changes {
         my $lang_res = $lang{$marker};
         $lang_res = $marker if (!$lang_res);
         $lang_res = $html->b($lang_res);
-        $message =~ s/$marker/$lang_res/g;
+        $message =~ s/$marker/$lang_res/xg;
       }
       else {
         my $colorstring = $html->b($marker) . ':';
@@ -1039,13 +1040,13 @@ sub form_system_changes {
     $message =~ s/;/$br/xg;
 
     $table->addrow(
-      $html->b($line->[0]),
-      $html->color_mark($line->[1], $color),
+      $html->b($line->{id}),
+      $html->color_mark($line->{datetime}, $color),
       $html->color_mark($message, $color),
-      _status_color_state($line->[3], $line->[8]),
-      $line->[4],
-      $line->[5],
-      $html->color_mark($action_types{ $line->[6] }, $color),
+      _status_color_state($line->{admin_login}, $line->{disable}),
+      $line->{ip},
+      $line->{module},
+      $html->color_mark($action_types{ $line->{action_type} }, $color),
       $delete
     );
   }
@@ -1078,7 +1079,8 @@ sub report_webserver {
     my $table = $html->table({
       caption     => $web_error_log,
       width       => '100%',
-      title_plain => [ $lang{DATE}, $lang{ERROR} ],
+      title       => [ $lang{DATE}, $lang{ERROR} ],
+      EXPORT      => 1,
       ID          => 'WEBSERVER_LOG'
     });
 
@@ -1097,7 +1099,8 @@ sub report_webserver {
   my $table = $html->table({
     caption     => 'WEB server info',
     width       => '600',
-    title_plain => [ $lang{NAME}, $lang{VALUE}, "-" ],
+    title       => [ $lang{NAME}, $lang{VALUE}, "-" ],
+    EXPORT      => 1,
     ID          => 'WEBSERVER_INFO'
   });
 
@@ -1462,10 +1465,12 @@ sub _make_web_admin_analiz_user_stats {
     next if (!($row =~ m/LOG_INFO/x));
     next if ($type && !($row =~ m/$type/x));
 
-    my ($date, $time, $log_type, $other_info) = split(/\s/x, $row, 4);
+    # $date, $time, $log_type
+    my (undef, undef, undef, $other_info) = split(/\s/x, $row, 4);
     # Clean spaces for simpler regex after - better performance.
     $other_info =~ s/\s//xg;
-    my ($bot_type, $sid, $fn, $gt) = $other_info =~ m/(?:\[(.*)\])?(.*?):(.*?):(.*)/x;
+    # $bot_type
+    my (undef, $sid, $fn, $gt) = $other_info =~ m/(?:\[(.*)\])?(.*?):(.*?):(.*)/x;
 
     $info{$fn}{time} = (defined $info{$fn}{time}) ? $info{$fn}{time} + $gt : $gt;
     $info{$fn}{popularity}++;
@@ -1749,6 +1754,92 @@ sub _report_chart_info {
 
   return 1;
 }
+
+
+#**********************************************************
+=head2 report_sender() - report of sender
+
+=cut
+#**********************************************************
+sub report_sender {
+
+  require Contacts;
+  Contacts->import();
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+
+  use Abills::Sender::Core;
+  my %sending_types = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
+  my $uid = $FORM{UID} || '';
+
+  my $sending_type_select = $html->form_select('SENDER_TYPE', {
+    NO_ID       => 1,
+    SEL_HASH    => \%sending_types,
+    SELECTED    => $FORM{SENDER_TYPE} || '',
+    SEL_OPTIONS => { '' => '--' },
+  });
+
+  reports({
+    DATE_RANGE        => 1,
+    NO_GROUP          => 1,
+    NO_STANDART_TYPES => 1,
+    NO_TAGS           => 1,
+    PERIOD_FORM       => 1,
+    EXT_SELECT        => $sending_type_select,
+    EXT_SELECT_NAME   => $lang{TYPE},
+    EX_INPUTS   => [
+      $html->element('label', "UID", { class=> 'col-md-2 col-form-label text-md-right' }) .
+      $html->element('div', "<input type='number' value='$uid' name='UID' class='form-control'>", { class=> 'col-md-8' })
+    ]
+  });
+
+  %LIST_PARAMS = (%LIST_PARAMS, %FORM);
+  $LIST_PARAMS{PAGE_ROWS} = '10000';
+  $LIST_PARAMS{UID} = ($FORM{UID}) ? $FORM{UID} : '>0';
+
+  result_former({
+    INPUT_DATA      => $Contacts,
+    FUNCTION        => 'sender_log_list',
+    FUNCTION_INDEX  => $index,
+    DEFAULT_FIELDS  => 'UID,SENDER_TYPE,SOURCE,MESSAGE,CREATED,RESULT,ADDRESS_FULL',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      result => sub {
+        my $result = shift;
+        return (($result) ? $html->color_mark( $lang{SUCCESS}, 'success') : $html->color_mark( $lang{ERROR}, 'text-danger'));
+      },
+      sender_type => sub {
+        my $sender_type = shift;
+        return (($sender_type) ? $sending_types{$sender_type} : '');
+      },
+      uid  => sub {
+        my (undef, $line) = @_;
+        return (($line->{uid}) ? $html->b($html->button( ($line->{uid}), "index=11&UID=$line->{uid}") ) : '');
+      },
+    },
+    EXT_TITLES      => {
+      uid         => 'UID',
+      sender_type => $lang{TYPE},
+      source      => $lang{SOURCE},
+      created     => $lang{SENT},
+      message     => $lang{MESSAGE},
+      result      => $lang{RESULT},
+      address_full=> $lang{ADDRESS},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => 'Sender',
+      qs      => $pages_qs,
+      ID      => 'REPORT_SENDER',
+      EXPORT  => 1,
+      DATA_TABLE => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
+  });
+
+  return 1;
+}
+
 
 1;
 

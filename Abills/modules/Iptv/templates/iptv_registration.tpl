@@ -10,7 +10,7 @@
 
 <link href='/styles/default/css/client.css' rel='stylesheet'>
 
-<form action='$SELF_URL' method='post' name='iptv_user_info' class='form-horizontal'>
+<form action='%SELF_URL%' method='post' name='iptv_user_info' class='form-horizontal'>
     <input type='hidden' name='TP_IDS' value='%TP_IDS%'>
     <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
     <input type='hidden' name='module' value='Iptv'>

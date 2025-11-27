@@ -1,6 +1,6 @@
 <div class='d-print-none' id='UREPORTS'>
-  <form action='$SELF_URL' METHOD='POST' ID='FORM_UREPORTS'>
-    <input type=hidden name='index' value='$index'>
+  <form action='%SELF_URL%' METHOD='POST' ID='FORM_UREPORTS'>
+    <input type=hidden name='index' value='%index%'>
     <input type=hidden name='TP_ID' value='%TP_ID%'>
 
     <div class='card card-primary card-outline box-form container-md'>

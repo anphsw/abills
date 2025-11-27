@@ -26,6 +26,10 @@ all:
 	$(foreach test, $(TESTS), \
 		echo "TEST: " $(test); perl $(test) KEY=${KEY} URL=$(URL) EXECUTABLE_TESTS=$(EXECUTABLE_TESTS) DEBUG=$(DEBUG); )
 
+direct:
+	$(foreach test, $(TESTS), \
+		echo "TEST: " $(test); perl $(test) KEY=${KEY} URL=$(URL) EXECUTABLE_TESTS=$(EXECUTABLE_TESTS) DIRECT=1; )
+
 user:
 	$(foreach test, $(TESTS), \
 		perl $(test) USER='1';)
@@ -41,13 +45,15 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all            Execute all tests (default target)"
+	@echo "  direct         Execute direct calls of tests"
 	@echo "  admin          Execute admin tests"
 	@echo "  user           Execute user tests"
 	@echo "  help           Display this help message"
 	@echo ""
 	@echo "Variables:"
 	@echo "  KEY      ADMIN API KEY required for admin tests"
-	@echo "  DEBUG    Debug mode"
+	@echo "  DEBUG    Debug mode. LVL 5 Debug is direct calls and SQL requests"
+	@echo "  DIRECT   Executes tests with direct calls of functions"
 	@echo "  URL      Test system URL"
 	@echo "  MODULE   Tst only module"
 	@echo "  EXECUTABLE_TESTS Test only one route  (Example: get/user/internet/session/active/) "

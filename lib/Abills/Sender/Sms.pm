@@ -48,6 +48,9 @@ sub send_message {
     return 0;
   }
 
+  my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+  my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
+
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf}, { UID => $attr->{UID} || $self->{UID} || 0 });
 
@@ -57,13 +60,24 @@ sub send_message {
     return 0;
   }
 
+  if ($attr->{UID} && $self->{conf}{SMS_LIMIT}) {
+    my $uid_sms_list = $Sms->list({
+      UID      => $attr->{UID},
+      INTERVAL => "$DATE/$DATE",
+      NO_SKIP  => 1,
+    });
+
+    if ($uid_sms_list && scalar(@$uid_sms_list) >= $self->{conf}{SMS_LIMIT}) {
+      $self->{errno} = 11;
+      $self->{errstr} = 'EXCEEDED_SMS_LIMIT';
+      return 0;
+    }
+  }
+
   my $sms_result = $Sms_service->send_sms({
     NUMBER     => $attr->{TO_ADDRESS},
     MESSAGE    => $attr->{MESSAGE}
   });
-
-  my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
-  my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
   $Sms->add({
     UID          => $attr->{UID} || $self->{UID} || 0,

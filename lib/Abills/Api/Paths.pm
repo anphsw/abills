@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array mk_unique_value camelize);
 
-our $VERSION = 1.4307;
+our $VERSION = 1.5201;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -43,8 +43,7 @@ sub new {
 =cut
 #**********************************************************
 sub load_own_resource_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $extra_modules = $self->_extra_api_modules();
   my @modules = (@main::MODULES, @{$extra_modules});
@@ -58,16 +57,16 @@ sub load_own_resource_info {
   my $error_msg = '';
   my $module = $attr->{package} . '::Api';
   my $module_path = $module . '.pm';
-  $module_path =~ s{::}{/}g;
+  $module_path =~ s{::}{/}xg;
   eval { require $module_path };
 
   if ($@) {
     $error_msg = $@;
     $@ = undef;
-    $attr->{package} =~ s{-}{_}g;
+    $attr->{package} =~ s{-}{_}xg;
     $module = 'Api::Paths::' . $attr->{package};
     $module_path = $module . '.pm';
-    $module_path =~ s{::}{/}g;
+    $module_path =~ s{::}{/}xg;
     eval { require $module_path };
 
     $error_msg .= $@;
@@ -125,6 +124,10 @@ sub _extra_api_modules {
 
   if ($self->{conf}->{VIBER_TOKEN} || $self->{conf}->{TELEGRAM_TOKEN}) {
     push @modules_list, 'Bots';
+  }
+
+  if (in_array('Referral', \@main::MODULES)) {
+    push @modules_list, 'Addresses';
   }
 
   return \@modules_list;

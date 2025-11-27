@@ -3,7 +3,7 @@
     <input type='hidden' name='UID' value='%UID%'>
     <input type='hidden' name='DOC_ID' value='%DOC_ID%'>
     <input type='hidden' name='sid' value='$FORM{sid}'>
-    <input type='hidden' name='step' value='$FORM{step}'>
+    <input type='hidden' name='step' value='%step%'>
     <input type='hidden' name='OP_SID' value='%OP_SID%'>
     <input type='hidden' name='VAT' value='%VAT%'>
     <input type='hidden' name='SEND_EMAIL' value='1'>
@@ -45,17 +45,23 @@
                 </div>
             </div>
 
-            <div class='form-group'>
-                <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' value='0' id='INCLUDE_CUR_BILLING_PERIOD1'
-                           name='INCLUDE_CUR_BILLING_PERIOD'>
-                    <label for='INCLUDE_CUR_BILLING_PERIOD1'
-                           class='custom-control-label'>_{INCLUDE_CUR_BILLING_PERIOD}_ </label>
+            <div class='form-group row'>
+                <label class='control-label col-sm-12 col-md-3' for='INCLUDE_CUR_BILLING_PERIOD1'>_{INCLUDE_CUR_BILLING_PERIOD}_:</label>
+                <div class='col-sm-12 col-md-9 p-1'>
+                    <div class='form-check'>
+                        <input type='radio' class='form-check-input' id='INCLUDE_CUR_BILLING_PERIOD1'
+                               name='INCLUDE_CUR_BILLING_PERIOD' value='0'>
+                    </div>
                 </div>
-                <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' value='1' id='INCLUDE_CUR_BILLING_PERIOD2'
-                           name='INCLUDE_CUR_BILLING_PERIOD'>
-                    <label for='INCLUDE_CUR_BILLING_PERIOD2' class='custom-control-label'>_{NOT_INCLUDE_CUR_BILLING_PERIOD}_</label>
+            </div>
+
+            <div class='form-group row'>
+                <label class='control-label col-sm-12 col-md-3' for='INCLUDE_CUR_BILLING_PERIOD2'>_{NOT_INCLUDE_CUR_BILLING_PERIOD}_:</label>
+                <div class='col-sm-12 col-md-9 p-1'>
+                    <div class='form-check'>
+                        <input type='radio' class='form-check-input' id='INCLUDE_CUR_BILLING_PERIOD2'
+                               name='INCLUDE_CUR_BILLING_PERIOD' value='1'>
+                    </div>
                 </div>
             </div>
 
@@ -69,14 +75,25 @@
                 </div>
             </div>
 
-            <div class='form-group custom-control custom-checkbox'>
-                <input class='custom-control-input' type='checkbox' name='SEND_EMAIL' id='SEND_EMAIL'>
-                <label for='SEND_EMAIL' class='custom-control-label'>_{SEND}_ E-mail:</label>
+
+            <div class='form-group row'>
+                <label class='control-label col-sm-12 col-md-3' for='SEND_EMAIL'>_{SEND}_ E-mail:</label>
+                <div class='col-sm-12 col-md-9 p-1'>
+                    <div class='form-check'>
+                        <input type='checkbox' data-return='1' class='form-check-input' id='SEND_EMAIL'
+                               name='SEND_EMAIL' value='1'>
+                    </div>
+                </div>
             </div>
 
-            <div class='form-group custom-control custom-checkbox'>
-                <input class='custom-control-input' type='checkbox' name='INCLUDE_DEPOSIT' id='INCLUDE_DEPOSIT'>
-                <label for='INCLUDE_DEPOSIT' class='custom-control-label'>_{INCLUDE_DEPOSIT}_:</label>
+            <div class='form-group row'>
+                <label class='control-label col-sm-12 col-md-3' for='INCLUDE_DEPOSIT'>_{INCLUDE_DEPOSIT}_:</label>
+                <div class='col-sm-12 col-md-9 p-1'>
+                    <div class='form-check'>
+                        <input type='checkbox' data-return='1' class='form-check-input' id='INCLUDE_DEPOSIT'
+                               name='INCLUDE_DEPOSIT' value='1'>
+                    </div>
+                </div>
             </div>
 
             <div class='form-group'>

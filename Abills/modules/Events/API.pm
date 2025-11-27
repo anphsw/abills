@@ -29,9 +29,7 @@ use Abills::Sender::Core;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-
-  my ($db, $admin, $CONF) = @_;
+  my ($class,$db, $admin, $CONF) = @_;
 
   my $self = {
     db    => $db,
@@ -59,7 +57,7 @@ sub new {
       COMMENTS    - descruption
 
   Returns:
-    1
+    TRUE or FALSE
 
   Example:
     $Events_api->add_event({
@@ -74,7 +72,7 @@ sub new {
 sub add_event {
   my ($self, $event_params) = @_;
 
-  return unless ( $event_params );
+  return 0 unless ( $event_params );
   my $module = $event_params->{MODULE} || 'SYSTEM';
 
   $event_params->{PRIORITY_ID} //= 3; # 'NORMAL'
@@ -103,7 +101,7 @@ sub add_event {
     $self->notify($event_params, @admins_to_generate_event_for);
   }
 
-  return;
+  return 1;
 }
 
 #**********************************************************
@@ -121,7 +119,6 @@ sub add_event {
 sub notify {
   my ($self, $event, @aids) = @_;
 
-
   # Load language
   our $base_dir = $main::base_dir || '/usr/abills/';
   require Abills::Experimental::Language;
@@ -131,7 +128,7 @@ sub notify {
   if ($language_for_translation ne 'english'){
     $Language->load($language_for_translation);
   }
-  if ($event->{MODULE} && $event->{MODULE} =~ /^[A-Z][a-z_]]+$/){
+  if ($event->{MODULE} && $event->{MODULE} =~ /^[A-Z][a-z_]]+$/xm){
     $Language->load($language_for_translation, $event->{MODULE})
   }
 
@@ -176,9 +173,7 @@ sub notify {
           MESSAGE     => $translated_comments,
         });
       }
-
     }
-
   }
 
   return 1;

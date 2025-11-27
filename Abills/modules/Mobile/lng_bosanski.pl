@@ -1,0 +1,39 @@
+$lang{ERR_MOBILE_UNFILLED_MANDATORY_CATEGORIES} = 'Obavezne kategorije nisu popunjene: %CATEGORIES%';
+$lang{ERR_MOBILE_LIFECELL_API} = 'Greška u radu API-ja';
+$lang{ERR_MOBILE_TP_ALREADY_ACTIVATED} = 'Tarifni plan je već aktiviran';
+$lang{ERR_MOBILE_PHONE_NOT_FOUND} = 'Aktivirani broj telefona nije pronađen';
+$lang{ERR_MOBILE_TP_NOT_FOUND} = 'Tarifni plan nije pronađen';
+$lang{ERR_MOBILE_SERVICES_NOT_FOUND} = 'U tarifnom planu nije odabrana nijedna usluga';
+$lang{ERR_MOBILE_PHONE_ALREADY_ACTIVATED} = 'Broj telefona je već aktiviran';
+$lang{ERR_MOBILE_WAIT_PHONE_NUMBER_ACTIVATION} = 'Sačekajte potvrdu aktivacije broja telefona';
+$lang{ERR_MOBILE_WRONG_PARAMETERS} = 'Pogrešni parametri';
+$lang{ERR_MOBILE_PHONE_ALREADY_DEACTIVATED} = 'Broj telefona je već deaktiviran';
+$lang{ERR_MOBILE_WAIT_SERVER_RESPONSE} = 'Sačekajte odgovor usluge';
+$lang{ERR_MOBILE_FUNCTION_NOT_FOUND} = 'Funkcija nije pronađena';
+
+$lang{MOBILE_COMMUNICATION} = 'Mobilna komunikacija';
+$lang{PHONE_ACTIVATE} = 'Aktiviraj broj telefona';
+$lang{MOBILE_CATEGORIES} = 'Kategorije';
+$lang{MOBILE_CATEGORY} = 'Kategorija';
+$lang{MOBILE_MAIN_CATEGORY} = 'Glavna kategorija';
+$lang{MOBILE_MANDATORY} = 'Obavezno';
+$lang{MOBILE_SERVICES} = 'Usluge';
+$lang{MOBILE_STATUS_NUMBER} = 'Status telefonskog broja';
+$lang{MOBILE_STATUS_TARIFF_PLAN} = 'Status tarifnog plana';
+$lang{MOBILE_ACTIVATION_DATE} = 'Datum aktivacije';
+$lang{MOBILE_WAIT_CONFIRMATION_TARIFF} = 'Čekajte potvrdu aktivacije tarifnog plana';
+$lang{MOBILE_WAIT_CONFIRMATION_NUMBER} = 'Čekajte potvrdu aktivacije broja telefona';
+$lang{MOBILE_CONFIRM} = 'Potvrda';
+$lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Potvrda aktivacije broja telefona';
+$lang{MOBILE_WAIT_NUMBER_DEACTIVATE} = 'Sačekajte da se broj deaktivira';
+$lang{MOBILE_PHONE_DEACTIVATE} = 'Deaktivacija broja telefona';
+
+$lang{MOBILE_LOGS} = 'Mobilni zapisi';
+$lang{MOBILE_TRANSACTION_ID} = 'ID transakcije';
+$lang{MOBILE_RESPONSE} = 'Odgovor';
+$lang{MOBILE_CALLBACK} = 'Povratni poziv';
+$lang{MOBILE_CALLBACK_DATE} = 'Datum povratnog poziva';
+
+$lang{MOBILE_ALL_ACTIVATION_ATTEMPTS_USED} = 'Iskorišteno svih %ATTEMPTS% pokušaja aktivacije';
+$lang{MOBILE_METHOD} = 'Metoda';
+$lang{MOBILE_ACTIVATION_ATTEMPTS_COUNT} = 'Broj pokušaja aktivacije';

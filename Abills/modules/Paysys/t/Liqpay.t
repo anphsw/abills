@@ -29,7 +29,6 @@ our (
 );
 
 $user_id = $argv->{user} || $argv->{UID} || $conf{PAYSYS_TEST_USER} || $user_id || 1;
-my $random_number = int(rand(100000));
 
 my $Paysys = Paysys->new($db, $admin, \%conf);
 my $Payment_plugin;
@@ -42,16 +41,12 @@ else {
   $Payment_plugin = Paysys::Plugins::Liqpay->new($db, $admin, \%conf);
 }
 
-if($argv->{HOTSPOT} && $argv->{HOTSPOT} == 1){
-  $user_id = $random_number;
-}
-
 $Paysys->add({
   SYSTEM_ID      => 62,
   SUM            => 1.00,
   UID            => $user_id,
   IP             => '127.0.0.1',
-  TRANSACTION_ID => "Liqpay:$random_number",
+  TRANSACTION_ID => "Liqpay:$payment_id",
   INFO           => "Test payment",
   PAYSYS_IP      => "127.0.0.1",
   STATUS         => 1,
@@ -69,9 +64,9 @@ our @requests = (
 	"paytype": "privat24",
 	"public_key": "i69039701232",
 	"acq_id": 414963,
-	"order_id": "Liqpay:$random_number",
+	"order_id": "Liqpay:$payment_id",
 	"liqpay_order_id": "80QNTUA81552846436143063",
-	"description": "PaymentId $random_number, UID $user_id;",
+	"description": "PaymentId $payment_id, UID $user_id;",
 	"sender_phone": "380996506807",
 	"sender_card_mask2": "516875*70",
 	"sender_card_bank": "pb",
@@ -108,9 +103,9 @@ our @requests = (
 	"paytype": "privat24",
 	"public_key": "i69039701232",
 	"acq_id": 414963,
-	"order_id": "Liqpay:$random_number",
+	"order_id": "Liqpay:$payment_id",
 	"liqpay_order_id": "80QNTUA81552846436143063",
-	"description": "PaymentId $random_number, UID $user_id;",
+	"description": "PaymentId $payment_id, UID $user_id;",
 	"sender_phone": "380996506807",
 	"sender_card_mask2": "516875*70",
 	"sender_card_bank": "pb",

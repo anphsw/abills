@@ -1407,85 +1407,6 @@ sub form_admins_contacts {
 }
 
 #**********************************************************
-=head2 form_admins_contacts_save()
-
-=cut
-#**********************************************************
-sub form_admins_contacts_save {
-
-  my $message = $lang{ERROR};
-  my $status = 1;
-
-  return 0 unless ($FORM{AID} && $FORM{CONTACTS});
-
-  if (my $error = load_pmodule("JSON", { RETURN => 1 })) {
-    print $error;
-    return 0;
-  }
-
-  my $json = JSON->new();
-
-  $FORM{CONTACTS} =~ s/\\\"/\"/g;
-
-  my $contacts = $json->decode($FORM{CONTACTS});
-
-  my DBI $db_ = $admin->{db}->{db};
-  if (ref $contacts eq 'ARRAY') {
-    $db_->{AutoCommit} = 0;
-
-    $admin->admin_contacts_del({ AID => $FORM{AID} });
-    if ($admin->{errno}) {
-      $db_->rollback();
-      $status = $admin->{errno};
-      $message = $admin->{sql_errstr};
-    }
-    else {
-      foreach my $contact (@{$contacts}) {
-        $admin->admin_contacts_add({ %{$contact}, AID => $FORM{AID} });
-      }
-
-      if ($admin->{errno}) {
-        $db_->rollback();
-        $status = $admin->{errno};
-        $message = $admin->{sql_errstr};
-      }
-      else {
-        $db_->commit();
-        $db_->{AutoCommit} = 1;
-      }
-
-      $message = $lang{CHANGED};
-      $status = 0;
-    }
-  }
-
-  my $admin_contacts_list = $admin->admins_contacts_list(
-    {
-      AID      => $FORM{AID},
-      VALUE    => '_SHOW',
-      DEFAULT  => '_SHOW',
-      PRIORITY => '_SHOW',
-      TYPE     => '_SHOW',
-      HIDDEN   => '0'
-    }
-  );
-
-  my $contacts_json = JSON->new()->utf8(0)->encode({
-    contacts => $admin_contacts_list,
-  });
-
-  print qq[
-    {
-      "contacts" : $contacts_json,
-      "status" : $status,
-      "message" :  "$message"
-    }
-  ];
-
-  return 1;
-}
-
-#**********************************************************
 =head2 _build_user_contacts_form($user_contacts_list)
 
   Arguments:
@@ -1504,7 +1425,6 @@ sub _build_admin_contacts_form {
     JSON       => $json->encode({
       contacts => $admin_contacts_list,
       options  => {
-        callback_index => get_function_index('form_admins_contacts_save'),
         types          => $admin_contacts_types_list,
         AID            => $FORM{AID},
       }
@@ -1720,7 +1640,8 @@ sub _admin_permissions {
       $lang{SETTINGS},
       $lang{LAST_LOGIN},
       $lang{ERROR_LOG},
-      $lang{USERS}
+      $lang{USERS},
+      $lang{SENDER},
     ], # reports view
 
     [

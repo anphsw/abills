@@ -100,7 +100,7 @@
   map_height += 'vh';
   jQuery('#map').css({height: map_height});
 
-  var selfUrl = '$SELF_URL';
+  var selfUrl = '%SELF_URL%';
 
   if (document.getElementById('new_maps')) {
     init_map();

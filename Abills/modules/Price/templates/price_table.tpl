@@ -82,7 +82,7 @@
 </script>
 
 <body onload="getUsersSum()">
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
     <input type='hidden' name='ID' value='1'>
     <input type='hidden' name='module' value='Price'>
     <input type='hidden' id='CURRENT_D' name='CURRENT_D' value='%CURRENT_D%'>

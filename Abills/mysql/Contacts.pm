@@ -7,11 +7,9 @@ package Contacts;
 =cut
 
 use strict;
-use parent 'dbcore';
 use v5.16;
-use Conf;
-my $admin;
-my $CONF;
+use parent 'dbcore';
+
 
 our %TYPES = (
   'CELL_PHONE'  => 1,
@@ -30,9 +28,7 @@ our %TYPES = (
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db)  = shift;
-  ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
   $admin->{MODULE} = '';
 
@@ -46,6 +42,8 @@ sub new {
 
   return $self;
 }
+
+
 
 #**********************************************************
 =head2 contacts_list($attr)
@@ -64,8 +62,7 @@ sub new {
 =cut
 #**********************************************************
 sub contacts_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->{errno} = 0;
   $self->{errstr} = '';
@@ -93,14 +90,10 @@ sub contacts_list {
     [ 'DATE',        'DATE',    'uc.date',      ,1 ]
   );
 
-  # if ( $attr->{SHOW_ALL_COLUMNS} ) {
-  #   map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @search_columns;
-  # }
-
-  my $WHERE = $self->search_former($attr, \@search_columns,{ WHERE => 1 });
+  my $WHERE = $self->search_former($attr, \@search_columns, { WHERE => 1 });
 
   my $EXT_TABLES = '';
-  if ( $self->{SEARCH_FIELDS} =~ /uct\./ ) {
+  if ( $self->{SEARCH_FIELDS} =~ /uct\./xm ) {
     $EXT_TABLES = "LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)"
   }
 
@@ -109,22 +102,24 @@ sub contacts_list {
   }
 
   if ( $attr->{DISTRICT_ID} || $attr->{BUILD_ID}) {
-    $EXT_TABLES .= qq{
-       LEFT JOIN builds    b ON (b.id=up.location_id)
-       LEFT JOIN streets   s ON (s.id=b.street_id)
-       LEFT JOIN districts d ON (d.id=s.district_id)
-    };
+    $EXT_TABLES .= << "EXT_TABLES";
+    LEFT JOIN builds    b ON (b.id=up.location_id)
+    LEFT JOIN streets   s ON (s.id=b.street_id)
+    LEFT JOIN districts d ON (d.id=s.district_id)
+EXT_TABLES
   }
 
-  $self->query("
-    SELECT $self->{SEARCH_FIELDS} uc.id
-    FROM users_contacts uc
-    LEFT JOIN users_pi up ON (up.uid=uc.uid)
-    $EXT_TABLES
-    $WHERE
-    GROUP BY $GROUP_BY
-    ORDER BY $SORT $DESC;",
-    undef,
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} uc.id
+FROM users_contacts uc
+  LEFT JOIN users_pi up ON (up.uid=uc.uid)
+  $EXT_TABLES
+  $WHERE
+GROUP BY $GROUP_BY
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef,
     { COLS_NAME => 1, %{ $attr ? $attr : {} } }
   );
 
@@ -143,8 +138,7 @@ sub contacts_list {
 =cut
 #**********************************************************
 sub contacts_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $list = $self->contacts_list( { COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
 
@@ -158,25 +152,27 @@ sub contacts_info{
     $attr - hash_ref
 
   Returns:
-    1
+    $self
 
 =cut
 #**********************************************************
 sub contacts_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $attr->{value} =~ s/(.*?)\t//g if ($attr->{value});
+  $attr->{value} =~ s/(.*?)\t//xg if ($attr->{value});
   $attr->{DATE} = "NOW()" if (!$attr->{DATE});
 
   $self->query_add('users_contacts', $attr, { REPLACE => 1 });
 
   if (!$self->{errno}) {
-    if (! $self->{OLD_INFO}{$attr->{TYPE_ID}}
-      || ($attr->{VALUE} && $attr->{TYPE_ID} && $attr->{VALUE} ne $self->{OLD_INFO}{$attr->{TYPE_ID}})) {
+    my $old_contact = $self->{OLD_INFO}{$attr->{TYPE_ID}||0} || q{};
+    my $new_contact = $attr->{VALUE} || q{};
+
+    if ((! $self->{OLD_INFO}{$attr->{TYPE_ID}} && $new_contact)
+      || ($attr->{TYPE_ID} && $new_contact ne $old_contact)) {
       $self->{admin}->action_add($attr->{UID},
-        "CONTACTS_CHANGED. " .  $self->contact_name_for_type_id($attr->{TYPE_ID}||0)
-          . ": ". ($self->{OLD_INFO}{$attr->{TYPE_ID}||0} || q{}) ." -> ". ($attr->{VALUE} || q{}), { TYPE=> 2 });
+        "CONTACTS_CHANGED: " .  $self->contact_name_for_type_id($attr->{TYPE_ID}||0)
+          . ": ". $old_contact ." -> ". ($attr->{VALUE} || q{}), { TYPE=> 2 });
     }
   }
 
@@ -195,21 +191,20 @@ sub contacts_add{
 =cut
 #**********************************************************
 sub contacts_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $old_info = {};
-  if($attr->{TYPE_ID}){
+  if ($attr->{TYPE_ID}) {
     $old_info = $self->contacts_list({
-      UID  => $attr->{UID},
-      TYPE => $attr->{TYPE_ID},
+      UID   => $attr->{UID},
+      TYPE  => $attr->{TYPE_ID},
       VALUE => '_SHOW',
     });
   }
-  else{
+  else {
     $old_info = $self->contacts_list({
-      UID  => $attr->{UID},
-      TYPE => join(';', map {$TYPES{$_}} keys %TYPES),
+      UID   => $attr->{UID},
+      TYPE  => join(';', map {$TYPES{$_}} keys %TYPES),
       VALUE => '_SHOW',
     });
   }
@@ -217,10 +212,12 @@ sub contacts_del{
   foreach my $old_ (@$old_info){
     $self->{OLD_INFO}{$old_->{type_id}} = $old_->{value};
   }
+
   $self->query_del('users_contacts', undef, $attr);
 
   return 1;
 }
+
 
 #**********************************************************
 =head2 contacts_change($attr)
@@ -229,13 +226,12 @@ sub contacts_del{
     $attr - hash_ref
 
   Returns:
-    1
+    $self
 
 =cut
 #**********************************************************
 sub contacts_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -273,7 +269,7 @@ sub contacts_change_all_of_type {
 
   if ( $attr->{VALUE} ) {
     # Check if have multiple values in a row
-    foreach ( split(/,\s/, $attr->{VALUE}) ) {
+    foreach ( split(/,\s/x, $attr->{VALUE}) ) {
       $self->contacts_add({
         UID     => $attr->{UID},
         TYPE_ID => $type_id,
@@ -300,8 +296,7 @@ sub contacts_change_all_of_type {
 =cut
 #**********************************************************
 sub contact_types_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -311,30 +306,39 @@ sub contact_types_list{
   #!!! Important !!! Only first list will work without this
   delete $self->{COL_NAMES_ARR};
 
-  my $WHERE = '';
-
-  $WHERE = $self->search_former( $attr, [
+  my @search_params = (
     [ 'ID',         'INT', 'id',           ],
     [ 'NAME',       'STR', 'name',       1 ],
     [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
     [ 'HIDDEN',     'INT', 'hidden',     1 ]
-  ],
+  );
+
+  my $WHERE = $self->search_former( $attr, \@search_params,
     {
       WHERE => 1
     }
   );
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id
-  FROM users_contact_types
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM users_contact_types
   $WHERE
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr );
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
 
-  return [] if ($self->{errno});
+  $self->query($sql, undef, $attr );
 
-  return $self->{list} || [];
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM users_contact_types $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list
 }
+
 
 #**********************************************************
 =head2 contact_types_info($id)
@@ -348,8 +352,7 @@ sub contact_types_list{
 =cut
 #**********************************************************
 sub contact_types_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $list = $self->contact_types_list({ COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
@@ -368,8 +371,7 @@ sub contact_types_info {
 =cut
 #**********************************************************
 sub contact_types_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('users_contact_types', $attr);
 
@@ -388,8 +390,7 @@ sub contact_types_add{
 =cut
 #**********************************************************
 sub contact_types_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('users_contact_types', $attr);
 
@@ -408,8 +409,7 @@ sub contact_types_del{
 =cut
 #**********************************************************
 sub contact_types_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -432,8 +432,7 @@ sub contact_types_change {
 =cut
 #**********************************************************
 sub social_add_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('users_social_info', $attr, { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
 
@@ -454,8 +453,7 @@ sub social_add_info {
 =cut
 #**********************************************************
 sub social_list_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   #TODO: we using table users_social_info?
   delete $self->{COL_NAMES_ARR};
@@ -466,12 +464,7 @@ sub social_list_info {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
 
-  #if ($attr->{UNRECOGNIZED} == 1) {
-  #  push @WHERE_RULES, "cch.uid = '0'";
-  #}
-
-  my $WHERE = $self->search_former($attr, [
-    # ['UID',               'INT',  'usi.uid',               1 ],
+  my @search_params = (
     ['SOCIAL_NETWORK_ID', 'INT',  'usi.social_network_id', 1 ],
     ['NAME',              'STR',  'usi.name',              1 ],
     ['EMAIL',             'STR',  'usi.email as social_email', 1 ],
@@ -481,8 +474,11 @@ sub social_list_info {
     ['PHOTO',             'STR',  'usi.photo',             1 ],
     ['LOCALE',            'STR',  'usi.locale',            1 ],
     ['FRIENDS_COUNT',     'STR',  'usi.friends_count',     1 ],
-  ],
-    {   WHERE            => 1,
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
+    {
+      WHERE            => 1,
       USE_USER_PI      => 1,
       USERS_FIELDS_PRE => 1,
       WHERE_RULES      => \@WHERE_RULES,
@@ -491,26 +487,25 @@ sub social_list_info {
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
-  $self->query(
-    "SELECT
-    $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
     usi.uid
-    FROM users_social_info as usi
-    LEFT JOIN users u ON u.uid=usi.uid
-    $EXT_TABLE
-    $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+FROM users_social_info as usi
+  LEFT JOIN users u ON u.uid=usi.uid
+  $EXT_TABLE
+  $WHERE
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
   return $list if ($attr->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-     FROM users_social_info",
+  $self->query("SELECT COUNT(*) AS total FROM users_social_info $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -539,8 +534,7 @@ sub contact_type_id_for_name {
   state $contact_types;
   if (!defined $contact_types){
     my $contact_types_list = $self->contact_types_list({ID => '_SHOW', 'NAME' => '_SHOW', COLS_NAME => 1});
-    my %id_name_hash = ();
-    map { $id_name_hash{uc $_->{name}} = $_->{id} } @{$contact_types_list};
+    my %id_name_hash = map { uc($_->{name}) => $_->{id} } @{$contact_types_list};
     $contact_types = \%id_name_hash;
   }
 
@@ -562,13 +556,17 @@ sub contact_name_for_type_id {
   my ($self, $type_id) = @_;
 
   state $contact_types_by_id;
-  if (!defined $contact_types_by_id){
-    my $contact_types_list = $self->contact_types_list({ID => '_SHOW', 'NAME' => '_SHOW', COLS_NAME => 1});
+  if (!defined $contact_types_by_id) {
+    my $contact_types_list = $self->contact_types_list({
+      ID        => '_SHOW',
+      'NAME'    => '_SHOW',
+      COLS_NAME => 1
+    });
 
-    my %id_name_hash = ();
-    map { $id_name_hash{$_->{id}} = uc $_->{name}} @{$contact_types_list};
+    # my %id_name_hash = ();
+    # map { $id_name_hash{$_->{id}} = uc $_->{name}} @{$contact_types_list};
+    my %id_name_hash = map { uc($_->{name}) => $_->{id} } @$contact_types_list;
     $contact_types_by_id = \%id_name_hash;
-
   }
 
   return $contact_types_by_id->{$type_id} || 0;
@@ -593,7 +591,7 @@ sub push_contacts_list {
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
-  my $search_columns = [
+  my @search_params = (
     [ 'AID',            'INT',  'pc.aid',                     1],
     [ 'UID',            'INT',  'pc.uid',                     1],
     [ 'TYPE_ID',        'INT',  'pc.type_id',                 1],
@@ -601,17 +599,19 @@ sub push_contacts_list {
     [ 'VALUE',          'STR',  'pc.value',                   1],
     [ 'BADGES',         'INT',  'pc.badges',                  1],
     [ 'DATE',           'DATE', 'pc.date',                    1],
-  ];
+  );
 
-  # if ($attr->{SHOW_ALL_COLUMNS}){
-  #   map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
-  # }
+  my $WHERE =  $self->search_former($attr, \@search_params, { WHERE => 1 });
 
-  my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM push_contacts pc
+  $WHERE
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id
-   FROM push_contacts pc
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query($sql, undef, {
     COLS_NAME => 1,
     %{ $attr // {}}}
   );
@@ -633,8 +633,7 @@ sub push_contacts_list {
 =cut
 #**********************************************************
 sub push_contacts_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $list = $self->push_contacts_list({ COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
@@ -653,8 +652,7 @@ sub push_contacts_info {
 =cut
 #**********************************************************
 sub push_contacts_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $self->{INSERT_ID};
 
@@ -675,8 +673,7 @@ sub push_contacts_add {
 =cut
 #**********************************************************
 sub push_contacts_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('push_contacts', undef, $attr);
 
@@ -695,8 +692,7 @@ sub push_contacts_del {
 =cut
 #**********************************************************
 sub push_contacts_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -719,8 +715,7 @@ sub push_contacts_change {
 =cut
 #**********************************************************
 sub push_messages_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -729,7 +724,7 @@ sub push_messages_list {
 
   my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'id';
 
-  my $search_columns = [
+  my @search_params = (
     [ 'ID',         'INT', 'id',        1],
     [ 'TYPE_ID',    'INT', 'type_id',   1],
     [ 'TITLE',      'STR', 'title',     1],
@@ -740,21 +735,21 @@ sub push_messages_list {
     [ 'STATUS',     'INT', 'status',    1],
     [ 'UID',        'INT', 'uid',       1],
     [ 'AID',        'INT', 'aid',       1],
-    ['DATE_START|DATE_END', 'STR', 'created' ],
-  ];
+    ['DATE_START|DATE_END', 'STR', 'created' ]
+  );
 
-  # if ($attr->{SHOW_ALL_COLUMNS}){
-  #   map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
-  # }
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
-  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-
-  $self->query("SELECT $self->{SEARCH_FIELDS} id
+  my $sql =<< "SQL";
+SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
    $WHERE
    GROUP BY $GROUP_BY
    ORDER BY $SORT $DESC
-   LIMIT $PG, $PAGE_ROWS;", undef, {
+   LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, {
     COLS_NAME => 1,
     %{$attr || {}} }
   );
@@ -763,10 +758,7 @@ sub push_messages_list {
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(id) AS total
-   FROM push_messages push_messages
-   $WHERE",
-    undef,
+  $self->query("SELECT COUNT(id) AS total FROM push_messages push_messages $WHERE",  undef,
     { INFO => 1 }
   );
 
@@ -785,8 +777,7 @@ sub push_messages_list {
 =cut
 #**********************************************************
 sub push_messages_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $list = $self->push_messages_list( { COLS_NAME => 1, ID => $id, _SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
 
@@ -805,8 +796,7 @@ sub push_messages_info {
 =cut
 #**********************************************************
 sub push_messages_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('push_messages', $attr, { REPLACE => 1 });
 
@@ -825,8 +815,7 @@ sub push_messages_add {
 =cut
 #**********************************************************
 sub push_messages_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('push_messages', undef, $attr);
 
@@ -860,8 +849,7 @@ sub push_messages_outdated_del {
 =cut
 #**********************************************************
 sub push_messages_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -878,8 +866,7 @@ sub push_messages_change {
 =cut
 #**********************************************************
 sub sender_log_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -887,8 +874,12 @@ sub sender_log_list {
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
   my $GROUP_BY = $attr->{GROUP_BY} || 'sl.id';
 
+  my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+  my $address_full = "IF(pi.location_id, CONCAT(d.name, '$build_delimiter', s.name, '$build_delimiter', b.number, '$build_delimiter', pi.address_flat), '') AS address_full";
+
   my $WHERE = $self->search_former($attr, [
     [ 'ID',                'INT',  'sl.id',                              1 ],
+    [ 'UID',               'INT',  'sl.uid',                             1 ],
     [ 'SENDER_TYPE',       'INT',  'sl.sender_type',                     1 ],
     [ 'DESTINATION',       'STR',  'sl.destination',                     1 ],
     [ 'SOURCE',            'STR',  'sl.source',                          1 ],
@@ -896,17 +887,36 @@ sub sender_log_list {
     [ 'SUBJECT',           'STR',  'sl.subject',                         1 ],
     [ 'CREATED',           'DATE', 'sl.created',                         1 ],
     [ 'RESULT',            'INT',  'sl.result',                          1 ],
-    [ 'UID',               'INT',  'sl.uid',                             1 ],
     [ 'AID',               'INT',  'sl.aid',                             1 ],
     [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(sl.created, '%Y-%m-%d')"   ],
-  ] , { WHERE => 1 });
+    [ 'ADDRESS_FULL',      'STR',   $address_full,                       1 ],
+  ] , {
+    WHERE => 1,
+  });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} sl.id
-   FROM sender_log sl
-   $WHERE
-   GROUP BY $GROUP_BY
-   ORDER BY $SORT $DESC
-   LIMIT $PG, $PAGE_ROWS;", undef, {
+  my $EXT_TABLES = '';
+
+  if ($attr->{ADDRESS_FULL} || $attr->{DISTRICT_ID} ) {
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN users_pi pi ON (pi.uid=sl.uid)
+      LEFT JOIN builds b ON (b.id=pi.location_id)
+      LEFT JOIN streets s ON (s.id=b.street_id)
+      LEFT JOIN districts d ON (d.id=s.district_id)
+EXT_TABLE
+  }
+
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} sl.id
+FROM sender_log sl
+LEFT JOIN users u ON (u.uid=sl.uid)
+  $EXT_TABLES
+  $WHERE
+GROUP BY $GROUP_BY
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, {
     COLS_NAME => 1,
     %{$attr || {}} }
   );
@@ -915,7 +925,14 @@ sub sender_log_list {
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(sl.id) AS total FROM sender_log sl $WHERE", undef, { INFO => 1 });
+  $sql = <<"SQL";
+    SELECT COUNT(sl.id) AS total FROM sender_log sl
+    LEFT JOIN users u ON (u.uid=sl.uid)
+    $EXT_TABLES
+    $WHERE
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -926,8 +943,7 @@ sub sender_log_list {
 =cut
 #**********************************************************
 sub sender_log_info {
-  my $self = shift;
-  my $id = shift;
+  my ($self, $id) = shift;
 
   $self->query("SELECT * FROM sender_log WHERE id = ? ;", undef, { INFO => 1, Bind => [ $id ] });
 
@@ -940,8 +956,7 @@ sub sender_log_info {
 =cut
 #**********************************************************
 sub sender_log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('sender_log', $attr);
 
@@ -954,8 +969,7 @@ sub sender_log_add {
 =cut
 #**********************************************************
 sub sender_log_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('sender_log', undef, $attr);
 

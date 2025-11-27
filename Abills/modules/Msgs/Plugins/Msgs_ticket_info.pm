@@ -87,6 +87,7 @@ sub plugin_show {
 
   my $info = $self->_get_main_info($attr);
 
+  $info .= $self->_get_client_responsible_input($attr);
   $info .= $self->_get_responsible_select($attr);
   $info .= $self->_get_priority_select($attr);
   $info .= $self->_get_watchers_select($attr);
@@ -324,6 +325,27 @@ sub _get_internet_info {
   });
 
   return join('', ($ip, $cid, $last_alive));
+}
+
+#**********************************************************
+=head2 _get_client_responsible_input($attr)
+
+=cut
+#**********************************************************
+sub _get_client_responsible_input {
+  my ($self) = @_;
+
+  my $client_responsible_input = $html->element('input', '', {
+    type  => 'text',
+    class => 'form-control',
+    name  => 'CLIENT_RESPONSIBLE',
+    value => $Msgs->{CLIENT_RESPONSIBLE},
+  });
+
+  my $col_div = $html->element('div', $client_responsible_input, { class => 'col-md-12' });
+  my $label = $html->element('label', "$lang->{MSGS_RESPONSIBLE_PERSON_CLIENT_SIDE}:", { class => 'col-md-12' });
+
+  return $html->element('div', $label . $col_div, { class => 'form-group' });
 }
 
 1;

@@ -23,7 +23,6 @@ my $Payment_plugin = Paysys::Plugins::FreedomPay->new($db, $admin, \%conf);
 my $Paysys = Paysys->new($db, $admin, \%conf);
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = int(rand(10000));
 my $transaction_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());
 $transaction_date =~ s/[-: ]//g;
 
@@ -36,7 +35,7 @@ $Paysys->add({
   SUM            => $payment_sum,
   UID            => $user_id,
   IP             => $ENV{REMOTE_ADDR},
-  TRANSACTION_ID => "FRDMPAY:$transaction_id",
+  TRANSACTION_ID => "FRDMPAY:$payment_id",
   PAYSYS_IP      => $ENV{REMOTE_ADDR},
   STATUS         => 1,
 });

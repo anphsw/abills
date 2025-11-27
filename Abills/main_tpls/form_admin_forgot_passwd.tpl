@@ -1,6 +1,6 @@
 <div class='row justify-content-center'>
   <div class='col-md-3 col-lg-2'>
-    <form action='$SELF_URL' method='post' name='reg_request_form' class='form form-horizontal'>
+    <form action='%SELF_URL%' method='post' name='reg_request_form' class='form form-horizontal'>
       <input type='hidden' name='forgot_passwd' value='1'>
       <br>
       <div class='card card-primary card-outline center-block'>

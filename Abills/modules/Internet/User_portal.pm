@@ -17,8 +17,8 @@ our (
   $admin,
   %conf,
   %lang,
-  @WEEKDAYS,
-  @MONTHES,
+  #@WEEKDAYS,
+  #@MONTHES,
   $DATE,
   $TIME,
   $sid,
@@ -38,6 +38,11 @@ my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML 
 
 #**********************************************************
 =head2 internet_user_info()
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -70,6 +75,98 @@ sub internet_user_info {
   return 1;
 }
 
+
+#**********************************************************
+=head2 internet_user_isg($Isg, $attr)
+
+  Arguments:
+    $Isg
+    $attr
+
+  Return:
+
+=cut
+#**********************************************************
+sub internet_user_isg {
+  my ($Isg)=@_;
+
+  require Internet::Cisco_isg;
+
+  $Nas->list({
+    NAS_TYPE  => 'cisco_isg',
+    PAGE_ROWS => 10000,
+    LIST2HASH => 'nas_id,nas_name'
+  });
+
+  my $nas_list = $Nas->{list_hash};
+  #Check deposit and disable STATUS
+  my $list = $Internet->user_list({
+    LOGIN          => $user->{LOGIN},
+    CREDIT         => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    INTERNET_STATUS=> '_SHOW',
+    TP_NAME        => '_SHOW',
+    ONLINE_NAS_ID  => join(';', keys %$nas_list),
+    PAYMENTS_TYPE  => 0,
+    COLS_NAME      => 1
+  });
+
+  if ($Internet->{TOTAL} < 1) {
+
+  }
+  elsif (($list->[0]->{credit} > 0 && ($list->[0]->{deposit} + $list->[0]->{credit} < 0))
+    || ($list->[0]->{credit} == 0 && $list->[0]->{deposit} + $list->[0]->{credit}) < 0)
+  {
+    form_neg_deposit($user);
+    return 0;
+  }
+  elsif ($list->[0]->{internet_status} && $list->[0]->{internet_status} == 1) {
+    $html->message('err', $lang{ERROR}, "$lang{SERVICES} '$list->[0]->{tp_name}' $lang{DISABLE}", { ID => 15 });
+    return 0;
+  }
+
+  if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-status-query", { USER_NAME => $user->{LOGIN}, NAS_ID => $list->[0]->{online_nas_id} })) {
+    return 0;
+  }
+
+  if ($Isg->{ISG_CID_CUR}) {
+    #change speed (active turbo mode)
+    if ($FORM{SPEED}) {
+      if ($Isg->{CURE_SERVICE} =~ /TP/xm || !$Isg->{TURBO_MODE_RUN}) {
+        my $service_name = 'TURBO_SPEED' . $FORM{SPEED};
+
+        #Deactive cure service (TP Service)
+        if ($Isg->{CURE_SERVICE} =~ /TP/xm) {
+          if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", {
+            USER_NAME    => $user->{LOGIN},
+            CURE_SERVICE => $Isg->{CURE_SERVICE},
+            SERVICE_NAME => $service_name  })) {
+
+          }
+        }
+
+        #Activate service
+        if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", { USER_NAME => $user->{LOGIN}, SERVICE_NAME => $service_name })) {
+          return 0;
+        }
+      }
+      elsif ($Isg->{TURBO_MODE_RUN}) {
+        $html->message('info', $lang{INFO}, "TURBO $lang{MODE} $lang{ENABLE}");
+      }
+    }
+  }
+
+  if ($FORM{logon}) {
+    #Logon
+    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logoff",
+      { USER_NAME => $user->{LOGIN} })) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
 #**********************************************************
 =head2 internet_user_info_proceed($attr)
 
@@ -91,76 +188,18 @@ sub internet_user_info_proceed {
   my $service_status = sel_status({ HASH_RESULT => 1 });
   our $Isg;
   if ($conf{INTERNET_ISG}) {
-    require Internet::Cisco_isg;
-
-    $Nas->list({
-      NAS_TYPE  => 'cisco_isg',
-      PAGE_ROWS => 10000,
-      LIST2HASH => 'nas_id,nas_name'
-    });
-
-    my $nas_list = $Nas->{list_hash};
-    #Check deposit and disable STATUS
-    my $list = $Internet->user_list({
-      LOGIN          => $user->{LOGIN},
-      CREDIT         => '_SHOW',
-      DEPOSIT        => '_SHOW',
-      INTERNET_STATUS=> '_SHOW',
-      TP_NAME        => '_SHOW',
-      ONLINE_NAS_ID  => join(';', keys %$nas_list),
-      PAYMENTS_TYPE  => 0,
-      COLS_NAME      => 1
-    });
-
-    if ($Internet->{TOTAL} < 1) {
-
-    }
-    elsif (($list->[0]->{credit} > 0 && ($list->[0]->{deposit} + $list->[0]->{credit} < 0))
-      || ($list->[0]->{credit} == 0 && $list->[0]->{deposit} + $list->[0]->{credit}) < 0)
-    {
-      form_neg_deposit($user);
+    if(! internet_user_isg($Isg)) {
       return 0;
-    }
-    elsif ($list->[0]->{internet_status} && $list->[0]->{internet_status} == 1) {
-      $html->message('err', $lang{ERROR}, "$lang{SERVICES} '$list->[0]->{tp_name}' $lang{DISABLE}", { ID => 15 });
-      return 0;
-    }
-
-    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-status-query", { USER_NAME => $user->{LOGIN}, NAS_ID => $list->[0]->{online_nas_id} })) {
-      return 0;
-    }
-
-    if ($Isg->{ISG_CID_CUR}) {
-      #change speed (active turbo mode)
-      if ($FORM{SPEED}) {
-        if ($Isg->{CURE_SERVICE} =~ /TP/ || !$Isg->{TURBO_MODE_RUN}) {
-          my $service_name = 'TURBO_SPEED' . $FORM{SPEED};
-
-          #Deactive cure service (TP Service)
-          if ($Isg->{CURE_SERVICE} =~ /TP/) {
-            if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", {
-              USER_NAME    => $user->{LOGIN},
-              CURE_SERVICE => $Isg->{CURE_SERVICE},
-              SERVICE_NAME => $service_name  })) {
-
-            }
-          }
-
-          #Activate service
-          if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", { USER_NAME => $user->{LOGIN}, SERVICE_NAME => $service_name })) {
-            return 0;
-          }
-        }
-        elsif ($Isg->{TURBO_MODE_RUN}) {
-          $html->message('info', $lang{INFO}, "TURBO $lang{MODE} $lang{ENABLE}");
-        }
-      }
     }
   }
   # Users autoregistrations
   elsif ($conf{INTERNET_IP_DISCOVERY} || $FORM{DISCOVERY_MAC}) {
     if(! internet_discovery($user->{REMOTE_ADDR}, { %FORM, UID => $uid, ID => $service_id })) {
       return 0;
+    }
+    if (! $FORM{index}) {
+      form_info({ MODULE => 'Internet' });
+      return 1;
     }
   }
 
@@ -196,13 +235,6 @@ sub internet_user_info_proceed {
         { USER_NAME => $user->{LOGIN} })) {
         return 0;
       }
-    }
-  }
-  elsif ($FORM{logon}) {
-    #Logon
-    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logoff",
-      { USER_NAME => $user->{LOGIN} })) {
-      return 0;
     }
   }
   elsif ($FORM{hangup}) {
@@ -270,8 +302,8 @@ sub internet_user_info_proceed {
 
     my $next_tp_id = $next_tp_action->{action};
     $service_id = 0;
-    if ($next_tp_id =~ /:/) {
-      ($service_id, $next_tp_id) = split(/:/, $next_tp_id);
+    if ($next_tp_id =~ /:/xm) {
+      ($service_id, $next_tp_id) = split(/:/x, $next_tp_id);
     }
 
     # Get info about next TP
@@ -287,7 +319,7 @@ sub internet_user_info_proceed {
     }
   }
 
-  my ($status, $color) = split(/:/, $service_status->{ $Internet->{STATUS} });
+  my ($status, undef) = split(/:/x, $service_status->{ $Internet->{STATUS} });
   $user->{SERVICE_STATUS} = $Internet->{STATUS};
 
   if ($Internet->{STATUS} == 2) {
@@ -320,7 +352,7 @@ sub internet_user_info_proceed {
   }
 
   $index = get_function_index('internet_user_info');
-  if ($index && $index =~ /sub(\d+)/){
+  if ($index && $index =~ /sub(\d+)/xm){
     $index = $1;
   }
 
@@ -329,7 +361,6 @@ sub internet_user_info_proceed {
       'index=' . get_function_index('internet_user_chg_tp')
         . '&ID=' . $Internet->{ID}
         . '&sid=' . $sid, { class => 'float-right', ICON => 'fa fa-pencil-alt' });
-
   }
 
   #Activate Cisco ISG Account
@@ -383,47 +414,40 @@ sub internet_isg {
     $html->message('info', $lang{INFO}, "$lang{NOT_ACTIVE}\n\n CID: ". ($Isg->{ISG_CID_CUR} || q{n/d})
       ."\n IP: $user->{REMOTE_ADDR} ", { ID => 121  });
 
-    $html->form_main(
-      {
-        CONTENT => '',
-        HIDDEN  => {
-          index => $index,
-          CID   => $Isg->{ISG_CID_CUR},
-          sid   => $sid
-        },
-        SUBMIT => { activate => $lang{ACTIVATE} }
-      }
-    );
+    $html->form_main({
+      CONTENT => '',
+      HIDDEN  => {
+        index => $index,
+        CID   => $Isg->{ISG_CID_CUR},
+        sid   => $sid
+      },
+      SUBMIT  => { activate => $lang{ACTIVATE} }
+    });
 
     $Internet_->{CID} = $Isg->{ISG_CID_CUR};
     $Internet_->{IP}  = $user->{REMOTE_ADDR};
     $Internet_->{CID} .= ' ' . $html->color_mark($lang{NOT_ACTIVE}, $_COLORS[6]);
   }
-
   #Self hangup
   elsif ($Internet_->{CID} eq $Isg->{ISG_CID_CUR}) {
-    my $table = $html->table(
-      {
-        width    => '600',
-        rows     => [
-          [
-            ($Isg->{ISG_SESSION_DURATION}) ? "$lang{SESSIONS} $lang{DURATION}: " . sec2time($Isg->{ISG_SESSION_DURATION}, { str => 1 }) : '',
-            ($Isg->{CURE_SERVICE} && $Isg->{CURE_SERVICE} !~ /TP/ && !$Isg->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$lang{LOGON} ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
-          ]
-        ],
-      }
-    );
+    my $table = $html->table({
+      width => '600',
+      rows  => [
+        [
+          ($Isg->{ISG_SESSION_DURATION}) ? "$lang{SESSIONS} $lang{DURATION}: " . sec2time($Isg->{ISG_SESSION_DURATION}, { str => 1 }) : '',
+          ($Isg->{CURE_SERVICE} && $Isg->{CURE_SERVICE} !~ /TP/ && !$Isg->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$lang{LOGON} ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
+        ]
+      ],
+    });
 
-    print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => {
-          index => $index,
-          CID   => $Isg->{ISG_CID_CUR},
-          sid   => $sid
-        },
+    print $html->form_main({
+      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        index => $index,
+        CID   => $Isg->{ISG_CID_CUR},
+        sid   => $sid
       }
-    );
+    });
   }
 
   return 1;
@@ -464,7 +488,7 @@ sub internet_service_info {
       $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
     }
     else {
-      $money_name = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+      $money_name = (split(/;/x, $conf{MONEY_UNIT_NAMES}))[0];
     }
   }
 
@@ -487,12 +511,12 @@ sub internet_service_info {
 
   my @extra_fields = ();
   foreach my $param ( @check_fields ) {
-    my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param, 4);
+    my($id, $default_value, $lang_, $value_prefix )=split(/:/x, $param, 4);
 
     if(! defined($Internet_->{$id}) || $Internet_->{$id} eq $default_value) {
       next;
     }
-    elsif ($Internet_->{TP_AGE} && $id =~/MONTH_ABON|DAY_ABON/) {
+    elsif ($Internet_->{TP_AGE} && $id =~/MONTH_ABON|DAY_ABON/xm) {
       next;
     }
 
@@ -536,14 +560,14 @@ sub internet_discovery {
   my ($user_ip, $attr)=@_;
 
   if($conf{INTERNET_IP_DISCOVERY_IP}) {
-    my ($user_name, $discovery_user_ip) = split(/:/, $conf{INTERNET_IP_DISCOVERY_IP});
+    my ($user_name, $discovery_user_ip) = split(/:/x, $conf{INTERNET_IP_DISCOVERY_IP});
     if($user_name eq $user->{LOGIN}) {
       $user_ip = $discovery_user_ip;
     }
   }
 
   if ($FORM{DISCOVERY_MAC}) {
-    if ($FORM{discovery} && $attr->{CID} && $attr->{CID} =~ /^$MAC$/) {
+    if ($FORM{discovery} && $attr->{CID} && $attr->{CID} =~ /^$MAC$/xm) {
       $Internet->user_list({ CID => $FORM{CID} });
       if (defined($Internet->{TOTAL}) && $Internet->{TOTAL} < 1) {
         $Internet->user_change({
@@ -558,7 +582,6 @@ sub internet_discovery {
           CID   => $FORM{CID},
           GUEST => 1
         });
-
       }
     }
 
@@ -573,12 +596,12 @@ sub internet_discovery {
     return 1;
   }
   else {
-    $conf{INTERNET_IP_DISCOVERY} =~ s/[\r\n ]//g;
-    my @dhcp_nets = split(/;/, $conf{INTERNET_IP_DISCOVERY});
+    $conf{INTERNET_IP_DISCOVERY} =~ s/[\r\n\s]//xg;
+    my @dhcp_nets = split(/;/x, $conf{INTERNET_IP_DISCOVERY});
 
     my $discovery_ip = 0;
     foreach my $nets (@dhcp_nets) {
-      my (undef, $net_ips, undef) = split(/:/, $nets);
+      my (undef, $net_ips, undef) = split(/:/x, $nets);
       if (check_ip($user_ip, $net_ips)) {
         $discovery_ip = 1;
         last;
@@ -590,9 +613,29 @@ sub internet_discovery {
     }
   }
 
+  internet_discovery_get($user_ip, $user->{LOGIN});
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_discovery_get($user_ip)
+
+  Arguments:
+    $user_ip
+    $user_name
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_discovery_get {
+  my ($user_ip, $user_name)=@_;
+
   my $session_list = $Sessions->online({
     CLIENT_IP => $user_ip,
-    #USER_NAME => $user->{LOGIN},
+    LOGIN     => '_SHOW',
     ACCT_SESSION_ID => '_SHOW',
     NAS_ID    => '_SHOW',
     UID       => '_SHOW',
@@ -601,14 +644,19 @@ sub internet_discovery {
     DESC      => 'DESC',
   });
 
-  if ($Sessions->{TOTAL} < 1 || $session_list->[0]->{guest} && ! $session_list->[0]->{uid}) {
+  my $reassign_ip = 0;
+  if ($conf{INTERNET_IP_DISCOVERY_REASSIGN} && $session_list->[0]->{login} && $session_list->[0]->{login} ne $user_name) {
+    $reassign_ip = $session_list->[0]->{uid};
+  }
 
+  if ($Sessions->{TOTAL} < 1
+     || ($session_list->[0]->{guest} && ! $session_list->[0]->{uid})
+     || $reassign_ip) {
     my $DHCP_INFO = internet_dhcp_get_mac($user_ip, { CHECK_STATIC => 1 });
 
     if (!$DHCP_INFO->{MAC}) {
       my $log_type = 'LOG_WARNING';
       my $error_id = 112;
-
       $html->message('err', $lang{ERROR}, "DHCP $lang{ERROR}\n MAC: $lang{NOT_EXIST}\n IP: '$user_ip'", { ID => 112 });
       $Log->log_print($log_type, $user->{LOGIN},
         show_hash($DHCP_INFO, { OUTPUT2RETURN => 1 }). (($error_id) ? "Error: $error_id" : ''),
@@ -616,11 +664,10 @@ sub internet_discovery {
 
       return 0;
     }
-    elsif ($DHCP_INFO->{STATIC}) {
+    elsif ($DHCP_INFO->{STATIC} && ! $reassign_ip) {
       if ($DHCP_INFO->{IP} ne $user_ip) {
         my $log_type = 'LOG_WARNING';
         my $error_id = 114;
-
         $html->message('err', $lang{ERROR}, "$lang{ERR_IP_ADDRESS_CONFLICT}\n MAC: $lang{NOT_EXIST}\n IP: '$user_ip' ", { ID => 114 });
 
         $Log->log_print($log_type, $user->{LOGIN},
@@ -630,7 +677,12 @@ sub internet_discovery {
     }
     else {
       if($FORM{discovery}) {
-        if (internet_dhcp_get_mac_add($user_ip, $DHCP_INFO, { NAS_ID => $session_list->[0]->{nas_id} })) {
+        my $result = internet_dhcp_get_mac_add($user_ip, $DHCP_INFO, {
+          NAS_ID      => $session_list->[0]->{nas_id},
+          REASSIGN_IP => $reassign_ip
+        });
+
+        if ($result > 0) {
           $html->message('info', $lang{INFO}, "$lang{ACTIVATE}\n\n "
             . (($Internet->{NEW_IP} && $Internet->{NEW_IP} ne '0.0.0.0') ? "IP: $Internet->{NEW_IP}\n" : q{})
             .  "CID: $DHCP_INFO->{MAC}");
@@ -729,26 +781,25 @@ sub internet_user_chg_tp {
         [ "ID:", $schedule->{SHEDULE_ID} ] ]
     });
 
-    $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$schedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
-    $Tariffs->{TARIF_PLAN_TABLE} = $Tariffs->{TARIF_PLAN_SEL};
+    $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$schedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
     if ($schedule->{CAN_CANCEL} eq 'true') {
       $Tariffs->{ACTION} = 'del';
       $Tariffs->{LNG_ACTION} = "$lang{DEL}  $lang{SHEDULE}";
     }
   }
   else {
-    $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
-      SELECTED => $Internet->{TP_ID},
-      SEL_LIST => $Tariffs->list({
-        TP_GID          => $Internet->{TP_GID},
-        CHANGE_PRICE    => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
-        MODULE          => 'Dv;Internet',
-        STATUS          => '<1',
-        NEW_MODEL_TP    => 1,
-        TP_CHG_PRIORITY => $Internet->{TP_PRIORITY},
-        COLS_NAME       => 1
-      }),
-    });
+    # $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
+    #   SELECTED => $Internet->{TP_ID},
+    #   SEL_LIST => $Tariffs->list({
+    #     TP_GID          => $Internet->{TP_GID},
+    #     CHANGE_PRICE    => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
+    #     MODULE          => 'Dv;Internet',
+    #     STATUS          => '<1',
+    #     NEW_MODEL_TP    => 1,
+    #     TP_CHG_PRIORITY => $Internet->{TP_PRIORITY},
+    #     COLS_NAME       => 1
+    #   }),
+    # });
 
     my $available_tariffs = $service_info->{internal_results}->{can_change_tp}->{available_tariffs};
 
@@ -810,31 +861,27 @@ sub internet_user_chg_tp {
 }
 
 #**********************************************************
-=head2 form_stats($attr)
+=head2 internet_client_join($attr)
 
   Arguments:
     $attr
       UID
 
+  Returns:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
-sub internet_user_stats {
+sub internet_client_join {
   my ($attr) = @_;
 
-  my $uid = $LIST_PARAMS{UID} || $user->{UID} || $attr->{UID};
-  if (defined($FORM{SESSION_ID})) {
-    $pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
-    internet_session_detail({ LOGIN => $LIST_PARAMS{LOGIN} });
-    return 0;
-  }
-
-  _error_show($Sessions);
+  my $uid = $attr->{UID};
 
   #Join Service
   if ($user->{COMPANY_ID}) {
     if ($FORM{COMPANY_ID}) {
       #$users = Users->new($db, $admin, \%conf);
-      require Internet::Reports;
+      require Internet::Reports2;
       internet_report_use();
       return 0;
     }
@@ -843,14 +890,12 @@ sub internet_user_stats {
     Customers->import();
     my $customer = Customers->new($db, $admin, \%conf);
     my $company  = $customer->company();
-    my $ulist    = $company->admins_list(
-      {
-        COMPANY_ID => $user->{COMPANY_ID},
-        UID        => $uid
-      }
-    );
+    my $ulist    = $company->admins_list({
+      COMPANY_ID => $user->{COMPANY_ID},
+      UID        => $uid
+    });
 
-    if ($company->{TOTAL} > 0 && $ulist->[0]->[0] > 0) {
+    if ($company->{TOTAL} > 0 && $ulist->[0]->{is_company_admin} > 0) {
       $Internet->{JOIN_SERVICES_USERS} = $html->button($lang{COMPANY}, "&sid=$sid&index=$index&COMPANY_ID=$user->{COMPANY_ID}", { BUTTON => 1 }) . ' ';
     }
 
@@ -858,15 +903,13 @@ sub internet_user_stats {
 
     if ($Internet->{JOIN_SERVICE}) {
       my @uids = ();
-      my $list = $Internet->user_list(
-        {
-          JOIN_SERVICE => ($Internet->{JOIN_SERVICE}==1) ? $uid : $Internet->{JOIN_SERVICE},
-          COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
-          LOGIN        => '_SHOW',
-          PAGE_ROWS    => 1000,
-          COLS_NAME    => 1
-        }
-      );
+      my $user_list = $Internet->user_list({
+        JOIN_SERVICE => ($Internet->{JOIN_SERVICE} == 1) ? $uid : $Internet->{JOIN_SERVICE},
+        COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
+        LOGIN        => '_SHOW',
+        PAGE_ROWS    => 1000,
+        COLS_NAME    => 1
+      });
 
       if ($Internet->{JOIN_SERVICE} == 1) {
         $Internet->{JOIN_SERVICES_USERS} .=
@@ -874,7 +917,7 @@ sub internet_user_stats {
             : $html->button("$lang{ALL}", "&sid=$sid&index=$index&JOIN_STATS=" . $uid, { BUTTON => 1 }) . ' ';
       }
 
-      foreach my $line (@$list) {
+      foreach my $line (@$user_list) {
         if ($FORM{JOIN_STATS} && $FORM{JOIN_STATS} == $line->{uid}) {
           $Internet->{JOIN_SERVICES_USERS} .= $html->b($line->{login}) . ' ';
           $uid = $FORM{JOIN_STATS};
@@ -890,75 +933,83 @@ sub internet_user_stats {
       $LIST_PARAMS{UIDS} .= ',' . join(', ', @uids) if ($#uids > -1 && !$FORM{JOIN_STATS});
     }
 
-    my $table = $html->table(
-      {
-        width => '100%',
-        rows  => [ [ "$lang{JOIN_SERVICE}: ", $Internet->{JOIN_SERVICES_USERS} ] ]
-      }
-    );
-    $Sessions->{JOIN_SERVICE_STATS} .= $table->show();
+    my $table = $html->table({
+      width => '100%',
+      rows  => [ [ "$lang{JOIN_SERVICE}: ", $Internet->{JOIN_SERVICES_USERS} ] ]
+    });
+    return  $table->show({ OUTPU2RETTURN => 1 });
   }
 
-  if ($FORM{rows}) {
-    $LIST_PARAMS{PAGE_ROWS} = $FORM{rows};
-    $LIST_PARAMS{PG}        = $FORM{pg};
-    $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
-    $LIST_PARAMS{TO_DATE}   = $FORM{TO_DATE};
-    $conf{list_max_recs}    = $FORM{rows} if($FORM{rows} && $FORM{rows} =~ /^\d+$/);
-    $pages_qs .= "&rows=$conf{list_max_recs}";
+  return '';
+}
 
-    if($FORM{ONLINE}) {
-      $LIST_PARAMS{ONLINE}=$FORM{ONLINE};
-    }
-  }
+#**********************************************************
+=head2 internet_client_online($attr)
+
+  Arguments:
+    $attr
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_client_online {
+  my ($attr) = @_;
+
+  my $uid = $attr->{UID};
 
   #online sessions
-  my $list = $Sessions->online(
-    {
-      CLIENT_IP          => '_SHOW',
-      CID                => '_SHOW',
-      DURATION_SEC2      => '_SHOW',
-      ACCT_INPUT_OCTETS  => '_SHOW',
-      ACCT_OUTPUT_OCTETS => '_SHOW',
-      UID                => $uid
-    }
-  );
+  my $list = $Sessions->online({
+    CLIENT_IP          => '_SHOW',
+    CID                => '_SHOW',
+    DURATION_SEC2      => '_SHOW',
+    ACCT_INPUT_OCTETS  => '_SHOW',
+    ACCT_OUTPUT_OCTETS => '_SHOW',
+    UID                => $uid
+  });
 
   if ($Sessions->{TOTAL} > 0) {
-    my $table = $html->table(
-      {
-        caption     => 'Online',
-        width       => '100%',
-        title_plain => [ "IP", "CID", $lang{DURATION}, $lang{RECV}, $lang{SENT} ],
-        ID          => 'ONLINE'
-      }
-    );
+    my $table = $html->table({
+      caption     => 'Online',
+      width       => '100%',
+      title_plain => [ "IP", "CID", $lang{DURATION}, $lang{RECV}, $lang{SENT} ],
+      ID          => 'ONLINE'
+    });
 
     foreach my $line (@$list) {
       $table->addrow($line->{client_ip},
         $line->{CID},
-        _sec2time_str($line->{duration_sec2}),
+        sec2time_str($line->{duration_sec2}),
         int2byte($line->{acct_input_octets}),
         int2byte($line->{acct_output_octets})
       );
     }
-    $Sessions->{ONLINE} = $table->show({ OUTPUT2RETURN => 1 });
+
+    return $table->show({ OUTPUT2RETURN => 1 });
   }
 
-  #PEriods totals
-  $Sessions->{PERIOD_STATS} = internet_stats_periods({ UID => $uid });
-  $Sessions->{PERIOD_SELECT}= internet_period_select({ UID => $uid });
-  $Internet->user_info($uid);
+  return '';
+}
 
+#**********************************************************
+=head2 internet_client_prepaid($attr)
+
+  Arguments:
+    $attr
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_client_prepaid {
+  my ($attr) = @_;
+
+  my $uid = $attr->{UID};
   my $TRAFFIC_NAMES = internet_traffic_names($Internet->{TP_ID});
-
-  if (defined($FORM{show})) {
-    $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
-  }
-  elsif (defined($FORM{PERIOD}) && $FORM{PERIOD}=~/^\d+$/) {
-    $LIST_PARAMS{PERIOD} = $FORM{PERIOD};
-    $pages_qs .= "&PERIOD=$FORM{PERIOD}";
-  }
 
   #Show rest of prepaid traffic
   if (
@@ -968,15 +1019,13 @@ sub internet_user_stats {
     })
   )
   {
-    $list  = $Sessions->{INFO_LIST};
-    my $table = $html->table(
-      {
-        caption     => $lang{PREPAID},
-        width       => '100%',
-        title_plain => [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
-        ID          => 'INTERNET_STATS_PREPAID'
-      }
-    );
+    my $list = $Sessions->{INFO_LIST};
+    my $table = $html->table({
+      caption     => $lang{PREPAID},
+      width       => '100%',
+      title_plain => [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
+      ID          => 'INTERNET_STATS_PREPAID'
+    });
 
     foreach my $line (@$list) {
       my $traffic_rest = ($conf{INTERNET_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} }  :  $Sessions->{REST}->{ $line->{traffic_class} };
@@ -993,9 +1042,123 @@ sub internet_user_stats {
       );
     }
 
-    $Sessions->{PREPAID_INFO} = $table->show({ OUTPUT2RETURN => 1 });
+    return $table->show({ OUTPUT2RETURN => 1 });
   }
 
+  return '';
+}
+
+
+#**********************************************************
+=head2 internet_client_prepaid($attr)
+
+  Arguments:
+    $attr
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_client_stats_totals {
+  my ($Sessions_) = @_;
+
+  my $TRAFFIC_NAMES = internet_traffic_names($Internet->{TP_ID});
+
+  my $table = $html->table({
+    caption     => $lang{SUM},
+    width       => '100%',
+    title_plain => [
+      $lang{SESSIONS},
+      $lang{DURATION},
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{RECV}",
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{SENT}",
+
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{SUM}",
+
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{RECV}",
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{SENT}",
+
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{SUM}",
+      $lang{SUM}
+    ],
+    rows        => [
+      [
+        $Sessions_->{TOTAL},
+        sec2time_str($Sessions_->{DURATION}),
+        int2byte($Sessions_->{TRAFFIC_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte($Sessions_->{TRAFFIC_IN}, { DIMENSION => $FORM{DIMENSION} }),
+
+        int2byte(($Sessions_->{TRAFFIC_OUT} || 0) + ($Sessions_->{TRAFFIC_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
+
+        int2byte($Sessions_->{TRAFFIC2_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte($Sessions_->{TRAFFIC2_IN}, { DIMENSION => $FORM{DIMENSION} }),
+
+        int2byte(($Sessions_->{TRAFFIC2_OUT} || 0) + ($Sessions_->{TRAFFIC2_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
+        $Sessions_->{SUM}
+      ]
+    ],
+    ID          => 'TRAFFIC_SUM'
+  });
+
+  return $table->show({ OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 internet_user_stats($attr)
+
+  Arguments:
+    $attr
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_user_stats {
+  my ($attr) = @_;
+
+  my $uid = $LIST_PARAMS{UID} || $user->{UID} || $attr->{UID};
+  if (defined($FORM{SESSION_ID})) {
+    $pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
+    internet_session_detail({ LOGIN => $LIST_PARAMS{LOGIN} });
+    return 0;
+  }
+
+  _error_show($Sessions);
+
+  $Sessions->{JOIN_SERVICE_STATS} = internet_client_join({ UID => $uid });
+
+  if ($FORM{rows}) {
+    $LIST_PARAMS{PAGE_ROWS} = $FORM{rows};
+    $LIST_PARAMS{PG}        = $FORM{pg};
+    $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
+    $LIST_PARAMS{TO_DATE}   = $FORM{TO_DATE};
+    $conf{list_max_recs}    = $FORM{rows} if($FORM{rows} && $FORM{rows} =~ /^\d+$/xm);
+    $pages_qs .= "&rows=$conf{list_max_recs}";
+
+    if($FORM{ONLINE}) {
+      $LIST_PARAMS{ONLINE}=$FORM{ONLINE};
+    }
+  }
+
+  $Sessions->{ONLINE} = internet_client_online({ UID => $uid });
+  $Sessions->{PERIOD_STATS} = internet_stats_periods({ UID => $uid });
+  $Sessions->{PERIOD_SELECT}= internet_period_select({ UID => $uid });
+
+  $Internet->user_info($uid);
+
+  if (defined($FORM{show})) {
+    $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
+  }
+  elsif (defined($FORM{PERIOD}) && $FORM{PERIOD}=~/^\d+$/xm) {
+    $LIST_PARAMS{PERIOD} = $FORM{PERIOD};
+    $pages_qs .= "&PERIOD=$FORM{PERIOD}";
+  }
+
+  $Sessions->{PREPAID_INFO} = internet_client_prepaid({ UID => $uid });
   $pages_qs .= "&DIMENSION=$FORM{DIMENSION}" if ($FORM{DIMENSION});
 
   #Session List
@@ -1004,50 +1167,12 @@ sub internet_user_stats {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  $list  = $Sessions->list({
+  my $sessions__list  = $Sessions->list({
     %LIST_PARAMS,
     COLS_NAME => 1
   });
 
-  my $table = $html->table(
-    {
-      caption     => $lang{SUM},
-      width       => '100%',
-      title_plain => [
-        $lang{SESSIONS},
-        $lang{DURATION},
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{RECV}",
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{SENT}",
-
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : $lang{TRAFFIC}) . " $lang{SUM}",
-
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{RECV}",
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{SENT}",
-
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{SUM}",
-        $lang{SUM}
-      ],
-      rows        => [
-        [
-          $Sessions->{TOTAL},
-          _sec2time_str($Sessions->{DURATION}),
-          int2byte($Sessions->{TRAFFIC_OUT}, { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC_IN}, { DIMENSION => $FORM{DIMENSION} }),
-
-          int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
-
-          int2byte($Sessions->{TRAFFIC2_OUT}, { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC2_IN}, { DIMENSION => $FORM{DIMENSION} }),
-
-          int2byte(($Sessions->{TRAFFIC2_OUT} || 0) + ($Sessions->{TRAFFIC2_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
-          $Sessions->{SUM}
-        ]
-      ],
-      ID          => 'TRAFFIC_SUM'
-    }
-  );
-
-  $Sessions->{TOTALS_FULL} = $table->show({ OUTPUT2RETURN => 1 });
+  $Sessions->{TOTALS_FULL} = internet_client_stats_totals($Sessions);
 
   if (-f '../charts.cgi' || -f 'charts.cgi') {
     if ($user->{UID}) {
@@ -1056,7 +1181,7 @@ sub internet_user_stats {
   }
 
   if ($Sessions->{TOTAL} > 0) {
-    $Sessions->{SESSIONS} = internet_sessions($list, $Sessions, {
+    $Sessions->{SESSIONS} = internet_sessions($sessions__list, $Sessions, {
       OUTPUT2RETURN        => 1,
       INTERNET_UP_SESSIONS => $conf{INTERNET_UP_SESSIONS},
       PAGES_QS             => $pages_qs
@@ -1075,6 +1200,8 @@ sub internet_user_stats {
     $ip
     $DHCP_INFO
     $attr
+      NAS_ID
+      REASSING_IP
 
     $conf{INTERNET_IP_DISCOVERY}
 
@@ -1085,24 +1212,24 @@ sub internet_user_stats {
 sub internet_dhcp_get_mac_add {
   my ($ip, $DHCP_INFO, $attr) = @_;
 
-  $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
-  my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
+  $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n\s]//xg;
+  my @dhcp_nets         = split(/;/x, $conf{INTERNET_IP_DISCOVERY});
   my $default_params    = "IP,MAC";
   foreach my $nets (@dhcp_nets) {
     my %PARAMS_HASH = ();
 
-    my ($net_id, $net_ips, $params) = split(/:/, $nets);
+    my ($net_id, $net_ips, $params) = split(/:/x, $nets);
     $params                 = $default_params if (!$params);
-    my @params_arr          = split(/,/, $params);
+    my @params_arr          = split(/,/x, $params);
 
     for(my $i=0; $i<=$#params_arr; $i++) {
-      my ($param, $value)=split(/=/, $params_arr[$i]);
+      my ($param, $value)=split(/=/x, $params_arr[$i]);
       $PARAMS_HASH{$param} = $value || $DHCP_INFO->{$param};
     }
 
     my $start_ip           = '0.0.0.0';
     my $bit_mask           = 0;
-    ($start_ip, $bit_mask) = split(/\//, $net_ips) if ($net_ips);
+    ($start_ip, $bit_mask) = split(/\//x, $net_ips) if ($net_ips);
     my $mask               = 0b0000000000000000000000000000001;
     my $address_count      = sprintf("%d", $mask << (32 - $bit_mask));
 
@@ -1111,7 +1238,7 @@ sub internet_dhcp_get_mac_add {
       if($net_id) {
         $PARAMS_HASH{IP} = get_static_ip($net_id);
 
-        if ($PARAMS_HASH{IP} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+        if ($PARAMS_HASH{IP} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/xm) {
           if ($PARAMS_HASH{IP} == -1) {
             return 0;
           }
@@ -1127,6 +1254,18 @@ sub internet_dhcp_get_mac_add {
       if ($PARAMS_HASH{PORTS}) {
         $PARAMS_HASH{PORT} = $PARAMS_HASH{PORTS};
       }
+
+      if($attr->{REASSIGN_IP}) {
+        $Internet->user_change({
+          CID             => '',
+          IP              => '0.0.0.0',
+          PORT            => '',
+          NAS_ID          => 0,
+          UID             => $attr->{REASSIGN_IP},
+          ACTION_COMMENTS => 'REASSIGN'
+        });
+      }
+
       my $list = $Internet->user_list({
         NAS_ID    => $PARAMS_HASH{NAS_ID},
         UID       => $user->{UID},
@@ -1135,15 +1274,14 @@ sub internet_dhcp_get_mac_add {
         PAGE_ROWS => 1
       });
 
-      #my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } keys %PARAMS_HASH);
+      my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } sort keys %PARAMS_HASH);
 
       if ($Internet->{TOTAL} > 0) {
         $Internet->user_change({
           %PARAMS_HASH,
           ID     => $list->[0]->{id},
           UID    => $list->[0]->{uid},
-          NETWORK=> $net_id,
-          #MAC    => $PARAMS_HASH{MAC}
+          #NETWORK=> $net_id
         });
       }
       else {
@@ -1154,6 +1292,7 @@ sub internet_dhcp_get_mac_add {
           COLS_NAME => 1,
           PAGE_ROWS => 1
         });
+
         foreach my $service (@$internet_list) {
           if ((!$service->{nas_id} && !$service->{port}) || $Internet->{TOTAL} == 1) {
             $Internet->user_change({
@@ -1285,9 +1424,6 @@ sub internet_dhcp_get_mac {
   }
 
   $PARAMS{CUR_IP} = $ip;
-  # if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
-  #   ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
-  # }
 
   return \%PARAMS;
 }
@@ -1336,6 +1472,11 @@ sub internet_holdup_service {
 
 #**********************************************************
 =head2 internet_filters_control($attr) - Hold up user service
+
+  Arguments:
+    $Service
+  Results:
+    $self
 
 =cut
 #**********************************************************

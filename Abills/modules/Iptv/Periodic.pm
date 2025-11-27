@@ -27,6 +27,10 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Fees = Fees->new($db, $admin, \%conf);
 my $Iptv_base = Iptv::Base->new($db, $admin, \%conf, { LANG => \%lang });
 
+require Iptv::Services;
+Iptv::Services->import();
+my $Iptv_services = Iptv::Services->new($db, $admin, \%conf, { lang => \%lang, SYSTEM_ADMIN => 1 });
+
 #**********************************************************
 #=head2 iptv_daily_screen_fees($attr)
 #
@@ -335,86 +339,93 @@ sub iptv_monthly_next_tp {
         $expire = '0000-00-00';
       }
 
-      $Iptv->{db}{db}->{AutoCommit} = 0;
-      $Iptv->{db}->{TRANSACTION} = 1;
-      my $change_tp_info = $Iptv->user_change({
+      $Iptv_services->user_change({
         UID            => $user{UID},
         ID             => $user{ID},
         STATUS         => $status,
         TP_ID          => $tp_info->{next_tp_id},
         SERVICE_EXPIRE => $expire
       });
+      # $Iptv->{db}{db}->{AutoCommit} = 0;
+      # $Iptv->{db}->{TRANSACTION} = 1;
+      # my $change_tp_info = $Iptv->user_change({
+      #   UID            => $user{UID},
+      #   ID             => $user{ID},
+      #   STATUS         => $status,
+      #   TP_ID          => $tp_info->{next_tp_id},
+      #   SERVICE_EXPIRE => $expire
+      # });
 
-      if (!$Iptv->{errno}) {
-        $Iptv->{ID} = $user{ID};
-
-        $Iptv->user_info($Iptv->{ID});
-
-        $Iptv->{SERVICE_ID} //= $FORM{SERVICE_ID};
-        my $Tv_service = undef;
-        if ($Iptv->{SERVICE_ID}) {
-          $Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
-            SERVICE_ID   => $Iptv->{SERVICE_ID}
-          });
-        }
-
-        my DBI $db_ = $Iptv->{db}{db};
-        if (!_error_show($Iptv) && $Tv_service) {
-          my $result = iptv_account_action({
-            %FORM,
-            %user,
-            STATUS     => $status,
-            TP_ID      => $tp_info->{next_tp_id},
-            ID         => $FORM{ID} || $Iptv->{ID},
-            SCREEN_ID  => undef,
-            SERVICE_ID => $Iptv->{SERVICE_ID},
-            change     => 1
-          });
-
-          if ($result) {
-            _error_show($Iptv, {
-              ID          => 835,
-              MESSAGE     => $Iptv->{errstr},
-              MODULE_NAME => $Tv_service->{SERVICE_NAME}
-            });
-
-            print "Error on change TP: $Iptv->{errstr}\n";
-
-            $db_->rollback();
-            $Iptv->{ID} = undef;
-            return 1;
-          }
-          delete($Iptv->{db}->{TRANSACTION});
-          $db_->commit();
-          $db_->{AutoCommit} = 1;
-        }
-        else {
-          delete($Iptv->{db}->{TRANSACTION});
-          $db_->commit();
-          $db_->{AutoCommit} = 1;
-        }
-      }
-
+      # if (!$Iptv->{errno}) {
+      #   $Iptv->{ID} = $user{ID};
+      #
+      #   $Iptv->user_info($Iptv->{ID});
+      #
+      #   $Iptv->{SERVICE_ID} //= $FORM{SERVICE_ID};
+      #   my $Tv_service = undef;
+      #   if ($Iptv->{SERVICE_ID}) {
+      #     $Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+      #       SERVICE_ID   => $Iptv->{SERVICE_ID}
+      #     });
+      #   }
+      #
+      #   my DBI $db_ = $Iptv->{db}{db};
+      #   if (!_error_show($Iptv) && $Tv_service) {
+      #     my $result = iptv_account_action({
+      #       %FORM,
+      #       %user,
+      #       STATUS     => $status,
+      #       TP_ID      => $tp_info->{next_tp_id},
+      #       ID         => $FORM{ID} || $Iptv->{ID},
+      #       SCREEN_ID  => undef,
+      #       SERVICE_ID => $Iptv->{SERVICE_ID},
+      #       change     => 1
+      #     });
+      #
+      #     if ($result) {
+      #       _error_show($Iptv, {
+      #         ID          => 835,
+      #         MESSAGE     => $Iptv->{errstr},
+      #         MODULE_NAME => $Tv_service->{SERVICE_NAME}
+      #       });
+      #
+      #       print "Error on change TP: $Iptv->{errstr}\n";
+      #
+      #       $db_->rollback();
+      #       $Iptv->{ID} = undef;
+      #       return 1;
+      #     }
+      #     delete($Iptv->{db}->{TRANSACTION});
+      #     $db_->commit();
+      #     $db_->{AutoCommit} = 1;
+      #   }
+      #   else {
+      #     delete($Iptv->{db}->{TRANSACTION});
+      #     $db_->commit();
+      #     $db_->{AutoCommit} = 1;
+      #   }
+      # }
+      #
       iptv_monthly_next_tp_take_fees({
         TP_INFO             => $tp_info,
         STATUS              => $status,
         USER_INFO           => \%user,
-        CHANGE_TP_INFO      => $change_tp_info,
+        # CHANGE_TP_INFO      => $change_tp_info,
         DAY_EQ_START_PERIOD => $d == $START_PERIOD_DAY
       });
-
-      if (!$Iptv->{errno}) {
-        iptv_account_action({
-          change     => 1,
-          UID        => $user{UID},
-          ID         => $user{ID},
-          TP_ID      => $tp_info->{next_tp_id},
-          TP_NUM     => $tp_info->{id},
-          EXPIRE     => $expire,
-          SERVICE_ID => $user{SERVICE_ID},
-          CHANGE_TP  => 1
-        });
-      }
+      #
+      # if (!$Iptv->{errno}) {
+      #   iptv_account_action({
+      #     change     => 1,
+      #     UID        => $user{UID},
+      #     ID         => $user{ID},
+      #     TP_ID      => $tp_info->{next_tp_id},
+      #     TP_NUM     => $tp_info->{id},
+      #     EXPIRE     => $expire,
+      #     SERVICE_ID => $user{SERVICE_ID},
+      #     CHANGE_TP  => 1
+      #   });
+      # }
     }
   }
 
@@ -574,22 +585,13 @@ sub iptv_monthly_fees {
       else {
         if (_date2timestamp($ADMIN_REPORT{DATE}) >= _date2timestamp($u->{iptv_expire})) {
           $debug_output .= "SERVICE_ENDED. LOGIN: $u->{login} ($u->{id})\n";
-          $Iptv->{SERVICE_ID} = $u->{service_id} if !$Iptv->{SERVICE_ID};
-          my $result = iptv_account_action({
-            change       => 1,
+          $Iptv_services->user_change({
             STATUS       => 1,
             FILTER_ID    => $tp->{filter_id},
             ID           => $u->{id},
             UID          => $u->{uid},
-            LOGIN        => $u->{login},
-            SUBSCRIBE_ID => $u->{subscribe_id},
-            SERVICE_ID   => $u->{service_id},
+            SUBSCRIBE_ID => $u->{subscribe_id}
           });
-
-          if (!$result) {
-            $Iptv->user_change({ ID => $u->{id}, STATUS => 1, UID => $u->{uid} });
-            _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
-          }
           next;
         }
         elsif ($tp->{age}) {
@@ -623,7 +625,7 @@ sub iptv_monthly_fees {
         EXT_BILL_ID  => $u->{ext_bill_id},
         SERVICE_ID   => $u->{service_id},
       );
-      
+
       my %FEES_DSC = (
         MODULE            => 'Iptv',
         SERVICE_NAME      => $lang{TV},
@@ -669,7 +671,7 @@ sub iptv_monthly_fees {
           elsif ($user{ACTIVATE} eq '0000-00-00' && $d != $START_PERIOD_DAY && !$tp->{abon_distribution}) {
             next;
           }
-          # If activation set to monthly Fees taken throught 30 days
+          # If activation set to monthly Fees taken through 30 days
           elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
             my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
             my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
@@ -693,15 +695,7 @@ sub iptv_monthly_fees {
         #Block negative users withot small_deposit_action
         elsif (!$tp->{small_deposit_action}) {
           $debug_output .= "Block negative Login: $u->{login} ($user{ID}) // $user{DEPOSIT} + $user{CREDIT} > 0\n";
-          iptv_account_action({
-            NEGDEPOSIT   => 1,
-            FILTER_ID    => $tp->{filter_id},
-            ID           => $user{ID},
-            UID          => $user{UID},
-            LOGIN        => $user{LOGIN},
-            SUBSCRIBE_ID => $user{SUBSCRIBE_ID},
-            SERVICE_ID   => $u->{service_id},
-          });
+          $Iptv_services->user_negdeposit({ ID => $user{ID}, UID => $user{UID} });
           next;
         }
 
@@ -716,21 +710,18 @@ sub iptv_monthly_fees {
       }
 
       if ($user{IPTV_STATUS}) {
-        iptv_service_activate({
-          TP_INFO   => $tp,
-          USER_INFO => \%user,
-          STATUS    => 0
-        });
+        $Iptv_services->user_change({ ID => $user{ID}, UID => $user{UID}, STATUS => 0 });
       }
+      else {
+        #Get fees
+        my $ret = get_service_fee(\%user, \%users_services, {
+          DATE   => $ADMIN_REPORT{DATE},
+          METHOD => $tp->{fees_method} || 1,
+          DEBUG  => $debug
+        });
 
-      #Get fees
-      my $ret = get_service_fee(\%user, \%users_services, {
-        DATE   => $ADMIN_REPORT{DATE},
-        METHOD => $tp->{fees_method} || 1,
-        DEBUG  => $debug
-      });
-
-      $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $total_sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($ret && $debug > 0);
+        $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $total_sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($ret && $debug > 0);
+      }
     }
   }
 
@@ -814,24 +805,26 @@ sub iptv_sheduler {
     my $service_list;
     $service_list = iptv_transfer_service($Iptv) if ($conf{IPTV_TRANSFER_SERVICE});
 
-    $Iptv->user_change({
+    # $Iptv->user_change({
+    #   ID    => $service_id,
+    #   UID   => $uid,
+    #   TP_ID => $action_
+    # });
+    #
+    # $info{change} = 1;
+    # $info{TP_ID} = $action_;
+    # $Iptv->{TP_ID} = $action_;
+    # if (iptv_account_action({ %info, CHANGE_TP => 1, SERVICE_ID => $Iptv->{SERVICE_ID}, TP_INFO_OLD => $Iptv->{TP_INFO_OLD} })) {
+    #   _error_show($Iptv);
+    # }
+
+    my $result = $Iptv_services->user_chg_tp({
+      TP_ID => $action_,
       ID    => $service_id,
-      UID   => $uid,
-      TP_ID => $action_
+      UID   => $uid
     });
-
-    $info{change} = 1;
-    $info{TP_ID} = $action_;
-    $Iptv->{TP_ID} = $action_;
-    if (iptv_account_action({ %info, CHANGE_TP => 1, SERVICE_ID => $Iptv->{SERVICE_ID}, TP_INFO_OLD => $Iptv->{TP_INFO_OLD} })) {
-      _error_show($Iptv);
-    }
-
-    # Transfer service
-    if ($service_list) {
-      iptv_transfer_service($Iptv, {
-        SERVICE_LIST => $service_list
-      });
+    if ($result->{errno}) {
+      return $result;
     }
 
     if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{RECALCULATE} eq '-1') {
@@ -839,37 +832,48 @@ sub iptv_sheduler {
       return 0;
     }
 
-    my $d = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
-    my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
-    #$FORM{RECALCULATE} = 0;
-
-    if ($Iptv->{errno}) {
-      return $Iptv->{errno};
-    }
-    else {
-      if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
-        $Iptv->{TP_INFO}->{MONTH_FEE} = 0;
-      }
-      $user = undef;
-      service_get_month_fee($Iptv, {
-        QUITE        => 1,
-        SHEDULER     => 1,
-        RECALCULATE  => 1,
-        USER_INFO    => $attr->{USER_INFO},
-        SERVICE_NAME => $lang{TV},
-        DATE         => $attr->{DATE}
+    $Iptv->user_info($service_id);
+    # Transfer service
+    if ($service_list) {
+      iptv_transfer_service($Iptv, {
+        SERVICE_LIST => $service_list
       });
     }
+    #
+    # my $d = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
+    # my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
+    # #$FORM{RECALCULATE} = 0;
+    #
+    # if ($Iptv->{errno}) {
+    #   return $Iptv->{errno};
+    # }
+    # else {
+    #   if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
+    #     $Iptv->{TP_INFO}->{MONTH_FEE} = 0;
+    #   }
+    #   $user = undef;
+    #   service_get_month_fee($Iptv, {
+    #     QUITE        => 1,
+    #     SHEDULER     => 1,
+    #     RECALCULATE  => 1,
+    #     USER_INFO    => $attr->{USER_INFO},
+    #     SERVICE_NAME => $lang{TV},
+    #     DATE         => $attr->{DATE}
+    #   });
+    # }
   }
   #Set channel
   elsif ($type eq 'channels') {
     return 0 if ($action eq '');
-    $action_ =~ s/;/, /g;
-    $FORM{IDS} = $action_;
-    $LIST_PARAMS{UID} = $uid;
-    $FORM{change_now} = 1;
+    # $action_ =~ s/;/, /g;
+    # $FORM{IDS} = $action_;
+    # $LIST_PARAMS{UID} = $uid;
+    # $FORM{change_now} = 1;
     if (!$Iptv->{errno}) {
-      iptv_user_channels({ QUIET => 1, SERVICE_INFO => $Iptv });
+      $Iptv_services->user_change_channels({
+        IDS => [ split(';', $action_) ],
+        ID  => $service_id
+      });
     }
     else {
       print "!! UID: $uid ID: $service_id / $Iptv->{errno}\n";
@@ -877,20 +881,25 @@ sub iptv_sheduler {
     #iptv_user_channels( { QUIET => 1, SERVICE_INFO => $Iptv } );
   }
   elsif ($type eq 'status') {
-    $Iptv->user_change({
+    $Iptv_services->user_change({
       ID     => $service_id,
       UID    => $uid,
       STATUS => $action_
     });
-    $Iptv->{STATUS} = $action_;
-
-    iptv_account_action({
-      %info,
-      #CHANGE_TP => 1,
-      STATUS     => $action_,
-      change     => 1,
-      SERVICE_ID => $Iptv->{SERVICE_ID}
-    });
+    # $Iptv->user_change({
+    #   ID     => $service_id,
+    #   UID    => $uid,
+    #   STATUS => $action_
+    # });
+    # $Iptv->{STATUS} = $action_;
+    #
+    # iptv_account_action({
+    #   %info,
+    #   #CHANGE_TP => 1,
+    #   STATUS     => $action_,
+    #   change     => 1,
+    #   SERVICE_ID => $Iptv->{SERVICE_ID}
+    # });
   }
 
   return 1;
@@ -923,21 +932,21 @@ sub iptv_monthly_next_tp_take_fees {
     $Fees->take($user, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
     print "Error: $Fees->{errno} $Fees->{errstr}\n" if ($Fees->{errno});
   }
-  elsif ($attr->{CHANGE_TP_INFO} && $tp_info->{next_tp_id} != $tp_info->{tp_id}) {
-    %{$Iptv} = %{$attr->{CHANGE_TP_INFO}};
-    $Iptv->{TP_INFO}->{MONTH_FEE} = 0 if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION} || $attr->{DAY_EQ_START_PERIOD});
-    $user = undef;
-    #$FORM{RECALCULATE} = 1;
-
-    service_get_month_fee($Iptv, {
-      QUITE        => 1,
-      SHEDULER     => 1,
-      RECALCULATE  => 1,
-      USER_INFO    => $attr->{USER_INFO},
-      SERVICE_NAME => $lang{TV},
-      DATE         => $DATE
-    });
-  }
+  # elsif ($attr->{CHANGE_TP_INFO} && $tp_info->{next_tp_id} != $tp_info->{tp_id}) {
+  #   %{$Iptv} = %{$attr->{CHANGE_TP_INFO}};
+  #   $Iptv->{TP_INFO}->{MONTH_FEE} = 0 if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION} || $attr->{DAY_EQ_START_PERIOD});
+  #   $user = undef;
+  #   #$FORM{RECALCULATE} = 1;
+  #
+  #   service_get_month_fee($Iptv, {
+  #     QUITE        => 1,
+  #     SHEDULER     => 1,
+  #     RECALCULATE  => 1,
+  #     USER_INFO    => $attr->{USER_INFO},
+  #     SERVICE_NAME => $lang{TV},
+  #     DATE         => $DATE
+  #   });
+  # }
 
   return 1;
 }
@@ -957,6 +966,8 @@ sub _date2timestamp {
   my $date = shift;
 
   my ($year, $month, $day) = split(/[\-]+/, $date);
+
+  use Time::Local qw (timelocal);
   return timelocal(0,0,0,$day,$month-1,$year);
 }
 

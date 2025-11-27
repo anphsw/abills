@@ -2,7 +2,7 @@
     <div class='card card-primary card-outline card-form'>
         <div class='card-header with-border'><h4 class='card-title'>_{FILLING_TIMETRACKER}_ %CAPTION%</h4></div>
         <div class='card-body'>
-            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='index' value='%index%'/>
             <input type='hidden' name='add_form' value='1'>
             %FORM_GROUP%
             %DATEPICKER%

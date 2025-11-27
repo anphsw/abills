@@ -78,7 +78,7 @@
       var command = "/ip firewall address-list remove numbers=" + cont.attr('data-address-number');
 
       var params = {
-        qindex : '$index',
+        qindex : '%index%',
         console: 1,
         full   : 1,
         header : 2,

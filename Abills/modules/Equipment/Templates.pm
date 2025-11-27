@@ -513,7 +513,7 @@ sub equipment_panel_new {
   my $edit_index  = get_function_index('equipment_info');
   $index = get_function_index('equipment_panel_new');
   if (!$FORM{NAS_ID} || $attr->{UID}) {
-    my $equip = $Equipment->_list(
+    my $equip = $Equipment->list(
       {
         NAS_NAME     => '_SHOW',
         NAS_IP       => $FORM{nas_ip} || '_SHOW',
@@ -610,7 +610,7 @@ sub equipment_panel_new {
           'NAS_ID',
           {
             SELECTED => $attr->{NAS_ID} || $FORM{NAS_ID},
-            SEL_LIST => $Equipment->_list(
+            SEL_LIST => $Equipment->list(
               {
                 NAS_NAME  => '_SHOW',
                 NAS_IP    => '_SHOW',
@@ -728,7 +728,7 @@ sub equipment_snmp_data {
   #my ($attr) = @_;
   #my @newarr;
 
-  my $equipment = $Equipment->_list(
+  my $equipment = $Equipment->list(
     {
       COLS_NAME => 1,
       NAS_ID    => $FORM{NAS_ID}
@@ -1002,7 +1002,7 @@ sub equipment_snmp_json_data {
   #my ($attr) = @_;
   #my @newarr;
 
-  my $equipment = $Equipment->_list(
+  my $equipment = $Equipment->list(
     {
       COLS_NAME => 1,
       NAS_ID    => $FORM{NAS_ID},

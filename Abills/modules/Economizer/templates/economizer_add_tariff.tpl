@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='POST'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' method='POST'>
+  <input type='hidden' name='index' value='%index%'>
   <div class='card card-primary card-outline container-md card-form'>
   <div class='card-header with-border'><h4 class='card-title'>_{SERVICE}_</h4></div>
     <div class='card-body'>

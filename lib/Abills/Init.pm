@@ -138,19 +138,25 @@ $users = Users->new($db, $admin, \%conf);
 sub get_test_user {
   my ($attr) = @_;
 
-  my $test_user = $attr->{USER} || $conf{API_TEST_USER_LOGIN} || 'test';
-  my $users_list = $users->list({
-    LOGIN     => $test_user,
-    COLS_NAME => 1,
-  });
+  my $uid = 0;
 
-  if ($users->{TOTAL} < 1) {
-    #_log("test user not exists '$test_user'");
-    print "test user not exists '$test_user'";
-    return 0;
+  if (!$attr->{UID}) {
+    my $test_user = $attr->{USER} || $conf{API_TEST_USER_LOGIN} || 'test';
+    my $users_list = $users->list({
+      LOGIN     => $test_user,
+      COLS_NAME => 1,
+    });
+
+    if ($users->{TOTAL} < 1) {
+      #_log("test user not exists '$test_user'");
+      print "test user not exists '$test_user'";
+      return 0;
+    }
+    $uid = $users_list->[0]->{uid};
   }
-
-  my $uid = $users_list->[0]->{uid};
+  else {
+    $uid = $attr->{UID};
+  }
 
   my $user_info = $users->info($uid);
 

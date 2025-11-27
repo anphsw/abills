@@ -1,9 +1,9 @@
 
-<form action='$SELF_URL' method='post'>
-<input type=hidden name=index value=$index>
+<form action='%SELF_URL%' method='post'>
+<input type=hidden name=index value=%index%>
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='sid' value='$FORM{sid}'>
-<input type=hidden name='step' value='$FORM{step}'>
+<input type=hidden name='step' value='%step%'>
 
 
 <div class='card card-primary card-outline card-form'>
@@ -11,7 +11,7 @@
     <h4 class='card-title'>_{OPTIONS}_  </h4>
 
     <span class='float-right'>
-        <a href='$SELF_URL?qindex=$index&STATEMENT_OF_ACCOUNT=1&UID=$FORM{UID}&header=1' target=new class='btn btn-xs btn-success'>_{STATEMENT_OF_ACCOUNT}_</a>
+        <a href='%SELF_URL%?qindex=%index%&STATEMENT_OF_ACCOUNT=1&UID=$FORM{UID}&header=1' target=new class='btn btn-xs btn-success'>%STATEMENT_OF_ACCOUNT%</a>
     </span>
 
   </div>

@@ -63,7 +63,7 @@
   <div class='card-body'>
 
     <form name='CABLECAT_COLOR_SCHEME' id='form_CABLECAT_COLOR_SCHEME' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='ID' value='%ID%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
       <input type='hidden' name='COLORS' value='%COLORS%' id='COLORS_id'/>

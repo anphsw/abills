@@ -23,7 +23,7 @@ my %PARAMS = ();
 my %Tv_services = ();
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 youtv_sync();
 

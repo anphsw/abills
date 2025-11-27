@@ -57,17 +57,16 @@ sub new {
 =cut
 #**********************************************************
 sub _start {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $attr->{external_auth} = 'Apple' if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/);
+  $attr->{external_auth} = 'Apple' if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/xm);
   $attr->{USER_IP} //= $ENV{REMOTE_ADDR} if ($conf{REGISTRATION_IP} && $conf{REGISTRATION_DEFAULT_TP});
 
   if ($conf{GOOGLE_CAPTCHA_KEY}) {
-    $params{CAPTCHA} = qq{
-      <script>function onSubmit() { jQuery('form').submit(); } </script>
+    $params{CAPTCHA} = << "CAPTCHA";
+    <script>function onSubmit() { jQuery('form').submit(); } </script>
       <script src='https://www.google.com/recaptcha/api.js'></script>
-    };
+CAPTCHA
     $params{CAPTCHA_BTN} = "data-sitekey='$conf{GOOGLE_CAPTCHA_KEY}' data-callback='onSubmit' data-action='submit'";
   }
 
@@ -78,7 +77,7 @@ sub _start {
     my $result = $self->password_recovery($attr);
     $extra_params{redirect} = $result->{redirect} if ($result->{redirect});
   }
-  else {
+  elsif (!$conf{REGISTRATION_PORTAL_SKIP}) {
     my $result =$self->user_registration($attr);
     $extra_params{location} = $result->{location} if ($result->{location});
     $extra_params{redirect} = $result->{redirect} if ($result->{redirect});
@@ -96,8 +95,7 @@ sub _start {
 =cut
 #**********************************************************
 sub password_recovery {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my ($message, $redirect);
 
@@ -114,7 +112,7 @@ sub password_recovery {
     }
 
     if ($attr->{CODE}) {
-      $html->tpl_show(::templates('form_user_forgot_password_chg'), {
+      $html->tpl_show(Abills::Templates::templates('form_user_forgot_password_chg'), {
         %patterns,
         %$attr,
         CODE          => $attr->{CODE},
@@ -138,10 +136,10 @@ sub password_recovery {
   $required_fields{($_ || q{}) . '_REQUIRED'} = 'required' for (split ',\s?', ($conf{PASSWORD_RECOVERY_REQUIRED_PARAMS} || 'LOGIN,EMAIL'));
 
   if (in_array('Sms', \@main::MODULES) && !$fields_list{PHONE_HIDDEN}) {
-    $extra_params{EXTRA_PARAMS} = $html->tpl_show(::_include('sms_check_form', 'Sms'), undef, { OUTPUT2RETURN => 1 });
+    $extra_params{EXTRA_PARAMS} = $html->tpl_show(Abills::Templates::_include('sms_check_form', 'Sms'), undef, { OUTPUT2RETURN => 1 });
   }
 
-  $html->tpl_show(::templates('form_user_forgot_password'), {
+  $html->tpl_show(Abills::Templates::templates('form_user_forgot_password'), {
     %fields_list,
     %required_fields,
     %$attr,
@@ -163,8 +161,7 @@ sub password_recovery {
 =cut
 #**********************************************************
 sub password_recovery_process {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $result = $Registration_mng->password_recovery($attr);
   my $message_el = q{};
@@ -193,8 +190,7 @@ sub password_recovery_process {
 =cut
 #**********************************************************
 sub password_change_process {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $message_el = q{};
 
@@ -221,13 +217,17 @@ sub password_change_process {
 }
 
 #**********************************************************
-=head2 user_registration()
+=head2 user_registration($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub user_registration {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $message_el = '';
   my $result = {};
@@ -280,13 +280,13 @@ sub user_registration {
   }
 
   if (($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL}) && ($attr->{PIN_FORM} || (!$result->{errno} && $attr->{PIN_CONFIRM_FORM}))) {
-    $html->tpl_show(::templates('form_registration_confirm_pin'), {
+    $html->tpl_show(Abills::Templates::templates('form_registration_confirm_pin'), {
       %$attr,
       ERROR_MESSAGE => $message_el,
     });
   }
   else {
-    $html->tpl_show(::templates('form_registration_user'), {
+    $html->tpl_show(Abills::Templates::templates('form_registration_user'), {
       %$attr,
       PASSWORD_RECOVERY => $conf{PASSWORD_RECOVERY} ? 1 : 0,
       HIDDEN_PASS       => $conf{REGISTRATION_PASSWORD} ? '' : 'hidden',

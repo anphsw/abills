@@ -1,5 +1,5 @@
 <form name='filter' id='form_filter' method='GET' class='form'>
-    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='index' value='%index%'/>
     <input type='hidden' name='ID' value='%ID%'/>
 
     <div class='card card-primary card-outline container-md'>

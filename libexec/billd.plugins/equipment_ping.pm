@@ -71,7 +71,7 @@ sub equipment_ping {
     $Equipment->{debug}=1;
   }
 
-  my $equipment = $Equipment->_list( {
+  my $equipment = $Equipment->list( {
     NAS_IP    => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME => 1,
@@ -119,7 +119,7 @@ sub equipment_ping {
       print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
       $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
     }
-    $Equipment->_change({
+    $Equipment->change({
       NAS_ID        => $ips{$host_ip}{NAS_ID},
       STATUS        => 0,
       LAST_ACTIVITY => $datetime,
@@ -154,7 +154,7 @@ sub equipment_ping {
         print "fping: $host_ip is unreachable\n" if ( $debug > 1 );
         if ($ips{$host_ip}{STATUS} == 0) {
           print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
-          $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
+          $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
 
           if (in_array('Accident', \@main::MODULES)) {
@@ -171,7 +171,7 @@ sub equipment_ping {
       }
       else {
         print "fping: $host_ip is reachable\n" if ( $debug > 1 );
-        $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
+        $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
 
         if ($ips{$host_ip}{STATUS} == 3) {
           print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
@@ -199,7 +199,7 @@ sub equipment_ping {
         print "ICMP ping: $host_ip is unreachable\n" if ( $debug > 1);
         if ($ips{$host_ip}{STATUS} == 0) {
           print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
-          $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
+          $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
 
           if (in_array('Accident', \@main::MODULES)) {
@@ -210,7 +210,7 @@ sub equipment_ping {
         #TODO: ping_log_add STATUS => 0 if ping_log_add will be used
       }
       else {
-        $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
+        $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
         print "ICMP ping: $host_ip is reachable\n" if ( $debug > 1);
         if ($ips{$host_ip}{STATUS} == 3) {
           print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );

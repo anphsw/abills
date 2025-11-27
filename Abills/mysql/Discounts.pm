@@ -40,7 +40,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 add_discount() -
+=head2 discount_add() -
 
   Arguments:
     $attr -
@@ -50,9 +50,8 @@ sub new {
 
 =cut
 #**********************************************************
-sub add_discount {
-  my $self = shift;
-  my ($attr) = @_;
+sub discount_add {
+  my ($self, $attr) = @_;
 
   $self->query_add('discounts_discounts', { %$attr });
 
@@ -61,7 +60,7 @@ sub add_discount {
 
 #*******************************************************************
 
-=head2 function list_discount() - get list of all discounts
+=head2 discount_list() - get list of all discounts
 
   Arguments:
     $attr
@@ -70,43 +69,43 @@ sub add_discount {
     @list
 
   Examples:
-    my @list = $Discounts->list_discount({ COLS_NAME => 1});
+    my @list = $Discounts->discount_list({ COLS_NAME => 1});
 
 =cut
 
 #*******************************************************************
-sub list_discount {
-  my $self = shift;
-  my ($attr) = @_;
+sub discount_list {
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query(
-    "SELECT * FROM discounts_discounts
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+    SELECT * FROM discounts_discounts
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query("SELECT COUNT(*) AS total
-   FROM discounts_discounts",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<"SQL";
+   SELECT COUNT(*) AS total
+   FROM discounts_discounts;
+SQL
+
+  $self->query($sql, undef,{ INFO => 1 });
 
   return $list;
 }
 
 #*******************************************************************
 
-=head2 function info_discount() - get information about discount
+=head2 function discount_info() - get information about discount
 
   Arguments:
     $attr
@@ -115,25 +114,27 @@ sub list_discount {
     $self object
 
   Examples:
-    my $disc_info = $Discounts->info_discount({ ID => 1 });
+    my $disc_info = $Discounts->discount_info({ ID => 1 });
 
 =cut
 
 #*******************************************************************
-sub info_discount {
-  my $self = shift;
-  my ($attr) = @_;
+sub discount_info {
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT * FROM discounts_discounts
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql = <<"SQL";
+    SELECT * FROM discounts_discounts
+    WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
 
 #*******************************************************************
 
-=head2 function change_discount() - change discount's information in datebase
+=head2 function discount_change() - change discount's information in datebase
 
   Arguments:
     $attr
@@ -142,7 +143,7 @@ sub info_discount {
     $self object
 
   Examples:
-    $Discounts->change_discount({
+    $Discounts->discount_change({
       ID     => 1,
       SIZE   => 10,
       NAME   => 'TEST'
@@ -152,9 +153,8 @@ sub info_discount {
 =cut
 
 #*******************************************************************
-sub change_discount {
-  my $self = shift;
-  my ($attr) = @_;
+sub discount_change {
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -167,7 +167,7 @@ sub change_discount {
 
 #*******************************************************************
 
-=head2 function delete_discount() - delete discount
+=head2 function discount_delete() - delete discount
 
   Arguments:
     $attr
@@ -175,14 +175,13 @@ sub change_discount {
   Returns:
 
   Examples:
-    $Discounts->delete_discount( {ID => 1} );
+    $Discounts->discount_delete( {ID => 1} );
 
 =cut
 
 #*******************************************************************
-sub delete_discount {
-  my $self = shift;
-  my ($attr) = @_;
+sub discount_delete {
+  my ($self, $attr) = @_;
 
   $self->query_del('discounts_discounts', $attr);
 
@@ -191,7 +190,7 @@ sub delete_discount {
 
 
 #**********************************************************
-=head2 user_discounts() -
+=head2 discounts_user_list() -
 
   Arguments:
     $attr -
@@ -201,16 +200,16 @@ sub delete_discount {
 
 =cut
 #**********************************************************
-sub user_discounts_list {
-  my $self = shift;
-  my ($attr) = @_;
+sub discounts_user_list {
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query("SELECT dd.name,
+  my $sql = <<"SQL";
+     SELECT dd.name,
        dud.date,
        dd.size,
        dd.comments,
@@ -219,10 +218,10 @@ sub user_discounts_list {
      LEFT JOIN discounts_user_discounts dud ON (dud.discount_id = dd.id AND dud.uid='$attr->{UID}')
      GROUP BY dd.id
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+     LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -235,8 +234,7 @@ sub user_discounts_list {
 =cut
 #**********************************************************
 sub discount_user_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->discounts_user_del($attr);
 
@@ -253,10 +251,13 @@ sub discount_user_change {
       ];
     }
 
-    $self->query("INSERT INTO discounts_user_discounts (uid, discount_id, date)
-        VALUES (?, ?, curdate());",
-      undef,
-      { MULTI_QUERY => \@MULTI_QUERY });
+    my $sql = <<"SQL";
+      INSERT INTO discounts_user_discounts (uid, discount_id, date)
+      VALUES (?, ?, curdate());
+SQL
+
+
+    $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
   }
 
   return $self;
@@ -266,8 +267,7 @@ sub discount_user_change {
 # user_del()
 #**********************************************************
 sub discounts_user_del {
-  my $self = shift;
-  my ($attr) = @ _;
+  my ($self, $attr) = @_;
 
   $self->query_del('discounts_user_discounts', undef, { uid => $attr->{UID},
   });
@@ -288,11 +288,13 @@ sub discounts_user_del {
 =cut
 #**********************************************************
 sub discounts_user_query {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT fio FROM users_pi WHERE uid = ?",
-    undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] });
+  my $sql = <<"SQL";
+SELECT fio FROM users_pi WHERE uid = ?
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] });
 
   return $self;
 }
@@ -309,13 +311,12 @@ sub discounts_user_query {
 =cut
 #**********************************************************
 sub user_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('discounts_main', { %$attr, AID => $self->{admin}->{AID} });
 
   $self->{admin}->action_add( $attr->{UID},
-    "ID:$self->{INSERT_ID}, SUM:$attr->{SUM}, PERCENT:$attr->{PERCENT}, FROM_DATE:$attr->{FROM_DATE}, TO_DATE:$attr->{TO_DATE}, TYPE:$attr->{TYPE}",
+    "ID:$self->{INSERT_ID}, SUM:$attr->{SUM}, PERCENT:$attr->{PERCENT}, FROM DATE:$attr->{FROM_DATE}, TO DATE:$attr->{TO_DATE}, TYPE:$attr->{TYPE}",
     { TYPE => 1 } );
 
   return $self;
@@ -335,12 +336,14 @@ sub user_add {
 
 #*******************************************************************
 sub user_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT * FROM discounts_main
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql =<< 'SQL';
+    SELECT * FROM discounts_main
+    WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] } );
 
   return $self;
 }
@@ -357,8 +360,7 @@ sub user_info {
 =cut
 #*******************************************************************
 sub user_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -381,8 +383,7 @@ sub user_change {
 =cut
 #*******************************************************************
 sub user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('discounts_main', $attr);
   $self->{admin}->action_add( $attr->{UID}, "DELETED: $attr->{ID}", { TYPE => 10 } );
@@ -405,8 +406,7 @@ sub user_del {
 
 #*******************************************************************
 sub user_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : '1';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -415,8 +415,11 @@ sub user_list {
   my $EXT_TABLES = '';
 
   if ($attr->{LOGIN}){
-    $EXT_TABLES .= 'LEFT JOIN users u ON (u.uid=dm.uid)';
-    $attr->{UID} = '_SHOW',
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN users u ON (u.uid=dm.uid)
+EXT_TABLE
+
+    $attr->{UID} = '_SHOW';
   }
 
   my @search_columns = (
@@ -439,7 +442,7 @@ sub user_list {
     WHERE         => 1,
   });
 
-  $self->query("
+  my $sql = << "SQL";
     SELECT
       $self->{SEARCH_FIELDS}
       dm.id
@@ -447,19 +450,20 @@ sub user_list {
     $EXT_TABLES
     $WHERE
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query("
+  $sql = << "SQL";
     SELECT COUNT(*) AS total
     FROM discounts_main dm
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+    $WHERE;
+SQL
+
+  $self->query($sql, undef,{ INFO => 1 });
 
   return $list;
 }
@@ -476,8 +480,7 @@ sub user_list {
 =cut
 #*******************************************************************
 sub reports {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : '1';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -496,27 +499,42 @@ sub reports {
   my $report_type = $attr->{REPORT_TYPE} || q{};
 
   if ($attr->{GID} || $attr->{GID_NAME}){
-    $EXT_TABLES .= ' LEFT JOIN `groups` g ON (g.gid=u.gid)';
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN `groups` g ON (g.gid=u.gid)
+EXT_TABLE
+
   }
   $attr->{UID} = '_SHOW' if ($attr->{LOGIN});
   if ($attr->{A_NAME} || $report_type eq 'ADMINS'){
-    $EXT_TABLES .= "\nLEFT JOIN admins a ON (a.aid=dm.aid)";
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN admins a ON (a.aid=dm.aid)
+EXT_TABLE
+
   }
   if ($attr->{TAGS}){
-    $EXT_TABLES .= "\nLEFT JOIN tags_users tu ON (tu.uid=dm.uid)
-                      RIGHT JOIN tags t ON (t.id=tu.tag_id)";
-    $attr->{TAG_NAME} = '_SHOW',
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN tags_users tu ON (tu.uid=dm.uid)
+      RIGHT JOIN tags t ON (t.id=tu.tag_id)
+EXT_TABLE
+
+    $attr->{TAG_NAME} = '_SHOW';
   }
   if ($attr->{ADDRESS_FULL} || $attr->{DISTRICT_ID} ) {
-    $EXT_TABLES .= "\nLEFT JOIN users_pi pi ON (pi.uid=dm.uid)";
-    $EXT_TABLES .= "\nLEFT JOIN builds b ON (b.id=pi.location_id)
-                    \nLEFT JOIN streets s ON (s.id=b.street_id)
-                    \nLEFT JOIN districts d ON (d.id=s.district_id)";
+    $EXT_TABLES .= <<'EXT_TABLE';
+      LEFT JOIN users_pi pi ON (pi.uid=dm.uid)
+      LEFT JOIN builds b ON (b.id=pi.location_id)
+      LEFT JOIN streets s ON (s.id=b.street_id)
+      LEFT JOIN districts d ON (d.id=s.district_id)
+EXT_TABLE
+
   }
   if ($report_type eq 'ADMINS') {
     $GROUP_BY = "GROUP BY dm.aid, month";
-    $attr->{MONTH} = '_SHOW',
+    $attr->{MONTH} = '_SHOW';
   }
+
+  my $address_full = "IF(pi.location_id, CONCAT(d.name, '$build_delimiter', s.name, '$build_delimiter', b.number, '$build_delimiter', pi.address_flat), '') AS address_full";
+  my $tags_name = "(SELECT GROUP_CONCAT(DISTINCT t.name SEPARATOR ', ') FROM tags_users tu LEFT JOIN tags t ON (t.id=tu.tag_id) WHERE dm.uid=tu.uid) AS tags_name";
 
   my @search_columns = (
     [ 'FROM_DATE',        'DATE',  'dm.from_date',                    1 ],
@@ -539,12 +557,11 @@ sub reports {
     [ 'GID',              'STR',   'u.gid',                           1 ],
     [ 'GID_NAME',         'STR',   'g.name',       'g.name AS gid_name' ],
     [ 'TAGS',             'STR',    'tu.tag_id',                      1 ],
-    [ 'TAGS_NAME',        'STR',    "\n(SELECT GROUP_CONCAT(DISTINCT t.name SEPARATOR ', ') FROM tags_users tu LEFT JOIN tags t ON (t.id=tu.tag_id) WHERE dm.uid=tu.uid) AS tags_name", 1 ],
+    [ 'TAGS_NAME',        'STR',    $tags_name,                       1 ],
     [ 'DISTRICT_ID',      'INT',    'd.id',       'd.id AS district_id' ],
     [ 'STREET_ID',        'INT',    's.id',        's.id AS street_id ' ],
     [ 'LOCATION_ID',      'INT',    'b.id',         'b.id AS builds_id' ],
-    [ 'ADDRESS_FULL',     'STR',    "IF(pi.location_id, CONCAT(d.name, '$build_delimiter', s.name, '$build_delimiter', b.number, '$build_delimiter', pi.address_flat), '')
-                                  AS address_full",  1 ],
+    [ 'ADDRESS_FULL',     'STR',    $address_full,                    1 ],
   );
 
   my $WHERE = $self->search_former($attr, \@search_columns, {
@@ -552,7 +569,7 @@ sub reports {
     WHERE_RULES => \@WHERE_RULES,
   });
 
-  $self->query("
+  my $sql = << "SQL";
   SELECT
     $self->{SEARCH_FIELDS}
     dm.id
@@ -562,9 +579,10 @@ sub reports {
   $WHERE
   $GROUP_BY
   ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+  LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -572,15 +590,15 @@ sub reports {
     return $list;
   }
 
-  $self->query("
+  $sql = <<"SQL";
     SELECT COUNT(*) AS total
     FROM discounts_main dm
     LEFT JOIN users u ON (u.uid=dm.uid)
     $EXT_TABLES
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+    $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -599,30 +617,28 @@ sub reports {
 
 #*******************************************************************
 sub report_chart {
-
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'month';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr,[
-      [ 'FROM_DATE',        'DATE',  'dm.from_date',              1 ],
-      [ 'LOGIN',            'STR',   'u.id AS login',             1 ],
-      [ 'MODULE',           'STR',   'dm.module',                 1 ],
-      [ 'TP_ID',            'INT',   'dm.tp_id',                  1 ],
-      [ 'PERCENT',          'INT',   'dm.percent',                1 ],
-      [ 'SUM',              'DOUBLE','dm.sum',                    1 ],
-      [ 'STATUS',           'INT',   'dm.status',                 1 ],
-      [ 'AID',              'INT',   'dm.aid',                    1 ],
-      [ 'TYPE',             'INT',   'dm.type',                   1 ],
-    ],
-    { WHERE  => 1 }
+  my @search_columns = (
+    [ 'FROM_DATE',        'DATE',  'dm.from_date',              1 ],
+    [ 'LOGIN',            'STR',   'u.id AS login',             1 ],
+    [ 'MODULE',           'STR',   'dm.module',                 1 ],
+    [ 'TP_ID',            'INT',   'dm.tp_id',                  1 ],
+    [ 'PERCENT',          'INT',   'dm.percent',                1 ],
+    [ 'SUM',              'DOUBLE','dm.sum',                    1 ],
+    [ 'STATUS',           'INT',   'dm.status',                 1 ],
+    [ 'AID',              'INT',   'dm.aid',                    1 ],
+    [ 'TYPE',             'INT',   'dm.type',                   1 ],
   );
 
-  $self->query("
+  my $WHERE = $self->search_former($attr, \@search_columns, { WHERE  => 1 });
+
+  my $sql = << "SQL";
    SELECT
     DATE_FORMAT(dm.from_date, '%Y-%m') as month,
     COUNT(id) AS quantity
@@ -630,9 +646,10 @@ sub report_chart {
     $WHERE
     GROUP BY month
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }

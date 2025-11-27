@@ -46,7 +46,7 @@
         </div>
         <div class='modal-body'>
           <input type=hidden name='index' value='10'>
-          <input type=hidden name='sid' value='$sid'>
+          <input type=hidden name='sid' value='%sid%'>
           <input type=hidden name='CREDIT_RULE' value='' ID='CREDIT_RULE'>
 
           <div class='form-group row'>
@@ -275,8 +275,8 @@
 </div>
 
 <script>
-  var UID = '$user->{UID}';
-  let show = %SHOW_SUBSCRIBE_BLOCK%;
+  var UID = '%UID%';
+  let show = '%SHOW_SUBSCRIBE_BLOCK%';
   if (!show) {
     jQuery('#notifications-subscribe-block').hide();
   }
@@ -312,13 +312,13 @@
     paymentSum.innerText = "_{PAYMENT_NOTEXIST}_";
   }
 
-  if ('$user->{conf}->{PUSH_ENABLED}' && '$user->{conf}->{PUSH_USER_PORTAL}') {
+  if ('%PUSH_ENABLED%' && '%PUSH_USER_PORTAL%') {
     let scriptElement = document.createElement('script');
     scriptElement.src = '/styles/default/js/push_subscribe.js';
     document.body.appendChild(scriptElement);
   }
 
-  if ('$user->{conf}->{DOCS_ESIGN}') {
+  if ('%DOCS_ESIGN%') {
     var SCAN_QR_CODE_IN_DIIA_APP = '_{SCAN_QR_CODE_IN_DIIA_APP}_' || 'Scan the QR code in the Diia app';
     let scriptElement = document.createElement('script');
     scriptElement.src = '/styles/default/js/docs/esign.js';

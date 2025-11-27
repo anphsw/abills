@@ -86,6 +86,8 @@ sub show_map {
 
   my $javascript_vars = $html->tpl_show(::_include('maps_js_variables', 'Maps'),
     $self->maps_get_js_variables($form, {
+      HIDE_EDIT_BUTTONS      => $CONF->{MAPS_DEFAULT_TYPE} ? 0 :
+        ($admin->{permissions}{4} && $admin->{permissions}{4}{2} && $admin->{permissions}{4}{3} ? 0 : 1),
       %{$attr},
       HIDE_CONTROLS          => ($attr->{QUICK}) ? 1 : '',
       MAPS_DEFAULT_TYPE      => $CONF->{MAPS_DEFAULT_TYPE} || 'OSM',
@@ -94,7 +96,6 @@ sub show_map {
       MAP_ONLINE_UPDATE      => $CONF->{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 300,
       MAPS_WATERMARK_URL     => $watermark_url,
       MAPS_WATERMARK_ICON    => $icon,
-      HIDE_EDIT_BUTTONS      => $admin->{permissions}{4} && $admin->{permissions}{4}{2} && $admin->{permissions}{4}{3} ? 0 : 1
     }), { OUTPUT2RETURN => 1 }
   );
 

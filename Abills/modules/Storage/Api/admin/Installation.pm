@@ -29,18 +29,19 @@ sub new {
   my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $conf,
-    attr  => $attr,
-    html  => $attr->{html},
-    lang  => $attr->{lang}
+    db      => $db,
+    admin   => $admin,
+    conf    => $conf,
+    attr    => $attr,
+    html    => $attr->{html},
+    lang    => $attr->{lang},
+    libpath => $attr->{libpath}
   };
 
   bless($self, $class);
 
   $Storage = Storage->new($db, $admin, $conf);
-  $Installation = Storage::Installation->new($db, $admin, $conf, { lang => $self->{lang} });
+  $Installation = Storage::Installation->new($db, $admin, $conf, { lang => $self->{lang}, html => $self->{html}, libpath => $self->{libpath} });
   $Storage->{debug} = $self->{debug};
 
   $Errors = $self->{attr}->{Errors};

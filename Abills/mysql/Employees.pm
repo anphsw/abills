@@ -17,25 +17,27 @@ my ($admin, $CONF);
 
 
 #*******************************************************************
-#  Инициализация обьекта
+=head2 new() - initialization
+
+=cut
 #*******************************************************************
 sub new {
   my $class = shift;
   my $db    = shift;
   ($admin, $CONF) = @_;
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
   bless($self, $class);
-
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
 
   return $self;
 }
 
 #*******************************************************************
-=head2 function add_position() - add rule to table ring_rule
+=head2 position_add() - add rule to table ring_rule
 
   Arguments:
     %$attr
@@ -46,18 +48,16 @@ sub new {
     $self object
 
   Examples:
-    $Employees->add_position({
+    $Employees->position_add({
       NAME             => $FORM{NAME},
       SUBORDINATION    => $FORM{SUBORDINATION},
-
     });
 
 =cut
 
 #*******************************************************************
-sub add_position {
-  my $self = shift;
-  my ($attr) = @_;
+sub position_add {
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_positions', {%$attr});
 
@@ -66,21 +66,20 @@ sub add_position {
 
 #*******************************************************************
 
-=head2 function del_position() - delete position from db
+=head2 position_del () - delete position from db
   Arguments:
     $attr
 
   Returns:
 
   Examples:
-    $Employee->del_position( {ID => 1} );
+    $Employee->position_del( {ID => 1} );
 
 =cut
 
 #*******************************************************************
-sub del_position {
-  my $self = shift;
-  my ($attr) = @_;
+sub position_del {
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_positions', $attr);
 
@@ -105,8 +104,7 @@ sub del_position {
 
 #**********************************************************
 sub position_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -115,31 +113,33 @@ sub position_list {
   if (defined($attr->{SUBORDINATION})) {
     push @WHERE_RULES, "ep.subordination='$attr->{SUBORDINATION}'";
   }
+  my @search_fields = (
+    [ 'ID',            'INT',  'ID',               1],
+    [ 'POSITION',      'STR',  'position',         1],
+    [ 'SUBORDINATED',  'STR',  'subordinated',     1],
+    [ 'SUBORDINATION', 'INT',  'subordination',    1],
+    [ 'VACANCY',       'INT',  'vacancy',          1],
+  );
 
-  my $WHERE = $self->search_former($attr, [
-   [ 'ID',            'INT',  'ID',               1],
-   [ 'POSITION',      'STR',  'position',         1],
-   [ 'SUBORDINATED',  'STR',  'subordinated',     1],
-   [ 'SUBORDINATION', 'INT',  'subordination',    1],
-   [ 'VACANCY',       'INT',  'vacancy',          1],
-  ],
-  { WHERE       => 1,
+  my $WHERE = $self->search_former($attr, \@search_fields, {
+    WHERE       => 1,
     WHERE_RULES => \@WHERE_RULES
   });
 
+  my $sql = <<"SQL";
+     SELECT
+       ep.id,
+       ep.position,
+       (SELECT COUNT(id) FROM employees_profile WHERE position_id = ep.id) as total,
+       ep.vacancy,
+       (SELECT position FROM employees_positions WHERE id = ep.subordination) as subordinated,
+       ep.subordination
+       FROM employees_positions AS ep
+       $WHERE
+       ORDER BY $SORT $DESC;
+SQL
 
-  $self->query(
-        "SELECT     
-                ep.id,
-                ep.position,
-                (SELECT COUNT(id) FROM employees_profile WHERE position_id = ep.id) as total,
-                ep.vacancy,
-                (SELECT position FROM employees_positions WHERE id = ep.subordination) as subordinated,
-                ep.subordination
-                FROM employees_positions AS ep
-                $WHERE
-                ORDER BY $SORT $DESC;", undef, $attr
-  );
+  $self->query($sql, undef, $attr);
 
   return $self->{list_hash} if $attr->{LIST2HASH};
 
@@ -148,7 +148,7 @@ sub position_list {
 
 
 #**********************************************************
-=head2 function position_info() - get position info
+=head2 position_info() - get position info
 
   Arguments:
     $attr
@@ -162,14 +162,14 @@ sub position_list {
 =cut
 #**********************************************************
 sub position_info {
-	my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query(
-      "SELECT * FROM employees_positions
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    my $sql = <<'SQL';
+    SELECT * FROM employees_positions WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   return $self;
@@ -195,24 +195,20 @@ sub position_info {
 =cut
 #**********************************************************
 sub position_change {
-	my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_positions',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_positions',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 
 #*******************************************************************
-
-=head2 function add_geo() - add rule to table ring_rule
+=head2 geo_add() - add rule to table ring_rule
 
   Arguments:
     %$attr
@@ -223,18 +219,16 @@ sub position_change {
     $self object
 
   Examples:
-    $Employees->add_geo({
+    $Employees->geo_add({
       STREET_ID          => 1,
       EMPLOYEE_ID        => 2,
 
     });
 
 =cut
-
 #*******************************************************************
-sub add_geo {
-  my $self = shift;
-  my ($attr) = @_;
+sub geo_add {
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_geolocation', {%$attr});
 
@@ -243,21 +237,20 @@ sub add_geo {
 
 #*******************************************************************
 
-=head2 function del_geo() - delete geolocation from db
+=head2 function geo_del() - delete geolocation from db
   Arguments:
     $attr
 
   Returns:
 
   Examples:
-    $Employee->del_geo( {EMPLOYEE_ID => 1} );
+    $Employee->geo_del( {EMPLOYEE_ID => 1} );
 
 =cut
 
 #*******************************************************************
-sub del_geo {
-  my $self = shift;
-  my ($attr) = @_;
+sub geo_del {
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_geolocation', undef, {EMPLOYEE_ID => $attr->{EMPLOYEE_ID}});
 
@@ -267,7 +260,7 @@ sub del_geo {
 
 #**********************************************************
 
-=head2 function position_list() - get articles list
+=head2 function geo_list() - get geo list
 
   Arguments:
     $attr
@@ -276,14 +269,13 @@ sub del_geo {
     @list
 
   Examples:
-    my $list = $Employees->position_list({COLS_NAME=>1});
+    my $list = $Employees->geo_list({COLS_NAME=>1});
 
 =cut
 
 #**********************************************************
 sub geo_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -303,15 +295,17 @@ sub geo_list {
     WHERE_RULES => \@WHERE_RULES
   });
 
-  $self->query(
-    "SELECT   eg.employee_id,
-              eg.street_id,
-              eg.build_id,
-              eg.district_id
-              FROM employees_geolocation AS eg
-              $WHERE
-              ORDER BY $SORT $DESC;", undef, $attr
-  );
+  my $sql = <<"SQL";
+     SELECT eg.employee_id,
+            eg.street_id,
+            eg.build_id,
+            eg.district_id
+            FROM employees_geolocation AS eg
+            $WHERE
+            ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -329,8 +323,7 @@ sub geo_list {
 =cut
 #**********************************************************
 sub employees_geolocation_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -342,25 +335,32 @@ sub employees_geolocation_list {
     [ 'DISTRICT_ID',   'INT', 'eg.district_id',   1 ]
   ], { WHERE => 1 });
 
-  $self->query("SELECT eg.employee_id, eg.street_id, eg.build_id, eg.district_id,
-      SUBSTRING_INDEX(d.path, CONCAT('/', eg.district_id), 1) AS district_path, IF(eg.build_id, s.id, null) AS build_street
+  my $sql = <<"SQL";
+    SELECT eg.employee_id, eg.street_id, eg.build_id, eg.district_id,
+    SUBSTRING_INDEX(d.path, CONCAT('/', eg.district_id), 1) AS district_path, IF(eg.build_id, s.id, null) AS build_street
     FROM employees_geolocation eg
     LEFT JOIN builds b ON eg.build_id = b.id
     LEFT JOIN streets s ON b.street_id = s.id OR eg.street_id = s.id
     LEFT JOIN districts d ON d.id = s.district_id OR eg.district_id = d.id
     $WHERE
-    ORDER BY $SORT $DESC;", undef, $attr
-  );
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
 
 #**********************************************************
-# time_sheet_list()
+=head2 time_sheet_list()
+
+  Arguments:
+    $attr
+
+=cut
 #**********************************************************
 sub time_sheet_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my @WHERE_RULES;
 
   if($attr->{DATE_START}){
@@ -397,7 +397,8 @@ sub time_sheet_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query("SELECT a.aid, a.name,
+  my $sql = <<"SQL";
+     SELECT a.aid, a.name,
       ts.work_time,
       ts.overtime,
       ts.extra_fee,
@@ -407,9 +408,10 @@ sub time_sheet_list {
       a.id AS a_login
     FROM admins a
     LEFT JOIN admins_time_sheet ts ON (a.aid=ts.aid)
-    $WHERE;",
-  undef,
-  $attr);
+    $WHERE;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -423,10 +425,9 @@ sub time_sheet_list {
 =cut
 #**********************************************************
 sub time_sheet_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my @admins_arr = split(/,\s?/, $attr->{AIDS});
+  my @admins_arr = split(/,\s?/x, $attr->{AIDS});
    my @MULTI_QUERY = ();
 
   foreach my $aid (@admins_arr) {
@@ -446,16 +447,18 @@ sub time_sheet_add {
                        ];
   }
 
-  $self->query("REPLACE INTO admins_time_sheet (aid, work_time, overtime, extra_fee, day_type, date)
-     VALUES (?, ?, ?, ?, ?, ?);",
-    undef,
-    { MULTI_QUERY =>  \@MULTI_QUERY });
+  my $sql = <<'SQL';
+    REPLACE INTO admins_time_sheet (aid, work_time, overtime, extra_fee, day_type, date)
+    VALUES (?, ?, ?, ?, ?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
 
 #*******************************************************************
-=head2 function add_question() - add new question to table employees_profile_question
+=head2 question_add() - add new question to table employees_profile_question
 
   Arguments:
     %$attr
@@ -467,7 +470,7 @@ sub time_sheet_add {
     $self object
 
   Examples:
-    $Employees->add_geo({
+    $Employees->question_add({
       QUESTION           => 'What your name?',
       POSITION_ID        => $FORM{POSITION_ID}
     });
@@ -475,9 +478,8 @@ sub time_sheet_add {
 =cut
 
 #*******************************************************************
-sub add_question {
-  my $self =shift;
-  my ($attr) = @_;
+sub question_add {
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_profile_question', {%$attr});
 
@@ -485,24 +487,21 @@ sub add_question {
 }
 
 #**********************************************************
-=head2 function del_question() - delete question from db
+=head2 function question_del() - delete question from db
   Arguments:
     $attr
 
   Returns:
 
   Examples:
-    $Employee->del_question( {ID => 1} );
+    $Employee->question_del( {ID => 1} );
 
 =cut
 #**********************************************************
-sub del_question {
-  my $self = shift;
-  my ($attr) = @_;
+sub question_del {
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_profile_question', $attr, {ID => $attr->{ID}});
-
-
   return $self;
 }
 
@@ -522,8 +521,7 @@ sub del_question {
 
 #**********************************************************
 sub questions_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -540,17 +538,18 @@ sub questions_list {
     WHERE_RULES => \@WHERE_RULES
   });
 
-  $self->query(
-    "SELECT  pq.id,
-             pq.position_id,
-             ep.position,
-             pq.question
-             FROM employees_profile_question AS pq
-             LEFT JOIN employees_positions AS ep ON ep.id=pq.position_id
-              $WHERE
-              ORDER BY $SORT $DESC;", undef, $attr
+  my $sql = <<"SQL";
+    SELECT  pq.id,
+            pq.position_id,
+            ep.position,
+            pq.question
+            FROM employees_profile_question AS pq
+            LEFT JOIN employees_positions AS ep ON ep.id=pq.position_id
+            $WHERE
+            ORDER BY $SORT $DESC;
+SQL
 
-  );
+  $self->query($sql, undef, $attr);
 
   my $list=$self->{list};
   return  $list || [];
@@ -576,8 +575,7 @@ sub questions_list {
 =cut
 #**********************************************************
 sub question_change {
-  my $self =shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
       CHANGE_PARAM => 'ID',
@@ -603,21 +601,22 @@ sub question_change {
 =cut
 #**********************************************************
 sub question_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query(
-      "SELECT * FROM employees_profile_question
-       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    my $sql = <<'SQL';
+      SELECT * FROM employees_profile_question
+      WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   return $self;
 }
 
 #*******************************************************************
-=head2 function add_profile() - add new question to table employees_profile_question
+=head2 function profile_add() - add new question to table employees_profile_question
 
   Arguments:
     %$attr
@@ -631,7 +630,7 @@ sub question_info {
     $self object
 
   Examples:
-    $Employees->add_profile({
+    $Employees->profile_add({
       POSITION_ID   - $FORM{P_ID};
       FIO           - Brolaf Anna Anna;
       DATE_OF_BIRTH -
@@ -642,9 +641,8 @@ sub question_info {
 =cut
 
 #*******************************************************************
-sub add_profile {
-  my $self =shift;
-  my ($attr) = @_;
+sub profile_add {
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_profile', {%$attr});
 
@@ -652,29 +650,27 @@ sub add_profile {
 }
 
 #**********************************************************
-=head2 function del_profile() - delete profile from db
+=head2 function profile_del () - delete profile from db
   Arguments:
     $attr
 
   Returns:
 
   Examples:
-    $Employee->del_profile( {ID => 1} );
+    $Employee->profile_del( {ID => 1} );
 
 =cut
 #**********************************************************
-sub del_profile {
-  my $self = shift;
-  my ($attr) = @_;
+sub profile_del {
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_profile', $attr, {ID => $attr->{ID}});
-
 
   return $self;
 }
 
 #**********************************************************
-=head2 function change_profile() - 
+=head2 profile_change()
 
   Arguments:
     $attr
@@ -688,7 +684,7 @@ sub del_profile {
     $self object
 
   Examples:
-    my $list = $Employees->change_profile({
+    my $list = $Employees->profile_change({
        POSITION_ID   - $FORM{P_ID};
        FIO           - Brolaf Anna Anna;
        DATE_OF_BIRTH -
@@ -697,9 +693,8 @@ sub del_profile {
 
 =cut
 #**********************************************************
-sub change_profile {
-  my $self =shift;
-  my ($attr) = @_;
+sub profile_change {
+  my ($self, $attr) = @_;
 
   $self->changes({
       CHANGE_PARAM => 'ID',
@@ -730,8 +725,7 @@ sub change_profile {
 
 #**********************************************************
 sub profile_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT})      ? $attr->{SORT}      : 1;
@@ -750,8 +744,8 @@ sub profile_list {
     WHERE_RULES => \@WHERE_RULES
   });
 
-  $self->query(
-    "SELECT p.id,
+  my $sql = <<"SQL";
+    SELECT p.id,
             p.fio,
             p.rating,
             ep.position,
@@ -762,8 +756,10 @@ sub profile_list {
             LEFT JOIN employees_positions AS ep ON ep.id=p.position_id
             $WHERE
             ORDER BY $SORT $DESC
-            LIMIT $PG, $PAGE_ROWS;", undef, $attr
-  );
+            LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
 my $list=$self->{list};
 return $list;
@@ -784,21 +780,21 @@ return $list;
 =cut
 #**********************************************************
 sub profile_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query(
-      "SELECT *
-              FROM employees_profile WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    my $sql = <<'SQL';
+      SELECT * FROM employees_profile WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   return $self;
 }
 
 #*******************************************************************
-=head2 function add_reply() - add new question to table employees_profile_question
+=head2 function reply_add() - add new question to table employees_profile_question
 
   Arguments:
     %$attr
@@ -810,7 +806,7 @@ sub profile_info {
     $self object
 
   Examples:
-    $Employees->add_reply({
+    $Employees->reply_add({
       QUESTION_ID           - ;
       PROFILE_ID -
       REPLY 
@@ -819,9 +815,8 @@ sub profile_info {
 =cut
 
 #*******************************************************************
-sub add_reply{
-  my $self =shift;
-  my ($attr) = @_;
+sub reply_add{
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_profile_reply', {%$attr});
 
@@ -846,8 +841,7 @@ sub add_reply{
 
 #**********************************************************
 sub reply_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT})      ? $attr->{SORT}      : 1;
@@ -863,16 +857,18 @@ sub reply_list{
     WHERE_RULES => \@WHERE_RULES
   });
 
-  $self->query(
-    "SELECT p.reply,
-            p.profile_id,
-            pq.question
-            FROM employees_profile_reply AS p
-            LEFT JOIN employees_profile_question AS pq ON pq.id = question_id
-            $WHERE
-            ORDER BY $SORT $DESC
-            LIMIT $PAGE_ROWS;", undef, $attr
-  );
+  my $sql = <<"SQL";
+    SELECT p.reply,
+           p.profile_id,
+           pq.question
+           FROM employees_profile_reply AS p
+           LEFT JOIN employees_profile_question AS pq ON pq.id = question_id
+           $WHERE
+           ORDER BY $SORT $DESC
+           LIMIT $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list=$self->{list};
   return $list;
@@ -917,23 +913,26 @@ sub rfid_log_list{
   }
   
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
-  
-  $self->query( "SELECT $self->{SEARCH_FIELDS} erl.id
-   FROM employees_rfid_log erl
-   LEFT JOIN admins a ON (erl.aid=a.aid)
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-    COLS_NAME => 1,
-    %{ $attr ? $attr : {}}}
-  );
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} erl.id
+    FROM employees_rfid_log erl
+    LEFT JOIN admins a ON (erl.aid=a.aid)
+    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, %{ $attr ? $attr : {}}} );
 
   return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query("SELECT COUNT(*) AS total FROM employees_rfid_log as erl
-     $WHERE",
-      undef, { INFO => 1 });
+    $sql = <<"SQL";
+      SELECT COUNT(*) AS total FROM employees_rfid_log as erl $WHERE
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list || [];
@@ -950,8 +949,7 @@ sub rfid_log_list{
 =cut
 #*******************************************************************
 sub rfid_log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_add('employees_rfid_log', {%$attr});
   
@@ -969,8 +967,7 @@ sub rfid_log_add {
 =cut
 #*******************************************************************
 sub rfid_log_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_del('employees_rfid_log', $attr);
   
@@ -989,9 +986,7 @@ sub rfid_log_del {
 =cut
 #**********************************************************
 sub daily_note_add {
-  my $self =shift;
-  my ($attr) = @_;
-
+  my ($self, $attr) = @_;
   $self->query_add('employees_daily_notes', {%$attr});
 
   return $self;
@@ -1009,8 +1004,7 @@ sub daily_note_add {
 =cut
 #**********************************************************
 sub daily_note_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->query_del('employees_daily_notes', undef, $attr);
   
@@ -1030,14 +1024,15 @@ sub daily_note_del {
 =cut
 #**********************************************************
 sub daily_note_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{DAY}) {
-    $self->query(
-      "SELECT * FROM employees_daily_notes
-      WHERE day = ? and aid = ?;", undef, { INFO => 1, Bind => [ $attr->{DAY}, $attr->{AID} ] }
-    );
+    my $sql = <<"SQL";
+      SELECT * FROM employees_daily_notes
+      WHERE day = ? and aid = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{DAY}, $attr->{AID} ] } );
   }
 
   return $self;
@@ -1050,13 +1045,10 @@ sub daily_note_info {
      -
   Returns:
 
-  Examples:
-
 =cut
 #**********************************************************
 sub daily_note_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'DAY',
@@ -1080,8 +1072,7 @@ sub daily_note_change {
 =cut
 #*********************************************************
 sub employees_vacations_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_vacations', {%$attr});
 
@@ -1089,7 +1080,6 @@ sub employees_vacations_add {
 }
 
 #*******************************************************************
-
 =head2 function list_coming() - get list of all comings
 
   Arguments:
@@ -1102,11 +1092,9 @@ sub employees_vacations_add {
     my @list = $Employees->list_coming({ COLS_NAME => 1});
 
 =cut
-
 #*******************************************************************
 sub employees_vacations_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -1114,9 +1102,7 @@ sub employees_vacations_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  my $WHERE = $self->search_former( $attr, [
       [ 'ID',         'INT', 'ev.id',         1 ],
       [ 'ADMIN',      'STR', 'a.id as admin', 1 ],
       [ 'START_DATE', 'STR', 'ev.start_date', 1 ],
@@ -1131,27 +1117,26 @@ sub employees_vacations_list {
   }
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-  
-  $self->query(
-    "SELECT  $self->{SEARCH_FIELDS} ev.id
+
+  my $sql = <<"SQL";
+    SELECT  $self->{SEARCH_FIELDS} ev.id
     FROM employees_vacations ev
     LEFT JOIN admins a ON (ev.aid=a.aid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-   FROM employees_vacations",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_vacations
+SQL
+
+  $self->query($sql, undef,{ INFO => 1 });
 
   return $list;
 }
@@ -1171,8 +1156,7 @@ sub employees_vacations_list {
 
 #*******************************************************************
 sub employees_vacations_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_vacations', $attr);
 
@@ -1194,14 +1178,14 @@ sub employees_vacations_del {
 =cut
 #**********************************************************
 sub employees_vacations_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query(
-      "SELECT * FROM employees_vacations
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    my $sql = <<'SQL';
+      SELECT * FROM employees_vacations WHERE id = ?
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   return $self;
@@ -1223,16 +1207,13 @@ sub employees_vacations_info {
 =cut
 #**********************************************************
 sub employees_vacations_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_vacations',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_vacations',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1242,15 +1223,11 @@ sub employees_vacations_change {
 
   Arguments:
      -
-
   Returns:
-
-
 =cut
 #**********************************************************
 sub employees_duty_add {
-  my $self  = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_duty', {%$attr});
 
@@ -1258,7 +1235,6 @@ sub employees_duty_add {
 }
 
 #*******************************************************************
-
 =head2 function employees_duty_list() -
 
   Arguments:
@@ -1269,13 +1245,11 @@ sub employees_duty_add {
 
   Examples:
 
-
 =cut
 
 #*******************************************************************
 sub employees_duty_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -1283,9 +1257,7 @@ sub employees_duty_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  my $WHERE = $self->search_former($attr,[
       [ 'ID',         'INT', 'ed.id',         1 ],
       [ 'ADMIN',      'STR', 'a.name as admin', 1 ],
       [ 'START_DATE', 'STR', 'ed.start_date', 1 ],
@@ -1301,46 +1273,41 @@ sub employees_duty_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT  $self->{SEARCH_FIELDS} ed.id
+  my $sql = <<"SQL";
+    SELECT  $self->{SEARCH_FIELDS} ed.id
     FROM employees_duty ed
     LEFT JOIN admins a ON (ed.aid=a.aid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-   FROM employees_duty",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_duty
+SQL
+
+  $self->query($sql, undef,{ INFO => 1 });
 
   return $list;
 }
 
 #*******************************************************************
 =head2 function employees_duty_del() -
+
   Arguments:
     $attr
 
   Returns:
-
-  Examples:
-
-
 =cut
 
 #*******************************************************************
 sub employees_duty_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_duty', $attr);
 
@@ -1354,21 +1321,16 @@ sub employees_duty_del {
      -
   Returns:
 
-  Examples:
-
 =cut
 #**********************************************************
 sub employees_duty_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_duty',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_duty',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1388,14 +1350,14 @@ sub employees_duty_change{
 =cut
 #**********************************************************
 sub employees_duty_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query(
-      "SELECT * FROM employees_duty
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    my $sql = <<"SQL";
+      SELECT * FROM employees_duty WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] } );
   }
 
   return $self;
@@ -1408,23 +1370,17 @@ sub employees_duty_info {
     attr - hash of attributes{
       ID -
     }
-
-  Returns:
-
 =cut
 #**********************************************************
 sub employees_department_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  my $WHERE = $self->search_former($attr,[
       [ 'ID',        'INT',   'ed.id',        1 ],
       [ 'NAME',      'STR',   'ed.name',      1 ],
       [ 'POSITIONS', 'STR',   'ed.positions', 1 ],
@@ -1433,27 +1389,27 @@ sub employees_department_list {
     { WHERE => 1, }
   );
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+   SELECT
     $self->{SEARCH_FIELDS}
      ed.id
     FROM employees_department as ed
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_department",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total
+    FROM employees_department
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -1470,8 +1426,7 @@ sub employees_department_list {
 =cut
 #**********************************************************
 sub employees_department_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_department', {%$attr});
 
@@ -1492,8 +1447,7 @@ sub employees_department_add {
 =cut
 #*******************************************************************
 sub employees_department_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_department', $attr);
 
@@ -1506,13 +1460,10 @@ sub employees_department_del {
   Arguments:
      -
 
-  Returns:
-
 =cut
 #**********************************************************
 sub employees_department_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $bonus_type_info = $self->employees_department_list({%$attr, COLS_NAME => 1});
 
@@ -1542,16 +1493,13 @@ sub employees_department_info {
 =cut
 #*******************************************************************
 sub employees_department_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_department',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_department',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1567,8 +1515,7 @@ sub employees_department_change {
 =cut
 #**********************************************************
 sub employees_ext_params_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_ext_params', $attr);
 
@@ -1589,14 +1536,13 @@ sub employees_ext_params_add {
 
 #**********************************************************
 sub employees_ext_params_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_fields = (
     [ 'AID',           'INT', 'exp.aid',          1 ],
     [ 'SUM',           'INT', 'exp.sum',          1 ],
     [ 'DAY_NUM',       'INT', 'exp.day_num',      1 ],
@@ -1604,22 +1550,26 @@ sub employees_ext_params_list {
     [ 'PHONE',         'INT', 'exp.phone',        1 ],
     [ 'MOB_COMMENT',   'STR', 'exp.mob_comment',  1 ],
     [ 'NAME',          'STR', 'a.name',           1 ],
-  ],
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_fields,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     });
 
-  $self->query(
-    "SELECT   $self->{SEARCH_FIELDS}
-              exp.id
-              FROM employees_ext_params AS exp
-              LEFT JOIN admins AS a ON exp.aid=a.aid
-              $WHERE
-              ORDER BY $SORT $DESC;", undef, $attr
-  );
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} exp.id
+           FROM employees_ext_params AS exp
+           LEFT JOIN admins AS a ON exp.aid=a.aid
+           $WHERE
+           ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
+
 #**********************************************************
 =head2  employees_ext_params_info() - get ext params info
 
@@ -1632,13 +1582,14 @@ sub employees_ext_params_list {
 =cut
 #**********************************************************
 sub employees_ext_params_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-    $self->query(
-      "SELECT * FROM employees_ext_params
-       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+  my $sql = <<'SQL';
+    SELECT * FROM employees_ext_params
+    WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
@@ -1655,16 +1606,13 @@ sub employees_ext_params_info {
 =cut
 #**********************************************************
 sub employees_ext_params_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_ext_params',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_ext_params',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1681,8 +1629,7 @@ sub employees_ext_params_change {
 =cut
 #**********************************************************
 sub employees_ext_params_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('employees_ext_params', { ID => $id });
 
@@ -1700,8 +1647,7 @@ sub employees_ext_params_del {
 =cut
 #**********************************************************
 sub employees_mobile_report_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_mobile_reports', { %$attr });
 
@@ -1720,14 +1666,13 @@ sub employees_mobile_report_add {
 =cut
 #**********************************************************
 sub employees_mobile_report_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_fields = (
     [ 'ID',             'INT', 'emr.id',                  1 ],
     [ 'EMPLOYEE_NAME',  'STR', 'a.name AS employee_name', 1 ],
     [ 'PHONE',          'INT', 'emr.phone',               1 ],
@@ -1737,21 +1682,22 @@ sub employees_mobile_report_list {
     [ 'STATUS',         'INT', 'emr.status',              1 ],
     [ 'AID',            'INT', 'emr.aid',                   ],
     ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(emr.date, '%Y-%m-%d')" ],
-  ],
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_fields,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     });
 
-  $self->query(
-    "SELECT
-      $self->{SEARCH_FIELDS}
-      emr.id
-     FROM employees_mobile_reports AS emr
-     LEFT JOIN admins AS a ON emr.aid=a.aid
-       $WHERE
-     ORDER BY $SORT $DESC;",
-    undef, $attr
-  );
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} emr.id
+    FROM employees_mobile_reports AS emr
+    LEFT JOIN admins AS a ON emr.aid=a.aid
+    $WHERE
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list};
 }
@@ -1768,22 +1714,18 @@ sub employees_mobile_report_list {
 =cut
 #**********************************************************
 sub employees_mobile_report_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_mobile_reports',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_mobile_reports',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 #**********************************************************
-
 =head2 employees_add_cashbox() - add new cashbox
 
   Arguments:
@@ -1796,8 +1738,7 @@ sub employees_mobile_report_change {
 
 #**********************************************************
 sub employees_add_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_cashboxes', { %$attr });
 
@@ -1819,22 +1760,22 @@ sub employees_add_cashbox {
 =cut
 #*******************************************************************
 sub employees_info_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT ec.comments,
-     ec.name,
-     ec.aid,
-     a.name AS name_admin,
-     GROUP_CONCAT(eca.aid) AS admins
-     FROM employees_cashboxes ec
-     LEFT JOIN admins a ON (a.aid = ec.aid)
-     LEFT JOIN employees_cashboxes_admins eca ON (ec.id = eca.cashbox_id)
-     WHERE ec.id = ?
-     GROUP BY ec.id;
-     ", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql = <<"SQL";
+    SELECT ec.comments,
+       ec.name,
+       ec.aid,
+       a.name AS name_admin,
+       GROUP_CONCAT(eca.aid) AS admins
+    FROM employees_cashboxes ec
+    LEFT JOIN admins a ON (a.aid = ec.aid)
+    LEFT JOIN employees_cashboxes_admins eca ON (ec.id = eca.cashbox_id)
+    WHERE ec.id = ?
+    GROUP BY ec.id;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
@@ -1859,16 +1800,13 @@ sub employees_info_cashbox {
 
 #*******************************************************************
 sub employees_change_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_cashboxes',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_cashboxes',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1889,8 +1827,7 @@ sub employees_change_cashbox {
 
 #*******************************************************************
 sub employees_delete_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_cashboxes', $attr);
 
@@ -1898,7 +1835,6 @@ sub employees_delete_cashbox {
 }
 
 #*******************************************************************
-
 =head2 employees_list_cashbox() - get list of all cashboxes
 
   Arguments:
@@ -1914,8 +1850,7 @@ sub employees_delete_cashbox {
 
 #*******************************************************************
 sub employees_list_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT} && $attr->{SORT} < 5) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -1933,8 +1868,8 @@ sub employees_list_cashbox {
     { WHERE => 1, }
   );
 
-  $self->query(
-    "SELECT emc.id,
+  my $sql = <<"SQL";
+    SELECT emc.id,
     emc.name,
     a.name as admin_default,
     GROUP_CONCAT(DISTINCT ac.name SEPARATOR ', ') as admins,
@@ -1945,20 +1880,19 @@ sub employees_list_cashbox {
     LEFT JOIN admins ac ON (ac.aid = eca.aid)
     $WHERE
     GROUP BY emc.id
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query(
-      "SELECT count(*) AS total
-      FROM employees_cashboxes",
-      undef,
-      { INFO => 1 }
-    );
+    $sql = <<'SQL';
+      SELECT COUNT(*) AS total FROM employees_cashboxes
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
   return $list;
 }
@@ -1978,8 +1912,7 @@ sub employees_list_cashbox {
 =cut
 #*******************************************************************
 sub employees_payments_cashbox {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -2001,20 +1934,20 @@ sub employees_payments_cashbox {
     { WHERE       => 1,}
   );
 
-  $self->query(
-    "SELECT emc.id,
-    emc.name,
-    emc.aid AS aid_default,
-    a.name as admin,
-    emc.comments
+  my $sql = <<"SQL";
+    SELECT emc.id,
+      emc.name,
+      emc.aid AS aid_default,
+      a.name as admin,
+      emc.comments
     FROM employees_cashboxes emc
     LEFT JOIN admins a ON (a.aid = emc.aid)
     $EXT_TABLES
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -2039,8 +1972,7 @@ sub employees_payments_cashbox {
 
 #**********************************************************
 sub employees_add_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{SPENDING}) {
     $self->query_add('employees_spending_types', {%$attr});
@@ -2074,39 +2006,50 @@ sub employees_add_type {
 
 #*******************************************************************
 sub employees_list_spending_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
+
+  if ($attr->{AID}){
+    push @WHERE_RULES, "(esta.aid='$attr->{AID}' OR esta.aid IS NULL)";
+  }
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',       'INT', 'id',       1 ],
-    [ 'NAME',     'STR', 'name',     1 ],
-    [ 'COMMENTS', 'STR', 'comments', 1 ],
+    [ 'ID',       'INT', 'est.id',       1 ],
+    [ 'NAME',     'STR', 'est.name',     1 ],
+    [ 'COMMENTS', 'STR', 'est.comments', 1 ],
+    [ 'ADMINS',   'STR', 'GROUP_CONCAT(a.name SEPARATOR \', \') as admins',  1 ],
   ],
-    { WHERE => 1, });
+    { WHERE_RULES => \@WHERE_RULES,
+      WHERE => 1, });
 
-  $self->query(
-    "SELECT * FROM employees_spending_types
+  my $sql = <<"SQL";
+    SELECT
+     $self->{SEARCH_FIELDS}
+     est.id
+    FROM employees_spending_types est
+    LEFT JOIN employees_spending_types_admins esta ON est.id = esta.type_id
+    LEFT JOIN admins a ON (a.aid = esta.aid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    GROUP BY est.id
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-   FROM employees_spending_types",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_spending_types
+SQL
+
+  $self->query($sql, { INFO => 1 });
 
   return $list;
 }
@@ -2128,8 +2071,7 @@ sub employees_list_spending_type {
 
 #*******************************************************************
 sub employees_delete_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{SPENDING}) {
     $self->query_del('employees_spending_types', $attr);
@@ -2164,28 +2106,34 @@ sub employees_delete_type {
 
 #*******************************************************************
 sub employees_info_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
+  my $sql = '';
 
   if ($attr->{SPENDING}) {
-    $self->query(
-      "SELECT * FROM employees_spending_types
-       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    $sql = <<'SQL';
+      SELECT *, GROUP_CONCAT(DISTINCT esta.aid SEPARATOR ',') as admins
+      FROM employees_spending_types est
+      LEFT JOIN employees_spending_types_admins esta ON est.id = esta.type_id
+      WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   if ($attr->{COMING}) {
-    $self->query(
-      "SELECT * FROM employees_coming_types
-       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    $sql = <<'SQL';
+    SELECT * FROM employees_coming_types WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   if ($attr->{MOVING}) {
-    $self->query(
-      "SELECT * FROM employees_moving_types
-       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-    );
+    $sql = <<'SQL';
+      SELECT * FROM employees_moving_types WHERE id = ?;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
   }
 
   return $self;
@@ -2209,37 +2157,30 @@ sub employees_info_type {
 
 #*******************************************************************
 sub employees_change_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{SPENDING}) {
-    $self->changes(
-      {
-        CHANGE_PARAM => 'ID',
-        TABLE        => 'employees_spending_types',
-        DATA         => $attr
-      }
-    );
+    $self->changes({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_spending_types',
+      DATA         => $attr
+    });
   }
 
   if ($attr->{COMING}) {
-    $self->changes(
-      {
-        CHANGE_PARAM => 'ID',
-        TABLE        => 'employees_coming_types',
-        DATA         => $attr
-      }
-    );
+    $self->changes({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_coming_types',
+      DATA         => $attr
+    });
   }
 
   if ($attr->{MOVING}) {
-    $self->changes(
-      {
-        CHANGE_PARAM => 'ID',
-        TABLE        => 'employees_moving_types',
-        DATA         => $attr
-      }
-    );
+    $self->changes({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_moving_types',
+      DATA         => $attr
+    });
   }
 
   return $self;
@@ -2262,8 +2203,7 @@ sub employees_change_type {
 
 #*******************************************************************
 sub employees_list_coming_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -2280,30 +2220,29 @@ sub employees_list_coming_type {
       WHERE => 1,
     });
 
-  $self->query(
-    "SELECT * FROM employees_coming_types
+  my $sql = <<"SQL";
+    SELECT * FROM employees_coming_types
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-     FROM employees_coming_types",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total
+    FROM employees_coming_types
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
 
 #**********************************************************
-
 =head2 employees_add_spending() - add spending
 
   Arguments:
@@ -2313,11 +2252,9 @@ sub employees_list_coming_type {
   Examples:
     $Employees->employees_add_spending({%FORM});
 =cut
-
 #**********************************************************
 sub employees_add_spending {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_spending', {%$attr});
 
@@ -2325,7 +2262,6 @@ sub employees_add_spending {
 }
 
 #*******************************************************************
-
 =head2 function employees_delete_spending() - delete spending
 
   Arguments:
@@ -2337,11 +2273,9 @@ sub employees_add_spending {
     $Employees->employees_delete_spending( {ID => 1} );
 
 =cut
-
 #*******************************************************************
 sub employees_delete_spending {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_spending', $attr);
 
@@ -2349,7 +2283,6 @@ sub employees_delete_spending {
 }
 
 #*******************************************************************
-
 =head2 employees_info_spending() - get information about spending
 
   Arguments:
@@ -2360,24 +2293,22 @@ sub employees_delete_spending {
 
   Examples:
     my $info_spending = $Employees->employees_info_spending({ ID => 1 });
-
 =cut
-
 #*******************************************************************
 sub employees_info_spending {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM employees_spending
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql = <<'SQL';
+    SELECT * FROM employees_spending
+    WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
 
 #*******************************************************************
-
 =head2 function employees_change_spending() - change spending
 
   Arguments:
@@ -2391,28 +2322,22 @@ sub employees_info_spending {
       ID       => 1,
       AMOUNT   => 100
     });
-
-
 =cut
 
 #*******************************************************************
 sub employees_change_spending {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_spending',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_spending',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 #*******************************************************************
-
 =head2 function employees_list_spending() - get list of spendings
 
   Arguments:
@@ -2423,13 +2348,11 @@ sub employees_change_spending {
 
   Examples:
     my @list = $Employees->employees_list_spending({ COLS_NAME => 1});
-
 =cut
 
 #*******************************************************************
 sub employees_list_spending {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -2438,7 +2361,7 @@ sub employees_list_spending {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 50;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "cashbox_id = '$attr->{CASHBOX_ID}'";
+    push @WHERE_RULES, "cs.cashbox_id = '$attr->{CASHBOX_ID}'";
   }
 
   if ($attr->{FROM_DATE}) {
@@ -2453,25 +2376,27 @@ sub employees_list_spending {
     push @WHERE_RULES, "spending_type_id = '$attr->{SPENDING_TYPE_ID}'";
   }
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',                 'INT',    'cs.id',                          1 ],
-      [ 'AMOUNT',             'DOUBLE', 'cs.amount',                      1 ],
-      [ 'SPENDING_TYPE_NAME', 'STR',    'cst.name as spending_type_name', 1 ],
-      [ 'SPENDING_TYPE_ID',   'STR',    'cs.spending_type_id',            1 ],
-      [ 'CASHBOX_NAME',       'STR',    'cc.name as cashbox_name',        1 ],
-      [ 'DATE',               'STR',    'cs.date',                        1 ],
-      [ 'ADMIN',              'STR',    'a.name as admin',                1 ] ,
-      [ 'COMMENTS',           'STR',    'cs.comments',                    1 ],
-    ],
-    { WHERE => 1, }
+  push @WHERE_RULES, "(esta.aid='$self->{admin}->{AID}' OR esta.aid IS NULL)";
+  push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+
+  my @search_fields = (
+    [ 'ID',                 'INT',    'cs.id',                          1 ],
+    [ 'AMOUNT',             'DOUBLE', 'cs.amount',                      1 ],
+    [ 'SPENDING_TYPE_NAME', 'STR',    'cst.name as spending_type_name', 1 ],
+    [ 'SPENDING_TYPE_ID',   'STR',    'cs.spending_type_id',            1 ],
+    [ 'CASHBOX_NAME',       'STR',    'cc.name as cashbox_name',        1 ],
+    [ 'DATE',               'STR',    'cs.date',                        1 ],
+    [ 'ADMIN',              'STR',    'a.name as admin',                1 ] ,
+    [ 'COMMENTS',           'STR',    'cs.comments',                    1 ],
+    [ 'AID',                'INT',    'esta.aid',                       1 ],
   );
+
+  my $WHERE = $self->search_former($attr, \@search_fields,{ WHERE => 1 });
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
     cs.id,
     cs.amount,
     cc.name as cashbox_name,
@@ -2484,31 +2409,31 @@ sub employees_list_spending {
     cs.cashbox_id
     FROM employees_spending as cs
     LEFT JOIN employees_spending_types cst ON (cst.id = cs.spending_type_id)
+    LEFT JOIN employees_spending_types_admins esta ON cst.id = esta.type_id
     LEFT JOIN employees_cashboxes cc ON (cc.id = cs.cashbox_id)
     LEFT JOIN admins a ON (a.aid = cs.aid)
     LEFT JOIN admins ad ON (ad.aid = cs.admin_spending)
+    LEFT JOIN employees_cashboxes_admins eca ON cc.id = eca.cashbox_id
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-   FROM employees_spending",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT count(*) AS total FROM employees_spending
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
 
 #**********************************************************
-
 =head2 employees_add_coming() - add coming
 
   Arguments:
@@ -2517,21 +2442,16 @@ sub employees_list_spending {
 
   Examples:
 
-
 =cut
-
 #**********************************************************
 sub employees_add_coming {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_coming', {%$attr});
 
   return $self;
 }
-
 #*******************************************************************
-
 =head2 function employees_delete_coming() - delete cashbox
 
   Arguments:
@@ -2543,11 +2463,9 @@ sub employees_add_coming {
     $Employees->employees_delete_coming( {ID => 1} );
 
 =cut
-
 #*******************************************************************
 sub employees_delete_coming {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_coming', $attr);
 
@@ -2555,7 +2473,6 @@ sub employees_delete_coming {
 }
 
 #*******************************************************************
-
 =head2 function employees_info_coming() - get information about coming
 
   Arguments:
@@ -2566,24 +2483,21 @@ sub employees_delete_coming {
 
   Examples:
     my $info_coming = $Employees->employees_info_coming({ ID => 1 });
-
 =cut
-
 #*******************************************************************
 sub employees_info_coming {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM employees_coming
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql = <<'SQL';
+    SELECT * FROM employees_coming WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
 
 #*******************************************************************
-
 =head2 function employees_change_coming() - change
 
   Arguments:
@@ -2597,22 +2511,17 @@ sub employees_info_coming {
       ID     => 1,
       AMOUNT   => 100
     });
-
-
 =cut
 
 #*******************************************************************
 sub employees_change_coming {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_coming',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_coming',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2634,8 +2543,7 @@ sub employees_change_coming {
 
 #*******************************************************************
 sub employees_list_coming {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -2644,7 +2552,7 @@ sub employees_list_coming {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "cashbox_id = '$attr->{CASHBOX_ID}'";
+    push @WHERE_RULES, "cac.cashbox_id = '$attr->{CASHBOX_ID}'";
   }
 
   if ($attr->{FROM_DATE}) {
@@ -2663,28 +2571,28 @@ sub employees_list_coming {
     push @WHERE_RULES, "cac.payment_id = '$attr->{PAYMENT_ID}'";
   }
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',               'INT',    'cs.id',                        1 ],
-      [ 'AMOUNT',           'DOUBLE', 'cs.amount',                    1 ],
-      [ 'COMING_TYPE_NAME', 'STR',    'cct.name as coming_type_name', 1 ],
-      [ 'CASHBOX_NAME',     'STR',    'cc.name as cashbox_name',      1 ],
-      [ 'DATE',             'STR',    'cs.date',                      1 ],
-      [ 'ADMIN',            'STR',    'a.name as admin',              1 ],
-      [ 'COMMENTS',         'STR',    'cac.comments',                 1 ],
-      [ 'LOGIN',            'STR',    'u.login',                 1 ],
-    ],
-    {
-      WHERE       => 1,
-      USE_USER_PI => 1,
-    }
+  push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+
+  my @search_fields = (
+    [ 'ID',               'INT',    'cs.id',                        1 ],
+    [ 'AMOUNT',           'DOUBLE', 'cs.amount',                    1 ],
+    [ 'COMING_TYPE_NAME', 'STR',    'cct.name as coming_type_name', 1 ],
+    [ 'CASHBOX_NAME',     'STR',    'cc.name as cashbox_name',      1 ],
+    [ 'DATE',             'STR',    'cs.date',                      1 ],
+    [ 'ADMIN',            'STR',    'a.name as admin',              1 ],
+    [ 'COMMENTS',         'STR',    'cac.comments',                 1 ],
+    [ 'LOGIN',            'STR',    'u.login',                      1 ],
   );
+
+  my $WHERE = $self->search_former($attr, \@search_fields, {
+     WHERE       => 1,
+     USE_USER_PI => 1,
+   });
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
     cac.id,
     cac.amount,
     cc.name as cashbox_name,
@@ -2699,24 +2607,24 @@ sub employees_list_coming {
     FROM employees_coming as cac
     LEFT JOIN employees_coming_types cct ON (cct.id = cac.coming_type_id)
     LEFT JOIN employees_cashboxes cc ON (cc.id = cac.cashbox_id)
+    LEFT JOIN employees_cashboxes_admins eca ON cc.id = eca.cashbox_id
     LEFT JOIN admins a ON (a.aid = cac.aid)
     LEFT JOIN users u ON (u.uid = cac.uid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT count(*) AS total
-   FROM employees_coming",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_coming
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -2725,15 +2633,11 @@ sub employees_list_coming {
 =head2 employees_list_coming_report()
 
   Arguments:
-     -
-
-  Returns:
-
+     $attr
 =cut
 #**********************************************************
 sub employees_list_coming_report {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -2750,14 +2654,14 @@ sub employees_list_coming_report {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT date, count(id) as total_count, sum(amount) as total_sum FROM employees_coming
+  my $sql = <<"SQL";
+    SELECT date, count(id) as total_count, sum(amount) as total_sum FROM employees_coming
     $WHERE
     GROUP BY date
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || ();
 }
@@ -2773,8 +2677,7 @@ sub employees_list_coming_report {
 =cut
 #**********************************************************
 sub employees_list_spending_report {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
@@ -2791,14 +2694,14 @@ sub employees_list_spending_report {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT date, count(id) as total_count, sum(amount) as total_sum FROM employees_spending
+  my $sql = <<"SQL";
+    SELECT date, count(id) as total_count, sum(amount) as total_sum FROM employees_spending
     $WHERE
     GROUP BY date
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || ();
 }
@@ -2815,8 +2718,7 @@ sub employees_list_spending_report {
 =cut
 #**********************************************************
 sub employees_add_bet {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_bet', {%$attr});
 
@@ -2840,14 +2742,13 @@ sub employees_add_bet {
 
 #*******************************************************************
 sub employees_info_bet {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM employees_bet
-      WHERE aid = ?;", undef,
-      { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{AID} ] }
-  );
+  my $sql = <<'SQL';
+    SELECT * FROM employees_bet WHERE aid = ?;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{AID} ] });
 
   return $self->{list}[0];
 }
@@ -2873,8 +2774,7 @@ sub employees_info_bet {
 
 #*******************************************************************
 sub employees_del_bet {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_bet', undef, { aid => $attr->{AID} });
 
@@ -2894,8 +2794,7 @@ sub employees_del_bet {
 =cut
 #**********************************************************
 sub employees_add_payed_salary {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_salaries_payed', {%$attr, DATE => 'NOW()'});
 
@@ -2914,26 +2813,28 @@ sub employees_add_payed_salary {
 =cut
 #**********************************************************
 sub employees_info_payed_salary {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
+  my $sql = '';
 
   if($attr->{ID}){
-    $self->query(
-      "SELECT
-      csp.aid,
-      csp.month,
-      csp.year,
-      csp.bet,
-      csp.date,
-      csp.spending_id,
-      csp.id
+    $sql = <<'SQL';
+      SELECT
+       csp.aid,
+       csp.month,
+       csp.year,
+       csp.bet,
+       csp.date,
+       csp.spending_id,
+       csp.id
       FROM employees_salaries_payed as csp
-      WHERE csp.id = ?;", undef, { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
-    );
+      WHERE csp.id = ?;
+SQL
+
+    $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{ID} ] });
   }
   else{
-    $self->query(
-      "SELECT
+    $sql = <<'SQL';
+      SELECT
       csp.aid,
       csp.month,
       csp.year,
@@ -2942,11 +2843,13 @@ sub employees_info_payed_salary {
       csp.spending_id,
       csp.id
       FROM employees_salaries_payed as csp
-      WHERE aid = ? and month = ? and year = ?;", undef, {
-        COLS_NAME => 1,
-        Bind      => [ $attr->{AID}, $attr->{MONTH}, $attr->{YEAR} ]
-      }
-    );
+      WHERE aid = ? and month = ? and year = ?;
+SQL
+
+    $self->query($sql, undef, {
+      COLS_NAME => 1,
+      Bind      => [ $attr->{AID}, $attr->{MONTH}, $attr->{YEAR} ]
+    });
   }
 
   return $self->{list} || [];
@@ -2981,8 +2884,7 @@ sub employees_info_payed_salary {
 =cut
 #**********************************************************
 sub employees_payed_salaries_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -3010,28 +2912,27 @@ sub employees_payed_salaries_list {
     }
   );
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
     $self->{SEARCH_FIELDS}
      csp.id
     FROM employees_salaries_payed as csp
     LEFT JOIN admins a ON (a.aid = csp.aid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_salaries_payed",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_salaries_payed
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -3054,8 +2955,7 @@ sub employees_payed_salaries_list {
 =cut
 #**********************************************************
 sub employees_delete_payed_salary {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $old_info = {};
   if($attr->{ID}){
@@ -3075,7 +2975,7 @@ sub employees_delete_payed_salary {
   $self->query_del('employees_salaries_payed', $attr);
 
   $self->{admin}{MODULE}='Employees';
-  $self->{admin}->system_action_add("SALARY! AID:$old_info->[0]{aid}; BET:$old_info->[0]{bet};YAER-MONTH:$old_info->[0]{year}-$old_info->[0]{month};DATE: $old_info->[0]{date}", { TYPE => 10, MODULE => 'Employees' });
+  $self->{admin}->system_action_add("SALARY! AID:$old_info->[0]{aid}; BET:$old_info->[0]{bet};YEAR-MONTH:$old_info->[0]{year}-$old_info->[0]{month};DATE: $old_info->[0]{date}", { TYPE => 10, MODULE => 'Employees' });
 
   return $self;
 }
@@ -3086,15 +2986,11 @@ sub employees_delete_payed_salary {
 
   Arguments:
     $attr -
-  Returns:
-
-  Examples:
 
 =cut
 #**********************************************************
 sub employees_add_reference_works {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_reference_works', {%$attr});
 
@@ -3113,16 +3009,13 @@ sub employees_add_reference_works {
 =cut
 #**********************************************************
 sub employees_change_reference_works {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_reference_works',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_reference_works',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -3139,13 +3032,13 @@ sub employees_change_reference_works {
 =cut
 #**********************************************************
 sub employees_info_reference_works {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT * FROM employees_reference_works
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+  my $sql = <<'SQL';
+    SELECT * FROM employees_reference_works WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
@@ -3162,8 +3055,7 @@ sub employees_info_reference_works {
 =cut
 #**********************************************************
 sub employees_delete_reference_works {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_reference_works', $attr);
 
@@ -3182,30 +3074,27 @@ sub employees_delete_reference_works {
 =cut
 #**********************************************************
 sub employees_list_reference_works {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',       'INT',    'crw.id',       1 ],
-      [ 'NAME',     'STR',    'crw.name',     1 ],
-      [ 'SUM',      'DOUBLE', 'crw.sum',      1 ],
-      [ 'TIME',     'INT',    'crw.time',     1 ],
-      [ 'UNITS',    'STR',    'crw.units',    1 ],
-      [ 'DISABLED', 'STR',    'crw.disabled', 1 ],
-      [ 'COMMENTS', 'STR',    'crw.comments', 1 ],
-    ],
-    { WHERE => 1, }
+  my @search_fields = (
+    [ 'ID',       'INT',    'crw.id',       1 ],
+    [ 'NAME',     'STR',    'crw.name',     1 ],
+    [ 'SUM',      'DOUBLE', 'crw.sum',      1 ],
+    [ 'TIME',     'INT',    'crw.time',     1 ],
+    [ 'UNITS',    'STR',    'crw.units',    1 ],
+    [ 'DISABLED', 'STR',    'crw.disabled', 1 ],
+    [ 'COMMENTS', 'STR',    'crw.comments', 1 ],
   );
 
-  $self->query(
-    "SELECT
+  my $WHERE = $self->search_former($attr, \@search_fields, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+    SELECT
     crw.id,
     crw.name,
     crw.sum,
@@ -3215,21 +3104,20 @@ sub employees_list_reference_works {
     crw.comments
     FROM employees_reference_works as crw
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_reference_works",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_reference_works
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -3240,13 +3128,13 @@ sub employees_list_reference_works {
 =cut
 #**********************************************************
 sub employees_reference_works_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM employees_reference_works WHERE id= ? ;", undef, {
-    INFO => 1,
-    Bind => [ $id ]
-  });
+  my $sql = <<'SQL';
+    SELECT * FROM employees_reference_works WHERE id= ? ;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -3260,68 +3148,65 @@ sub employees_reference_works_info{
 =cut
 #**********************************************************
 sub employees_works_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',         'INT', 'w.id',                                                    1 ],
-      [ 'DATE',       'DATE','w.date',                                                  1 ],
-      [ 'EMPLOYEE',   'STR', 'employee.name', 'employee.name AS employee'                 ],
-      [ 'WORK_ID',    'INT', 'w.work_id',                                               1 ],
-      [ 'WORK',       'INT', 'crw.name',   'crw.name AS work'                             ],
-      [ 'RATIO',      'STR', 'w.ratio',     'w.ratio'                                     ],
-      [ 'EXTRA_SUM',  'INT', 'w.extra_sum',                                             1 ],
-      [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum) AS sum'    ],
-      [ 'COMMENTS',   'INT', 'w.comments',                                              1 ],
-      [ 'PAID',       'INT', 'w.paid',                                                  1 ],
-      [ 'ADMIN_NAME', 'STR', 'a.login',     'a.name AS admin_name'                        ],
-      [ 'EMPLOYEE_ID','INT', 'w.employee_id',                                             ],
-      [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",                    ],
-      [ 'FEES_ID',    'INT', 'w.fees_id',                                               1 ],
-      [ 'WORK_DONE',  'INT', 'w.work_done',                                             1 ],
-      [ 'EXT_ID',     'INT', 'w.ext_id',                                                1 ],
-      [ 'WORK_AID',   'INT', 'w.employee_id AS work_aid',                               1 ],
-      [ 'SALARY',     'INT', 'eb.bet AS salary',                                        1 ]
-    ],
-    {
-      WHERE => 1,
-    }
+  my @search_fields = (
+    [ 'ID',         'INT', 'w.id',                                                    1 ],
+    [ 'DATE',       'DATE','w.date',                                                  1 ],
+    [ 'EMPLOYEE',   'STR', 'employee.name', 'employee.name AS employee'                 ],
+    [ 'WORK_ID',    'INT', 'w.work_id',                                               1 ],
+    [ 'WORK',       'INT', 'crw.name',   'crw.name AS work'                             ],
+    [ 'RATIO',      'STR', 'w.ratio',     'w.ratio'                                     ],
+    [ 'EXTRA_SUM',  'INT', 'w.extra_sum',                                             1 ],
+    [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum) AS sum'    ],
+    [ 'COMMENTS',   'INT', 'w.comments',                                              1 ],
+    [ 'PAID',       'INT', 'w.paid',                                                  1 ],
+    [ 'ADMIN_NAME', 'STR', 'a.login',     'a.name AS admin_name'                        ],
+    [ 'EMPLOYEE_ID','INT', 'w.employee_id',                                             ],
+    [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",                    ],
+    [ 'FEES_ID',    'INT', 'w.fees_id',                                               1 ],
+    [ 'WORK_DONE',  'INT', 'w.work_done',                                             1 ],
+    [ 'EXT_ID',     'INT', 'w.ext_id',                                                1 ],
+    [ 'WORK_AID',   'INT', 'w.employee_id AS work_aid',                               1 ],
+    [ 'SALARY',     'INT', 'eb.bet AS salary',                                        1 ],
   );
+
+  my $WHERE = $self->search_former($attr, \@search_fields, { WHERE => 1});
 
   my $ext_table = '';
   if ($attr->{SALARY}) {
-    $ext_table .= ' LEFT JOIN employees_bet AS eb ON eb.aid = w.employee_id ';
+    $ext_table .= <<'EXT_TABLE';
+      LEFT JOIN employees_bet AS eb ON eb.aid = w.employee_id
+EXT_TABLE
   }
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} w.aid, w.id
-   FROM employees_works w
-   $ext_table
-   LEFT JOIN admins a ON (a.aid=w.aid)
-   LEFT JOIN admins employee ON (employee.aid=w.employee_id)
-   LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} w.aid, w.id
+    FROM employees_works w
+    $ext_table
+    LEFT JOIN admins a ON (a.aid=w.aid)
+    LEFT JOIN admins employee ON (employee.aid=w.employee_id)
+    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
     $WHERE
     GROUP BY w.id
-    ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
-
-  $self->query( "SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
+  $sql = <<"SQL";
+   SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
    FROM employees_works w
    LEFT JOIN admins a ON (a.aid=w.aid)
    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
-    $WHERE",
-    undef,
-    { INFO => 1 }
-  );
+   $WHERE
+SQL
 
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -3332,15 +3217,14 @@ sub employees_works_list{
 =cut
 #**********************************************************
 sub employees_works_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %params = ();
   my @MULTI_QUERY = ();
 
-  $params{WORK_ID} = $attr->{WORK_ID} ? [ split(/,\s?/, $attr->{WORK_ID}) ] : [];
-  $params{RATIO} = $attr->{RATIO} ? [ split(/,\s?/, $attr->{RATIO}) ] : [];
-  $params{FEES_ID} = $attr->{FEES_ID} ? [ split(/,\s?/, $attr->{FEES_ID}) ] : [];
+  $params{WORK_ID} = $attr->{WORK_ID} ? [ split(/,\s?/x, $attr->{WORK_ID}) ] : [];
+  $params{RATIO} = $attr->{RATIO} ? [ split(/,\s?/x, $attr->{RATIO}) ] : [];
+  $params{FEES_ID} = $attr->{FEES_ID} ? [ split(/,\s?/x, $attr->{FEES_ID}) ] : [];
 
   for (my $i = 0 ; $i <= $#{$params{WORK_ID}}; $i++) {
     if (!$attr->{EXTRA_SUM}) {
@@ -3353,9 +3237,13 @@ sub employees_works_add {
       $params{FEES_ID}[$i] || 0];
   }
 
-  $self->query("INSERT INTO employees_works (date, employee_id, work_id, ratio,
-    sum, extra_sum, comments, ext_id, aid, work_done, fees_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", undef, { MULTI_QUERY => \@MULTI_QUERY });
+  my $sql = <<'SQL';
+    INSERT INTO employees_works (date, employee_id, work_id, ratio,
+     sum, extra_sum, comments, ext_id, aid, work_done, fees_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -3366,8 +3254,7 @@ sub employees_works_add {
 =cut
 #**********************************************************
 sub employees_works_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if(! $attr->{EXTRA_PRICE}) {
     $self->employees_info_reference_works({ ID => $attr->{WORK_ID} });
@@ -3391,8 +3278,7 @@ sub employees_works_change{
 =cut
 #**********************************************************
 sub employees_works_del{
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   $self->query_del( 'employees_works', $attr, { ID => $id } );
 
@@ -3405,13 +3291,13 @@ sub employees_works_del{
 =cut
 #**********************************************************
 sub employees_works_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self,$id) = @_;
 
-  $self->query("SELECT * FROM employees_works WHERE id= ? ;", undef, {
-    INFO => 1,
-    Bind => [ $id ]
-  });
+  my $sql = <<'SQL';
+    SELECT * FROM employees_works WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -3443,8 +3329,7 @@ sub employees_works_info{
 =cut
 #**********************************************************
 sub employees_time_norms_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $working_norms_arr = $attr->{WORKING_NORMS};
   my @MULTI_QUERY = ();
@@ -3457,10 +3342,12 @@ sub employees_time_norms_add {
     ];
   }
 
-  $self->query("REPLACE INTO employees_working_time_norms (year, month, hours, days)
-     VALUES (?, ?, ?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY });
+  my $sql = <<'SQL';
+    REPLACE INTO employees_working_time_norms (year, month, hours, days)
+    VALUES (?, ?, ?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -3487,17 +3374,14 @@ sub employees_time_norms_add {
 =cut
 #**********************************************************
 sub employees_time_norms_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  my $WHERE = $self->search_former($attr,[
       [ 'YEAR',   'INT',    'cwtn.year',  1 ],
       [ 'MONTH',  'INT',    'cwtn.month', 1 ],
       [ 'HOURS',  'INT',    'cwtn.hours', 1 ],
@@ -3506,27 +3390,26 @@ sub employees_time_norms_list {
     { WHERE => 1, }
   );
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
     $self->{SEARCH_FIELDS}
      cwtn.year
     FROM employees_working_time_norms as cwtn
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_working_time_norms",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_working_time_norms
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -3544,17 +3427,14 @@ sub employees_time_norms_list {
 =cut
 #**********************************************************
 sub employees_bonus_types_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  my $WHERE = $self->search_former($attr,[
       [ 'ID',       'INT',   'cbt.id',       1 ],
       [ 'NAME',     'NAME',  'cbt.name',     1 ],
       [ 'AMOUNT',   'INT',   'cbt.amount',   1 ],
@@ -3563,27 +3443,24 @@ sub employees_bonus_types_list {
     { WHERE => 1, }
   );
 
-  $self->query(
-    "SELECT
-    $self->{SEARCH_FIELDS}
-     cbt.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} cbt.id
     FROM employees_bonus_types as cbt
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_bonus_types",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_bonus_types
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -3600,8 +3477,7 @@ sub employees_bonus_types_list {
 =cut
 #**********************************************************
 sub employees_bonus_type_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_bonus_types', {%$attr});
 
@@ -3622,8 +3498,7 @@ sub employees_bonus_type_add {
 =cut
 #*******************************************************************
 sub employees_bonus_type_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_bonus_types', $attr);
 
@@ -3641,8 +3516,7 @@ sub employees_bonus_type_del {
 =cut
 #**********************************************************
 sub employees_bonus_type_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $bonus_type_info = $self->employees_bonus_types_list({%$attr, COLS_NAME => 1});
 
@@ -3675,16 +3549,13 @@ sub employees_bonus_type_info {
 
 #*******************************************************************
 sub employees_bonus_type_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_bonus_types',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_bonus_types',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -3702,53 +3573,48 @@ sub employees_bonus_type_change {
 =cut
 #**********************************************************
 sub employees_salary_bonus_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : 'DESC';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',         'INT', 'csb.id',                 1 ],
-      [ 'ADMIN_NAME', 'STR', 'a.name as admin_name',   1 ],
-      [ 'BONUS_NAME', 'STR', 'cbt.name as bonus_name', 1 ],
-      [ 'AID',        'INT', 'csb.aid',                1 ],
-      [ 'AMOUNT',     'INT', 'csb.amount',             1 ],
-      [ 'MONTH',      'INT', 'csb.month',              1 ],
-      [ 'YEAR',       'INT', 'csb.year',               1 ],
-      [ 'YEAR_MONTH', 'STR', 'CONCAT(csb.year, "-", csb.month)', 1],
-    ],
-    { WHERE => 1, }
+  my @search_fields = (
+    [ 'ID',         'INT', 'csb.id',                 1 ],
+    [ 'ADMIN_NAME', 'STR', 'a.name as admin_name',   1 ],
+    [ 'BONUS_NAME', 'STR', 'cbt.name as bonus_name', 1 ],
+    [ 'AID',        'INT', 'csb.aid',                1 ],
+    [ 'AMOUNT',     'INT', 'csb.amount',             1 ],
+    [ 'MONTH',      'INT', 'csb.month',              1 ],
+    [ 'YEAR',       'INT', 'csb.year',               1 ],
+    [ 'YEAR_MONTH', 'STR', 'CONCAT(csb.year, "-", csb.month)', 1],
   );
 
-  $self->query(
-    "SELECT
-    $self->{SEARCH_FIELDS}
-     csb.id
+  my $WHERE = $self->search_former($attr, \@search_fields, { WHERE => 1});
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} csb.id
     FROM employees_salary_bonus as csb
     LEFT JOIN admins a ON (csb.aid = a.aid)
     LEFT JOIN employees_bonus_types cbt ON (csb.bonus_type_id = cbt.id)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
-  $self->query(
-    "SELECT COUNT(*) AS total, SUM(csb.amount) as total_bonus_amount
-   FROM employees_salary_bonus csb
-   LEFT JOIN admins a ON (csb.aid = a.aid)
-   LEFT JOIN employees_bonus_types cbt ON (csb.bonus_type_id = cbt.id)
-   $WHERE",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<"SQL";
+    SELECT COUNT(*) AS total, SUM(csb.amount) as total_bonus_amount
+    FROM employees_salary_bonus csb
+    LEFT JOIN admins a ON (csb.aid = a.aid)
+    LEFT JOIN employees_bonus_types cbt ON (csb.bonus_type_id = cbt.id)
+    $WHERE
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -3765,8 +3631,7 @@ sub employees_salary_bonus_list {
 =cut
 #**********************************************************
 sub employees_salary_bonus_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_salary_bonus', {%$attr, DATE => 'NOW()'});
 
@@ -3787,8 +3652,7 @@ sub employees_salary_bonus_add {
 =cut
 #*******************************************************************
 sub employees_salary_bonus_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_salary_bonus', $attr);
 
@@ -3812,32 +3676,33 @@ sub employees_salary_bonus_del {
 
 #*******************************************************************
 sub employees_info_moving {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query(
-    "SELECT ecm.amount,
-    ecm.date,
-    ecm.comments,
-    emt.name as moving_type_name,
-    ecm.id_spending,
-    ecm.id_coming,
-    emt.spending_type,
-    emt.coming_type,
-    ecm.moving_type_id,
-    ecm.cashbox_spending,
-    ecm.cashbox_coming,
-    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_spending = ec.id) as name_spending,
-    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_coming = ec.id) as name_coming
+  my $sql = <<'SQL';
+     SELECT ecm.amount,
+       ecm.date,
+       ecm.comments,
+       emt.name as moving_type_name,
+       ecm.id_spending,
+       ecm.id_coming,
+       emt.spending_type,
+       emt.coming_type,
+       ecm.moving_type_id,
+       ecm.cashbox_spending,
+       ecm.cashbox_coming,
+       (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_spending = ec.id) as name_spending,
+       (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_coming = ec.id) as name_coming
     FROM employees_cashboxes_moving as ecm
     LEFT JOIN employees_moving_types emt ON (ecm.moving_type_id = emt.id)
-    WHERE ecm.id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
-  );
+    WHERE ecm.id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
 
   return $self;
 }
-#*******************************************************************
 
+#*******************************************************************
 =head2 function employees_change_moving() - change moving
 
   Arguments:
@@ -3851,22 +3716,17 @@ sub employees_info_moving {
       ID       => 1,
       AMOUNT   => 100
     });
-
-
 =cut
 
 #*******************************************************************
 sub employees_change_moving {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_cashboxes_moving',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_cashboxes_moving',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -3887,8 +3747,7 @@ sub employees_change_moving {
 
 #*******************************************************************
 sub employees_delete_moving {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_cashboxes_moving', $attr);
 
@@ -3908,8 +3767,7 @@ sub employees_delete_moving {
 
 #**********************************************************
 sub employees_add_moving {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('employees_cashboxes_moving', {%$attr});
 
@@ -3932,8 +3790,7 @@ sub employees_add_moving {
 
 #*******************************************************************
 sub employees_list_moving_type {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -3947,40 +3804,38 @@ sub employees_list_moving_type {
   ],
     { WHERE => 1, });
 
-  $self->query(
-    "SELECT
-    emt.id,
-    emt.name AS  name,
-    emt.comments,
-    est.name AS spending_name,
-    est.id AS spending_id,
-    ect.id AS coming_id,
-    ect.name AS coming_name
+  my $sql = <<"SQL";
+    SELECT
+     emt.id,
+     emt.name AS  name,
+     emt.comments,
+     est.name AS spending_name,
+     est.id AS spending_id,
+     ect.id AS coming_id,
+     ect.name AS coming_name
     FROM employees_moving_types as emt
     LEFT JOIN employees_spending_types as est ON (emt.spending_type = est.id)
     LEFT JOIN employees_coming_types as ect ON (emt.coming_type = ect.id)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_moving_types",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_moving_types
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
 
 #*******************************************************************
-
 =head2 function employees_list_moving() - get list of all moving
 
   Arguments:
@@ -3996,18 +3851,18 @@ sub employees_list_moving_type {
 
 #*******************************************************************
 sub employees_list_moving {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY    = 'ecm.id';
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
+  push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+
+  my $WHERE = $self->search_former($attr,[
       [ 'AMOUNT',           'DOUBLE', 'cs.amount',                    1 ],
       [ 'MOVING_TYPE_NAME', 'STR',    'emt.name as moving_type_name', 1 ],
       [ 'NAME_SPENDING',    'STR',    'cc.name as cashbox_spending',  1 ],
@@ -4023,8 +3878,8 @@ sub employees_list_moving {
   );
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
     ecm.id,
     ecm.amount,
     (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_spending = ec.id) as name_spending,
@@ -4036,22 +3891,23 @@ sub employees_list_moving {
     FROM  employees_cashboxes_moving as ecm
     LEFT JOIN admins a ON (a.aid = ecm.aid)
     LEFT JOIN employees_moving_types emt ON (ecm.moving_type_id = emt.id)
+    LEFT JOIN employees_cashboxes_admins eca ON (ecm.cashbox_spending = eca.cashbox_id OR ecm.cashbox_coming = eca.cashbox_id)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-   FROM employees_cashboxes_moving",
-    undef,
-    { INFO => 1 }
-  );
+  $sql = <<'SQL';
+    SELECT COUNT(*) AS total FROM employees_cashboxes_moving
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -4061,9 +3917,12 @@ sub employees_list_moving {
 =cut
 #**********************************************************
 sub coming_default_type {
-  my $self = shift;
+  my ($self) = @_;
+  my $sql = <<'SQL';
+    UPDATE employees_coming_types SET default_coming = 0;
+SQL
 
-  $self->query("UPDATE employees_coming_types SET default_coming = 0;");
+  $self->query($sql);
 
   return $self;
 }
@@ -4077,13 +3936,12 @@ sub coming_default_type {
 =cut
 #**********************************************************
 sub employees_works_by_type_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_fields = (
     [ 'ID',                'INT',  'w.id',                                                      1 ],
     [ 'WORK_ID',           'INT',  'w.work_id',                                                 1 ],
     [ 'WORK',              'INT',  'crw.name', 'crw.name AS work',                              1 ],
@@ -4095,31 +3953,34 @@ sub employees_works_by_type_list{
     [ 'WORK_DONE',         'INT',  'w.work_done',                                               1 ],
     [ 'TOTAL_DONE',        'INT',  'SUM(w.work_done) AS total_done',                            1 ],
     [ 'PERFORMERS',        'STR',  'GROUP_CONCAT(DISTINCT employee .name) AS performers',       1 ]
-  ], { WHERE => 1 });
+  );
 
+  my $WHERE = $self->search_former($attr, \@search_fields, { WHERE => 1 });
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} w.id
-   FROM employees_works w
-   LEFT JOIN admins a ON (a.aid=w.aid)
-   LEFT JOIN admins employee ON (employee.aid=w.employee_id)
-   LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} w.id
+    FROM employees_works w
+    LEFT JOIN admins a ON (a.aid=w.aid)
+    LEFT JOIN admins employee ON (employee.aid=w.employee_id)
+    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
     $WHERE
     GROUP BY w.work_id
-    ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
+  $sql = <<"SQL";
+    SELECT COUNT(*) AS total, SUM(IF(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
+    FROM employees_works w
+    LEFT JOIN admins a ON (a.aid=w.aid)
+    LEFT JOIN admins employee ON (employee.aid=w.employee_id)
+    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
+    $WHERE
+SQL
 
-  $self->query( "SELECT COUNT(*) AS total, SUM(IF(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
-   FROM employees_works w
-   LEFT JOIN admins a ON (a.aid=w.aid)
-   LEFT JOIN admins employee ON (employee.aid=w.employee_id)
-   LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
-    $WHERE", undef, { INFO => 1 }
-  );
-
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
@@ -4133,29 +3994,29 @@ sub employees_works_by_type_list{
 =cut
 #**********************************************************
 sub employees_work_for_map {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT ew.*, mm.id, u.uid, b.id AS build_id, a.id AS admin, crw.name,
-      IF(b.coordx <> 0, b.coordx , SUM(plpoints.coordy)/COUNT(plpoints.polygon_id)) AS coordx,
-      IF(b.coordy <> 0, b.coordy , SUM(plpoints.coordx)/COUNT(plpoints.polygon_id)) AS coordy
+  my $sql = <<'SQL';
+    SELECT ew.*, mm.id, u.uid, b.id AS build_id, a.id AS admin, crw.name,
+       IF(b.coordx <> 0, b.coordx , SUM(plpoints.coordy)/COUNT(plpoints.polygon_id)) AS coordx,
+       IF(b.coordy <> 0, b.coordy , SUM(plpoints.coordx)/COUNT(plpoints.polygon_id)) AS coordy
     FROM employees_works ew
-    LEFT JOIN admins a ON (a.aid=ew.aid)
-    LEFT JOIN admins employee ON (employee.aid=ew.employee_id)
-    LEFT JOIN employees_reference_works AS crw ON (crw.id = ew.work_id)
-    LEFT JOIN msgs_messages mm ON (mm.id = ew.ext_id)
-    LEFT JOIN users u ON (mm.uid = u.uid)
-    LEFT JOIN users_pi up ON (up.uid = u.uid)
-    LEFT JOIN builds b ON (b.id = up.location_id OR b.id = mm.location_id)
-    LEFT JOIN maps_points mp ON (b.id=mp.location_id)
-    LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
-    LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
-    LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
-    LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
-    GROUP BY ew.id HAVING (coordx <> 0 AND coordy <> 0);",
-    undef,
-    $attr
-  );
+       LEFT JOIN admins a ON (a.aid=ew.aid)
+       LEFT JOIN admins employee ON (employee.aid=ew.employee_id)
+       LEFT JOIN employees_reference_works AS crw ON (crw.id = ew.work_id)
+       LEFT JOIN msgs_messages mm ON (mm.id = ew.ext_id)
+       LEFT JOIN users u ON (mm.uid = u.uid)
+       LEFT JOIN users_pi up ON (up.uid = u.uid)
+       LEFT JOIN builds b ON (b.id = up.location_id OR b.id = mm.location_id)
+       LEFT JOIN maps_points mp ON (b.id=mp.location_id)
+       LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
+       LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
+       LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
+       LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+    GROUP BY ew.id HAVING (coordx <> 0 AND coordy <> 0);
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 
@@ -4172,23 +4033,20 @@ sub employees_work_for_map {
 =cut
 #**********************************************************
 sub employees_cashbox_admins_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s+/x, $attr->{IDS});
   my @MULTI_QUERY = ();
 
   foreach my $id (@ids) {
     push @MULTI_QUERY, [ $attr->{CASHBOX_ID}, $id];
   }
 
-  $self->query(
-    "INSERT INTO employees_cashboxes_admins
-     (cashbox_id, aid)
-        VALUES (?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY }
-  );
+  my $sql = <<'SQL';
+    INSERT INTO employees_cashboxes_admins (cashbox_id, aid) VALUES (?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -4203,8 +4061,7 @@ sub employees_cashbox_admins_add {
 =cut
 #**********************************************************
 sub employees_cashbox_admins_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('employees_cashboxes_admins', undef, $attr);
 
@@ -4228,8 +4085,7 @@ sub employees_cashbox_admins_del {
 
 #*******************************************************************
 sub employees_total_balance {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -4238,19 +4094,66 @@ sub employees_total_balance {
     [ 'CASHBOX_IDS',        'INT',  'ec.id',         1 ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+    SELECT
     ec.id, ec.name,
     (SELECT SUM(amount) FROM employees_coming WHERE cashbox_id=ec.id) AS total_coming,
     (SELECT SUM(amount) FROM employees_spending WHERE cashbox_id=ec.id) AS total_spending
     FROM employees_cashboxes ec
     $WHERE
     GROUP BY ec.id
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr,
-  );
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr, );
 
   return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 employees_spending_types_admins_add() - add admins to spending type
+
+  Arguments:
+    IDS
+    TYPE_ID
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub employees_spending_types_admins_add {
+  my ($self, $attr) = @_;
+
+  my @ids = split(/,\s+/x, $attr->{IDS});
+  my @MULTI_QUERY = ();
+
+  foreach my $id (@ids) {
+    push @MULTI_QUERY, [ $attr->{TYPE_ID}, $id];
+  }
+
+  my $sql = <<'SQL';
+    INSERT INTO employees_spending_types_admins (type_id, aid) VALUES (?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 employees_spending_types_admins_del() - delete admins from spending type
+
+  Arguments:
+    TYPE_ID
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub employees_spending_types_admins_del {
+  my ($self, $attr) = @_;
+
+  $self->query_del('employees_spending_types_admins', undef, $attr);
+
+  return $self;
 }
 
 

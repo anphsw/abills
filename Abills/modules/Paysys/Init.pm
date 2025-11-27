@@ -60,7 +60,8 @@ sub _configure_load_payment_module {
   eval {require "Paysys/$prefix/$payment_system";};
 
   if (!$@) {
-    $require_module->import($payment_system);
+    #$require_module->import($payment_system);
+    $require_module->import();
   }
   else {
     if ($return_error) {

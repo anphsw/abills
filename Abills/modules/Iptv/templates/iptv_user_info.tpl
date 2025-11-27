@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' name='user_tp_change' id='user_tp_change'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='POST' name='user_tp_change' id='user_tp_change'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='sid' value='$FORM{sid}'/>
   <input type='hidden' name='ID' value='$FORM{ID}'/>
   <input type='hidden' name='SHEDULE_ID' value='$FORM{SHEDULE_ID}'/>
@@ -51,10 +51,10 @@
       </div>
     </div>
   </div>
-  <div class='form-group'>
-    %ACTIVE_CODE%
-    %WATCH_NOW%
-    %CONAX_STATUS%
+  <div class='form-group row'>
+    <div class='col-md-12 text-center'>
+      %EXTRA_BUTTONS%
+    </div>
   </div>
 </form>
 

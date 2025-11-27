@@ -1,0 +1,5 @@
+{
+  "name": "USER_SERVICE_STATUSES",
+  "method": "GET",
+  "path": "user/services/statuses/"
+}

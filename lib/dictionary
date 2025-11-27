@@ -60,6 +60,13 @@ ATTRIBUTE  Connect-Info          77  string
 ATTRIBUTE  Message-Authenticator 80  octets
 ATTRIBUTE  Acct-Interim-Interval 85  integer
 ATTRIBUTE  NAS-Port-Id           87  string
+ATTRIBUTE  Framed-Pool           88  string
+ATTRIBUTE  Framed-IPv6-Pool     100  string
+ATTRIBUTE  Framed-IPv6-Prefix   101  string
+ATTRIBUTE  Framed-Interface-Id  102  string
+
+
+
 
 ATTRIBUTE       Digest-Response                         103     string
 ATTRIBUTE       Digest-Realm                            104     string
@@ -504,14 +511,22 @@ ATTRIBUTE	FreeRADIUS-Server-EMA-USEC-Window-10	180	integer FreeRADIUS
 #Accel pairs
 ATTRIBUTE DHCP-Router-IP-Address 241 ipaddr
 ATTRIBUTE DHCP-Mask              242 integer
-ATTRIBUTE L4-Redirect      243 integer
+ATTRIBUTE L4-Redirect            243 integer
 ATTRIBUTE L4-Redirect-ipset      244 string
 ATTRIBUTE DHCP-Option82          245 octets
 
 
-#Huawai ME60
+#Huawai ME60/NE8000
 VENDOR          Huawei        2011
+ATTRIBUTE  Huawei-Input-Average-Rate         2  integer Huawei
+ATTRIBUTE  Huawei-Output-Average-Rate        5  integer Huawei
+ATTRIBUTE  Huawei-PortalURL                 27  string Huawei
 ATTRIBUTE  Huawei-Qos-Profile-Name	        31  string Huawei
-ATTRIBUTE  Huawei-Input-Average-Rate         2   integer Huawei
-ATTRIBUTE  Huawei-Output-Average-Rate        5   integer Huawei
+ATTRIBUTE  Huawei-Vpn-Instance              94  string Huawei
+ATTRIBUTE  Huawei-Domain-Name              138  string Huawei
+ATTRIBUTE  Huawei-Auth-Type                180  integer Huawei
+ATTRIBUTE  Huawei-Web-URL                  253  string Huawei
+ATTRIBUTE  Huawei-Delegated-IPv6-Prefix-Pool 191 string Huawei
+
+
 

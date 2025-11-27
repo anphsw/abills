@@ -1,6 +1,6 @@
 <form method='POST' enctype='multipart/form-data'>
 
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 
 <div class='card card-primary card-outline box-form form-horizontal'>
 <div class='card-header with-border'>Upload image</div>

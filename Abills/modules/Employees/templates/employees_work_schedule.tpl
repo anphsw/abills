@@ -1,7 +1,7 @@
 <form method='POST' class='form-horizontal container-md'>
 
 <input type='hidden' name='AID' value='$FORM{AID_SCHEDULE}'>
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 
 <div class='card card-primary card-outline box-form '>
   <div class='card-header with-border'><h4 class='card-title'>%FIO%</h4></div>

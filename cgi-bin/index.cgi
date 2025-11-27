@@ -46,6 +46,7 @@ use Users;
 use Finance;
 use Admins;
 use Conf;
+use Control::Auth::User;
 
 our (
   %LANG,
@@ -95,7 +96,7 @@ $admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : 3,
   });
 
 # Load DB %conf;
-our $Conf = Conf->new($db, $admin, \%conf);
+my $Conf = Conf->new($db, $admin, \%conf);
 
 $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
@@ -104,8 +105,17 @@ $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 do 'Abills/Misc.pm';
 do 'Control/Selects.pm';
 do 'Control/Password.pm';
-require Abills::Templates;
+use Abills::Templates;
 require Abills::Result_former;
+
+Abills::Templates::template_init({
+  LIBPATH => $libpath,
+  ADMIN  => $admin,
+  HTML   => $html,
+  FORM   => \%FORM,
+  LANG   => \%lang,
+  CONF   => \%conf
+});
 
 if (!in_array('Events', \@MODULES)) {
   $conf{USER_PORTAL_EVENTS_DISABLED} = 1;
@@ -114,8 +124,6 @@ $html->{METATAGS} = templates('metatags_client');
 
 my $uid = 0;
 our %OUTPUT = ();
-my $login = $FORM{user} || '';
-my $passwd = $FORM{passwd} || '';
 my $default_index;
 our %module = ();
 my %menu_args = ();
@@ -133,36 +141,28 @@ _start();
 #**********************************************************
 sub _start {
 
+  my $login = $FORM{user} || '';
+  my $passwd = $FORM{passwd} || '';
+  my $ext_info;
+  my $Auth = Control::Auth::User->new($db, $admin, \%conf, { USER => $user });
+
   if ($FORM{SHOW_MESSAGE}) {
-    ($uid, $sid, $login) = auth($login, $passwd, $sid, { PASSWORDLESS_ACCESS => 1 });
-
-    $admin->{sid} = $sid;
-
-    if ($uid) {
-      load_module('Msgs', $html);
-      msgs_show_last({ UID => $uid });
-
-      print $html->header();
-      $OUTPUT{BODY} = $html->{OUTPUT};
-      $OUTPUT{INDEX_NAME} = 'index.cgi';
-      print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
-        MAIN => 1,
-        ID   => 'form_client_start' });
-
+    if (_show_msgs({ \%FORM, AUTH_USER => $Auth  })) {
       return 1;
-    }
-    else {
-      $html->message('err', $lang{ERROR}, "IP_NOT_FOUND");
     }
   }
 
-  require Control::Auth;
-  ($uid, $sid, $login) = auth_user($login, $passwd, $sid, {
+  ($uid, $sid, $login, $ext_info) = $Auth->auth_user($login, $passwd, $sid, {
     FORM => \%FORM,
     HTML => $html,
     USER => $user,
     LANG => \%lang
   });
+
+  if ($ext_info && $ext_info->{redirect_url}) {
+    print "Location: $ext_info->{redirect_url}\n\n";
+    exit;
+  }
 
   # if after auth user $uid not exist - show message about wrong password
   if (!$uid && exists $FORM{logined}) {
@@ -177,8 +177,6 @@ sub _start {
   if ($uid && in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
     my $user_info = $user->info($uid);
     $ENV{DOMAIN_ID} = $user_info->{DOMAIN_ID} if ($user_info);
-
-    # Load DB %conf;
     $Conf = Conf->new($db, $admin, \%conf);
   }
 
@@ -196,8 +194,8 @@ sub _start {
     return 0;
   }
   elsif ($FORM{xml}) {
-    print qq{Content-Type:application/xml\n\n<?xml version="1.0" encoding="UTF-8"?>
-        <error><TYPE>error</TYPE><errstr>Access Deny</errstr></error>};
+    print qq{Content-Type:application/xml\n\n<?xml version="1.0" encoding="UTF-8"?>}
+        . qq{<error><TYPE>error</TYPE><errstr>Access Deny</errstr></error>};
     return 0;
   }
 
@@ -310,7 +308,7 @@ sub quick_functions {
 
     $OUTPUT{DATE} = $DATE;
     $OUTPUT{TIME} = $TIME;
-    $OUTPUT{LOGIN} = $login;
+    $OUTPUT{LOGIN} = $user->{LOGIN};
     $OUTPUT{IP} = $ENV{REMOTE_ADDR};
     $pages_qs = "&UID=$user->{UID}"; #&sid=$sid";
     $OUTPUT{STATE} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
@@ -496,9 +494,15 @@ sub quick_functions {
 #**********************************************************
 =head2 form_info($attr) User main information
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_info {
+  my($attr)=@_;
 
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 
@@ -522,28 +526,7 @@ sub form_info {
     return 1;
   }
   elsif ($FORM{print_add_contract}) {
-    require Control::Contracts_mng;
-    my $contract_info = _print_user_contract({
-       USER_PORTAL        => 1,
-       UID                => $uid,
-       print_add_contract => $FORM{print_add_contract}
-    });
-
-    $user->pi();
-    my $list = $user->contracts_list({ UID => $user->{UID}, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
-    return 1 if ($user->{TOTAL} != 1);
-    my $sig_img = "$conf{TPL_DIR}/sig.png";
-    if ($list->[0]->{SIGNATURE}) {
-      open(my $fh, '>', $sig_img);
-      binmode $fh;
-      my ($data) = $list->[0]->{SIGNATURE} =~ m/data:image\/png;base64,(.*)/;
-      print $fh decode_base64($data);
-      close $fh;
-    }
-
-    $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$user, %{$list->[0]}, %$contract_info, FIO_S => $user->{FIO} }, { TITLE => "Contract" });
-    unlink $sig_img;
-    return 1;
+    return _user_contract_print($uid, $FORM{print_add_contract});
   }
   elsif ($FORM{signature}) {
     $user->contracts_change($FORM{sign}, { SIGNATURE => $FORM{signature} });
@@ -594,35 +577,11 @@ sub form_info {
 
   $user->pi();
 
-  if ($FORM{REMOVE_SUBSCRIBE} && in_array($FORM{REMOVE_SUBSCRIBE}, [ qw/Push Telegram Viber/ ])) {
-    require Contacts;
-    Contacts->import();
-
-    my $Contacts = Contacts->new($db, $admin, \%conf);
-    my $type_id = $Contacts->contact_type_id_for_name(uc($FORM{REMOVE_SUBSCRIBE}));
-    $Contacts->contacts_del({
-      UID     => $user->{UID},
-      TYPE_ID => $type_id
-    });
-
-    # Clean states for Telegram, Viber.
-    my $to_remove = $Contacts->{OLD_INFO}{$type_id};
-    if ($FORM{REMOVE_SUBSCRIBE} eq 'Telegram') {
-      require Telegram::db::Telegram;
-      my $Telegram_db = Telegram::db::Telegram->new($db, $admin, \%conf);
-      $Telegram_db->del($to_remove);
-    }
-    elsif ($FORM{REMOVE_SUBSCRIBE} eq 'Viber') {
-      require Viber::db::Viber;
-      my $Viber_db = Viber::db::Viber->new($db, $admin, \%conf);
-      $Viber_db->del($to_remove);
-    }
-
-    $html->redirect('/index.cgi');
+  if (_user_remove_subscribes(\%FORM)) {
     return 1;
   }
 
-  _user_pi() if $conf{user_chg_pi};
+  _user_pi() if ($conf{user_chg_pi});
 
  $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if ($conf{HOLDUP_ALL});
 
@@ -720,12 +679,12 @@ sub form_info {
       CONTENT       => $html->form_input('chg', "$lang{CHANGE}", { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 }),
       HIDDEN        => {
         sid   => $sid,
-        index => "$index"
+        index => $index
       },
       OUTPUT2RETURN => 1
     });
 
-    $user->{FORM_CHG_INFO} = $html->button($lang{CHANGE}, "index=$index&sid=$sid&chg=1", {
+    $user->{FORM_CHG_INFO} = $html->button($lang{CHANGE}, "index=$index&chg=1", {
       class         => 'btn btn-success btn-xs',
       OUTPUT2RETURN => 1
     });
@@ -737,7 +696,7 @@ sub form_info {
   }
 
   if ($conf{user_chg_passwd} || ($conf{group_chg_passwd} && $conf{group_chg_passwd} eq $user->{GID})) {
-    $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17&sid=$sid", { class => 'btn btn-sm btn-primary' });
+    $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17", { class => 'btn btn-sm btn-primary' });
   }
 
   $user->{SOCIAL_AUTH_BUTTONS_BLOCK} = make_social_auth_manage_buttons($user);
@@ -757,7 +716,7 @@ sub form_info {
     && !(exists $conf{user_hide_reduction} && $conf{user_hide_reduction})) ? '' : 'hidden';
 
   if (!$user->{CONTRACT_ID}) {
-    $user->{NO_CONTRACT_MSG} = "$lang{NO_DATA}";
+    $user->{NO_CONTRACT_MSG} = $lang{NO_DATA};
     $user->{NO_DISPLAY} = "style='display : none'";
   }
 
@@ -802,14 +761,18 @@ sub form_info {
     }
   }
 
-  $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
+  $html->tpl_show(templates('form_client_info'), { %$user, %contacts,
+    PUSH_ENABLED     => $conf{PUSH_ENABLED},
+    PUSH_USER_PORTAL => $conf{PUSH_USER_PORTAL},
+    DOCS_ESIGN       => $conf{DOCS_ESIGN}
+  }, { ID => 'form_client_info' });
 
   if ($FORM{CONTRACT_LIST}) {
     require Control::Contracts_mng;
     $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1, USER_INFO => $user });
   }
 
-  if (in_array('Internet', \@MODULES)) {
+  if (in_array('Internet', \@MODULES) && ! $attr->{MODULE}) {
     load_module('Internet', $html);
     $LIST_PARAMS{UID} = $user->{UID};
     internet_user_info();
@@ -821,15 +784,64 @@ sub form_info {
 }
 
 #**********************************************************
-=head2 form_holdup()
+=head2 _user_remove_subscribes($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub _user_remove_subscribes {
+  my($attr)=@_;
+
+  if ($FORM{REMOVE_SUBSCRIBE} && in_array($attr->{REMOVE_SUBSCRIBE}, [ qw/Push Telegram Viber/ ])) {
+    require Contacts;
+    Contacts->import();
+
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    my $type_id = $Contacts->contact_type_id_for_name(uc($attr->{REMOVE_SUBSCRIBE}));
+    $Contacts->contacts_del({
+      UID     => $user->{UID},
+      TYPE_ID => $type_id
+    });
+
+    # Clean states for Telegram, Viber.
+    my $to_remove = $Contacts->{OLD_INFO}{$type_id};
+    if ($attr->{REMOVE_SUBSCRIBE} eq 'Telegram') {
+      require Telegram::db::Telegram;
+      my $Telegram_db = Telegram::db::Telegram->new($db, $admin, \%conf);
+      $Telegram_db->del($to_remove);
+    }
+    elsif ($attr->{REMOVE_SUBSCRIBE} eq 'Viber') {
+      require Viber::db::Viber;
+      my $Viber_db = Viber::db::Viber->new($db, $admin, \%conf);
+      $Viber_db->del($to_remove);
+    }
+
+    $html->redirect('/index.cgi');
+    return 1;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 form_holdup($attr)
 
 =cut
 #**********************************************************
 sub form_holdup {
+  my ($attr)=@_;
 
   require Control::Service_control;
   Control::Service_control->import();
-  my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  my $Service_control = Control::Service_control->new($db, $admin, \%conf, {
+    HTML    => $html,
+    LANG    => \%lang,
+    MODULES => \@MODULES
+  });
 
   my $holdup_info = $Service_control->user_holdup({
     %FORM,
@@ -840,8 +852,11 @@ sub form_holdup {
   if ($holdup_info->{error}) {
     if ($holdup_info->{error} && !in_array($holdup_info->{error}, [ 4404 ])) {
       my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
-      $html->message('err', "$lang{HOLD_UP} : $lang{ERROR}", $error_message, { ID => $holdup_info->{error} });
+      $html->message('err', "$lang{HOLD_UP} : $lang{ERROR}", _translate($error_message), { ID => $holdup_info->{error} });
     }
+  }
+  elsif($Service_control->{message}) {
+    $html->message('info', "$lang{HOLD_UP} : $lang{ERROR}", _translate($Service_control->{message}));
   }
 
   if (!$holdup_info->{DEL}) {
@@ -849,7 +864,7 @@ sub form_holdup {
 
     if (($user->{STATUS} && $user->{STATUS} == 3) || $user->{DISABLE}) {
       my $del_btn = ($Service_control->{CAN_ACTIVATE} && $Service_control->{DEL_IDS})
-        ? $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}), # ."&sid=$sid",
+        ? $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}),
           { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" })
         : q{};
 
@@ -875,7 +890,7 @@ sub form_holdup {
   else {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: $holdup_info->{DATE_FROM} $lang{TO} $holdup_info->{DATE_TO}"
       . ($holdup_info->{DEL_IDS} ? ($html->br() . $html->button($lang{DEL},
-      "index=$index&ID=". ($FORM{ID} || q{}) ."&del=1&IDS=$holdup_info->{DEL_IDS}". (($sid) ? "&sid=$sid" : q{}),
+      "index=$index&ID=". ($FORM{ID} || q{}) ."&del=1&IDS=$holdup_info->{DEL_IDS}",
       { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" })) : q{}));
   }
 
@@ -884,6 +899,56 @@ sub form_holdup {
 
 #**********************************************************
 =head2 _user_pi()
+
+  Arguments:
+    $uid
+    $contract_id
+
+  Results:
+
+=cut
+#**********************************************************
+sub _user_contract_print {
+  my ($uid_, $contract_id)=@_;
+
+  require Control::Contracts_mng;
+  my $contract_info = _print_user_contract({
+    USER_PORTAL        => 1,
+    UID                => $uid_,
+    print_add_contract => $contract_id
+  });
+
+  $user->pi();
+  my $contract_list = $user->contracts_list({
+    UID        => $user->{UID},
+    ID         => $contract_id,
+    COLS_UPPER => 1
+  });
+
+  return 1 if ($user->{TOTAL} != 1);
+  my $sig_img = "$conf{TPL_DIR}/sig.png";
+  if ($contract_list->[0]->{SIGNATURE}) {
+    if (open(my $fh, '>', $sig_img)) {
+      binmode $fh;
+      my ($data) = $contract_list->[0]->{SIGNATURE} =~ m/data:image\/png;base64,(.*)/x;
+      print $fh decode_base64($data);
+      close $fh;
+    }
+  }
+
+  $html->tpl_show("$conf{TPL_DIR}/$contract_list->[0]->{template}", { %$user, %{$contract_list->[0]}, %$contract_info, FIO_S => $user->{FIO} }, { TITLE => "Contract" });
+
+  unlink $sig_img;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _user_pi()
+
+  Arguments:
+
+  Results:
 
 =cut
 #**********************************************************
@@ -1009,25 +1074,25 @@ sub user_pi_change {
           $title = $lang{DO_AGAIN};
         }
         else {
-          load_module('Sms', $html);
-          sms_send({
-            NUMBER     => $attr->{PHONE},
-            MESSAGE    => '$lang{YOUR_VERIFICATION_CODE}: ',
-            UID        => string_encoding($attr->{PHONE}, $user->{UID}),
-            RIZE_ERROR => $user->{UID},
+          require Abills::Sender::Core;
+          Abills::Sender::Core->import();
+          my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+          $Sender->send_message({
+            TO_ADDRESS  => $attr->{PHONE},
+            MESSAGE     => "$lang{YOUR_VERIFICATION_CODE}: " . string_encoding($attr->{PHONE}, $user->{UID}),
+            UID         => $user->{UID},
+            SENDER_TYPE => 'Sms',
           });
+
           $title = $lang{PHONE_VERIFICATION};
         }
-        $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(
-          templates('form_confirmation_client_info'),
-          {
-            INPUT_NAME => 'CONFIRMATION_PHONE',
-            PHONE      => $attr->{PHONE},
-            EMAIL      => $attr->{EMAIL},
-            TITLE      => $title
-          },
-          { OUTPUT2RETURN => 1 }
-        );
+        $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(templates('form_confirmation_client_info'), {
+          INPUT_NAME => 'CONFIRMATION_PHONE',
+          PHONE      => $attr->{PHONE},
+          EMAIL      => $attr->{EMAIL},
+          TITLE      => $title
+        }, { OUTPUT2RETURN => 1 });
 
         $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 1;
         delete $attr->{PHONE};
@@ -1119,6 +1184,12 @@ sub user_pi_change {
 #**********************************************************
 =head2 string_encoding($string, $uid)
 
+  Arguments:
+    $string
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub string_encoding {
@@ -1129,6 +1200,11 @@ sub string_encoding {
 
 #**********************************************************
 =head2 _make_mobile_app_link($link, $title, $img_path)
+
+  Arguments:
+    $link, $title, $img_path
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -1500,14 +1576,11 @@ sub reports {
       push @rows, [ ' ', $EX_PARAMS ];
     }
 
-    my $table = $html->table(
-      {
-        width      => '100%',
-        rowcolor   => $_COLORS[1],
-        cols_align => [ 'right', 'left' ],
-        rows       => [ @rows ]
-      }
-    );
+    my $table = $html->table({
+      width    => '100%',
+      rowcolor => $_COLORS[1],
+      rows     => [ @rows ]
+    });
     print $table->show();
   }
 
@@ -1539,13 +1612,18 @@ sub form_finance {
 #**********************************************************
 =head2 form_fees($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_fees {
-  my $attr = shift;
+  my ($attr) = @_;
 
   if (!$FORM{sort}) {
-    $LIST_PARAMS{SORT} = 1;
+    $LIST_PARAMS{SORT} = 2;
     $LIST_PARAMS{DESC} = 'DESC';
     $LIST_PARAMS{PAGE_ROWS} = $attr->{rows} || '';
   }
@@ -1601,10 +1679,10 @@ sub form_fees {
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
-    while ( $line->{dsc} =~ m/([A-Z\_]+)/g) {
+    while ( $line->{dsc} =~ m/([A-Z\_]+)/xg) {
       my $res = $1;
       my $lang_res = $lang{$res};
-      next if !$lang_res;
+      next if (!$lang_res);
       $line->{dsc} =~ s/$1/$lang_res/xg;
     }
 
@@ -1633,7 +1711,7 @@ sub form_payments_list {
   my $Payments = Finance->payments($db, $admin, \%conf);
 
   if (!$FORM{sort}) {
-    $LIST_PARAMS{sort} = 1;
+    $LIST_PARAMS{sort} = 2;
     $LIST_PARAMS{DESC} = 'DESC';
     $LIST_PARAMS{PAGE_ROWS} = $attr->{rows} || '';
   }
@@ -1683,7 +1761,7 @@ sub form_payments_list {
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
-    while ( $line->{dsc} =~ m/([A-Z\_]+)/g) {
+    while ( $line->{dsc} =~ m/([A-Z\_]+)/xg) {
       my $res = $1;
       my $lang_res = $lang{$res};
       next if (!$lang_res);
@@ -2149,7 +2227,6 @@ sub form_custom {
   }
 
   $info{RECOMENDED_PAY} = recomended_pay($user);
-
   my $Payments = Finance->payments($db, $admin, \%conf);
   my $payment = $Payments->list({
     UID        => $user->{UID},
@@ -2230,7 +2307,7 @@ sub form_custom {
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_confirm_pi_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
-  $info{BG_COLOR} = ($info{RECOMENDED_PAY} && $info{RECOMENDED_PAY} > 0 ) ? 'bg-red' : 'bg-green';
+  $info{BG_COLOR} = ($info{RECOMENDED_PAY} && $info{RECOMENDED_PAY} =~ /^[0-9\,\.]$/mx && $info{RECOMENDED_PAY} > 0 ) ? 'bg-red' : 'bg-green';
 
   $html->tpl_show(templates('form_client_custom'), { %info, $Payments->{TOTAL} ? %{$payment->[0]} : {} }, { ID => 'form_client_custom' });
 
@@ -2601,9 +2678,9 @@ sub language_select {
     my (@lang_arr) = split(';', $conf{LANGS});
     %LANG = ();
     foreach my $l (@lang_arr) {
-      my ($lang, $lang_name) = split(':', $l);
+      my ($lang, $lang_name_) = split(':', $l);
       $lang =~ s/^\s+//x;
-      $LANG{$lang} = $lang_name;
+      $LANG{$lang} = $lang_name_;
     }
   }
 
@@ -2627,7 +2704,6 @@ sub language_select {
       EXT_PARAMS   => { qt_locale => \%QT_LANG }
     }
   );
-
 }
 
 #**********************************************************
@@ -2950,6 +3026,50 @@ sub form_company_info {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 _show_msgs($attr) - show active msgs
+
+    Arguments:
+      $attr
+        AUTH_USER
+
+    Returns:
+      TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _show_msgs {
+  my ($attr) = @_;
+
+  my $login = $attr->{user} || '';
+  my $passwd = $attr->{passwd} || '';
+
+  my $Auth = $attr->{AUTH_USER};
+  ($uid, $sid, $login) = $Auth->auth_user($login, $passwd, $sid, { PASSWORDLESS_ACCESS => 1 });
+
+  $admin->{sid} = $sid;
+
+  if ($uid) {
+    load_module('Msgs', $html);
+    msgs_show_last({ UID => $uid });
+
+    print $html->header();
+    $OUTPUT{BODY} = $html->{OUTPUT};
+    $OUTPUT{INDEX_NAME} = 'index.cgi';
+    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+      MAIN => 1,
+      ID   => 'form_client_start'
+    });
+
+    return 1;
+  }
+  else {
+    $html->message('err', $lang{ERROR}, "IP_NOT_FOUND");
+  }
+
+  return 0;
 }
 
 1;

@@ -377,7 +377,7 @@ sub user_preproccess {
 
     if ($Internet->{TOTAL} > 0 && $list->[0]->{uid} != $uid) {
       $Errors->throw_error(1360018, { errextra => { UID => $list->[0]->{uid}, LOGIN => $list->[0]{login} } });
-
+      delete $attr->{IP};
       if (!$attr->{SKIP_ERRORS}) {
         $attr->{RETURN} = 1;
         return $attr;
@@ -427,7 +427,7 @@ sub user_preproccess {
       Equipment->import();
       my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
 
-      my $equipment_info = $Equipment->_info($attr->{NAS_ID});
+      my $equipment_info = $Equipment->info($attr->{NAS_ID});
       if ($equipment_info->{PORTS_WITH_EXTRA} < $attr->{PORT}) {
         $Errors->throw_error(1360023, { errextra => { UID => $list->[0]->{uid}, LOGIN => $list->[0]{login} } });
         ##$html->message('warn', $lang{WARNING}, $lang{ERR_NO_WRONG_PORT_SELECTED});
@@ -712,15 +712,18 @@ sub user_change {
           && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP}
           && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0))) {
 
-        my $external_cmd = '_EXTERNAL_CMD';
-        my $module = 'Internet';
-        $external_cmd = uc($module) . $external_cmd;
-        if ($self->{conf}{$external_cmd}) {
-          if (!_external($self->{conf}{$external_cmd}, { %{ ($user_info) ? $user_info : {} }, %$Internet, %$attr })) {
-            $Errors->throw_error(1360028);
-            #print "Error: external cmd '$self->{conf}{$external_cmd}'\n";
-          }
-        }
+        # my $external_cmd = '_EXTERNAL_CMD';
+        # my $module = 'Internet';
+        # $external_cmd = uc($module) . $external_cmd;
+        # if ($self->{conf}{$external_cmd}) {
+        #   if (!::_external($self->{conf}{$external_cmd}, {
+        #     %{ ($user_info) ? $user_info : {} },
+        #     %$Internet,
+        #     %{ ($attr) ? $attr : {} } })) {
+        #     $Errors->throw_error(1360028);
+        #     #print "Error: external cmd '$self->{conf}{$external_cmd}'\n";
+        #   }
+        # }
       }
       else {
         # if (!$permissions{0}{25}) {
@@ -750,15 +753,16 @@ sub user_change {
 
         if ($month_fee) {
           ::service_get_month_fee($Internet, { USER_INFO => $attr->{USER_INFO} });
+          $attr->{GET_ABON}=1;
         }
       }
     }
 
-    if ($attr->{STATUS}) {
-      ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
-    }
-    elsif (! $attr->{GET_ABON}) {
-      ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
+    #if ($attr->{STATUS} && ! $attr->{GET_ABON} && !$attr->{TP_ID}) {
+    if ($attr->{STATUS} || ! $attr->{GET_ABON}) {
+      if(! ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} })) {
+        $Errors->throw_error(1360028);
+      }
     }
 
     if ($Internet->{CHG_STATUS} && $Internet->{CHG_STATUS} eq '0->3' && $self->{conf}{INTERNET_HOLDUP_COMPENSATE}) {
@@ -865,11 +869,12 @@ sub get_static_ip {
   my %users_ips = ();
 
   my $Internet_list = $Internet->user_list({
-    PAGE_ROWS => 1000000,
-    IP        => ">=$Ip_pool->{IP}",
-    SKIP_GID  => 1,
-    GROUP_BY  => 'internet.id',
-    COLS_NAME => 1
+    PAGE_ROWS      => 1000000,
+    IP             => ">=$Ip_pool->{IP}",
+    SKIP_GID       => 1,
+    GROUP_BY       => 'internet.id',
+    SKIP_DEL_CHECK => 1,
+    COLS_NAME      => 1
   });
 
   foreach my $line (@$Internet_list) {
@@ -1004,7 +1009,7 @@ sub user_change_nas {
     }
   }
   elsif ($attr->{NAS_ID} && $attr->{PORT}) {
-    my $Equipment_server_vlan = $Equipment->_list({
+    my $Equipment_server_vlan = $Equipment->list({
       NAS_ID      => $attr->{NAS_ID},
       TYPE_NAME   => '_SHOW',
       SERVER_VLAN => '_SHOW',

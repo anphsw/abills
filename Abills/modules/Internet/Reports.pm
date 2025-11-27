@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(int2byte time2sec sec2time _bp in_array date_diff);
+use Internet::Reports2;
 
 our(
   %lang,
@@ -14,13 +15,14 @@ our(
   $admin,
   %conf,
   $pages_qs,
-  $DATE
+  $DATE,
+  $SELF_URL
 );
 
 use Address;
 our Abills::HTML $html;
-my $Internet = Internet->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+my $Reports = Internet::Reports2->new($db, $admin, \%conf);
 
 if($conf{INTERNET_TRAFFIC_DETAIL}) {
   require Internet::Traffic_detail;
@@ -51,7 +53,6 @@ sub internet_report_use {
 
   my %HIDDEN = ();
   $HIDDEN{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
-  #$HIDDEN{sid} = $sid if ($FORM{sid});
 
   my %ext_fields = (
     arpu            => $lang{ARPU},
@@ -154,7 +155,7 @@ sub internet_report_use {
     },
     EXT_TITLES      => \%ext_fields,
     FILTER_COLS     => {
-      duration_sec    => '_sec2time_str',
+      duration_sec    => 'sec2time_str',
       traffic_recv    => 'int2byte',
       traffic_sent    => 'int2byte',
       traffic_sum     => 'int2byte',
@@ -254,14 +255,14 @@ sub internet_report_use {
 }
 
 #**********************************************************
-=head2 internet_report_debetors($attr)
+=head2 internet_report_debetors()
 
 =cut
 #**********************************************************
 sub internet_report_debetors {
 
   result_former({
-    INPUT_DATA      => $Internet,
+    INPUT_DATA      => $Reports,
     FUNCTION        => 'report_debetors',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'LOGIN,FIO,PHONE,TP_NAME,DEPOSIT,CREDIT,DV_STATUS',
@@ -273,7 +274,7 @@ sub internet_report_debetors {
       'port'        => $lang{PORT},
       'cid'         => 'CID',
       'filter_id'   => 'Filter ID',
-      'tp_name'     => "$lang{TARIF_PLAN}",
+      'tp_name'     => $lang{TARIF_PLAN},
       'internet_status'   => "Internet $lang{STATUS}",
       'internet_status_date' => "$lang{STATUS} $lang{DATE}",
       'online'      => 'Online',
@@ -316,24 +317,22 @@ sub internet_report_tp {
   });
 
   if ($FORM{DEBUG}) {
-    $Internet->{debug} = 1;
+    $Reports->{debug} = 1;
   }
 
-  my $list = $Internet->report_tp({
+  my $list = $Reports->report_tp({
     %LIST_PARAMS,
     COLS_NAME => 1
   });
 
-  my $table = $html->table(
-    {
-      caption     => $lang{TARIF_PLANS},
-      width       => '100%',
-      title       => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
-        $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP} ],
-      ID          => 'REPORTS_TARIF_PLANS',
-      EXPORT      => 1,
-    }
-  );
+  my $table = $html->table({
+    caption => $lang{TARIF_PLANS},
+    width   => '100%',
+    title   => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
+      $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP} ],
+    ID      => 'REPORTS_TARIF_PLANS',
+    EXPORT  => 1,
+  });
 
   my $internet_users_list_index = get_function_index('internet_users_list') || 0;
 
@@ -390,7 +389,13 @@ sub internet_report_tp {
 }
 
 #**********************************************************
-=head2 internet_pools_report()
+=head2 internet_pools_report($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    $list
 
 =cut
 #**********************************************************
@@ -398,12 +403,12 @@ sub internet_pools_report {
   my ($attr) = @_;
   $attr //= \%FORM;
 
-  my $DDebug = 0;
+  my $debug = 0;
 
   require Nas;
   Nas->import();
   my Nas $Nas = Nas->new($db, \%conf, $admin);
-
+  my $Internet = Internet->new($db, $admin, \%conf);
   # Get internet static ips
   my $static_assigned_list = $Internet->user_list({
     IP_NUM    => '>0.0.0.0',
@@ -515,13 +520,12 @@ sub internet_pools_report {
     $ips_for_pool{$pool_id}->{usage}->{free} = sprintf("%.2f", $free * 100);
   }
 
-  _bp('Pool using with percents', \%ips_for_pool) if ( $DDebug );
+  _bp('Pool using with percents', \%ips_for_pool) if ($debug);
   return \%ips_for_pool if ( $attr->{RETURN_USAGE} );
 
   my %charts = ();
 
   foreach my $pool_id ( sort keys %pools_by_id ) {
-
     my $normal_fill = ($pools_by_id{$pool_id}->{static}) ? 'static' : 'dynamic';
     my $errornous_fill = ($pools_by_id{$pool_id}->{static}) ? 'dynamic' : 'static';
 
@@ -691,9 +695,9 @@ sub internet_user_outflow {
   });
 
   if ($FORM{DEBUG}) {
-    $Internet->{debug}=1;
+    $Reports->{debug}=1;
   }
-  my $outflow_users = $Internet->users_outflow_report({
+  my $outflow_users = $Reports->users_outflow_report({
     LOGIN     => '_SHOW',
     LAST_FEE  => '_SHOW',
     TP_NAME   => '_SHOW',
@@ -704,7 +708,8 @@ sub internet_user_outflow {
 
   my @uids = ();
   map push(@uids, $_->{uid}), @{$outflow_users};
-  my $uids_str = $Internet->{TOTAL} > 0 ? join(';', @uids) : '';
+
+  my $uids_str = ($Reports->{TOTAL} > 0) ? join(';', @uids) : '';
 
   my $outflow_users_table = $html->table({
     width      => '100%',
@@ -727,6 +732,7 @@ sub internet_user_outflow {
     STREETS_OUTFLOW => _internet_get_streets_outflow_charts($uids_str)
   });
 
+  return 1;
 }
 
 #**********************************************************
@@ -796,8 +802,8 @@ sub users_development_report {
   my %rows_by_city = ();
   my %growth_by_district = ();
   my %growth_by_city = ();
-  $rows_by_city{$lang{WITHOUT_CITY}} = { $lang{WITHOUT_DISTRICT} => [ @empty_row ] } if !$FORM{DISTRICT_ID} && !$FORM{CITY};
-  $growth_by_district{$lang{WITHOUT_CITY}} = { $lang{WITHOUT_DISTRICT} => [ 0, 0 ] } if !$FORM{DISTRICT_ID} && !$FORM{CITY};
+  $rows_by_city{$lang{WITHOUT_CITY}} = { $lang{WITHOUT_DISTRICT} => [ @empty_row ] } if (!$FORM{DISTRICT_ID} && !$FORM{CITY});
+  $growth_by_district{$lang{WITHOUT_CITY}} = { $lang{WITHOUT_DISTRICT} => [ 0, 0 ] } if (!$FORM{DISTRICT_ID} && !$FORM{CITY});
   $growth_by_city{$lang{WITHOUT_CITY}} = [ 0, 0 ] if !$FORM{DISTRICT_ID} && !$FORM{CITY};
 
   foreach (@{$districts}) {
@@ -871,6 +877,14 @@ sub users_development_report {
 #**********************************************************
 =head2 _users_growth($period, $growth_by_district, $growth_by_city)
 
+  Arguments:
+    $period
+    $growth_by_district
+    $growth_by_city
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub _users_growth {
@@ -878,8 +892,8 @@ sub _users_growth {
 
   my $start_period = $FORM{FROM_DATE} || $DATE;
   my $prev_date = Abills::Base::next_month({ DATE => $start_period, PERIOD => -$period });
-  my $users_growth = $Internet->users_development_growth({ FROM_DATE => $start_period, TO_DATE => $FORM{TO_DATE} || $start_period });
-  my $users_growth_prev_period = $Internet->users_development_growth({ FROM_DATE => $prev_date, TO_DATE => $start_period });
+  my $users_growth = $Reports->users_development_growth({ FROM_DATE => $start_period, TO_DATE => $FORM{TO_DATE} || $start_period });
+  my $users_growth_prev_period = $Reports->users_development_growth({ FROM_DATE => $prev_date, TO_DATE => $start_period });
 
   my $growth_by_district_prev = {};
   my $growth_by_city_prev = {};
@@ -918,22 +932,27 @@ sub _users_growth {
 #**********************************************************
 =head2 _district_rows($table, $date_start, $period, $keys)
 
+  Arguments:
+    $table
+    $date_start
+    $period
+    $keys
+
+  Results:
+
 =cut
 #**********************************************************
 sub _district_rows {
-  my $table = shift;
-  my $date_start = shift;
-  my $period = shift;
-  my ($keys) = @_;
+  my ($table, $date_start, $period, $keys) = @_;
 
   my $prev_date = Abills::Base::next_month({ DATE => $date_start, PERIOD => -$period });
 
-  my $prev_period = $Internet->users_development_report("<= '$prev_date'", \%FORM);
+  my $prev_period = $Reports->users_development_report("<= '$prev_date'", \%FORM);
   my $prev_info = {};
   foreach my $district (@{$prev_period}) {
     my $district_key = $district->{name} || $lang{WITHOUT_DISTRICT};
     my $city = $district->{full_name};
-    $city =~ s/\/?\s?$district_key$// if $city;
+    $city =~ s/\/?\s?$district_key$//x if ($city);
     $city ||= $lang{WITHOUT_CITY};
 
     my $city_key = $city;
@@ -942,7 +961,7 @@ sub _district_rows {
     map push(@{$prev_info->{$city_key}{$district_key}}, $district->{$_->{name}} || 0), @{$keys};
   }
 
-  my $current_period = $Internet->users_development_report($date_start, \%FORM);
+  my $current_period = $Reports->users_development_report($date_start, \%FORM);
   my $main_info = {};
   my $city_info = {};
   my @total_info = (0) x scalar(@{$keys});
@@ -950,7 +969,7 @@ sub _district_rows {
     my $i = 0;
     my $district_key = $district->{name} || $lang{WITHOUT_DISTRICT};
     my $city = $district->{full_name};
-    $city =~ s/\/?\s?$district_key$// if $city;
+    $city =~ s/\/?\s?$district_key$//x if ($city);
     $city ||= $lang{WITHOUT_CITY};
     
     my $city_key = $city;
@@ -993,16 +1012,22 @@ sub _district_rows {
 #**********************************************************
 =head2 _district_rows($table, $value, $format)
 
+  Arguments:
+    $table
+    $value
+    $format
+
+  Results:
+    TD
+
 =cut
 #**********************************************************
 sub _value_format {
-  my $table = shift;
-  my $value = shift;
-  my $format = shift;
+  my ($table, $value, $format) = @_;
 
-  return $value if !$format || !defined $value;
+  return $value if (!$format || !defined $value);
 
-  $value = sprintf('%.2f', $value || 0) if $format->{format};
+  $value = sprintf('%.2f', $value || 0) if ($format->{format});
   $value .= '%' if $format->{percent};
 
   return $table->td($value, { class => 'text-right' });
@@ -1062,6 +1087,8 @@ sub _internet_development_header {
   _internet_development_status_title($table, $status, $status_cols);
 
   delete $table->{rowcolor};
+
+  return 1;
 }
 
 #**********************************************************
@@ -1070,8 +1097,7 @@ sub _internet_development_header {
 =cut
 #**********************************************************
 sub _internet_development_main_title {
-  my $table = shift;
-  my $date_cols = shift;
+  my ($table, $date_cols) = @_;
 
   $table->{rowcolor} = 'bg-inherit';
   my @main_header = (
@@ -1086,6 +1112,7 @@ sub _internet_development_main_title {
   }
 
   $table->addtd(@main_header);
+  return 1;
 }
 
 #**********************************************************
@@ -1094,8 +1121,7 @@ sub _internet_development_main_title {
 =cut
 #**********************************************************
 sub _internet_development_status_title {
-  my $table = shift;
-  my ($status, $status_cols) = @_;
+  my ($table, $status, $status_cols) = @_;
 
   my $period = ($FORM{TO_DATE} && $FORM{FROM_DATE} && $FORM{TO_DATE} ne $FORM{FROM_DATE}) ? 2 : 1;
   my @status_title = ();
@@ -1141,6 +1167,8 @@ sub _internet_development_status_title {
   $table->addtd(@status_title);
   $table->addtd(@enable_title);
   $table->addtd(@columns);
+
+  return 1;
 }
 
 #**********************************************************
@@ -1151,13 +1179,13 @@ sub _internet_development_status_title {
 sub _internet_get_builds_outflow_charts {
   my ($uids) = @_;
 
-  return '' if !$uids;
+  return '' if (!$uids);
 
   my @builds_outflow = ();
   my @builds_total = ();
   my @builds_labels = ();
 
-  my $users_by_build = $Internet->users_outflow_by_address({
+  my $users_by_build = $Reports->users_outflow_by_address({
     USERS_COUNT  => '_SHOW',
     LOCATION_ID  => '>0',
     BUILD_NUMBER => '_SHOW',
@@ -1177,7 +1205,7 @@ sub _internet_get_builds_outflow_charts {
     push(@builds_id, $build->{location_id}) if ($build->{location_id});
   }
 
-  my $builds_total_users = $Internet->users_outflow_by_address({
+  my $builds_total_users = $Reports->users_outflow_by_address({
     USERS_COUNT  => '_SHOW',
     LOCATION_ID  => join(';', @builds_id),
     BUILD_NUMBER => '_SHOW',
@@ -1218,7 +1246,7 @@ sub _internet_get_streets_outflow_charts {
   my @streets_total = ();
   my @streets_labels = ();
 
-  my $users_by_street = $Internet->users_outflow_by_address({
+  my $users_by_street = $Reports->users_outflow_by_address({
     USERS_COUNT => '_SHOW',
     LOCATION_ID => '<>0',
     STREET_ID   => '!',
@@ -1238,7 +1266,7 @@ sub _internet_get_streets_outflow_charts {
     push(@streets_id, $street->{street_id});
   }
 
-  my $streets_total_users = $Internet->users_outflow_by_address({
+  my $streets_total_users = $Reports->users_outflow_by_address({
     USERS_COUNT => '_SHOW',
     STREET_ID   => join(';', @streets_id),
     COLS_NAME   => 1,
@@ -1270,9 +1298,9 @@ sub _internet_get_streets_outflow_charts {
 #*******************************************************************
 sub users_switch_report {
 
-  $Internet->{debug} = 1 if ($FORM{DEBUG});
+  $Reports->{debug} = 1 if ($FORM{DEBUG});
 
-  my $switch_list = $Internet->users_switch_list({
+  my $switch_list = $Reports->users_switch_list({
     ALL       => 1,
     COLS_NAME => 1,
     SORT      => $FORM{sort},
@@ -1337,5 +1365,6 @@ sub users_switch_report {
 
   return 1;
 }
+
 
 1;

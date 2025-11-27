@@ -84,12 +84,12 @@
     window['IS_ADMIN_INTERFACE'] = false;
     window['IS_CLIENT_INTERFACE'] = true;
 
-    var SELF_URL  = '$SELF_URL';
+    var SELF_URL  = '%SELF_URL%';
     if (SELF_URL) {
-      var BASE_URL  = '$SELF_URL';
+      var BASE_URL  = '%SELF_URL%';
       BASE_URL = BASE_URL.match(/(https|http):\/\/.+?(?=\/)/)[0];
     }
-    var SID = '$sid';
+    var SID = '%sid%';
     var NO_DESIGN = '$FORM{NO_DESIGN}';
 
     var _COMMENTS_PLEASE = '_{COMMENTS_PLEASE}_' || 'Comment please';

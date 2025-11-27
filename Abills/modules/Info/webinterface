@@ -73,7 +73,7 @@ sub info_comments_show {
   my ($type, $id, $attr) = @_;
 
   #form comments for current object
-  my $comments_list = $Info->get_comments($type, $id, { COLS_NAME => 1, PAGE_ROWS => 1000 });
+  my $comments_list = $Info->comments_get($type, $id, { COLS_NAME => 1, PAGE_ROWS => 1000 });
 
   my $comments = info_comments_make($comments_list);
 
@@ -128,7 +128,7 @@ sub info_comments_renew {
   my $type = $FORM{OBJ_TYPE};
   my $id = $FORM{OBJ_ID};
 
-  my $comments = info_comments_make($Info->get_comments($type, $id, { COLS_NAME => 1 }));
+  my $comments = info_comments_make($Info->comments_get($type, $id, { COLS_NAME => 1 }));
 
   print join('', @{$comments});
 }
@@ -199,7 +199,7 @@ sub info_comments_make {
   @reversed_arr = reverse @{$comments_list} if $comments_list;
 
   foreach my $comment (@reversed_arr) {
-    my $not_changed = !$Info->log_comments({ COMMENT_ID => $comment->{id} });
+    my $not_changed = !$Info->comments_log({ COMMENT_ID => $comment->{id} });
     if (!$FORM{xml}) {
       $del_button = $html->button('', '', {
         NO_LINK_FORMER => 1,
@@ -313,13 +313,13 @@ sub info_get_documents_view {
   As it is called from JS, it returns a JSON response, that is processed by script
 
   Arguments:
-    no straight arguments are used. Reads $FORM{OBJ_ID} and passes it to $Info->del_comment();
+    no straight arguments are used. Reads $FORM{OBJ_ID} and passes it to $Info->comment_del();
 
 =cut
 #**********************************************************
 sub info_comment_del {
 
-  $Info->del_comment(\%FORM);
+  $Info->comment_del(\%FORM);
 
   if (!$Info->{errno}) {
     print qq/ {"status" : 0} /;
@@ -346,9 +346,7 @@ sub info_comment_add {
     return 0;
   }
 
-  $Info->add_comment(
-    \%FORM
-  );
+  $Info->comment_add(\%FORM);
 
   if (!$Info->{errno}) {
     print qq/ {"status" : 0} /;
@@ -385,7 +383,7 @@ sub info_images_show {
   my ($type, $id, $attr) = @_;
 
   #form images for current object
-  my $images_list = $Info->get_images($type, $id, { COLS_NAME => 1 });
+  my $images_list = $Info->images_get($type, $id, { COLS_NAME => 1 });
 
   if ($Info->{errno}) {
     $html->message('danger', 'SQL', $Info->{errstr});
@@ -499,7 +497,7 @@ sub info_image_del {
 
   unless ($image_id) {return 0};
 
-  my $image = $Info->get_image_info($image_id, { COLS_NAME => 1 });
+  my $image = $Info->image_get_info($image_id, { COLS_NAME => 1 });
 
   my $filename = $image->{filename};
 
@@ -507,7 +505,7 @@ sub info_image_del {
     info_uni_file_delete(img_upload_dir, $filename);
   }
 
-  $Info->del_image(\%FORM);
+  $Info->image_del(\%FORM);
 
   if (!$Info->{errno}) {
     print qq/ {"status" : 0} /;
@@ -523,7 +521,7 @@ sub info_image_del {
 #**********************************************************
 =head2 info_image_add
 
-  Passes  $FORM{TYPE}, $FORM{OBJ_ID} to $Info->add_image. If success, uploads_image to $images_folder;
+  Passes  $FORM{TYPE}, $FORM{OBJ_ID} to $Info->image_add. If success, uploads_image to $images_folder;
   Prints message for successful or failed operation
 
 =cut
@@ -534,7 +532,7 @@ sub info_image_add {
 
   my $write_to_db = $FORM{WRITE_TO_DB};
 
-  my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/;
+  my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/xm;
 
   unless ($type && $obj_id) {$html->message('danger', $lang{ERROR}, "No data")};
 
@@ -553,17 +551,15 @@ sub info_image_add {
     }
   }
 
-  $Info->add_image(
-    {
-      OBJ_TYPE     => $FORM{OBJ_TYPE},
-      OBJ_ID       => $FORM{OBJ_ID},
-      FILENAME     => $filename,
-      REAL_NAME    => $FORM{UPLOAD_FILE}->{filename},
-      CONTENT_TYPE => $FORM{UPLOAD_FILE}->{'Content-Type'},
-      CONTENT_SIZE => $FORM{UPLOAD_FILE}->{Size},
-      FILE         => ($write_to_db) ? $FORM{UPLOAD_FILE}->{Contents} : undef,
-    }
-  );
+  $Info->image_add({
+    OBJ_TYPE     => $FORM{OBJ_TYPE},
+    OBJ_ID       => $FORM{OBJ_ID},
+    FILENAME     => $filename,
+    REAL_NAME    => $FORM{UPLOAD_FILE}->{filename},
+    CONTENT_TYPE => $FORM{UPLOAD_FILE}->{'Content-Type'},
+    CONTENT_SIZE => $FORM{UPLOAD_FILE}->{Size},
+    FILE         => ($write_to_db) ? $FORM{UPLOAD_FILE}->{Contents} : undef,
+  });
 
   if (!$Info->{errno}) {
     $html->message('success', "$lang{ADDED}");
@@ -587,7 +583,7 @@ sub info_image_download {
 
   unless ($image_id) {return 0;};
 
-  my $image = $Info->get_image_info($image_id, { COLS_NAME => 1 });
+  my $image = $Info->image_get_info($image_id, { COLS_NAME => 1 });
 
   unless ($image->{id}) {
     print "Status: 404 Not found";
@@ -663,7 +659,7 @@ sub info_locations_show_map {
   my $obj_id = $_[1] || $FORM{OBJ_ID};
 
   #  get locations
-  my $locations = $Info->get_locations($type, $obj_id, { COLS_NAME => 1 });
+  my $locations = $Info->location_get($type, $obj_id, { COLS_NAME => 1 });
   _error_show($Info);
 
   # if (in_array('Maps', \@MODULES)) {
@@ -722,7 +718,7 @@ sub info_location_add {
     return 0;
   }
 
-  $Info->add_location(
+  $Info->location_add(
     $type, $obj_id,
     {
       %FORM
@@ -746,14 +742,14 @@ sub info_location_add {
   As it is called from JS, it returns a JSON response, that is processed by script
   
   Arguments:
-    no straight arguments are used. Reads $FORM{OBJ_ID} and passes it to $Info->del_location();
+    no straight arguments are used. Reads $FORM{OBJ_ID} and passes it to $Info->location_del();
   
 =cut
 #**********************************************************
 sub info_location_del {
   my $location_id = $FORM{OBJ_ID};
 
-  $Info->del_location({ OBJ_ID => $location_id });
+  $Info->location_del({ OBJ_ID => $location_id });
 
   if (!$Info->{errno}) {
     print qq\ {
@@ -778,7 +774,7 @@ sub info_documents_show {
   my ($type, $id, $attr) = @_;
 
   #form documents for current object
-  my $documents_list = $Info->get_documents($type, $id, { COLS_NAME => 1 });
+  my $documents_list = $Info->documents_get($type, $id, { COLS_NAME => 1 });
   return 0 if _error_show($Info);
 
   my $documents = info_documents_make($documents_list);
@@ -839,7 +835,7 @@ sub info_documents_renew {
   my $id = $FORM{OBJ_ID};
 
   #form documents for current object
-  my $documents_list = $Info->get_documents($type, $id, { COLS_NAME => 1 });
+  my $documents_list = $Info->documents_get($type, $id, { COLS_NAME => 1 });
 
   if ($Info->{errno}) {
     _error_show($Info);
@@ -919,7 +915,7 @@ sub info_document_del {
 #**********************************************************
 =head2 info_document_add
 
-  Passes  $FORM{OBJ_TYPE}, $FORM{OBJ_ID} to $Info->add_document. If success, uploads_document to $documents_folder;
+  Passes  $FORM{OBJ_TYPE}, $FORM{OBJ_ID} to $Info->document_add. If success, uploads_document to $documents_folder;
   Prints message for successful or failed operation
 
 =cut
@@ -930,7 +926,7 @@ sub info_document_add {
 
   my $write_to_db = $FORM{WRITE_TO_DB};
 
-  my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/;
+  my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/x;
 
   unless ($type && $obj_id) {
     print "No data";
@@ -952,7 +948,7 @@ sub info_document_add {
     }
   }
 
-  $Info->add_document($type, $obj_id,
+  $Info->document_add($type, $obj_id,
     {
       FILENAME     => $filename,
       REAL_NAME    => $FORM{UPLOAD_FILE}->{filename},
@@ -983,7 +979,7 @@ sub info_document_download {
 
   unless ($document_id) {return 0};
 
-  my $document = $Info->get_document_info($document_id, { COLS_NAME => 1 });
+  my $document = $Info->document_info($document_id, { COLS_NAME => 1 });
 
   unless ($document->{id}) {
     print "Status: 404 Not found";
@@ -1115,7 +1111,7 @@ sub info_edit {
 
   if ($FORM{chg} || $FORM{SAVE}) {
     if ($FORM{COMMENTS}) {
-      $Info->change_comments({
+      $Info->comments_change({
         ID           => $FORM{ID},
         TEXT         => $FORM{COMMENTS},
         UID          => $FORM{UID},
@@ -1168,7 +1164,7 @@ sub info_edit {
 sub log_comments_edit {
 
   my $index = get_function_index('info_edit');
-  my $log_lits = $FORM{COMMENT} ? $Info->search_comments($FORM{COMMENT})->{list} : $Info->log_comments({ SORT => $FORM{sort}, DESC => $FORM{desc} });
+  my $log_lits = $FORM{COMMENT} ? $Info->search_comments($FORM{COMMENT})->{list} : $Info->comments_log({ SORT => $FORM{sort}, DESC => $FORM{desc} });
 
   my $admin_list = sel_admins({ HASH => 1 });
 

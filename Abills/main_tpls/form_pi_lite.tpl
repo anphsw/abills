@@ -1,6 +1,6 @@
-<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
+<form class='form-horizontal' action='%SELF_URL%' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
 
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   %MAIN_USER_TPL%
   <input type=hidden name=UID value='%UID%'>
 
@@ -29,7 +29,7 @@
                   </div>
                 </div>
                 <div class='input-group-append'>
-                  <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
+                  <a href='%SELF_URL%?UID=%UID%&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
                      class='btn input-group-button'>
                     <i class='fa fa-envelope'></i>
                   </a>
@@ -83,7 +83,7 @@
       <div class='row'>
         <div class='col-sm-12 col-md-12'>
           <div class='form-group row'>
-            <label class='col-sm-2 col-md-4 col-form-label'>_{COMMENTS}_</label>
+            <label class='col-sm-2 col-md-4 col-form-label' for='COMMENTS'>_{COMMENTS}_</label>
             <div class='col-sm-10 col-md-8'>
               <div class='input-group'>
                 <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='2' readonly>%COMMENTS%</textarea>

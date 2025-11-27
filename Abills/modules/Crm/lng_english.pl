@@ -92,6 +92,7 @@ $lang{ACTIVE_APPEALS} = 'Active appeals';
 $lang{WAITING} = 'Waiting';
 $lang{DIALOGUE_CLOSED} = 'Dialogue closed';
 $lang{THE_USER_JOINED_VIA_TELEGRAM} = 'The user joined via Telegram';
+$lang{THE_USER_JOINED_VIA_ECHAT} = 'The user joined via E-chat';
 $lang{THE_USER_JOINED_VIA_VIBER_BOT} = 'The user joined via Viber-bot';
 $lang{OPEN_LINES} = 'Open lines';
 $lang{OPEN_LINE} = 'Open line';
@@ -124,6 +125,7 @@ $lang{SELECT_STEP} = 'Select step...';
 $lang{CRM_SELECT_RESPONSIBLE} = 'Select responsible...';
 $lang{CRM_SET_RESPONSIBLE} = 'Set responsible';
 $lang{CRM_SEND_MESSAGE} = 'Send message';
+$lang{CRM_SEND_MESSAGE_TO_RESPONSIBLE} = 'Send message to responsible';
 $lang{CRM_ENTER_MESSAGE} = 'Enter a message...';
 $lang{SET_PRIORITY} = 'Set priority';
 $lang{CRM_ADD_ACTION} = 'Add action';
@@ -131,6 +133,7 @@ $lang{CRM_PLANNING_DATE} = 'Planning date';
 $lang{CRM_ADD_TASK} = 'Add task';
 $lang{CRM_TASK_TYPE} = 'Task type';
 $lang{CRM_TASK_NAME} = 'Task name';
+$lang{CRM_DAYS_TO_COMPLETE_TASK} = 'Number of days to complete the task';
 $lang{CRM_DUE_DATE} = 'Due date';
 $lang{ADDED_NEW_ACTION} = 'Added new action';
 $lang{CRM_LEAD_WAS_CHANGED} = 'Changes were made about a potential client';
@@ -167,10 +170,33 @@ $lang{CRM_PROGRESS_MESSAGE_CHANGED} = 'Message updated in the activity feed';
 $lang{CRM_PROGRESS_MESSAGE_DELETED} = 'Message removed from the activity feed';
 $lang{CRM_PROCESSED_LEADS} = 'Processed leads';
 
+$lang{CRM_DIALOG_ADDED} = 'Dialog added';
+$lang{CRM_DIALOG_CHANGED} = 'Dialog changes';
+$lang{CRM_DIALOG_DELETED} = 'Dialog deleted';
+
 $lang{ERR_CRM_BOT_USER_ID_ERROR} = 'Bot user ID error';
 $lang{ERR_CRM_MESSAGE_SOURCE_ERROR} = 'Message source error';
 $lang{ERR_CRM_GET_LEAD_BY_BOT_ERROR} = 'Get potential client by bot error';
 $lang{ERR_CRM_LEAD_NOT_FOUND} = 'Potential client not found';
 $lang{ERR_CRM_SEND_DIALOGUE_MESSAGE_ERROR} = 'Send dialogue message error';
+$lang{ERR_CRM_NUMBER_NOT_FOUND} = 'Number not found';
+$lang{ERR_CRM_NUMBER_ALREADY_ACTIVATED} = 'Number already activated';
+$lang{ERR_CRM_NUMBER_ALREADY_DEACTIVATED} = 'Number already deactivated';
+$lang{ERR_CRM_EXTERNAL_API_ERROR} = 'External API error';
+$lang{ERR_CRM_NO_FIELD} = 'No field %FIELD%';
+$lang{ERR_CRM_UNKNOWN_MESSENGER_TYPE} = 'Unknown messenger type: %TYPE%';
+$lang{ERR_CRM_API_TIMEOUT} = 'API request timeout';
+$lang{ERR_CRM_INVALID_JSON_RESPONSE} = 'JSON decode error: %ERROR%';
+$lang{ERR_CRM_INVALID_RESPONSE_STRUCTURE} = 'Invalid API response structure';
+
+$lang{CRM_NUMBER_ADDED} = 'Number added';
+$lang{CRM_NUMBER_CHANGED} = 'Number changed';
+$lang{CRM_NUMBER_DELETED} = 'Number deleted';
+$lang{CRM_NUMBER_ACTIVATED} = 'Number successfully activated';
+$lang{CRM_NUMBER_DEACTIVATED} = 'Number successfully deactivated';
+$lang{CRM_CONNECTED_NUMBERS} = 'Connected numbers';
+$lang{CRM_CONNECT_PHONE_NUMBER} = 'Connect phone number';
+$lang{CRM_API_KEY} = 'API key';
+$lang{CRM_PHONE_NUMBER} = 'Phone number';
 
 1

@@ -58,8 +58,6 @@ sub post_user_password_send {
     errstr => 'SERVICE_NOT_ENABLED',
   } if (!$self->{conf}->{USER_SEND_PASSWORD});
 
-  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Abills/Templates.pm'}));
-
   require Abills::Sender::Core;
   Abills::Sender::Core->import();
   my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
@@ -73,10 +71,14 @@ sub post_user_password_send {
   my $send_status = 0;
   my $type = '';
 
+  require Abills::Template;
+  Abills::Template->import();
+  my $Templates = Abills::Template->new($self->{db}, $self->{admin}, $self->{conf}, { html => $self->{html}, lang => $self->{lang}, libpath => $self->{libpath} });
+
   if (in_array('Sms', \@main::MODULES) && ($Users->{PHONE} || $Users->{CELL_PHONE})) {
     $type = 'sms';
     my $sms_number = $Users->{CELL_PHONE} || $Users->{PHONE};
-    my $message = $self->{html}->tpl_show(::_include('sms_password_recovery', 'Sms'), $Users, { OUTPUT2RETURN => 1 });
+    my $message = $self->{html}->tpl_show($Templates->_include('sms_password_recovery', 'Sms'), $Users, { OUTPUT2RETURN => 1 });
 
     $send_status = $Sender->send_message({
       TO_ADDRESS  => $sms_number,
@@ -87,7 +89,7 @@ sub post_user_password_send {
   }
   else {
     $type = 'email';
-    my $message = $self->{html}->tpl_show(::templates('email_password_recovery'), $Users, { OUTPUT2RETURN => 1 });
+    my $message = $self->{html}->tpl_show($Templates->_include('email_password_recovery'), $Users, { OUTPUT2RETURN => 1 });
 
     $send_status = $Sender->send_message({
       TO_ADDRESS   => $Users->{EMAIL},

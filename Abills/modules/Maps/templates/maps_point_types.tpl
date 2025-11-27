@@ -1,5 +1,5 @@
 <form name='MAPS_POINT_TYPES_FORM' id='form_MAPS_POINT_TYPES_FORM' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='chg' value='%ID%'/>
 
   <div class='card card-primary card-outline card-form'>
@@ -56,7 +56,7 @@
 
   function updateIcons(fileName) {
     let selectedIcon = fileName ? fileName : jQuery('#ICON_SELECT').val();
-    jQuery.get('$SELF_URL', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
+    jQuery.get('%SELF_URL%', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
       if (result.match("<select")){
         jQuery('#DIV_SELECT').html(result);
         initChosen();

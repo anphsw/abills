@@ -1,5 +1,5 @@
-<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
-<input type='hidden' name='index' value='$index'>
+<form class='form-horizontal' action='%SELF_URL%' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
+<input type='hidden' name='index' value='%index%'>
 <input type=hidden name=UID value='%UID%'>
 <input type=hidden name=PHOTO value='%UID%'>
 <input type='hidden' name='EXTERNAL_ID' value='%EXTERNAL_ID%'>

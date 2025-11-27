@@ -35,7 +35,7 @@
     </div>
   </div>
   <form id='signForm' method='POST'>
-    <input type='hidden' name='index' value='$index' />
+    <input type='hidden' name='index' value='%index%' />
     <input type='hidden' name='UID' value='$FORM{UID}' />
     <input type='hidden' name='sign' value='$FORM{sign}' />
     <input type='hidden' name='signature' id='signData' value='' />

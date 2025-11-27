@@ -57,8 +57,7 @@ sub new {
 =cut
 #**********************************************************
 sub paysys_payments_maked {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{UID} //= $attr->{USER_INFO}->{UID} if ($attr->{USER_INFO});
 
@@ -129,8 +128,7 @@ sub paysys_payments_maked {
 =cut
 #**********************************************************
 sub paysys_payment_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if (!$attr->{ID});
   return 0 if (!$attr->{PAYMENT_INFO} || !$attr->{PAYMENT_INFO}->{EXT_ID});
@@ -162,8 +160,7 @@ sub paysys_payment_del {
 =cut
 #**********************************************************
 sub paysys_quick_info {
-  shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my $uid = $form->{UID};

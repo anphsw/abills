@@ -24,7 +24,7 @@
 
 </script>
 
-<!-- <form action='$SELF_URL' method='post' id='company_main' name='company_main' role='form'> -->
+<!-- <form action='%SELF_URL%' method='post' id='company_main' name='company_main' role='form'> -->
 <div>
   <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
     <div class='card-header with-border'>

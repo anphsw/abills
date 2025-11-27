@@ -1,6 +1,6 @@
 <div class='well well-sm'>
     <form method='post' name='GPS_REPORTS_FORM' class='form form-inline'>
-        <input type='hidden' name='index' value='$index'/>
+        <input type='hidden' name='index' value='%index%'/>
 
         <label for='AID'>_{ADMIN}_</label>
         %ADMIN_SELECT%

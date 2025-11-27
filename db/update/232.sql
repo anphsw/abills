@@ -1,0 +1,1 @@
+ALTER TABLE `storage_sn` ADD COLUMN `ident4` VARCHAR(250) NOT NULL DEFAULT '';

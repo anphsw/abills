@@ -688,8 +688,8 @@ sub paysys_add_configure_groups {
         foreach my $key (keys %FORM) {
           next if (!$key);
           if ($key =~ /PAYSYS_/) {
-            $FORM{$key} =~ s/[\n\r]//g;
-            $FORM{$key} =~ s/"/\\"/g;
+            $FORM{$key} =~ s/[\n\r]//xg;
+            $FORM{$key} =~ s/"/\\"/xg;
             $Paysys->merchant_params_add({
               PARAM       => $key,
               VALUE       => $FORM{$key},
@@ -728,9 +728,9 @@ sub paysys_add_configure_groups {
           foreach my $key (keys %FORM) {
             next if (!$key);
             if ($key =~ /PAYSYS_/) {
-              $FORM{$key} =~ s/[\n\r]//g;
-              $FORM{$key} =~ s/"/\\"/g;
-              $FORM{$key} =~ s/;?0:0//g if ($key =~ /_SPLIT_RULES/);
+              $FORM{$key} =~ s/[\n\r]//xg;
+              $FORM{$key} =~ s/"/\\"/xg;
+              $FORM{$key} =~ s/;?0:0//xg if ($key =~ /_SPLIT_RULES/);
 
               $Paysys->merchant_params_add({
                 PARAM       => $key,
@@ -763,7 +763,7 @@ sub paysys_add_configure_groups {
     $btn_value = $lang{CHANGE};
     $btn_name = 'change';
     $FORM{add_form} = 1;
-    $FORM{merchant_name} =~ s/\\(['"]+)/$1/g;
+    $FORM{merchant_name} =~ s/\\(['"]+)/$1/xg;
   }
   elsif ($FORM{del_merch} && $FORM{COMMENTS}) {
     _paysys_event_notify({
@@ -839,7 +839,7 @@ sub paysys_add_configure_groups {
 
     my $account_keys = _paysys_account_keys({ JSON => 1 });
 
-    $payment_methods_sel =~ s/[\n\r]//gm;
+    $payment_methods_sel =~ s/[\n\r]//xgm;
     $html->tpl_show(_include('paysys_merchant_config_add', 'Paysys'), {
       BTN_VALUE             => $btn_value,
       BTN_NAME              => $btn_name,
@@ -913,7 +913,7 @@ sub paysys_add_configure_groups {
       my $change_link = "get_index=paysys_add_configure_groups&chgm=$item->{id}&paysystem_id=$system_id&merchant_name=$merchant_name&"
         . "system_name=$item->{name}&header=2";
 
-      $change_link =~ s/'/\%27/g;
+      $change_link =~ s/'/\%27/xg;
       $table->addrow(
         $item->{id},
         $item->{merchant_name},
@@ -989,7 +989,7 @@ sub _paysys_select_merchant_config {
       else {
         my $param_name = (keys %{$settings{CONF}})[0];
         next if !$param_name;
-        ($paysys_name) = $param_name =~ /^PAYSYS_[^_]+/gm;
+        ($paysys_name) = $param_name =~ /^PAYSYS_[^_]+/xgm;
       }
 
       if ($paysys_name) {
@@ -1012,7 +1012,7 @@ sub _paysys_select_merchant_config {
 
       foreach my $key (keys %{$settings{CONF}}) {
         if ($settings{CONF}{$key}) {
-          $settings{CONF}{$key} =~ s/\%/&#37;/g;
+          $settings{CONF}{$key} =~ s/\%/&#37;/xg;
         }
       }
       $HASH_TO_JSON{$system->{name}} = \%settings;
@@ -1148,14 +1148,11 @@ sub paysys_group_settings {
             $groups_settings{$input_name} = 1 if (!$Paysys->{errno});
           }
         }
-        my $checkbox .= $html->tpl_show(_include('paysys_group_checkbox', 'Paysys'),
-          {
-            NAME    => $input_name,
-            VALUE   => 1,
-            CHECKED => (($groups_settings{$input_name}) ? 'checked' : '')
-          },
-          { OUTPUT2RETURN => 1 }
-        );
+        my $checkbox = $html->tpl_show(_include('paysys_group_checkbox', 'Paysys'), {
+          NAME    => $input_name,
+          VALUE   => 1,
+          CHECKED => (($groups_settings{$input_name}) ? 'checked' : '')
+        }, { OUTPUT2RETURN => 1 });
         push(@rows, '&nbsp;' . $checkbox);
       }
     }
@@ -1314,7 +1311,7 @@ sub paysys_configure_groups {
 
   my %settings_hash = ();
   foreach my $item (@$list) {
-    next unless (defined($item->{gid}) && $item->{paysys_id});
+    next if (!defined($item->{gid}) || !$item->{paysys_id});
     if ($item->{merchant_name}) {
       $settings_hash{$item->{gid}}{$item->{paysys_id}} = $item->{merchant_name};
     }
@@ -1657,7 +1654,7 @@ sub _paysys_read_folder_systems {
   my @systems = ();
   opendir(my $folder, $paysys_folder);
   while (my $filename = readdir $folder) {
-    if ($filename =~ /pm$/) {
+    if ($filename =~ /pm$/x) {
       push(@systems, $filename);
     }
   }
@@ -1700,8 +1697,8 @@ sub paysysV2_toV3 {
         my $config_list_params = $Config->config_list({ PARAM => "PAYSYS_$name\_*", COLS_NAME => 1 });
 
         foreach my $param (@{$config_list_params}) {
-          my ($group) = $param->{param} =~ /(\d+)(?!.*\d)/;
-          $param->{param} =~ s/_(\d+)(?!.*\d)//;
+          my ($group) = $param->{param} =~ /(\d+)(?!.*\d)/x;
+          $param->{param} =~ s/_(\d+)(?!.*\d)//x;
           $merchants{$group || 0}{$param->{param}} = $param->{value};
         }
 
@@ -1715,8 +1712,8 @@ sub paysysV2_toV3 {
           foreach my $key (keys %{$merchants{$merchant}}) {
             next if (!$key);
             if ($key =~ /PAYSYS_/) {
-              $merchants{$merchant}{$key} =~ s/[\n\r]//g;
-              $merchants{$merchant}{$key} =~ s/"/\\"/g;
+              $merchants{$merchant}{$key} =~ s/[\n\r]//xg;
+              $merchants{$merchant}{$key} =~ s/"/\\"/xg;
               $Paysys->merchant_params_add({
                 PARAM       => $key,
                 VALUE       => $merchants{$merchant}{$key},
@@ -1750,27 +1747,27 @@ sub _create_paysys_tables {
   if (-e $paysys_dump) {
     open(my $fh, '<', $paysys_dump);
     while (<$fh>) {
-      $_ = "\n" if ($_ =~ /(?:REPLACE|INSERT|SET SESSION|COMMIT).*;/);
-      $_ = "\n" if ($_ =~ /^DELIMITER/);
+      $_ = "\n" if ($_ =~ /(?:REPLACE|INSERT|SET SESSION|COMMIT).*;/x);
+      $_ = "\n" if ($_ =~ /^DELIMITER/x);
       $content .= $_;
     }
 
-    $content =~ s/^CREATE FUNCTION(.*?) END\|$//gms;
-    $content =~ s/^CREATE UNIQUE(.*?);\s?$//gms;
-    $content =~ s/^CREATE INDEX(.*?);\s?$//gms;
-    $content =~ s/^REPLACE INTO(.*?);\s?$//gms;
-    $content =~ s/^INSERT INTO(.*?);\s?$//gms;
-    $content =~ s/^UPDATE(.*?);\s?$//gms;
-    $content =~ s/^DELETE(.*?);\s?$//gms;
-    $content =~ s/\,\s*FOREIGN KEY \(\`.*\`\) REFERENCES \`.*\` \(\`.*?\`\)(?: ON  ?(?:UPDATE|DELETE) ?(?:CASCADE|DELETE|RESTRICT))?//g;
-    $content =~ s/\,\s*FOREIGN KEY(.*) ?(?:DELETE)? (?:CASCADE|DELETE|RESTRICT)//gms;
-    $content =~ s/DEFAULT NOW\(\)/DEFAULT NOW/gms;
+    $content =~ s/^CREATE FUNCTION(.*?) END\|$//xgms;
+    $content =~ s/^CREATE UNIQUE(.*?);\s?$//xgms;
+    $content =~ s/^CREATE INDEX(.*?);\s?$//xgms;
+    $content =~ s/^REPLACE INTO(.*?);\s?$//xgms;
+    $content =~ s/^INSERT INTO(.*?);\s?$//xgms;
+    $content =~ s/^UPDATE(.*?);\s?$//xgms;
+    $content =~ s/^DELETE(.*?);\s?$//xgms;
+    $content =~ s/\,\s*FOREIGN KEY \(\`.*\`\) REFERENCES \`.*\` \(\`.*?\`\)(?: ON  ?(?:UPDATE|DELETE) ?(?:CASCADE|DELETE|RESTRICT))?//xg;
+    $content =~ s/\,\s*FOREIGN KEY(.*) ?(?:DELETE)? (?:CASCADE|DELETE|RESTRICT)//xgms;
+    $content =~ s/DEFAULT NOW\(\)/DEFAULT NOW/xgms;
 
     if ($content !~ /CREATE TABLE/) {
       return 0;
     }
 
-    my @tables = $content =~ /((^|[^-])CREATE TABLE [^;]*;)/sg;
+    my @tables = $content =~ /((^|[^-])CREATE TABLE [^;]*;)/xsg;
 
     foreach my $table (@tables) {
       $admin->query($table, 'do', {});
@@ -1855,12 +1852,12 @@ sub _paysys_system_name_change {
 
     foreach my $param (@{$params}) {
       if (!$old_name) {
-        ($old_name) = $param->{param} =~ /(?<=PAYSYS_).+?(?=_)/gm;
+        ($old_name) = $param->{param} =~ /(?<=PAYSYS_).+?(?=_)/xgm;
         return 1 if ($old_name eq $name);
       }
 
-      if ($param->{param} =~ /(?<=PAYSYS_).+?(?=_)/gm) {
-        $param->{param} =~ s/(?<=PAYSYS_).+?(?=_)/$name/gm;
+      if ($param->{param} =~ /(?<=PAYSYS_).+?(?=_)/xgm) {
+        $param->{param} =~ s/(?<=PAYSYS_).+?(?=_)/$name/xgm;
         $Paysys->merchant_params_change({
           ID    => $param->{id},
           PARAM => $param->{param},
@@ -1875,9 +1872,9 @@ sub _paysys_system_name_change {
     return 1 if (!scalar @{$list});
 
     foreach my $conf_param (@{$list}) {
-      if ($conf_param->{param} =~ /(?<=PAYSYS_)$old_name(?=_)/gm) {
+      if ($conf_param->{param} =~ /(?<=PAYSYS_)$old_name(?=_)/xgm) {
         $Config->config_del($conf_param->{param});
-        $conf_param->{param} =~ s/(?<=PAYSYS_)$old_name(?=_)/$name/gm;
+        $conf_param->{param} =~ s/(?<=PAYSYS_)$old_name(?=_)/$name/xgm;
         $Config->config_add({
           PARAM     => $conf_param->{param},
           VALUE     => $conf_param->{value},

@@ -1,8 +1,8 @@
 
 
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal '>
+<form action='%SELF_URL%' METHOD='POST' class='form-horizontal '>
 
-<input type=hidden name='index' value='$index'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='MBOX_ID' value='%MBOX_ID%'>
 

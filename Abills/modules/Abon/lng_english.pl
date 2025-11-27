@@ -78,5 +78,10 @@ $lang{ABON_PROMO_PERIOD} = 'Promo period';
 $lang{ABON_HOT_DEAL} = 'Hot deal';
 $lang{ABON_DISCOUNT_ACTIVATE_DATE} = 'Discount activation date';
 $lang{ABON_DISCOUNT_EXPIRE_DATE} = 'Discount expiration date';
+$lang{ABON_MAIN_TARIFF_PLAN} = 'Main tariff plan';
+
+$lang{ERR_MAIN_TARIFF_NOT_ACTIVE} = 'Main tariff is not active. Please activate the main tariff plan before proceeding.';
+$lang{ERR_ABON_WRONG_SIGNATURE} = 'Invalid request signature';
+$lang{ERR_NO_ABON_SERVICE} = 'Service not available';
 
 1;

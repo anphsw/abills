@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_MSGS_WORKFLOW_CREATE_UPDATE",
+  "method": "POST",
+  "path": "msgs/workflow/:workflow_id/",
+  "body": {
+    "name": "Test name",
+    "descr": "Some descr",
+    "disable": 1
+  }
+}

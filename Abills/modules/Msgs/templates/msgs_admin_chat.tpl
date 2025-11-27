@@ -182,20 +182,20 @@
   });
   jQuery('#btn-subm').click(function () {
     var text = jQuery('#chat_message').val();
-    jQuery.post('$SELF_URL', 'header=2&qindex=%F_INDEX%&ADD=1&AID=%AID%&MSG_ID=%NUM_TICKET%&MESSAGE=' + text, function () {
+    jQuery.post('%SELF_URL%', 'header=2&qindex=%F_INDEX%&ADD=1&AID=%AID%&MSG_ID=%NUM_TICKET%&MESSAGE=' + text, function () {
       jQuery('#chat_message').val('');
       update();
     });
   });
 
   function update() {
-    jQuery.post('$SELF_URL', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&ADMIN=1&SHOW=1', function (result) {
+    jQuery.post('%SELF_URL%', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&ADMIN=1&SHOW=1', function (result) {
       jQuery('.chat_data').html(result);
     });
     if (!stop_scroll) {
       jQuery('.chat_data').animate({scrollTop: jQuery('.chat_data')[0].scrollHeight}, 'slow');
     }
-    jQuery.post('$SELF_URL', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&SENDER=%AID%&COUNT=1', function (count) {
+    jQuery.post('%SELF_URL%', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&SENDER=%AID%&COUNT=1', function (count) {
       if (count > jQuery('span#Chat_count').text()) {
         jQuery('audio')[0].play();
       }
@@ -234,7 +234,7 @@
   });
 
   function change_read() {
-    jQuery.post('$SELF_URL', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&CHANGE=1');
+    jQuery.post('%SELF_URL%', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&CHANGE=1');
   }
 
   function draw(timePassed, px) {

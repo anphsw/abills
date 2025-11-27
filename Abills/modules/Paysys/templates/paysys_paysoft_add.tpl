@@ -13,7 +13,7 @@
     <input type='hidden' name='UID' value='%UID%'>
     <input type='hidden' name='sid' value='%SID%'>
     <input type='hidden' name='IP' value='%IP%'>
-    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='LMI_PAYMENT_DESC' value='%LMI_PAYMENT_DESC%'>
     %TEST_MODE%
 

@@ -1,4 +1,4 @@
-<form action=$SELF_URL METHOD=post>
+<form action=%SELF_URL% METHOD=post>
 <input type=hidden name=index value='%index%'>
 
 <div class='card card-primary card-outline container-md'>

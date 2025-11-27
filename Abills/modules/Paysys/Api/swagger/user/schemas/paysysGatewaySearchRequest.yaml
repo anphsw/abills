@@ -1,0 +1,5 @@
+type: object
+properties:
+  userIdentifier:
+    type: string
+    example: test

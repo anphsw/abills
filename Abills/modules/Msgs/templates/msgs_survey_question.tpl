@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST'>
-  <input type='hidden' name='index' value='$index'/>
+<FORM action='%SELF_URL%' METHOD='POST'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='SURVEY_ID' value='$FORM{SURVEY_ID}'/>
 

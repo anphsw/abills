@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <form name='CAMS_USER_ADD' id='form_CAMS_USER_ADD' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index' />
+      <input type='hidden' name='index' value='%index%' />
       <input type='hidden' name='UID' value='%UID%' />
       <input type='hidden' name='ACTIVATION' value='%ACTIVATION%' />
 

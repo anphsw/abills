@@ -34,7 +34,6 @@ if ($debug > 3) {
 }
 
 $payment_id = int(rand(10000)) + 100000;
-$payment_sum = $payment_sum * 100;
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $timestamp = time * 1000;
 my $transaction_start_date = (time - 86400 * 3) * 1000;

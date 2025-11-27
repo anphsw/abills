@@ -1,7 +1,7 @@
 <div class='d-print-none'>
 <a name='TP_FORM'></a> 
-<form action='$SELF_URL' METHOD='POST'>
-<input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
 <input type=hidden name='TI_ID' value='%TI_ID%'>
 

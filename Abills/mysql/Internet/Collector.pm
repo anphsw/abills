@@ -1,4 +1,4 @@
-package Internet::Collector v7.6.1;
+package Internet::Collector v8.0.0;
 
 =head1 NAME
 
@@ -7,47 +7,46 @@ package Internet::Collector v7.6.1;
 =cut
 
 use strict;
-our (@EXPORT_OK, %EXPORT_TAGS);
-use parent qw( dbcore Exporter );
+#our (@EXPORT_OK, %EXPORT_TAGS);
+use parent qw(dbcore Exporter);
 
-our @EXPORT = qw(
+our @EXPORT_OK = qw(
   ip_in_zone
 );
 
 use Billing;
 use Tariffs;
-use Abills::Base qw( int2ip ip2int in_array );
+use Abills::Base qw(int2ip ip2int in_array);
 
 my $Billing;
 my $Tariffs;
-my %ips             = ();
-my %intervals       = ();
-my %tp_interval     = ();
-my %ip_range        = ();
-my %ip_user_hash    = ();
+my %ips = ();
+my %intervals = ();
+my %tp_interval = ();
+my %ip_range = ();
+my %ip_user_hash = ();
 my %ip_class_tables = ();
-my $traffic_details = 0 ;
+my $traffic_details = 0;
 
 #**********************************************************
 # Init
 #**********************************************************
-sub new{
-  my $class = shift;
-  my ($db, $CONF) = @_;
+sub new {
+  my ($class, $db, $CONF) = @_;
 
-  my $self = { };
-  bless( $self, $class );
+  my $self = {
+    db   => $db,
+    conf => $CONF
+  };
+  bless($self, $class);
 
-  if ( $CONF->{DELETE_USER} ){
+  if ($CONF->{DELETE_USER}) {
     return $self;
   }
 
-  if ( !defined( $CONF->{KBYTE_SIZE} ) ){
+  if (!defined($CONF->{KBYTE_SIZE})) {
     $CONF->{KBYTE_SIZE} = 1024;
   }
-
-  $self->{db}   = $db;
-  $self->{conf} = $CONF;
 
   $CONF->{INTERNET_DETAIL_MIN_SIZE} = 0 if (!$CONF->{INTERNET_DETAIL_MIN_SIZE});
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
@@ -55,20 +54,20 @@ sub new{
   $self->{UNKNOWN_TRAFFIC_ROWS} = 0;
 
   #alternative host for detail
-  if ( $CONF->{IPN_DBHOST} ){
+  if ($CONF->{IPN_DBHOST}) {
     require Abills::SQL;
     Abills::SQL->import();
 
-    my $sql = Abills::SQL->connect( 'mysql', $CONF->{IPN_DBHOST}, $CONF->{IPN_DBNAME}, $CONF->{IPN_DBUSER},
-      $CONF->{IPN_DBPASSWD}, { CHARSET => ($CONF->{IPN_DBCHARSET}) ? $CONF->{IPN_DBCHARSET} : 'utf8' } );
+    my $sql = Abills::SQL->connect('mysql', $CONF->{IPN_DBHOST}, $CONF->{IPN_DBNAME}, $CONF->{IPN_DBUSER},
+      $CONF->{IPN_DBPASSWD}, { CHARSET => ($CONF->{IPN_DBCHARSET}) ? $CONF->{IPN_DBCHARSET} : 'utf8' });
 
-    if ( !$sql->{db} ){
+    if (!$sql->{db}) {
       exit;
     }
     $self->{db2} = $sql->{db};
   }
 
-  $Billing = Billing->new( $self->{db}, $CONF );
+  $Billing = Billing->new($self->{db}, $CONF);
   $traffic_details = $self->{conf}->{INTERNET_TRAFFIC_DETAIL};
 
   return $self;
@@ -79,121 +78,85 @@ sub new{
 
 =cut
 #**********************************************************
-sub user_ips{
-  my $self = shift;
-  my ($DATA) = @_;
+sub user_ips {
+  my ($self, $DATA) = @_;
 
-  my $sql;
+  my $sql=q{};
 
-  if ( $DATA->{NAS_ID} =~ /(\d+)-(\d+)/ ){
+  if ($DATA->{NAS_ID} =~ /(\d+)-(\d+)/xm) {
     my $first = $1;
     my $last = $2;
     my @nas_arr = ();
-    for ( my $i = $first; $i <= $last; $i++ ){
+    for (my $i = $first; $i <= $last; $i++) {
       push @nas_arr, $i;
     }
-    $DATA->{NAS_ID} = join( ',', @nas_arr );
+    $DATA->{NAS_ID} = join(',', @nas_arr);
   }
 
-  #Tarifs dv.tp_id -> tp.tp_id
-#  my %tp_ids = ();
-#  $self->query( "SELECT id, tp_id FROM tarif_plans
-#  WHERE module IN ('', 'Dv', 'Internet');" );
-#
-#  foreach my $line ( @{ $self->{list} } ){
-#    $tp_ids{$line->[1]} = $line->[0];
-#  }
-
-#  if ( $self->{conf}->{IPN_STATIC_IP} ){
-#    $sql = "SELECT u.uid, dv.ip, u.id AS login,
-#     IF(calls.acct_session_id, calls.acct_session_id, '') AS acct_session_id,
-#     dv.tp_id,
-#     IF(u.company_id > 0, cb.id, b.id) AS bill_id,
-#     IF(c.name IS NULL, b.deposit, cb.deposit)+IF(u.credit>0, u.credit, tp.credit) AS deposit,
-#     tp.payment_type,
-#     tp.octets_direction,
-#     u.reduction,
-#     u.activate,
-#     dv.netmask,
-#     calls.acct_input_gigawords,
-#     calls.acct_output_gigawords,
-#     dv.join_service
-#     FROM (users u, internet_main dv)
-#     LEFT JOIN companies c ON (u.company_id=c.id)
-#     LEFT JOIN bills b ON (u.bill_id=b.id)
-#     LEFT JOIN bills cb ON (c.bill_id=cb.id)
-#     LEFT JOIN tarif_plans tp ON (tp.tp_id=dv.tp_id)
-#     LEFT JOIN internet_online calls ON (u.id=calls.user_name)
-#     LEFT JOIN users_nas un ON(u.uid=un.uid)
-#     WHERE u.uid=dv.uid
-#      AND u.domain_id=0
-#      AND dv.ip > 0
-#      AND u.disable=0 and dv.disable=0
-#      AND (un.nas_id IN ($DATA->{NAS_ID}) or un.nas_id IS NULL)
-#     GROUP BY u.uid;";
-#  }
-#  els
-
-  if ( $self->{conf}->{INTERNET_IPOE_DEPOSIT_OPERATION} ){
-    $sql = "SELECT u.uid, online.framed_ip_address AS ip,
-      online.user_name AS login,
-      online.acct_session_id,
-      online.acct_input_octets,
-      online.acct_output_octets,
-      internet.tp_id,
-      IF(u.company_id > 0, cb.id, b.id) AS bill_id,
-      IF(c.name IS NULL, b.deposit, cb.deposit)+if(u.credit>0, u.credit, tp.credit) AS deposit,
-      tp.payment_type,
-      UNIX_TIMESTAMP() - online.lupdated AS interim_time,
-      online.nas_id,
-      tp.octets_direction,
-      u.reduction,
-      online.connect_info,
-      internet.activate,
-      internet.netmask,
-      online.acct_input_gigawords,
-      online.acct_output_gigawords,
-      internet.join_service,
-      online.service_id
-    FROM internet_online online
-    INNER JOIN users u ON (u.uid=online.uid)
-    LEFT JOIN companies c FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=c.id)
-    LEFT JOIN bills b ON (u.bill_id=b.id)
-    LEFT JOIN bills cb ON (c.bill_id=cb.id)
-    LEFT JOIN internet_main internet ON (u.uid=internet.uid)
-    LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
-    WHERE online.status<11
-      AND online.nas_id IN ($DATA->{NAS_ID}) ;";
+  if ($self->{conf}->{INTERNET_IPOE_DEPOSIT_OPERATION}) {
+    $sql = <<"SQL";
+SELECT u.uid, online.framed_ip_address AS ip,
+       online.user_name AS login,
+       online.acct_session_id,
+       online.acct_input_octets,
+       online.acct_output_octets,
+       internet.tp_id,
+       IF(u.company_id > 0, cb.id, b.id) AS bill_id,
+       IF(c.name IS NULL, b.deposit, cb.deposit)+if(u.credit>0, u.credit, tp.credit) AS deposit,
+       tp.payment_type,
+       UNIX_TIMESTAMP() - online.lupdated AS interim_time,
+       online.nas_id,
+       tp.octets_direction,
+       u.reduction,
+       online.connect_info,
+       internet.activate,
+       internet.netmask,
+       online.acct_input_gigawords,
+       online.acct_output_gigawords,
+       internet.join_service,
+       online.service_id
+FROM internet_online online
+       INNER JOIN users u ON (u.uid=online.uid)
+       LEFT JOIN companies c FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=c.id)
+       LEFT JOIN bills b ON (u.bill_id=b.id)
+       LEFT JOIN bills cb ON (c.bill_id=cb.id)
+       LEFT JOIN internet_main internet ON (u.uid=internet.uid)
+       LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
+WHERE online.status<11
+  AND online.nas_id IN ($DATA->{NAS_ID}) ;
+SQL
   }
-  else{
-    $sql = "SELECT u.uid,
-      online.framed_ip_address AS ip,
-      online.user_name AS login,
-      online.acct_session_id,
-      online.acct_input_octets,
-      online.acct_output_octets,
-      online.tp_id,
-      UNIX_TIMESTAMP() - online.lupdated AS interim_time,
-      online.nas_id,
-      u.reduction,
-      online.connect_info,
-      internet.activate,
-      internet.netmask,
-      internet.join_service,
-      online.service_id
-   FROM internet_online online
-   INNER JOIN users u ON (u.uid=online.uid)
-   LEFT JOIN internet_main internet ON (u.uid=internet.uid)
-   WHERE
-     online.status<11
-     AND online.nas_id IN ($DATA->{NAS_ID});";
+  else {
+    $sql = <<"SQL";
+SELECT u.uid,
+       online.framed_ip_address AS ip,
+       online.user_name AS login,
+       online.acct_session_id,
+       online.acct_input_octets,
+       online.acct_output_octets,
+       online.tp_id,
+       UNIX_TIMESTAMP() - online.lupdated AS interim_time,
+       online.nas_id,
+       u.reduction,
+       online.connect_info,
+       internet.activate,
+       internet.netmask,
+       internet.join_service,
+       online.service_id
+FROM internet_online online
+       INNER JOIN users u ON (u.uid=online.uid)
+       LEFT JOIN internet_main internet ON (u.uid=internet.uid)
+WHERE
+  online.status<11
+  AND online.nas_id IN ($DATA->{NAS_ID});
+SQL
   }
 
-  $self->query( $sql, undef, { COLS_NAME => 1 } );
+  $self->query($sql, undef, { COLS_NAME => 1 });
 
-  if ( $self->{errno} ){
-    print "SQL Error: Get online users\n";
-    exit;
+  if ($self->{errno}) {
+    $self->{err_str} = "SQL Error: Get online users";
+    return $self;
   }
 
   my $list = $self->{list};
@@ -206,16 +169,16 @@ sub user_ips{
   $self->{0}{IN} = 0;
   $self->{0}{OUT} = 0;
 
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
     my $ip = $line->{ip};
 
     #Get IP/mask
-    if ( $line->{netmask} && $line->{netmask} < 4294967295 ){
+    if ($line->{netmask} && $line->{netmask} < 4294967295) {
       my $count = 4294967295 - $line->{netmask};
       my $ip2hash = $ip;
-      $ip = pack( 'N4N4', $ip, $count );
+      $ip = pack('N4N4', $ip, $count);
       $ip_range{ $line->{uid} } = $ip;
-      for ( my $i = 0; $i <= $count; $i++ ){
+      for (my $i = 0; $i <= $count; $i++) {
         $ip_user_hash{$ip2hash + $i} = $line->{uid};
       }
     }
@@ -234,10 +197,6 @@ sub user_ips{
     #Octet direction
     $self->{$ip}{OCTET_DIRECTION} = $line->{octets_direction} || 0;
 
-#    if ( $tp_ids{$line->{tp_id}} ){
-#      $line->{tp_id} = $tp_ids{$line->{tp_id}};
-#    }
-
     $users_info{TPS}{ $line->{uid} } = $line->{tp_id};
 
     #User login
@@ -246,20 +205,20 @@ sub user_ips{
     #Session ID
     $session_ids{$ip} = $line->{acct_session_id} || '';
     $interim_times{ $line->{ip} } = $line->{interim_time} || 0;
-    $connect_info{ $line->{ip} }  = $line->{CONNECT_INFO} || '';
+    $connect_info{ $line->{ip} } = $line->{CONNECT_INFO} || '';
 
     #$self->{INTERIM}{$line->[3]}{TIME}=$line->[10];
     $users_info{PAYMENT_TYPE}{ $line->{uid} } = $line->{payment_type};
-    $users_info{DEPOSIT}{ $line->{uid} }      = $line->{deposit};
-    $users_info{REDUCTION}{ $line->{uid} }    = $line->{reduction};
-    $users_info{ACTIVATE}{ $line->{uid} }     = $line->{activate};
-    $users_info{BILL_ID}{ $line->{uid} }      = $line->{bill_id};
-    $users_info{JOIN_SERVICE}{ $line->{uid} } = $line->{join_service} if ( $line->{join_service} );
+    $users_info{DEPOSIT}{ $line->{uid} } = $line->{deposit};
+    $users_info{REDUCTION}{ $line->{uid} } = $line->{reduction};
+    $users_info{ACTIVATE}{ $line->{uid} } = $line->{activate};
+    $users_info{BILL_ID}{ $line->{uid} } = $line->{bill_id};
+    $users_info{JOIN_SERVICE}{ $line->{uid} } = $line->{join_service} if ($line->{join_service});
   }
 
-  $self->{USERS_IPS}    = \%ips;
-  $self->{USERS_INFO}   = \%users_info;
-  $self->{SESSIONS_ID}  = \%session_ids;
+  $self->{USERS_IPS} = \%ips;
+  $self->{USERS_INFO} = \%users_info;
+  $self->{SESSIONS_ID} = \%session_ids;
   $self->{INTERIM_TIME} = \%interim_times;
   $self->{CONNECT_INFO} = \%connect_info;
 
@@ -271,12 +230,14 @@ sub user_ips{
 
 =cut
 #**********************************************************
-sub traffic_agregate_clean{
+sub traffic_agregate_clean {
   my $self = shift;
 
   delete $self->{AGREGATE_USERS};
   delete $self->{INTERIM};
   delete $self->{IN};
+
+  return 1;
 }
 
 #**********************************************************
@@ -299,66 +260,65 @@ sub traffic_agregate_clean{
 
 =cut
 #**********************************************************
-sub traffic_agregate_users{
-  my $self = shift;
-  my ($DATA) = @_;
+sub traffic_agregate_users {
+  my ($self, $DATA) = @_;
 
   my $users_ips = $self->{USERS_IPS};
   my $y = 0;
-  if ( defined( $users_ips->{ $DATA->{SRC_IP} } ) ){
+  if (defined($users_ips->{ $DATA->{SRC_IP} })) {
     my $uid = $users_ips->{ $DATA->{SRC_IP} };
-    if ( defined( $DATA->{TRAFFIC_CLASS} ) ){
+    if (defined($DATA->{TRAFFIC_CLASS})) {
       $self->{INTERIM}{ $DATA->{SRC_IP} }{ $DATA->{TRAFFIC_CLASS} }{OUT} += $DATA->{SIZE};
     }
-    else{
-      push @{ $self->{AGREGATE_USERS}{$uid}{OUT} }, { %{$DATA} };
+    else {
+      push @{$self->{AGREGATE_USERS}{$uid}{OUT}}, { %{$DATA} };
     }
 
     $DATA->{UID} = $uid;
     $DATA->{NAS_ID} //= $self->{ $DATA->{SRC_IP} }{NAS_ID};
-    
+
     $y++;
   }
-  else{
-    if ( $ip_user_hash{$DATA->{SRC_IP}} ){
+  else {
+    if ($ip_user_hash{$DATA->{SRC_IP}}) {
       my $uid = $ip_user_hash{$DATA->{SRC_IP}};
-      push @{ $self->{AGREGATE_USERS}{$uid}{OUT} }, { %{$DATA} };
-      
+      push @{$self->{AGREGATE_USERS}{$uid}{OUT}}, { %{$DATA} };
+
       $DATA->{UID} = $uid;
       $DATA->{NAS_ID} //= $self->{ $DATA->{SRC_IP} }{NAS_ID};
-      
+
       $y++;
     }
   }
 
-  if ( defined( $users_ips->{ $DATA->{DST_IP} } ) ){
-    if ( defined( $DATA->{TRAFFIC_CLASS} ) ){
+  if (defined($users_ips->{ $DATA->{DST_IP} })) {
+    if (defined($DATA->{TRAFFIC_CLASS})) {
       $self->{INTERIM}{ $DATA->{DST_IP} }{ $DATA->{TRAFFIC_CLASS} }{IN} += $DATA->{SIZE};
     }
-    else{
-      push @{ $self->{AGREGATE_USERS}{ $users_ips->{ $DATA->{DST_IP} } }{IN} }, { %{$DATA} };
+    else {
+      push @{$self->{AGREGATE_USERS}{ $users_ips->{ $DATA->{DST_IP} } }{IN}}, { %{$DATA} };
     }
     $DATA->{UID} = $users_ips->{ $DATA->{DST_IP} };
 
     $y++;
   }
-  else{
-    if ( defined( $ip_user_hash{$DATA->{DST_IP}} ) ){
+  else {
+    if (defined($ip_user_hash{$DATA->{DST_IP}})) {
       my $uid = $ip_user_hash{$DATA->{DST_IP}};
-      push @{ $self->{AGREGATE_USERS}{$uid}{IN} }, { %{$DATA} };
+      push @{$self->{AGREGATE_USERS}{$uid}{IN}}, { %{$DATA} };
       $DATA->{UID} = $uid;
       $y++;
     }
 
     #Unknown Ips
-    if ( $y < 1 ){
+    if ($y < 1) {
       $DATA->{UID} = 0;
-      if ( $self->{conf}->{UNKNOWN_IP_LOG} ){
+      if ($self->{conf}->{UNKNOWN_IP_LOG}) {
         $self->{INTERIM}{ $DATA->{UID} }{OUT} += $DATA->{SIZE};
-        push @{ $self->{IN} }, "$DATA->{SRC_IP}/$DATA->{DST_IP}/$DATA->{SIZE}";
+        push @{$self->{IN}}, "$DATA->{SRC_IP}/$DATA->{DST_IP}/$DATA->{SIZE}";
       }
 
-      if ( $DATA->{DEBUG} ){
+      if ($DATA->{DEBUG}) {
         $self->{UNKNOWN_TRAFFIC_ROWS}++;
         $self->{UNKNOWN_TRAFFIC_SUM} += $DATA->{SIZE};
       }
@@ -367,16 +327,16 @@ sub traffic_agregate_users{
     }
   }
 
-  if ( $DATA->{DEBUG} ){
+  if ($DATA->{DEBUG}) {
     $self->{TRAFFIC_ROWS}++;
     $self->{TRAFFIC_SUM} += $DATA->{SIZE};
   }
 
   #Make user detalization
-  if ( $traffic_details && $DATA->{UID} > 0 ){
+  if ($traffic_details && $DATA->{UID} > 0) {
     return $self if ($self->{conf}->{INTERNET_IPOE_DETAIL_MIN_SIZE} > $DATA->{SIZE});
 
-    push @{ $self->{USERS_TRAFFIC} }, [
+    push @{$self->{USERS_TRAFFIC}}, [
       $DATA->{SRC_IP},
       $DATA->{DST_IP},
       $DATA->{SRC_PORT} || 0,
@@ -386,8 +346,6 @@ sub traffic_agregate_users{
       $DATA->{NAS_ID} || 0,
       $DATA->{UID} || 0
     ];
-
-    #$self->traffic_add_details( $DATA );
   }
 
   return $self;
@@ -398,27 +356,25 @@ sub traffic_agregate_users{
 
 =cut
 #**********************************************************
-sub traffic_agregate_nets{
+sub traffic_agregate_nets {
   my $self = shift;
-  #my ($DATA) = @_;
 
   my $AGREGATE_USERS = $self->{AGREGATE_USERS};
-  #Get user and session TP
 
   $Billing->get_timeinfo();
   my $session_start = $Billing->{SESSION_START};
-  my $day_begin     = $Billing->{DAY_BEGIN};
-  my $day_of_week   = $Billing->{DAY_OF_WEEK};
-  my $day_of_year   = $Billing->{DAY_OF_YEAR};
+  my $day_begin = $Billing->{DAY_BEGIN};
+  my $day_of_week = $Billing->{DAY_OF_WEEK};
+  my $day_of_year = $Billing->{DAY_OF_YEAR};
 
-  while (my ($uid, $session_tp) = each( %{ $self->{USERS_INFO}->{TPS} } )) {
+  while (my ($uid, $session_tp) = each(%{$self->{USERS_INFO}->{TPS}})) {
     my $TP_ID = $session_tp;
 
-    if ( !defined( $tp_interval{$TP_ID} ) ){
+    if (!defined($tp_interval{$TP_ID})) {
       my $user;
       my ($TIME_INTERVALS,
         $INTERVAL_TIME_TARIF,
-        $INTERVAL_TRAF_TARIF) = $Billing->time_intervals( $TP_ID );
+        $INTERVAL_TRAF_TARIF) = $Billing->time_intervals($TP_ID);
 
       my (undef, $ret_attr) = $Billing->remaining_time(
         0,
@@ -427,7 +383,7 @@ sub traffic_agregate_nets{
           INTERVAL_TIME_TARIF => $INTERVAL_TIME_TARIF,
           INTERVAL_TRAF_TARIF => $INTERVAL_TRAF_TARIF,
           SESSION_START       => $session_start,
-          DAY_BEGIN           => $day_begin ,
+          DAY_BEGIN           => $day_begin,
           DAY_OF_WEEK         => $day_of_week,
           DAY_OF_YEAR         => $day_of_year,
           REDUCTION           => $user->{REDUCTION} || 0,
@@ -441,70 +397,69 @@ sub traffic_agregate_nets{
 
     print "\nUID: $uid\n####TP $TP_ID Interval: $tp_interval{$TP_ID}  ####\n" if ($self->{debug});
 
-    if ( !defined( $intervals{ $tp_interval{$TP_ID} }{ZONES} ) ){
-      $self->get_zone( { TP_INTERVAL => $tp_interval{$TP_ID} } );
+    if (!defined($intervals{ $tp_interval{$TP_ID} }{ZONES})) {
+      $self->get_zone({ TP_INTERVAL => $tp_interval{$TP_ID} });
     }
-    else{
+    else {
       $self->{ZONES} = $intervals{ $tp_interval{$TP_ID} }{ZONES};
     }
 
     my $data_hash;
 
     #Get agrigation data
-    if ( defined( $AGREGATE_USERS->{$uid} ) ){
+    if (defined($AGREGATE_USERS->{$uid})) {
       $data_hash = $AGREGATE_USERS->{$uid};
     }
     # Go to next user
-    else{
+    else {
       next;
     }
 
     my %zones;
     my $zoneids_ref = $intervals{ $tp_interval{$TP_ID} }{ZONEIDS};
     my $user_ip;
-    if ( $ip_range{$uid} ){
+    if ($ip_range{$uid}) {
       $user_ip = $ip_range{$uid};
     }
 
-    if ( defined( $data_hash->{OUT} ) ){
+    if (defined($data_hash->{OUT})) {
       #Get User data array
       my $DATA_ARRAY_REF = $data_hash->{OUT};
 
-      foreach my $DATA ( @{$DATA_ARRAY_REF} ){
-        if ( $#{ $zoneids_ref } > -1 ){
-          foreach my $zid ( @{ $zoneids_ref } ){
-            if ( ip_in_zone( $DATA->{DST_IP}, $DATA->{DST_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS},
-              \%ip_class_tables ) ){
+      foreach my $DATA (@{$DATA_ARRAY_REF}) {
+        if ($#{$zoneids_ref} > -1) {
+          foreach my $zid (@{$zoneids_ref}) {
+            if (ip_in_zone($DATA->{DST_IP}, $DATA->{DST_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS},
+              \%ip_class_tables)) {
               $self->{INTERIM}{ (($user_ip) ? $user_ip : $DATA->{SRC_IP}) }{"$zid"}{OUT} += $DATA->{SIZE};
-              print " $zid " . int2ip( $DATA->{SRC_IP} ) . ":$DATA->{SRC_PORT} -> " . int2ip( $DATA->{DST_IP} ) . ":$DATA->{DST_PORT}  $DATA->{SIZE} / " . (($zones{$zid}{PriceOut}) ? $zones{$zid}{PriceOut} : 0.00) . "\n" if ($self->{debug});
+              print " $zid " . int2ip($DATA->{SRC_IP}) . ":$DATA->{SRC_PORT} -> " . int2ip($DATA->{DST_IP}) . ":$DATA->{DST_PORT}  $DATA->{SIZE} / " . (($zones{$zid}{PriceOut}) ? $zones{$zid}{PriceOut} : 0.00) . "\n" if ($self->{debug});
               last;
             }
           }
         }
-        else{
-          print " < $DATA->{SIZE} " . int2ip( $DATA->{SRC_IP} ) . ":$DATA->{SRC_PORT} -> " . int2ip( $DATA->{DST_IP} ) . ":$DATA->{DST_PORT}\n" if ($self->{debug});
+        else {
+          print " < $DATA->{SIZE} " . int2ip($DATA->{SRC_IP}) . ":$DATA->{SRC_PORT} -> " . int2ip($DATA->{DST_IP}) . ":$DATA->{DST_PORT}\n" if ($self->{debug});
           $self->{INTERIM}{ $DATA->{SRC_IP} }{"0"}{OUT} += $DATA->{SIZE};
         }
       }
     }
 
-    if ( defined( $data_hash->{IN} ) ){
-
+    if (defined($data_hash->{IN})) {
       #Get User data array
       my $DATA_ARRAY_REF = $data_hash->{IN};
-      foreach my $DATA ( @{$DATA_ARRAY_REF} ){
-        if ( $#{ $zoneids_ref } > -1 ){
-          foreach my $zid ( @{ $zoneids_ref } ){
-            if ( ip_in_zone( $DATA->{SRC_IP}, $DATA->{SRC_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS},
-              \%ip_class_tables ) ){
+      foreach my $DATA (@{$DATA_ARRAY_REF}) {
+        if ($#{$zoneids_ref} > -1) {
+          foreach my $zid (@{$zoneids_ref}) {
+            if (ip_in_zone($DATA->{SRC_IP}, $DATA->{SRC_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS},
+              \%ip_class_tables)) {
               $self->{INTERIM}{ (($user_ip) ? $user_ip : $DATA->{DST_IP}) }{"$zid"}{IN} += $DATA->{SIZE};
-              print " $zid " . int2ip( $DATA->{DST_IP} ) . ":$DATA->{DST_PORT} <- " . int2ip( $DATA->{SRC_IP} ) . ":$DATA->{SRC_PORT}  $DATA->{SIZE} / $zones{$zid}{PriceIn}\n" if ($self->{debug});
+              print " $zid " . int2ip($DATA->{DST_IP}) . ":$DATA->{DST_PORT} <- " . int2ip($DATA->{SRC_IP}) . ":$DATA->{SRC_PORT}  $DATA->{SIZE} / $zones{$zid}{PriceIn}\n" if ($self->{debug});
               last;
             }
           }
         }
-        else{
-          print " > $DATA->{SIZE} " . int2ip( $DATA->{SRC_IP} ) . ":$DATA->{SRC_PORT} -> " . int2ip( $DATA->{DST_IP} ) . ":$DATA->{DST_PORT}\n" if ($self->{debug});
+        else {
+          print " > $DATA->{SIZE} " . int2ip($DATA->{SRC_IP}) . ":$DATA->{SRC_PORT} -> " . int2ip($DATA->{DST_IP}) . ":$DATA->{DST_PORT}\n" if ($self->{debug});
           $self->{INTERIM}{ $DATA->{DST_IP} }{"0"}{IN} += $DATA->{SIZE};
         }
       }
@@ -519,8 +474,7 @@ sub traffic_agregate_nets{
 
 =cut
 #**********************************************************
-sub get_interval_params{
-  #my $self = shift;
+sub get_interval_params {
 
   return \%intervals, \%tp_interval;
 }
@@ -536,9 +490,8 @@ sub get_interval_params{
 
 =cut
 #**********************************************************
-sub get_zone{
-  my $self = shift;
-  my ($attr) = @_;
+sub get_zone {
+  my ($self, $attr) = @_;
 
   my %zones = ();
   my @zoneids = ();
@@ -546,57 +499,51 @@ sub get_zone{
   my $tariff = $attr->{TP_INTERVAL} || 0;
 
   #Get traffic classes and prices
-  $Tariffs = Tariffs->new( $self->{db}, $self->{conf}, ($attr->{ADMIN} || undef) );
-  my $list = $Tariffs->tt_list( { TI_ID => $tariff } );
+  $Tariffs = Tariffs->new($self->{db}, $self->{conf}, ($attr->{ADMIN} || undef));
+  my $list = $Tariffs->tt_list({ TI_ID => $tariff });
 
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
     my $zoneid = $line->[0];
-    $zones{$zoneid}{PriceIn}       = $line->[1] + 0;
-    $zones{$zoneid}{PriceOut}      = $line->[2] + 0;
-    if($line->[3]) {
+    $zones{$zoneid}{PriceIn} = $line->[1] + 0;
+    $zones{$zoneid}{PriceOut} = $line->[2] + 0;
+    if ($line->[3]) {
       $zones{$zoneid}{PREPAID_TSUM} = $line->[3] + 0;
     }
     $zones{$zoneid}{TRAFFIC_CLASS} = $line->[9];
     push @zoneids, $zoneid;
   }
 
-  @{ $intervals{$tariff}{ZONEIDS} } = @zoneids;
-  %{ $intervals{$tariff}{ZONES} } = %zones;
+  @{$intervals{$tariff}{ZONEIDS}} = @zoneids;
+  %{$intervals{$tariff}{ZONES}} = %zones;
 
   $self->{ZONES_IDS} = $intervals{$tariff}{ZONEIDS};
   $self->{ZONES} = $intervals{$tariff}{ZONES};
 
   #Get IP addresse for each traffic zones
-  if ( !%ip_class_tables ){
-    $self->query( "SELECT id, nets FROM traffic_classes;" );
-    foreach my $line ( @{ $self->{list} } ){
+  if (!%ip_class_tables) {
+    $self->query("SELECT id, nets FROM traffic_classes;");
+    foreach my $line (@{$self->{list}}) {
       my $zoneid = $line->[0];
-      $line->[1] =~ s/\n//g;
-      my @ip_list_array = split( /;/, $line->[1] );
+      $line->[1] =~ s/\n//xg;
+      my @ip_list_array = split(/;/x, $line->[1]);
 
       my $i = 0;
 
-      foreach my $ip_full ( @ip_list_array ){
-        if ( $ip_full =~ /([!]{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\/{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2})(:{0,1})(\S{0,100})/ ){
+      foreach my $ip_full (@ip_list_array) {
+        if ($ip_full =~ /([!]{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\/{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2})(:{0,1})(\S{0,100})/xm) {
           my $NEG = $1 || '';
-          my $IP = unpack( "N", pack( "C4", split( /\./, $2 ) ) );
-          my $NETMASK = (length( $4 ) < 3) ? unpack("N", pack( "B*", ("1" x $4 . "0" x (32 - $4)) )) : unpack( "N",
-              pack( "C4", split( /\./, "$4" ) ) );
+          my $IP = unpack("N", pack("C4", split(/\./x, $2)));
+          my $NETMASK = (length($4) < 3) ? unpack("N", pack("B*", ("1" x $4 . "0" x (32 - $4)))) : unpack("N",
+            pack("C4", split(/\./x, $4)));
 
-          print "REG $i ID: $zoneid NEGATIVE: $NEG IP: " . int2ip( $IP ) . " MASK: " . int2ip( $NETMASK ) . " Ports: $6\n" if ($self->{debug});
+          print "REG $i ID: $zoneid NEGATIVE: $NEG IP: " . int2ip($IP) . " MASK: " . int2ip($NETMASK) . " Ports: $6\n" if ($self->{debug});
 
           $ip_class_tables{$zoneid}[$i]{IP} = $IP;
           $ip_class_tables{$zoneid}[$i]{Mask} = $NETMASK;
           $ip_class_tables{$zoneid}[$i]{Neg} = $NEG;
 
           #Get ports
-          @{ $ip_class_tables{$zoneid}[$i]{'Ports'} } = ();
-          if ( $6 ne '' ){
-            my @PORTS_ARRAY = split( /,/, $6 );
-            foreach my $port ( @PORTS_ARRAY ){
-              push @{ $ip_class_tables{$zoneid}[$i]{Ports} }, $port;
-            }
-          }
+          $ip_class_tables{$zoneid}[$i]{'Ports'} = _get_ports($zoneid, $i, $6);
           $i++;
         }
       }
@@ -605,9 +552,35 @@ sub get_zone{
     $self->{ZONES_IPS} = \%ip_class_tables;
   }
 
-  print " Tariff Interval: $tariff\n" . " Zone Ids:" . @{ $intervals{$tariff}{ZONEIDS} } . "\n" . " Zones:" . %{ $intervals{$tariff}{ZONES} } . "\n" if ($self->{debug});
+  print " Tariff Interval: $tariff\n" . " Zone Ids:" . @{$intervals{$tariff}{ZONEIDS}} . "\n" . " Zones:" . %{$intervals{$tariff}{ZONES}} . "\n" if ($self->{debug});
 
   return $self;
+}
+
+#**********************************************************
+=head2 _get_ports($ports_list) - make ports array
+
+  Arguments:
+    $ports_list
+
+  Result:
+    \@ports
+
+=cut
+#**********************************************************
+sub _get_ports {
+  my ($zoneid, $i, $ports_list)=@_;
+
+  my @ports = ();
+
+  if ($ports_list) {
+    my @ports_array = split(/,/x, $ports_list);
+    foreach my $port (@ports_array) {
+      push @{$ip_class_tables{$zoneid}[$i]{Ports}}, $port;
+    }
+  }
+
+  return \@ports;
 }
 
 #**********************************************************
@@ -629,20 +602,20 @@ sub get_zone{
 
 =cut
 #**********************************************************
-sub ip_in_zone ($$$$){
+sub ip_in_zone($$$$) {
   my ($ip_num, $port, $zoneid, $zone_data) = @_;
 
   my $res = 0;
 
   return 0 if (!$zone_data->{$zoneid});
 
-  for ( my $i = 0; $i <= $#{ $zone_data->{$zoneid} }; $i++ ){
-    my $adr_hash = \%{ $zone_data->{$zoneid}[$i] };
+  for (my $i = 0; $i <= $#{$zone_data->{$zoneid}}; $i++) {
+    my $adr_hash = \%{$zone_data->{$zoneid}[$i]};
     # compare zone with ip
-    if ( (($adr_hash->{'IP'} & $adr_hash->{'Mask'}) == ($ip_num & $adr_hash->{'Mask'}))
-      && ($#{$$adr_hash{'Ports'}} == -1 || in_array($port, $adr_hash->{'Ports'}) )
-    ){
-      if ( $adr_hash->{'Neg'} ){
+    if ((($adr_hash->{'IP'} & $adr_hash->{'Mask'}) == ($ip_num & $adr_hash->{'Mask'}))
+      && ($#{$$adr_hash{'Ports'}} == -1 || in_array($port, $adr_hash->{'Ports'}))
+    ) {
+      if ($adr_hash->{'Neg'}) {
         $res = 0;
       }
       else {
@@ -658,44 +631,47 @@ sub ip_in_zone ($$$$){
 #**********************************************************
 =head2 traffic_add_user($DATA) - Add traffic to DB
 
+  Arguments:
+    $DATA
+
+  Returns:
+    $self
+
 =cut
 #**********************************************************
-sub traffic_add_user{
-  my $self = shift;
-  my ($DATA) = @_;
+sub traffic_add_user {
+  my ($self, $DATA) = @_;
 
-  if ( $DATA->{MULTI_QUERY} ){
-    $self->query( "INSERT INTO ipn_log (
-         uid, start, stop, traffic_class, traffic_in, traffic_out,
-         nas_id, ip, interval_id, sum, session_id
-       )
-     VALUES (
-       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-      '',
+  my $sql = <<'SQL';
+INSERT INTO ipn_log (
+  uid, start, stop, traffic_class, traffic_in, traffic_out,
+  nas_id, ip, interval_id, sum, session_id
+)
+VALUES (
+         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+SQL
+
+  if ($DATA->{MULTI_QUERY}) {
+    $self->query($sql, '',
       { MULTI_QUERY => $DATA->{MULTI_QUERY} }
     );
   }
-  elsif ( $DATA->{INBYTE} + $DATA->{OUTBYTE} > 0 ){
-    $self->query( "INSERT INTO ipn_log (
-         uid, start, stop, traffic_class, traffic_in, traffic_out,
-         nas_id, ip, interval_id, sum, session_id
-       )
-     VALUES (
-       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+  elsif ($DATA->{INBYTE} + $DATA->{OUTBYTE} > 0) {
+    $self->query($sql,
       'do',
       { Bind => [
-          $DATA->{UID},
-          $DATA->{START} || 'NOW()',
-          $DATA->{STOP} || 'NOW()',
-          $DATA->{TARFFIC_CLASS},
-          $DATA->{INBYTE} || 0,
-          $DATA->{OUTBYTE} || 0,
-          $DATA->{NAS_ID},
-          $DATA->{IP},
-          $DATA->{INTERVAL},
-          $DATA->{SUM},
-          $DATA->{SESSION_ID}
-        ] }
+        $DATA->{UID},
+        $DATA->{START} || 'NOW()',
+        $DATA->{STOP} || 'NOW()',
+        $DATA->{TARFFIC_CLASS},
+        $DATA->{INBYTE} || 0,
+        $DATA->{OUTBYTE} || 0,
+        $DATA->{NAS_ID},
+        $DATA->{IP},
+        $DATA->{INTERVAL},
+        $DATA->{SUM},
+        $DATA->{SESSION_ID}
+      ] }
     );
   }
 
@@ -721,58 +697,63 @@ sub traffic_add_user{
 
 =cut
 #**********************************************************
-sub traffic_user_get2{
-  my $self = shift;
-  my ($attr) = @_;
+sub traffic_user_get2 {
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID};
-  #my $from   = $attr->{FROM} || '';
   my %result = ();
   my $WHERE = '';
   my $mb_size = $self->{conf}->{MB_SIZE};
 
-  if($self->{conf}->{INTERNET_INTERVAL_PREPAID}) {
-    if ( $attr->{ACTIVATE} ){
-      if ( $attr->{ACTIVATE} eq '0000-00-00' ){
+  if ($self->{conf}->{INTERNET_INTERVAL_PREPAID}) {
+    if ($attr->{ACTIVATE}) {
+      if ($attr->{ACTIVATE} eq '0000-00-00') {
         $attr->{ACTIVATE} = "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
       }
-      else{
+      else {
         $attr->{ACTIVATE} = "'$attr->{ACTIVATE}'";
       }
       $WHERE .= "AND DATE_FORMAT(added, '%Y-%m-%d')>=$attr->{ACTIVATE}";
     }
-    else{
+    else {
       $WHERE .= "AND DATE_FORMAT(added, '%Y-%m')>=DATE_FORMAT(CURDATE(), '%Y-%m')";
     }
 
-    $self->query("SELECT traffic_type,
-        sent  / $mb_size,
-        recv / $mb_size,
-        acct_session_id
-      FROM internet_log_intervals
-      WHERE
-        interval_id= ?
-        AND uid= ?
-        $WHERE
-      FOR UPDATE;",
-      undef,
-      { Bind => [ $attr->{INTERVAL_ID}, $uid  ] }
+    my $sql = <<"SQL";
+SELECT traffic_type,
+       sent  / $mb_size,
+       recv / $mb_size,
+       acct_session_id
+FROM internet_log_intervals
+WHERE
+  interval_id= ?
+  AND uid= ?
+  $WHERE
+      FOR UPDATE;
+SQL
+
+    $self->query($sql, undef,
+      { Bind => [ $attr->{INTERVAL_ID}, $uid ] }
     );
 
     my $store_record = 0;
-    foreach my $line (@{ $self->{list} }) {
+    foreach my $line (@{$self->{list}}) {
       #Traffic class
       $result{ $line->[0] }{TRAFFIC_IN} += $line->[2];
       $result{ $line->[0] }{TRAFFIC_OUT} += $line->[1];
-      if($attr->{TRAFFIC_ID} == $line->[0] && $line->[3] eq $attr->{ACCT_SESSION_ID}) {
+      if ($attr->{TRAFFIC_ID} == $line->[0] && $line->[3] eq $attr->{ACCT_SESSION_ID}) {
         $store_record = 1;
       }
     }
 
-    if (! $store_record) {
+    if (!$store_record) {
       my $added = ($attr->{START}) ? "'$attr->{START}'" : 'NOW()';
-      $self->query("INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
-        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, $added);", 'do',
+      $sql = <<"SQL";
+INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
+VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, $added);
+SQL
+
+      $self->query($sql, 'do',
         { Bind => [
           $attr->{INTERVAL_ID},
           $attr->{TRAFFIC_OUT},
@@ -785,15 +766,19 @@ sub traffic_user_get2{
         ] });
     }
     else {
-      $self->query("UPDATE internet_log_intervals SET
-             sent=sent+ ? ,
-             recv=recv+ ? ,
-             duration=duration + ?,
-             sum=sum + ?
-           WHERE interval_id= ?
-             AND acct_session_id= ?
-             AND traffic_type= ?
-             AND uid= ? ;", 'do',
+      $sql = <<'SQL';
+UPDATE internet_log_intervals SET
+                                sent=sent+ ? ,
+                                recv=recv+ ? ,
+                                duration=duration + ?,
+                                sum=sum + ?
+WHERE interval_id= ?
+  AND acct_session_id= ?
+  AND traffic_type= ?
+  AND uid= ? ;
+SQL
+
+      $self->query($sql, 'do',
         { Bind => [
           $attr->{TRAFFIC_OUT},
           $attr->{TRAFFIC_IN},
@@ -826,47 +811,53 @@ sub traffic_user_get2{
   #   $WHERE = "uid IN (" . join( ', ', @uids_arr ) . ") AND ";
   # }
   # else{
-    $WHERE = " uid='$uid' AND ";
-#  }
+  $WHERE = " uid='$uid' AND ";
+  #  }
 
-  if ( $attr->{DATE_TIME} ){
+  if ($attr->{DATE_TIME}) {
     $WHERE .= "start>='$attr->{DATE_TIME}'";
   }
-  elsif ( $attr->{INTERVAL} ){
-    my ($from, $to) = split( /\//, $attr->{INTERVAL} );
+  elsif ($attr->{INTERVAL}) {
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL});
     $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(started, \'%Y-%m\')>=DATE_FORMAT(CURDATE(), \'%Y-%m\')' : "DATE_FORMAT(started, '\%Y-\%m-\%d')>='$from'";
     $WHERE = "( $from AND started<'$to') ";
   }
-  elsif ( $attr->{ACTIVATE} ){
-    if ( $attr->{ACTIVATE} eq '0000-00-00' ){
+  elsif ($attr->{ACTIVATE}) {
+    if ($attr->{ACTIVATE} eq '0000-00-00') {
       $attr->{ACTIVATE} = "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
     }
-    else{
+    else {
       $attr->{ACTIVATE} = "'$attr->{ACTIVATE}'";
     }
     $WHERE .= "DATE_FORMAT(started, '%Y-%m-%d')>=$attr->{ACTIVATE}";
   }
-  else{
+  else {
     $WHERE .= "DATE_FORMAT(started, '%Y-%m')>=DATE_FORMAT(CURDATE(), '%Y-%m')";
   }
 
-  if ( defined( $attr->{TRAFFIC_ID} ) ){
+  if (defined($attr->{TRAFFIC_ID})) {
     $WHERE .= "AND traffic_class='$attr->{TRAFFIC_ID}'";
   }
 
-  $self->query( "SELECT started,
-   uid,
-   traffic_class,
-   traffic_in / $mb_size,
-   traffic_out / $mb_size
-    FROM traffic_prepaid_sum
-    WHERE $WHERE;"
-  );
+  my $sql = <<"SQL";
+SELECT started,
+       uid,
+       traffic_class,
+       traffic_in / $mb_size,
+       traffic_out / $mb_size
+FROM traffic_prepaid_sum
+WHERE $WHERE;
+SQL
 
-  if ( $self->{TOTAL} < 1 ){
-    $self->query( "INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
-        VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')", 'do'
-    );
+  $self->query($sql);
+
+  if ($self->{TOTAL} < 1) {
+    $sql = <<"SQL";
+INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
+VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')
+SQL
+
+    $self->query($sql, 'do');
 
     $result{ $attr->{TRAFFIC_ID} }{TRAFFIC_IN} = 0;
     $result{ $attr->{TRAFFIC_ID} }{TRAFFIC_OUT} = 0;
@@ -874,18 +865,21 @@ sub traffic_user_get2{
     return \%result;
   }
 
-  foreach my $line ( @{ $self->{list} } ){
+  foreach my $line (@{$self->{list}}) {
     #Traffic class
     $result{ $line->[2] }{TRAFFIC_IN} = $line->[3];
     $result{ $line->[2] }{TRAFFIC_OUT} = $line->[4];
   }
 
-  $self->query( "UPDATE traffic_prepaid_sum SET
-     traffic_in=traffic_in+$attr->{TRAFFIC_IN},
+  $sql = <<"SQL";
+UPDATE traffic_prepaid_sum SET
+  traffic_in=traffic_in+$attr->{TRAFFIC_IN},
      traffic_out=traffic_out+$attr->{TRAFFIC_OUT}
-    WHERE uid='$uid'
-        AND $WHERE;", 'do'
-  );
+WHERE uid='$uid'
+  AND $WHERE;
+SQL
+
+  $self->query($sql, 'do');
 
   return \%result;
 }
@@ -904,62 +898,40 @@ sub traffic_user_get2{
 
 =cut
 #**********************************************************
-sub traffic_user_get{
-  my $self = shift;
-  my ($attr) = @_;
+sub traffic_user_get {
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID};
-  #my $traffic_id = $attr->{TRAFFIC_ID} || 0;
-  #my $from       = $attr->{FROM} || '';
   my %result = ();
   my $WHERE = '';
   my $GROUP_BY = 'traffic_class';
 
-  # if ( $attr->{JOIN_SERVICE} ){
-  #   my @uids_arr = ();
-  #   if ( $attr->{JOIN_SERVICE} == 1 ){
-  #     push @uids_arr, $uid;
-  #     $attr->{JOIN_SERVICE} = $uid;
-  #   }
-  #
-  #   $self->query( "SELECT uid FROM internet_main WHERE join_service='$attr->{JOIN_SERVICE}'" );
-  #
-  #   foreach my $line ( @{ $self->{list} } ){
-  #     push @uids_arr, $line->[0];
-  #   }
-  #
-  #   $WHERE = " uid IN (" . join( ', ', @uids_arr ) . ") AND ";
-  #   $GROUP_BY = 'uid, traffic_class';
-  # }
-  # else{
-    $WHERE = " uid='$uid' AND ";
-  #}
+  $WHERE = " uid='$uid' AND ";
 
-  if ( $attr->{DATE_TIME} ){
+  if ($attr->{DATE_TIME}) {
     $WHERE .= "start>='$attr->{DATE_TIME}'";
   }
-  elsif ( $attr->{INTERVAL} ){
-    my ($from, $to) = split( /\//, $attr->{INTERVAL} );
+  elsif ($attr->{INTERVAL}) {
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL});
     $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(start, \'%Y-%m\')>=DATE_FORMAT(CURDATE(), \'%Y-%m\')' : "DATE_FORMAT(start, '\%Y-\%m-\%d')>='$from'";
     $WHERE .= "( $from AND start<'$to') ";
   }
-  elsif ( $attr->{ACTIVATE} && $attr->{ACTIVATE} ne '0000-00-00' ){
+  elsif ($attr->{ACTIVATE} && $attr->{ACTIVATE} ne '0000-00-00') {
     $WHERE .= "DATE_FORMAT(start, '%Y-%m-%d')>='$attr->{ACTIVATE}'";
   }
-  else{
+  else {
     $WHERE .= "DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m')";
   }
+  my $sql = <<"SQL";
+SELECT traffic_class, SUM(traffic_in) / $self->{conf}->{MB_SIZE}, sum(traffic_out) / $self->{conf}->{MB_SIZE}
+FROM ipn_log
+WHERE $WHERE
+GROUP BY $GROUP_BY
+SQL
 
-  $self->query( "SELECT traffic_class, SUM(traffic_in) / $self->{conf}->{MB_SIZE}, sum(traffic_out) / $self->{conf}->{MB_SIZE}
-    FROM ipn_log
-        WHERE $WHERE
-        GROUP BY $GROUP_BY",
-    undef,
-    $attr
-  );
+  $self->query($sql, undef, $attr);
 
-  foreach my $line ( @{ $self->{list} } ){
-    #Trffic class
+  foreach my $line (@{$self->{list}}) {
     $result{ $line->[0] }{TRAFFIC_IN} = $line->[1];
     $result{ $line->[0] }{TRAFFIC_OUT} = $line->[2];
   }
@@ -990,12 +962,11 @@ sub traffic_user_get{
 
 =cut
 #**********************************************************
-sub traffic_add_details{
-  my $self = shift;
-  my ($DATA, $attr) = @_;
+sub traffic_add_details {
+  my ($self, $DATA, $attr) = @_;
 
-  if(! $attr->{USERS_TRAFFIC}) {
-    push @{ $attr->{USERS_TRAFFIC} }, [
+  if (!$attr->{USERS_TRAFFIC}) {
+    push @{$attr->{USERS_TRAFFIC}}, [
       $DATA->{SRC_IP},
       $DATA->{DST_IP},
       $DATA->{SRC_PORT} || 0,
@@ -1007,25 +978,29 @@ sub traffic_add_details{
     ];
   }
 
-  $self->query( "INSERT INTO ipn_traf_detail (src_addr,
-       dst_addr,
-       src_port,
-       dst_port,
-       protocol,
-       size,
-       s_time,
-       f_time,
-       nas_id,
-       uid)
-     VALUES (
-        ?, ?, ?, ?, ?, ?,
-        IF('$DATA->{START}' = '', NOW(), '$DATA->{START}'),
-        IF('$DATA->{STOP}' = '', NOW(), '$DATA->{STOP}'),
-        ?,
-        ?);",
+  my $sql = <<"SQL";
+INSERT INTO ipn_traf_detail (src_addr,
+                             dst_addr,
+                             src_port,
+                             dst_port,
+                             protocol,
+                             size,
+                             s_time,
+                             f_time,
+                             nas_id,
+                             uid)
+VALUES (
+         ?, ?, ?, ?, ?, ?,
+         IF('$DATA->{START}' = '', NOW(), '$DATA->{START}'),
+         IF('$DATA->{STOP}' = '', NOW(), '$DATA->{STOP}'),
+         ?,
+         ?);
+SQL
+
+  $self->query($sql,
     undef,
     { MULTI_QUERY => $attr->{USERS_TRAFFIC},
-      DB_REF => $self->{db2}
+      DB_REF      => $self->{db2}
     }
   );
 
@@ -1036,56 +1011,63 @@ sub traffic_add_details{
 
 #**********************************************************
 =head2 acct_update($DATA) Acct_update
-
+  ARguments:
+    $DATA
+  Results:
+    $self
 =cut
 #**********************************************************
-sub acct_update{
-  my $self = shift;
-  my ($DATA) = @_;
+sub acct_update {
+  my ($self, $DATA) = @_;
 
-  $self->query( "UPDATE internet_online SET
-      sum=sum + ?,
-      acct_input_octets=acct_input_octets + ?,
-      acct_output_octets=acct_output_octets+ ?,
-      ex_input_octets=ex_input_octets + ?,
-      ex_output_octets=ex_output_octets + ?,
-      acct_input_gigawords=  ? ,
-      acct_output_gigawords= ? ,
-      status='3',
-      acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
-      framed_ip_address=INET_ATON( ? ),
-      lupdated=UNIX_TIMESTAMP()
-    WHERE
-      acct_session_id= ?
-      AND uid= ?
-      AND nas_id= ? ;",
+  my $sql = <<'SQL';
+UPDATE internet_online SET
+                         sum=sum + ?,
+                         acct_input_octets=acct_input_octets + ?,
+                         acct_output_octets=acct_output_octets+ ?,
+                         ex_input_octets=ex_input_octets + ?,
+                         ex_output_octets=ex_output_octets + ?,
+                         acct_input_gigawords=  ? ,
+                         acct_output_gigawords= ? ,
+                         status='3',
+                         acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+                         framed_ip_address=INET_ATON( ? ),
+                         lupdated=UNIX_TIMESTAMP()
+WHERE
+  acct_session_id= ?
+  AND uid= ?
+  AND nas_id= ? ;
+SQL
+
+
+  $self->query($sql,
     'do',
     { Bind => [
-        $DATA->{SUM},
-        $DATA->{INTERIUM_INBYTE},
-        $DATA->{INTERIUM_OUTBYTE},
-        $DATA->{INBYTE2} || 0,
-        $DATA->{OUTBYTE2} || 0,
-        $DATA->{ACCT_INPUT_GIGAWORDS},
-        $DATA->{ACCT_OUTPUT_GIGAWORDS},
-        $DATA->{FRAMED_IP_ADDRESS},
-        $DATA->{ACCT_SESSION_ID},
-        $DATA->{UID},
-        $DATA->{NAS_ID}
-      ] }
+      $DATA->{SUM},
+      $DATA->{INTERIUM_INBYTE},
+      $DATA->{INTERIUM_OUTBYTE},
+      $DATA->{INBYTE2} || 0,
+      $DATA->{OUTBYTE2} || 0,
+      $DATA->{ACCT_INPUT_GIGAWORDS},
+      $DATA->{ACCT_OUTPUT_GIGAWORDS},
+      $DATA->{FRAMED_IP_ADDRESS},
+      $DATA->{ACCT_SESSION_ID},
+      $DATA->{UID},
+      $DATA->{NAS_ID}
+    ] }
   );
 
-  if ( $self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} } ){
+  if ($self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} }) {
     #Take money from bill
-    if ( $DATA->{SUM} > 0 ){
-      $self->query( "UPDATE bills SET deposit=deposit- ? WHERE id= ? ;", 'do', { Bind => [
-            $DATA->{SUM},
-            $self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}
-          ] } );
+    if ($DATA->{SUM} > 0) {
+      $self->query("UPDATE bills SET deposit=deposit- ? WHERE id= ? ;", 'do', { Bind => [
+        $DATA->{SUM},
+        $self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}
+      ] });
     }
 
     #If negative deposit hangup
-    if ( $self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} } - $DATA->{SUM} < 0 ){
+    if ($self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} } - $DATA->{SUM} < 0) {
       $self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} } = $self->{USERS_INFO}->{DEPOSIT}->{ $DATA->{UID} } - $DATA->{SUM};
     }
   }
@@ -1103,70 +1085,72 @@ sub acct_update{
 
 =cut
 #**********************************************************
-sub acct_stop{
-  my $self = shift;
-  my ($attr) = @_;
+sub acct_stop {
+  my ($self, $attr) = @_;
 
   my $acct_session_id = $attr->{ACCT_SESSION_ID} || $attr->{SESSION_ID} || q{};
 
-  if ( !defined( $acct_session_id ) ){
+  if (!defined($acct_session_id)) {
     return $self;
   }
 
   my $WHERE = '';
-  if(defined($attr->{GUEST})) {
+  if (defined($attr->{GUEST})) {
     $WHERE = " AND guest = '$attr->{GUEST}' "
   }
 
-  $self->query( "SELECT u.uid, online.framed_ip_address,
-      online.user_name,
-      online.acct_input_octets AS input_octets,
-      online.acct_output_octets AS output_octets,
-      acct_input_gigawords,
-      acct_output_gigawords,
-      online.tp_id,
-      IF(u.company_id > 0, cb.id, b.id) AS bill_id,
-      IF(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
-      online.started AS start,
-      UNIX_TIMESTAMP()-UNIX_TIMESTAMP(online.started) AS acct_session_time,
-      online.nas_id,
-      nas_port_id AS nas_port,
-      online.guest,
-      online.service_id
-    FROM internet_online online
-      LEFT JOIN users u ON (u.uid=online.uid)
-      LEFT JOIN companies c ON (u.company_id=c.id)
-      LEFT JOIN bills b ON (u.bill_id=b.id)
-      LEFT JOIN bills cb ON (c.bill_id=cb.id)
-      LEFT JOIN internet_main internet ON (u.uid=internet.uid)
-    WHERE acct_session_id= ? $WHERE;",
-    undef, { INFO => 1, Bind => [ $acct_session_id ] } );
+  my $sql = <<"SQL";
+SELECT u.uid, online.framed_ip_address,
+       online.user_name,
+       online.acct_input_octets AS input_octets,
+       online.acct_output_octets AS output_octets,
+       acct_input_gigawords,
+       acct_output_gigawords,
+       online.tp_id,
+       IF(u.company_id > 0, cb.id, b.id) AS bill_id,
+       IF(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
+       online.started AS start,
+       UNIX_TIMESTAMP()-UNIX_TIMESTAMP(online.started) AS acct_session_time,
+       online.nas_id,
+       nas_port_id AS nas_port,
+       online.guest,
+       online.service_id
+FROM internet_online online
+       LEFT JOIN users u ON (u.uid=online.uid)
+       LEFT JOIN companies c ON (u.company_id=c.id)
+       LEFT JOIN bills b ON (u.bill_id=b.id)
+       LEFT JOIN bills cb ON (c.bill_id=cb.id)
+       LEFT JOIN internet_main internet ON (u.uid=internet.uid)
+WHERE acct_session_id= ? $WHERE;
+SQL
 
-  my $guest //= $self->{GUEST} || 0;
+  $self->query($sql, undef, { INFO => 1, Bind => [ $acct_session_id ] });
 
-  if ( $self->{TOTAL} < 1 ){
-    $self->query( "DELETE FROM internet_online WHERE acct_session_id= ? AND guest = ?;", 'do',
+  my $guest = $self->{GUEST} || 0;
+
+  if ($self->{TOTAL} < 1) {
+    $self->query("DELETE FROM internet_online WHERE acct_session_id= ? AND guest = ?;", 'do',
       { Bind => [
-          $acct_session_id,
-          $guest
-        ] } );
+        $acct_session_id,
+        $guest
+      ] });
     return $self;
   }
 
-  if($self->{UID}) {
-    if ( $self->{OUTPUT_OCTETS} && $self->{OUTPUT_OCTETS} > 4294967296 ){
-      $self->{ACCT_OUTPUT_GIGAWORDS} = int( $self->{OUTPUT_OCTETS} / 4294967296 );
+  if ($self->{UID}) {
+    if ($self->{OUTPUT_OCTETS} && $self->{OUTPUT_OCTETS} > 4294967296) {
+      $self->{ACCT_OUTPUT_GIGAWORDS} = int($self->{OUTPUT_OCTETS} / 4294967296);
       $self->{OUTPUT_OCTETS} = $self->{OUTPUT_OCTETS} - ($self->{ACCT_OUTPUT_GIGAWORDS} * 4294967296);
     }
-    elsif ( !$self->{OUTPUT_OCTETS} ){
+    elsif (!$self->{OUTPUT_OCTETS}) {
       $self->{OUTPUT_OCTETS} = 0;
     }
 
-    if ( $self->{INPUT_OCTETS} && $self->{INPUT_OCTETS} > 4294967296 ){
-      $self->{ACCT_INPUT_GIGAWORDS} = int( $self->{INPUT_OCTETS} / 4294967296 );
+    if ($self->{INPUT_OCTETS} && $self->{INPUT_OCTETS} > 4294967296) {
+      $self->{ACCT_INPUT_GIGAWORDS} = int($self->{INPUT_OCTETS} / 4294967296);
       $self->{INPUT_OCTETS} = $self->{INPUT_OCTETS} - ($self->{ACCT_INPUT_GIGAWORDS} * 4294967296);
     }
-    elsif ( !$self->{INPUT_OCTETS} ){
+    elsif (!$self->{INPUT_OCTETS}) {
       $self->{INPUT_OCTETS} = 0;
     }
 
@@ -1179,37 +1163,40 @@ sub acct_stop{
       $self->{INPUT_OCTETS} || 0,
       $self->{ACCT_OUTPUT_GIGAWORDS} || 0,
       $self->{ACCT_INPUT_GIGAWORDS} || 0,
-        ($self->{SUM}) ? $self->{SUM} : 0,
+      ($self->{SUM}) ? $self->{SUM} : 0,
       $self->{NAS_ID} || 0,
       $self->{NAS_PORT} || 0,
       $self->{FRAMED_IP_ADDRESS} || '0.0.0.0',
       $acct_session_id,
       $self->{BILL_ID} || 0,
-        (defined($attr->{ACCT_TERMINATE_CAUSE})) ? $attr->{ACCT_TERMINATE_CAUSE} : 17,
+      (defined($attr->{ACCT_TERMINATE_CAUSE})) ? $attr->{ACCT_TERMINATE_CAUSE} : 17,
       $attr->{CID} || $attr->{CALLING_STATION_ID} || '-'
     );
 
-    $self->query("INSERT INTO internet_log (uid, start, tp_id, duration,
-    sent, recv, acct_output_gigawords, acct_input_gigawords,
-    sum, nas_id, port_id,
-    ip,
-    acct_session_id,
-    bill_id,
-    terminate_cause,
-    cid)
-        VALUES (?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-      'do',
+    $sql = <<'SQL';
+INSERT INTO internet_log (uid, start, tp_id, duration,
+                          sent, recv, acct_output_gigawords, acct_input_gigawords,
+                          sum, nas_id, port_id,
+                          ip,
+                          acct_session_id,
+                          bill_id,
+                          terminate_cause,
+                          cid)
+VALUES (?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+SQL
+
+    $self->query($sql, 'do',
       { Bind => \@insert_params }
     );
   }
 
-  if ( !$self->{errno} ){
-    $self->query( "DELETE FROM internet_online WHERE acct_session_id= ? AND guest = ?;", 'do',
+  if (!$self->{errno}) {
+    $self->query("DELETE FROM internet_online WHERE acct_session_id= ? AND guest = ?;", 'do',
       { Bind => [
-          $acct_session_id,
-          $guest
-        ] } );
+        $acct_session_id,
+        $guest
+      ] });
   }
 
   return $self;
@@ -1220,21 +1207,23 @@ sub acct_stop{
 
 =cut
 #**********************************************************
-sub unknown_add{
-  my $self = shift;
-  my ($attr) = @_;
+sub unknown_add {
+  my ($self, $attr) = @_;
 
   my @MULTI_QUERY = ();
 
-  foreach my $line ( @{ $attr->{UNKNOWN_IPS} } ){
-    my ($from, $to, $size) = split( /\//, $line, 3 );
+  foreach my $line (@{$attr->{UNKNOWN_IPS}}) {
+    my ($from, $to, $size) = split(/\//x, $line, 3);
     push @MULTI_QUERY, [ $from, $to, $size, $attr->{NAS_ID} || 0 ];
   }
 
-  $self->query( "INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
-        VALUES (?, ?, ?, ?, NOW());",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY } );
+  my $sql = <<'SQL';
+INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
+VALUES (?, ?, ?, ?, NOW());
+SQL
+
+  $self->query($sql, undef,
+    { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -1251,45 +1240,39 @@ sub unknown_add{
 =cut
 #**********************************************************
 sub traffic_user_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100000;
+  my $table = 'ipn_traf_detail';
+  $table = 'ipn_traf_detail'.$attr->{TABLE_DATE} if ($attr->{TABLE_DATE});
 
-  my $WHERE =  $self->search_former($attr, [
-    ['FROM_DATE_START|TO_DATE_START',   'DATE',      'DATE_FORMAT(s_time, \'%Y-%m-%d\')' ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'FROM_DATE_START|TO_DATE_START', 'DATE', 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' ],
+    [ 'FROM_DATE_TIME|TO_DATE_TIME',   'DATE', 's_time'                            ],
   ],
-    { WHERE  => 1 }
+    { WHERE => 1 }
   );
 
-  $self->query("
-    SELECT
-    s_time,
-    src_addr,
-    src_port,
-    dst_addr,
-    dst_port
-    FROM ipn_traf_detail
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  s_time,
+  src_addr,
+  src_port,
+  dst_addr,
+  dst_port
+FROM $table
+$WHERE
+SQL
+
+  $self->query_list($sql,$attr);
 
   my $list = $self->{list};
 
-  $self->query("
-    SELECT COUNT(*) AS total
-    FROM ipn_traf_detail
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM ipn_traf_detail $WHERE;",
     undef,
     { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
-1
+1;

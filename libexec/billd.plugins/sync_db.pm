@@ -76,7 +76,7 @@ sub download_ssh {
     print "Download SSH DB\n";
   }
 
-  my ($synsc_db_hosts, $sync_db_port, $path) = split(/:/, $conf{SYNC_DB_HOST} || q{});
+  my ($synsc_db_hosts, $sync_db_port, $path) = split(/:/x, $conf{SYNC_DB_HOST} || q{});
 
   if(! $sync_db_port) {
     $sync_db_port = 22;
@@ -169,6 +169,8 @@ Download dumps and add it to db
 
 
 [END]
+
+return 1;
 }
 
 1;

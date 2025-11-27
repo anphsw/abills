@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "number"
+      },
+      "streetId": {
+        "type": "number"
+      },
+      "streetName": {
+        "type": "string"
+      },
+      "districtId": {
+        "type": "number"
+      },
+      "type": {
+        "type": "number"
+      }
+    },
+    "required": ["id", "streetId", "streetName", "districtId", "type"]
+  }
+}

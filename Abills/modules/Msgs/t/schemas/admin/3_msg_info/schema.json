@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "chapterName": {
+      "type": "string"
+    },
+    "chapterColor": {
+      "type": "string"
+    },
+    "chapter": {
+      "type": "integer"
+    },
+    "datetime": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "state": {
+      "type": "integer"
+    },
+    "replyStatus": {
+      "type": "integer"
+    },
+    "responsibleAdminLogin": {
+      "type": "string"
+    },
+    "lastReplyDate": {
+      "type": "string"
+    },
+    "planDateTime": {
+      "type": "string"
+    },
+    "disable": {
+      "type": "integer"
+    },
+    "innerMsg": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "reply": {
+      "type": "string"
+    },
+    "msgPhone": {
+      "type": "string"
+    },
+    "userRead": {
+      "type": "string"
+    },
+    "closedDate": {
+      "type": "string"
+    },
+    "monthClosed": {
+      "type": "string"
+    },
+    "runTime": {
+      "type": "string"
+    },
+    "doneDate": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "integer"
+    },
+    "delegation": {
+      "type": "integer"
+    },
+    "responsible": {
+      "type": "integer"
+    },
+    "planDate": {
+      "type": "string"
+    },
+    "softDeadline": {
+      "type": "integer"
+    },
+    "hardDeadline": {
+      "type": "integer"
+    },
+    "adminRead": {
+      "type": "string"
+    },
+    "planTime": {
+      "type": "string"
+    },
+    "dispatchId": {
+      "type": "integer"
+    },
+    "ip": {
+      "type": "string",
+      "format": "ipv4"
+    },
+    "fromDate": {
+      "type": "string"
+    },
+    "toDate": {
+      "type": "string"
+    },
+    "closedFromDate": {
+      "type": "string"
+    },
+    "closedToDate": {
+      "type": "string"
+    },
+    "adminLogin": {
+      "type": "integer"
+    },
+    "msgsAid": {
+      "type": "integer"
+    },
+    "adminName": {
+      "type": "string"
+    },
+    "repliesCounts": {
+      "type": "integer"
+    },
+    "rating": {
+      "type": "integer"
+    },
+    "locationId": {
+      "type": "integer"
+    },
+    "locationIdMsg": {
+      "type": "integer"
+    },
+    "ratingComment": {
+      "type": "string"
+    },
+    "stateId": {
+      "type": "integer"
+    },
+    "priorityId": {
+      "type": "integer"
+    },
+    "chgMsgs": {
+      "type": "integer"
+    },
+    "delMsgs": {
+      "type": "integer"
+    },
+    "par": {
+      "type": "integer"
+    },
+    "msgsTags": {
+      "type": "integer"
+    },
+    "downtime": {
+      "type": "string"
+    },
+    "replyText": {
+      "type": "string"
+    },
+    "month": {
+      "type": "string"
+    },
+    "userName": {
+      "type": "string"
+    },
+    "adminDisable": {
+      "type": "integer"
+    },
+    "doneSum": {
+      "type": "number"
+    },
+    "planInterval": {
+      "type": "integer"
+    },
+    "planPosition": {
+      "type": "integer"
+    },
+    "addressFull": {
+      "type": "string"
+    },
+    "sendType": {
+      "type": "integer"
+    },
+    "msgsTagsIds": {
+      "type": "string"
+    },
+    "closedAdmin": {
+      "type": "string"
+    },
+    "watchers": {
+      "type": "string"
+    },
+    "performers": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "subject",
+    "chapterName",
+    "state"
+  ]
+}

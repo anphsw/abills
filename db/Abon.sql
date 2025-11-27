@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS `abon_tariffs`
     DEFAULT CHARSET = utf8
     COMMENT = 'Abon tariffs';
 
+CREATE TABLE `abon_tariffs_subtariffs` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tp_id`     SMALLINT(6) UNSIGNED NOT NULL,
+  `sub_tp_id`  SMALLINT(6) UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `tariff_subtariff` (`tp_id`, `sub_tp_id`),
+  KEY `sub_tp_id` (`sub_tp_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Abon Subtariffs';
+
 CREATE TABLE IF NOT EXISTS `abon_user_list`
 (
     `uid`                      INT(11) UNSIGNED     NOT NULL DEFAULT '0',
@@ -68,7 +79,7 @@ CREATE TABLE IF NOT EXISTS `abon_user_list`
     `personal_description`     VARCHAR(240)         NOT NULL DEFAULT '',
     `discount_expire`          DATE                 NOT NULL DEFAULT '0000-00-00',
     `discount_activate`        DATE                 NOT NULL DEFAULT '0000-00-00',
-    KEY `uid` (`uid`, `tp_id`),
+    KEY `uid_tp` (`uid`, `tp_id`),
     KEY `uid` (`uid`),
     KEY `tp_id` (`tp_id`),
     KEY `date` (`date`)

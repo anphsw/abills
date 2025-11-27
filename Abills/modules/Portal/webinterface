@@ -291,7 +291,7 @@ sub portal_articles {
     if (!$res->{errno}) {
       my @add_letters = ();
       for my $key (keys %FORM) {
-        if ($key =~ /^NEWSLETTER_(.+)/g) {
+        if ($key =~ /^NEWSLETTER_(.+)/xmg) {
           my $type = $1;
           push @add_letters, $type;
         }
@@ -571,7 +571,7 @@ sub portal_articles {
     if ($line->{gid} eq '0' || $line->{gid} eq '*' || $line->{gid} eq '') {
       $group_name = $lang{ALL};
     } else {
-      my @ids = split(/,\s+/, $line->{gid});
+      my @ids = split(/,\s+/x, $line->{gid});
       for my $id (@ids) {
         my ($matched_group) = grep { "$_->{gid}" eq $id } @$groups_info;
         if ($matched_group) {
@@ -695,15 +695,15 @@ sub portal_s_page {
   my %LANG;
 
   if ($conf{LANGS}) {
-    $conf{LANGS} =~ s/\n//g;
+    $conf{LANGS} =~ s/\n//xg;
 
-    my (@lang_arr) = split(/;/, $conf{LANGS});
+    my (@lang_arr) = split(/;/x, $conf{LANGS});
     %LANG = ();
 
     foreach my $l (@lang_arr) {
       my $lang_name = q{};
-      ($lang, $lang_name) = split(/:/, $l);
-      $lang =~ s/^\s+//;
+      ($lang, $lang_name) = split(/:/x, $l);
+      $lang =~ s/^\s+//x;
       $LANG{$lang} = $lang_name;
     }
   }
@@ -963,6 +963,8 @@ sub portal_attachments {
     MAKE_ROWS       => 1,
     TOTAL           => 1,
   });
+
+  return 1;
 }
 
 #***********************************************************
@@ -994,7 +996,7 @@ sub portal_attachments_ajax_modal {
   }
 
   $table_list = $html->element('div', $table_list, { class => 'row' }, { OUTPUT2RETURN => 1 });
-  $html->tpl_show(_include('portal_attachments_list_add', 'Portal'), { ATTACHMENT_LIST => $table_list });
+  return $html->tpl_show(_include('portal_attachments_list_add', 'Portal'), { ATTACHMENT_LIST => $table_list });
 }
 
 #**********************************************************
@@ -1090,11 +1092,11 @@ sub _portal_upload_button {
   my ($attr) = @_;
   my $add_icon = $html->element('i', '', { class => 'fas fa-paperclip mr-1' });
 
-  $html->button($add_icon . $lang{PORTAL_ATTACHMENTS}, '', {
+  return $html->button($add_icon . $lang{PORTAL_ATTACHMENTS}, '', {
     class     => 'btn btn-xs btn-primary',
     SKIP_HREF => 1,
     ex_params => qq{onClick='loadToModal("?get_index=portal_attachments_ajax_modal&header=2&AJAX=1&SHOW_LIST=$attr->{LIST}", "", "xl")' style='min-width: max-content'}
-  })
+  });
 }
 
 #**********************************************************

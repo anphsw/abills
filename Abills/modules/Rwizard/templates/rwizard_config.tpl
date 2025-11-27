@@ -7,8 +7,8 @@
 <script src='/styles/codemirror/addon/hint/show-hint.js'></script>
 <script src='/styles/codemirror/addon/hint/sql-hint.js'></script>
 
-<form action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
-  <input type='hidden' name='index' value=$index>
+<form action='%SELF_URL%' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
+  <input type='hidden' name='index' value=%index%>
   <input type='hidden' name='ID' value=$FORM{chg}>
 
   <div class='card card-outline card-primary form-horizontal'>

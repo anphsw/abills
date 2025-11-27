@@ -1,12 +1,12 @@
-<div class='card card-primary card-outline box-form'>
+<div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4 class='card-title'>IP _{SCAN}_</h4></div>
     <div class='card-body'>
 
         <form name='ip_scan' id='form_ip_scan' method='post' class='form form-horizontal'>
-            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='index' value='%index%'/>
             <input type='hidden' name='DO_SCAN' value='1'/>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-3 ip-input required' for='IP_id'>IP</label>
 
                 <div class='col-md-9'>
@@ -14,7 +14,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-3 required' for='MASK_BITS_id'>_{PREFIX}_</label>
 
                 <div class='col-md-9'>

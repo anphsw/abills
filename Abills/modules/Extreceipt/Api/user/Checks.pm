@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_user_extreceipt_checks {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my (undef, $path_params) = @_;
 
   my $list = $Receipt->list({
     UID => $path_params->{uid},

@@ -360,6 +360,22 @@ sub crm_actions {
       ]
     },
     {
+      type   => 'sendMessageToResponsible',
+      lang   => $lang{CRM_SEND_MESSAGE_TO_RESPONSIBLE},
+      fields => [
+        {
+          type        => 'input',
+          placeholder => $lang{SUBJECT},
+          name        => 'value'
+        },
+        {
+          type        => 'textarea',
+          placeholder => $lang{CRM_ENTER_MESSAGE},
+          name        => 'value'
+        }
+      ]
+    },
+    {
       type   => 'setPriority',
       lang   => $lang{SET_PRIORITY},
       fields => [
@@ -434,8 +450,8 @@ sub crm_actions {
           empty       => 1
         },
         {
-          type        => 'datepicker',
-          placeholder => $lang{CRM_DUE_DATE},
+          type        => 'input',
+          placeholder => $lang{CRM_DAYS_TO_COMPLETE_TASK},
           name        => 'value',
           empty       => 1
         }

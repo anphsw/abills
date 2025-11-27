@@ -31,7 +31,7 @@
     console.log('Somebody pasted wrong parameters for \$conf{user_background} or \$conf{user_background_url}');
   }
 
-  document['SELF_URL'] = '$SELF_URL';
+  document['SELF_URL'] = '%SELF_URL%';
   document['DOMAIN_ID'] = '%DOMAIN_ID%';
 
   jQuery(function () {

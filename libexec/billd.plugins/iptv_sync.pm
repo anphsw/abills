@@ -21,7 +21,7 @@ our (
 my %Tv_services = ();
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 screen_sync();
 

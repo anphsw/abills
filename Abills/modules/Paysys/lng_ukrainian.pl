@@ -106,7 +106,8 @@ $lang{COMMISSION_LIQPAY}='Комісія за покращений сервіс'
 $lang{BALANCE_RECHARCHE}='Поповнення рахунку';
 $lang{ENTER}='Введіть свій';
 $lang{SUBSCRIBES}='Підписки';
-$lang{ERR_TRANSACTION_ERROR}='Помилка обробки результатів. Зверніться в тех підтримку!';
+$lang{VALIDATION_ERROR}='Помилка обробки результатів. Зверніться в тех підтримку!';
+$lang{VALIDATION_SUCCESSFUL}='Успішно! Результат правильний';
 $lang{STANDART_PAYMENTS} = 'Стандартні платежі';
 $lang{NSTANDART_PAYMENTS} = 'Нестандартні платежі';
 $lang{STANDART_COUNT} = 'Кількість стандартних';
@@ -169,6 +170,9 @@ $lang{EVENT_PAYSYS_GROUP_CHANGED_TITLE}   = 'Paysys налаштування г�
 $lang{EVENT_PAYSYS_GROUP_CHANGED_MESSAGE} = 'Змінені налаштування для групи з id %GID%';
 $lang{EVENT_PAYSYS_GROUP_DELETED_TITLE}   = 'Paysys налаштування групи змінено';
 $lang{EVENT_PAYSYS_GROUP_DELETED_MESSAGE} = 'Видалені всі налаштування для групи з id %GID%';
+
+$lang{RECOGNIZED_NOT_ENTERED} = 'Розпізнаний не внесений';
+$lang{NOT_RECOGNIZED} = 'Не розпізнаний';
 
 $lang{STATUS_0}   = 'Операція була успішно завершена';
 $lang{STATUS_1}   = 'Користувача немає в системі';

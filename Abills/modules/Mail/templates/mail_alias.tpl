@@ -1,6 +1,6 @@
 
-<form action='$SELF_URL' METHOD='POST'>
-<input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='MAIL_ALIAS_ID' value='%MAIL_ALIAS_ID%'>
 
 <div class='card card-primary card-outline card-form form-horizontal'>

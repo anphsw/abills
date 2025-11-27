@@ -1,5 +1,5 @@
-<form action="$SELF_URL">
-  <!-- <input type=hidden name=index value=$index> -->
+<form action="%SELF_URL%">
+  <!-- <input type=hidden name=index value=%index%> -->
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{STREETS}_ _{SEARCH}_</h4>
@@ -17,8 +17,8 @@
 
 
 
-<!--<form action=$SELF_URL>-->
-<!--<input type=hidden name=index value=$index>-->
+<!--<form action=%SELF_URL%>-->
+<!--<input type=hidden name=index value=%index%>-->
 <!--<table border=1 width=300>-->
 <!--<TR><TH class='form_title' colspan='2'>_{STREETS}_ _{SEARCH}_</TH></TR>-->
 <!--<tr><td>_{ADDRESS_STREET}_:</td><td>%STREET_SEL%</td></tr>-->

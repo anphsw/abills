@@ -3,7 +3,7 @@
   <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_MODAL' id='form_CABLECAT_COMMUTATION_ADD_MODAL' method='post'
           class='form form-horizontal ajax-submit-form'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='operation' value='ADD'/>
       <input type='hidden' name='entity' value='SPLITTER'/>
       <input type='hidden' name='ID' value='%COMMUTATION_ID%'/>

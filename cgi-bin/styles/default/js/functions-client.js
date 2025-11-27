@@ -17,7 +17,6 @@ function setIcons() {
     form_info                    : 'fas fa-user',
     form_payments                :  CURRENCY_ICON,
     form_finance                 :  CURRENCY_ICON,
-    dv_user_info                 : 'fas fa-globe',
     docs_invoices_list           : 'fas fa-briefcase',
     msgs_user                    : 'fas fa-comment',
     cards_user_payment           : 'fas fa-credit-card',
@@ -27,15 +26,15 @@ function setIcons() {
     iptv_user_info               : 'fas fa-tv',
     abon_client                  : 'fas fa-list',
     form_passwd                  : 'fas fa-lock',
-    ipn_user_activate            : 'fas fa-road',
     bonus_service_discount_client: 'fas fa-gift',
     bonus_user                   : 'fas fa-gift',
     mail_users_list              : 'fas fa-envelope',
     poll_user                    : 'fas fa-chart-bar',
-    megogo_user_interface        : 'fas fa-maxcdn',
-    o_user                       : 'fas fa-book',
     sharing_user_main            : 'fas fa-share',
-    cams_clients_streams         : 'fas fa-video'
+    cams_clients_streams         : 'fas fa-video',
+    expert_user_faq              : 'fas fa-question',
+    extreceipts_list             : 'fas fa-receipt',
+    add_friend                   : 'fas fa-user-plus',
   };
 
   var $sidebar = $('ul.nav-sidebar').children('li');

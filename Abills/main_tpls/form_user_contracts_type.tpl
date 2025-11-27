@@ -1,5 +1,5 @@
 <form id='form_contract_type' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index' />
+  <input type='hidden' name='index' value='%index%' />
   <input type='hidden' name='chg' value='$FORM{chg}' />
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>

@@ -1,5 +1,5 @@
 <form name='CAMS_STREAM_ADD' id='form_CAMS_STREAM_ADD' method='post' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='SERVICE_ID' value='%SERVICE_ID%'/>
   <input type='hidden' name='TP_ID' value='%TP_ID%'/>
@@ -263,7 +263,7 @@
 
     var groups = document.getElementById('GROUP_ID');
     var result = groups.value;
-    jQuery.post('$SELF_URL', 'header=2&get_index=cams_get_group_folders&GROUP_ID=' + result + '&FOLDER_ID=' + folder, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=cams_get_group_folders&GROUP_ID=' + result + '&FOLDER_ID=' + folder, function (data) {
       folder_select.textContent = '';
       folder_select.value = '';
       folder_select.innerHTML = data;

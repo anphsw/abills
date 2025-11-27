@@ -67,8 +67,7 @@ sub new {
 =cut
 #**********************************************************
 sub save_picture {
-  my ($self) = shift;
-  my ($data, $id) = @_;
+  my ($self, $data, $id) = @_;
 
   my $file_name = $data->{filename};
   if (!$file_name) {
@@ -76,8 +75,8 @@ sub save_picture {
   }
 
   my $file_extension;
-  my @ext_arr = split(/,\s?/, $allowed_extensions);
-  if ($file_name =~ /\.([a-z0-9\_]+)$/i) {
+  my @ext_arr = split(/,\s?/x, $allowed_extensions);
+  if ($file_name =~ /\.([a-z0-9\_]+)$/xmi) {
     $file_extension = $1;
     if (! in_array($file_extension, \@ext_arr)) {
       return '';
@@ -107,8 +106,7 @@ sub save_picture {
 =cut
 #**********************************************************
 sub delete_picture {
-  my $self = shift;
-  my ($filename) = @_;
+  my ($self, $filename) = @_;
 
   $Attach->attachment_file_del({ FILENAME => $filename });
 
@@ -127,8 +125,7 @@ sub delete_picture {
 =cut
 #**********************************************************
 sub delete_attachment {
-  shift;
-  my ($id) = @_;
+  my (undef, $id) = @_;
 
   my $result = $Portal->portal_article_info({ ID => $id });
 
@@ -159,7 +156,7 @@ sub _save_to_disk {
 
   # filename should contain only alphanumeric_symbols
   $filename //= '';
-  $filename =~ s/[^a-zA-Z0-9._-]/_/g;
+  $filename =~ s/[^a-zA-Z0-9._-]/_/xg;
 
   # Should change filename. map will replace undefined values with 0
   my $disk_filename = join('_', map {$_ // '0'} ($filename));

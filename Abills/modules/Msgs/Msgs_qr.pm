@@ -15,11 +15,11 @@ use Abills::Defs;
 our ($db,
   %lang,
   $html,
-  @bool_vals,
-  @MONTHES,
-  @WEEKDAYS,
-  @_COLORS,
-  %permissions,
+  # @bool_vals,
+  # @MONTHES,
+  # @WEEKDAYS,
+  # @_COLORS,
+  # %permissions,
   $admin,
   $ui,
   %conf,
@@ -52,21 +52,22 @@ sub msgs_sp_show_new {
 
   $attr ||= {};
   my $messages_list = $Msgs->messages_list({
-    LOGIN          => '_SHOW',
-    CLIENT_ID      => '_SHOW',
-    DATETIME       => '_SHOW',
-    SUBJECT        => '_SHOW',
-    CHAPTER        => '_SHOW',
-    CHAPTER_NAME   => '_SHOW',
-    PRIORITY       => '_SHOW',
-    PRIORITY_ID    => '_SHOW',
-    PLAN_DATE_TIME => '_SHOW',
-    CHAPTER        => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
-    STATE          => ($attr && $attr->{STATE}) ? $attr->{STATE} : 0,
-    SORT           => 'id',
-    DESC           => 'desc',
-    PAGE_ROWS      => 5,
-    COLS_NAME      => 1
+    LOGIN            => '_SHOW',
+    CLIENT_ID        => '_SHOW',
+    DATETIME         => '_SHOW',
+    SUBJECT          => '_SHOW',
+    CHAPTER          => '_SHOW',
+    CHAPTER_NAME     => '_SHOW',
+    PRIORITY         => '_SHOW',
+    PRIORITY_ID      => '_SHOW',
+    PLAN_DATE_TIME   => '_SHOW',
+    EXTERNAL_CHAT_ID => '0',
+    CHAPTER          => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
+    STATE            => ($attr && $attr->{STATE}) ? $attr->{STATE} : 0,
+    SORT             => 'id',
+    DESC             => 'desc',
+    PAGE_ROWS        => 5,
+    COLS_NAME        => 1
   });
 
   my $badge = '';
@@ -88,7 +89,9 @@ sub msgs_sp_show_new {
     });
 
     my $opened_in_month = $Msgs->messages_list({
-      DATE      => ">=$start_date;<=$end_date",
+      FROM_DATE => $start_date,
+      TO_DATE   => $end_date,
+      #DATE      => ">=$start_date;<=$end_date",
       SORT      => 'id',
       DESC      => 'desc',
       PAGE_ROWS => 9999999,
@@ -114,6 +117,23 @@ sub msgs_sp_show_new {
     });
 
     $badge = $all_opend_messages . $opened_per_month_badge . $closed_per_month_badge;
+  }
+
+  $Msgs->messages_list({
+    EXTERNAL_CHAT_ID => '!',
+    PAGE_ROWS        => 5,
+    COLS_NAME        => 1
+  });
+
+  if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
+    $badge .= $html->button(
+      $html->element('small', $Msgs->{TOTAL}, {
+        class                   => 'label badge badge-info',
+        'data-tooltip'          => $lang{MSGS_EXTERNAL_CHATS},
+        'data-tooltip-position' => 'top'
+      }),
+      'get_index=msgs_admin&EXTERNAL_CHAT_ID=!&ALL_MSGS=1&full=1'
+    );
   }
 
   return msgs_sp_table($messages_list, {

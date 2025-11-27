@@ -1,6 +1,6 @@
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
       class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='$FORM{chg}'/>
 
   <div class='card card-primary card-outline card-form'>

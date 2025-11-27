@@ -1,6 +1,6 @@
 <div class='d-print-none'>
-<form action='$SELF_URL' id='paid_type' METHOD='POST'>
-<input type=hidden name=index value=$index>
+<form action='%SELF_URL%' id='paid_type' METHOD='POST'>
+<input type=hidden name=index value=%index%>
 <input type=hidden name=ID value=%ID%>
 
 <div class='card card-primary card-outline card-form'>

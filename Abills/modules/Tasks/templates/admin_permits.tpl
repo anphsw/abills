@@ -1,5 +1,5 @@
 <form id='tasks_admins_form'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='submit' value='_{SAVE}_' name='SAVE' class='btn btn-primary'>
 </form>
 <script type="text/javascript">

@@ -10,7 +10,8 @@ use warnings FATAL => 'all';
 our ($db,
   $admin,
   $html,
-  %conf
+  %conf,
+  %lang,
 );
 
 if (!$conf{TPL_DIR}) {
@@ -42,39 +43,54 @@ sub file_tree {
 
   my $content = ($FORM{TREE}) ? find_files($FROM_DIR . '/' . $FORM{TREE}) : find_files($FROM_DIR);
 
-  my $tree_tpl = $html->tpl_show(templates('filemanager_tree'),
-    { TITLE => 'Attach/' . ($FORM{TREE} || ''), CONTENT => $content }, { OUTPUT2RETURN => 1 });
-
-  print $html->element('div', $tree_tpl, { class => 'col-md-5', OUTPUT2RETURN => 1 });
-
-  return 1;
+  return $content;
 }
 
 #**********************************************************
-=head2 find_files($path) - find files in the specified folder
+=head2 find_files($base_dir) - find files in the specified folder
 
   Arguments:
-    $path - The path to the folder
+    $base_dir - The path to the folder
 
 =cut
 #**********************************************************
 sub find_files {
-
   my ($base_dir) = @_;
+
   my $path = '';
   my $open_path = '';
-  my @folders = ();
-  my @files = ();
   my $content = '';
   my $mtime = '';
   my @time = ();
   my $path_for_del = '';
   my $date_chg = '';
+  my $type = $lang{FOLDER};
 
   if (!-d $base_dir) {
     $html->message('err', "Can't opendir $base_dir not exist");
     return 0;
   }
+
+  if ($base_dir ne $FROM_DIR) {
+    ($path) = $base_dir =~ m/(.*)\//x;
+    if ($path eq $FROM_DIR) {
+      $path = '';
+    }
+    else {
+      $path =~ s/$FROM_DIR\///x;
+    }
+    $content .= $html->button(" $FORM{TREE}/.. ", "index=$index&TREE=$path",
+      { class => "default col-md-6", ADD_ICON => "fa fa-folder-open" });
+    $type = $lang{FILE};
+  }
+
+  my $table = $html->table({
+    width         => '100%',
+    caption       => $content,
+    title_plain   => [ $type, $lang{CHANGED} ],
+    border        => 1,
+    ID            => 'ATTACHMENTS',
+  });
 
   opendir(my $dh, $base_dir) or print $html->message('err', "Can't opendir $base_dir: $!");
   while (my $fname = readdir $dh) {
@@ -90,10 +106,11 @@ sub find_files {
       $path =~ s/$FROM_DIR\///x;
 
       ($path_for_del) = $path =~ m/(.*)\//x;
-      push @folders,
-        $html->button(" $fname", "index=$index&TREE=$path",
-          { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-folder" })
-          . $html->element('div', $date_chg, { class => "col-md-5 text-left" })
+
+      $table->addrow(
+        $html->button("&nbsp;$fname", "index=$index&TREE=$path", { class => "row default col-md-8 text-left", ADD_ICON => "fa fa-folder" }),
+        $html->element('div', $date_chg, { class => "col-md-5 text-left" })
+      );
     }
 
     if (-f "$base_dir/$fname") {
@@ -109,6 +126,8 @@ sub find_files {
         my ($msg_chg) = $fname =~ m/(\d*)_\d*_.*/x;
         my ($real_fname) = $fname =~ m/\d*_\d*_(.*)/x;
 
+        $uid //= 0;
+
         $btn = $html->button(" $real_fname", "index=" . get_function_index('msgs_admin') . "&UID=$uid&chg=$msg_chg#last_msg",
           { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-file" });
       }
@@ -122,34 +141,18 @@ sub find_files {
           { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-file" });
       }
 
-      push @files,
-        $btn
-          . $html->element('div', $date_chg, { class => "col-md-3 text-left" })
-          . $html->button("", "index=$index&del=$open_path&TREE=$path",
-          { class => "text-danger btn-sm col-md-1", ADD_ICON => "fa fa-trash" });
+      $table->addrow(
+        $btn,
+        $html->element('div', $date_chg, { class => "col-md-3 text-left" }),
+        $html->button('', "index=$index&del=$open_path&TREE=$path", { class => "text-danger btn-sm col-md-1", ADD_ICON => "fa fa-trash" }),
+      );
     }
   }
   closedir $dh;
 
-  if ($base_dir ne $FROM_DIR) {
-    ($path) = $base_dir =~ m/(.*)\//x;
-    if ($path eq $FROM_DIR) {
-      $path = '';
-    }
-    else {
-      $path =~ s/$FROM_DIR\///x;
-    }
-    $content .= $html->br() . $html->button(" /.. ", "index=$index&TREE=$path",
-      { class => "row default col-md-12 text-left", ADD_ICON => "fa fa-folder-open" });
-  }
-  foreach my $folder (@folders) {
-    $content .= $html->br() . $folder;
-  }
-  foreach my $file (@files) {
-    $content .= $html->br() . $file;
-  }
+  print $table->show();
 
-  return $content;
+  return;
 }
 
 1;

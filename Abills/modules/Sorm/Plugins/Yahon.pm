@@ -2,14 +2,14 @@ package Sorm::Plugins::Yahon;
 
 =head1 NAME
 
-  Модуль sorm для Yahon
+  SORM module for Yahon
 
 =cut
 
 =head1 VERSION
 
-  VERSION: 1.2
-  UPDATE: 20240902
+  VERSION: 1.3
+  UPDATE: 20250801
 
 =cut
 
@@ -26,7 +26,7 @@ use Finance;
 use Nas;
 use Hotspot;
 use Abills::Base qw/cmd _bp in_array int2ip/;
-use Abills::Misc qw/translate_list/;
+use Abills::Misc;
 
 my ($User, $Company, $Payments, $Internet, $Nas, $Abon, $Hotspot);
 my $start_date = "01.08.2017 12:00:00";
@@ -140,8 +140,7 @@ sub init {
 =cut
 #**********************************************************
 sub user_info_report {
-  my $self = shift;
-  my ($uid) = @_;
+  my ($self, $uid) = @_;
 
   delete @{$User}{ qw(FIO EMAIL PHONE CELL_PHONE CONTRACT_ID ADDRESS_DISTRICT CITY ADDRESS_STREET ADDRESS_BUILD ADDRESS_FLAT) };
   #ID; REGION_ID; CONTRACT_DATE; CONTRACT; ACCOUNT; ACTUAL_FROM; ACTUAL_TO; ABONENT_TYPE;
@@ -171,14 +170,14 @@ sub user_info_report {
   $arr[2] = "";
 
   if ($User->{_GIVE_NETWORK}) {
-    ($ip, $bitmask) = split(/\//, $User->{_GIVE_NETWORK}, 2);
+    ($ip, $bitmask) = split(/\//x, $User->{_GIVE_NETWORK}, 2);
     $arr[2] = 0;
   }
   elsif ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') {
     $ip = $Internet->{IP};
     if ($Internet->{NETMASK}) {
       $bitmask = unpack("B32", pack("N*", ip2int($Internet->{NETMASK})));
-      $bitmask =~ s/0+$//g;
+      $bitmask =~ s/0+$//xg;
       $bitmask = length($bitmask);
     }
     $arr[2] = 0;
@@ -189,7 +188,7 @@ sub user_info_report {
   $arr[5] = $bitmask; # Mask
 
   if ($Internet->{CID}) {
-    $Internet->{CID} =~ s/[\r\n]+//g;
+    $Internet->{CID} =~ s/[\r\n]+//xg;
   }
   else {
     $Internet->{CID} = q{};
@@ -215,8 +214,8 @@ sub user_info_report {
 
     my ($passport_ser, $passport_num) = $User->{PASPORT_NUM} =~ m/(.*)\s(\d+)/;
     $passport_ser =~ s/\s//g if ($passport_ser);
-    $User->{PASPORT_GRANT} =~ s/\n//g;
-    $User->{PASPORT_GRANT} =~ s/\r//g;
+    $User->{PASPORT_GRANT} =~ s/\n//xg;
+    $User->{PASPORT_GRANT} =~ s/\r//xg;
 
     if ($name && $surname && $family) {
       $arr[13] = '0';      # тип ФИО (0-структурировано, 1 - одной строкой)
@@ -354,7 +353,7 @@ sub user_info_report {
   foreach (@arr) {
     $string .= '"' . ($_ // "") . '";';
   }
-  $string =~ s/;$/\n/;
+  $string =~ s/;$/\n/x;
 
   _add_report('user', $string);
 
@@ -580,8 +579,7 @@ sub check_wifi {
 =cut
 #**********************************************************
 sub wifi_report {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   require Internet::Sessions;
   Internet::Sessions->import();
@@ -688,7 +686,7 @@ sub check_admin_actions {
 
     }
     elsif ($action->{module} && $action->{module} eq 'Abon' && $action->{action_type} && $action->{action_type} eq '3') {
-      my (@services) = $action->{actions} =~ m/ADD\:(\d+)/g;
+      my (@services) = $action->{actions} =~ m/ADD\:(\d+)/xg;
       foreach (@services) {
         $self->abon_info_report($action->{uid}, $action->{datetime}, $_);
       }
@@ -711,7 +709,7 @@ sub check_admin_actions {
 =cut
 #**********************************************************
 sub check_system_actions {
-  my $self = shift;
+  #my $self = shift;
   return 1;
 }
 
@@ -721,8 +719,7 @@ sub check_system_actions {
 =cut
 #**********************************************************
 sub abon_info_report {
-  my $self = shift;
-  my ($uid, $datetime, $tp_id) = @_;
+  my ($self, $uid, $datetime, $tp_id) = @_;
   $User->info($uid);
 
   my $string = '"' . $self->{conf}->{SORM_ISP_ID} .'";';                                      # идентификатор филиала из справочника
@@ -737,7 +734,6 @@ sub abon_info_report {
 
   return 1;
 }
-
 
 
 #**********************************************************
@@ -1048,8 +1044,7 @@ sub send_changes {
 =cut
 #**********************************************************
 sub sorm_errors {
-  my $self = shift;
-  my ($attr)=@_;
+  my ($self, $attr)=@_;
 
   sleep 2;
   print "\n__________ERROR________________\n" if($self->{DEBUG} > 0);

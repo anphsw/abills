@@ -16,10 +16,10 @@
 
 <form action='%SELF_URL%' method='post'>
 
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='UID' value='%UID%'>
   <input type=hidden name='STATUS_DAYS' value='%STATUS_DAYS%'>
-  <input type=hidden name='step' value='$FORM{step}'>
+  <input type=hidden name='step' value='%step%'>
   <input type=hidden name='ID' value='%ID%'>
   <input type=hidden name='LEAD_ID' value='$FORM{LEAD_ID}'>
   <input type=hidden name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
@@ -357,7 +357,7 @@
     let pool = jQuery(this);
     if (!pool.val()) return;
 
-    jQuery.post('$SELF_URL', 'header=2&get_index=internet_ip_pool_check&PRINT_JSON=1&POOL_ID=' + pool.val(), function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=internet_ip_pool_check&PRINT_JSON=1&POOL_ID=' + pool.val(), function (data) {
 
       try {
         let json_data = JSON.parse(data);

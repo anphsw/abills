@@ -20,7 +20,7 @@ our(
   @MODULES,
   %LIST_PARAMS,
   $index,
-  @_COLORS
+  #@_COLORS
 );
 
 our Abills::HTML $html;
@@ -81,7 +81,7 @@ sub equipment_ports_full {
   my %tpl_fields = ();
 
   if ( defined( $Equipment_->{STATUS} ) && $Equipment_->{STATUS} != 1 ) { #XXX check certain equipment statuses
-    my $perl_scalar = _get_snmp_oid( $Equipment_->{SNMP_TPL} );
+    my $perl_scalar = get_vendors_oids( $Equipment_->{SNMP_TPL} );
     if ( $perl_scalar && $perl_scalar->{ports} ){
       foreach my $key ( keys %{ $perl_scalar->{ports} } ){
         next if (ref $key eq 'HASH');
@@ -99,6 +99,34 @@ sub equipment_ports_full {
   $tpl_fields{CABLE_TESTER} = $lang{CABLE_TESTER};
 
   my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,VLAN,PORT_ALIAS,TRAFFIC,PORT_IN_ERR';
+
+  my %show_cols_ports = (
+    %tpl_fields,
+    #ID           => 'ID',
+    PORT_NAME         => "$lang{PORT} $lang{NAME}",
+    PORT_STATUS       => $lang{PORT_STATUS},
+    PORT_TYPE         => $lang{PORT_TYPE},
+    ADMIN_PORT_STATUS => "Admin $lang{STATUS}",
+    UPLINK            => "UPLINK",
+    FIO               => $lang{FIO},
+    LOGIN             => $lang{LOGIN},
+    MAC               => "MAC",
+    MAC_DYNAMIC       => "MAC dynamic",
+    IP                => "IP",
+    VLAN              => "Native VLAN static",
+    ADDRESS_FULL      => $lang{ADDRESS},
+    DEPOSIT           => $lang{DEPOSIT},
+    TP_NAME           => $lang{TARIF_PLAN},
+    PORT_ALIAS        => "$lang{COMMENTS} Alias",
+    TRAFFIC           => $lang{TRAFFIC},
+    PORT_SPEED        => $lang{SPEED},
+    PORT_COMMENTS     => $lang{COMMENTS},
+    PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
+    PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
+    PORT_UPTIME       => $lang{PORT_UPTIME},
+    DATETIME          => $lang{CHANGED}
+  );
+
   my ($table) = result_former({
     DEFAULT_FIELDS => $default_fields,
     BASE_PREFIX    => 'ID',
@@ -107,32 +135,7 @@ sub equipment_ports_full {
       caption          => $lang{PORTS},
       qs               => "&visual=$FORM{visual}&NAS_ID=$nas_id",
       SHOW_COLS        => {
-        PORTS => {
-          %tpl_fields,
-          #ID           => 'ID',
-          PORT_NAME         => "$lang{PORT} $lang{NAME}",
-          PORT_STATUS       => $lang{PORT_STATUS},
-          PORT_TYPE         => $lang{PORT_TYPE},
-          ADMIN_PORT_STATUS => "Admin $lang{STATUS}",
-          UPLINK            => "UPLINK",
-          FIO               => $lang{FIO},
-          LOGIN             => $lang{LOGIN},
-          MAC               => "MAC",
-          MAC_DYNAMIC       => "MAC dynamic",
-          IP                => "IP",
-          VLAN              => "Native VLAN static",
-          ADDRESS_FULL      => $lang{ADDRESS},
-          DEPOSIT           => $lang{DEPOSIT},
-          TP_NAME           => $lang{TARIF_PLAN},
-          PORT_ALIAS        => "$lang{COMMENTS} Alias",
-          TRAFFIC           => $lang{TRAFFIC},
-          PORT_SPEED        => $lang{SPEED},
-          PORT_COMMENTS     => $lang{COMMENTS},
-          PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
-          PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
-          PORT_UPTIME       => $lang{PORT_UPTIME},
-          DATETIME          => $lang{CHANGED}
-        }
+        PORTS => \%show_cols_ports
       },
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
@@ -314,7 +317,7 @@ sub equipment_ports_full {
         my $value = '';
 
         if ($snmp_port && $snmp_port > $Equipment_->{PORTS}) {
-          my ($sw_port, $sw_extra_ports)=split(/\+/, $Equipment_->{PORTS_WITH_EXTRA} || q{0+0});
+          my ($sw_port, $sw_extra_ports)=split(/\+/x, $Equipment_->{PORTS_WITH_EXTRA} || q{0+0});
           if($sw_port) {
             my $sw_ports = $sw_port + ($sw_extra_ports || 0);
             my $stack = int($snmp_port / $sw_ports);
@@ -488,6 +491,8 @@ sub equipment_ports_full {
     $attr
       SNMP_COMMUNITY
 
+  Results:
+    TRUE or FALSE
 
 =cut
 #********************************************************
@@ -498,6 +503,8 @@ sub equipment_ports {
   $Equipment->{ACTION} = 'add';
   $Equipment->{ACTION_LNG} = $lang{ADD};
 
+  $attr->{NAS_ID} //= $FORM{NAS_ID};
+  $attr->{SNMP_VERSION} //= $Equipment->{SNMP_VERSION};
   $Equipment->{DEVICE_STATUS} = $Equipment->{STATUS};
 
   if ( $FORM{add} ){
@@ -677,7 +684,7 @@ sub equipment_port_manage {
     'UPLINK',
     {
       SELECTED    => $FORM{UPLINK} || $Equipment_->{UPLINK} || '',
-      SEL_LIST    => $Equipment_->_list( {
+      SEL_LIST    => $Equipment_->list( {
         %LIST_PARAMS,
         NAS_ID    => '_SHOW',
         NAS_NAME  => '_SHOW',
@@ -738,7 +745,7 @@ sub equipment_port_manage {
     $Equipment_->{PORT_ERRORS} = ($port_data->{PORT_IN_ERR} || 0) . '/' . ($port_data->{PORT_OUT_ERR} || 0);
     $Equipment_->{PORT_DISCARDS} = ($port_data->{PORT_IN_DISCARDS} || 0) . '/' . ($port_data->{PORT_OUT_DISCARDS} || 0);
 
-    if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} =~ /^-?\d+\.?\d*$/) {
+    if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} =~ /^-?\d+\.?\d*$/xm) {
       if ($port_data->{PORT_SPEED} > 1000000000) {
         $Equipment_->{PORT_SPEED} = '10+ Gbps';
       }
@@ -794,7 +801,7 @@ sub equipment_ports_select {
     NAS_ID => $nas_id,
     #PORTS_ONLY => 1 #XXX if enable this, ports with uplinks will be considered busy
   });
-  $Equipment->_info($nas_id);
+  $Equipment->info($nas_id);
   $Equipment->model_info( $Equipment->{MODEL_ID} );
 
   print $html->element('div', equipment_port_panel( $Equipment ), { class => 'modal-body' });
@@ -823,7 +830,7 @@ sub equipments_get_used_ports{
   my ($attr) = @_;
 
   my %used_ports = ();
-  my $list;
+  my $internet_users_list;
   my $Equipment_ = Equipment->new( $db, \%conf, $admin ); #XXX why do we need second Equipment object?
 
   if(in_array('Internet', \@MODULES)) {
@@ -835,9 +842,7 @@ sub equipments_get_used_ports{
       $Internet->{debug} = 1;
     }
 
-    $LIST_PARAMS{GROUP_BY}=' internet.id';
-
-    $list = $Internet->user_list({
+    $internet_users_list = $Internet->user_list({
       %LIST_PARAMS,
       LOGIN           => '_SHOW',
       FIO             => '_SHOW',
@@ -853,11 +858,12 @@ sub equipments_get_used_ports{
       INTERNET_STATUS => '_SHOW',
       NAS_ID          => $attr->{NAS_ID},
       COLS_UPPER      => $attr->{COLS_UPPER},
+      GROUP_BY        => ' internet.id',
       COLS_NAME       => 1,
       PAGE_ROWS       => 1000000
     });
 
-    foreach my $line (@{$list}) {
+    foreach my $line (@{$internet_users_list}) {
 
       if(! $attr->{PORTS_ONLY}) {
         if ($line->{online_cid}) {
@@ -893,7 +899,7 @@ sub equipments_get_used_ports{
     return \%used_ports;
   }
 
-  my $equipment_list = $Equipment_->_list( {
+  my $equipment_list = $Equipment_->list( {
     NAS_ID          => '_SHOW',
     MAC             => '_SHOW',
     NAS_NAME        => '_SHOW',
@@ -921,13 +927,13 @@ sub equipments_get_used_ports{
   my %ids = ();
 
   if ($nas_list) {
-    @{$list} = (@{$equipment_list}, @{$nas_list});
+    @{$internet_users_list} = (@{$equipment_list}, @{$nas_list});
   }
   else {
-    @{$list} = (@{$equipment_list});
+    @{$internet_users_list} = (@{$equipment_list});
   }
 
-  foreach my $line ( @{$list} ) {
+  foreach my $line ( @{$internet_users_list} ) {
     if (!$ids{ $line->{nas_id} }) {
       if ($attr->{FULL_LIST}) {
         if ( $attr->{GET_MAC} ) {
@@ -1034,7 +1040,7 @@ sub equipment_port_panel {
   my $ports_in_row = $port_count / $rows_count;
   my $blocks_in_row = $ports_in_row / $block_size;
 
-  my $number = 0;
+  #my $number = 0;
   my $unit_border = '';
   my $main_port_number = 0;
 
@@ -1084,7 +1090,7 @@ sub equipment_port_panel {
     }
 
     if (%{$ports_by_row}) {
-      my $extra_col .= "<div class='col-auto equipment-col'>";
+      my $extra_col = "<div class='col-auto equipment-col'>";
       my @extra_port_rows = sort keys %{$ports_by_row};
 
       @extra_port_rows = 0..$extra_port_rows[-1];
@@ -1309,7 +1315,7 @@ sub equipment_port_info {
     return [];
   }
 
-  if ($attr->{PORT_SHIFT} && !$attr->{AUTO_PORT_SHIFT} && $attr->{PORT} =~ /^\d+$/) {
+  if ($attr->{PORT_SHIFT} && !$attr->{AUTO_PORT_SHIFT} && $attr->{PORT} =~ /^\d+$/xm) {
     $attr->{PORT} += $attr->{PORT_SHIFT};
   }
 
@@ -1376,7 +1382,7 @@ sub port_result_former {
   my $nas_id      = $attr->{NAS_ID} || $FORM{NAS_ID} || 0;
 
   if($attr->{INFO_FIELDS}) {
-    @info_fields = split(/,/, $attr->{INFO_FIELDS});
+    @info_fields = split(/,/x, $attr->{INFO_FIELDS});
   }
   else {
     @info_fields = sort keys %{ $port_info->{$port_id} };
@@ -1438,7 +1444,7 @@ sub port_result_former {
       }
     }
     elsif($key eq 'RF_PORT_ON') { #TODO: rename to CATV
-      my ($text, $color) = split(/:/, $value);
+      my ($text, $color) = split(/:/x, $value);
       $value = $html->color_mark($text, $color);
     }
     elsif($key eq 'ONU_IN_BYTE') {
@@ -1479,10 +1485,10 @@ sub port_result_former {
     }
     elsif($key eq 'ONU_PORTS_STATUS') {
       $key = "$lang{PORTS}:";
-      my @ports_status = split(/\n/, $value);
+      my @ports_status = split(/\n/x, $value);
       $value = q{};
       foreach my $line (@ports_status) {
-        my ($port, $status)=split(/ /, $line);
+        my ($port, $status)=split(/\s+/x, $line);
         $status //= 0;
         my $color       = ($status == 1) ? 'text-green' : '';
         my $description = (($status == 1) ? "State: Up " : "State: Down ") . $html->br();
@@ -1520,10 +1526,10 @@ sub port_result_former {
 
         if ($speed) {
           my $color_bb = q{};
-          if ($speed =~ /^\d+Gb\/s/ && $status == 1){
+          if ($speed =~ /^\d+Gb\/s/xm && $status == 1){
             $color_bb = 'text-green';
           }
-          elsif ($speed =~ /^\d+Mb\/s/ && $status == 1){
+          elsif ($speed =~ /^\d+Mb\/s/xm && $status == 1){
             $color_bb = 'text-yellow';
           }
           $btn .= $html->element('span', $speed, {class => 'badge-bottom ' . $color_bb }) if ($speed);
@@ -1550,15 +1556,15 @@ sub port_result_former {
       next if (defined($port_info->{$port_id}->{CATV_PORTS_COUNT}) && $port_info->{$port_id}->{CATV_PORTS_COUNT} == 0);
       next if ($key eq 'CATV_PORTS_ADMIN_STATUS' && defined $port_info->{$port_id}->{CATV_PORTS_STATUS});
 
-      my @ports_status = split(/\n/, $value);
+      my @ports_status = split(/\n/x, $value);
       $value = q{};
 
       foreach my $line (@ports_status) {
         my ($port, $status);
         my $admin_state;
 
-        if (split(/ /, $line) == 2) {
-          ($port, $status) = split(/ /, $line);
+        if (split(/\s/x, $line) == 2) {
+          ($port, $status) = split(/\s+/x, $line);
           $admin_state = $port_info->{$port_id}->{CATV_PORTS_ADMIN_STATUS}->{$port} || '';
         }
         else { #if we do not have multiple ports
@@ -1639,7 +1645,7 @@ sub port_result_former {
     elsif($key eq 'PORT_IN_ERR') {
       my $reset_errors_button = '';
 
-      my $list = $Equipment->_list({ SNMP_TPL => '_SHOW', NAS_ID => $nas_id, COLS_NAME => 1 });
+      my $list = $Equipment->list({ SNMP_TPL => '_SHOW', NAS_ID => $nas_id, COLS_NAME => 1 });
       my $nas_info = $list->[0];
 
       if ($nas_info->{'snmp_tpl'}){
@@ -1648,7 +1654,7 @@ sub port_result_former {
           FILENAME => $nas_info->{'snmp_tpl'},
           PATH     => $TEMPLATE_DIR,
         });
-        $file_content =~ s#//.*$##gm;
+        $file_content =~ s#//.*$##gxm;
         my $snmp = decode_json($file_content);
         if ($snmp->{ERRORS_RESET}){
           $reset_errors_button = $html->button($lang{RESET}, "index=$user_index&UID=$FORM{UID}&ERRORS_RESET=1", { class => 'btn btn-secondary btn-sm ml-2' });
@@ -1676,6 +1682,15 @@ sub port_result_former {
 
       my $port_info_ = $Equipment->port_info({ NAS_ID => $nas_id, PORT => $port_id } );
 
+      my $port_desc_changed = << "[END]";
+<script>
+         Events.on('AJAX_SUBMIT.port_desc_changed', function(e){
+           if (!e.error) {\$('#PORT_COMMENTS').text(e.new_desc)}
+         });
+         </script>
+[END]
+
+
       my $btn_change = $html->button('', "header=2&get_index=equipment_change_port_desc_ajax&ID=".($port_info_->{ID} || '').
         "&NAS_ID=$nas_id&PORT=$port_id",
         { MESSAGE    => "$lang{PORT} $port_id: $lang{CHANGE} $lang{COMMENTS}",
@@ -1684,11 +1699,7 @@ sub port_result_former {
           AJAX       => 'port_desc_changed',
           ALLOW_EMPTY_MESSAGE => 1,
         })
-        . "<script>
-         Events.on('AJAX_SUBMIT.port_desc_changed', function(e){
-           if (!e.error) {\$('#PORT_COMMENTS').text(e.new_desc)}
-         });
-         </script>";
+        . $port_desc_changed;
 
       $key = "$lang{PORT} $lang{COMMENTS}" . $btn_change;
       $value = $html->element('span', ( $port_info_->{COMMENTS} || $FORM{COMMENTS} ), { id => 'PORT_COMMENTS' });
@@ -1782,7 +1793,7 @@ sub port_result_former {
       }
     }
     elsif($key eq 'DESCRIBE') {
-      my $equipment_info = $Equipment->_list({
+      my $equipment_info = $Equipment->list({
         NAS_ID           => $nas_id,
         SNMP_TPL         => '_SHOW',
         NAS_MNG_PASSWORD => '_SHOW',
@@ -1850,13 +1861,13 @@ sub cable_tester_result_former {
     my $field_value = $cable_test_info->{$field};
     next if (!defined $field_value);
 
-    if ($field =~ /LENGTH_PAIR(_(.*))?/) {
+    if ($field =~ /LENGTH_PAIR(_(.*))?/xm) {
       $field = $html->b("$lang{LENGTH_PAIR}" . (($2) ? " $2" : "")) . ': ';
       $field_value = $html->element('p', $field_value);
     }
-    elsif ($field =~ /STATUS_PAIR(_(.*))?/) {
+    elsif ($field =~ /STATUS_PAIR(_(.*))?/xm) {
       $field = $html->b("$lang{STATUS_PAIR}" . (($2) ? " $2" : "")) . ': ';
-      my ($text, $color) = split(/:/, $field_value);
+      my ($text, $color) = split(/:/x, $field_value);
 
       if ($color) {
         $field_value = $html->color_mark($text, $color);
@@ -1928,7 +1939,7 @@ sub equipment_vlans {
   #=== NAV TABS END ===
 
   if ($FORM{sub} == 2) {
-    $Equipment->_info($FORM{NAS_ID});
+    $Equipment->info($FORM{NAS_ID});
     $html->tpl_show(_include('equipment_unnum_vlan', 'Equipment'), { %FORM, PORTS => $Equipment->{PORTS} });
 
     if ($FORM{vlans_add}) {

@@ -116,6 +116,35 @@ $lang{IPTV_ERROR_DEVICES_COUNT} = 'Перевищено дозволену кі�
 $lang{IPTV_MONTHLY_REPORT} = 'Місячний звіт';
 $lang{IPTV_DAYS_OF_USE} = 'Днів використання';
 
-$lang{ERR_IPTV_DEL_ACTIVATED} = 'Перш ніж видалити послугу, її потрібно відключити';
+$lang{ERR_IPTV_DELETE_ACTIVATED_SERVICE} = 'Перш ніж видалити послугу, її потрібно відключити';
+$lang{ERR_IPTV_MISSING_TARIFF_PLAN_ID} = 'Не вказано ID тарифного плану';
+$lang{ERR_IPTV_SERVICE_NOT_FOUND_OR_INACTIVE} = 'Послуга не знайдена або не активна';
+$lang{ERR_IPTV_MISSING_UID} = 'Не вказано ID користувача (UID)';
+$lang{ERR_IPTV_SUBSCRIPTION_LIMIT_EXCEEDED} = 'Перевищено ліміт підписок';
+$lang{ERR_IPTV_USER_ALREADY_HAS_TARIFF_PLAN} = 'Користувач вже має цей тарифний план';
+$lang{ERR_IPTV_USER_SERVICE_NOT_FOUND} = 'Послуга користувача не знайдена';
+$lang{ERR_IPTV_ACCESS_DENIED} = 'Доступ заборонено';
+$lang{ERR_IPTV_TARIFF_PLAN_NOT_FOUND} = 'Тарифний план не знайдено';
+$lang{ERR_IPTV_TARIFF_PLAN_ALREADY_ACTIVATED} = 'Тарифний план вже активовано';
+$lang{ERR_IPTV_GETTING_USER_CHANNELS} = 'Помилка при отриманні каналів користувача';
+$lang{ERR_IPTV_GETTING_USER_SCREENS} = 'Помилка при отриманні екранів користувача';
+$lang{ERR_IPTV_INSUFFICIENT_FUNDS_TO_ACTIVATE_SERVICE} = 'Недостатньо коштів для активації послуги';
+$lang{ERR_IPTV_NO_FIELD} = 'Відсутнє поле %FIELD%';
+$lang{ERR_IPTV_USER_PASSWORD_LENGTH_INCORRECT} = 'Пароль не відповідає вимогам';
+$lang{ERR_IPTV_MISSING_USER_SUBSCRIBE_ID} = 'Не вказано ID підписки користувача';
+$lang{ERR_IPTV_MISSING_MAC} = 'Не вказано MAC-адресу пристрою';
+$lang{ERR_IPTV_DEVICE_NOT_FOUND} = 'Пристрій не знайдено';
+$lang{ERR_IPTV_DEVICE_ALREADY_USES} = 'Пристрій вже використовується іншим користувачем';
+$lang{ERR_IPTV_DEVICE_CID_DIFFERENT_TO_DEVICE_ID} = 'CID пристрою не співпадає з ID пристрою';
+
+$lang{IPTV_LAST_IP} = 'Остання ІР-адреса';
+$lang{IPTV_LAST_AUTHORIZATION} = 'Остання авторизація в мережі';
+$lang{IPTV_FIRMWARE} = 'Прошивка';
+$lang{IPTV_DEVICE_TEMPERATURE} = 'Температура приставки';
+$lang{IPTV_ANDROID_VERSION} = 'Версія Android';
+$lang{IPTV_INSTALLED_APPS} = 'Встановлені додатки';
+$lang{IPTV_NETWORK_TYPE} = 'Тип підключення до мережі';
+$lang{IPTV_DISABLE_AUTO_UPDATE} = 'Вимкнення автоматичного оновлення';
+$lang{IPTV_REQUEST_SCREENSHOT} = 'Запит скріншоту';
 
 1;

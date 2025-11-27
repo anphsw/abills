@@ -1,5 +1,5 @@
 <form name='CABLECAT_WELLS_TYPE' id='form_CABLECAT_WELLS_TYPE' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
   <input type='hidden' name='ID' value='%ID%'/>
   
@@ -54,7 +54,7 @@
 
   function updateIcons(fileName) {
     let selectedIcon = fileName ? fileName : jQuery('#ICON_SELECT').val();
-    jQuery.get('$SELF_URL', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
+    jQuery.get('%SELF_URL%', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
       if (result.match("<select")){
         jQuery('#DIV_SELECT').html(result);
         initChosen();

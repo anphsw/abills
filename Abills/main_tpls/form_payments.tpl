@@ -1,9 +1,9 @@
 <form class='double_enter_check' action='%SELF_URL%' method='post' id='form_payments_add' name='form_payments_add' role='form'>
-  <input type=hidden name=index value='$index'>
+  <input type=hidden name=index value='%index%'>
   <input type=hidden name=subf value='$FORM{subf}'>
   <input type=hidden name=OP_SID value='%OP_SID%'>
   <input type=hidden name=UID value='%UID%'>
-  <input type=hidden name=step value='$FORM{step}'>
+  <input type=hidden name=step value='%step%'>
   <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
   <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
   <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>

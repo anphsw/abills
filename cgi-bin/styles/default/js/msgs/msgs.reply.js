@@ -62,4 +62,14 @@ jQuery(function () {
       jQuery(this).addClass('active');
     }
   });
+
+  document.querySelectorAll('.timeline-body a').forEach(element => {
+    if (element.hasAttribute('href')) {
+      element.setAttribute('href', element.getAttribute('href').replace(/\\%/g, '%'));
+    }
+
+    if (element.innerHTML.includes('\\%')) {
+      element.innerHTML = element.innerHTML.replace(/\\%/g, '%');
+    }
+  });
 });

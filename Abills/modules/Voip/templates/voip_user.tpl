@@ -39,7 +39,7 @@
               <div class='input-group-append'>
                 %CHANGE_TP_BUTTON%
                 <a class='btn input-group-button hidden-print px-3' title='_{PAY_TO}_'
-                   href='$SELF_URL?index=$index&UID=$FORM{UID}&ID=%ID%&pay_to=1'>
+                   href='%SELF_URL%?index=%index%&UID=$FORM{UID}&ID=%ID%&pay_to=1'>
                   <i class='$conf{CURRENCY_ICON}'></i>
                 </a>
               </div>

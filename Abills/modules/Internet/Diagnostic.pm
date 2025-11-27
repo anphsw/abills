@@ -14,12 +14,6 @@ use Abills::Base qw(cmd startup_files);
 our (%EXPORT_TAGS, %conf);
 our $VERSION = 1.00;
 
-our @EXPORT = qw(
-  get_oui_info
-  host_diagnostic
-  host_whois
-);
-
 our @EXPORT_OK = qw(
   get_oui_info
   host_diagnostic
@@ -60,10 +54,9 @@ sub get_oui_info {
   foreach my $section (@content_arr) {
     my @rows = split(/\n/x, $section);
     if ($#rows > 0){
-      $rows[1] =~ m/([A-F0-9]{6})\s+\(base 16\)\s+(.+)/x;
-      my $db_mac_prefix = $1;
-      my $vendor_info = $2;
-      $vendors_hash{$db_mac_prefix} = $vendor_info;
+      if (my ($db_mac_prefix, $vendor_info) = ($rows[1] =~ m/([A-F0-9]{6})\s+\(base\s+16\)\s+(.+)/ix)) {
+        $vendors_hash{$db_mac_prefix} = $vendor_info;
+      }
     }
   }
 

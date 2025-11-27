@@ -49,7 +49,7 @@ sub import_mails {
 
     # $message->{body}{text} = $message->{body}{text} =~ /([\s\S]*)\n.+\d{2}:\d{2}\s?(<$admin_email>|<$email>).+/ ? $1 : $message->{body}{text};
 
-    my $lead_id = $Dialogue->crm_lead_by_source({ USER_ID => $message_id, FIO => $fio, EMAIL => $email });
+    my $lead_id = $Dialogue->crm_lead_by_source({ USER_ID => $message_id, FIO => $fio, EMAIL => $email, EXTERNAL_ID => $message_id });
     next if !$lead_id;
 
     my $dialogue_id = $Dialogue->crm_get_dialogue_id($lead_id);

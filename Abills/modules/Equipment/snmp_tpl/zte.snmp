@@ -58,12 +58,12 @@
     "ONU_TX_POWER" : {
       "NAME"   : "ONU_TX_POWER",
       "OIDS"   : "", //.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4
-      "PARSER" : "_zte_convert_epon_power"
+      "PARSER" : "zte_convert_epon_power"
     },
     "ONU_RX_POWER" : {
       "NAME"   : "ONU_RX_POWER",
       "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5",
-      "PARSER" : "_zte_convert_epon_power"
+      "PARSER" : "zte_convert_epon_power"
     },
     "OLT_RX_POWER" : {
       "NAME"   : "OLT_RX_POWER",
@@ -72,7 +72,7 @@
     "ONU_DESC" : {
       "NAME"   : "DESCRIBE",
       "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.7.4.1.1",
-      "PARSER" : "_zte_convert_epon_description"
+      "PARSER" : "zte_convert_epon_description"
     },
     "ONU_IN_BYTE" : {
       "NAME" : "ONU_IN_BYTE"
@@ -85,12 +85,12 @@
     "TEMPERATURE" : {
       "NAME"   : "TEMPERATURE",
       "OIDS"   : "", //.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1
-      "PARSER" : "_zte_convert_epon_temperature"
+      "PARSER" : "zte_convert_epon_temperature"
     },
     "VLAN" : {
       "NAME"   : "VLAN",
       "OIDS"   : "1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1",
-      "PARSER" : "_zte_convert_eth_vlan",
+      "PARSER" : "zte_convert_eth_vlan",
       "WALK"   : 1
     },
     "reset" : {
@@ -103,7 +103,7 @@
       "VLAN"           : {
         "NAME"   : "VLAN",
         "OIDS"   : "1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1",
-        "PARSER" : "_zte_convert_eth_vlan",
+        "PARSER" : "zte_convert_eth_vlan",
         "WALK"   : 1
       },
       "HARD_VERSION" : {
@@ -129,22 +129,22 @@
       "VOLTAGE" : {
         "NAME"   : "VOLTAGE",
         "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.2",
-        "PARSER" : "_zte_convert_epon_voltage"
+        "PARSER" : "zte_convert_epon_voltage"
       },
       "DISTANCE" : {
         "NAME"   : "DISTANCE",
         "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10",
-        "PARSER" : "_zte_convert_distance"
+        "PARSER" : "zte_convert_distance"
       },
       "TEMPERATURE" : {
         "NAME"   : "TEMPERATURE",
         "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1",
-        "PARSER" : "_zte_convert_epon_temperature"
+        "PARSER" : "zte_convert_epon_temperature"
       },
       "ONU_TX_POWER" : {
         "NAME"   : "ONU_TX_POWER",
         "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4",
-        "PARSER" : "_zte_convert_epon_power"
+        "PARSER" : "zte_convert_epon_power"
       },
       "MAC_BEHIND_ONU" : {
         "NAME"                        : "MAC_BEHIND_ONU",
@@ -154,7 +154,7 @@
       "ONU_PORTS_STATUS" : {
         "NAME"   : "ONU_PORTS_STATUS",
         "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.1.1.1.5.1.2 ",
-        "PARSER" : "_zte_eth_status",
+        "PARSER" : "zte_eth_status",
         "WALK"   : 1
       }
     }
@@ -172,19 +172,19 @@
     "ONU_TX_POWER" : {
       "NAME"      : "ONU_TX_POWER",
       "OIDS"      : "", //.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14
-      "PARSER"    : "_zte_convert_power",
+      "PARSER"    : "zte_convert_power",
       "ADD_2_OID" : ".1"
     }, // tx_power = tx_power * 0.002 - 30.0
     "ONU_RX_POWER" : {
       "NAME"      : "ONU_RX_POWER",
       "OIDS"      : ".1.3.6.1.4.1.3902.1012.3.50.12.1.1.10",
-      "PARSER"    : "_zte_convert_power",
+      "PARSER"    : "zte_convert_power",
       "ADD_2_OID" : ".1"
     }, // rx_power = rx_power * 0.002 - 30.0;
     "ONU_DESC" : {
       "NAME"   : "DESCRIBE",
       "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.28.1.1.3",
-      "PARSER" : "_zte_convert_description"
+      "PARSER" : "zte_convert_description"
     },
     "ONU_IN_BYTE" : {
       "NAME" : "ONU_IN_BYTE"
@@ -198,7 +198,7 @@
     "TEMPERATURE" : {
       "NAME"      : "TEMPERATURE",
       "OIDS"      : "", //.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19
-      "PARSER"    : "_zte_convert_temperature",
+      "PARSER"    : "zte_convert_temperature",
       "ADD_2_OID" : ".1"
     },
     "reset" : { //there are different OID on firmware V2
@@ -247,30 +247,30 @@
       "VOLTAGE" : {
         "NAME"      : "VOLTAGE",
         "OIDS"      : ".1.3.6.1.4.1.3902.1012.3.50.12.1.1.17",
-        "PARSER"    : "_zte_convert_voltage",
+        "PARSER"    : "zte_convert_voltage",
         "ADD_2_OID" : ".1"
       },
       "DISTANCE" : {
         "NAME"   : "DISTANCE",
         "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.11.4.1.2",
-        "PARSER" : "_zte_convert_distance"
+        "PARSER" : "zte_convert_distance"
       },
       "TEMPERATURE" : {
         "NAME"      : "TEMPERATURE",
         "OIDS"      : ".1.3.6.1.4.1.3902.1012.3.50.12.1.1.19",
-        "PARSER"    : "_zte_convert_temperature",
+        "PARSER"    : "zte_convert_temperature",
         "ADD_2_OID" : ".1"
       },
       "ONU_TX_POWER" : {
         "NAME"      : "ONU_TX_POWER",
         "OIDS"      : ".1.3.6.1.4.1.3902.1012.3.50.12.1.1.14",
-        "PARSER"    : "_zte_convert_power",
+        "PARSER"    : "zte_convert_power",
         "ADD_2_OID" : ".1"
       },
       "ONU_NAME" : {
         "NAME"   : "Onu NAME",
         "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.28.1.1.2",
-        "PARSER" : "_zte_convert_description"
+        "PARSER" : "zte_convert_description"
       },
       "CATV_PORTS_STATUS" : {
         "NAME"   : "CATV_PORTS_STATUS",
@@ -284,13 +284,13 @@
       "CATV_PORTS_ADMIN_STATUS" : {
         "NAME"   : "CATV_PORTS_ADMIN_STATUS",
         "OIDS"   : "1.3.6.1.4.1.3902.1012.3.50.19.1.1.1",
-        "PARSER" : "_zte_convert_catv_port_admin_status",
+        "PARSER" : "zte_convert_catv_port_admin_status",
         "WALK"   : 1
       },
       "VIDEO_RX_POWER" : {
         "NAME"   : "VIDEO_RX_POWER",
         "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.50.19.3.1.8",
-        "PARSER" : "_zte_convert_video_power"
+        "PARSER" : "zte_convert_video_power"
       },
       "MAC_BEHIND_ONU" : {
         "NAME"                        : "MAC_BEHIND_ONU",
@@ -300,24 +300,24 @@
       "ONU_LAST_DOWN_CAUSE" : {
         "NAME"   : "ONU_LAST_DOWN_CAUSE",
         "OIDS"   : "1.3.6.1.4.1.3902.1012.3.28.2.1.7",
-        "PARSER" : "_zte_last_down_cause"
+        "PARSER" : "zte_last_down_cause"
       },
       "ETH_ADMIN_STATE" : {
         "NAME"   : "ETH_ADMIN_STATE",
         "OIDS"   : "1.3.6.1.4.1.3902.1012.3.50.14.1.1.5",
-        "PARSER" : "_zte_convert_admin_state",
+        "PARSER" : "zte_convert_admin_state",
         "WALK"   : "1"
       },
       "ONU_PORTS_STATUS" : {
         "NAME"   : "ONU_PORTS_STATUS",
         "OIDS"   : "1.3.6.1.4.1.3902.1012.3.50.14.1.1.6",
-        "PARSER" : "_zte_convert_state",
+        "PARSER" : "zte_convert_state",
         "WALK"   : "1"
       },
       "ETH_SPEED" : {
         "NAME"   : "ETH_SPEED",
         "OIDS"   : "1.3.6.1.4.1.3902.1012.3.50.14.1.1.7",
-        "PARSER" : "_zte_convert_speed",
+        "PARSER" : "zte_convert_speed",
         "WALK"   : "1"
       }
     }

@@ -9,6 +9,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
+use Users;
 use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
   in_array startup_files load_pmodule urlencode encode_base64 json_former);
 
@@ -47,14 +48,14 @@ sub form_status {
   $Service->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
+    $FORM{COLOR} =~ s/\#//x if($FORM{COLOR});
     $Service->status_add({%FORM});
     if (!$Service->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
-    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
+    $FORM{COLOR} =~ s/\#//x if($FORM{COLOR});
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $Service->status_change({%FORM});
     if (!$Service->{errno}) {
@@ -146,24 +147,20 @@ sub form_status {
 =cut
 #**********************************************************
 sub form_user_status {
-
-  require Users;
-  Users->import();
-
   my $User = Users->new($db, $admin, \%conf);
 
   $User->{ACTION}     = 'add';
   $User->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
+    $FORM{COLOR} =~ s/\#//x if($FORM{COLOR});
     $User->user_status_add({%FORM});
     if (!$User->{errno}) {
       $html->message('info', $lang{ADDED}, "ID=". ($FORM{ID} || 0));
     }
   }
   elsif ($FORM{change}) {
-    $FORM{COLOR} =~ s/#//x if($FORM{COLOR});
+    $FORM{COLOR} =~ s/\#//x if($FORM{COLOR});
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $User->user_status_change({%FORM});
     if (!$User->{errno}) {
@@ -373,7 +370,7 @@ sub form_billd_plugins {
   });
 
   opendir my $fh, "$billd_plugin_dir" or die "Can't open dir '$billd_plugin_dir' $!\n";
-    my @contents = grep !/^\.\.?$/x, readdir $fh;
+    my @contents = grep { !/^\.\.?$/x } readdir $fh;
   closedir $fh;
 
   $table = $html->table(
@@ -708,92 +705,46 @@ sub form_templates {
     client_menu();
   }
 
-  my $templates_modules = '';
-  my @caption = sort keys %LANG;
-
-  #Main templates section
-  my $table = $html->table({
-    width       => '100%',
-    title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
-    ID          => 'TEMPLATES_LIST_MAIN'
-  });
-
-  if (-d $main_templates_dir) {
-    my $tpl_describe = get_tpl_describe("describe.tpls", $main_templates_dir);
-    opendir my $fh, "$main_templates_dir" or die "Can't open dir '$sys_templates/main_tpls' $!\n";
-      my @contents = grep !/^\.\.?$/, readdir $fh;
-    closedir $fh;
-    $table->{rowcolor} = undef;
-    $table->{extra}    = undef;
-    my $module = "";
-    foreach my $file (sort @contents) {
-      if (-d "$main_templates_dir" . $file) {
-        next;
-      }
-      elsif ($file !~ /\.tpl$/) {
-        next;
-      }
-
-      my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
-
-      if (-f "$conf{TPL_DIR}/$module" . "_$file") {
-        ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$module" . "_$file");
-        $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-      }
-      else {
-        ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$main_templates_dir" . $file);
-        $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-      }
-
-      # LANG
-      my @rows = (
-        "$file", $size, $mtime, (($tpl_describe->{$file}) ? $tpl_describe->{$file} : ''),
-        $html->button($lang{SHOW}, "#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file", class => 'show' })
-        . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=" . "_$file", { class => 'change', }) : $html->button($lang{CREATE}, "index=$index&create=:$file", { class => 'add' }))
-        . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{DEL}, "index=$index&del=" . "_$file", { MESSAGE => "$lang{DEL} '$file'", class => 'del' }) : '')
-      );
-
-      $file =~ s/\.tpl//;
-      foreach my $lang (@caption) {
-        my $f = '_' . $file . '_' . $lang . '.tpl';
-        push @rows,
-        ((-f "$conf{TPL_DIR}/$f")
-          ? $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file:$lang", class => 'show' }) . $html->br() . $html->button($lang{CHANGE}, "index=$index&tpl_name=$f", { class => 'change' })
-          : $html->button($lang{CREATE}, "index=$index&create=:$file" . '.tpl' . ":$lang", { class => 'add' }))
-        . ((-f "$conf{TPL_DIR}/$f") ? $html->button($lang{DEL}, "index=$index&del=$f", { MESSAGE => "$lang{DEL} '$f'", class => 'del' }) : '');
-      }
-
-      $table->{rowcolor} = ($file . '.tpl' eq $main_tpl_name) ? 'active' : undef;
-      $table->addrow(@rows);
+  my @header_arr = ("$lang{MAIN}:index=$index&MODULE=main");
+  foreach my $module (sort @MODULES) {
+    if (-d "$sys_templates/$module/templates") {
+      push @header_arr, "$module:index=$index&MODULE=$module";
     }
   }
 
-  $templates_modules .= $html->tpl_show(templates('form_template_item'), {
-    TITLE => $html->b("$lang{PRIMARY}") . " ($main_templates_dir) ",
-    TABLE => $table->show({ OUTPUT2RETURN => 1 }),
-  },{ OUTPUT2RETURN => 1 });
+  my $module_title = ($FORM{MODULE} && $FORM{MODULE} ne 'main') ? $FORM{MODULE} : $lang{MAIN};
+  my $template_path = ($FORM{MODULE} && $FORM{MODULE} ne 'main') ? "$sys_templates/$module_title/templates" : $main_templates_dir;
 
-  # Modules templates sections
-  foreach my $module (sort @MODULES) {
+  print $html->table_header(\@header_arr, { TABS => 1, FORCED_CHECK_NAME => $module_title, class => 'mb-2' });
 
-    $table = $html->table({
-      width       => '100%',
-      title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
-      ID          => 'TEMPLATES_LIST_MODULES',
-    });
+  my @caption = sort keys %LANG;
+  $FORM{MODULE} //= 'main';
 
-    if (-d "$sys_templates/$module/templates") {
-      my $tpl_describe = get_tpl_describe("describe.tpls", "$sys_templates/$module/templates/");
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $html->b($module_title) .' '. $template_path,
+    title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
+    ID          => 'TEMPLATES_LIST',
+    DATA_TABLE  => 1,
+  });
 
-      opendir my $fh, "$sys_templates/$module/templates" or die "Can't open dir '$sys_templates/$module/templates' $!\n";
-        my @contents = grep !/^\.\.?$/ && /\.tpl$/, readdir $fh;
+  #Main templates
+  if ($FORM{MODULE} && $FORM{MODULE} eq 'main') {
+    if (-d $main_templates_dir) {
+      my $tpl_describe = get_tpl_describe("describe.tpls", $main_templates_dir);
+      opendir my $fh, "$main_templates_dir" or die "Can't open dir '$sys_templates/main_tpls' $!\n";
+      my @contents = grep !/^\.\.?$/, readdir $fh;
       closedir $fh;
-
       $table->{rowcolor} = undef;
-      $table->{extra}    = undef;
-
+      $table->{extra} = undef;
+      my $module = "";
       foreach my $file (sort @contents) {
-        next if (-d "$sys_templates/$module/templates/" . $file);
+        if (-d "$main_templates_dir" . $file) {
+          next;
+        }
+        elsif ($file !~ /\.tpl$/) {
+          next;
+        }
 
         my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
 
@@ -802,16 +753,65 @@ sub form_templates {
           $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
         }
         else {
-          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$sys_templates/$module/templates/" . $file);
+          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$main_templates_dir" . $file);
           $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
         }
 
         # LANG
         my @rows = (
           "$file", $size, $mtime, (($tpl_describe->{$file}) ? $tpl_describe->{$file} : ''),
-          $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file", class => 'show' })
-          . ((-f "$conf{TPL_DIR}/$module" . "_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=$module" . "_$file", { class => 'change' }) : $html->button($lang{CREATE}, "index=$index&create=$module:$file", { class => 'add' }))
-          . ((-f "$conf{TPL_DIR}/$module" . "_$file") ? $html->button($lang{DEL}, "index=$index&del=$module" . "_$file", { MESSAGE => "$lang{DEL} $file", class => 'del' }) : '')
+          $html->button($lang{SHOW}, "#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file", class => 'show' })
+            . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=" . "_$file", { class => 'change', }) : $html->button($lang{CREATE}, "index=$index&create=:$file", { class => 'add' }))
+            . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{DEL}, "index=$index&del=" . "_$file", { MESSAGE => "$lang{DEL} '$file'", class => 'del' }) : '')
+        );
+
+        $file =~ s/\.tpl//;
+        foreach my $lang (@caption) {
+          my $f = '_' . $file . '_' . $lang . '.tpl';
+          push @rows,
+            ((-f "$conf{TPL_DIR}/$f")
+              ? $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file:$lang", class => 'show' }) . $html->br() . $html->button($lang{CHANGE}, "index=$index&tpl_name=$f", { class => 'change' })
+              : $html->button($lang{CREATE}, "index=$index&create=:$file" . '.tpl' . ":$lang", { class => 'add' }))
+              . ((-f "$conf{TPL_DIR}/$f") ? $html->button($lang{DEL}, "index=$index&del=$f", { MESSAGE => "$lang{DEL} '$f'", class => 'del' }) : '');
+        }
+
+        $table->{rowcolor} = ($file . '.tpl' eq $main_tpl_name) ? 'active' : undef;
+        $table->addrow(@rows);
+      }
+    }
+  }
+  else{
+    # Modules templates
+    if (-d "$sys_templates/$FORM{MODULE}/templates") {
+      my $tpl_describe = get_tpl_describe("describe.tpls", "$sys_templates/$FORM{MODULE}/templates/");
+
+      opendir my $fh, "$sys_templates/$FORM{MODULE}/templates" or die "Can't open dir '$sys_templates/$FORM{MODULE}/templates' $!\n";
+        my @contents = grep !/^\.\.?$/ && /\.tpl$/, readdir $fh;
+      closedir $fh;
+
+      $table->{rowcolor} = undef;
+      $table->{extra}    = undef;
+
+      foreach my $file (sort @contents) {
+        next if (-d "$sys_templates/$FORM{MODULE}/templates/" . $file);
+
+        my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
+
+        if (-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") {
+          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$FORM{MODULE}" . "_$file");
+          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
+        }
+        else {
+          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$sys_templates/$FORM{MODULE}/templates/" . $file);
+          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
+        }
+
+        # LANG
+        my @rows = (
+          "$file", $size, $mtime, (($tpl_describe->{$file}) ? $tpl_describe->{$file} : ''),
+          $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$FORM{MODULE}:$file", class => 'show' })
+          . ((-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=$FORM{MODULE}" . "_$file", { class => 'change' }) : $html->button($lang{CREATE}, "index=$index&create=$FORM{MODULE}:$file", { class => 'add' }))
+          . ((-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") ? $html->button($lang{DEL}, "index=$index&del=$FORM{MODULE}" . "_$file", { MESSAGE => "$lang{DEL} $file", class => 'del' }) : '')
         );
 
         $file =~ s/\.tpl//;
@@ -819,16 +819,16 @@ sub form_templates {
         foreach my $lang (@caption) {
           my $template_name = '_' . $file . '_' . $lang . '.tpl';
 
-          my $file_exists = -f "$conf{TPL_DIR}/$module" . "$template_name";
+          my $file_exists = -f "$conf{TPL_DIR}/$FORM{MODULE}" . "$template_name";
           my $row = q{};
 
           if ($file_exists){
-            $row .= $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file:$lang",  class => 'show'  })
-            . $html->button($lang{CHANGE}, "index=$index&tpl_name=$module" . "$template_name", { class => 'change' })
-            . $html->button($lang{DEL}, "index=$index&del=$module" . "$template_name", { MESSAGE => "$lang{DEL} $file", class => 'del' });
+            $row .= $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$FORM{MODULE}:$file:$lang",  class => 'show'  })
+            . $html->button($lang{CHANGE}, "index=$index&tpl_name=$FORM{MODULE}" . "$template_name", { class => 'change' })
+            . $html->button($lang{DEL}, "index=$index&del=$FORM{MODULE}" . "$template_name", { MESSAGE => "$lang{DEL} $file", class => 'del' });
           }
           else {
-            $row = $html->button($lang{CREATE}, "index=$index&create=$module:$file" . '.tpl' . ":$lang", { class => 'add' });
+            $row = $html->button($lang{CREATE}, "index=$index&create=$FORM{MODULE}:$file" . '.tpl' . ":$lang", { class => 'add' });
           }
 
           push @rows, $row;
@@ -836,23 +836,10 @@ sub form_templates {
 
         $table->addrow(@rows);
       }
-
-
     }
-
-    $templates_modules .= $html->tpl_show(templates('form_template_item'), {
-      TITLE => $html->b($module) . " ($sys_templates/$module/templates)",
-      TABLE => $table->show({ OUTPUT2RETURN => 1 }),
-    }, { OUTPUT2RETURN => 1 });
-
   }
 
-  my $form_template = $html->tpl_show(templates('form_template_all'), {
-    TITLE             => $lang{TEMPLATES},
-    TEMPLATES_MODULES => $templates_modules,
-  },{ OUTPUT2RETURN => 1 });
-
-  print $form_template;
+  print $table->show();
 
   # OTHER
   $table = $html->table({
@@ -882,14 +869,10 @@ sub form_templates {
 
       my $file_actions = '';
 
-      $file_actions .= $html->button(
-          $lang{DEL},
-          "index=$index&file_del=$file",
-          {
-            MESSAGE => "$lang{DEL} '$file'",
-            class => 'del'
-          }
-        );
+      $file_actions .= $html->button($lang{DEL}, "index=$index&file_del=$file", {
+        MESSAGE => "$lang{DEL} '$file'",
+        class => 'del'
+       });
 
       if($file =~ /\.pdf$/) {
         my $file_without_extention = $file =~ s/\.pdf//r;
@@ -1304,51 +1287,52 @@ sub form_sql_backup {
 #**********************************************************
 sub form_exchange_rate {
 
-  my $finance = Finance->new($db, $admin, \%conf);
+  my $Finance = Finance->new($db, $admin, \%conf);
 
   if ($FORM{add_form}) {
-    $finance->{ACTION}     = 'add';
-    $finance->{LNG_ACTION} = "$lang{ADD}";
-    $html->tpl_show(templates('form_er'), $finance);
+    $Finance->{ACTION}     = 'add';
+    $Finance->{LNG_ACTION} = $lang{ADD};
+    $html->tpl_show(templates('form_er'), $Finance);
   }
   elsif ($FORM{add}) {
-    $finance->exchange_add({%FORM});
-    if (! $finance->{errno}) {
+    $Finance->exchange_add(\%FORM);
+    if (! $Finance->{errno}) {
       $html->message('info', $lang{EXCHANGE_RATE}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
-    $finance->exchange_change("$FORM{chg}", {%FORM});
-    if (! _error_show($finance)) {
+    $Finance->exchange_change($FORM{chg}, \%FORM);
+    if (! $Finance->{errno}) {
       $html->message('info', $lang{EXCHANGE_RATE}, "$lang{CHANGED}");
     }
   }
   elsif ($FORM{chg}) {
-    $finance->exchange_info("$FORM{chg}");
+    $Finance->exchange_info($FORM{chg});
 
-    if (! $finance->{errno}) {
-      $finance->{ACTION}     = 'change';
-      $finance->{LNG_ACTION} = "$lang{CHANGE}";
-      $html->message('info', $lang{EXCHANGE_RATE}, "$lang{CHANGING}");
-      $html->tpl_show(templates('form_er'), $finance);
+    if (! $Finance->{errno}) {
+      $Finance->{ACTION}     = 'change';
+      $Finance->{LNG_ACTION} = $lang{CHANGE};
+      $html->message('info', $lang{EXCHANGE_RATE}, $lang{CHANGING});
+      $html->tpl_show(templates('form_er'), $Finance);
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $finance->exchange_del("$FORM{del}");
-    if (! $finance->{errno}) {
+    $Finance->exchange_del("$FORM{del}");
+    if (! $Finance->{errno}) {
       $html->message('info', $lang{EXCHANGE_RATE}, "$lang{DELETED}");
     }
   }
   elsif ($FORM{log_del} && $FORM{COMMENTS}) {
-    $finance->exchange_log_del("$FORM{log_del}");
-    if (! $finance->{errno}) {
+    $Finance->exchange_log_del("$FORM{log_del}");
+    if (! $Finance->{errno}) {
       $html->message('info', $lang{EXCHANGE_RATE}, "$lang{LOG} $lang{DELETED}");
     }
   }
 
-  _error_show($finance);
+  _error_show($Finance);
+
   my ($table, $list) = result_former({
-    INPUT_DATA      => $finance,
+    INPUT_DATA      => $Finance,
     FUNCTION        => 'exchange_list',
     BASE_FIELDS     => 5,
     FUNCTION_FIELDS => 'change,del',
@@ -1379,7 +1363,7 @@ sub form_exchange_rate {
   }
 
   ($table, $list) = result_former({
-    INPUT_DATA      => $finance,
+    INPUT_DATA      => $Finance,
     FUNCTION        => 'exchange_log_list',
     BASE_FIELDS     => 3,
     FUNCTION_FIELDS => 'del',
@@ -1941,6 +1925,12 @@ sub form_fees_types {
   }
 
   _error_show($Fees);
+  
+  my $parents_list = translate_list($Fees->fees_type_list({ COLS_NAME => 1, PAGE_ROWS => 999999 }));
+  my %parents_hash = ();
+  foreach my $type (@$parents_list) {
+    $parents_hash{$type->{id}} = $type->{name};
+  }
 
   $Fees->{PARENT_SEL} = $html->form_select('PARENT_ID', {
     SELECTED    => $Fees->{PARENT_ID},
@@ -1949,6 +1939,14 @@ sub form_fees_types {
     NO_ID       => 1,
     SEL_VALUE   => 'name',
     SEL_KEY     => 'id'
+  });
+  $Fees->{CODE_SUBCONTO_SEL} = $html->form_select('SUBCONTO', {
+    SELECTED    => $Fees->{SUBCONTO},
+    SEL_LIST    => $Fees->code_subconto_list({ COLS_NAME => 1, PAGE_ROWS => 99999 }),
+    SEL_OPTIONS => { '' => '--' },
+    SEL_VALUE   => 'name',
+    SEL_KEY     => 'code',
+    MAIN_MENU   => get_function_index( 'form_fees_subconto_codes' ),
   });
 
   $html->tpl_show(templates('form_fees_types'), $Fees);
@@ -1971,10 +1969,17 @@ sub form_fees_types {
       name             => $lang{NAME},
       default_describe => $lang{COMMENTS},
       subconto         => "$lang{SUBCONTO}1",
+      parent_id        => $lang{PARENT_ELEMENT},
       sum              => $lang{SUM}
     },
     FILTER_COLS     => {
       name => '_translate',
+    },
+    FILTER_VALUES => {
+      parent_id => sub {
+        my $id = shift;
+        return $parents_hash{$id};
+      }
     },
     TABLE           => {
       width      => '100%',
@@ -2001,20 +2006,20 @@ sub get_checksum {
   my ($dir, $file_check_sum) = @_;
 
   opendir my $dh, $dir or return;
-    my @contents = grep !/^\.\.?$/, readdir $dh;
+    my @contents = grep { !/^\.\.?$/xm } readdir $dh;
   closedir $dh;
 
   foreach my $f (@contents) {
     my $filename = $dir.'/'.$f;
 
-    if ($f =~ /^\./ || -l $filename) {
+    if ($f =~ /^\./xm || -l $filename) {
       next;
     }
 
     if (-d $filename) {
       &get_checksum($filename, $file_check_sum);
     }
-    elsif($filename =~ /webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$/) {
+    elsif($filename =~ /webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$/xm) {
       my $file_content = '';
       if (open(my $fh, '<', $filename)) {
         while(<$fh>) {
@@ -2027,7 +2032,7 @@ sub get_checksum {
       my $digest = Digest::MD5::md5_hex($file_content);
       my $mtime = (stat($filename))[9];
       my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
-      $filename =~ s/$base_dir\///g;
+      $filename =~ s/$base_dir\///xg;
       $file_check_sum->{$filename}="$digest:$date";
     }
   }
@@ -2204,8 +2209,8 @@ sub form_intervals {
       $color = sprintf("%06x", hex('0x' . $color) + 7000);
 
       #day, $hour|$end = color
-      my ($h_b) = split(/:/, $line->{begin}, 3);
-      my ($h_e) = split(/:/, $line->{end}, 3);
+      my ($h_b) = split(/:/x, $line->{begin}, 3);
+      my ($h_e) = split(/:/x, $line->{end}, 3);
 
       push(@{ $visual_view{ $line->{day} } }, "$h_b|$h_e|$color|$line->{id}");
 
@@ -2299,7 +2304,7 @@ sub form_intervals {
       if (defined($visual_view{$i})) {
         my $day_periods = $visual_view{$i};
         foreach my $line (@$day_periods) {
-          ($h_b, $h_e, $color, $p) = split(/\|/, $line, 4);
+          ($h_b, $h_e, $color, $p) = split(/\|/x, $line, 4);
           if (($h >= $h_b) && ($h < $h_e)) {
             $tdcolor = '#' . $color;
             $link = $html->button('#', "index=$index&TP_ID=$FORM{TP_ID}&subf=$FORM{subf}&chg=$p");
@@ -2398,7 +2403,7 @@ sub form_prog_pathes {
       my $filename = "$conf{TPL_DIR}/programs.tpl";
       if (open(my $fh, '+>', $filename) ) {
         for (my $i = 0 ; $i < $#PROGS_ARR ; $i++) {
-          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/) {
+          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/xm) {
             my $r = $1;
             print $fh "$PROGS_ARR[$i]=$r\n";
           }
@@ -2427,14 +2432,14 @@ sub form_prog_pathes {
   }
 
   $html->tpl_show(
-      templates('form_prog_pathes'),
-      {
-        PANEL_HEADING   => "$lang{PATHES}",
-        FILE_NAME       => $filename,
-        ACTION          => 'change',
-        SUBMIT_BTN_NAME => "$lang{CHANGE}",
-        %pathes
-      });
+    templates('form_prog_pathes'),
+    {
+      PANEL_HEADING   => "$lang{PATHES}",
+      FILE_NAME       => $filename,
+      ACTION          => 'change',
+      SUBMIT_BTN_NAME => "$lang{CHANGE}",
+      %pathes
+    });
 
   return 1;
 }
@@ -2460,7 +2465,7 @@ sub admin_menu {
 
   my @keys = ();
   foreach my $key (keys %functions){
-    push @keys, $key if ($key =~ /^\d+$/ );
+    push @keys, $key if ($key =~ /^\d+$/xm);
   }
   @keys = sort {$a <=> $b} @keys;
 
@@ -3055,5 +3060,74 @@ sub form_password_blacklist {
     TOTAL           => 1
   });
 }
+
+
+#**********************************************************
+=head2 form_fees_subconto_codes()
+
+=cut
+#**********************************************************
+sub form_fees_subconto_codes {
+
+  my $Fees = Finance->fees($db, $admin, \%conf);
+  $Fees->{ACTION}     = 'add';
+  $Fees->{LNG_ACTION} = $lang{ADD};
+  $Fees->{debug} = 1 if ($FORM{DEBUG});
+
+  if ($FORM{add}) {
+    # $FORM{BANK_BIC} =~ s/,//g;
+    # $FORM{BANK_BIC} =~ s/ //g;
+    $Fees->code_subconto_add(\%FORM);
+    $html->message('success', $lang{ADDED}, "$lang{SUBCONTO}: $FORM{CODE}" ) if (!_error_show($Fees));
+  }
+  elsif ($FORM{change}) {
+    $Fees->code_subconto_change(\%FORM);
+    $html->message('success', $lang{CHANGED}, "$lang{SUBCONTO}: $FORM{CODE}") if (!_error_show($Fees));
+  }
+  elsif ($FORM{chg}) {
+    $Fees->{BTN_NAME} = 'change';
+    $Fees->{BTN_VALUE} = $lang{CHANGE};
+    $Fees->code_subconto_info({ CODE => $FORM{CODE} });
+  }
+  elsif ($FORM{del}) {
+    $Fees->code_subconto_del({ CODE => $FORM{CODE} });
+    $html->message('success', $lang{DELETED}, "$lang{SUBCONTO}: $FORM{CODE}")  if (!_error_show($Fees));
+  }
+
+  if ($FORM{add_form} || $FORM{chg} ) {
+    print $html->tpl_show(templates('form_subconto_code'), {
+      INDEX => $index,
+      BTN_NAME => 'add',
+      BTN_VALUE => $lang{ADD},
+      %FORM, %$Fees
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  result_former({
+    INPUT_DATA      => $Fees,
+    FUNCTION        => 'code_subconto_list',
+    DEFAULT_FIELDS  => 'ID,NAME',
+    FUNCTION_FIELDS => ':change:code&chg=1&,:del:code:&del=1&',
+    EXT_TITLES      => {
+      code  => $lang{CODE},
+      name  => $lang{NAME},
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width            => '100%',
+      caption          => $lang{SUBCONTO},
+      qs               => $pages_qs,
+      ID               => 'CODE_SUBCONTO_ID',
+      EXPORT           => 1,
+      MENU             => "$lang{ADD}:index=$index&add_form=1:add",
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+
+
+  return 1;
+}
+
 
 1;

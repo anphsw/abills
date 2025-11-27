@@ -1,5 +1,5 @@
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
-    <input type='hidden' name='index' value='$index'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='ID' value='%ID%'>
     <input type='hidden' name='PARENT_ID' value='%PARENT_ID%'>
     <input type='hidden' name='GROUP_ID_SELECTED' value='%GROUP_ID_SELECTED%'>
@@ -63,7 +63,7 @@
         var services = document.getElementById("SERVICE_ID");
         var result = services.value;
         let groupSelected = '%GROUP_ID_SELECTED%' || 0;
-        jQuery.post('$SELF_URL', 'header=2&get_index=cams_get_service_groups&SERVICE_ID=' + result + '&GROUP_ID=' + groupSelected, function (data) {
+        jQuery.post('%SELF_URL%', 'header=2&get_index=cams_get_service_groups&SERVICE_ID=' + result + '&GROUP_ID=' + groupSelected, function (data) {
             group_select.textContent = "";
             group_select.value = "";
             group_select.innerHTML = data;

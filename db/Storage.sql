@@ -67,14 +67,17 @@ CREATE TABLE IF NOT EXISTS `storage_incoming`
     `ip`             INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     `comments`       TEXT                 NOT NULL,
     `supplier_id`    SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-    `storage_id`     TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
+    `storage_id`     SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
     `domain_id`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     `payer_id`       INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     KEY `aid` (`aid`),
     KEY `supplier_id` (`supplier_id`),
-    KEY `domain_id` (`domain_id`)
+    KEY `domain_id` (`domain_id`),
+    KEY `storage_id` (`storage_id`),
+    KEY `payer_id` (`payer_id`)
 )
+    COMMENT = 'Storage incommings'
     DEFAULT CHARSET = utf8;
 
 
@@ -139,15 +142,21 @@ CREATE TABLE IF NOT EXISTS `storage_log`
     `date`                    DATETIME             NOT NULL,
     `aid`                     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     `storage_main_id`         INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `storage_id`              TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
+    `storage_id`              SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
     `comments`                TEXT,
     `action`                  TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
     `ip`                      INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     `count`                   INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     `uid`                     INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `storage_installation_id` SMALLINT(6) UNSIGNED     NOT NULL DEFAULT '0',
+    `storage_installation_id` INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     `nas_id`                  INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `uid` (`uid`),
+    KEY `aid` (`aid`),
+    KEY `storage_main_id` (`storage_main_id`),
+    KEY `storage_id` (`storage_id`),
+    KEY `nas_id` (`nas_id`),
+    KEY `storage_installation_id` (`storage_installation_id`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Storage operation log';
 
@@ -191,19 +200,20 @@ CREATE TABLE IF NOT EXISTS `storage_suppliers`
     UNIQUE KEY `name` (`name`),
     KEY `domain_id` (`domain_id`)
 )
-    DEFAULT CHARSET = utf8;
+    DEFAULT CHARSET = utf8 COMMENT = 'Storage suppliers';
 
 CREATE TABLE IF NOT EXISTS `storage_sn`
 (
     `id`                           INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `storage_incoming_articles_id` SMALLINT(6)      NOT NULL DEFAULT 0,
-    `storage_installation_id`      SMALLINT(6)      NOT NULL DEFAULT 0,
+    `storage_incoming_articles_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+    `storage_installation_id`      INT(11) UNSIGNED NOT NULL DEFAULT 0,
     `serial`                       VARCHAR(60)      NOT NULL DEFAULT '',
     `sn_comments`                  TEXT,
     `qrcode_hash`                  CHAR(32)         NOT NULL DEFAULT '',
     `ident1`                       VARCHAR(250)     NOT NULL DEFAULT '',
     `ident2`                       VARCHAR(250)     NOT NULL DEFAULT '',
     `ident3`                       VARCHAR(250)     NOT NULL DEFAULT '',
+    `ident4`                       VARCHAR(250)     NOT NULL DEFAULT '',
     PRIMARY KEY (`id`),
     KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`),
     KEY `storage_installation_id` (`storage_installation_id`)
@@ -212,12 +222,14 @@ CREATE TABLE IF NOT EXISTS `storage_sn`
 
 CREATE TABLE IF NOT EXISTS `storage_storages`
 (
-    `id`        SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-    `name`      VARCHAR(80)          NOT NULL DEFAULT '',
-    `comments`  VARCHAR(60)          NOT NULL DEFAULT '',
-    `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    PRIMARY KEY `storage_id` (`id`),
-    KEY `domain_id` (`domain_id`)
+    `id`          SMALLINT(6) UNSIGNED AUTO_INCREMENT,
+    `name`        VARCHAR(80)          NOT NULL DEFAULT '',
+    `comments`    VARCHAR(60)          NOT NULL DEFAULT '',
+    `domain_id`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `domain_id` (`domain_id`),
+    KEY `responsible` (`responsible`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'List of storages';
 
@@ -226,7 +238,7 @@ VALUES (1, '$lang{MAIN}', '');
 
 CREATE TABLE IF NOT EXISTS `storage_admin_access`
 (
-    `storage_id` SMALLINT(6) UNSIGNED NOT NULL,
+    `storage_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     `aid`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     `access`     SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
     KEY `storage_id` (`storage_id`),
@@ -370,6 +382,7 @@ CREATE TABLE IF NOT EXISTS `storage_deliveries`
     `date`            DATETIME             NOT NULL,
     PRIMARY KEY `id` (`id`),
     UNIQUE KEY `installation_id` (`installation_id`),
-    KEY `date` (`date`)
+    KEY `date` (`date`),
+    KEY `status` (`status`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'List of storage deliveries';

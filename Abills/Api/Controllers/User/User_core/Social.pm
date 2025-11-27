@@ -15,6 +15,7 @@ use warnings FATAL => 'all';
 use Control::Errors;
 use Users;
 
+my Control::Auth::User $Auth_User;
 my Control::Errors $Errors;
 my Users $Users;
 
@@ -40,6 +41,11 @@ sub new {
 
   $Errors = $self->{attr}->{Errors};
 
+  $Auth_User = Control::Auth::User->new($self->{db}, $self->{admin}, $self->{conf}, {
+    lang    => $self->{lang},
+    html    => $self->{html},
+    libpath => $self->{libpath}
+  });
   $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
 
   return $self;
@@ -89,44 +95,24 @@ sub delete_user_social_networks {
 =cut
 #**********************************************************
 sub post_user_social_networks {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  %main::FORM = ();
-  if ($self->{conf}->{AUTH_GOOGLE_ID} && $query_params->{GOOGLE}) {
-    $main::FORM{token} = $query_params->{GOOGLE};
-    $main::FORM{external_auth} = 'Google';
-    $main::FORM{API} = 1;
-  }
-  elsif ($self->{conf}->{AUTH_FACEBOOK_ID} && $query_params->{FACEBOOK}) {
-    $main::FORM{token} = $query_params->{FACEBOOK};
-    $main::FORM{external_auth} = 'Facebook';
-    $main::FORM{API} = 1;
-  }
-  elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{APPLE}) {
-    $main::FORM{token} = $query_params->{APPLE};
-    $main::FORM{external_auth} = 'Apple';
-    $main::FORM{API} = 1;
-    $main::FORM{NONCE} = $query_params->{NONCE} if ($query_params->{NONCE});
-  }
-  else {
-    return {
-      errno  => 11002,
-      errstr => 'Unknown social network or no token'
-    }
+  my @params = ('FACEBOOK', 'GOOGLE', 'APPLE');
+  my %auth_params = (API => 1);
+
+  foreach my $param (@params) {
+    next if (!$query_params->{$param});
+
+    $auth_params{external_auth} = ucfirst(lc($param));
+    $auth_params{token} = $query_params->{$param};
+
+    last;
   }
 
-  my ($uid, $sid, $login) = ::auth_user('', '', $ENV{HTTP_USERSID}, { API => 1 });
+  my ($uid, $sid, $login) = $Auth_User->auth_user('', '',  $ENV{HTTP_USERSID}, { FORM => \%auth_params });
 
-  if (ref $uid eq 'HASH') {
-    return $uid;
-  }
-
-  if (!$uid) {
-    return {
-      errno  => 11003,
-      errstr => 'Failed to set social network token. Unknown token'
-    };
+  if (!$uid || $Auth_User->{errno}) {
+    return $Auth_User;
   }
 
   return {

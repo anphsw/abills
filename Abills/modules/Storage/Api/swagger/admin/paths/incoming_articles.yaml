@@ -33,6 +33,12 @@ get:
       schema:
         type: boolean
         default: false
+    - name: ident4
+      in: query
+      description: Доп. идентификатор 4 (IDENT4)
+      schema:
+        type: boolean
+        default: false
     - name: article_id
       in: query
       description: ID артикула

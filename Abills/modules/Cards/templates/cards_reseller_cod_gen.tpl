@@ -34,9 +34,9 @@ function make_unique() {
 -->
 </script>
 
-<form action='$SELF_URL' METHOD='POST' TARGET=New  ENCTYPE='multipart/form-data'>
+<form action='%SELF_URL%' METHOD='POST' TARGET=New  ENCTYPE='multipart/form-data'>
 
-<input type='hidden' name='qindex' value='$index'>
+<input type='hidden' name='qindex' value='%index%'>
 <input type='hidden' name='UID' value='$FORM{UID}'>
 <input type='hidden' name='OP_SID' value='%OP_SID%' ID=OP_SID>
 <input type='hidden' name='sid' value='$sid'>

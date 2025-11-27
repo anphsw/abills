@@ -1,7 +1,7 @@
 <link rel='stylesheet' href='/styles/codemirror/lib/codemirror.css'>
-<form id='script_form' action='$SELF_URL' method='post'>
+<form id='script_form' action='%SELF_URL%' method='post'>
 
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='_id' value='%_id%'>
 
   <input type='hidden' id='script_result' name='script'/>

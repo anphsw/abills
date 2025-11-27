@@ -117,6 +117,7 @@
       "VOLTAGE": {
         "NAME"   : "VOLTAGE",
         "OIDS"   : ".1.3.6.1.4.1.2011.6.128.1.1.2.104.1.6",
+       // "OIDS"   : ".1.3.6.1.4.1.2011.6.2.1.3.1.1.0.0",
         "PARSER" : "_huawei_convert_voltage"
       },
       "DISTANCE": {
@@ -142,6 +143,16 @@
         "OIDS"   : "1.3.6.1.4.1.2011.6.128.1.1.2.58.1",
         "TYPE"   : "epon",
         "WALK"   : "1"
+      },
+      "CHARGE_PERCENTAGE": {
+        "NAME"   : "CHARGE_PERCENTAGE",
+        "OIDS"   : "1.3.6.1.4.1.2011.6.2.1.6.1.1.2.0.0",
+        "PARSER" : ""
+      },
+      "CHARGE_STATUS": {
+        "NAME"   : "CHARGE_STATUS",
+        "OIDS"   : "1.3.6.1.4.1.2011.6.2.1.6.2.1.2.0.0",
+        "PARSER" : ""
       }
     },
     "profiles": {
@@ -251,6 +262,7 @@
         "VOLTAGE": {
           "NAME"   : "VOLTAGE",
           "OIDS"   : ".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.5",
+          //"OIDS"   : ".1.3.6.1.4.1.2011.6.2.1.3.1.1.0.0",
           "PARSER" : "_huawei_convert_voltage"
         },
         "DISTANCE": {
@@ -322,6 +334,16 @@
         "MAC_BEHIND_ONU": {
           "NAME"        : "MAC_BEHIND_ONU",
           "USE_MAC_LOG" : 1
+        },
+        "CHARGE_PERCENTAGE": {
+          "NAME"   : "CHARGE_PERCENTAGE",
+          "OIDS"   : "1.3.6.1.4.1.2011.6.2.1.6.1.1.2.0.0",
+          "PARSER" : ""
+        },
+        "CHARGE_STATUS": {
+          "NAME"   : "CHARGE_STATUS",
+          "OIDS"   : "1.3.6.1.4.1.2011.6.2.1.6.2.1.2.0.0",
+          "PARSER" : ""
         }
       },
       "unregister": {
@@ -335,6 +357,11 @@
         "EQUIPMENT_ID": {
           "NAME"   : "EQUIPMENT_ID",
           "OIDS"   : "1.3.6.1.4.1.2011.6.128.1.1.2.48.1.7",
+          "WALK"   : "1"
+        },
+        "NNI_TYPE" : {
+          "NAME"   : "NNI_TYPE",
+          "OIDS"   : "1.3.6.1.4.1.2011.6.128.1.1.2.48.1.12",
           "WALK"   : "1"
         }
       },

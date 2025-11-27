@@ -44,7 +44,7 @@ sub _equipment_snmp_op {
   unless ( $nas_id ) {
     $html->message( 'err', $lang{ERROR}, "$lang{REQUIRED_ARG}: NAS_ID" );
 
-    my $equipment_list = $Equipment->_list( { NAS_NAME => '_SHOW', COLS_NAME => 1 } );
+    my $equipment_list = $Equipment->list( { NAS_NAME => '_SHOW', COLS_NAME => 1 } );
     _error_show( $Equipment );
 
     $FORM{visual} = 8;
@@ -73,7 +73,7 @@ sub _equipment_snmp_op {
 
   my $operation = $FORM{OPERATION} || 'BACKUP';
 
-  my $Equipment_list = $Equipment->_list( {
+  my $Equipment_list = $Equipment->list( {
     NAS_ID           => $nas_id,
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
@@ -122,7 +122,7 @@ sub _equipment_snmp_op {
     my $community_name = $Equipment_info->{NAS_MNG_PASSWORD};
 
     # Read SNMP template ang get oids we need for operation
-    my $oids_arr = _get_snmp_oids_array( $operation, $vendor_name, $model_name, $revision, $tftpserv, $backup_name );
+    my $oids_arr = get_vendors_oidss_array( $operation, $vendor_name, $model_name, $revision, $tftpserv, $backup_name );
 
     if ( $oids_arr && ref $oids_arr eq 'ARRAY' ) {
 
@@ -193,7 +193,7 @@ sub equipment_snmp_upload {
 }
 
 #********************************************************
-=head2 _get_snmp_oids_array($section, $vendor, $model_name, $revision, $hostconn, $tftpserv, $backup_name)
+=head2 get_vendors_oidss_array($section, $vendor, $model_name, $revision, $hostconn, $tftpserv, $backup_name)
 
   Arguments:
    $vendor               - as defined in Equipment_models.sql
@@ -211,7 +211,7 @@ sub equipment_snmp_upload {
 
 =cut
 #********************************************************
-sub _get_snmp_oids_array {
+sub get_vendors_oidss_array {
   my ($section, $vendor, $model_name, $revision, $tftpserv, $backup_name) = @_;
 
   return 0 unless ( $vendor && $tftpserv && $backup_name);
@@ -378,7 +378,7 @@ sub equipment_show_snmp_backup_files {
   }
 
   if (! $nas_id ) {
-    my $equipment_list = $Equipment->_list( {
+    my $equipment_list = $Equipment->list( {
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1
     } );

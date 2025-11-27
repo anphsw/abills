@@ -1,5 +1,5 @@
 <form method='POST'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <div class='card card-primary card-outline box-form form-horizontal'>
     <div class='card-body'>
       <div class='form-group'>

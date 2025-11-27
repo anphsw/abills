@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "localeName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "readiness": {
+            "type": "integer"
+          },
+          "taskClosed": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "color",
+          "icon",
+          "id",
+          "localeName",
+          "name",
+          "readiness",
+          "taskClosed"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

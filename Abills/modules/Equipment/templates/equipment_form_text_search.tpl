@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' METHOD='GET' name='form_search'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='visual' value='%VISUAL%'>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
 

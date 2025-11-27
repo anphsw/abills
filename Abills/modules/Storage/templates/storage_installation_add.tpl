@@ -1,5 +1,5 @@
-<form action='$SELF_URL' id='storage_installation_form' name='storage_installation_name' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' id='storage_installation_form' name='storage_installation_name' class='form form-horizontal'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
   <div class='card card-primary card-outline card-form'>

@@ -29,7 +29,7 @@
 
 <script>
   /* Closing right sidebar by resize */
-  let canBeOpen = '$admin->{RIGHT_MENU_OPEN}' !== '';
+  let canBeOpen = '%RIGHT_MENU_OPEN%' !== '';
   let openRightSidebar = !canBeOpen;
   jQuery(function () {
     jQuery(rightSidebarButton).on('click', function() {

@@ -1,6 +1,6 @@
 <div class='d-print-none'>
-<form action='$SELF_URL' method='POST'>
-<input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' method='POST'>
+<input type=hidden name='index' value='%index%'>
 <input type=hidden name='TP_ID' value='$FORM{TP_ID}'>
 <input type=hidden name='ID' value='$FORM{chg}'>
 <input type=hidden name='tt' value='1'>

@@ -40,7 +40,11 @@ sub new {
   my $attr;
   ($db, $admin, $CONF, $attr) = @_;
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   if($attr->{LANG}) {
     %lang = %{$attr->{LANG}};
@@ -56,6 +60,8 @@ sub new {
   $users = Users->new($db, $admin, $CONF);
 
   bless($self, $class);
+
+  return $self;
 }
 
 #**********************************************************
@@ -66,6 +72,7 @@ sub new {
       STATE
       MSGS
       MSG_ID
+      REPLY_ID
       SENDER_AID
       SEND_TO_AID
       NEW_RESPONSIBLE
@@ -76,8 +83,7 @@ sub new {
 =cut
 #**********************************************************
 sub notify_admins {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $message_id = $attr->{MSG_ID} || $Msgs->{INSERT_ID} || '--';
   my $reply_id = $attr->{REPLY_ID} || $Msgs->{REPLY_ID} || '--';
@@ -85,13 +91,13 @@ sub notify_admins {
   my $site = '';
   my $preview_url_without_message_id = '';
   my $referer = ($CONF->{BILLING_URL} || $ENV{HTTP_REFERER} || '');
-  if ( $referer && $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g ) {
+  if ( $referer && $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/gxm ) {
     $site = $1 || '';
     $preview_url_without_message_id = $site . "/admin/index.cgi?get_index=msgs_admin&full=1&chg=";
   }
 
   my $message_info = $Msgs->message_info($message_id);
-  return 0 if $Msgs->{errno} || (!$attr->{AID} && !$message_info->{RESPOSIBLE});
+  return 0 if ($Msgs->{errno} || (!$attr->{AID} && !$message_info->{RESPOSIBLE}));
 
   my $responsible_aid = $message_info->{RESPOSIBLE} || q{};
   return 1 if ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $responsible_aid && !$attr->{NEW_RESPONSIBLE});
@@ -138,8 +144,8 @@ sub notify_admins {
     ? $preview_url_without_message_id . $message_id : undef;
   $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
 
-  $message =~ s/&#(\d+);/chr($1)/ge;
-  my $mail_message = $html->tpl_show(::_include('msgs_email_notify', 'Msgs'), {
+  $message =~ s/&\#(\d+);/chr($1)/xge;
+  my $mail_message = $html->tpl_show(Abills::Templates::_include('msgs_email_notify', 'Msgs'), {
     SITE        => $site,
     LOGIN       => $user_login,
     ADMIN       => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
@@ -178,7 +184,7 @@ sub notify_admins {
     MAIL_TPL    => $mail_message,
     ATTACHMENTS => ($#{$ATTACHMENTS} > -1) ? $ATTACHMENTS : undef,
     ACTIONS     => $preview_url,
-    MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id", "Content-Type: text/html;" ],
+    MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ], # "Content-Type: text/html;\n" ],
     MAKE_REPLY  => $message_id,
     LANG        => \%lang,
     PARSE_MODE  => 'HTML',
@@ -216,8 +222,7 @@ sub notify_admins {
 =cut
 #**********************************************************
 sub notify_user {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG});
 
@@ -262,8 +267,8 @@ sub notify_user {
   # Make view url
   my $preview_url_without_message_id = '';
   my $site = $CONF->{CLIENT_INTERFACE_URL} || $CONF->{BILLING_URL} || $ENV{HTTP_REFERER} || q{};
-  $site =~ s/admin\/?//;
-  if ($site && $site =~ m/(https?:\/\/[a-zA-Z0-9:\.\-]+)\//g ) {
+  $site =~ s/admin\/?//x;
+  if ($site && $site =~ m/(https?:\/\/[a-zA-Z0-9:\.\-]+)\//xg ) {
     $site = $1 || '';
     $preview_url_without_message_id = $site . "/index.cgi?get_index=msgs_user&ID=";
   }
@@ -276,8 +281,8 @@ sub notify_user {
     my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
       ? $preview_url_without_message_id . $message_id : undef;
 
-    $message =~ s/&#(\d+);/chr($1)/ge if ($message);
-    my $mail_message = $html->tpl_show(::_include($message_tpl, 'Msgs'), {
+    $message =~ s/&\#(\d+);/chr($1)/gxe if ($message);
+    my $mail_message = $html->tpl_show(Abills::Templates::_include($message_tpl, 'Msgs'), {
       SITE        => $site,
       DATE        => $DATE,
       TIME        => $TIME,
@@ -340,8 +345,7 @@ sub notify_user {
 =cut
 #**********************************************************
 sub _msgs_notify_user_collect_message_content {
-  my $self = shift;
-  my ($message_id, $attr) = @_;
+  my ($self, $message_id, $attr) = @_;
   my $msgs_status = ::msgs_sel_status({ HASH_RESULT => 1 });
 
   my $subject = ($attr->{SUBJECT} || '') . (($FORM{REPLY_SUBJECT}) ? ' / ' . $FORM{REPLY_SUBJECT} : '');
@@ -448,8 +452,7 @@ sub _msgs_notify_user_collect_message_content {
 =cut
 #**********************************************************
 sub notify_admins_by_chapter {
-  my $self = shift;
-  my ($chapter_id, $msg_id) = @_;
+  my ($self, $chapter_id, $msg_id) = @_;
 
   return '' if !$chapter_id || !$msg_id;
 

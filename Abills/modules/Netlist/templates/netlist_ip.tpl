@@ -1,32 +1,32 @@
 <div class='d-print-none'>
-  <FORM action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
-    <input type='hidden' name='index' value='$index'>
+  <FORM action='%SELF_URL%' METHOD='POST' class='form form-horizontal'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='IP_NUM' value='%IP_NUM%'>
     <input type='hidden' name='IP_ID' value='%IP_ID%'>
 
 
-    <div class='card card-primary card-outline box-form'>
+    <div class='card card-primary card-outline card-form'>
       <div class='card-header with-border'>%ACTION_LNG%</div>
       <div class='card-body'>
-        <div class='form-group'>
+        <div class='form-group row'>
           <a class='col-md-6 float-right' href='index.cgi?index=%IP_SCAN_INDEX%'>_{SCAN}_ <span
               class='fa fa-search'></span></a>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>IP:</label>
 
           <div class='col-md-9'>
             <input id='IP' class='form-control ip-input' type='text' name='IP' value='%IP%'/>
           </div>
         </div>
-        <div class='form-group' id='ip-netmask'>
+        <div class='form-group row' id='ip-netmask'>
           <label class='col-md-3 control-label'>NETMASK:</label>
 
           <div class='col-md-9'>
             <input id='NETMASK' class='form-control' type='text' name='NETMASK' value='%NETMASK%'/>
           </div>
         </div>
-        <div class='form-group' id='ip-prefix' style='display: none'>
+        <div class='form-group row' id='ip-prefix' style='display: none'>
           <label class='col-md-5 control-label'>IPv6 _{PREFIX}_:</label>
 
           <div class='col-md-7'>
@@ -34,14 +34,14 @@
           </div>
         </div>
         <hr>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>MAC:</label>
 
           <div class='col-md-9'>
             <input class='form-control' type='text' name='MAC' value='%MAC%'/>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-7 control-label'>_{AUTO_DETECT}_ MAC:</label>
 
           <div class='col-md-5'>
@@ -50,45 +50,45 @@
           </div>
         </div>
         <hr>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>HOSTNAME (FQDN):</label>
 
           <div class='col-md-9'>
             <input class='form-control' type='text' name='HOSTNAME' value='%HOSTNAME%'/>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>_{DESCRIBE}_:</label>
 
           <div class='col-md-9'>
             <input class='form-control' type='text' name='DESCR' value='%DESCR%'/>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>_{GROUP}_: </label>
 
           <div class='col-md-9'>%GROUP_SEL%</div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>_{STATE}_:</label>
 
           <div class='col-md-9'>%STATE_SEL%</div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>_{PHONE}_:</label>
 
           <div class='col-md-9'>
             <input class='form-control' type='text' name='PHONE' value='%PHONE%'/>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>E-Mail:</label>
 
           <div class='col-md-9'>
             <input class='form-control' type='text' name='EMAIL' value='%EMAIL%'/>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='col-md-3 control-label'>_{COMMENTS}_:</label>
 
           <div class='col-md-9'>

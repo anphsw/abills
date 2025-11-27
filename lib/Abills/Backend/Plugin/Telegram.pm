@@ -856,7 +856,8 @@ sub authenticate {
   my ($self, $type, $sid, $chat_id) = @_;
 
   if ($type eq 'u') {
-    my $uid = $Users->web_session_find($sid);
+    $Users->web_session_info({ SID => $sid });
+    my $uid = $Users->{UID} || 0;
 
     if ($uid) {
 

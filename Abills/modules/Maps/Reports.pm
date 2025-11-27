@@ -14,8 +14,8 @@ our (
   %conf,
   $admin,
   $db,
-  %permissions,
-  %LIST_PARAMS
+  # %permissions,
+  # %LIST_PARAMS
 );
 
 use Abills::Base qw(in_array _bp);
@@ -25,6 +25,11 @@ my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG 
 
 #**********************************************************
 =head2 maps_objects_reports()
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -37,28 +42,28 @@ sub maps_objects_reports {
   foreach my $module_name (@main::MODULES) {
     my $module = $Auxiliary->maps_load_module($module_name);
 
-    next if !$module;
-    next if !$module->can('new') || !$module->can('maps_layers');
+    next if (!$module);
+    next if (!$module->can('new') || !$module->can('maps_layers'));
 
     my $module_object = $module->new($db, $admin, \%conf, { LANG => \%lang, HTML => $html });
     my $layer = $module_object->maps_layers();
 
     next if !$layer->{LAYERS} || ref $layer->{LAYERS} ne 'ARRAY';
 
-    foreach (@{$layer->{LAYERS}}) {
-      next if (!$_->{export_function} || (!$_->{lang_name} && !$_->{name}));
+    foreach my $l (@{$layer->{LAYERS}}) {
+      next if (!$l->{export_function} || (!$l->{lang_name} && !$l->{name}));
 
-      my $function_ref = $module_object->can($_->{export_function});
-      next if !$function_ref;
+      my $function_ref = $module_object->can($l->{export_function});
+      next if (!$function_ref);
 
       my $result = $module_object->$function_ref({ ONLY_TOTAL => 1 });
-      next if !$result;
+      next if (!$result);
 
-      $objects->{$_->{lang_name} ? _translate($_->{lang_name}) : _translate($_->{name})} = {
+      $objects->{$l->{lang_name} ? _translate($l->{lang_name}) : _translate($l->{name})} = {
         COUNT    => $result,
-        LAYER_ID => $_->{id},
+        LAYER_ID => $l->{id},
         MODULE   => $module_name,
-        LAYER_ID => $_->{id}
+        LAYER_ID => $l->{id}
       };
     }
   }
@@ -78,10 +83,17 @@ sub maps_objects_reports {
   }
 
   print $objects_info->show();
+
+  return 1;
 }
 
 #**********************************************************
 =head2 _maps_full_report_info()
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -90,17 +102,18 @@ sub _maps_full_report_info {
   return 0 if !$FORM{MODULE} || !$FORM{LAYER_ID};
 
   my $module = $Auxiliary->maps_load_module($FORM{MODULE});
-  return 0 if !$module;
+  return 0 if (!$module);
 
   my $module_object = $module->new($db, $admin, \%conf, { LANG => \%lang, HTML => $html });
 
   my $function_ref = $module_object->can('maps_report_info');
-  return 0 if !$function_ref;
+  return 0 if (!$function_ref);
 
   my $result = $module_object->maps_report_info($FORM{LAYER_ID});
-  return 0 if !$result;
+  return 0 if (!$result);
 
   print $result;
+
   return 1;
 }
 

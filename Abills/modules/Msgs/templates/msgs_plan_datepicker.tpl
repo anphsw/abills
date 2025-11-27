@@ -6,7 +6,7 @@
     %PLAN_DATETIME_INPUT%
   </div>
   <div class='col-md-12 mt-3'>
-    <a data-link='$SELF_URL?%SHEDULE_TABLE_OPEN%' id='sheduleTableBtn' class='btn btn-secondary w-100'>
+    <a data-link='%SELF_URL%?%SHEDULE_TABLE_OPEN%' id='sheduleTableBtn' class='btn btn-secondary w-100'>
       <span class='fa fa-tasks my-1'></span>
       _{SCHEDULE_BOARD}_
     </a>

@@ -106,12 +106,17 @@
       const response = await request.show();
       const paymentProcess = await makePayment(response, sum);
 
-      let status = 'success';
-
-      if (paymentProcess?.error || paymentProcess?.errno) {
-        status = 'fail';
+      if (res?.redirectUrl) {
+        document.location.href = res?.redirectUrl;
       }
-      await response.complete(status);
+      else {
+        let status = 'success';
+
+        if (paymentProcess?.error || paymentProcess?.errno) {
+          status = 'fail';
+        }
+        await response.complete(status);
+      }
     } catch (e) {
       // console.log(e);
     }
@@ -127,7 +132,6 @@
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
-              USERSID: window['SID'],
             },
           },
         )
@@ -155,7 +159,6 @@
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
-              USERSID: window['SID'],
             },
             body: JSON.stringify(request),
           },

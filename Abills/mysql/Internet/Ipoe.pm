@@ -76,23 +76,27 @@ sub new {
 =cut
 #*******************************************************************
 sub online_alive {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $session_id = ($attr->{SESSION_ID}) ? "AND acct_session_id='$attr->{SESSION_ID}'" : '';
 
-  $self->query("SELECT cid FROM internet_online
-   WHERE  user_name='$attr->{LOGIN}'
-    AND framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}');"
-  );
+  my $sql = <<'SQL';
+SELECT cid FROM internet_online
+WHERE  user_name= ?
+  AND framed_ip_address=INET_ATON( ? );
+SQL
+
+  $self->query($sql, undef, { Bind => [  $attr->{LOGIN}, $attr->{REMOTE_ADDR} ]  });
 
   if ($self->{TOTAL} > 0) {
-    my $sql = "UPDATE internet_online SET  lupdated=UNIX_TIMESTAMP(),
+    $sql = << "SQL";
+UPDATE internet_online SET  lupdated=UNIX_TIMESTAMP(),
     CONNECT_INFO='$attr->{CONNECT_INFO}',
     status=3
      WHERE user_name = '$attr->{LOGIN}'
     $session_id
-    AND framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')";
+    AND framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')
+SQL
 
     $self->query($sql, 'do');
     $self->{TOTAL} = 1;
@@ -111,34 +115,41 @@ sub online_alive {
 #@deprecated
 # Use internet sessions online
 sub user_status {
-  my $self = shift;
-  my ($DATA) = @_;
+  my ($self, $DATA) = @_;
 
   my $SESSION_START = 'now()';
-  my $sql  = '';
-
   my $nas_id = $DATA->{NAS_ID_SWITCH} || $DATA->{NAS_ID} || 0;
 
+  my $sql = <<"SQL";
+SELECT framed_ip_address
+FROM internet_online
+WHERE
+  user_name='$DATA->{USER_NAME}'
+  AND acct_session_id='IP'
+  AND nas_id='$nas_id'
+LIMIT 1;
+SQL
+
   #Get active session
-  $self->query("SELECT framed_ip_address FROM internet_online WHERE
-    user_name='$DATA->{USER_NAME}'
-    AND acct_session_id='IP'
-    AND nas_id='$nas_id' LIMIT 1;");
+  $self->query($sql);
 
   if ($self->{TOTAL} > 0) {
-    $sql = "UPDATE internet_online SET
-      status='$DATA->{ACCT_STATUS_TYPE}',
-      started=$SESSION_START,
-      lupdated=UNIX_TIMESTAMP(),
-      nas_port_id='$DATA->{NAS_PORT}',
-      acct_session_id='$DATA->{ACCT_SESSION_ID}',
-      framed_ip_address=INET_ATON('$DATA->{FRAMED_IP_ADDRESS}'),
-      cid='$DATA->{CALLING_STATION_ID}',
-      connect_info='$DATA->{CONNECT_INFO}'
-    WHERE user_name='$DATA->{USER_NAME}'
-      AND acct_session_id='IP'
-      AND nas_id='$nas_id' LIMIT 1;";
-    $self->query("$sql", 'do');
+    $sql = <<"SQL";
+UPDATE internet_online SET
+  status='$DATA->{ACCT_STATUS_TYPE}',
+  started=$SESSION_START,
+  lupdated=UNIX_TIMESTAMP(),
+  nas_port_id='$DATA->{NAS_PORT}',
+  acct_session_id='$DATA->{ACCT_SESSION_ID}',
+  framed_ip_address=INET_ATON('$DATA->{FRAMED_IP_ADDRESS}'),
+  cid='$DATA->{CALLING_STATION_ID}',
+  connect_info='$DATA->{CONNECT_INFO}'
+WHERE user_name='$DATA->{USER_NAME}'
+  AND acct_session_id='IP'
+  AND nas_id='$nas_id' LIMIT 1;
+SQL
+
+    $self->query($sql, 'do');
   }
   else {
     $self->query_add('internet_online', {
@@ -173,13 +184,11 @@ sub user_status {
 =cut
 #*******************************************************************
 sub log_rotate {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   #yesterday date
   my $DATE = (strftime("%Y_%m_%d", localtime(time - 86400)));
-  #my $DATE = POSIX::strftime("%Y_%m_%d", localtime(time));
-  my ($Y, $M, undef) = split(/_/, $DATE);
+  my ($Y, $M, undef) = split(/_/x, $DATE);
 
   my @rq      = ();
   my $version = $self->db_version();
@@ -202,12 +211,12 @@ sub log_rotate {
 
     $self->query("SHOW TABLES LIKE 'ipn_traf_detail_%'", undef,  { DB_REF => $self->{db2} });
     foreach my $table_name (@{ $self->{list} }) {
-      $table_name->[0] =~ /(\d{4})\_(\d{2})\_(\d{2})$/;
-      my ($log_y, $log_m, $log_d) = ($1, $2, $3);
+      my ($log_y, $log_m, $log_d) = $table_name->[0] =~ /(\d{4})\_(\d{2})\_(\d{2})$/xm;
       my $seltime  = POSIX::mktime(0, 0, 0, $log_d, ($log_m - 1), ($log_y - 1900));
       my $cur_time = time;
       if (($cur_time - $seltime) > (86400 * $attr->{PERIOD})) {
-        push @rq, "DROP table `$table_name->[0]`;";
+        my $table = $table_name->[0];
+        push @rq, qq{DROP table $table;};
       }
     }
 
@@ -278,14 +287,9 @@ sub log_rotate {
     }
   }
 
-  $M = sprintf("%02d", $M);
-  if ($attr->{LOG}) {
-    push @rq, 'DROP TABLE IF EXISTS ipn_log_new;',
-    'CREATE TABLE ipn_log_new LIKE ipn_log;',
-    'DROP TABLE IF EXISTS ipn_log_backup;',
-    'RENAME TABLE ipn_log TO ipn_log_backup, ipn_log_new TO ipn_log;',
-    'CREATE TABLE IF NOT EXISTS ipn_log_' . $Y . '_' . $M . ' LIKE ipn_log;',
-    'INSERT INTO ipn_log_' . $Y . '_' . $M . " (
+  my $month = $Y.'_'. $M;
+  my $insert2arch = << "SQL";
+INSERT INTO ipn_log_$month (
         uid,
         start,
         stop,
@@ -302,9 +306,12 @@ sub log_rotate {
         SUM(traffic_in), SUM(traffic_out),
         nas_id, ip, interval_id, SUM(sum), session_id
         FROM ipn_log_backup
-        WHERE DATE_FORMAT(start, '%Y-%m')<='$Y-$M'
-        GROUP BY 2, traffic_class, ip, session_id;",
-      "INSERT INTO ipn_log (
+        WHERE DATE_FORMAT(start, '%Y-%m')<='$month'
+        GROUP BY 2, traffic_class, ip, session_id;
+SQL
+
+  my $insert2cur = << "SQL";
+INSERT INTO ipn_log (
         uid,
         start,
         stop,
@@ -318,14 +325,26 @@ sub log_rotate {
          )
        SELECT
         uid,
-        if(CURDATE() < '$Y-$M-01', DATE_FORMAT(start, '%Y-%m-%d %H'), start) ,
+        if(CURDATE() < '$month-01', DATE_FORMAT(start, '%Y-%m-%d %H'), start) ,
         DATE_FORMAT(stop, '%Y-%m-%d'),
         traffic_class,
         SUM(traffic_in), SUM(traffic_out),
         nas_id, ip, interval_id, SUM(sum), session_id
         FROM ipn_log_backup
-        WHERE DATE_FORMAT(start, '%Y-%m')>='$Y-$M'
-        GROUP BY 2, traffic_class, ip, session_id;";
+        WHERE DATE_FORMAT(start, '%Y-%m')>='$month'
+        GROUP BY 2, traffic_class, ip, session_id;
+SQL
+
+  $M = sprintf("%02d", $M);
+
+  if ($attr->{LOG}) {
+    push @rq, 'DROP TABLE IF EXISTS ipn_log_new;',
+    'CREATE TABLE ipn_log_new LIKE ipn_log;',
+    'DROP TABLE IF EXISTS ipn_log_backup;',
+    'RENAME TABLE ipn_log TO ipn_log_backup, ipn_log_new TO ipn_log;',
+    'CREATE TABLE IF NOT EXISTS ipn_log_' . $month . ' LIKE ipn_log;',
+    $insert2arch,
+    $insert2cur;
   }
 
   foreach my $query (@rq) {
@@ -341,8 +360,7 @@ sub log_rotate {
 =cut
 #*******************************************************************
 sub user_detail {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $list;
 
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
@@ -355,34 +373,26 @@ sub user_detail {
   my @GROUP_RULES = ();
 
   if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
 
     #Period
     if ($from) {
-      my $s_time = ($from =~ /^\d{4}-\d{2}-\d{2}$/) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time';
+      my $s_time = ($from =~ /^\d{4}-\d{2}-\d{2}$/xm) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time';
       push @WHERE_RULES, "$s_time >= '$from'";
-      if ($from =~ /(\d{4})-(\d{2})-(\d{2})/) {
+      if ($from =~ /(\d{4})-(\d{2})-(\d{2})/xm) {
         $attr->{START_DATE} = "$1$2$3";
       }
     }
 
-    my $s_time = ($to =~ /^\d{4}-\d{2}-\d{2}$/) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time';
+    my $s_time = ($to =~ /^\d{4}-\d{2}-\d{2}$/xm) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time';
 
     push @WHERE_RULES, "$s_time <= '$to'";
-    if ($to =~ /(\d{4})-(\d{2})-(\d{2})/) {
+    if ($to =~ /(\d{4})-(\d{2})-(\d{2})/xm) {
       $attr->{FINISH_DATE} = "$1$2$3";
     }
   }
 
-  #if ($attr->{UID}) {
-  #  push @WHERE_RULES, "uid='$attr->{UID}'";
-  #}
-
-  if ($attr->{SRC_PORT} eq $attr->{DST_PORT}) {
-
-  }
-
-  if (defined($attr->{SRC_PORT}) && $attr->{SRC_PORT} =~ /^\d+$/) {
+  if (defined($attr->{SRC_PORT}) && $attr->{SRC_PORT} =~ /^\d+$/xm) {
     push @WHERE_RULES, "src_port='$attr->{SRC_PORT}'";
   }
 
@@ -391,10 +401,10 @@ sub user_detail {
   }
 
   if ($attr->{DST_IP}) {
-    my @ips_arr = split(/,/, $attr->{DST_IP});
+    my @ips_arr = split('\.', $attr->{DST_IP});
     my @ip_q = ();
     foreach my $ip (sort @ips_arr) {
-      if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/) {
+      if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/xm) {
         #my $ip   = $1;
         my $bits = $2;
         my $mask = 0b1111111111111111111111111111111;
@@ -403,11 +413,9 @@ sub user_detail {
         my $last_ip  = ip2int($ip) | $mask;
         my $first_ip = $last_ip - $mask;
         print "IP FROM: " . int2ip($first_ip) . " TO: " . int2ip($last_ip) . "\n" if ($debug > 2);
-        push @ip_q, "(
-                       (dst_addr>='$first_ip' and dst_addr<='$last_ip' )
-                      )";
+        push @ip_q, "(dst_addr>='$first_ip' AND dst_addr<='$last_ip')";
       }
-      elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+      elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/xm) {
         push @ip_q, "dst_addr=INET_ATON('$ip')";
       }
     }
@@ -416,10 +424,10 @@ sub user_detail {
   }
 
   if ($attr->{SRC_IP}) {
-    my @ips_arr = split(/,/, $attr->{SRC_IP});
+    my @ips_arr = split(/,/x, $attr->{SRC_IP});
     my @ip_q = ();
     foreach my $ip (sort @ips_arr) {
-      if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/) {
+      if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/xm) {
         #my $ip   = $1;
         my $bits = $2;
         my $mask = 0b1111111111111111111111111111111;
@@ -428,11 +436,9 @@ sub user_detail {
         my $last_ip  = ip2int($ip) | $mask;
         my $first_ip = $last_ip - $mask;
         print "IP FROM: " . int2ip($first_ip) . " TO: " . int2ip($last_ip) . "\n" if ($debug > 2);
-        push @ip_q, "(
-                       (src_addr>='$first_ip' and src_addr<='$last_ip' )
-                      )";
+        push @ip_q, "(src_addr>='$first_ip' and src_addr<='$last_ip')";
       }
-      elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+      elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/xm) {
         push @ip_q, "src_addr=INET_ATON('$ip')";
       }
     }
@@ -440,7 +446,7 @@ sub user_detail {
     push @WHERE_RULES, '(' . join(' or ', @ip_q) . ')';
   }
 
-  if (defined($attr->{DST_PORT}) && $attr->{DST_PORT} =~ /^\d+$/) {
+  if (defined($attr->{DST_PORT}) && $attr->{DST_PORT} =~ /^\d+$/xm) {
     push @WHERE_RULES, "dst_port='$attr->{DST_PORT}'";
   }
 
@@ -469,7 +475,7 @@ sub user_detail {
 
   foreach my $line (@$list) {
     my $table = $line->[0];
-    if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/) {
+    if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/x) {
       my $table_date = "$1$2$3";
       if ($table_date >= $attr->{START_DATE} && $table_date <= $attr->{FINISH_DATE}) {
         print $table. "\n" if ($debug > 1);
@@ -482,22 +488,25 @@ sub user_detail {
   my @sql_arr = ();
   foreach my $table (@tables) {
     my $date;
-    if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/) {
+    if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/x) {
       $date = "$1-$2-$3";
     }
 
-    push @sql_arr, "SELECT s_time,  f_time,
-    INET_NTOA(src_addr) AS src_ip,
-    src_port,
-    INET_NTOA(dst_addr) AS dst_ip,
-    dst_port,
-    protocol,
-    $size,
-    nas_id
-  FROM $table
-    $WHERE
-    $GROUP_BY
-    ";
+    my $sql = <<"SQL";
+SELECT s_time,  f_time,
+       INET_NTOA(src_addr) AS src_ip,
+       src_port,
+       INET_NTOA(dst_addr) AS dst_ip,
+       dst_port,
+       protocol,
+       $size,
+       nas_id
+FROM $table
+$WHERE
+$GROUP_BY
+SQL
+
+    push @sql_arr, $sql;
   }
 
   my $sql = join(" UNION ", @sql_arr);
@@ -514,7 +523,7 @@ sub user_detail {
     $self->{TOTAL} = $totals;
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -533,8 +542,7 @@ sub user_detail {
 =cut
 #**********************************************************
 sub traffic_by_port_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = 'WHERE dst_port<>0 AND ';
 
@@ -560,32 +568,29 @@ sub traffic_by_port_list{
   }
 
   if ($attr->{PORTS}){
-    if ( $attr->{PORTS} =~ /, /){
+    if ( $attr->{PORTS} =~ /,\s+/xm){
       $WHERE .= " AND dst_port IN ($attr->{PORTS})";
     } else {
       $WHERE .= " AND dst_port='$attr->{PORTS}'";
     }
   }
 
+  my $sql = <<"SQL";
+SELECT
+  $datetime_definition,
+  dst_port,
+  SUM(size) AS size,
+  nas_id,
+  uid
+FROM ipn_traf_detail
+       $WHERE
+GROUP BY s_time
+ORDER BY $SORT $DESC ;
+SQL
 
-  $self->query("SELECT
-   $datetime_definition,
-   dst_port,
-   SUM(size) AS size,
-   nas_id,
-   uid
-  FROM ipn_traf_detail
-  $WHERE
-  GROUP BY s_time
-  ORDER BY $SORT $DESC ;",
-    undef,
+  $self->query($sql, undef,
     { %$attr, 'COLS_NAME' => 1 }
   );
-  #
-  #  my $list = $self->{list};
-  #
-  #  $self->query("SELECT count(*) AS total, SUM(size) AS total_traffic FROM ipn_unknow_ips;",
-  #    undef, { INFO => 1 });
 
   return $self->{list};
 }
@@ -593,12 +598,17 @@ sub traffic_by_port_list{
 #**********************************************************
 =head2 unknown_ips_del($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub unknown_ips_del {
   my $self = shift;
 
-  $self->query('DELETE FROM ipn_unknow_ips;', 'do');
+  $self->query_del('ipn_unknow_ips');
 
   return $self;
 }
@@ -606,11 +616,15 @@ sub unknown_ips_del {
 #**********************************************************
 =head2 unknown_ips_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub unknown_ips_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $WHERE = '';
 
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
@@ -618,20 +632,20 @@ sub unknown_ips_list {
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
-  $self->query("SELECT
-   datetime,
-   INET_NTOA(src_ip) AS src_ip,
-   INET_NTOA(dst_ip) AS dst_ip,
-   size,
-   nas_id
-  FROM ipn_unknow_ips
-  $WHERE
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS
-  ;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  datetime,
+  INET_NTOA(src_ip) AS src_ip,
+  INET_NTOA(dst_ip) AS dst_ip,
+  size,
+  nas_id
+FROM ipn_unknow_ips
+       $WHERE
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -654,8 +668,7 @@ sub unknown_ips_list {
 =cut
 #**********************************************************
 sub reports_users {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -669,39 +682,41 @@ sub reports_users {
   my %EXT_TABLE_JOINS_HASH = ();
 
   if ($attr->{INTERVAL}) {
-    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//x, $attr->{INTERVAL}, 2);
   }
 
   $attr->{SKIP_DEL_CHECK}=1;
 
-  my $WHERE =  $self->search_former($attr, [
-      [ 'START',        'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')",     "DATE_FORMAT(l.start, '%Y-%m-%d') AS start"  ],
-      [ 'IP',           'IP',   "INET_NTOA(l.ip)",     "INET_NTOA(l.ip) AS ip"  ],
-      [ 'USERS_COUNT',  'INT',  'COUNT(DISTINCT l.uid) AS users_count', 'COUNT(DISTINCT l.uid) AS users_count'   ],
-      [ 'TRAFFIC_IN',   'INT',  'SUM(l.traffic_in)',                    'SUM(l.traffic_in) AS traffic_in'        ],
-      [ 'TRAFFIC_OUT',  'INT',  'SUM(l.traffic_out)',                   'SUM(l.traffic_out) AS traffic_out'      ],
-      [ 'TRAFFIC_SUM',  'INT',  'SUM(l.traffic_in+l.traffic_out)',      'SUM(l.traffic_in+l.traffic_out) AS traffic_sum' ],
+  my @search_params = (
+    [ 'START',        'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')",     "DATE_FORMAT(l.start, '%Y-%m-%d') AS start"  ],
+    [ 'IP',           'IP',   "INET_NTOA(l.ip)",     "INET_NTOA(l.ip) AS ip"  ],
+    [ 'USERS_COUNT',  'INT',  'COUNT(DISTINCT l.uid) AS users_count', 'COUNT(DISTINCT l.uid) AS users_count'   ],
+    [ 'TRAFFIC_IN',   'INT',  'SUM(l.traffic_in)',                    'SUM(l.traffic_in) AS traffic_in'        ],
+    [ 'TRAFFIC_OUT',  'INT',  'SUM(l.traffic_out)',                   'SUM(l.traffic_out) AS traffic_out'      ],
+    [ 'TRAFFIC_SUM',  'INT',  'SUM(l.traffic_in+l.traffic_out)',      'SUM(l.traffic_in+l.traffic_out) AS traffic_sum' ],
 
-      [ 'TRAFFIC0_IN',  'INT',  'SUM(if(l.traffic_class=0, l.traffic_in, 0))',               'SUM(if(l.traffic_class=0, l.traffic_in, 0)) AS traffic0_in' ],
-      [ 'TRAFFIC0_OUT', 'INT',  'SUM(if(l.traffic_class=0, l.traffic_out, 0))',              'SUM(if(l.traffic_class=0, l.traffic_out, 0)) AS traffic0_out' ],
-      [ 'TRAFFIC0_SUM', 'INT',  'SUM(if(l.traffic_class=0, l.traffic_in+l.traffic_out, 0))', 'SUM(if(l.traffic_class=0, l.traffic_in+l.traffic_out, 0)) AS traffic0_sum' ],
+    [ 'TRAFFIC0_IN',  'INT',  'SUM(if(l.traffic_class=0, l.traffic_in, 0))',               'SUM(if(l.traffic_class=0, l.traffic_in, 0)) AS traffic0_in' ],
+    [ 'TRAFFIC0_OUT', 'INT',  'SUM(if(l.traffic_class=0, l.traffic_out, 0))',              'SUM(if(l.traffic_class=0, l.traffic_out, 0)) AS traffic0_out' ],
+    [ 'TRAFFIC0_SUM', 'INT',  'SUM(if(l.traffic_class=0, l.traffic_in+l.traffic_out, 0))', 'SUM(if(l.traffic_class=0, l.traffic_in+l.traffic_out, 0)) AS traffic0_sum' ],
 
-      [ 'TRAFFIC1_IN',  'INT',  'SUM(if(l.traffic_class=1, l.traffic_in, 0))',               'SUM(if(l.traffic_class=1, l.traffic_in, 0)) AS traffic1_in' ],
-      [ 'TRAFFIC1_OUT', 'INT',  'SUM(if(l.traffic_class=1, l.traffic_out, 0))',              'SUM(if(l.traffic_class=1, l.traffic_out, 0)) AS traffic1_out' ],
-      [ 'TRAFFIC1_SUM', 'INT',  'SUM(if(l.traffic_class=1, l.traffic_in+l.traffic_out, 0))', 'SUM(if(l.traffic_class=1, l.traffic_in+l.traffic_out, 0)) AS traffic1_sum' ],
+    [ 'TRAFFIC1_IN',  'INT',  'SUM(if(l.traffic_class=1, l.traffic_in, 0))',               'SUM(if(l.traffic_class=1, l.traffic_in, 0)) AS traffic1_in' ],
+    [ 'TRAFFIC1_OUT', 'INT',  'SUM(if(l.traffic_class=1, l.traffic_out, 0))',              'SUM(if(l.traffic_class=1, l.traffic_out, 0)) AS traffic1_out' ],
+    [ 'TRAFFIC1_SUM', 'INT',  'SUM(if(l.traffic_class=1, l.traffic_in+l.traffic_out, 0))', 'SUM(if(l.traffic_class=1, l.traffic_in+l.traffic_out, 0)) AS traffic1_sum' ],
 
-      [ 'SUM',              'INT',   'l.sum',   'SUM(l.sum) AS sum' ],
+    [ 'SUM',              'INT',   'l.sum',   'SUM(l.sum) AS sum' ],
 
-      ['METHOD',            'INT',   'p.method'                          ],
-      ['MONTH',             'DATE',  "DATE_FORMAT(l.start, '%Y-%m')"     ],
-      ['FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
-      ['DATE',              'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
-      ['FROM_TIME|TO_TIME', 'DATE',  "DATE_FORMAT(l.start, '%H-%i')"     ],
-      ['HOUR',              'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d %H')" ],
-      #['HOURS',             'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
-      ['SESSION_ID',        'STR',   "l.session_id",                     ],
-      ['UID',               'INT',   'l.uid'                             ],
-    ],
+    ['METHOD',            'INT',   'p.method'                          ],
+    ['MONTH',             'DATE',  "DATE_FORMAT(l.start, '%Y-%m')"     ],
+    ['FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
+    ['DATE',              'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
+    ['FROM_TIME|TO_TIME', 'DATE',  "DATE_FORMAT(l.start, '%H-%i')"     ],
+    ['HOUR',              'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d %H')" ],
+    #['HOURS',             'DATE',  "DATE_FORMAT(l.start, '%Y-%m-%d')"  ],
+    ['SESSION_ID',        'STR',   "l.session_id",                     ],
+    ['UID',               'INT',   'l.uid'                             ],
+  );
+
+  my $WHERE =  $self->search_former($attr, \@search_params,
     {
       WHERE             => 1,
       USERS_FIELDS      => 1,
@@ -732,11 +747,10 @@ sub reports_users {
   my @tables = ();
   #Interval from date to date
   if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
 
-    my ($from_y, $from_m, $from_d) = split(/-/, $from);
-    my ($to_y,   $to_m,   $to_d)   = split(/-/, $to);
-    #my ($y,      $m,      $d)      = split(/-/, $attr->{CUR_DATE});
+    my ($from_y, $from_m, $from_d) = split('-', $from);
+    my ($to_y,   $to_m,   $to_d)   = split('-', $to);
     my $START_DATE      = "$from_y$from_m";
     my $FINISH_DATE     = "$to_y$to_m";
     my $START_DATE_DAY  = "$from_y$from_m$from_d";
@@ -747,14 +761,14 @@ sub reports_users {
 
     foreach my $line (@$list) {
       my $table = $line->[0];
-      if ($table =~ m/ipn_log_(\d{4})_(\d{2})$/) {
+      if ($table =~ m/ipn_log_(\d{4})_(\d{2})$/x) {
         my $table_date = "$1$2";
         if ($table_date >= $START_DATE && $table_date <= $FINISH_DATE) {
           print $table. "\n" if ($debug > 1);
           push @tables, $table;
         }
       }
-      elsif ($table =~ m/ipn_log_(\d{4})_(\d{2})_(\d{2})$/) {
+      elsif ($table =~ m/ipn_log_(\d{4})_(\d{2})_(\d{2})$/x) {
         my $table_date = "$1$2$3";
         if ($table_date >= $START_DATE_DAY && $table_date <= $FINISH_DATE_DAY) {
           print $table. "\n" if ($debug > 1);
@@ -861,7 +875,7 @@ sub reports_users {
     $date = "DATE_FORMAT(l.start, '%Y-%m') AS month, COUNT(DISTINCT l.uid) AS users_count, ";
   }
 
-  if ($self->{SEARCH_FIELDS}=~/u\.|pi\./ || $WHERE =~ / u\./) {
+  if ($self->{SEARCH_FIELDS}=~/u\.|pi\./xm || $WHERE =~ /\s+u\./xm) {
     $EXT_TABLE_JOINS_HASH{users}=1;
   }
 
@@ -873,20 +887,25 @@ sub reports_users {
     ]
   });
 
-  my $sql = "SELECT $date,
-     $self->{SEARCH_FIELDS}
+  my $sql =<< "SQL";
+SELECT $date,
+   $self->{SEARCH_FIELDS}
    l.nas_id, l.uid
-   FROM %TABLE% l
-   $EXT_TABLES
-   $WHERE
-   GROUP BY $GROUP";
+FROM %TABLE% l
+$EXT_TABLES
+$WHERE
+GROUP BY $GROUP
+SQL
 
-  my $sql2 = "SELECT COUNT(DISTINCT l.uid) AS users_count, SUM(l.traffic_in) AS traffic_in_sum,
+
+  my $sql2 =<< "SQL";
+SELECT COUNT(DISTINCT l.uid) AS users_count, SUM(l.traffic_in) AS traffic_in_sum,
     SUM(l.traffic_out) AS traffic_out_sum,
     SUM(l.sum) AS sum
   FROM  %TABLE% l
   $EXT_TABLES
-  $WHERE ";
+  $WHERE
+SQL
 
   my $full_sql  = '';
   my $full_sql2 = '';
@@ -895,12 +914,12 @@ sub reports_users {
     for (my $i = 0 ; $i <= $#tables ; $i++) {
       my $table = $tables[$i];
       my $sql3  = $sql;
-      $sql3 =~ s/\%TABLE\%/$table/g;
+      $sql3 =~ s/\%TABLE\%/$table/xg;
 
       $full_sql .= "$sql3\n";
 
       my $sql4 = $sql2;
-      $sql4 =~ s/\%TABLE\%/$table/g;
+      $sql4 =~ s/\%TABLE\%/$table/xg;
       $full_sql2 .= "$sql4\n";
 
       $full_sql  .= " UNION ";
@@ -908,13 +927,12 @@ sub reports_users {
     }
   }
 
-  $sql  =~ s/\%TABLE\%/ipn_log/g;
-  $sql2 =~ s/\%TABLE\%/ipn_log/g;
+  $sql  =~ s/\%TABLE\%/ipn_log/xg;
+  $sql2 =~ s/\%TABLE\%/ipn_log/xg;
   $full_sql  .= $sql;
   $full_sql2 .= $sql2;
 
-  $full_sql .= "
-   ORDER BY $SORT $DESC ";
+  $full_sql .= " ORDER BY $SORT $DESC ";
 
   #Rows query
   $self->query($full_sql, undef, $attr);
@@ -933,8 +951,7 @@ sub reports_users {
 =cut
 #*******************************************************************
 sub prepaid_rest {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $info   = $attr->{INFO};
 
   my $octets_direction = "l.traffic_in + l.traffic_out";
@@ -949,11 +966,14 @@ sub prepaid_rest {
     $octets_direction = "l.traffic_out";
   }
 
-  $self->query("SELECT l.traffic_class, (SUM($octets_direction)) / $self->{conf}->{MB_SIZE}
-   from ipn_log l
-   WHERE l.uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$info->[0]->{activate}'
-   GROUP BY l.traffic_class, l.uid ;"
-  );
+  my $sql = <<"SQL";
+SELECT l.traffic_class, (SUM($octets_direction)) / $self->{conf}->{MB_SIZE}
+from ipn_log l
+WHERE l.uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$info->[0]->{activate}'
+GROUP BY l.traffic_class, l.uid ;
+SQL
+
+  $self->query($sql);
 
   my %traffic = ();
   foreach my $line (@{ $self->{list} }) {
@@ -968,33 +988,38 @@ sub prepaid_rest {
 #*******************************************************************
 =head2 recalculate($attr); - Delete information from user log
 
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
 =cut
 #*******************************************************************
 sub recalculate {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+  my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
+  my $sql = <<"SQL";
+SELECT start,
+       traffic_class,
+       traffic_in,
+       traffic_out,
+       nas_id,
+       INET_NTOA(ip),
+       interval_id,
+       sum,
+       session_id
+FROM ipn_log l
+WHERE l.uid='$attr->{UID}' AND
+  (
+    DATE_FORMAT(start, '%Y-%m-%d')>='$from'
+      AND DATE_FORMAT(start, '%Y-%m-%d')<='$to'
+    )
+;
+SQL
 
-  $self->query("SELECT start,
-   traffic_class,
-   traffic_in,
-   traffic_out,
-   nas_id,
-   INET_NTOA(ip),
-   interval_id,
-   sum,
-   session_id
-   from ipn_log l
-   WHERE l.uid='$attr->{UID}' and
-     (
-      DATE_FORMAT(start, '%Y-%m-%d')>='$from'
-      and DATE_FORMAT(start, '%Y-%m-%d')<='$to'
-      )
-   ;",
-    undef,
-    $attr
-  );
+  $self->query($sql, undef, $attr);
 
   return $self;
 }
@@ -1002,43 +1027,53 @@ sub recalculate {
 #**********************************************************
 =head2 traffic_add_log($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub traffic_recalc {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("UPDATE ipn_log SET
-     sum='$attr->{SUM}'
-   WHERE
-         uid='$attr->{UID}' and
-         start='$attr->{START}' and
-         traffic_class='$attr->{TRAFFIC_CLASS}' and
-         traffic_in='$attr->{IN}' and
-         traffic_out='$attr->{OUT}' and
-         session_id='$attr->{SESSION_ID}';", 'do'
-  );
+  my $sql = <<"SQL";
+UPDATE ipn_log SET
+  sum='$attr->{SUM}'
+WHERE
+  uid='$attr->{UID}' and
+  start='$attr->{START}' and
+  traffic_class='$attr->{TRAFFIC_CLASS}' and
+  traffic_in='$attr->{IN}' and
+  traffic_out='$attr->{OUT}' and
+  session_id='$attr->{SESSION_ID}';
+SQL
+
+  $self->query($sql, 'do');
 
   return $self;
 }
 
 #**********************************************************
-=head2 traffic_add_log()$attr;
+=head2 traffic_add_log($attr);
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub traffic_recalc_bill {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("UPDATE bills SET  deposit=deposit + $attr->{SUM}
-    WHERE  id= ? ;",
+  $self->query("UPDATE bills SET  deposit=deposit + ? WHERE  id= ? ;",
     'do',
-    { Bind => [ $attr->{BILL_ID} ] }
+    { Bind => [ $attr->{SUM}, $attr->{BILL_ID} ] }
   );
 
   return $self;
 }
 
-1
+1;
 

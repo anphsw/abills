@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS `docs_edocs`
   `branch_id`  VARCHAR(128)         NOT NULL DEFAULT '',
   KEY uid (`uid`),
   KEY aid (`aid`),
+  KEY company_id (`company_id`),
+  KEY ext_id (`ext_id`),
   PRIMARY KEY (`id`)
 )
   CHARSET = utf8

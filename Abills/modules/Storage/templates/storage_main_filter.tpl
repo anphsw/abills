@@ -6,7 +6,7 @@
 </script>
 
 <script src='/styles/default/js/storage.js'></script>
-<form class='form form-horizontal' action='$SELF_URL?index=$index\&storage_status=1' name='depot_form' method=POST>
+<form class='form form-horizontal' action='%SELF_URL%?index=%index%\&storage_status=1' name='depot_form' method=POST>
   <input type=hidden name=index value=%index%>
   <input type=hidden name=ID value=$FORM{chg}>
   <input type=hidden name=INCOMING_ID value=%INCOMING_ID%>
@@ -57,21 +57,27 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_1:</label>
+        <label class='col-form-label text-md-right col-md-4'>_{IDENT1}_:</label>
         <div class='col-md-8'>
           <input class='form-control' type='text' name='IDENT1' value='%IDENT1%'>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_2:</label>
+        <label class='col-form-label text-md-right col-md-4'>_{IDENT2}_:</label>
         <div class='col-md-8'>
           <input class='form-control' type='text' name='IDENT2' value='%IDENT2%'>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-4'>_{STORAGE_IDENT}_3:</label>
+        <label class='col-form-label text-md-right col-md-4'>_{IDENT3}_:</label>
         <div class='col-md-8'>
           <input class='form-control' type='text' name='IDENT3' value='%IDENT3%'>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-4'>_{IDENT4}_:</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='IDENT4' value='%IDENT4%'>
         </div>
       </div>
     </div>

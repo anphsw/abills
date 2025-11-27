@@ -1,6 +1,6 @@
     <br>
-    <form id='stalker_add' action='$SELF_URL' method='POST'>
-    <input type=hidden name='index' value='$index'>
+    <form id='stalker_add' action='%SELF_URL%' method='POST'>
+    <input type=hidden name='index' value='%index%'>
     <input type=hidden name=ID value='$FORM{stalker_chg}'>
     <table align='center'>
         <tbody>

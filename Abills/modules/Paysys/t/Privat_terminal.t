@@ -34,7 +34,6 @@ if ($debug > 3) {
 my $invoice_salt = int(rand(10000));
 my $invoice = "invoice$invoice_salt";
 
-$payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 our @requests = (

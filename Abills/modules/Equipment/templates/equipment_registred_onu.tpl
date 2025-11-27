@@ -55,6 +55,24 @@
         </div>
       </div>
 
+        <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='ONU_PORTS'>ONU PORTS:</label>
+            <div class='col-md-8'>
+                <select name='ONU_PORTS' ID='ONU_PORTS'>
+                    <option value='1' selected>1</option>
+                    <option value='2'>2</option>
+                    <option value='3'>3</option>
+                    <option value='4'>4</option>
+                    <option value='5'>5</option>
+                    <option value='6'>6</option>
+                    <option value='7'>7</option>
+                    <option value='8'>8</option>
+                    <option value='999'>== L3 ==</option>
+                </select>
+            </div>
+        </div>
+
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='TAGGED_VLAN'>Tagged VLAN:</label>
         <div class='col-md-8'>

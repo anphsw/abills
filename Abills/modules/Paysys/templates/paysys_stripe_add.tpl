@@ -1,11 +1,11 @@
-<form action='$SELF_URL' method='POST' id='payment-form'>
+<form action='%SELF_URL%' method='POST' id='payment-form'>
   <div class='card card-primary card-outline'>
     <input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}'>
     <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
     <input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
     <input type='hidden' name='PHONE' value='$FORM{PHONE}'>
     <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
-    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='index' value='%index%'>
 
     <div class='card-header with-border text-center pb-0'>
       <h4>_{BALANCE_RECHARCHE}_</h4>

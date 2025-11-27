@@ -1,6 +1,6 @@
-<form action='$SELF_URL' METHOD='POST' name='user' class='form-horizontal'>
+<form action='%SELF_URL%' METHOD='POST' name='user' class='form-horizontal'>
   <input type=hidden name='ID' value='$FORM{chg}'>
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
 
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{TARIF_PLANS}_</h4></div>

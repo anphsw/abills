@@ -55,11 +55,10 @@ sub new {
 =cut
 #**********************************************************
 sub ureports_quick_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
-  my $uid = $form->{UID};
+  my $uid = $form->{UID} || -1;
 
   my $reports_list = $Ureports->user_list({
     UID           => $uid,
@@ -84,8 +83,7 @@ sub ureports_quick_info {
 =cut
 #**********************************************************
 sub ureports_payments_maked {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if ($attr->{CREDIT_NOTIFICATION} && $CONF->{UREPORTS_CREDIT_NOTIFICATION});
   return 0 unless (exists $attr->{USER_INFO} && defined $attr->{USER_INFO} && $attr->{USER_INFO}{UID});
@@ -295,8 +293,7 @@ sub ureports_payments_maked {
 =cut
 #**********************************************************
 sub ureports_send_reports {
-  my $self = shift;
-  my ($type, $destination, $message, $attr) = @_;
+  my ($self, $type, $destination, $message, $attr) = @_;
 
   if (!$type) {
     return 0;
@@ -334,7 +331,7 @@ sub ureports_send_reports {
         my $send_type_format = lc($sending_types{$send_type});
         my $send_type_tpl = 'ureports_report_'. $send_type_format .'_' . $attr->{REPORT_ID};
         my $check_tpl = $html->tpl_show(main::_include($send_type_tpl, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
-        if ($check_tpl !~ m/No such module/x) {
+        if ($check_tpl !~ m/No\s+such\s+module/x) {
           $message_template = $send_type_tpl;
         }
       }
@@ -434,6 +431,7 @@ sub ureports_send_reports {
 =head2 ureports_docs($attr)
 
   Arguments:
+    $attr
 
    Returns:
      boolean
@@ -441,8 +439,7 @@ sub ureports_send_reports {
 =cut
 #**********************************************************
 sub ureports_docs {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID} || '';
   my @services = ();
@@ -453,7 +450,7 @@ sub ureports_docs {
     UID               => $uid,
     MONTH_FEE         => '_SHOW',
     TP_NAME           => '_SHOW',
-    GROUP_BY          => 'internet.id',
+    #GROUP_BY          => 'internet.id',
     COLS_NAME         => 1
   });
 
@@ -488,13 +485,17 @@ sub ureports_docs {
 }
 
 #**********************************************************
-=head2 ureports_user_del($uid, $attr) - Delete user from module
+=head2 ureports_user_del($attr) - Delete user from module
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub ureports_user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
 

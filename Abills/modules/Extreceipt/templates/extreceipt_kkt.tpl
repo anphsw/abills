@@ -1,5 +1,5 @@
 <form name='KKT' id='FORM_KKT' method='post'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='chg' value='%ID%'/>
 
   <div class='card card-primary card-outline container col-md-6'>

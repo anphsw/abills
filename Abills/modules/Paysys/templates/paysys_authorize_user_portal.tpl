@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post'>
-    <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' method='post'>
+    <input type='hidden' name='index' value='%index%'/>
     <input type='hidden' name='PAYMENT_SYSTEM' value='%PAYMENT_SYSTEM%'/>
     <input type='hidden' name='SUM' value='%SUM%'/>
     <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'/>

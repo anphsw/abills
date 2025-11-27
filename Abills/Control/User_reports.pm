@@ -8,21 +8,17 @@ use strict;
 use warnings FATAL => 'all';
 use Users_reports;
 use Tariffs;
-use List::Util qw/max min/;
 require Abills::Misc;
 
 our (
   %lang,
   @MONTHES,
-  @WEEKDAYS,
-  %permissions,
   $db,
   $admin,
+  %conf
 );
 
 our Abills::HTML $html;
-
-my $Users_reports = Users_reports->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 report_new_all_customers() - show chart for new and all customers
@@ -35,8 +31,9 @@ my $Users_reports = Users_reports->new($db, $admin, \%conf);
 #**********************************************************
 sub report_new_all_customers {
   my ($search_year, undef, undef) = split('-', $DATE);
-  $search_year = $FORM{NEXT} || $FORM{PRE} if ($FORM{NEXT} || $FORM{PRE});
 
+  $search_year = $FORM{NEXT} || $FORM{PRE} if ($FORM{NEXT} || $FORM{PRE});
+  my $Users_reports = Users_reports->new($db, $admin, \%conf);
   my $all_data = $Users_reports->all_new_report({ COLS_NAME => 1, YEAR => $search_year });
   my @new_users = ();
   my @all_users = ();
@@ -94,13 +91,16 @@ sub report_new_all_customers {
     TITLE => $lang{NEXT}
   });
 
-  print "<div class='pl-0'>
+  print << "[HTML]";
+  <div class='pl-0'>
             <div class='card card-primary card-outline'>
               <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ALL_USERS}</h4></div>
               <div class='card-body'>
                 $chart3
               </div>
-          </div>\n";
+          </div>
+[HTML]
+
   return 1;
 }
 
@@ -120,6 +120,7 @@ sub report_new_arpu {
     $search_year = $FORM{NEXT} || $FORM{PRE};
   }
 
+  my $Users_reports = Users_reports->new($db, $admin, \%conf);
   if ($FORM{DEBUG}) {
     $Users_reports->{debug}=1;
   }
@@ -265,8 +266,10 @@ sub report_new_arpu {
 =cut
 #**********************************************************
 sub report_balance_by_status {
+
   require Service;
   Service->import();
+
   my $Service = Service->new($db, $admin, \%conf);
   my $status_list = $Service->status_list({
     NAME      => '_SHOW',
@@ -286,22 +289,22 @@ sub report_balance_by_status {
 
   my $list_index = get_function_index('internet_users_list');
 
-  require Internet;
-  Internet->import();
+  require Internet::Reports2;
+  Internet::Reports2->import();
 
-  my $Internet = Internet->new($db, $admin, \%conf);
+  my $Reports = Internet::Reports2->new($db, $admin, \%conf);
   if ($FORM{DEBUG}) {
-    $Internet->{debug} = 1;
+    $Reports->{debug} = 1;
   }
 
   foreach my $item (@$status_list) {
-    my $report_data = $Internet->report_user_statuses({ STATUS => $item->{id}, COLS_NAME => 1 });
+    my $report_data = $Reports->report_user_statuses({ STATUS => $item->{id}, COLS_NAME => 1 });
     $table->addrow(
       $html->color_mark(_translate($item->{name}), $item->{color}),
-      (defined $report_data->{status} && ($item->{id} eq $report_data->{status})) ?
+      (defined $report_data->{STATUS} && ($item->{id} eq $report_data->{STATUS})) ?
         $html->button($report_data->{COUNT},
           'index=' . $list_index . '&header=1&search_form=1&search=1&INTERNET_STATUS=' . $item->{id}) : 0,
-      (defined $report_data->{status} && ($item->{id} eq $report_data->{status})) ? format_sum($report_data->{deposit}) : 0,
+      (defined $report_data->{STATUS} && ($item->{id} eq $report_data->{STATUS})) ? format_sum($report_data->{DEPOSIT}) : 0,
     );
   }
 
@@ -317,6 +320,7 @@ sub report_balance_by_status {
 #*******************************************************************
 sub report_users_disabled {
 
+  my $Users_reports = Users_reports->new($db, $admin, \%conf);
   my $disabled_users_list = $Users_reports->report_users_disabled({
     COLS_NAME    => 1,
     DISABLE      => '_SHOW',
@@ -348,12 +352,12 @@ sub report_users_disabled {
     }
 
     $table->addrow(
-        $reason->{disable_date},
-        sprintf("%.0f",$disable/$quantity_per_month * 100).'% ('.$disable.')',
-        sprintf("%.0f",$not_active/$quantity_per_month * 100).'% ('.$not_active.')',
-        sprintf("%.0f",$hold_up/$quantity_per_month * 100).'% ('.$hold_up.')',
-        sprintf("%.0f",$non_payment/$quantity_per_month * 100).'% ('.$non_payment.')',
-        sprintf("%.0f",$err_small_deposit/$quantity_per_month * 100).'% ('.$err_small_deposit.')',
+      $reason->{disable_date},
+      sprintf("%.0f", $disable / $quantity_per_month * 100) . '% (' . $disable . ')',
+      sprintf("%.0f", $not_active / $quantity_per_month * 100) . '% (' . $not_active . ')',
+      sprintf("%.0f", $hold_up / $quantity_per_month * 100) . '% (' . $hold_up . ')',
+      sprintf("%.0f", $non_payment / $quantity_per_month * 100) . '% (' . $non_payment . ')',
+      sprintf("%.0f", $err_small_deposit / $quantity_per_month * 100) . '% (' . $err_small_deposit . ')',
     );
   }
 
@@ -372,7 +376,8 @@ sub report_users_telegram {
   my $index_user = get_function_index( 'form_users' );
 
   # TODO: add date of adding telegram
-  use Address;
+  require Address;
+  Address->import();
   my $Address = Address->new($db, $admin, \%conf);
   my $builds_sel = $html->form_select('BUILD_ID', {
     SELECTED    => $FORM{BUILD_ID} || 0,
@@ -417,6 +422,7 @@ sub report_users_telegram {
   });
 
   require Contacts;
+  Contacts->import();
   my $Contacts = Contacts->new($db, $admin, \%conf);
   $Contacts->{debug} = 1 if ($FORM{DEBUG});
 
@@ -442,6 +448,7 @@ sub report_users_telegram {
     ID      => 'USER_TELEGRAM_REPORT',
     EXPORT  => 1,
   });
+
   foreach my $contact (@$contacts_list) {
     $table->addrow(
       $contact->{uid},

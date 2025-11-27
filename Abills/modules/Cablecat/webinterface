@@ -16,7 +16,7 @@ our $Maps;
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.95 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.98 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };
@@ -402,7 +402,7 @@ sub cablecat_link_info {
 
       # Equipment_select
       if ( !$FORM{EQUIPMENT_ID} ) {
-        my $equipment_list = $Equipment->_list({ COLS_NAME => 1, NAS_NAME => '_SHOW', PAGE_ROWS => 10000 });
+        my $equipment_list = $Equipment->list({ COLS_NAME => 1, NAS_NAME => '_SHOW', PAGE_ROWS => 10000 });
 
         return $select_next_option->('EQUIPMENT_ID', $lang{EQUIPMENT}, $equipment_list, {
             name_key => 'nas_name',
@@ -411,7 +411,7 @@ sub cablecat_link_info {
           });
       }
       elsif ( $FORM{EQUIPMENT_ID} ) {
-        my $equipment_info = $Equipment->_info($FORM{EQUIPMENT_ID});
+        my $equipment_info = $Equipment->info($FORM{EQUIPMENT_ID});
         my $ports_count = $equipment_info->{PORTS};
 
         my @options_list = map {
@@ -1032,7 +1032,7 @@ sub cablecat_nas_trace_connection_form {
 
   # Choose end point
   if ( $FORM{get_nases} ) {
-    my $nases_list = $Equipment->_list({
+    my $nases_list = $Equipment->list({
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1,
       PAGE_ROWS => 10000
@@ -1290,7 +1290,7 @@ sub cablecat_equipment_trace {
 sub _cablecat_convert_nas_port {
   my ($nas_id, $port) = @_;
 
-  my $equipment_info = $Equipment->_list({
+  my $equipment_info = $Equipment->list({
     NAS_ID      => $nas_id,
     VENDOR_NAME => '_SHOW',
     COLS_NAME   => 1
@@ -1444,7 +1444,7 @@ sub _cablecat_get_conection_path_view {
     },
     EQUIPMENT => sub {
       my ($equipment_id, $fiber_num) = @_;
-      my $equipment_info = $Equipment->_info($equipment_id);
+      my $equipment_info = $Equipment->info($equipment_id);
       _error_show($Equipment) and return 0;
 
       return {
@@ -1691,7 +1691,7 @@ sub _cablecat_get_link_info {
     return user_ext_menu($user_info->{UID}, $user_info->{LOGIN});
   }
   elsif ( $other_element_type eq 'EQUIPMENT' ) {
-    my $equipment_info = $Equipment->_info($other_element_id);
+    my $equipment_info = $Equipment->info($other_element_id);
     # TODO: link
     return $html->b($equipment_info->{SYSTEM_ID} || $equipment_info->{NAS_NAME} || $lang{EQUIPMENT})
       . ' : ' . ($other_element_fiber_in || q{});

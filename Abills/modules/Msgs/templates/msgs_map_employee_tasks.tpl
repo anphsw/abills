@@ -1,7 +1,7 @@
 <div class='well well-sm'>
 
   <form name='MSGS_EMPLOYEES_TASKS' id='form_MSGS_EMPLOYEES_TASKS' method='post' class='form form-inline'>
-    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='index' value='%index%'/>
 
 
     <div class="form-group">

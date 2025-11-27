@@ -1,5 +1,5 @@
-<form action=$SELF_URL METHOD=POST class='form-horizontal'>
-  <input type='hidden' name='index' value=$index>
+<form action=%SELF_URL% METHOD=POST class='form-horizontal'>
+  <input type='hidden' name='index' value=%index%>
   <input type='hidden' name='NAS_ID' value=$FORM{NAS_ID}>
   <input type='hidden' name='subf' value=$FORM{subf}>
 
@@ -66,7 +66,7 @@
             <input type='text' class='form-control' disabled name='SUC_ATTEMPTS_PER_DAY'
                    id='SUC_ATTEMPTS_PER_DAY' value='%SUC_ATTEMPTS_PER_DAY%'>
             <div class="input-group-append">
-              <a href='$SELF_URL?index=%FUNC_INDEX%&LOG_TYPE=%LOG_INFO%&DATE=%DATE%&search_form=1&NAS_ID=$FORM{NAS_ID}&FROM_DATE=%DATE%&TO_DATE=%DATE%'
+              <a href='%SELF_URL%?index=%FUNC_INDEX%&LOG_TYPE=%LOG_INFO%&DATE=%DATE%&search_form=1&NAS_ID=$FORM{NAS_ID}&FROM_DATE=%DATE%&TO_DATE=%DATE%'
                  class='btn btn-info'>_{SHOW}_</a>
             </div>
           </div>
@@ -80,7 +80,7 @@
             <input type='text' class='form-control' disabled name='FALSE_ATTEMPTS_PER_DAY'
                    id='FALSE_ATTEMPTS_PER_DAY' value='%FALSE_ATTEMPTS_PER_DAY%'>
             <div class="input-group-append">
-              <a href='$SELF_URL?index=%FUNC_INDEX%&LOG_TYPE=%LOG_WARN%&DATE=%DATE%&search_form=1&NAS_ID=$FORM{NAS_ID}&FROM_DATE=%DATE%&TO_DATE=%DATE%'
+              <a href='%SELF_URL%?index=%FUNC_INDEX%&LOG_TYPE=%LOG_WARN%&DATE=%DATE%&search_form=1&NAS_ID=$FORM{NAS_ID}&FROM_DATE=%DATE%&TO_DATE=%DATE%'
                  class='btn btn-danger'>_{SHOW}_</a>
             </div>
           </div>

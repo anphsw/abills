@@ -1,16 +1,18 @@
 <form action='%SELF_URL%' method=post name='iptv_user_info' class='form-horizontal'>
   <input type=hidden name=index value=%index%>
-  <input type=hidden name=ID value='$FORM{chg}'>
-  <input type=hidden name=UID value='$FORM{UID}'>
+  <input type=hidden name=ID value='%chg%'>
+  <input type=hidden name=UID value='%UID%'>
   <input type=hidden name=TP_IDS value='%TP_IDS%'>
-  <input type=hidden name='step' value='$FORM{step}'>
+  <input type=hidden name='step' value='%step%'>
   <input type=hidden name='new' value=''>
   <input type=hidden name='add_form' value=''>
 
   <fieldset>
     %NEXT_FEES_WARNING%
     <div class='card card-primary card-outline container-md'>
-      <div class='card-header with-border'><h4 class='card-title'>_{TV}_: %ID%</h4></div>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{TV}_: %ID%</h4>
+      </div>
       <div class='card-body'>
         %MENU%
         %SUBSCRIBE_FORM%
@@ -53,7 +55,11 @@
           <label class='control-label col-md-3 text-right' for='CID'>MAC (Modem):</label>
           <div class='col-md-9'>
             <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'>
-            %SEND_MESSAGE%
+          </div>
+        </div>
+        <div class='form-group row mb-0'>
+          <div class='col-md-12 text-center'>
+            %EXTRA_BUTTONS%
           </div>
         </div>
 
@@ -152,7 +158,7 @@
   function autoReload() {
     var service_id = jQuery('#SERVICE_ID').val();
     var uid = jQuery(`[name='UID']`).val();
-    jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + service_id + '&UID=' + uid, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + service_id + '&UID=' + uid, function (data) {
       tp_select.textContent = '';
       tp_select.value = '';
       tp_select.innerHTML = data;

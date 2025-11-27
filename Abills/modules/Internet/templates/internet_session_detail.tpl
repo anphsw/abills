@@ -4,8 +4,8 @@
       <div class='card-header with-border'>
         <h4 class='card-title'>_{SESSIONS}_</h4>
           <div class="card-tools float-right">
-            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
-              <i class="fa fa-minus"></i>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
+              <i class='fa fa-minus'></i>
             </button>
           </div>
       </div>
@@ -31,9 +31,9 @@
     <div class='card card-primary card-outline box-form '>
       <div class='card-header with-border'>
         <h4 class='card-title'>_{NAS}_</h4>
-          <div class="card-tools float-right">
-            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
-              <i class="fa fa-minus"></i>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
+              <i class='fa fa-minus'></i>
             </button>
           </div>
       </div>
@@ -50,7 +50,7 @@
           <tr><td>_{ACCT_TERMINATE_CAUSE}_:</td><td>%ACCT_TERMINATE_CAUSE%</td></tr>
           <tr><td colspan='2'>&nbsp;</td></tr>
           <tr><td align=center colspan=2>
-          <a href='$SELF_URL?get_index=ipn_detail&UID=$FORM{UID}&FROM_DATE=%START%&TO_DATE=%STOP%&full=1&IP=%IP%&search=1' class='btn btn-primary btn-xs'>IP _{DETAIL}_</a>
+          <a href='%SELF_URL%?get_index=traffic_detail&UID=%UID%&FROM_DATE=%START%&TO_DATE=%STOP%&full=1&IP=%IP%&search=1' class='btn btn-primary btn-xs'>IP _{DETAIL}_</a>
           %RECALC%
           </td></tr>
         </table>

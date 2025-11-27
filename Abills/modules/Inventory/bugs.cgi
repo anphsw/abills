@@ -14,7 +14,8 @@ BEGIN {
   our $sql_type = 'mysql';
   unshift( @INC, $libpath . "Abills/$sql_type/",
     $libpath . 'libexec/',
-    $libpath . 'lib/' );
+    $libpath . 'lib/',
+    $libpath . 'Abills/modules/');
 
   our $begin_time = 0;
   eval { require Time::HiRes; };
@@ -29,7 +30,7 @@ use Abills::SQL;
 use Abills::Defs;
 use Abills::HTML;
 use Admins;
-use Inventory;
+use Inventory::db::Inventory;
 
 our (
   $DATE,
@@ -78,7 +79,7 @@ sub bug_form {
     $FORM{ERROR} =~ s/[\r\n]+$//xg;
 
     if ($FORM{ERROR} && !$FORM{CUR_VERSION}) {
-      print "Fix VERSION: 0.74.22";
+      print "Fix VERSION: 1.50.00";
       return 1;
     }
 
@@ -89,21 +90,27 @@ sub bug_form {
       COLS_NAME   => 1
     });
 
+    my $message = q{};
     if ($Inventory->{TOTAL}) {
-      print "Register Error: $list->[0]->{id}<br>\n";
-
       if ($list->[0]->{fix_version}) {
-        print "Status: Done<br>\n";
-        print "Fix Version: $list->[0]->{fix_version}<br>";
+        $message = "Status: Done<br>\n";
+        $message .= "Fix Version: $list->[0]->{fix_version}<br>";
       }
       else {
-        print "Status: In progress<br>\n";
+        $message = "Status: In progress<br>\n";
       }
+
     }
     else {
       $Inventory->bug_add(\%FORM);
-      print "$lang{ADDED}: $Inventory->{INSERT_ID}";
+      $message = "$lang{ADDED}: $Inventory->{INSERT_ID}";
     }
+
+    info_box(
+      "Register Error: $list->[0]->{id}",
+      $message
+    );
+
     return 0;
   }
 
@@ -125,5 +132,32 @@ sub bug_form {
   return 1;
 }
 
+#**********************************************************
+=head2 info_box($caption, $text) - Info box
+
+  Arguments:
+    $caption,
+    $text
+  Results:
+    TRUE or  FALSE
+
+=cut
+#**********************************************************
+sub info_box {
+  my ($caption, $text)=@_;
+
+  my $bg_color = ($text =~ /Done/xm) ? '#1AD100' : '#8CA2FA';
+
+  print << "[END]";
+
+<table width=600>
+<tr bgcolor='$bg_color'><th>$caption</th></tr>
+<tr><td>$text</td></tr>
+</table>
+
+[END]
+
+  return  1;
+}
 
 1;

@@ -89,11 +89,10 @@ function getWrappedElement(tag, classes, elements_arr) {
  * @returns {*}
  */
 function getSimpleRow(name, id, label_text, value) {
-  return getWrappedDiv('form-group row', [getLabel(id, label_text), getWrappedDiv(input_col_classes, getInput('text', name, id, value))]);
+  return getWrappedDiv('div', getWrappedDiv('form-group row', [getLabel(id, label_text), getWrappedDiv(input_col_classes, getInput('text', name, id, value))]));
 }
 
 function getCheckboxRow(name, id, label_text) {
-  // TODO: check for form-contol-static-class for checkbox
   return getWrappedDiv('form-group', [getLabel(id, label_text), getWrappedDiv('control-element', getInput('checkbox', name, id))]);
 }
 

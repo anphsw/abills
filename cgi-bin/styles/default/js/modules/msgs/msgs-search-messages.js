@@ -449,7 +449,8 @@ class MessagesSearch {
     try {
       this.initDomElements();
       this.setupEventListeners();
-      console.log('MessageSearch initialized successfully');
+      // logs should be only when problem or level of debug
+      // console.log('MessageSearch initialized successfully');
     } catch (error) {
       console.error('MessageSearch initialization failed:', error);
     }

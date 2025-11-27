@@ -1,0 +1,23 @@
+post:
+  tags:
+    - paysys
+  summary: Поиск пользователя в системе
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/paysysGatewaySearchRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Пользователь найден
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paysysGatewaySearch200.yaml"
+    400:
+      description: Нет пользователя
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/paysysGatewaySearch400.yaml"

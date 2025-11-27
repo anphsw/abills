@@ -1,6 +1,6 @@
-<form action='$SELF_URL' method='post'>
-    <input type='hidden' name='index' value='$index'>
-    <input type='hidden' name='UID' value='$FORM{UID}'>
+<form action='%SELF_URL%' method='post'>
+    <input type='hidden' name='index' value='%index%'>
+    <input type='hidden' name='UID' value='%UID%'>
     <input type='hidden' name='sid' value='$sid'>
 
     <div class='card box-primary'>
@@ -9,7 +9,7 @@
         </div>
         <div class='card-body form form-horizontal'>
             <div class='form-group row'>
-                <label class='col-md-3 control-label'>%TARIF_SEL_NAME%:</label>
+                <label class='col-md-3 control-label'>_{TARIF_PLAN}_:</label>
 
                 <div class='col-md-9'>
                     %TARIF_SEL%

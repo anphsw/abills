@@ -19,7 +19,7 @@
               placeholder='%CONTRACT_ID%' class='form-control' type='text'>
           <div class='input-group-append'>
             %PRINT_CONTRACT%
-            <a href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
+            <a href='%SELF_URL%?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
               class='btn input-group-button' target=_new>
               <i class='fa fa-envelope'></i>
             </a>

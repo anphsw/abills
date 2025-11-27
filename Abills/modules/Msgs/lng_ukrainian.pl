@@ -333,5 +333,10 @@ $lang{MSGS_FILTER_BY_ADMIN} = 'Фільтр за адміністратором'
 $lang{MSGS_ALL_ADMINS} = 'Всі адміністратори';
 $lang{MSGS_UNPLANNED_MESSAGES} = 'Незаплановані повідомлення';
 $lang{MSGS_LOAD_MORE} = 'Завантажити більше';
+$lang{MSGS_EXTERNAL_CHATS} = 'Зовнішні чати';
+$lang{MSGS_EXTERNAL_CHAT} = 'Зовнішній чат';
+$lang{MSGS_USER_LINKED} = 'Користувача прив\'язано';
+$lang{MSGS_MESSAGE_ADDED} = 'Повідомлення додано';
+$lang{MSGS_CHAT_ID} = 'ID чата';
 
 1;

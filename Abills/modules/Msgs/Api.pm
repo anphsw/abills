@@ -197,15 +197,15 @@ sub admin_routes {
       ]
     },
     #@deprecated
-    {
-      method      => 'POST',
-      path        => '/msgs/list/',
-      controller  => 'Msgs::Api::admin::Root',
-      endpoint    => \&Msgs::Api::admin::Root::post_msgs_list,
-      credentials => [
-        'ADMIN'
-      ]
-    },
+    # {
+    #   method      => 'POST',
+    #   path        => '/msgs/list/',
+    #   controller  => 'Msgs::Api::admin::Root',
+    #   endpoint    => \&Msgs::Api::admin::Root::post_msgs_list,
+    #   credentials => [
+    #     'ADMIN'
+    #   ]
+    # },
     {
       method      => 'GET',
       path        => '/msgs/list/',

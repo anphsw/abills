@@ -1,6 +1,6 @@
 <!-- Main container -->
 <script src='/styles/default/js/jquery.marcopolo.min.js'></script>
-<nav class='main-header navbar navbar-expand %HEADER_FIXED_CLASS% $admin->{SETTINGS}{SKIN}'
+<nav class='main-header navbar navbar-expand %HEADER_FIXED_CLASS% %SKIN%'
     role='navigation'>
   <ul class='navbar-nav'>
     <li class='nav-item'>
@@ -193,7 +193,7 @@
 
     <li class='nav-item d-none d-sm-inline-block'>
       <a href='#' class='nav-link' title='QRCode'
-          onclick='showImgInModal(\"%SELF_URL%?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\", \"_{QR_CODE}_\")'>
+          onclick='showImgInModal(\"%SELF_URL%?%QUERY_STRING%&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\", \"_{QR_CODE}_\")'>
         <i class='fa fa-qrcode'></i>
       </a>
     </li>
@@ -208,7 +208,7 @@
 </nav>
 <script>
 
-  if('$admin->{RIGHT_MENU_OPEN}' !== '') {
+  if('%RIGHT_MENU_OPEN%' !== '') {
     if(document.body.clientWidth > 992) {
       document.body.classList.add('control-sidebar-slide-open');
     }
@@ -217,10 +217,10 @@
   jQuery(function () {
     var EVENT_PARAMS = {
       portal: 'admin',
-      link: '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
-      soundsDisabled: ('$admin->{SETTINGS}{NO_EVENT_SOUND}' == '1'),
-      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
-      interval: parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
+      link: '%SELF_URL%?get_index=form_events&even_show=1&AID=%AID%',
+      soundsDisabled: ('%NO_EVENT_SOUND%' == '1'),
+      disabled: ('%NO_EVENT%' == '1'),
+      interval: parseInt('%EVENTS_REFRESH_INTERVAL%') || 30000
     };
     AMessageChecker.start(EVENT_PARAMS);
   });
@@ -239,7 +239,7 @@
         </a>
       </div>
       <div class='info'>
-        <a class='d-block' href='#'>$admin->{A_FIO}</a>
+        <a class='d-block' href='#'>%A_FIO%</a>
         <a href='#' id='admin-status' data-toggle='tooltip' data-placement='right' data-html='true'
            title='%ONLINE_USERS%'>Online&nbsp;<span class='badge badge-info right'>%ONLINE_COUNT%</span></a>
       </div>

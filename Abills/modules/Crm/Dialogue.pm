@@ -67,14 +67,14 @@ sub crm_get_lead_id_by_chat_id {
 =cut
 #**********************************************************
 sub crm_get_dialogue_id {
-  my $self = shift;
-  my $lead_id = shift;
+  my ($self, $lead_id, $attr) = @_;
 
   return 0 if !$self->{SOURCE};
 
   my $last_active_dialog = $Crm->crm_dialogues_list({
     LEAD_ID   => $lead_id,
     STATE     => '_SHOW',
+    SOURCE    => '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 1
   });
@@ -83,16 +83,30 @@ sub crm_get_dialogue_id {
 
   if ($Crm->{TOTAL} > 0 && $dialogue->{id}) {
     if ($dialogue->{state} && $dialogue->{state} eq '1') {
-      $Crm->crm_dialogues_change({ ID => $dialogue->{id}, SOURCE => $self->{SOURCE}, AID => 0 });
+      $Crm->crm_dialogues_change({ ID => $dialogue->{id}, SOURCE => $self->{SOURCE}, AID => 0, RECIPIENT => $attr->{RECIPIENT} });
     }
     else {
-      $Crm->crm_dialogues_change({ ID => $dialogue->{id}, SOURCE => $self->{SOURCE} });
+      $Crm->crm_dialogues_change({ ID => $dialogue->{id}, SOURCE => $self->{SOURCE}, RECIPIENT => $attr->{RECIPIENT} });
+    }
+
+    if (!$Crm->{errno} && $dialogue->{source} ne $self->{SOURCE}) {
+      $self->crm_send_message('$lang{THE_USER_JOINED_VIA_' . uc($self->{SOURCE}) . '}', {
+        INNER_MSG => 1, SKIP_CHANGE => 1, DIALOGUE_ID => $dialogue->{id}
+      });
     }
     return $dialogue->{id};
   }
 
-  $Crm->crm_dialogues_add({ LEAD_ID => $lead_id, SOURCE => $self->{SOURCE} });
-  return $Crm->{errno} ? 0 : $Crm->{INSERT_ID};
+  $Crm->crm_dialogues_add({ LEAD_ID => $lead_id, SOURCE => $self->{SOURCE}, RECIPIENT => $attr->{RECIPIENT} });
+  if ($Crm->{errno}) {
+    return 0;
+  }
+
+  my $dialogue_id = $Crm->{INSERT_ID};
+  $self->crm_send_message('$lang{THE_USER_JOINED_VIA_' . uc($self->{SOURCE}) . '}', {
+    INNER_MSG => 1, SKIP_CHANGE => 1, DIALOGUE_ID => $dialogue_id
+  });
+  return $dialogue_id;
 }
 
 #**********************************************************
@@ -183,6 +197,12 @@ sub crm_lead_by_source {
   my ($sender) = @_;
 
   return 0 if !$sender->{USER_ID} || !$self->{SOURCE};
+
+  if ($sender->{EXTERNAL_ID}) {
+    $Crm->crm_dialogue_messages_list({ EXTERNAL_ID => $sender->{EXTERNAL_ID} });
+
+    return 0 if $Crm->{TOTAL} && $Crm->{TOTAL} > 0;
+  }
 
   my @search_fields = ();
   my $source = 'crm_' . $self->{SOURCE};

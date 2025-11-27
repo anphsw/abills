@@ -92,6 +92,8 @@ sub tasks_table {
   my ($attr) = @_;
 
   my $tasks_list = $Tasks->list({
+    SORT       => 'tm.id',
+    DESC       => 'DESC',
     COLS_NAME  => 1,
     COLS_UPPER => 1,
     PAGE_ROWS  => 999999,
@@ -100,7 +102,7 @@ sub tasks_table {
 
   my $f_index = get_function_index('task_web_add');
 
-  my @columns = ($lang{TYPE}, $lang{NAME}, $lang{RESPONSIBLE}, $lang{DUE_DATE});
+  my @columns = ('#', $lang{TYPE}, $lang{NAME}, $lang{RESPONSIBLE}, $lang{DUE_DATE});
   if ($attr->{TAB}) {
     if ($attr->{TAB} == 1 || $attr->{TAB} == 2) {
       push (@columns, $lang{COMMENTS});
@@ -127,7 +129,7 @@ sub tasks_table {
     });
     my $edit_button = $html->button('', "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil-alt mr-2" });
     my $show_button = $html->button('', "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye mr-2" });
-    my @fields = ($task->{type_name}, $task->{name}, $task->{responsible_name}, $task->{control_date});
+    my @fields = ($task->{id}, $task->{type_name}, $task->{name}, $task->{responsible_name}, $task->{control_date});
     if ($attr->{TAB}) {
       if ($attr->{TAB} == 1 || $attr->{TAB} == 2) {
         push(@fields, $task->{comments});

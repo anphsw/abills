@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Payment Response Schema",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string",
+      "description": "Response comment or message"
+    },
+    "fields": {
+      "type": "object",
+      "description": "Dynamic collection of field objects",
+      "patternProperties": {
+        "^field[0-9]+$": {
+          "$ref": "#/definitions/field"
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "integer",
+      "description": "Result code, e.g. 0 for success"
+    },
+    "txn_id": {
+      "type": "integer",
+      "description": "Transaction ID"
+    }
+  },
+  "required": [
+    "comment",
+    "fields",
+    "result",
+    "txn_id"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "field": {
+      "type": "object",
+      "properties": {
+        "#text": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Value of the field"
+        },
+        "@name": {
+          "type": "string",
+          "description": "Field name identifier"
+        }
+      },
+      "required": [
+        "#text",
+        "@name"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

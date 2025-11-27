@@ -2,7 +2,7 @@
 	<form id='ukrpays_form' method='post' accept-charset='utf-8' action='$conf{PAYSYS_UKRPAYS_URL}'>
 		<input type='hidden' name='charset' value='UTF-8' />
 		<input type='hidden' name='order' value='%UID%'>
-		<input type='hidden' name='sus_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}$ENV{REQUEST_URI}?TRUE=1&index=$index&PAYMENT_SYSTEM=46&OPERATION_ID=$FORM{OPERATION_ID}&TP_ID=$FORM{TP_ID}&DOMAIN_ID=$FORM{DOMAIN_ID}%SUS_URL_PARAMS%'>
+		<input type='hidden' name='sus_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}$ENV{REQUEST_URI}?TRUE=1&index=%index%&PAYMENT_SYSTEM=46&OPERATION_ID=$FORM{OPERATION_ID}&TP_ID=$FORM{TP_ID}&DOMAIN_ID=$FORM{DOMAIN_ID}%SUS_URL_PARAMS%'>
 		<input type='hidden' name='lang' value='uk'>
 		<input type='hidden' name='fio' value='%FIO%'>
 		<input type='hidden' name='note' value='Upays:$FORM{OPERATION_ID}'>

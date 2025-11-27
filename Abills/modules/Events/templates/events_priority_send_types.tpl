@@ -1,7 +1,7 @@
 <div class='row'>
   <form name='EVENTS_PRIORITY_SEND_TYPE' id='form_EVENTS_PRIORITY_SEND_TYPE' method='post'
         class='form form-horizontal'>
-    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='index' value='%index%'/>
     <input type='hidden' name='save' value='1'/>
     <input type='hidden' name='AID' value='%AID%'/>
 

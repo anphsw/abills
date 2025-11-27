@@ -1,5 +1,5 @@
-<form action=$SELF_URL name='depot_form_types' method=POST class='form-horizontal'>
-<input type=hidden name=index value=$index>
+<form action=%SELF_URL% name='depot_form_types' method=POST class='form-horizontal'>
+<input type=hidden name=index value=%index%>
 <input type=hidden name=id value=%id%>
 
 

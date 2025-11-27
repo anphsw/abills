@@ -3,6 +3,7 @@
   "type": "array",
   "title": "The Root Schema",
   "items": {
+    "type": "object",
     "properties": {
       "id": {
         "type": "number"

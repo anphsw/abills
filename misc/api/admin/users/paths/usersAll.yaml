@@ -244,6 +244,12 @@ get:
       schema:
         type: boolean
         default: false
+    - name: taxNumber
+      in: query
+      description: Tax identification number
+      schema:
+        type: boolean
+        default: false
     - $ref: "#/components/parameters/desc"
     - $ref: "#/components/parameters/pageRows"
     - $ref: "#/components/parameters/pg"

@@ -15,8 +15,7 @@ my $Receipt_api;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf) = @_;
 
   my $self = {
     db    => $db,
@@ -43,8 +42,7 @@ sub new {
 =cut
 #**********************************************************
 sub cash_collection {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $x_report = $Receipt_api->{$id}->create_x_report();
   return if ($x_report->{ERROR});
@@ -74,8 +72,7 @@ sub cash_collection {
 =cut
 #**********************************************************
 sub service_receipt {
-  my $self = shift;
-  my ($id, $sum) = @_;
+  my ($self, $id, $sum) = @_;
 
   my $service_receipt = $Receipt_api->{$id}->create_service_receipt($sum);
 

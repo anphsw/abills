@@ -2,3 +2,5 @@
   $ref: "./paths/installation.yaml"
 /storage/incoming_articles:
   $ref: "./paths/incoming_articles.yaml"
+/storage/invoices:
+  $ref: "./paths/invoices.yaml"

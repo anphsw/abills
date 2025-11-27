@@ -42,7 +42,8 @@ use constant {
     'PAYMENT_METHODS',
     'ORDER BY &SORT& &DESC&',
     'LIMIT &PG&, &PAGE_ROWS&',
-    'UID'
+    'UID',
+    'ON_DATE'
   ]
 };
 
@@ -67,8 +68,8 @@ sub rwizard_config {
       $FORM{QUERY_TOTAL} = $sections[3];
       $FORM{FIELDS} = $sections[4];
 
-      $FORM{QUERY} =~ s/^ //xg;
-      $FORM{QUERY_TOTAL} =~ s/^ //xg;
+      $FORM{QUERY} =~ s/^\s+//xg;
+      $FORM{QUERY_TOTAL} =~ s/^\s+//xg;
       $FORM{QUERY_TOTAL} =~ s/^[\n\r]+$//xg;
     }
 
@@ -155,7 +156,7 @@ $Reports->{FIELDS}
 
     $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %{$Reports} },
       { SKIP_VARS =>
-        'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID,TP_ID,IP,UID' });
+        'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,ON_DATE,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID,TP_ID,IP,UID' });
   }
   my $list = $Reports->list({ %LIST_PARAMS, COLS_NAME => 1 });
   _error_show($Reports) and return 0;
@@ -244,7 +245,6 @@ sub rwizard_old {
 
   #$html->tpl_show(_include('rwizard_panel', 'Rwizard'), {%$Reports});
   if ($FORM{REPORT}) {
-
     $Reports->info({ ID => $FORM{REPORT}, %LIST_PARAMS });
 
     $pages_qs .= "&REPORT=$FORM{REPORT}";
@@ -415,18 +415,16 @@ sub rwizard_old {
       });
 
       if (!$FORM{print}) {
-        print $html->form_main(
-          {
-            CONTENT => $report_panel . $ADDRESS_TPL,
-            NAME    => 'rwizard',
-            HIDDEN  => {
-              'index' => "$index",
-            },
-            ID      => 'form_reports_panel',
-            NAME    => 'form_reports_panel',
-            class   => 'form form-inline',
-          }
-        );
+        print $html->form_main({
+          CONTENT => $report_panel . $ADDRESS_TPL,
+          NAME    => 'rwizard',
+          HIDDEN  => {
+            'index' => "$index",
+          },
+          ID      => 'form_reports_panel',
+          NAME    => 'form_reports_panel',
+          class   => 'form form-inline',
+        });
       }
     }
 
@@ -438,14 +436,12 @@ sub rwizard_old {
       $Reports->{debug} = 1;
     }
 
-    $list = $Reports->mk(
-      {
-        QUERY       => $Reports->{QUERY},
-        QUERY_TOTAL => $Reports->{QUERY_TOTAL},
-        %LIST_PARAMS,
-        COLS_NAME   => 1
-      }
-    );
+    $list = $Reports->mk({
+      QUERY       => $Reports->{QUERY},
+      QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+      %LIST_PARAMS,
+      COLS_NAME   => 1
+    });
 
     if ($#titles == -1) {
       if ($Reports->{REPORT_COLS_NAME}) {
@@ -469,13 +465,12 @@ sub rwizard_old {
       while ($active_page <= $total_records) {
         $LIST_PARAMS{PG} = $active_page;
 
-        $list = $Reports->mk(
-          {
-            QUERY       => $Reports->{QUERY},
-            QUERY_TOTAL => $Reports->{QUERY_TOTAL},
-            %LIST_PARAMS,
-            COLS_NAME   => 1
-          });
+        $list = $Reports->mk({
+          QUERY       => $Reports->{QUERY},
+          QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+          %LIST_PARAMS,
+          COLS_NAME   => 1
+        });
 
         if (_include('rwizard_print_rows_' . $FORM{print}, 'Rwizard', { CHECK_ONLY => 1 })) {
           foreach my $line (@$list) {
@@ -489,14 +484,12 @@ sub rwizard_old {
           }
         }
         else {
-          my $table = $html->table(
-            {
-              width       => '100%',
-              #        caption => "$Reports->{NAME}",
-              title_plain => \@titles,
-              ID          => "REPORTS_$Reports->{ID}",
-            }
-          );
+          my $table = $html->table({
+            width       => '100%',
+            #        caption => "$Reports->{NAME}",
+            title_plain => \@titles,
+            ID          => "REPORTS_$Reports->{ID}",
+          });
 
           foreach my $line (@$list) {
             my @tr_arr = ();
@@ -536,17 +529,15 @@ sub rwizard_old {
       }
     }
     else {
-      my $table = $html->table(
-        {
-          width   => '100%',
-          caption => "$Reports->{NAME}",
-          title   => \@titles,
-          ID      => "REPORTS_$Reports->{ID}",
-          EXPORT  => 1,
-          pages   => $Reports->{TOTAL},
-          qs      => $pages_qs,
-        }
-      );
+      my $table = $html->table({
+        width   => '100%',
+        caption => "$Reports->{NAME}",
+        title   => \@titles,
+        ID      => "REPORTS_$Reports->{ID}",
+        EXPORT  => 1,
+        pages   => $Reports->{TOTAL},
+        qs      => $pages_qs,
+      });
 
       if ($Reports->{COMMENTS} && !$FORM{EXPORT_CONTENT}) {
         $html->message('info', $Reports->{COMMENTS});
@@ -558,16 +549,7 @@ sub rwizard_old {
         my @tr_arr = ();
         $num++;
         foreach my $c (@col_names) {
-          my $val = $line->{$c};
-          if ($c eq 'login' && $line->{uid}) {
-            $val = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
-          }
-          elsif ($c eq 'fees_id') {
-            $val = $html->button($line->{fees_id}, "index=3&ID=$line->{fees_id}&search=1&UID=" . ($line->{uid} || q{}));
-          }
-          elsif ($c eq 'payment_method') {
-            $val = $payment_methods->{$line->{$c}};
-          }
+          my $val = _rwizard_line_filter($c, $line, { PAYMENT_METHODS => $payment_methods });
 
           if ($cols_params{$c}{FILTER}) {
             my $fn_name = $cols_params{$c}{FILTER};
@@ -609,12 +591,10 @@ sub rwizard_old {
           push @total_ext, "$lang{SUM}: $Reports->{SUM}";
         }
 
-        $table = $html->table(
-          {
-            width => '100%',
-            rows  => [ [ "$lang{TOTAL}: " . $html->b($Reports->{TOTAL}), @total_ext ] ]
-          }
-        );
+        $table = $html->table({
+          width => '100%',
+          rows  => [ [ "$lang{TOTAL}: " . $html->b($Reports->{TOTAL}), @total_ext ] ]
+        });
         print $table->show();
       }
     }
@@ -625,8 +605,6 @@ sub rwizard_old {
         %CHART
       });
     }
-
-    return 1;
   }
   else {
     $html->tpl_show(_include('rwizard_panel', 'Rwizard'), { %$Reports });
@@ -797,6 +775,11 @@ sub rwizard_sp {
 #**********************************************************
 =head2 quick_report($report_id)
 
+  Arguments:
+    $report_id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub quick_report {
@@ -832,8 +815,8 @@ sub quick_report {
   }
 
   if ($Reports->{QUERY} =~ m/%GID%/x) {
-      $Reports->{QUERY} =~ s/and\s+[a-z0-9\.\_]+\=\'%GID%\'//xig;
-      $Reports->{QUERY_TOTAL} =~ s/and\s+[a-z0-9\.\_]+\=\'%GID%\'//xig;
+    $Reports->{QUERY} =~ s/and\s+[a-z0-9\.\_]+\=\'%GID%\'//xig;
+    $Reports->{QUERY_TOTAL} =~ s/and\s+[a-z0-9\.\_]+\=\'%GID%\'//xig;
   }
   if ($Reports->{QUERY} =~ m/%DATE_TO%/x) {
     $Reports->{QUERY} =~ s/%DATE_TO%/$DATE/xg;
@@ -846,6 +829,10 @@ sub quick_report {
 
     $Reports->{QUERY} =~ s/%DATE_FROM%/$date_from/xg;
     $Reports->{QUERY_TOTAL} =~ s/%DATE_FROM%/$date_from/xg;
+  }
+  if ($Reports->{QUERY} =~ m/%ON_DATE%/x) {
+    $Reports->{QUERY} =~ s/%ON_DATE%/$DATE/xg;
+    $Reports->{QUERY_TOTAL} =~ s/%ON_DATE%/$DATE/xg;
   }
 
   my $list = $Reports->mk({
@@ -888,7 +875,12 @@ sub quick_report {
 }
 
 #**********************************************************
-=head2 rwizard_report_table($report_id)
+=head2 rwizard_report_table($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -927,6 +919,12 @@ sub rwizard_report_table {
     $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$attr->{MONTH}/xg;
   }
 
+  if ($Reports->{QUERY} =~ m/ON_DATE/x) {
+    $attr->{ON_DATE} //= $DATE;
+    $Reports->{QUERY} =~ s/%ON_DATE%/$attr->{ON_DATE}/xg;
+    $Reports->{QUERY_TOTAL} =~ s/%ON_DATE%/$attr->{ON_DATE}/xg;
+  }
+
   if ($Reports->{QUERY} =~ m/%DOMAIN_ID%/x) {
     my $domain = $admin->{DOMAIN_ID} || 0;
     $Reports->{QUERY} =~ s/%DOMAIN_ID%/$domain/xg;
@@ -955,8 +953,8 @@ sub rwizard_report_table {
       }
 
       if (!defined($attr->{$_params}) || $attr->{$_params} eq '') {
-        $Reports->{QUERY} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//xig;
-        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//xig;
+        $Reports->{QUERY} =~ s/[and]{0,3}\s+[a-z0-9\.\_]+\=\'?$params_expr\'?//xig;
+        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3}\s+[a-z0-9\.\_]+\=\'?$params_expr\'?//xig;
 
         $Reports->{QUERY} =~ s/$params_expr/$default_parameters_value/xig;
         $Reports->{QUERY_TOTAL} =~ s/$params_expr/$default_parameters_value/xig;
@@ -1037,16 +1035,7 @@ sub rwizard_report_table {
     my @tr_arr = ();
     $num++;
     foreach my $c (@col_names) {
-      my $val = $line->{$c};
-      if ($c eq 'login' && $line->{uid}) {
-        $val = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
-      }
-      elsif ($c eq 'fees_id') {
-        $val = $html->button($line->{fees_id}, "index=3&ID=$line->{fees_id}&search=1&UID=" . ($line->{uid} || q{}));
-      }
-      elsif ($c eq 'payment_method') {
-        $val = $payment_methods->{$line->{$c}};
-      }
+      my $val = _rwizard_line_filter($c, $line, { PAYMENT_METHODS => $payment_methods });
 
       if ($cols_params{$c}{FILTER}) {
         my $fn_name = $cols_params{$c}{FILTER};
@@ -1096,6 +1085,10 @@ sub rwizard {
   if ($conf{RWIZARD_OLD}) {
     rwizard_old();
     return 1;
+  }
+
+  if ($FORM{FROM_DATE_TO_DATE}) {
+    ($FORM{DATE_FROM}, $FORM{DATE_TO}) = $FORM{"FROM_DATE_TO_DATE"} =~ /(.+)\/(.+)/xm;
   }
 
   if ($FORM{qindex} && !$FORM{print} && !$FORM{_export} && !$FORM{user_search_form}) {
@@ -1174,7 +1167,6 @@ sub rwizard {
       print $table->show();
     }
     if (scalar keys %$DATA_HASH > 0) {
-      #Show charts
       $html->make_charts({
         DATA => $DATA_HASH,
         %$CHART
@@ -1269,9 +1261,27 @@ sub _make_report_menu {
   }
 
   if ($Reports->{QUERY} =~ m/DATE_FROM/x) {
+    my $date_value = $FORM{FROM_DATE_TO_DATE};
+    if (!$date_value) {
+      my $month = ($DATE =~ m/^(\d+\-\d+)/x)[0];
+      my $date_from = $month . '-01';
+      my $date_to = $DATE;
+      $date_value = $date_from . '/' . $date_to;
+    }
+    push @rows, $html->element('label', "$lang{DATE}:", { class => 'control-label p-1' }) . $html->form_daterangepicker({
+      NAME         => 'FROM_DATE/TO_DATE',
+      VALUE        => $date_value,
+      FORM_NAME    => 'form_reports_panel',
+      RETURN_INPUT => 1
+    });
+    # push @rows, $html->element('label', "$lang{DATE}:", { class => 'control-label p-1' })
+    #   . $html->date_fld2('DATE_FROM', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS })
+    #   . "-" . $html->date_fld2('DATE_TO', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS });
+  }
+
+  if ($Reports->{QUERY} =~ m/ON_DATE/x) {
     push @rows, $html->element('label', "$lang{DATE}:", { class => 'control-label p-1' })
-      . $html->date_fld2('DATE_FROM', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS })
-      . "-" . $html->date_fld2('DATE_TO', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS });
+      . $html->date_fld2('ON_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS });
   }
 
   if ($Reports->{QUERY} =~ m/%GID%/x) {
@@ -1423,7 +1433,12 @@ sub _read_titles {
 }
 
 #**********************************************************
-=head2 _make_report_query
+=head2 _make_report_query($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1442,6 +1457,12 @@ sub _make_report_query {
     $Reports->{QUERY_TOTAL} =~ s/%DATE_TO%/$date_to/xg;
     $Reports->{QUERY} =~ s/%MONTH%/$month/xg;
     $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$month/xg;
+  }
+
+  if ($Reports->{QUERY} =~ m/%ON_DATE%/xg) {
+    my $on_date = $attr->{ON_DATE} || $DATE;
+    $Reports->{QUERY} =~ s/%ON_DATE%/$on_date/xg;
+    $Reports->{QUERY_TOTAL} =~ s/%ON_DATE%/$on_date/xg;
   }
 
   if ($Reports->{QUERY} =~ m/%DOMAIN_ID%/x) {
@@ -1684,7 +1705,7 @@ sub _make_report_table {
 
   my $table = $html->table({
     width   => '100%',
-    caption => "$Reports->{NAME}",
+    caption => $Reports->{NAME},
     title   => $titles,
     ID      => "REPORTS_$Reports->{ID}",
     EXPORT  => 1,
@@ -1697,16 +1718,7 @@ sub _make_report_table {
     my @tr_arr = ();
     $num++;
     foreach my $c (@$col_names) {
-      my $val = $line->{$c};
-      if ($c eq 'login' && $line->{uid}) {
-        $val = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
-      }
-      elsif ($c eq 'fees_id') {
-        $val = $html->button($line->{fees_id}, "index=3&ID=$line->{fees_id}&search=1&UID=" . ($line->{uid} || q{}));
-      }
-      elsif ($c eq 'payment_method') {
-        $val = $payment_methods->{$line->{$c}};
-      }
+      my $val = _rwizard_line_filter($c, $line, { PAYMENT_METHODS => $payment_methods });
 
       if ($cols_params->{$c}{FILTER}) {
         my $fn_name = $cols_params->{$c}{FILTER};
@@ -1834,4 +1846,42 @@ sub _rwizard_process_columns {
   return $result;
 }
 
+#**********************************************************
+=head2 _rwizard_line_filter($col_name, $line) - returns Client object for given id
+
+  Arguments:
+    $col_name
+    $line
+    $attr
+      PAYMENT_METHODS
+
+  Returns:
+    $value
+
+=cut
+#**********************************************************
+sub _rwizard_line_filter {
+  my($col_name, $line, $attr)=@_;
+
+  my $payment_methods = $attr->{PAYMENT_METHODS};
+  my $value = q{};;
+
+  if ($col_name eq 'login' && $line->{uid}) {
+    $value = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
+  }
+  elsif ($col_name eq 'fees_id') {
+    $value = $html->button($line->{fees_id}, "index=3&ID=$line->{fees_id}&search=1&UID=" . ($line->{uid} || q{}));
+  }
+  elsif ($col_name eq 'msg_id') {
+    $value = $html->button($line->{msg_id}, "get_index=msgs_admin&full=1&chg=$line->{msg_id}", { BUTTON => 1 });
+  }
+  elsif ($col_name eq 'payment_method') {
+    $value = $payment_methods->{$line->{$col_name}};
+  }
+  else {
+    $value = $line->{$col_name};
+  }
+
+  return $value;
+}
 1;

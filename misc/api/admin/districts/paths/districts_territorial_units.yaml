@@ -1,0 +1,71 @@
+get:
+  tags:
+    - districts
+  summary: Получить КАТОТТГ (территориальные единицы)
+  description: Возвращает территориальные единицы КАТОТТГ
+  operationId: getDistrictsTerritorialUnits
+  parameters:
+    - name: id
+      in: query
+      description: ID территориальной единицы.
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название территориальной единицы.
+      schema:
+        type: boolean
+        default: false
+    - name: code
+      in: query
+      description: КАТОТТГ.
+      schema:
+        type: boolean
+        default: false
+    - name: typeCode
+      in: query
+      description: Тип территориальной единицы.
+      schema:
+        type: boolean
+        default: false
+    - name: parentId
+      in: query
+      description: ID родительской территориальной единицы.
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 47
+                description: ID территориальной единицы
+              name:
+                type: string
+                example: "Київ"
+                description: Название территориальной единицы
+              code:
+                type: string
+                example: "UA80000000000093317"
+                description: Код КАТОТТГ
+              typeCode:
+                type: string
+                example: "М"
+                description: Тип территориальной единицы
+              parentId:
+                type: integer
+                example: 12
+                description: ID родительской территориальной единицы
+  security:
+    - KEY: []

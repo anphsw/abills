@@ -75,6 +75,9 @@ sub attachment_add {
   if ($file_name =~ /\.([a-z0-9\_]+)$/i) {
     $file_extension = $1;
   }
+
+  return '' if (!$file_extension);
+
   my $random_name = int(rand(16777215));
   $file_name = "$random_name.$file_extension";
 

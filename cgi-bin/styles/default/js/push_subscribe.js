@@ -59,7 +59,6 @@ const subscribe = (messaging) => {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'USERSID': window['SID'],
           },
           body: JSON.stringify({token: currentToken})
         }).then(res => {
@@ -91,7 +90,6 @@ const unsubscribe = () => {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'USERSID': window['SID'],
       },
     }).then(res => {
       pushEnabled = false;
@@ -134,7 +132,6 @@ const checkToken = async () => {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'USERSID': window['SID'],
         },
       })).json();
 

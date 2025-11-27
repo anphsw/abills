@@ -32,8 +32,7 @@ my $MODULE = 'Api';
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf) = @_;
+  my ($class, $db, $admin, $conf) = @_;
 
   $admin->{MODULE} = $MODULE;
 
@@ -82,8 +81,7 @@ sub new {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('api_log', $attr);
 
@@ -94,31 +92,22 @@ sub add {
 =head2 list($attr) - take list data from database;
 
   Arguments:
+    $attr
 
-  attr
-    SORT            - sort column;
-    DESC            - DESC / ASC;
-    PG              - page id;
-    PAGE_ROWS       - count of raws returned
   Returns:
     list of raws;
 
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
 
-  push @WHERE_RULES, "al.request_headers LIKE '%ABillSLite%'" if $attr->{MOBILE_APP};
-  push @WHERE_RULES, "al.date>=(NOW() - INTERVAL 31 DAY)" if $attr->{LAST_MONTH};
+  push @WHERE_RULES, "al.request_headers LIKE '%ABillSLite%'" if ($attr->{MOBILE_APP});
+  push @WHERE_RULES, "al.date>=(NOW() - INTERVAL 31 DAY)" if ($attr->{LAST_MONTH});
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_fields = (
     [ 'ID',                         'INT',    'al.id'       ,                     1],
     [ 'ERROR_MSG',                  'STR',    'al.error_msg',                     1],
     [ 'IP',                         'INT',    'al.ip', 'INET_NTOA(al.ip) AS ip',  1],
@@ -135,34 +124,31 @@ sub list {
     [ 'HTTP_METHOD',                'STR',    'al.http_method',                   1],
     [ 'FROM_DATE|TO_DATE',          'DATE',   "DATE_FORMAT(al.date, '%Y-%m-%d')"  ],
     [ 'FROM_DATE_TIME|TO_DATE_TIME','DATE',   'al.date'                           ],
-  ],
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_fields,
     { WHERE => 1,
       WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  $self->query("
-    SELECT
-      $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  $self->{SEARCH_FIELDS}
       al.id
-    FROM api_log al
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    { %$attr,
-      COLS_NAME  => 1,
-      COLS_UPPER => 1
-    }
-  );
+FROM api_log al
+  $WHERE
+SQL
+
+  $attr->{COLS_UPPER}=1;
+
+  $self->query_list($sql,$attr);
 
   my $list = $self->{list} || [];
 
   return [] if ($self->{errno} || $self->{TOTAL} < 1);
 
-  $self->query("SELECT COUNT(al.id) AS total
-   FROM api_log al
-   $WHERE",
+  $self->query("SELECT COUNT(al.id) AS total FROM api_log al $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -176,11 +162,13 @@ sub list {
   Arguments:
     $attr
 
+  Result:
+    $self
+
 =cut
 #**********************************************************
 sub log_rotate{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @rq = ();
 
@@ -188,11 +176,18 @@ sub log_rotate{
     return $self;
   }
 
+  my $interval_days = $attr->{DAYS} || 31;
+
   push @rq, 'CREATE TABLE IF NOT EXISTS api_log_new LIKE api_log;',
-    'RENAME TABLE api_log TO api_log_old, api_log_new TO api_log;',
-    "INSERT INTO api_log SELECT * FROM api_log_old WHERE date>=(NOW() - INTERVAL 31 DAY) ORDER BY 1;",
-    'DROP TABLE api_log_old;',
-  ;
+    'RENAME TABLE api_log TO api_log_old, api_log_new TO api_log;';
+
+  my $insert_to_new =<< "SQL";
+INSERT INTO api_log SELECT * FROM api_log_old WHERE date>=(NOW() - INTERVAL $interval_days DAY) ORDER BY 1;
+SQL
+
+  push @rq, $insert_to_new;
+
+  push @rq, q{DROP TABLE api_log_old};
 
   foreach my $query (@rq) {
     $self->query($query, 'do');

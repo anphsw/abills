@@ -37,7 +37,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = int(rand(10000)) + 100000;
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $merchant_id = $conf{PAYSYS_GERC_MERCHANT_ID} || '';
 my $transaction_id = "GERCPAY:$payment_id";

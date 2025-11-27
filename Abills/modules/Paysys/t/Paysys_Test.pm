@@ -1,14 +1,13 @@
 =head1 Paysys_Test
 
-  Paysys_Base - module for payments
-  DATE:11.06.2019
-
 =cut
 
 use strict;
 use warnings;
+
 use Abills::Fetcher qw(web_request);
 use Abills::Base qw(json_former);
+use Abills::Validator qw(xml_compare json_compare);
 use Paysys;
 use JSON qw(decode_json);
 
@@ -18,6 +17,7 @@ our (
   %conf,
   %lang,
   %FORM,
+  $base_dir
 );
 
 our Abills::HTML $html;
@@ -30,7 +30,7 @@ my $Paysys = Paysys->new($db, $admin, \%conf);
 #**********************************************************
 sub paysys_main_test {
 
-  my %debug_list = map { $_ => $_ } 1..9;
+  my %debug_list = map { $_ => $_ } 0..9;
 
   my $debug_select = q{};
 
@@ -63,7 +63,7 @@ sub paysys_main_test {
   foreach my $action (sort keys %{$test_params}) {
     my $inputs = q{};
     foreach my $request_key (sort keys %{$test_params->{$action}}) {
-      next if (in_array($request_key, ['result', 'result_type', 'headers', 'path']));
+      next if (in_array($request_key, ['result', 'result_type', 'result_schema', 'headers', 'path']));
       my $ex_params = $test_params->{$action}{$request_key}{ex_params} || '';
       my $tooltip = $test_params->{$action}{$request_key}{tooltip} || '';
       my $type = $test_params->{$action}{$request_key}{type} || '';
@@ -203,11 +203,12 @@ sub paysys_test {
 
   $request_params{GET_HEADERS} = 1 if ($debug > 3);
 
-  my $response = web_request($url, {
-    INSECURE => 1,
-    DEBUG    => $debug,
-    TIMEOUT  => 5,
-    CURL     => 1,
+  my ($response, $info) = web_request($url, {
+    INSECURE  => 1,
+    DEBUG     => $debug,
+    TIMEOUT   => 5,
+    MORE_INFO => 1,
+    CURL      => 1,
     %request_params
   });
 
@@ -215,27 +216,33 @@ sub paysys_test {
     $html->message('err', $lang{ERROR}, $lang{NO_DATA});
   }
   else {
-    if ($response =~ /500 Internal Server Error/) {
-      $response = "paysys_check.cgi SCRIPT ERROR\n Check apache (Web server) log\n\n" . $response;
+    my $http_status = $info->{status} || $info->{response_code} || $info->{http_code} || 0;
+
+    if ($http_status && $http_status != 200) {
+      $html->message('err', $lang{ERROR}, "HTTP STATUS: $http_status");
     }
   }
 
-  if ($params->{$FORM{_action}}{result}) {
-    foreach my $item (@{$params->{$FORM{_action}}{result}}) {
-      if ($response =~ /$item/) {
-        $item =~ s/</&lt;/g;
-        $item =~ s/>/&gt;/g;
-        print $html->element('div', $html->element('strong',
-          "Успешно! Результат правильный\n"),
-          { class => 'alert alert-success' });
-      }
-      else {
-        $item =~ s/</&lt;/g;
-        $item =~ s/>/&gt;/g;
-        print $html->element('div', $html->element('strong',
-          $lang{ERR_TRANSACTION_ERROR}),
-          { class => 'alert alert-danger' });
-      }
+  if ($params->{$FORM{_action}}{result_schema} && $params->{$FORM{_action}}{result_type}) {
+    my $schema = "$base_dir/Abills/modules/Paysys/t/$params->{$FORM{_action}}{result_schema}";
+
+    my $validate_function = "$params->{$FORM{_action}}{result_type}_compare";
+
+    my $validation = &{ \&$validate_function }({
+      RESULT => $response,
+      SCHEMA => $schema,
+      DEBUG  => $debug
+    });
+
+    if ($validation) {
+      print $html->element('div', $html->element('strong',
+        $lang{VALIDATION_SUCCESSFUL}),
+        { class => 'alert alert-success' });
+    }
+    else {
+      print $html->element('div', $html->element('strong',
+        $lang{VALIDATION_ERROR}),
+        { class => 'alert alert-danger' });
     }
   }
 

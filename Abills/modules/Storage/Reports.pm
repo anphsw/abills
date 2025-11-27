@@ -173,7 +173,7 @@ sub _count_full_amount {
   );
   foreach my $incoming_article (@$incoming_articles_list) {
     if (defined $incoming_article->{measure} && $incoming_article->{measure} =~ /\d+/) {
-      my $amount_per_unit = $incoming_article->{total} ? ($incoming_article->{sia_sum} / $incoming_article->{total}) : 0;
+      my $amount_per_unit = $incoming_article->{total} && $incoming_article->{total} > 0 ? ($incoming_article->{sia_sum} / $incoming_article->{total}) : 0;
 
       $FULL_AMOUNT{IN_STORAGE} += $incoming_article->{total} || 0;
       $FULL_AMOUNT{IN_STORAGE_SUM} += $incoming_article->{total} ? ($incoming_article->{sia_sum} || 0) : 0;
@@ -1071,7 +1071,7 @@ sub storage_nas_installations_report {
 
   my $nas_select = $html->form_select('NAS_ID', {
     SELECTED  => $FORM{NAS_ID},
-    SEL_LIST  => $Equipment->_list({
+    SEL_LIST  => $Equipment->list({
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1,
       PAGE_ROWS => 10000

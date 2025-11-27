@@ -121,7 +121,7 @@ sub equipment_traps_clean {
 sub equipment_monitor {
   my $traps_pg_rows = $FORM{FILTER} || 10;
 
-  my $equipment = $Equipment->_list({
+  my $equipment = $Equipment->list({
     COLS_NAME => 1,
     NAS_IP    => '_SHOW',
     STATUS    => '_SHOW',

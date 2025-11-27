@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_paysys_merchants {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $Paysys->merchant_settings_list({
     %$query_params,
@@ -79,8 +78,7 @@ sub get_paysys_merchants {
 =cut
 #**********************************************************
 sub get_paysys_merchants_tooltips {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $payment_system_info = $Paysys->paysys_connect_system_info({
     ID               => $path_params->{id},
@@ -99,7 +97,7 @@ sub get_paysys_merchants_tooltips {
   return $Errors->throw_error(1170120) if (!$settings{DOCS});
 
   my $is_page_id = $settings{DOCS} =~ /pageId/;
-  my ($match) = $settings{DOCS} =~ /([a-zA-Z0-9_\-\+]+)$/;
+  my ($match) = $settings{DOCS} =~ /([a-zA-Z0-9_\-\+]+)$/x;
 
   return $Errors->throw_error(1170121) if (!$match);
 
@@ -128,12 +126,12 @@ sub get_paysys_merchants_tooltips {
   }
 
   my @tooltips = ();
-  my @values = $body =~ /<td[^>]*>(.*?)<\/td>/g;
+  my @values = $body =~ /<td[^>]*>(.*?)<\/td>/xg;
 
   for (my $i = 0; $i < @values - 1; $i++) {
     my $tooltip_name = $values[$i];
 
-    next if ($tooltip_name !~ /PAYSYS_/);
+    next if ($tooltip_name !~ /^PAYSYS_/x);
 
     $tooltip_name =~ s/<[^>]*>//g;
 

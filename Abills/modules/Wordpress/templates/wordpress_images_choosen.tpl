@@ -1,5 +1,5 @@
 <form method='POST' >
-<input type='hidden' name='index' value=$index>
+<input type='hidden' name='index' value=%index%>
 
 %IMAGES%
   <div class='center col-md-12'>

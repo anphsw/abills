@@ -228,9 +228,18 @@ sub user_routes {
     },
     {
       method      => 'GET',
-      path        => '/user/recommendedPay/',
+      path        => '/user/services/statuses/',
       controller  => 'Api::Controllers::User::User_core::Root',
-      endpoint    => \&Api::Controllers::User::User_core::Root::get_user_recommendedPay,
+      endpoint    => \&Api::Controllers::User::User_core::Root::get_user_services_statuses,
+      credentials => [
+        'USER', 'USERBOT'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/recommendedPay/',
+      controller  => 'Api::Controllers::Common::Users',
+      endpoint    => \&Api::Controllers::Common::Users::get_user_recommendedPay,
       credentials => [
         'USER', 'USERBOT'
       ]

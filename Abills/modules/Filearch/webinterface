@@ -1,5 +1,7 @@
 # FileArch
 
+#TODO: review module and delete if no needed, unused already 9 years
+
 if (!$conf{DOWNLOADS}) {
 
   $conf{DOWNLOADS} = '%INFO% [ <a href="ftp://your.host/Video/Movies/%FOLDER%/%FILE%">FTP</a> ]

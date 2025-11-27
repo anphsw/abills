@@ -116,8 +116,10 @@ sub hangup {
   $params{USER} = $USER;
   $USER_NAME = $USER;
 
-  if (-f "Nas/$nas_type" . '.pm') {
-    do "Nas/$nas_type" . '.pm';
+  my $nas_control_file = "Nas/$nas_type" . '.pm';
+
+  if (-f $nas_control_file) {
+    do $nas_control_file;
     my $fn = 'hangup_' . $nas_type;
     if (defined($fn)) {
       $fn->($Nas, \%params);
@@ -143,23 +145,15 @@ sub hangup {
       $self->radius_request($Nas, \%params, $attr);
     }
   }
-  elsif ($nas_type eq 'mikrotik' || $nas_type eq 'mikrotik_dhcp') {
-    my ($ip, $mng_port, $second_port, undef) = split(/:/x, $Nas->{NAS_MNG_IP_PORT} || q{}, 4);
-    #IPN Hangup if COA port 0
-    if (($ip && !$mng_port && $second_port && $second_port > 0) || $CONF->{MIKROTIK_DHCP_OLD}) {
-      hangup_ipoe($Nas, \%params);
-    }
-    else {
-      $params{RAD_PAIRS} = {
-        'User-Name'         => $USER_NAME,
-        'Framed-IP-Address' => $attr->{FRAMED_IP_ADDRESS},
-        'Acct-Session-Id'   => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
-       };
-
-      $self->radius_request($Nas, \%params);
-    }
+  elsif ($nas_type eq 'mikrotik' || ($nas_type eq 'mikrotik_dhcp' && $CONF->{MIKROTIK_DHCP_ACCT})) {
+    $params{RAD_PAIRS} = {
+      'User-Name'         => $USER_NAME,
+      'Framed-IP-Address' => $attr->{FRAMED_IP_ADDRESS},
+      'Acct-Session-Id'   => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
+    };
+    $self->radius_request($Nas, \%params);
   }
-  elsif ($nas_type eq 'huawei_me60') {
+  elsif ($nas_type =~ /huawei_/) {
     $params{RAD_PAIRS} = {
       'Acct-Session-Id'  => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
     };
@@ -199,7 +193,7 @@ sub hangup {
     $self->hangup_openvpn($Nas, \%params);
   }
   elsif ($nas_type eq 'ipcad'
-#    || $nas_type eq 'mikrotik_dhcp'
+    || $nas_type eq 'mikrotik_dhcp'
     || $nas_type eq 'dhcp'
     || $nas_type eq 'ipn'
     || ( $CONF->{INTERNET_IPOE_NAS_TYPES} && $CONF->{INTERNET_IPOE_NAS_TYPES} =~ m/$nas_type/x)
@@ -235,9 +229,6 @@ sub hangup {
     $self->radius_request($Nas, \%params);
   }
   elsif ($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ m/\d+\.\d+\.\d+\.\d+:\d+:/x) {
-    $self->radius_request($Nas, \%params);
-  }
-  elsif ($nas_type eq 'lisg_cst') {
     $self->radius_request($Nas, \%params);
   }
   else {
@@ -611,7 +602,7 @@ sub radius_request {
   my $r = Radius->new(
     Host   => $ip . ':' . $mng_port,
     Secret => $nas_password,
-    Debug  => $attr->{DEBUG} || 0
+    Debug  => ($debug > 2) ? $debug : 0
   ) or return "Can't connect '" . $ip . ':' . $mng_port . "' $!";
 
   $CONF->{'dictionary'} = $base_dir . '/lib/dictionary' if (!$CONF->{'dictionary'});
@@ -646,7 +637,7 @@ sub radius_request {
   }
 
   while (my ($k, $v) = each %rad_pairs) {
-    print " $k Value => $v \n" if ($attr->{DEBUG});
+    print " $k Value => $v \n" if ($debug > 1);
     $r->add_attributes({ Name => $k, Value => $v });
   }
 
@@ -666,7 +657,7 @@ sub radius_request {
     $result .= $message;
     $self->{error}=103;
     $self->{errstr}=$message;
-    $Log->log_print('LOG_DEBUG', "$USER", $message, { ACTION => 'CMD' });
+    $Log->log_print('LOG_DEBUG', $USER, $message, { ACTION => 'CMD' });
   }
 
   $self->{rad_return}=$type;
@@ -676,7 +667,7 @@ sub radius_request {
     $self->{rad_pairs}->{$rad->{'Name'}}=$rad->{'Value'};
   }
 
-  if ($attr->{DEBUG}) {
+  if ($debug > 1) {
     print "Radius Return: " . ($type || q{}) . "\n Result: " . ($result || "Empty\n");
   }
 
@@ -762,7 +753,7 @@ sub hangup_ipoe {
     $num = $attr->{UID} || 0;
   }
   else {
-    my @ip_array = split('.', $ip, 4);
+    my @ip_array = split('\.', $ip, 4);
     $num = $ip_array[3] || 0;
   }
 
@@ -896,7 +887,7 @@ sub hangup_cisco_isg {
   my $exec = '';
   my $command = '';
   my $result = q{};
-  my $user = $attr->{USER};
+  my $user = $attr->{USER} || q{};
 
   my ($nas_mng_ip, $coa_port, $ssh_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
 
@@ -926,7 +917,7 @@ sub hangup_cisco_isg {
     $CONF->{'dictionary'} = '/usr/abills/lib/dictionary' if (!$CONF->{'dictionary'});
     $r->load_dictionary($CONF->{'dictionary'});
 
-    $r->add_attributes({ Name => 'User-Name', Value => "$attr->{USER}" });
+    $r->add_attributes({ Name => 'User-Name', Value => $user });
 
     # We cannot uniquely identify a session by IP address when VRFs are used.
     # However, we can do it using a session ID (requires CSCek31466)
@@ -946,7 +937,7 @@ sub hangup_cisco_isg {
       # No responce from COA/POD server
       my $message = "NO responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'";
       $result .= $message;
-      $Log->log_print('LOG_DEBUG', "$attr->{USER}", $message, { ACTION => 'CMD' });
+      $Log->log_print('LOG_DEBUG', $user, $message, { ACTION => 'CMD' });
     }
 
     my %RAD_PAIRS = ();
@@ -956,7 +947,7 @@ sub hangup_cisco_isg {
     }
 
     if ($RAD_PAIRS{'Error-Cause'}) {
-      $Log->log_print('LOG_WARNING', "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}");
+      $Log->log_print('LOG_WARNING', $user, "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}");
       #print "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}\n";
 
       $self->{RESULT}=$result;

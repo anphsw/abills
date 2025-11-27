@@ -17,7 +17,7 @@
     loader.removeClass('d-none');
 
     let self = this;
-    jQuery.post('$SELF_URL', { header: 2, qindex: '$index', camera: camera, AJAX: 1 }, function (result) {
+    jQuery.post('%SELF_URL%', { header: 2, qindex: '%index%', camera: camera, AJAX: 1 }, function (result) {
       jQuery(self).parent().html(result);
     });
   });

@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_MSG_REPLY_INFO",
+  "method": "GET",
+  "path": "msgs/:reply_id/reply",
+  "params": {}
+}

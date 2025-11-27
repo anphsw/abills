@@ -20,6 +20,8 @@ my @viber_msgs = (
   'SMS_TURBOSMS_VIBER'
 );
 
+my $Sms_service;
+
 #**********************************************************
 =head2 new($db, $admin, $CONF, $attr) - Create new Viber object
 
@@ -30,27 +32,27 @@ my @viber_msgs = (
   Returns:
 
   Examples:
-    my $Telegram = Abills::Sender::Viber->new($db, $admin, \%conf);
+    my $Viber = Abills::Sender::Viber->new($db, $admin, \%conf);
 
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($conf) = @_ or return 0;
+  my ($class, $conf, $attr) = @_;
 
   %conf = %{$conf};
 
   my $self = {};
 
+  $Sms_service = init_sms_service($attr->{db}, $attr->{admin}, $conf);
+
   foreach my $viber_check (@viber_msgs) {
-    if ($conf{ $viber_check }) {
-      $self->{VIBER_TOKEN} = $conf{ $viber_check };
+    if ($Sms_service->{$viber_check}) {
+      $self->{VIBER_TOKEN} = $Sms_service->{$viber_check};
       last;
     }
   }
 
-  #TODO: rework sms plugin init to VIBER
-  die 'No Viber token ($conf{SMS_OMNICELL_VIBER} or $conf{SMS_TURBOSMS_VIBER})' if !$self->{VIBER_TOKEN};
+  die 'Not configured Viber sending' if (!$self->{VIBER_TOKEN});
 
   bless $self, $class;
 
@@ -74,21 +76,17 @@ sub new {
 =cut
 #**********************************************************
 sub send_message {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-
-  unless ($attr->{TO_ADDRESS}) {
-    print "No recipient address given \n" if ($self->{debug});
+  if (!$attr->{TO_ADDRESS}) {
+    print "No recipient address given\n" if ($self->{debug});
     return 0;
   };
 
   my $number_pattern = $self->{conf}{SMS_NUMBER} || "[0-9]{12}";
-  if ($attr->{TO_ADDRESS} !~ /$number_pattern/) {
+  if ($attr->{TO_ADDRESS} !~ /$number_pattern/x) {
     return 0;
   }
-
-  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
 
   my $sms_result = $Sms_service->send_sms({
     NUMBER  => $attr->{TO_ADDRESS},

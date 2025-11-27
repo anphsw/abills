@@ -3,7 +3,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our ($libpath, %conf, $base_dir, @MODULES, %lang, %FORM);
+our ($libpath, %conf, $base_dir);
 
 BEGIN {
   use FindBin '$Bin';
@@ -35,8 +35,6 @@ my $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbp
 my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
-our $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
-
 my $argv = parse_arguments(\@ARGV);
 my $debug = 0;
 if ($argv->{DEBUG}) {
@@ -47,7 +45,6 @@ if ($argv->{DEBUG}) {
 do 'language/english.pl';
 
 contact_migrate();
-exit 0;
 
 #**********************************************************
 =head2 main()
@@ -55,10 +52,10 @@ exit 0;
 =cut
 #**********************************************************
 sub contact_migrate {
-  require Users;
-  Users->import();
+  require Tools;
+  Tools->import();
 
-  my $Users = Users->new($db, $admin, \%conf);
+  my $Tools = Tools->new($db, $admin, \%conf);
 
   # First should save old contacts
   if (!$argv->{SKIP_BACKUP}) {
@@ -66,9 +63,9 @@ sub contact_migrate {
   }
 
   if($debug>5) {
-    $Users->{debug}=1;
+    $Tools->{debug}=1;
   }
-  my $migrate_contacts = $Users->contacts_migrate({ IGNORE_DUPLICATE => $argv->{IGNORE_DUPLICATE} }) && !$Users->{errno};
+  my $migrate_contacts = $Tools->contacts_migrate({ IGNORE_DUPLICATE => $argv->{IGNORE_DUPLICATE} }) && !$Tools->{errno};
 
   if ($migrate_contacts) {
     print "Contacts migrated successfully \n";
@@ -95,7 +92,7 @@ sub contact_migrate {
 #**********************************************************
 sub save_old_contacts {
 
-  use Control::System qw/form_sql_backup/;
+  require Control::System;
   my $backup_result = form_sql_backup({
     mk_backup => 1,
     TABLES    => 'users_pi',
@@ -112,5 +109,5 @@ sub save_old_contacts {
   return 1;
 }
 
-
+1;
 

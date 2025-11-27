@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='get' class='form form-horizontal'>
-    <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' method='get' class='form form-horizontal'>
+    <input type='hidden' name='index' value='%index%'>
 
     <div class='card card-primary card-outline box-form'>
         <div class='card-body'>

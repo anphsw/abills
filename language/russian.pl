@@ -34,6 +34,7 @@ $lang{SIMULTANEOUSLY} = 'Одновременно';
 $lang{DAY_FEE_SHORT} = 'Д/А';
 $lang{ABON_DISTRIBUTION} = 'Распределение абонплаты';
 $lang{LOG} = 'История';
+$lang{LOG_ACTIONS} = 'Журнал действий';
 $lang{AGE} = 'Время существования с момента активации';
 $lang{ACCOUNT} = 'Счет';
 $lang{ABON} = 'Периодические снятия';
@@ -540,7 +541,7 @@ $lang{FINISH} = 'Завершить';
 $lang{TEMPLATES} = 'Шаблоны';
 $lang{TEMPLATE} = 'Шаблон';
 $lang{DONT_CREATE_INVOICE} = 'Не создавать счет';
-$lang{LAST_LOGIN} = 'Последнее подключение';
+$lang{LAST_LOGIN} = 'Авторизации';
 $lang{EQUIPMENT} = 'Оборудование';
 $lang{BALANCE_RECHARCHE} = 'Пополнить счет';
 $lang{ERR_WRONG_CAPTCHA} = 'Неправильно введены цифры подтверждения ';
@@ -1134,6 +1135,16 @@ $lang{ERR_UNAUTHENTICATED} = 'Неверные учетные данные дл�
 $lang{ERR_HOLD_UP_MIN_PERIOD} = 'Минимальный срок приостановки услуги – %DAYS% дней';
 $lang{ERR_HOLD_UP_MAX_PERIOD} = 'Максимальный срок приостановки услуги – %DAYS% дней';
 $lang{ERR_PASSWORD_NOT_ALLOWED} = 'Этот пароль недопустим';
+$lang{ERR_CONTACTS_UNKNOWN_METHOD} = 'Неизвестный метод контактов';
+$lang{ERR_CONTACTS_METHOD_NOT_FOUND} = 'Метод контактов не найден';
+$lang{ERR_AID_NOT_DEFINED} = 'AID не определен';
+$lang{ERR_CONTACTS_INVALID_FORMAT} = 'Неверный формат контактных данных';
+$lang{ERR_CONTACT_TYPE_REQUIRED} = 'Тип контакта обязателен';
+$lang{ERR_CONTACT_TYPE_INVALID} = 'Неверный тип контакта';
+$lang{ERR_CONTACT_VALUE_REQUIRED} = 'Значение контакта обязательно';
+$lang{ERR_WRONG_CELL_PHONE_FORMAT} = 'Неверный формат мобильного телефона';
+$lang{ERR_WRONG_PHONE_FORMAT} = 'Неверный формат телефона';
+$lang{ERR_CONTACT_ID_REQUIRED} = 'ID контакта обязателен';
 
 $lang{FIXED_FEES_FREE_PERIOD}='Бесплатный период до начала месяца';
 
@@ -1148,6 +1159,9 @@ $lang{AVAILABILITY_PERIOD} = 'Период доступности';
 $lang{PENETRATION_RATE} = 'Проникновение';
 $lang{POPULATION} = 'Население';
 $lang{HOUSEHOLDS} = 'Домохозяйства';
+$lang{TERRITORIAL_UNITS_CODE} = 'ID в КАТОТТГ';
+$lang{TERRITORIAL_UNITS} = 'КАТОТТГ';
+$lang{LEVEL} = 'Уровень';
 $lang{ARCHIVAL} = 'Архивный';
 $lang{FINANCE} = 'Финансы';
 
@@ -1171,5 +1185,9 @@ $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Количество допустимых о
 $lang{ADMIN_LOGIN_ATTEMPT_PERIOD} = 'Период проверки (в секундах)';
 $lang{ADMIN_ATTEMPT_COUNTER_RESET_PERIOD} = 'Интервал сброса счётчика попыток (в секундах, 0 — не устанавливать)';
 $lang{SUBCONTO} = 'Код Субконто';
+
+$lang{IN_TERMINATION_PROCESS} = 'В процессе расторжения';
+$lang{TERMINATED_CONTRACT} = 'Договор расторгнут';
+$lang{EXTERNAL_CMD} = 'Внешняя команда';
 
 1;

@@ -6,9 +6,9 @@
         <input type='hidden' name='enter_more' value='%INPUT_NAME%' />
         <input type='hidden' name='PHONE' value='%PHONE%' />
         <input type='hidden' name='EMAIL' value='%EMAIL%' />
-        <input type='hidden' name='index' value='$index' />
+        <input type='hidden' name='index' value='%index%' />
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='%INPUT_NAME%_ID'>_{CODE}_:</label>
         <div class='col-md-6'>
             <input type='text' class='form-control' value='' name='%INPUT_NAME%'  id='%INPUT_NAME%_ID'  />

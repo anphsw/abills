@@ -6,5 +6,9 @@
   $ref: "./paths/transactionInfo.yaml"
 /user/paysys/applePay/session:
   $ref: "./paths/appleSession.yaml"
-/user/paysys/recurrent/:
+/user/paysys/recurrent:
   $ref: "./paths/paysysRecurrent.yaml"
+/user/paysys/gateway/search:
+  $ref: "./paths/paysysGatewaySearch.yaml"
+/user/paysys/gateway/pay:
+  $ref: "./paths/paysysGatewayPay.yaml"

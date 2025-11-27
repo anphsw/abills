@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS `gps_admins_thumbnails` (
 
 CREATE TABLE IF NOT EXISTS `gps_unregistered_trackers` (
   `gps_imei` VARCHAR(30) PRIMARY KEY NOT NULL,
+  `protocol` VARCHAR(30) NOT NULL DEFAULT '',
   `gps_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ip` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `coord_x` DOUBLE NOT NULL,

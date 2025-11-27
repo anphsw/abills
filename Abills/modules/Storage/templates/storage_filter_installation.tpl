@@ -1,6 +1,6 @@
 <br />
-<form action=$SELF_URL name=\"storage_filter_installation\" method=POST>
-<input type=hidden name=index value=$index>
+<form action=%SELF_URL% name=\"storage_filter_installation\" method=POST>
+<input type=hidden name=index value=%index%>
 <input type=hidden name=ID value=%ID%>
 <table class=form >
   <tr><h1>qwevqweqceqwcewq</h1>

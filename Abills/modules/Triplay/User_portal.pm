@@ -6,6 +6,8 @@
 
 use warnings FATAL => 'all';
 use strict;
+use Triplay;
+use Control::Selects;
 
 our (
   $db,
@@ -21,7 +23,7 @@ our (
 
 our Users $user;
 our Abills::HTML $html;
-#my $Tariffs = Tariffs->new($db, \%conf, $admin);
+
 my $Triplay = Triplay->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -96,7 +98,7 @@ sub triplay_user_info {
   }
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
-  my ($status, $color) = split(/:/, $service_status->{ $user_info->{DISABLE} });
+  my ($status, $color) = split(/:/x, $service_status->{ $user_info->{DISABLE} });
   $user_info->{STATUS_FIELD} = $color;
   $user_info->{STATUS_VALUE} = $status;
 
@@ -115,9 +117,9 @@ sub triplay_user_info {
         : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success float-right' });
     }
     else {
-      if ($functions{$index} && $functions{$index} eq 'internet_user_info') {
-        form_neg_deposit($user);
-      }
+      # if ($functions{$index} && $functions{$index} eq 'internet_user_info') {
+      #   form_neg_deposit($user);
+      # }
     }
   }
   elsif ($Triplay->{STATUS} == 1) {
@@ -158,7 +160,7 @@ sub triplay_user_info {
         $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
       }
       else {
-        $money_name = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+        $money_name = (split(/;/x, $conf{MONEY_UNIT_NAMES}))[0];
       }
     }
 
@@ -178,12 +180,12 @@ sub triplay_user_info {
 
     my @extra_fields = ();
     foreach my $param ( @check_fields ) {
-      my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param, 4);
+      my($id, $default_value, $lang_, $value_prefix )=split(/:/x, $param, 4);
 
       if(! defined($user_info->{$id}) || $user_info->{$id} eq $default_value) {
         next;
       }
-      elsif ($user_info->{TP_AGE} && $id =~/MONTH_ABON|DAY_ABON/) {
+      elsif ($user_info->{TP_AGE} && $id =~ m/MONTH_ABON|DAY_ABON/x) {
         next;
       }
 

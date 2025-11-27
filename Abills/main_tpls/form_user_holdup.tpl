@@ -9,7 +9,7 @@
   </div>
 
   <div class='card-body'>
-    <form action='$SELF_URL' METHOD='GET' id='holdup_%ID%'>
+    <form action='%SELF_URL%' METHOD='GET' id='holdup_%ID%'>
       <input type='hidden' name='index' value='%index%'>
       <input type='hidden' name='sid' value='%sid%'>
       <input type='hidden' name='UID' value='%UID%'>

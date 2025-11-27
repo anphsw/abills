@@ -85,7 +85,21 @@ sub list {
     push @WHERE_RULES, "rw.send_mail='1'";
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',          'INT',  'rw.id',           1 ],
+      [ 'NAME',        'STR',  'rw.name',         1 ],
+      [ 'COMMENTS',    'STR',  'rw.comments',     1 ],
+      [ 'QUICK_REPORT','INT',  'rw.quick_report', 1 ]
+    ],
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES
+    }
+  );
+
+  # my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
   $self->query("SELECT rw.id, rw.name, rw.comments, rw.quick_report,
     rg.name as  group_name
     FROM reports_wizard rw

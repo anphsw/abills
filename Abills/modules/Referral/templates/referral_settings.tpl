@@ -5,7 +5,7 @@
   <form name='SETTINGS' id='form_REFERRAL_SETTINGS' method='post' class='form form-horizontal'>
     <div class='card-body'>
 
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       %CHANGE%
 
       <div class='form-group row'>

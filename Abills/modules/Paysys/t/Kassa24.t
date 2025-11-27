@@ -22,7 +22,6 @@ our (
 my $Payment_plugin = Paysys::Plugins::Kassa24->new($db, $admin, \%conf);
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = 100000 + int(rand(10000));
 
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
@@ -43,7 +42,7 @@ number=$user_id},
 action=payment
 number=$user_id
 date=2024-08-03T15:53:00
-receipt=$transaction_id
+receipt=$payment_id
 amount=$payment_sum},
     get     => 1,
     result  => qq{}

@@ -7,34 +7,202 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
+use Msgs::db::Delivery;
+use Abills::Sender::Core;
 
 our ($db,
   %lang,
-  @bool_vals,
-  @_COLORS,
   $admin,
   %conf,
-  %msgs_permissions
+  %msgs_permissions,
+  @priority,
+  @priority_colors
 );
 
 our Abills::HTML $html;
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
-my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+my $Delivery = Msgs::db::Delivery->new($db, $admin, \%conf);
 my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
-my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
-$_COLORS[6] //= 'red';
-$_COLORS[8] //= '#FFFFFF';
-$_COLORS[9] //= '#FFFFFF';
+#**********************************************************
+=head2 msgs_delivery_form($attr)
 
-my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
+  Arguments:
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub msgs_delivery_form {
+  my ($attr)=@_;
+
+  if(! $Delivery->{ACTION}) {
+    $Delivery->{ACTION} = 'add';
+    $Delivery->{ACTION_LNG} = $lang{ADD};
+  }
+
+  my $send_methods = msgs_send_methods();
+  $Delivery->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Delivery->{SEND_DATE});
+  $Delivery->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Delivery->{SEND_TIME});
+  $Delivery->{STATUS_SELECT} = $html->form_select('STATUS', {
+    SELECTED => 0,
+    SEL_HASH => {
+      0 => $lang{D_ACTIVE},
+      1 => $lang{DEFERRED},
+      2 => $lang{DONE},
+    },
+    NO_ID    => 1,
+    SELECTED => $Delivery->{STATUS} || 0,
+  });
+
+  $Delivery->{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
+    SELECTED     => defined($Delivery->{PRIORITY}) ? $Delivery->{PRIORITY} : 2,
+    SEL_ARRAY    => \@priority,
+    STYLE        => \@priority_colors,
+    ARRAY_NUM_ID => 1
+  });
+
+  $Delivery->{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
+    SELECTED => defined($Delivery->{SEND_METHOD}) ? $Delivery->{SEND_METHOD} : 2,
+    SEL_HASH => $send_methods,
+    NO_ID    => 1
+  });
+
+  $Delivery->{TEXT} =~ s/\%/\&#37;/xg if ($Delivery->{TEXT});
+
+  if ($attr->{show} && !$msgs_permissions{2}{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  };
+
+  $html->tpl_show(_include('msgs_add_delivery', 'Msgs'), { %$Delivery });
+
+  if ($attr->{show}) {
+    if ($attr->{IDS}) {
+      $Delivery->user_list_del({ ID => $attr->{IDS} });
+      if (!_error_show($Delivery)) {
+        $html->message('info', $lang{DELETED}, "$lang{USERS} $attr->{IDS}");
+      }
+    }
+    msgs_user_table({
+      MDELIVERY_ID   => $attr->{show},
+      FUNCTION_INDEX => $index,
+      PAGE_QS        => "&show=$attr->{show}"
+    });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_delivery_list()
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub msgs_delivery_list {
+
+  my %msgs_status = (
+    0 => "$lang{D_ACTIVE}:#0000FF",
+    1 => "$lang{DEFERRED}:#ff0638",
+    2 => "$lang{DONE}:#009D00",
+  );
+
+  my $send_methods = msgs_send_methods();
+
+  my Abills::HTML $table;
+  my $list;
+  ($table, $list) = result_former({
+    INPUT_DATA      => $Delivery,
+    FUNCTION        => 'delivery_list',
+    DEFAULT_FIELDS  => 'ID, SEND_DATE, SEND_TIME, SUBJECT',
+    FUNCTION_FIELDS => 'null',
+    BASE_FIELDS     => 2,
+    EXT_TITLES      => {
+      id          => 'id',
+      send_time   => $lang{SEND_TIME},
+      send_date   => $lang{SEND_DATE},
+      subject     => $lang{SUBJECT},
+      text        => $lang{TEXT},
+      send_method => $lang{MESSAGE},
+      priority    => $lang{PRIORITY},
+      status      => $lang{STATE},
+      added       => $lang{ADDED},
+      aid         => 'AID',
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width      => '100%',
+      EXPORT     => 1,
+      caption    => $lang{DELIVERY},
+      qs         => $pages_qs,
+      ID         => 'DILIVERY_LIST',
+      MENU       => $msgs_permissions{2}{1} ? "$lang{ADD}:add_form=1&index=$index:add" : '',
+      DATA_TABLE => 1
+    },
+  });
+
+  my $field_count = ($FORM{json}) ? $#{$Delivery->{COL_NAMES_ARR}} : $Delivery->{SEARCH_FIELDS_COUNT};
+
+  foreach my $line (@{$list}) {
+    my @fields_array = ();
+    for (my $i = 0; $i < $field_count + 2; $i++) {
+      my $val = '';
+      my $field_name = $Delivery->{COL_NAMES_ARR}->[$i];
+      if ($field_name eq 'send_method') {
+        $val = $send_methods->{$line->{send_method}};
+      }
+      elsif ($field_name eq 'priority') {
+        $val = $html->color_mark($priority[ $line->{priority} ], $priority_colors[ $line->{priority} ]);
+      }
+      elsif ($field_name eq 'status') {
+        $val = $html->color_mark($msgs_status{ $line->{status} });
+      }
+      else {
+        $val = $line->{ $field_name };
+      }
+      push @fields_array, $val;
+
+    }
+    my $chg_btn = $msgs_permissions{2}{2} ? $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' }) : '';
+    my $del_btn = $msgs_permissions{2}{3} ?
+      $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { MESSAGE => "$lang{DEL}", class => 'del' }) : '';
+
+    push @fields_array, $html->button($lang{SHOW}, "index=$index&show=$line->{id}", { class => 'user' }) . $chg_btn . $del_btn;
+    $table->addrow(@fields_array);
+  }
+
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+    },
+    NAME    => 'DILIVERY_LIST',
+    ID      => 'DILIVERY_LIST',
+  });
+
+  my $total_dilivery = $Delivery->{TOTAL};
+
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_dilivery) ] ]
+  });
+
+  print $table->show();
+
+  return 1;
+}
 
 #**********************************************************
 =head2 msgs_delivery_main()
 
   Arguments:
+
   Returns:
 
 =cut
@@ -46,40 +214,16 @@ sub msgs_delivery_main {
     return 1;
   };
 
-  my $msgs_status = {
-    0 => "$lang{D_ACTIVE}:#0000FF",
-    1 => "$lang{DEFERRED}:#ff0638",
-    2 => "$lang{DONE}:#009D00",
-  };
-
-  my $sender_send_types = $Sender->available_types(
-    { HASH_RETURN => 1, CLIENT => 1, SOFT_CHECK => 1 }
-  );
-
-  my %send_methods = (
-    0 => $lang{MESSAGE},
-    %$sender_send_types
-  );
-
-  if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
-    $send_methods{3} = 'Web  redirect';
-  }
-
-  if ($FORM{add_form}) {
-    $FORM{STATUS} = 1;
-    $Msgs->{ACTION} = 'add';
-    $Msgs->{ACTION_LNG} = $lang{ADD};
-  }
-  elsif ($FORM{add}) {
+  if ($FORM{add}) {
     if (!$msgs_permissions{2}{1}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
     };
 
-    $Msgs->msgs_delivery_add({ %FORM });
+    $Delivery->delivery_add({ %FORM });
 
-    if (!$Msgs->{errno}) {
-      _msgs_delivery_add_attachments($Msgs->{INSERT_ID});
+    if (!$Delivery->{errno}) {
+      _msgs_delivery_add_attachments($Delivery->{INSERT_ID});
       $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $lang{ADDED});
     }
   }
@@ -88,8 +232,8 @@ sub msgs_delivery_main {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     }
     else {
-      $Msgs->msgs_delivery_del({ ID => $FORM{del_delivery} });
-      $html->message('success', $lang{INFO}, join(' ', ($lang{MESSAGE}, $FORM{del_delivery}, $lang{DELETED}))) if !$Msgs->{errno};
+      $Delivery->delivery_del({ ID => $FORM{del_delivery} });
+      $html->message('success', $lang{INFO}, join(' ', ($lang{MESSAGE}, $FORM{del_delivery}, $lang{DELETED}))) if (!$Delivery->{errno});
     }
   }
   elsif ($FORM{chg}) {
@@ -98,19 +242,19 @@ sub msgs_delivery_main {
       return 1;
     };
 
-    $Msgs->{ACTION} = 'change';
-    $Msgs->{ACTION_LNG} = $lang{CHANGE};
-    $Msgs->{ATTACHMENTS} = Abills::Base::json_former(_msgs_get_attachments($FORM{chg}) || [], { ESCAPE_DQ => 1 });
+    $Delivery->{ACTION} = 'change';
+    $Delivery->{ACTION_LNG} = $lang{CHANGE};
+    $Delivery->{ATTACHMENTS} = Abills::Base::json_former(_msgs_get_attachments($FORM{chg}) || [], { ESCAPE_DQ => 1 });
 
-    $Msgs->msgs_delivery_info($FORM{chg});
-    $FORM{STATUS} = $Msgs->{STATUS};
+    $Delivery->delivery_info($FORM{chg});
+    $FORM{STATUS} = $Delivery->{STATUS};
   }
   elsif ($FORM{show}) {
-    $Msgs->{DISABLE} = 'disabled';
-    $Msgs->{ACTION} = 'back';
-    $Msgs->{ACTION_LNG} = $lang{BACK};
-    $Msgs->msgs_delivery_info($FORM{show});
-    $FORM{STATUS} = $Msgs->{STATUS};
+    $Delivery->{DISABLE} = 'disabled';
+    $Delivery->{ACTION} = 'back';
+    $Delivery->{ACTION_LNG} = $lang{BACK};
+    $Delivery->delivery_info($FORM{show});
+    $FORM{STATUS} = $Delivery->{STATUS};
   }
   elsif ($FORM{change}) {
     if (!$msgs_permissions{2}{2}) {
@@ -118,160 +262,33 @@ sub msgs_delivery_main {
       return 1;
     };
 
-    $Msgs->msgs_delivery_change({ %FORM });
+    $Delivery->delivery_change({ %FORM });
 
-    if (!$Msgs->{errno}) {
+    if (!$Delivery->{errno}) {
       _msgs_delivery_add_attachments($FORM{ID});
       $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $lang{CHANGED});
     }
   }
 
   if ($FORM{add_form} || $FORM{chg} || $FORM{show}) {
-    $Msgs->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Msgs->{SEND_DATE});
-    $Msgs->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Msgs->{SEND_TIME});
-    $Msgs->{STATUS_SELECT} = $html->form_select('STATUS', {
-      SELECTED => 0,
-      SEL_HASH => {
-        0 => $lang{D_ACTIVE},
-        1 => $lang{DEFERRED},
-        2 => $lang{DONE},
-      },
-      NO_ID    => 1,
-      SELECTED => $Msgs->{STATUS} || 0,
-    });
-
-    $Msgs->{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
-      SELECTED     => defined($Msgs->{PRIORITY}) ? $Msgs->{PRIORITY} : 2,
-      SEL_ARRAY    => \@priority,
-      STYLE        => \@priority_colors,
-      ARRAY_NUM_ID => 1
-    });
-
-    $Msgs->{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
-      SELECTED => defined($Msgs->{SEND_METHOD}) ? $Msgs->{SEND_METHOD} : 2,
-      SEL_HASH => \%send_methods,
-      NO_ID    => 1
-    });
-
-    $Msgs->{TEXT} =~ s/\%/\&#37;/g if$Msgs->{TEXT};
-
-    if ($FORM{show} && !$msgs_permissions{2}{4}) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-      return 1;
-    };
-
-    $html->tpl_show(_include('msgs_add_delivery', 'Msgs'), { %$Msgs });
-
-    if ($FORM{show}) {
-      if ($FORM{IDS}) {
-        $Msgs->delivery_user_list_del({ ID => $FORM{IDS} });
-        if (!_error_show($Msgs)) {
-          $html->message('info', $lang{DELETED}, "$lang{USERS} $FORM{IDS}");
-        }
-      }
-      msgs_delivery_user_table({
-        MDELIVERY_ID   => $FORM{show},
-        FUNCTION_INDEX => $index,
-        PAGE_QS        => "&show=$FORM{show}"
-      });
-    }
+     msgs_delivery_form(\%FORM);
   }
-  else {
-    #Delivery table
-    my Abills::HTML $table;
-    my $list;
-    ($table, $list) = result_former({
-      INPUT_DATA      => $Msgs,
-      FUNCTION        => 'msgs_delivery_list',
-      DEFAULT_FIELDS  => 'ID, SEND_DATE, SEND_TIME, SUBJECT',
-      FUNCTION_FIELDS => 'null',
-      BASE_FIELDS     => 2,
-      EXT_TITLES      => {
-        id          => 'id',
-        send_time   => $lang{SEND_TIME},
-        send_date   => $lang{SEND_DATE},
-        subject     => $lang{SUBJECT},
-        text        => $lang{TEXT},
-        send_method => $lang{MESSAGE},
-        priority    => $lang{PRIORITY},
-        status      => $lang{STATE},
-        added       => $lang{ADDED},
-        aid         => 'AID',
-      },
-      SKIP_USER_TITLE => 1,
-      TABLE           => {
-        width      => '100%',
-        EXPORT     => 1,
-        caption    => $lang{DELIVERY},
-        qs         => $pages_qs,
-        ID         => 'DILIVERY_LIST',
-        MENU       => $msgs_permissions{2}{1} ? "$lang{ADD}:add_form=1&index=$index:add" : '',
-        DATA_TABLE => 1
-      },
-    });
 
-    my $field_count = ($FORM{json}) ? $#{ $Msgs->{COL_NAMES_ARR} } : $Msgs->{SEARCH_FIELDS_COUNT};
-
-    foreach my $line (@{$list}) {
-      my @fields_array = ();
-      for (my $i = 0; $i < $field_count + 2; $i++) {
-        my $val = '';
-        my $field_name = $Msgs->{COL_NAMES_ARR}->[$i];
-        if ($field_name eq 'send_method') {
-          $val = $send_methods{$line->{send_method}};
-        }
-        elsif ($field_name eq 'priority') {
-          $val = $html->color_mark($priority[ $line->{priority} ], $priority_colors[ $line->{priority} ]);
-        }
-        elsif ($field_name eq 'status') {
-          $val = $html->color_mark($msgs_status->{ $line->{status} });
-        }
-        else {
-          $val = $line->{ $field_name };
-        }
-        push @fields_array, $val;
-
-      }
-      my $chg_btn = $msgs_permissions{2}{2} ? $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' }) : '';
-      my $del_btn = $msgs_permissions{2}{3} ?
-        $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { MESSAGE => "$lang{DEL}",  class => 'del' }) : '';
-
-      push @fields_array, $html->button($lang{SHOW}, "index=$index&show=$line->{id}", { class => 'user' }) . $chg_btn . $del_btn;
-      $table->addrow(@fields_array);
-    }
-
-    print $html->form_main({
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index => $index,
-      },
-      NAME    => 'DILIVERY_LIST',
-      ID      => 'DILIVERY_LIST',
-    });
-
-    my $total_dilivery = $Msgs->{TOTAL};
-
-    $table = $html->table({
-      width      => '100%',
-      rows       => [ [ "  $lang{TOTAL}: ", $html->b($total_dilivery) ] ]
-    });
-
-    print $table->show();
-  }
+  msgs_delivery_list();
 
   return 1;
 }
 
 #**********************************************************
-=head2 msgs_delivery_user_table ($attr) - show select user group
+=head2 msgs_user_table ($attr) - show select user group
 
 =cut
 #**********************************************************
-sub msgs_delivery_user_table {
+sub msgs_user_table {
   my ($attr) = @_;
   my @users_status = ($lang{WAIT_TO_SEND}, $lang{SENDED}, $lang{NOT_DELIVERED});
 
-  my $user_list = $Msgs->delivery_user_list({
+  my $user_list = $Delivery->user_list({
     MDELIVERY_ID => $attr->{MDELIVERY_ID},
     PAGE_ROWS    => 1000000,
     COLS_NAME    => 1,
@@ -280,7 +297,7 @@ sub msgs_delivery_user_table {
   my Abills::HTML $user_table;
   my $list;
   ($user_table, $list) = result_former({
-    INPUT_DATA      => $Msgs,
+    INPUT_DATA      => $Delivery,
     LIST            => $user_list,
     DEFAULT_FIELDS  => 'LOGIN, FIO, EMAIL, STATUS ',
     FUNCTION_INDEX  => $attr->{FUNCTION_INDEX} || 0,
@@ -305,7 +322,7 @@ sub msgs_delivery_user_table {
     }
   });
 
-  my $field_count = ($FORM{json}) ? $#{ $Msgs->{COL_NAMES_ARR} } : $Msgs->{SEARCH_FIELDS_COUNT};
+  my $field_count = ($FORM{json}) ? $#{ $Delivery->{COL_NAMES_ARR} } : $Delivery->{SEARCH_FIELDS_COUNT};
 
   foreach my $line (@{$list}) {
     my @fields_array = ();
@@ -316,7 +333,7 @@ sub msgs_delivery_user_table {
     });
 
     for (my $i = 0; $i < $field_count + 5; $i++) {
-      my $field_name = $Msgs->{COL_NAMES_ARR}->[$i];
+      my $field_name = $Delivery->{COL_NAMES_ARR}->[$i];
       my $val = $field_name eq 'status' ? $users_status[$line->{status}] : $line->{ $field_name };
 
       push @fields_array, $val;
@@ -327,7 +344,7 @@ sub msgs_delivery_user_table {
     $user_table->addrow(@fields_array);
   }
 
-  my $total_delivery_users = $Msgs->{TOTAL};
+  my $total_delivery_users = $Delivery->{TOTAL};
 
   my $total_table = $html->table({
     width => '100%',
@@ -365,7 +382,7 @@ sub msgs_delivery_user_table {
 sub sel_deliverys {
   my ($attr) = @_;
 
-  my $list = $Msgs->msgs_delivery_list({
+  my $list = $Delivery->delivery_list({
     SUBJECT   => '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 100000
@@ -389,12 +406,17 @@ sub sel_deliverys {
 #**********************************************************
 =head2 _msgs_delivery_add_attachments($id)
 
+  Arguments:
+    $id
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub _msgs_delivery_add_attachments {
   my $id = shift;
 
-  return if $Msgs->{errno} || !$id || !$FORM{UPLOAD_FILES};
+  return if ($Delivery->{errno} || !$id || !$FORM{UPLOAD_FILES});
 
   my $attachments = $Msgs->attachments_list({
     DELIVERY_ID  => $id,
@@ -409,7 +431,7 @@ sub _msgs_delivery_add_attachments {
   for (my $i = 0; $i <= 2; $i++) {
     my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
 
-    next if !$FORM{ $input_name }->{filename};
+    next if (!$FORM{ $input_name }->{filename});
 
     $Attachments->attachment_add({
       DELIVERY_ID  => $id,
@@ -420,7 +442,7 @@ sub _msgs_delivery_add_attachments {
     });
   }
 
-  return;
+  return 1;
 }
 
 #**********************************************************
@@ -458,26 +480,28 @@ sub msgs_mu_delivery_add {
   my ($attr) = @_;
 
   if ($attr->{DELIVERY_CREATE}) {
-    $Msgs->msgs_delivery_add({ %{$attr},
+    $Delivery->delivery_add({ %{$attr},
       SEND_DATE => $attr->{DELIVERY_SEND_DATE},
       SEND_TIME => $attr->{DELIVERY_SEND_TIME},
       SUBJECT   => $attr->{DELIVERY_COMMENTS}
     });
 
-    $attr->{DELIVERY} = $Msgs->{DELIVERY_ID};
-    $html->message('err', $lang{ERRORS}, "$lang{DELIVERY} $lang{ADDED}") if ($Msgs->{errno});
-    $html->message('info', $lang{INFO}, "$lang{DELIVERY} $lang{ADDED} ID:$attr->{DELIVERY}") if (!$Msgs->{errno});
+    $attr->{DELIVERY} = $Delivery->{DELIVERY_ID};
+    $html->message('err', $lang{ERRORS}, "$lang{DELIVERY} $lang{ADDED}") if ($Delivery->{errno});
+    $html->message('info', $lang{INFO}, "$lang{DELIVERY} $lang{ADDED} ID:$attr->{DELIVERY}") if (!$Delivery->{errno});
   }
 
-  my $delivery_info = $Msgs->msgs_delivery_info($attr->{DELIVERY});
-  $Msgs->delivery_user_list_add({
+  my $delivery_info = $Delivery->delivery_info($attr->{DELIVERY});
+  $Delivery->user_list_add({
     MDELIVERY_ID => $attr->{DELIVERY},
     IDS          => $attr->{IDS},
     SEND_METHOD  => $delivery_info->{SEND_METHOD},
   });
 
-  $html->message('err', $lang{ERRORS}, $lang{ADD_USER}) if ($Msgs->{errno});
-  $html->message('info', $lang{INFO}, "$Msgs->{TOTAL} $lang{USERS_ADDED_TO_DELIVERY} №:$attr->{DELIVERY}") if (!$Msgs->{errno});
+  $html->message('err', $lang{ERRORS}, $lang{ADD_USER}) if ($Delivery->{errno});
+  $html->message('info', $lang{INFO}, "$Delivery->{TOTAL} $lang{USERS_ADDED_TO_DELIVERY} №:$attr->{DELIVERY}") if (!$Delivery->{errno});
+
+  return 1;
 }
 
 #**********************************************************
@@ -490,20 +514,7 @@ sub msgs_mu_delivery_form {
 
   return '' if !$msgs_permissions{2}{0} || !$msgs_permissions{2}{4};
 
-  my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
-
-  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-
-  my $sender_send_types = $Sender->available_types(
-    { HASH_RETURN => 1, CLIENT => 1, SOFT_CHECK => 1 }
-  );
-
-  %send_methods = (
-    %send_methods,
-    %$sender_send_types
-  );
-
-  $send_methods{3} = 'Web redirect' if ($conf{MSGS_REDIRECT_FILTER_ADD});
+  my $send_methods = msgs_send_methods();
 
   $info{DELIVERY_SPAN_ADDON_URL} = $SELF_URL . "?index=" . get_function_index('msgs_delivery_main');
   $info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1 });
@@ -519,7 +530,7 @@ sub msgs_mu_delivery_form {
   });
   $info{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
     SELECTED => 2,
-    SEL_HASH => \%send_methods,
+    SEL_HASH => $send_methods,
     NO_ID    => 1
   });
   $info{DELIVERY_ADD_HIDE} = 'd-none' if !$msgs_permissions{2}{1};
@@ -527,4 +538,36 @@ sub msgs_mu_delivery_form {
   return $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
 }
 
-1
+#**********************************************************
+=head2 msgs_send_methods()
+
+  Arguments:
+    $attr
+  Results:
+    \%send_methods
+
+=cut
+#**********************************************************
+sub msgs_send_methods {
+
+  my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
+
+  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+  my $sender_send_types = $Sender->available_types({
+    HASH_RETURN => 1,
+    CLIENT      => 1,
+    SOFT_CHECK  => 1 }
+  );
+
+  %send_methods = (
+    %send_methods,
+    %$sender_send_types
+  );
+
+  $send_methods{3} = 'Web redirect' if ($conf{MSGS_REDIRECT_FILTER_ADD});
+
+  return \%send_methods;
+}
+
+1;

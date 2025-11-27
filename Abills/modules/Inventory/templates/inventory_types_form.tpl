@@ -1,5 +1,5 @@
-<form action=''$SELF_URL?index=$index\&add_article=1' name='depot_form' method=POST class='form form-horizontal'>
-    <input type=hidden name=index value=$index>
+<form action=''%SELF_URL%?index=%index%\&add_article=1' name='depot_form' method=POST class='form form-horizontal'>
+    <input type=hidden name=index value=%index%>
 
     <div class='card card-primary card-outline card-form'>
         <div class='card-header with-border'>_{ADD}_ _{TYPE}_</div>

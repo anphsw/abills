@@ -15,10 +15,12 @@ use warnings FATAL => 'all';
 use Abills::Base qw(mk_unique_value);
 use Control::Errors;
 use Paysys;
+use Paysys::Core;
 use Paysys::Init;
 
 my Paysys $Paysys;
 my Control::Errors $Errors;
+my Paysys::Core $Paysys_Core;
 
 # Can not delete until present Paysys V3. Reason - Paysys_Base.pm
 our %lang;
@@ -44,6 +46,7 @@ sub new {
   bless($self, $class);
 
   $Paysys = Paysys->new($db, $admin, $conf);
+  $Paysys_Core = Paysys::Core->new($db, $admin, $conf);
   $Paysys->{debug} = $self->{debug};
 
   $Errors = $self->{attr}->{Errors};
@@ -69,9 +72,10 @@ sub get_user_paysys_systems {
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $users_info = $Users->list({
-    GID       => '_SHOW',
-    UID       => $path_params->{uid},
-    COLS_NAME => 1,
+    GID        => '_SHOW',
+    UID        => $path_params->{uid},
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
   });
 
   my $allowed_systems = $Paysys->groups_settings_list({
@@ -89,6 +93,7 @@ sub get_user_paysys_systems {
     PAYSYS_ID    => '_SHOW',
     STATUS       => 1,
     COLS_NAME    => 1,
+    PAGE_ROWS    => 50,
     SORT         => 'priority',
   });
 
@@ -115,6 +120,14 @@ sub get_user_paysys_systems {
 
       if ($query_params->{REQUEST_METHOD} && $system->{request} && $system->{request}->{METHOD}) {
         next if ("$query_params->{REQUEST_METHOD}" ne $system->{request}->{METHOD});
+      }
+
+      my $rec_params = $Paysys_plugin->can('subscribe_pay_settings') ? $Paysys_plugin->subscribe_pay_settings($users_info->[0]) : {};
+      if ($rec_params->{SUBSCRIBE}) {
+        $system->{recurrent} = {
+          can_create        => 'true',
+          subscribe_default => $rec_params->{PAYSYS_LIQPAY_SUBSCRIBE_DEFAULT} || 0
+        };
       }
 
       if ($system->{module} && ($system->{module} eq 'GooglePay.pm' || $system->{module} eq 'ApplePay.pm')) {
@@ -186,7 +199,9 @@ sub post_user_paysys_pay {
   }
 
   if (!$operation_id) {
-    $operation_id = mk_unique_value(16, { SYMBOLS => '0123456789' }),
+    my $timestamp = time();
+    my $salt = mk_unique_value(5, { SYMBOLS => '0123456789' });
+    $operation_id = "$salt$timestamp";
   }
   else {
     $operation_id =~ s/[<>]//gm;
@@ -408,6 +423,73 @@ sub paysys_pay {
   else {
     return $Errors->throw_error(1170104);
   }
+}
+
+#**********************************************************
+=head2 post_user_paysys_gateway_search($path_params, $query_params)
+
+  Endpoint POST /user/paysys/gateway/search/
+
+=cut
+#**********************************************************
+sub post_user_paysys_gateway_search {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $user_info = $self->_search_user($query_params->{USER_IDENTIFIER});
+
+  return $user_info if ($user_info->{errno});
+
+  my $systems = $self->get_user_paysys_systems({ uid => $user_info->{uid} }, {});
+
+  return {
+    fio             => $user_info->{FIO},
+    deposit         => $user_info->{DEPOSIT},
+    recommended_pay => $user_info->{RECOMENDED_PAY},
+    systems         => $systems,
+  };
+}
+
+#**********************************************************
+=head2 post_user_paysys_gateway_pay($path_params, $query_params)
+
+  Endpoint POST /user/paysys/gateway/pay/
+
+=cut
+#**********************************************************
+sub post_user_paysys_gateway_pay {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $user_info = $self->_search_user($query_params->{USER_IDENTIFIER});
+
+  return $user_info if ($user_info->{errno});
+
+  my $pay_link = $self->post_user_paysys_pay({ uid => $user_info->{uid} }, $query_params);
+
+  return $pay_link;
+}
+
+#**********************************************************
+=head2 _search_user($path_params, $query_params) - search user in system
+
+=cut
+#**********************************************************
+sub _search_user {
+  my $self = shift;
+  my ($identifier) = @_;
+
+  my ($result, $user_info) = $Paysys_Core->paysys_check_user({
+    CHECK_FIELD    => $self->{conf}{PAYSYS_GATEWAY_IDENTIFIER} || 'UID',
+    USER_ID        => $identifier,
+    RECOMENDED_PAY => 1
+  });
+
+  if ($result) {
+    return $Errors->throw_error(1170120);
+  }
+
+  return $user_info;
 }
 
 1;

@@ -9,14 +9,16 @@
 use strict;
 use warnings FATAL => 'all';
 
-my $usage = "
+my $usage = << "[END]";
 Arguments:
   test        - Show list of installed and missing modules
   port        - Try to install missing modules using ports (FreeBSD only)
   pkg         - Try to install missing modules using pkg (FreeBSD only)
   apt-get     - Install using apt-get when possible (Debian / Ubuntu)
   rpm         - Install using rpm packages when possible ( RHEL, CentOS, Fedora )
-";
+
+[END]
+
 
 my $action = q{};
 
@@ -245,7 +247,8 @@ elsif ($action eq 'rpm') {
   $manager = 'rpm';
   $program = 'yum -y install ';
   $update = 'yum -y update';
-} else {
+}
+else {
   die $usage;
 };
 
@@ -271,7 +274,7 @@ if ($manager) {
       print "\n Would you like us to update it for you? (y/N)? ";
       my $ans = <STDIN>;
       chomp($ans);
-      if ($ans =~ /y/i) {
+      if ($ans =~ /y/xi) {
         if (update_sources()) {
           print "\n Now we are ready to go \n\n";
         } else {
@@ -319,7 +322,7 @@ sub get_apt_name {
   my ($cpan_name) = @_;
 
   $cpan_name = lc $cpan_name;
-  $cpan_name =~ s/\:\:/\-/g;
+  $cpan_name =~ s/\:\:/\-/xg;
 
   return "lib$cpan_name-perl";
 }
@@ -335,9 +338,9 @@ sub get_apt_name {
 sub get_pkg_name {
   my ($cpan_name) = @_;
 
-  $cpan_name =~ s/::/-/g;
-  return "p5-$cpan_name";
+  $cpan_name =~ s/::/-/xg;
 
+  return "p5-$cpan_name";
 }
 
 #********************************************************
@@ -350,7 +353,8 @@ sub get_pkg_name {
 #********************************************************
 sub get_rpm_name {
   my ($cpan_name) = @_;
-  $cpan_name =~ s/::/-/g;
+  $cpan_name =~ s/::/-/xg;
+
   return "perl-$cpan_name";
 }
 
@@ -380,16 +384,14 @@ sub test_module {
 
   my $module_to_use = $module->{use} || $module->{cpan};
   my $module_path = $module_to_use . '.pm';
-  $module_path =~ s{::}{/}g;
+  $module_path =~ s{::}{/}xg;
   eval { require $module_path };
 
   if ($@) {
     return 0;
   }
-  else {
-    return 1;
-  }
 
+  return 1;
 }
 
 sub get_uninstalled_modules {
@@ -412,16 +414,18 @@ sub install_modules {
   if ($manager eq '') {
     print "   Error: Undefined source system manager";
     exit (1);
-  } elsif ($manager eq 'port') {
+  }
+  elsif ($manager eq 'port') {
     #build from sources
     foreach my $module (@$modules_to_install) {
       install_via_port($module->{port});
     }
-  } else {
+  }
+  else {
     #extract names
     if ($manager eq 'rpm') {
       my $epel_chk = `rpm -qs epel-release`;
-      unless ($epel_chk =~ /^normal/) {
+      unless ($epel_chk =~ /^normal/xm) {
         print "\n\nWe need to install EPEL repository\n";
         sleep 2;
         my $command = "yum install epel-release";
@@ -490,4 +494,4 @@ sub dev {
   return 1;
 }
 
-1
+1;

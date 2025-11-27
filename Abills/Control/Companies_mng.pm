@@ -55,7 +55,6 @@ sub form_company_info {
   }
 
   $LIST_PARAMS{COMPANY_ID} = $company_id ;
-  #$FORM{COMPANY_ID} = $company_id ;
   $LIST_PARAMS{BILL_ID} = $Company->{BILL_ID} if (defined($Company->{DEPOSIT}));
   $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
   $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf} && $pages_qs !~ /subf/);
@@ -155,14 +154,14 @@ sub form_company_info {
 
     if (in_array('Docs', \@MODULES)) {
       if ($conf{DOCS_CONTRACT_TYPES}) {
-        $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
-        my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
+        $conf{DOCS_CONTRACT_TYPES} =~ s/\n//xg;
+        my (@contract_types_list) = split(/;/x, $conf{DOCS_CONTRACT_TYPES});
 
         my %CONTRACTS_LIST_HASH = ();
         $attr->{CONTRACT_SUFIX} = "|$Company->{CONTRACT_SUFIX}";
         foreach my $line (@contract_types_list) {
-          my ($prefix, $sufix, $name) = split(/:/, $line);
-          $prefix =~ s/ //g;
+          my ($prefix, $sufix, $name) = split(/:/x, $line);
+          $prefix =~ s/\s+//xg;
           $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
         }
 
@@ -181,25 +180,27 @@ sub form_company_info {
     }
 
     my $company_deposit = $Company->{DEPOSIT} // $lang{NOT_EXIST};
-    if ($company_deposit =~ /\d+/ && $company_deposit > 0) {
+    if ($company_deposit =~ /\d+/xm && $company_deposit > 0) {
       $Company->{DEPOSIT_MARK} = 'badge badge-success';
     }
-    elsif ($company_deposit =~ /\d+/ && $company_deposit < 0) {
+    elsif ($company_deposit =~ /\d+/xm && $company_deposit < 0) {
       $Company->{DEPOSIT_MARK} = 'badge badge-danger';
     }
     else {
       $Company->{DEPOSIT_MARK} = 'badge badge-warning';
     }
 
-    if ($company_deposit =~ /\d+/) {
+    if ($company_deposit =~ /\d+/xm) {
       $Company->{SHOW_DEPOSIT} = format_sum($company_deposit);
     }
     else {
       $Company->{SHOW_DEPOSIT} = $company_deposit;
     }
 
-    $Company->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
-  <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
+    $Company->{FORM_DISABLE} = << "HTML";
+<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
+<label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>
+HTML
 
     if ($permissions{1}) {
       $Company->{PAYMENTS_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=2",
@@ -260,6 +261,9 @@ sub form_company_info {
     }, { class => 'form-control' });
     $Company->{BANK_BIC_STR} = $Company->{BANK_BIC} if ($Company->{BANK_BIC});
 
+    $Company->{CONTRACT_HEADER} = ($Company->{CONTRACT_ID}) ? $html->b($Company->{CONTRACT_ID}) : '';
+    $Company->{CONTRACT_HEADER} .= ($Company->{CONTRACT_EXPIRY} && $Company->{CONTRACT_EXPIRY} ne '0000-00-00') ? ', '.$Company->{CONTRACT_EXPIRY} : '';
+
     $Company->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract_company'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
     my %web_params = ();
@@ -315,13 +319,13 @@ sub form_company_add {
       { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' });
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
-      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
-      my (@contract_types_list) = split(/;/, $conf{DOCS_CONTRACT_TYPES});
+      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//xg;
+      my (@contract_types_list) = split(/;/x, $conf{DOCS_CONTRACT_TYPES});
       my %CONTRACTS_LIST_HASH = ();
       $FORM{CONTRACT_SUFIX} = '|' . ($Company->{CONTRACT_SUFIX} || '');
       foreach my $line (@contract_types_list) {
-        my ($prefix, $sufix, $name) = split(/:/, $line);
-        $prefix =~ s/ //g;
+        my ($prefix, $sufix, $name) = split(/:/x, $line);
+        $prefix =~ s/\s+//xg;
         $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
       }
 
@@ -393,7 +397,7 @@ sub form_companies {
     exit;
   }
 
-  $FORM{CREDIT} =~ s/\s+//g if ($FORM{CREDIT});
+  $FORM{CREDIT} =~ s/\s+//xg if ($FORM{CREDIT});
 
   if ($FORM{add_form}) {
     if ($permissions{0}{37}) {
@@ -459,7 +463,7 @@ sub form_companies {
     }
 
     # TODO: rewrite company phone check to API use by validator
-    if ($FORM{PHONE} && $conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/) {
+    if ($FORM{PHONE} && $conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/xm) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE', MESSAGE => human_exp($conf{PHONE_FORMAT}) }, { ID => 1505 });
       return 0;
     }
@@ -592,7 +596,7 @@ sub form_company_list {
     EXT_TITLES      => \%companies_ext_fields,
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => {
-      users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
+      users_count => ($FORM{json}) ? '' : "company_user_link::FUNCTION=form_users,ID",
     },
     TABLE           => {
       width            => '100%',
@@ -615,7 +619,7 @@ sub form_company_list {
 
 
 #**********************************************************
-=head2 _company_user_link($params, $attr)
+=head2 company_user_link($params, $attr)
 
   Arguments:
     $params
@@ -625,7 +629,7 @@ sub form_company_list {
 
 =cut
 #**********************************************************
-sub _company_user_link {
+sub company_user_link {
   my ($params, $attr) = @_;
 
   return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}");
@@ -686,7 +690,7 @@ sub form_companie_admins {
   });
 
   if ($attr->{REGISTRATION}) {
-    if ($FORM{add} && $Company->{TOTAL} == 1 && !$list->[0]->[0]) {
+    if ($FORM{add} && $Company->{TOTAL} == 1 && !$list->[0]->{is_company_admin}) {
       $FORM{IDS} = $FORM{UID};
     }
     return 0;
@@ -696,16 +700,16 @@ sub form_companie_admins {
     $table->addrow(
       $html->form_input(
         'IDS',
-        $line->[4],
+        $line->{uid},
         {
           TYPE          => 'checkbox',
           OUTPUT2RETURN => 1,
-          STATE         => ($line->[0]) ? 1 : undef
+          STATE         => ($line->{is_company_admin}) ? 1 : undef
         }
       ),
-      user_ext_menu($line->[4], $line->[1]),
-      $line->[2],
-      $line->[3]
+      user_ext_menu($line->{uid}, $line->{login}),
+      $line->{fio},
+      $line->{email}
     );
   }
 
@@ -716,7 +720,7 @@ sub form_companie_admins {
       subf       => $FORM{subf} || 0,
       COMPANY_ID => $FORM{COMPANY_ID}
     },
-    SUBMIT  => { change => "$lang{CHANGE}" }
+    SUBMIT  => { change => $lang{CHANGE} }
   });
 
   return 1;
@@ -743,7 +747,7 @@ sub companies_import {
       next if ($_company->{NAME} eq '');
 
       $imported_name .= "$_company->{NAME}\n";
-      $_company->{NAME} =~ s/'/\\'/g;
+      $_company->{NAME} =~ s/'/\\'/xg;
       $_company->{CREATE_BILL} = 1;
 
       $Company->add({ %$_company });
@@ -845,7 +849,7 @@ sub form_company_services {
 
     my $service_info = get_services({ UID => $user_->{uid}, REDUCTION => $user_->{reduction} });
     $service_info->{total_sum} = ($service_info->{total_sum} && $service_info->{total_sum} > 0) ? sprintf("%.2f", $service_info->{total_sum}) : 0;
-    $user_->{fio} =~ s/^\s+//g;
+    $user_->{fio} =~ s/^\s+//xg;
 
     $table->addrow(
       $html->b($html->button($user_->{login}, "index=11&UID=$user_->{uid}")),
@@ -924,8 +928,8 @@ sub form_companies_bic {
   $Company->{debug} = 1 if ($FORM{DEBUG});
 
   if ($FORM{add}) {
-    $FORM{BANK_BIC} =~ s/,//g if ($FORM{BANK_BIC});
-    $FORM{BANK_BIC} =~ s/ //g if ($FORM{BANK_BIC});
+    $FORM{BANK_BIC} =~ s/,//gx if ($FORM{BANK_BIC});
+    $FORM{BANK_BIC} =~ s/\s+//gx if ($FORM{BANK_BIC});
     $Company->bic_add(\%FORM);
     $html->message('success', $lang{ADDED}, "$lang{BANK_BIC}: $FORM{BANK_BIC}" ) if (!_error_show($Company));
   }

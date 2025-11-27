@@ -95,9 +95,27 @@ sub user_routes {
       method      => 'DELETE',
       path        => '/user/paysys/recurrent/',
       controller  => 'Paysys::Api::user::Root',
-      endpoint    => \&Paysys::Api::user::Root::get_user_paysys_recurrent,
+      endpoint    => \&Paysys::Api::user::Root::delete_user_paysys_recurrent,
       credentials => [
         'USER', 'USERBOT'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/user/paysys/gateway/search/',
+      controller  => 'Paysys::Api::user::Root',
+      endpoint    => \&Paysys::Api::user::Root::post_user_paysys_gateway_search,
+      credentials => [
+        'PUBLIC'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/user/paysys/gateway/pay/',
+      controller  => 'Paysys::Api::user::Root',
+      endpoint    => \&Paysys::Api::user::Root::post_user_paysys_gateway_pay,
+      credentials => [
+        'PUBLIC'
       ]
     },
   ]

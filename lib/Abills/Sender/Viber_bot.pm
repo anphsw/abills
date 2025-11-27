@@ -157,6 +157,7 @@ sub send_request {
 
   $attr->{min_api_version} = 7;
 
+  #TODO: use json_former instead of perl2json
   my $json_str = $self->perl2json($attr);
 
   my $url = $self->{api_url} . 'send_message';
@@ -309,14 +310,15 @@ sub send_attachments {
   my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images" : '';
 
-  # for request from console
   $SELF_URL ||= $conf{BILLING_URL} ? "$conf{BILLING_URL}/images" : '';
   return 0 if !$SELF_URL;
 
   foreach my $file (@{$attr->{ATTACHMENTS}}) {
     my $content = $file->{content} || '';
-    next if $content !~ /FILE/ || $content !~ /Abills\/templates/;
-    
+    if (($content !~ /FILE/ || $content !~ /Abills\/templates/) && !$file->{file_path}) {
+      next;
+    }
+
     my $content_type = $file->{'content_type'} || '';
     my $type = $content_type =~ /image/ ? 'picture' :
       $content_type =~ /video/ ? 'video' : 'file';
@@ -327,7 +329,7 @@ sub send_attachments {
       receiver        => $attr->{TO_ADDRESS},
       type            => $type,
       min_api_version => 7,
-      media           => $SELF_URL . $file_path
+      media           => $file_path ? ($SELF_URL . $file_path) : $file->{file_path}
     };
 
     if ($type ne 'picture') {

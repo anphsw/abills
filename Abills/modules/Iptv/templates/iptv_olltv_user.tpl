@@ -1,9 +1,9 @@
-<form action=$SELF_URL method=post class='form-horizontal' ID='IPTV_USER'>
-  <input type=hidden name=index value=$index>
+<form action=%SELF_URL% method=post class='form-horizontal' ID='IPTV_USER'>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name=ID value='$FORM{chg}'>
   <input type=hidden name=UID value='$FORM{UID}'>
   <input type=hidden name=TP_IDS value='%TP_IDS%'>
-  <input type=hidden name='step' value='$FORM{step}'>
+  <input type=hidden name='step' value='%step%'>
   <input type=hidden name='SERVICE_ID' value='%SERVICE_ID%'>
 
   <div class='row'>
@@ -49,7 +49,7 @@
                       %CHANGE_TP_BUTTON%
                   </div>
                   <div class='input-group-append'>
-                    <a class='btn input-group-button' href='$SELF_URL?index=$index&UID=$FORM{UID}&pay_to=1'
+                    <a class='btn input-group-button' href='%SELF_URL%?index=%index%&UID=$FORM{UID}&pay_to=1'
                        title='_{PAY_TO}_'>
                       <i class='$conf{CURRENCY_ICON}'></i>
                     </a>

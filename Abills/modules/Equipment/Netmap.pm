@@ -27,7 +27,7 @@ sub network_map {
   my %nodes = ();
   my @edges = ();
 
-  my $nas_list = $Equipment->_list({
+  my $nas_list = $Equipment->list({
     NAS_IP      => '_SHOW',
     NAS_NAME    => '_SHOW',
     NAS_ID      => '_SHOW',
@@ -72,7 +72,7 @@ sub network_map {
 
     if ($uplink_ports && ref $uplink_ports eq 'ARRAY') {
       foreach (@$uplink_ports) {
-        $Equipment->_info($_->{uplink});
+        $Equipment->info($_->{uplink});
         if (!$Equipment->{TOTAL}) {
           next;
         }
@@ -176,7 +176,7 @@ sub user_route {
     $edges{0} = { target => 0, name => $user_node->[0]->{uplink}, source => $user_nas };
 
     while (42) {
-      my $nas_info = $Equipment->_list({
+      my $nas_info = $Equipment->list({
         NAS_ID      => $current_nas,
         NAS_IP      => '_SHOW',
         NAS_NAME    => '_SHOW',

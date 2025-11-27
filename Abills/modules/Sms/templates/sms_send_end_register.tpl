@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='POST' class='form-horizontal' id='SEND_SMS_REGISTRATION'>
+<form action='%SELF_URL%' method='POST' class='form-horizontal' id='SEND_SMS_REGISTRATION'>
     <input type="hidden" name="index" value="%INDEX%">
     <input type="hidden" name="REGISTRATION_INFO_SMS" value="%REGISTRATION_INFO_SMS%">
     <input type="hidden" name="UID" value="%UID%">

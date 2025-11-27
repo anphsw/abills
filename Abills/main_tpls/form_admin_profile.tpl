@@ -16,8 +16,8 @@
 </div>
 
 
-<form action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='POST' class='form form-horizontal'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
   <input id='skin' type='hidden' name='SKIN' value='%SKIN%'/>
   <input id='body_skin' type='hidden' name='BODY_SKIN' value='%BODY_SKIN%'/>
@@ -35,16 +35,16 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 control-label'>_{REFRESH}_ (sec):</label>
+        <label class='col-md-4 control-label' for='REFRESH'>_{REFRESH}_ (sec):</label>
         <div class='col-md-3'>
           <div class='input-group'>
-            <input type='text' name='REFRESH' value='$admin->{SETTINGS}{REFRESH}' class='form-control'/>
+            <input type='text' name='REFRESH' id='REFRESH' value='$admin->{SETTINGS}{REFRESH}' class='form-control'/>
           </div>
         </div>
-        <label class='col-md-3 control-label'>_{ROWS}_:</label>
+        <label class='col-md-3 control-label' for='PAGE_ROWS'>_{ROWS}_:</label>
         <div class='col-md-2'>
           <div class='input-group'>
-            <input type='text' name='PAGE_ROWS' value='$PAGE_ROWS' class='form-control'/>
+            <input type='text' name='PAGE_ROWS' value='%PAGE_ROWS%' id='PAGE_ROWS' class='form-control'/>
           </div>
         </div>
       </div>
@@ -91,7 +91,7 @@
       <div class='form-group'>
         <div class='row'>
           <div class='col-sm-12 col-md-12'>
-            <a href='$SELF_URL?index=$index&reset_schema=1' class='btn btn-danger w-100'>_{RESET_SCHEMA}_</a>
+            <a href='%SELF_URL%?index=%index%&reset_schema=1' class='btn btn-danger w-100'>_{RESET_SCHEMA}_</a>
           </div>
         </div>
       </div>

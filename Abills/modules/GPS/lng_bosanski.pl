@@ -1,0 +1,10 @@
+$lang{TRACKER} = 'Tracker';
+$lang{TRACKERS} = 'Trackeri';
+$lang{TRACKED_ADMINS} = 'Praćeni administratori';
+$lang{NOT_REGISTERED} = 'Nije registrovan';
+$lang{ROUTE_COLOR} = 'Boja rute';
+$lang{ADMIN_ROUTES} = 'Administratorske rute';
+$lang{FOR_TIME} = 'za vrijeme';
+$lang{GPS_MAPS_SETTINGS} = 'Postavke slike mape';
+$lang{BATTERY} = 'Baterija';
+$lang{MAP_DISPLAY_SETTINGS} = 'Postavke prikaza mape';

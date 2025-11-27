@@ -19,10 +19,12 @@ use Control::Errors;
 use Iptv;
 use Control::Service_control;
 use Shedule;
+use Iptv::Services;
 
 my Iptv $Iptv;
-my Control::Service_control $Service_control ;
+my Control::Service_control $Service_control;
 my Control::Errors $Errors;
+my Iptv::Services $Iptv_services;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -43,6 +45,11 @@ sub new {
 
   bless($self, $class);
 
+  $Iptv_services = Iptv::Services->new($self->{db}, $self->{admin}, $self->{conf}, {
+    lang                 => $self->{lang},
+    ENABLE_FEES_MESSAGES => 1,
+    USER_PORTAL          => 1
+  });
   $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
   $Iptv = Iptv->new($self->{db}, $self->{admin}, $self->{conf});
   $Iptv->{debug} = $self->{debug};
@@ -312,197 +319,12 @@ sub post_user_iptv_tariff_add {
   my $self = shift;
   my ($path_params, $query_params) = @_;
 
-  my ($subscribe_id) = split(/:/, $self->{conf}->{IPTV_SUBSCRIBE_ID} || q{});
-  $subscribe_id = $subscribe_id || 'EMAIL';
-
-  $query_params = {
-    TP_ID         => $query_params->{TP_ID} || 0,
-    add           => 1,
-    $subscribe_id => $query_params->{$subscribe_id} || '',
-    SERVICE_ID    => $query_params->{SERVICE_ID},
-  };
-  %main::FORM = %{$query_params};
-
-  my $uid = $path_params->{uid};
-
-  return {
-    errno  => 20204,
-    errstr => 'No field tpId',
-  } if (!$query_params->{TP_ID});
-
-  return {
-    errno  => 20203,
-    errstr => "No field " . camelize($subscribe_id),
-  } if (!$query_params->{$subscribe_id});
-
-  require Tariffs;
-  Tariffs->import();
-  my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
-
-  $Tariffs->info($query_params->{TP_ID});
-  $query_params->{SERVICE_ID} = $Tariffs->{SERVICE_ID};
-
-  my $services_list = $Iptv->services_list({
-    STATUS          => 0,
-    USER_PORTAL     => 2,
-    SUBSCRIBE_COUNT => '_SHOW',
-    SORT            => 's.id',
-    ID              => $query_params->{SERVICE_ID} || '--',
-    COLS_NAME       => 1,
-    COLS_UPPER      => 1,
-  });
-
-  return {
-    errno  => 20206,
-    errstr => 'Unknown tpId',
-  } if (!scalar @{$services_list});
-
-  my $tariffs = $Service_control->available_tariffs({
-    SKIP_NOT_AVAILABLE_TARIFFS => 1,
-    UID                        => $uid,
-    MODULE                     => 'Iptv',
-    SERVICE_ID                 => $query_params->{SERVICE_ID},
-    ADD_FIRST_SERVICE          => 1
-  });
-
-  if ($tariffs) {
-    my $allowed = 0;
-    foreach my $tariff (@{$tariffs}) {
-      next if (!$tariff->{tp_id} || "$tariff->{tp_id}" ne "$query_params->{TP_ID}");
-      $allowed = 1;
-      last;
-    }
-
-    return {
-      errno  => 20208,
-      errstr => 'Unknown tpId',
-    } if (!$allowed);
-  }
-  else {
-    return {
-      errno  => 20207,
-      errstr => 'Unknown tpId',
-    };
+  my $result = $Iptv_services->user_add({ %{$query_params}, UID => $path_params->{uid} });
+  if ($result->{INSERT_ID}) {
+    $result->{CODE} = $result->{INSERT_ID};
   }
 
-  my $service_info = $services_list->[0];
-  $Iptv->user_list({
-    SERVICE_ID => $query_params->{SERVICE_ID},
-    UID        => $uid,
-    COLS_NAME  => 1,
-    PAGE_ROWS  => 99999,
-  });
-
-  if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= $Iptv->{TOTAL}) {
-    return {
-      errno  => 20200,
-      errstr => "Have exceeded the number of subscriptions for this service - $service_info->{SUBSCRIBE_COUNT}",
-    };
-  }
-
-  if ($self->{conf}->{IPTV_USER_UNIQUE_TP}) {
-    $Iptv->user_list({
-      SERVICE_ID => $query_params->{SERVICE_ID},
-      UID        => $uid,
-      TP_ID      => $query_params->{TP_ID},
-      COLS_NAME  => 1,
-    });
-
-    if ($Iptv->{TOTAL}) {
-      return {
-        errno  => 20201,
-        errstr => 'This tariff plan is already connected',
-      };
-    }
-  }
-
-  $Iptv->{db}{db}->{AutoCommit} = 0;
-  $Iptv->{db}->{TRANSACTION} = 1;
-  my DBI $db_ = $Iptv->{db}{db};
-
-  $Iptv->user_add({
-    $subscribe_id => $query_params->{$subscribe_id},
-    UID           => $uid,
-    IPTV_ACTIVATE => !$Tariffs->{PERIOD_ALIGNMENT} && $main::DATE ? $main::DATE : '0000-00-00',
-    TP_ID         => $query_params->{TP_ID},
-    SERVICE_ID    => $query_params->{SERVICE_ID}
-  });
-
-  if (!$Iptv->{errno}) {
-    require Users;
-    Users->import();
-    my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-    $Users->info($uid);
-
-    # $Iptv->{ACCOUNT_ACTIVATE} = $Users->{ACTIVATE};
-    $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
-    $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} ||= 0;
-
-    ::service_get_month_fee($Iptv, { SERVICE_NAME => 'TV', MODULE => 'Iptv' });
-
-    $Iptv->{ID} = $Iptv->{INSERT_ID};
-    $Iptv->user_info($Iptv->{ID});
-    $Iptv->{SERVICE_ID} //= $query_params->{SERVICE_ID};
-    $main::Tv_service = undef;
-
-    if ($Iptv->{SERVICE_ID}) {
-      $main::Iptv = $Iptv;
-      $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
-        SERVICE_ID   => $Iptv->{SERVICE_ID},
-        RETURN_ERROR => 1
-      });
-    }
-
-    if ($main::Tv_service) {
-      ::load_module('Iptv::Users', { LOAD_PACKAGE => 1 });
-      my $result = ::iptv_account_action({
-        %{$query_params},
-        ID        => $Iptv->{ID},
-        SCREEN_ID => undef,
-        USER_INFO => $Users,
-        UID       => $uid,
-        add       => 1
-      });
-
-      if ($result) {
-        $db_->rollback();
-        $db_->{AutoCommit} = 1;
-        delete($Iptv->{db}->{TRANSACTION});
-        return {
-          errno   => 20209,
-          errstr  => $Iptv->{errstr},
-          service => $main::Tv_service->{SERVICE_NAME},
-        };
-      }
-      else {
-        delete($Iptv->{db}->{TRANSACTION});
-        $db_->commit();
-        $db_->{AutoCommit} = 1;
-        return {
-          result => "Added ID: $Iptv->{ID}",
-          code   => 2,
-        };
-      }
-    }
-    else {
-      delete($Iptv->{db}->{TRANSACTION});
-      $db_->commit();
-      $db_->{AutoCommit} = 1;
-      return {
-        result => "Added ID: $Iptv->{ID}",
-        code   => 1
-      };
-    }
-  }
-  else {
-    delete($Iptv->{db}->{TRANSACTION});
-    $db_->rollback();
-    $db_->{AutoCommit} = 1;
-    return {
-      errno  => 20205,
-      errstr => "IPTV error $Iptv->{errno}",
-    };
-  }
+  return $result;
 }
 
 #**********************************************************
@@ -529,7 +351,7 @@ sub put_user_iptv_id {
   my $result = $Service_control->user_chg_tp({
     %params,
     UID    => $path_params->{uid},
-    ID     => $path_params->{id}, #ID from iptv main
+    ID     => $path_params->{id},
     MODULE => 'Iptv'
   });
 
@@ -576,46 +398,19 @@ sub post_user_iptv_id_activate {
   my $self = shift;
   my ($path_params, $query_params) = @_;
 
-  %main::FORM = ();
-  require Users;
-  Users->import();
-  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  my $user_info = $Users->info($path_params->{uid});
-
   $Iptv->user_info($path_params->{id}, { UID => $path_params->{uid} });
 
   return {
     result => 'Already active'
   } if (defined $Iptv->{STATUS} && $Iptv->{STATUS} == 0);
 
-  return {
-    errno  => 20210,
-    errstr => 'Can\'t activate, not allowed'
-  } unless ($Iptv->{STATUS} && $Iptv->{STATUS} == 5);
-
-  $Iptv->services_list({ USER_PORTAL => '>0', ID => $Iptv->{SERVICE_ID} });
-
-  return {
-    errno  => 20215,
-    errstr => 'Can\'t activate, not allowed',
-  } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
-
-  ::load_module('Iptv::Users', { LOAD_PACKAGE => 1 });
-  ::load_module('Iptv', $self->{html});
-
-  my $status = ::iptv_user_activate($Iptv, { USER => $user_info, SILENT => 1 });
-
-  if ($status) {
+  my $result = $Iptv_services->user_activate({ ID => $path_params->{id}, UID => $path_params->{uid} });
+  if (!$result->{errno}) {
     return {
       result => 'OK. Success activation'
-    }
-  }
-  else {
-    return {
-      errno  => 20214,
-      errstr => 'Failed activate'
     };
   }
+  return $result;
 }
 
 #**********************************************************
@@ -634,44 +429,34 @@ sub get_user_iptv_id_playlist {
     errstr => 'Not enabled',
   } if (!$self->{conf}->{IPTV_CLIENT_M3U});
 
-  $Iptv->user_info($path_params->{id}, { UID => $path_params->{uid} });
-
-  %main::FORM = ();
-  $main::Iptv = $Iptv;
-  $main::Tv_service = undef;
-
-  $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
-    SERVICE_ID => $Iptv->{SERVICE_ID}
-  });
-
-  if ($main::Tv_service && $main::Tv_service->can('get_playlist_m3u')) {
-    my $m3u = $main::Tv_service->get_playlist_m3u($Iptv);
-    $m3u =~ s/#EXTM3U//g;
-    my @channels_list = $m3u =~ /#EXTINF.+\r?\n.+/gm;
-    my @channels;
-
-    foreach my $channel (@channels_list) {
-      my ($tvg_id) = $channel =~ /((?<=tvg-id=")(.*)(?=" ))/gm;
-      my ($logo) = $channel =~ /((?<=tvg-logo=")(.*)(?="))/gm;
-      my ($tv_name) = $channel =~ /(?<=,).+/gm;
-      my ($link) = $channel =~ /.+p1\.sweet\.tv.+/gm;
-
-      push @channels, {
-        logo  => $logo,
-        name  => $tv_name,
-        link  => $link,
-        tv_id => $tvg_id,
-      };
-    }
-
-    return \@channels;
-  }
-  else {
+  my $can_get_m3u_playlist = $Iptv_services->service_m3u_playlist({ ID => $path_params->{id}, CHECK_METHOD_AVAILABLE => 1 });
+  if (!$can_get_m3u_playlist) {
     return {
       errno  => 20212,
       errstr => 'Get playlist link for this service not available',
     };
   }
+
+  my $m3u = $Iptv_services->service_m3u_playlist({ ID => $path_params->{id} });
+  $m3u =~ s/#EXTM3U//g;
+  my @channels_list = $m3u =~ /#EXTINF.+\r?\n.+/gm;
+  my @channels;
+
+  foreach my $channel (@channels_list) {
+    my ($tvg_id) = $channel =~ /((?<=tvg-id=")(.*)(?=" ))/gm;
+    my ($logo) = $channel =~ /((?<=tvg-logo=")(.*)(?="))/gm;
+    my ($tv_name) = $channel =~ /(?<=,).+/gm;
+    my ($link) = $channel =~ /.+p1\.sweet\.tv.+/gm;
+
+    push @channels, {
+      logo  => $logo,
+      name  => $tv_name,
+      link  => $link,
+      tv_id => $tvg_id,
+    };
+  }
+
+  return \@channels;
 }
 
 #**********************************************************
@@ -687,28 +472,29 @@ sub get_user_iptv_id_url {
 
   $Iptv->user_info($path_params->{id}, { UID => $path_params->{uid} });
 
-  %main::FORM = ();
-  $main::Iptv = $Iptv;
-  $main::Tv_service = undef;
+  if ($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0) {
+    my $result = $Iptv_services->user_info({
+      ID              => $path_params->{id},
+      get_url         => 1,
+      ONLY_ACTION_BTN => 1
+    });
 
-  $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
-    SERVICE_ID => $Iptv->{SERVICE_ID}
-  });
+    if ($result->{errno}) {
+      return $result;
+    }
 
-  if ($main::Tv_service && $main::Tv_service->can('get_url')) {
-    my $result = $main::Tv_service->get_url($Iptv);
-    my $url = $result->{result} && $result->{result}{web_url} ? $result->{result}{web_url} : '';
-    return {
-      result    => 'OK',
-      watch_url => $url
-    };
+    if ($result->{actions} && ref $result->{actions} eq 'ARRAY' && scalar(@{$result->{actions}}) > 0) {
+      return {
+        result    => 'OK',
+        watch_url => $result->{actions}[0]{url}
+      };
+    }
   }
-  else {
-    return {
-      errno  => 20213,
-      errstr => 'Get url link for this service not available',
-    };
-  }
+
+  return {
+    errno  => 20213,
+    errstr => 'Get url link for this service not available',
+  };
 }
 
 1;

@@ -151,7 +151,7 @@ sub msgs_dispatches {
     RESPOSIBLE_ADMIN => '_SHOW',
   });
 
-  $html->tpl_show(_include('msgs_dispatches', 'Msgs')) if (!$Msgs->{TOTAL} || !$list);
+  $html->tpl_show(_include('msgs_dispatches', 'Msgs'), { index => $chg_function, %FORM }) if (!$Msgs->{TOTAL} || !$list);
   return 0 if (!$Msgs->{TOTAL} || !$list);
 
   my @dispatches = reverse @{$list};
@@ -212,7 +212,7 @@ sub msgs_dispatches {
     $day_month = $day . $month;
   }
 
-  $html->tpl_show(_include('msgs_dispatches', 'Msgs'), { DISPATCHES => $dispatches_main_tpl });
+  $html->tpl_show(_include('msgs_dispatches', 'Msgs'), { %FORM, DISPATCHES => $dispatches_main_tpl, index => $chg_function });
 
   return 1;
 }
@@ -246,117 +246,69 @@ sub _msgs_dispatches_job_list {
     class => 'del', MESSAGE => "$lang{DEL} $lang{DISPATCH} № $dispatch->{id}?"
   }) : '';
 
-  my $dispatches_table = $html->table({
-    caption     => "$print_btn $dispatch_link: <b>$dispatch->{admins}</b>",
-    title_plain => [ "Id", $lang{TIME}, $lang{MESSAGE}, $lang{LOGIN}, $lang{ADDRESS}, $lang{STATUS}, $lang{PHONE}, $lang{RESPOSIBLE} ],
-    width       => '100%',
-    qs          => $pages_qs,
-    ID          => 'LIST_OF_DISPATCHES',
-    MENU        => [ $del_btn ]
-  });
+  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
-  my $messages = $Msgs->messages_list({
-    SUBJECT       => '_SHOW',
-    CHAPTER_NAME  => '_SHOW',
-    MESSAGE       => '_SHOW',
-    SUBJECT       => '_SHOW',
-    STATE_ID      => '_SHOW',
-    MSG_PHONE     => '_SHOW',
-    REPLY_TEXT    => '_SHOW',
-    PLAN_TIME     => '_SHOW',
-    UID           => '_SHOW',
-    STATE         => '_SHOW',
-    RESPOSIBLE    => '_SHOW',
-    A_NAME        => '_SHOW',
-    CHAPTER_COLOR => '_SHOW',
-    LOCATION_ID   => '_SHOW',
-    DISPATCH_ID   => $dispatch->{id},
-    MSG_ID        => '_SHOW',
-    COLS_NAME     => 1,
-    SORT          => 'm.plan_time',
-    PAGE_ROWS     => 10000
-  });
+  delete $LIST_PARAMS{FROM_DATE};
+  delete $LIST_PARAMS{TO_DATE};
+  $LIST_PARAMS{DISPATCH_ID} = $dispatch->{id};
+  my ($table, $list) = result_former({
+    INPUT_DATA      => $Msgs,
+    FUNCTION        => 'messages_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,MESSAGE,PLAN_TIME,LOGIN,STATE_ID,RESPOSIBLE_ADMIN_LOGIN',
+    HIDDEN_FIELDS   => 'INNER_MSG,UID,CHG_MSGS,REPLIES_COUNTS,MESSAGE,DISPATCH_ID,CHAPTER_NAME,CHAPTER_COLOR',
+    EXT_TITLES      => {
+      id                     => '#',
+      message                => $lang{MESSAGE},
+      plan_time              => $lang{TIME},
+      login                  => $lang{LOGIN},
+      state_id               => $lang{STATUS},
+      resposible_admin_login => $lang{RESPOSIBLE},
+    },
+    FILTER_VALUES => {
+      message  => sub {
+        my ($message, $line) = @_;
 
-  foreach my $message (@{$messages}) {
-    my $user_link = "";
+        $message ||= $lang{ERR_NO_MESSAGE} || "";
+        $message =~ s/$lang{CHANGED}(.+)//;
+        $message =~ s/Edited(.+)//;
+        my $msg_length = length($message) || 0;
 
-    $message->{message} = $message->{message} || $lang{ERR_NO_MESSAGE} || "";
-    $message->{message} =~ s/$lang{CHANGED}(.+)// if $message->{message};
-    $message->{message} =~ s/Edited(.+)// if $message->{message};
-    my $msg_length = length($message->{message}) || 0;
+        if ($msg_length > 300) {
+          $message = substr($message->{message}, 0, 300) . '...';
+        }
 
-    $message->{message} = $msg_length > 300 ? substr($message->{message}, 0, 300) : $message->{message};
-    $message->{message} .= "..." if $msg_length > 300;
+        $line->{chapter_color} ||= '';
+        return $html->button($message, "get_index=msgs_admin&full=1&UID=$line->{uid}&chg=$line->{id}",
+          { ex_params => "style='color:$line->{chapter_color}'", TITLE => $line->{chapter_name} });
+      },
+      state_id => sub {
+        my ($state_id, $line) = @_;
 
-    my $Admin_name = $Admins->list({ AID => $message->{resposible}, ADMIN_NAME => '_SHOW', COLS_NAME => 1 });
-    $Msgs->message_info($message->{id});
-    my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+        my ($title, $color) = split(':', $msgs_status->{ $state_id });
+        $color ||= 'black';
+        $title ||= $state_id;
 
-    my $user_address = "";
-    my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
-    my $user_list = "";
-    if ($message->{uid}) {
-      $user_list = $users->list({
-        LOGIN         => '_SHOW',
-        ADDRESS_FULL  => '_SHOW',
-        PHONE         => '_SHOW',
-        DISTRICT_NAME => '_SHOW',
-        UID           => $message->{uid},
-        FIO           => '_SHOW',
-        COLS_NAME     => 1,
-        COLS_UPPER    => 1,
-        PAGE_ROWS     => 2,
-      });
-
-      next if !$users->{TOTAL};
-
-      $user_link = $html->button($user_list->[0]{LOGIN}, "index=" . get_function_index("form_users") . "&UID=$message->{uid}", {
-        TITLE => $user_list->[0]{FIO} || $user_list->[0]{LOGIN}
-      });
-
-      $user_address = $user_list->[0]{ADDRESS_FULL} || "";
-    }
-    elsif ($message->{location_id}) {
-      my $address_info = $Address->address_info($message->{location_id});
-      if ($Address->{TOTAL}) {
-        $user_address = ($address_info->{ADDRESS_DISTRICT} || "") . $build_delimiter .
-          ($address_info->{ADDRESS_STREET} || "") . $build_delimiter . ($address_info->{ADDRESS_BUILD} || "");
+        return $html->button('', "qindex=$index&header=2&MSGS_STATUS_ID=$line->{id}&MSGS_STATUS=$state_id", {
+          LOAD_TO_MODAL => 1,
+          ADD_ICON      => 'fa fa-circle',
+          TITLE         => $lang{STATUS},
+          ex_params     => "style='color:$color' data-tooltip-position='right' data-tooltip='$title'"
+        });
       }
-    }
+    },
+    TABLE           => {
+      caption     => "$print_btn $dispatch_link: <b>$dispatch->{admins}</b>",
+      width       => '100%',
+      qs          => $pages_qs,
+      ID          => 'LIST_OF_DISPATCHES',
+      MENU        => [ $del_btn ]
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+  });
 
-    my $user_main_list = $users->{TOTAL} ? $user_list : [];
-
-    my $tooltip_btn = $html->color_mark($message->{chapter_name}, $message->{chapter_color});
-    my $chapter_color = $message->{chapter_color} || "";
-    $message->{uid} = $message->{uid} || "";
-    my $link = $html->button($message->{message} || $lang{ERR_NO_MESSAGE},
-      "index=" . get_function_index("msgs_admin") . "&UID=$message->{uid}&chg=$message->{id}",
-      { ex_params => "style='color:$chapter_color'", TITLE => $message->{chapter_name} }
-    );
-
-    my ($title, $color) = split(':', $msgs_status->{ $Msgs->{STATE} });
-
-    my $status_span = $html->element('span', '&nbsp;', {
-      class                   => 'fa fa-record',
-      "data-tooltip-position" => 'right',
-      "data-tooltip"          => $title || "",
-      style                   => "color: " . ($color || ""),
-    });
-
-    my $status_color = ($color || "black");
-    $status_span = $html->button('', "qindex=$index&header=2&MSGS_STATUS_ID=$message->{id}&MSGS_STATUS=$message->{state_id}", {
-      LOAD_TO_MODAL => 1,
-      ADD_ICON      => 'fa fa-circle',
-      TITLE         => $lang{MSGS_TAGS},
-      ex_params     => "style='color:$status_color' data-tooltip-position='right' data-tooltip='$title'"
-    });
-
-    my $user_phone = ref $user_main_list eq "ARRAY" && $user_main_list->[0] ? $user_main_list->[0]{PHONE} : $message->{msg_phone} ? $message->{msg_phone} : "";
-    $dispatches_table->addrow($message->{id}, $message->{plan_time}, $link, $user_link, $user_address,
-      $status_span, $user_phone, $Admin_name->[0]{admin_name} || "");
-  }
-
-  return $dispatches_table->show() || "";
+  return $table->show();
 }
 
 #**********************************************************

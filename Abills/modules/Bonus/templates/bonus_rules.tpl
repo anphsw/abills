@@ -1,6 +1,6 @@
 <form name='user' class='form-horizontal'>
     <input type=hidden name='ID' value='%ID%'>
-    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='index' value='%index%'>
     <input type=hidden name='chg' value='%chg%'>
     <input type=hidden name='RULES' value='1'>
     <input type=hidden name='TP_ID' value='%TP_ID%'>

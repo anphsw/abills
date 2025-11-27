@@ -1,4 +1,4 @@
-#package Abills::Templates;
+package Abills::Templates;
 
 =head1 NAME
 
@@ -7,17 +7,58 @@
 =cut
 
 use strict;
+use parent 'Exporter';
 
-my $domain_path = '';
 our (
-  $Bin,
   $libpath,
-  %FORM,
   $admin,
   $html,
-  %lang,
-  %conf
+  %conf,
 );
+
+our @EXPORT = qw(
+  template_init
+  _include
+  templates
+);
+
+my $domain_path = '';
+my $_form;
+my $lang;
+
+#**********************************************************
+=head2 template_init($attr) - templates
+
+  Arguments
+    $attr
+      LIBPATH
+      ADMIN
+      HTML
+      FORM
+      LANG
+      CONF
+
+  Returns:
+    Return TRUE
+
+=cut
+#**********************************************************
+sub template_init {
+  my ($attr)=@_;
+
+  (
+    $libpath,
+    $admin,
+    $html,
+    $lang,
+    $_form
+  ) =
+    (@{$attr}{ qw/LIBPATH ADMIN HTML LANG FORM/ });
+
+  %conf = %{ $attr->{CONF} // {} };
+
+  return 1;
+}
 
 #**********************************************************
 =head2 _include($tpl, $module, $attr) - templates
@@ -39,7 +80,7 @@ our (
 sub _include {
   my ($tpl, $module, $attr) = @_;
 
-  my $sufix = ($attr->{pdf} || $FORM{pdf}) ? '.pdf' : '.tpl';
+  my $sufix = ($attr->{pdf} || $_form->{pdf}) ? '.pdf' : '.tpl';
   $tpl .= '_' . $attr->{SUFIX} if ($attr->{SUFIX});
 
   start:
@@ -47,11 +88,11 @@ sub _include {
   if ($admin->{DOMAIN_ID}) {
     $domain_path = "$admin->{DOMAIN_ID}/";
   }
-  elsif ($FORM{DOMAIN_ID}) {
-    $domain_path = "$FORM{DOMAIN_ID}/";
+  elsif ($_form->{DOMAIN_ID}) {
+    $domain_path = "$_form->{DOMAIN_ID}/";
   }
 
-  $FORM{NAS_GID}='' if (!$FORM{NAS_GID});
+  $_form->{NAS_GID}='' if (!$_form->{NAS_GID});
   my $language = $html->{language} || q{};
 
   my @search_paths = (
@@ -59,10 +100,10 @@ sub _include {
     $libpath . 'Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
   );
 
-  if ($FORM{NAS_GID}) {
+  if ($_form->{NAS_GID}) {
     unshift(@search_paths,
-      $libpath . 'Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
-      $libpath . 'Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
+      $libpath . 'Abills/templates/' . $domain_path . '/' . $_form->{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
+      $libpath . 'Abills/templates/' . $domain_path . '/' . $_form->{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
     )
   }
 
@@ -76,7 +117,7 @@ sub _include {
         return 1;
       }
       else {
-        return ($FORM{pdf}) ? $result_template : tpl_content($result_template) ;
+        return ($_form->{pdf}) ? $result_template : tpl_content($result_template) ;
       }
     }
   }
@@ -97,14 +138,13 @@ sub _include {
     }
 
     if (-f $realfilename) {
-      return ($FORM{pdf}) ? $realfilename : tpl_content($realfilename);
+      return ($_form->{pdf}) ? $realfilename : tpl_content($realfilename);
     }
   }
 
   if ($attr->{SUFIX}) {
-    $tpl =~ /\/([a-z0-9\_\.\-]+)$/i;
-    $tpl = $1;
-    $tpl =~ s/_$attr->{SUFIX}$//;
+    ($tpl) = $tpl =~ /\/([a-z0-9\_\.\-]+)$/xi;
+    $tpl =~ s/_$attr->{SUFIX}$//x;
     delete $attr->{SUFIX};
     goto start;
   }
@@ -112,11 +152,19 @@ sub _include {
   if ($attr->{CHECK_WITH_VALUE}) {
     return 0;
   }
+
   return "No such module template [$tpl]\n";
 }
 
 #**********************************************************
 =head2 tpl_content($filename, $attr)
+
+  Arguments:
+    $filename,
+    $attr
+
+  Resultsd:
+    $tenplate
 
 =cut
 #**********************************************************
@@ -124,24 +172,29 @@ sub tpl_content {
   my ($filename) = @_;
   my $tpl_content = '';
 
-  if(! %lang) {
-    %lang = ();
+  if(! $lang) {
+    $lang = {};
   }
 
   open(my $fh, '<', $filename) || die "Can't open tpl file '$filename' $!";
     while (<$fh>) {
-      if (/\$/) {
-        my $res = $_;
+      my $res = $_;
+      if (my($marker)=/\$FORM\{(\S+)\}/xm) {
+        $res =~ s/\$FORM\{$marker\}/$_form->{$marker}/sgx;
+        $tpl_content .= $res;
+        #print "aaa $marker / $_form->{$marker} / $FORM{$marker}<br>";
+      }
+      elsif (/\$/xm) {
         if($res) {
-          $res =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
-          $res =~ s/\{secretkey\}//g;
-          $res =~ s/\{dbpasswd\}//g;
-          $res = eval " \"$res\" " if($res !~ /\`/);
+          $res =~ s/\_\{(\w+)\}\_/$lang->{$1}/xsg;
+          $res =~ s/\{secretkey\}//xg;
+          $res =~ s/\{dbpasswd\}//xg;
+          $res = eval " \"$res\" " if($res !~ /\`/xm);
           $tpl_content .= $res || q{};
         }
       }
       else {
-        s/\_\{(\w+)\}\_/$lang{$1}/sg;
+        s/\_\{(\w+)\}\_/$lang->{$1}/sgx;
         $tpl_content .= $_;
       }
     }
@@ -181,14 +234,14 @@ sub templates {
 
     #Main tpl
     $libpath . "Abills/main_tpls/$tpl_name" . ".tpl",
-    $conf{base_dir} . "/Abills/main_tpls/$tpl_name" . ".tpl",
-    $conf{base_dir} . "/Abills/templates/$tpl_name" . ".tpl",
+    $conf{base_dir} . "/Abills/templates/_$tpl_name" . ".tpl",
+    $conf{base_dir} . "/Abills/main_tpls/$tpl_name" . ".tpl"
   );
 
-  if ($FORM{NAS_GID}) {
+  if ($_form->{NAS_GID}) {
     unshift(@search_paths,
-      $libpath . "Abills/templates/$domain_path/$FORM{NAS_GID}/_$tpl_name" . "_$language.tpl",
-      $libpath . "Abills/templates/$domain_path/$FORM{NAS_GID}/_$tpl_name.tpl",
+      $libpath . "Abills/templates/$domain_path/$_form->{NAS_GID}/_$tpl_name" . "_$language.tpl",
+      $libpath . "Abills/templates/$domain_path/$_form->{NAS_GID}/_$tpl_name.tpl",
     );
   }
 
@@ -201,4 +254,4 @@ sub templates {
   return "No such template [$tpl_name]";
 }
 
-1
+1;

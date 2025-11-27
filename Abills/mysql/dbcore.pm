@@ -9,7 +9,7 @@ Abills::mysql::dbcore - DB manipulation functions
 use strict;
 use warnings;
 use DBI;
-use Abills::Base qw(int2ip in_array);
+use Abills::Base qw(int2ip in_array bin2ipv6);
 use parent 'dbbase';
 
 our $VERSION = 8.00;
@@ -51,14 +51,9 @@ sub db_version{
 =cut
 #**********************************************************
 sub query_add{
-  my $self = shift;
-  my ($table, $values, $attr) = @_;
+  my ($self, $table, $values, $attr) = @_;
 
-  my DBI $db = $self->{db};
-
-  if ($self->{db}->{db}) {
-    $db = $self->{db}->{db};
-  }
+  my DBI $db = ($self->{db}{db}) ? $self->{db}{db} : $self->{db};
 
   my DBI $q = $db->column_info( undef, undef, $table, '%' );
 
@@ -76,10 +71,6 @@ sub query_add{
       if ($column eq 'IP' || $column eq 'NETMASK') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON( ? )";
       }
-      # Anton
-      #elsif ($column eq 'IPV6_PREFIX' || $column eq 'IPV6') {
-      #  push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
-      #}
       elsif ($column eq 'IPV6' || $column eq 'IPV6_PD') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
@@ -159,8 +150,7 @@ sub query_add{
 =cut
 #**********************************************************
 sub query_del{
-  my $self = shift;
-  my ($table, $values, $extended_params, $attr) = @_;
+  my ($self, $table, $values, $extended_params, $attr) = @_;
 
   my @WHERE_FIELDS = ();
   my @WHERE_VALUES = ();
@@ -200,6 +190,54 @@ sub query_del{
 }
 
 #**********************************************************
+=head2 query_list($query, $attr) - Delete constructor
+
+  Arguments:
+    $query
+    $attr
+      SORT
+      DESC
+      PG
+      PAGE_ROWS
+      EXT_TABLES
+      WHERE
+      GROUP_BY
+      FROM
+
+  Return:
+    $list
+
+=cut
+#**********************************************************
+sub query_list {
+  my ($self, $query, $attr) = @_;
+
+  my $sort      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $desc      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $pg        = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $page_rows = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  #REVIEW: maybe need to add cleaning attr on objet list_hash if passed option LIST2HASH to prevent data mismatch?
+
+  $attr->{COLS_NAME}=1 if (! $attr->{LIST2HASH});
+
+  if ($attr->{EXT_TABLES}) {
+    $query .= $attr->{EXT_TABLES};
+  }
+
+  if ($attr->{GROUP_BY}) {
+    $query .= " GROUP BY $attr->{GROUP_BY}\n";
+    delete $attr->{GROUP_BY};
+  }
+
+  $query .= " ORDER BY $sort $desc\n LIMIT $pg, $page_rows;";
+
+  #REVIEW: maybe we need to add fallback if attr list empty and return empty array or hash of passed option LIST2HASH?
+
+  return $self->query($query, '', $attr);
+}
+
+#**********************************************************
 =head2 get_data($params, $attr) - Input date into hash
 
   Arguments:
@@ -212,24 +250,23 @@ sub query_del{
 =cut
 #**********************************************************
 sub get_data{
-  shift;
-  my ($params, $attr) = @_;
+  my (undef, $params, $attr) = @_;
 
-  my %DATA = ();
+  my %data = ();
 
   if ( defined( $attr->{default} ) ){
-    %DATA = %{ $attr->{default} };
+    %data = %{ $attr->{default} };
   }
 
   while (my ($k, $v) = each %{$params}) {
-    next if (!$params->{$k} && defined( $DATA{$k} ));
+    next if (!$params->{$k} && defined( $data{$k} ));
     if (defined($v)) {
       $v =~ s/^\s+|[\s\n]+$//xg;
     }
-    $DATA{$k} = $v;
+    $data{$k} = $v;
   }
 
-  return %DATA;
+  return %data;
 }
 
 #**********************************************************
@@ -276,6 +313,8 @@ sub search_former{
     'PASPORT_DATE',
     'PASPORT_NUM',
     'PASPORT_GRANT',
+    'PASPORT_EXPIRE',
+    'TAX_NUMBER',
     # 'CITY',
     'ZIP',
     'GID',
@@ -290,7 +329,6 @@ sub search_former{
     'COMMENTS',
     'BILL_ID',
     'LOGIN_STATUS',
-    'LOGIN_DELETED',
     'DOMAIN_ID',
     'DOMAIN_NAME',
     'PASSWORD',
@@ -341,7 +379,8 @@ sub search_former{
         push @{$self->{SEARCH_FIELDS_ARR}}, $show;
       }
       elsif ($param2) {
-        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='" . ($data->{$param2} || q{}) . "')";
+        #push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='" . ($data->{$param2} || q{}) . "')";
+        push @WHERE_RULES, "$sql_field BETWEEN '$data->{$param}' AND '". ($data->{$param2} || q{}). "'";
       }
       else {
         push @WHERE_RULES,
@@ -428,8 +467,7 @@ sub search_former{
 =cut
 #**********************************************************
 sub search_expr{
-  my $self = shift;
-  my ($value, $type, $field, $attr) = @_;
+  my ($self, $value, $type, $field, $attr) = @_;
 
   if ( $attr->{EXT_FIELD} ){
     $self->{SEARCH_FIELDS} .= ($attr->{EXT_FIELD} ne '1') ? "$attr->{EXT_FIELD}, " : "$field, ";
@@ -534,27 +572,28 @@ sub search_expr{
     }
 
     if ( $type eq 'IP' ){
-      if ($value !~ m/^[\,\;\=\<\>0-9\.\*]+$|INET_ATON/x) {
+      $v =~ s/\s+//xg;
+      if ($value !~ m/^[\,\;\=\<\>0-9\.\*\s]+$|INET_ATON/x) {
         return [];
       }
 
-      if ( $value =~ m/\*/xg ){
+      if ($value =~ m/\*/xg) {
         $value =~ s/[<>]+//x;
         my ($i, $first_ip, $last_ip);
-        my @p = split(/\./x, $value );
-        for ( $i = 0; $i < 4; $i++ ){
-          if (defined($p[$i]) && length($p[$i]) < 3 && $p[$i] =~ m/(\d{0,2})\*/x ){
+        my @p = split(/\./x, $value);
+        for ($i = 0; $i < 4; $i++) {
+          if (defined($p[$i]) && length($p[$i]) < 3 && $p[$i] =~ m/(\d{0,2})\*/x) {
             $first_ip .= $1 || '0';
             $last_ip .= $1 || '255';
           }
-          else{
+          else {
             my $ip = $p[$i] || q{};
             $ip =~ s/\*//xg;
             $first_ip .= $ip || 0;
             $last_ip .= $ip || 255;
           }
 
-          if ( $i != 3 ){
+          if ($i != 3) {
             $first_ip .= '.';
             $last_ip .= '.';
           }
@@ -674,7 +713,6 @@ sub search_expr_users{
     COMPANY_CREDIT => 'INT:company.credit AS company_credit',
     COMPANY_NAME   => 'INT:company.name AS company_name',
     LOGIN_STATUS   => 'INT:u.disable AS login_status',
-    LOGIN_DELETED  => 'INT:u.deleted AS login_deleted',
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
@@ -692,6 +730,7 @@ sub search_expr_users{
     PASPORT_DATE   => 'DATE:pi.pasport_date',
     PASPORT_NUM    => 'STR:pi.pasport_num',
     PASPORT_GRANT  => 'STR:pi.pasport_grant',
+    PASPORT_EXPIRE => 'DATE:pi.pasport_expire',
     #CONTRACT_ID   => 'STR:if(u.company_id=0, concat(pi.contract_sufix,pi.contract_id), concat(company.contract_sufix,company.contract_id)) AS contract_id',
     CONTRACT_ID    => 'STR:IF(u.company_id=0 OR company.contract_id=0, pi.contract_id, company.contract_id) AS contract_id',
     CONTRACT_DATE  => 'STR:IF(u.company_id=0, pi.contract_date, company.contract_date) AS contract_date',
@@ -957,25 +996,7 @@ SQL
       $self->{SEARCH_FIELDS_COUNT} += 1;
     }
   }
-  # elsif ( $attr->{DISTRICT_ID} ){
-  #   push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
-  #       { EXT_FIELD => 1 } ) }; # 'districts.name AS district_name' }) };
-  #
-  #   $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-  #   $EXT_TABLE_JOINS_HASH{builds} = 1;
-  #   $EXT_TABLE_JOINS_HASH{streets} = 1;
-  #   $EXT_TABLE_JOINS_HASH{districts} = 1;
-  # }
   else {
-    # if ( $CONF->{ADDRESS_REGISTER} ){
-    #   if ( $attr->{CITY} ){
-    #     push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'districts.city', { EXT_FIELD => 1 } ) };
-    #     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-    #     $EXT_TABLE_JOINS_HASH{builds} = 1;
-    #     $EXT_TABLE_JOINS_HASH{streets} = 1;
-    #     $EXT_TABLE_JOINS_HASH{districts} = 1;
-    #   }
-
     if ($attr->{DISTRICT_ID} && !in_array('DISTRICT_ID', $attr->{SKIP_USERS_FIELDS})) {
       push @fields, @{$self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 1 })};
       $EXT_TABLE_JOINS_HASH{users_pi} = 1;
@@ -990,11 +1011,12 @@ SQL
       my $full_address_view = "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
         "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
 
-      my $street_statement = "IF(
-        streets.second_name <> '',
-        CONCAT(streets.name, ' (', streets.second_name, ')'),
-        streets.name
-      )";
+      my $street_statement = << "FIELDS";
+IF(streets.second_name <> '',
+     CONCAT(streets.name, ' (', streets.second_name, ')'),
+     streets.name)
+FIELDS
+
       my $full_address_statement = "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
         "$street_statement, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
 
@@ -1012,6 +1034,16 @@ SQL
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
       $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{TERRITORIAL_UNITS_CODE} && $self->{conf}{TERRITORIAL_UNITS}) {
+      push @fields, @{$self->search_expr($attr->{TERRITORIAL_UNITS_CODE}, 'STR', 'districts.territorial_units_id',
+        { EXT_FIELD => "CONCAT(tu.name, ' [', tu.code, ']') AS territorial_units_code" })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+      $EXT_TABLE_JOINS_HASH{territorial_units} = 1;
     }
 
     if ($attr->{ZIP}) {
@@ -1083,41 +1115,6 @@ SQL
         { EXT_FIELD => 'builds.number AS address_build' })};
       $EXT_TABLE_JOINS_HASH{builds} = 1;
     }
-
-#     }
-    # else{
-    #   my $f_count = $self->{SEARCH_FIELDS_COUNT};
-    #
-    #   if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
-    #     my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-    #     push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-    #         "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
-    #         , { EXT_FIELD => 1 } ) };
-    #   }
-    #
-    #   if ( $attr->{CITY} ){
-    #     push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'pi.city', { EXT_FIELD => 1 } ) };
-    #   }
-    #
-    #   if ( $attr->{ADDRESS_STREET} ){
-    #     push @fields,
-    #       @{ $self->search_expr( $attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 } ) };
-    #   }
-    #
-    #   if ( $attr->{ADDRESS_BUILD} ){
-    #     push @fields, @{ $self->search_expr( $attr->{ADDRESS_BUILD}, 'STR', 'pi.address_build', { EXT_FIELD => 1 } ) };
-    #   }
-    #
-    #   if ( $attr->{COUNTRY_ID} ){
-    #     push @fields, @{ $self->search_expr( $attr->{COUNTRY_ID}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
-    #   }
-    #   elsif ( $attr->{COUNTRY} ){
-    #     push @fields, @{ $self->search_expr( $attr->{COUNTRY}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
-    #   }
-    #   if ($f_count < $self->{SEARCH_FIELDS_COUNT}){
-    #     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-    #   }
-    # }
   }
 
   if ( $attr->{ADDRESS_FLAT} ){
@@ -1162,8 +1159,10 @@ SQL
     push @fields, @{ $self->search_expr( $attr->{TAGS}, 'INT', "tags_users.tag_id",
         { EXT_FIELD => join(',', @tags_fields) } ) };
 
-    $self->{EXT_TABLES} .= q{ LEFT JOIN tags_users ON (u.uid=tags_users.uid)
-                             LEFT JOIN tags ON (tags_users.tag_id=tags.id) };
+    $self->{EXT_TABLES} .= << "EXT_TABLES";
+    LEFT JOIN tags_users ON (u.uid=tags_users.uid)
+                             LEFT JOIN tags ON (tags_users.tag_id=tags.id)
+EXT_TABLES
   }
 
   if($attr->{DOMAIN_NAME}) {
@@ -1180,7 +1179,6 @@ SQL
 
   }
   elsif ( !$admin->{permissions}->{0}->{8} ){
-    #|| ($attr->{USER_STATUS} && !$attr->{DELETED})) {
     push @fields, @{ $self->search_expr( 0, 'INT', 'u.deleted', { EXT_FIELD => undef } ) };
   }
   elsif ( defined( $attr->{DELETED} ) ){
@@ -1280,6 +1278,7 @@ sub mk_ext_tables{
     'builds:LEFT JOIN `builds` ON (builds.id=pi.location_id)',
     'streets:LEFT JOIN `streets` ON (streets.id=builds.street_id)',
     'districts:LEFT JOIN `districts` ON (districts.id=streets.district_id)',
+    'territorial_units:LEFT JOIN `territorial_units` tu ON (districts.territorial_units_id = tu.id)',
     'admin_actions:LEFT JOIN `admin_actions` aa ON (u.uid=aa.uid)',
     'domain_name:LEFT JOIN `domains` ON (u.domain_id=domains.id)'
   );
@@ -1487,7 +1486,7 @@ sub changes {
     return $self;
   }
 
-  if ( !$attr->{OLD_INFO} && !$FIELDS ){
+  if (!$attr->{OLD_INFO} && !$FIELDS) {
     my $second_param = ($attr->{SECOND_PARAM}) ? ' AND ' . lc( $attr->{SECOND_PARAM} ) . "='" . $DATA->{$attr->{SECOND_PARAM}} . "'" : '';
 
     $attr->{EXTENDED} = $second_param if ($second_param);
@@ -1512,18 +1511,17 @@ sub changes {
       return $self;
     }
 
-    while (defined( my $row = $q->fetchrow_hashref() )) {
-      while(my ($k, $v) = each %{$row} ) {
-        my $field_name = uc( $k );
-        if ( $field_name eq 'IP' || $field_name eq 'PAYSYS_IP' ){
-          $v = int2ip( $v );
+    while (defined(my $row = $q->fetchrow_hashref())) {
+      while (my ($k, $v) = each %{$row}) {
+        my $field_name = uc($k);
+        if ($field_name eq 'IP' || $field_name eq 'PAYSYS_IP' || $field_name eq 'NETMASK') {
+          $v = int2ip($v);
         }
-        elsif ( $field_name eq 'NETMASK' ){
-          $v = int2ip( $v );
-        }
-        elsif ( $field_name eq 'DISABLE' ){
-          #$self->{DISABLE} = $v;
+        elsif ($field_name eq 'DISABLE') {
           $changes_info{DISABLE} = $v;
+        }
+        elsif ($v && $field_name =~ /IPV6_PREFIX$|IPV6$/xm) {
+          $v = bin2ipv6($v);
         }
 
         $OLD_DATA->{ $field_name } = $v;
@@ -1555,7 +1553,6 @@ sub changes {
         if ($value !~ m/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/x) {
           $value = '0.0.0.0';
         }
-
         push @change_log, "$k $OLD_DATA->{$k}->$value";
         push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
         push @bind_values, $value;
@@ -1782,8 +1779,7 @@ sub changes {
 =cut
 #**********************************************************
 sub _space_trim {
-  shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   if(ref $attr eq 'HASH') {
     foreach my $key ( keys %$attr ) {

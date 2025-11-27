@@ -23,6 +23,7 @@ my $default_values = {
   PERIOD             => '0',
   REPL_PERCENT       => '0',
 };
+my $MODULE = 'Referral';
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -454,6 +455,8 @@ sub info {
 
   Arguments:
     $attr - hash_ref
+      REFERRER
+      UID
 
   Returns:
 
@@ -464,6 +467,8 @@ sub add {
   my ($attr) = @_;
 
   $self->query_add('referral_main', $attr, { REPLACE => 1 });
+  $self->{admin}->{MODULE} = $MODULE;
+  $self->{admin}->action_add( $attr->{REFERRER}, "UID:".$attr->{UID}, { TYPE => 1 } );
 
   return $self;
 }

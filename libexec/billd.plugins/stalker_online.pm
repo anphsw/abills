@@ -41,7 +41,7 @@ my $main_file = $base_dir . '/language/english.pl';
 require $main_file;
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 stalker_online();
 

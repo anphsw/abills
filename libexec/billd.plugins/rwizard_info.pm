@@ -17,6 +17,7 @@ our (
   $Admin,
   %conf,
   %lang,
+  $argv,
   $debug,
   $var_dir,
   $base_dir
@@ -28,8 +29,6 @@ use Reports;
 use Abills::Base qw(load_pmodule in_array _bp);
 use Abills::Loader qw(load_plugin);
 
-my $PLUGIN_EXTENSION = '.pm';
-
 my $Reports = Reports->new($db, $Admin, \%conf);
 
 rwizard_info();
@@ -40,28 +39,41 @@ rwizard_info();
 =cut
 #**********************************************************
 sub rwizard_info {
-
   my $reports = $Reports->list({
+    ID        => $argv->{REPORT_ID} || '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 10000
   });
 
   return '' if (!$Reports->{TOTAL} || $Reports->{TOTAL} < 1);
 
-  my $plugins_folder = "$base_dir" . 'Abills/modules/Rwizard/Plugins/';
+  my $plugins_folder = "$base_dir/Abills/modules/Rwizard/Plugins/";
   return '' if (!-d $plugins_folder);
 
   opendir(my $folder, $plugins_folder) or return '';
-  my @plugin_files = grep { /$PLUGIN_EXTENSION$/x } readdir($folder);
+  my @plugin_files = grep { /\.pm$/ } readdir($folder);
   closedir $folder;
 
   return '' if (!@plugin_files);
 
+  my %allowed_plugins;
+  if ($argv->{PLUGINS}) {
+    my @plugins_list = split(/,\s?/, $argv->{PLUGINS});
+    foreach my $plugin (@plugins_list) {
+      $plugin =~ s/^\s+|\s+$//g;
+      $allowed_plugins{$plugin} = 1;
+    }
+  }
+
   my @loaded_plugins;
   foreach my $plugin_file (@plugin_files) {
-    my ($plugin_name) = split(/\./, $plugin_file);
-    my $plugin_class = "Rwizard::Plugins::$plugin_name";
+    my ($plugin_name) = $plugin_file =~ /^(.+)\.pm$/;
 
+    if (%allowed_plugins && !exists $allowed_plugins{$plugin_name}) {
+      next;
+    }
+
+    my $plugin_class = "Rwizard::Plugins::$plugin_name";
     my $plugin = load_plugin($plugin_class, {
       SERVICE => $Reports,
       LANG    => \%lang

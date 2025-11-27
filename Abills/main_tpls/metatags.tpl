@@ -104,12 +104,12 @@
 
     window['IS_PUSH_ENABLED'] = '$admin->{SETTINGS}{PUSH_ENABLED}';
 
-    var SELF_URL              = '$SELF_URL';
+    var SELF_URL              = '%SELF_URL%';
     if (SELF_URL) {
-      var BASE_URL  = '$SELF_URL';
+      var BASE_URL  = '%SELF_URL%';
       BASE_URL = BASE_URL.match(/(https|http):\/\/.+?(?=\/)/)[0];
     }
-    var INDEX                 = '$index';
+    var INDEX                 = '%index%';
     var _COMMENTS_PLEASE      = '_{COMMENTS_PLEASE}_' || 'Comments please';
     var _WORLD_PLEASE         = '_{ENTER_DEL}_' || 'Enter please';
     var _DEL                  = '_{DEL}_' || 'Delete';

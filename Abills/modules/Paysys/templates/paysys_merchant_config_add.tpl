@@ -132,11 +132,9 @@
         let label = jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12');
         element.append(label);
 
-        let addButton = jQuery('<div></div>').addClass('text-right');
-        // need to separate elements because is adding a div around the button and the span and Boostrap dies
-        let button = jQuery("<button type='button'></button>").addClass('btn btn-sm btn-success mb-3');
-        button.append(jQuery('<span></span>').addClass('fa fa-plus'));
-        addButton.append(button);
+        let addButton = jQuery("<button type='button'></button>")
+          .addClass('btn btn-sm btn-success add-split-rule mr-1')
+          .append(jQuery('<span></span>').addClass('fa fa-plus'));
 
         let splitRulesLocales = {
           INNER_MERCHANT_ID: 'ID _{_MERCHANT}_',
@@ -148,11 +146,13 @@
             function addFieldPair(obj = {}) {
               let container = jQuery('<div></div>').addClass('field-pair');
 
+              const selectId = Math.floor(Math.random() * 10000);
+
               splitRules.forEach(key => {
                 if (key.includes('INNER_MERCHANT_ID')) {
                   let element = jQuery('<div></div>').addClass('form-group appended_field');
                   element.append(jQuery('<label></label>').text(splitRulesLocales[key]).addClass('col-md-12 col-sm-12 text-muted'));
-                  let selectList = jQuery('<select></select>', {id: obj[key], name: key, class: 'split-rules'});
+                  let selectList = jQuery('<select></select>', {id: selectId, name: key, class: 'split-rules'});
                   let inputGroup = jQuery('<div></div>', {class: 'input-group-append select2-append'}).append(selectList);
                   let selectDiv = jQuery('<div></div>', {class: 'select'}).append(inputGroup);
                   let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'})
@@ -163,12 +163,12 @@
                   selectList.append(jQuery(`<option></option>`, {value: '', text: ''}));
                   Object.entries(merchants).forEach(([id, name]) => {
                     selectList.append(jQuery(`<option></option>`, {
-                      id: `${id}_${obj[key]}`,
+                      id: `${id}_${selectId}`,
                       text: name,
                       value: id,
                       ...((id == obj[key]) ? { selected: "" } : {})
                     }));
-                  })
+                  });
 
                   selectList.select2({width: '100%', allowClear: true, placeholder: ''});
 
@@ -188,10 +188,24 @@
                 }
               });
 
-              element.append(container);
+              let buttonsRow = jQuery('<div></div>')
+                .addClass('d-flex justify-content-end gap-2 mb-2');
+
+              let deleteButton = jQuery("<button type='button'></button>")
+                .addClass('btn btn-sm btn-danger delete-split-rule')
+                .append(jQuery('<span></span>').addClass('fa fa-trash'))
+                .click(function () {
+                  container.remove();
+                  updateHiddenInput();
+                });
+
+              buttonsRow.append(addButton);
+              buttonsRow.append(deleteButton);
+              container.append(buttonsRow);
               element.append('<hr>');
 
-              element.append(addButton);
+              element.append(container);
+
               updateHiddenInput();
             }
 
@@ -200,8 +214,6 @@
             addButton.click(function () {
               addFieldPair();
             });
-
-            element.append(addButton);
 
             function serializeInputs() {
               let values = [];
@@ -249,6 +261,8 @@
                 e.preventDefault();
                 makeNegativePercent();
               }
+
+              updateHiddenInput();
             });
 
             function makeNegativePercent() {
@@ -354,7 +368,6 @@
   var PORTAL_COMMISSION_DESC = '_{PORTAL_COMMISSION_DESC}_';
 
   function generateTooltips (type) {
-    console.log(arr[type])
     sendRequest(`/api.cgi/paysys/systems/${arr[type]['SYSTEM_ID']}/merchants/tooltips/`, {}, 'GET')
       .then(data => {
         let tooltips = data?.list;
@@ -364,8 +377,6 @@
             .hover(() => {
               jQuery().tooltip()
             });
-
-          console.log(tooltip);
         })
       });
 

@@ -1,5 +1,5 @@
-<form action=$SELF_URL?index=$index&splid=%ID% name=\"suppliers_form\" method=POST>
-<input type=hidden name=index value=$index>
+<form action=%SELF_URL%?index=%index%&splid=%ID% name=\"suppliers_form\" method=POST>
+<input type=hidden name=index value=%index%>
 <input type=hidden name=ID value=%ID%>
 <table border=\"0\" >
   <tr><h1>SUPPLIERS_FORM_TPL</h1>

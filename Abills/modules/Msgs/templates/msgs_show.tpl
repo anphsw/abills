@@ -1,8 +1,8 @@
 <link rel='stylesheet' href='/styles/default/css/modules/msgs/highlight.min.css'>
 
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
-  <input type='hidden' name='index' value='$index'/>
-  <input type='hidden' name='UID' value='$FORM{UID}'/>
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
+  <input type='hidden' name='index' value='%index%'/>
+  <input type='hidden' name='UID' value='%UID%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='PARENT' value='%PARENT%'/>
   <input type='hidden' name='CHAPTER' value='%CHAPTER%'/>
@@ -82,7 +82,7 @@
       .replace(/\n/g, "<br />");
 
     jQuery(element).parent().html(replyHtml);
-    jQuery.post('$SELF_URL', 'header=2&get_index=_msgs_edit_reply&edit_reply=' + replyId + '&replyText=' + replyText);
+    jQuery.post('%SELF_URL%', 'header=2&get_index=_msgs_edit_reply&edit_reply=' + replyId + '&replyText=' + replyText);
   }
 
   function edit_reply(element) {

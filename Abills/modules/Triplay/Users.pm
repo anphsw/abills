@@ -9,6 +9,8 @@ use warnings FATAL => 'all';
 use Triplay;
 use Shedule;
 use Triplay::Base;
+use Triplay::Services;
+use Control::Selects;
 use Abills::Base qw(expire_date);
 
 our (
@@ -25,7 +27,8 @@ our (
   $DATE,
   @_COLORS,
   @MONTHES,
-  @WEEKDAYS
+  @WEEKDAYS,
+  %LIST_PARAMS
 );
 
 our Abills::HTML $html;
@@ -35,6 +38,7 @@ my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Triplay_base = Triplay::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 require Control::Services;
+require Control::Selects;
 
 #**********************************************************
 =head2 test()
@@ -47,11 +51,13 @@ require Control::Services;
 =cut
 #**********************************************************
 sub triplay_users_services {
-  #my ($attr) = @_;
 
   triplay_users_search($Triplay);
 
   my %ext_fields = (
+    month_fee        => $lang{MONTH_FEE},
+    day_fee          => $lang{DAY_FEE},
+    tp_name          => "$lang{SERVICE} $lang{NAME}",
     tp_name          => "$lang{SERVICE} $lang{NAME}",
     internet_tp_name => $lang{INTERNET},
     iptv_tp_name     => $lang{TV},
@@ -65,7 +71,11 @@ sub triplay_users_services {
     triplay_expire   => "$lang{SERVICE} $lang{EXPIRE_DATE}",
     service_status   => "$lang{SERVICE} $lang{STATUS}",
     month_fee        => $lang{MONTH_FEE},
-    personal_tp      => $lang{PERSONAL_TP}
+    personal_tp      => $lang{PERSONAL_TP},
+    discount_sum     => "$lang{REDUCTION} $lang{SUM}",
+    discount_percent   => "$lang{REDUCTION} $lang{PERCENT}",
+    discount_from_date => "$lang{REDUCTION} $lang{START}",
+    discount_to_date   => "$lang{REDUCTION} $lang{END}",
   );
 
   result_former({
@@ -75,7 +85,7 @@ sub triplay_users_services {
     DEFAULT_FIELDS => "LOGIN,TP_NAME,TRIPLAY_EXPIRE,INTERNET_TP_NAME,IPTV_TP_NAME,ABON_TP_NAME,VOIP_TP_NAME,MONTH_FEE",
     HIDDEN_FIELDS  => 'TAGS_COLORS,PRIORITY',
     FILTER_COLS    => {
-      abonplata => '_triplay_abonplata_count::ABONPLATA'
+      abonplata => 'triplay_abonplata_count::ABONPLATA'
     },
     #      FUNCTION_FIELDS => 'change, del',
     EXT_TITLES     => \%ext_fields,
@@ -98,7 +108,7 @@ sub triplay_users_services {
 }
 
 #**********************************************************
-=head2 _triplay_abonplata_count() - count amount for all triplay services
+=head2 triplay_abonplata_count($attr) - count amount for all triplay services
 
   Arguments:
      uid  - user identifier
@@ -110,11 +120,11 @@ sub triplay_users_services {
     total_sum - amount of money to pay for all services
 
   Example:
-    my $total_sum = _triplay_abonplata_count(1, {});
+    my $total_sum = triplay_abonplata_count(1, {});
 
 =cut
 #**********************************************************
-sub _triplay_abonplata_count {
+sub triplay_abonplata_count {
   my ($uid) = @_;
 
   return 'This user has not services  ' if (!$uid);
@@ -146,8 +156,9 @@ sub _triplay_abonplata_count {
   return sprintf('%.2f', $total_sum);
 }
 
+
 #**********************************************************
-=head2 triplay_user($attr) - in menu services
+=head2 triplay_user_info_($attr) - in menu services
 
   Arguments:
     $attr
@@ -156,38 +167,12 @@ sub _triplay_abonplata_count {
 
 =cut
 #**********************************************************
-sub triplay_user {
-  my ($attr) = @_;
+sub triplay_user_info_ {
+  my($attr)=@_;
 
+  my $uid = $attr->{UID};
   my $services_info = '';
-
-  my $uid = $FORM{UID} || 0;
-  my $Triplay_services = Triplay::Services->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
-  if ($FORM{TP_ID}) {
-    $Triplay->tp_info({ TP_ID => $FORM{TP_ID} });
-  }
-
-  if ($FORM{add}) {
-    if ($Triplay_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
-      $html->message('info', '3Play', $lang{ADDED});
-      return 1 if ($attr->{REGISTRATION});
-    }
-  }
-  elsif ($FORM{change}) {
-    if ($Triplay_services->user_change({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
-      $html->message('info', '3Play', $lang{CHANGED});
-    }
-  }
-  elsif ($FORM{del} && $FORM{COMMENTS} && $admin->{permissions}{0}{18}) {
-    my $del_result = $Triplay_services->user_del({ %FORM, USER_INFO => $users });
-    $del_result->{message} = $del_result->{errmsg} if $del_result->{errmsg};
-    if (!_error_show($del_result)) {
-      $html->message('info', $lang{INFO}, "$lang{USER} $lang{DELETED}");
-    }
-  }
-
-  _error_show($Triplay_services, { ID => 1130000 });
+  my $Triplay_services = $attr->{TRIPLAY_SERVICES};
 
   my $user_info = $Triplay_services->user_info({ UID => $uid });
 
@@ -336,6 +321,54 @@ sub triplay_user {
 }
 
 #**********************************************************
+=head2 triplay_user($attr) - in menu services
+
+  Arguments:
+    $attr
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub triplay_user {
+  my ($attr) = @_;
+
+  my $uid = $FORM{UID} || 0;
+  my $Triplay_services = Triplay::Services->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+  if ($FORM{TP_ID}) {
+    $Triplay->tp_info({ TP_ID => $FORM{TP_ID} });
+  }
+
+  if ($FORM{add}) {
+    if ($Triplay_services->user_add({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+      $html->message('info', '3Play', $lang{ADDED});
+      return 1 if ($attr->{REGISTRATION});
+    }
+  }
+  elsif ($FORM{change}) {
+    if ($Triplay_services->user_change({ %FORM, %{($attr) ? $attr : {}}, USER_INFO => $users })) {
+      $html->message('info', '3Play', $lang{CHANGED});
+    }
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS} && $admin->{permissions}{0}{18}) {
+    my $del_result = $Triplay_services->user_del({ %FORM, USER_INFO => $users });
+    $del_result->{message} = $del_result->{errmsg} if $del_result->{errmsg};
+    if (!_error_show($del_result)) {
+      $html->message('info', $lang{INFO}, "$lang{USER} $lang{DELETED}");
+    }
+  }
+
+  _error_show($Triplay_services, { ID => 1130000 });
+
+  $attr->{UID}=$uid;
+  $attr->{TRIPLAY_SERVICES}=$Triplay_services;
+
+  return triplay_user_info_($attr);
+}
+
+#**********************************************************
 =head2 triplay_chg_tp($attr) - Change user tariff plan from admin interface
 
   Arguments:
@@ -423,7 +456,6 @@ sub triplay_chg_tp {
       $Triplay->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
     }
   }
-
   if ($Triplay->{DISABLE}) {
     my $service_status = ::sel_status({ HASH_RESULT => 1 });
     my ($status_name, undef) = split(':', $service_status->{ $Triplay->{DISABLE} } );
@@ -431,92 +463,14 @@ sub triplay_chg_tp {
     return 1;
   }
 
-  my $message = '';
   if ($FORM{set}) {
     $Tariffs->info(0, { TP_ID => $FORM{TP_ID} });
 
-    my ($year, $month, $day) = split('-', $DATE, 3);
     if ($period > 0) {
-      if ($period == 1) {
-        ($year, $month, $day) = split('-', $Triplay->{ABON_DATE}, 3);
-      }
-      else {
-        ($year, $month, $day) = split('-', $FORM{DATE}, 3);
-      }
-
-      my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
-
-      if ($seltime <= time()) {
-        $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} " . $html->color_mark("$lang{DATE}: $year-$month-$day", $_COLORS[6]));
-        return 0;
-      }
-      elsif ($FORM{date_D} && $FORM{date_D} > ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28))) {
-        $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} " . $html->color_mark("$lang{DATE}: $year-$month-$day", $_COLORS[6]));
-        return 0;
-      }
-
-      my $comments = "$lang{FROM}: $Triplay->{TP_ID}:" .
-        (($Triplay->{TP_NAME}) ? "$Triplay->{TP_NAME}" : q{}) . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '')
-        . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : '');
-
-      $Shedule->add({
-        UID          => $uid,
-        TYPE         => 'tp',
-        ACTION       => "$FORM{ID}:$FORM{TP_ID}",
-        D            => $day,
-        M            => $month,
-        Y            => $year,
-        MODULE       => 'Triplay',
-        COMMENTS     => $comments,
-        ADMIN_ACTION => 1
-      });
-
-      if (!_error_show($Shedule)) {
-        $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $lang{CHANGED}");
-        $Triplay->user_info({ UID => $uid, ID => $FORM{chg} });
-      }
+      triplay_tp_shedule(\%FORM);
     }
     else {
-      if ($Triplay->{ACTIVATE} && $Triplay->{ACTIVATE} ne '0000-00-00' && !$Triplay->{STATUS}) {
-        $FORM{ACTIVATE} = $DATE;
-      }
-
-      #Delete next period date
-      delete $FORM{DATE};
-      if ($Tariffs->{AGE}) {
-        delete $FORM{RECALCULATE};
-      }
-
-      $FORM{PERSONAL_TP} = 0.00;
-      $Triplay->user_change(\%FORM);
-
-      if ($Triplay->{TP_INFO} && $Triplay->{TP_INFO}->{MONTH_FEE} && $Triplay->{TP_INFO}->{MONTH_FEE} < $users->{DEPOSIT}) {
-        $Triplay->{STATUS} = 0;
-        #$FORM{GET_ABON}=1;
-        $FORM{ACTIVE_SERVICE} = 1;
-      }
-
-      if (!_error_show($Triplay, { RIZE_ERROR => 1 }) && $Triplay->{AFFECTED}) {
-        #Take fees
-        $Triplay->user_info({ UID => $uid, ID => $FORM{chg} });
-        if (!$Triplay->{STATUS} && $FORM{GET_ABON}) {
-          if ($FORM{ACTIVE_SERVICE}) {
-            $FORM{STATUS} = 0;
-            #$Triplay->user_change(\%FORM);
-          }
-        }
-        else {
-          $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $message", { ID => 932 });
-        }
-
-        delete $Triplay->{TP_INFO}->{ACTIV_PRICE};
-        $Triplay_base->triplay_service_activate({
-          %FORM,
-          USER_INFO   => $users,
-          TP_INFO_OLD => $Triplay->{TP_INFO_OLD},
-          TP_INFO     => $Triplay->{TP_INFO}
-        });
-      }
+      triplay_tp_set(\%FORM);
     }
   }
   elsif ($FORM{del}) {
@@ -566,8 +520,8 @@ sub triplay_chg_tp {
     foreach my $line (@$list) {
       my $action = $line->{action};
       my $service_id = 0;
-      if ($action =~ /:/) {
-        ($service_id, $action) = split(/:/, $action);
+      if ($action =~ /:/xm) {
+        ($service_id, $action) = split(/:/xm, $action);
       }
 
       $table->addrow("$line->{y}-$line->{m}-$line->{d}",
@@ -624,6 +578,128 @@ sub triplay_chg_tp {
 }
 
 #**********************************************************
+=head2 triplay_tp_set($attr) - in menu services
+
+  Arguments:
+
+  Returns:
+    $service_id
+
+=cut
+#**********************************************************
+sub triplay_tp_set {
+  my ($attr)=@_;
+
+  #$Tariffs = $attr->{TARIFFS};
+
+  my $uid = $attr->{UID};
+
+  if ($Triplay->{ACTIVATE} && $Triplay->{ACTIVATE} ne '0000-00-00' && !$Triplay->{STATUS}) {
+    $attr->{ACTIVATE} = $DATE;
+  }
+
+  #Delete next period date
+  delete $attr->{DATE};
+  if ($Tariffs->{AGE} && ! $conf{TP_CHG_RECALCULATION}) {
+    delete $attr->{RECALCULATE};
+  }
+
+  $attr->{PERSONAL_TP} = 0.00;
+  $Triplay->user_change($attr);
+
+  if ($Triplay->{TP_INFO} && $Triplay->{TP_INFO}->{MONTH_FEE} && $Triplay->{TP_INFO}->{MONTH_FEE} < $users->{DEPOSIT}) {
+    $Triplay->{STATUS} = 0;
+    #$attr->{GET_ABON}=1;
+    $attr->{ACTIVE_SERVICE} = 1;
+  }
+
+  if (!_error_show($Triplay, { RIZE_ERROR => 1 }) && $Triplay->{AFFECTED}) {
+   $Triplay->user_info({ UID => $uid, ID => $attr->{chg} });
+    if (!$Triplay->{STATUS} && $attr->{GET_ABON}) {
+      if ($attr->{ACTIVE_SERVICE}) {
+        $attr->{STATUS} = 0;
+        #$Triplay->user_change(\%FORM);
+      }
+    }
+    else {
+      $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN}", { ID => 932 });
+    }
+
+    $attr->{SKIP_MONTH_FEE}=1 if (! $attr->{GET_ABON});
+
+    delete $Triplay->{TP_INFO}->{ACTIV_PRICE};
+    $Triplay_base->triplay_service_activate({
+      %$attr,
+      USER_INFO   => $attr->{USER_INFO} || $users,
+      TP_INFO_OLD => $Triplay->{TP_INFO_OLD},
+      TP_INFO     => $Triplay->{TP_INFO}
+    });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 triplay_tp_shedule($attr) - in menu services
+
+  Arguments:
+
+  Returns:
+    $service_id
+
+=cut
+#**********************************************************
+sub triplay_tp_shedule {
+  my ($attr)=@_;
+
+  my $period = $attr->{period} || 0;
+
+  my $uid = $attr->{UID};
+
+  my ($year, $month, $day) = split('-', $DATE, 3);
+  if ($period == 1) {
+    ($year, $month, $day) = split('-', $Triplay->{ABON_DATE}, 3);
+  }
+  else {
+    ($year, $month, $day) = split('-', $attr->{DATE}, 3);
+  }
+
+  my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
+
+  if ($seltime <= time()) {
+    $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} " . $html->color_mark("$lang{DATE}: $year-$month-$day", $_COLORS[6]));
+    return 0;
+  }
+  elsif ($attr->{date_D} && $attr->{date_D} > ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28))) {
+    $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} " . $html->color_mark("$lang{DATE}: $year-$month-$day", $_COLORS[6]));
+    return 0;
+  }
+
+  my $comments = "$lang{FROM}: $Triplay->{TP_ID}:" .
+    (($Triplay->{TP_NAME}) ? "$Triplay->{TP_NAME}" : q{}) . ((!$attr->{GET_ABON}) ? "\nGET_ABON=-1" : '')
+    . ((!$attr->{RECALCULATE}) ? "\nRECALCULATE=-1" : '');
+
+  $Shedule->add({
+    UID          => $uid,
+    TYPE         => 'tp',
+    ACTION       => "$attr->{ID}:$attr->{TP_ID}",
+    D            => $day,
+    M            => $month,
+    Y            => $year,
+    MODULE       => 'Triplay',
+    COMMENTS     => $comments,
+    ADMIN_ACTION => 1
+  });
+
+  if (!_error_show($Shedule)) {
+    $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $lang{CHANGED}");
+    $Triplay->user_info({ UID => $uid, ID => $attr->{chg} });
+  }
+
+  return 1;
+}
+
+#**********************************************************
 =head2 triplay_get_services($attr) - in menu services
 
   Arguments:
@@ -655,9 +731,6 @@ sub triplay_get_services {
   if ($Service->can('user_list')) {
     $service_fn = 'user_list';
   }
-  # elsif ($Service->can('list')) {
-  #   $service_fn = 'list';
-  # }
 
   $service_list = $Service->$service_fn({
     UID       => $attr->{UID},
@@ -709,28 +782,28 @@ sub triplay_users_search{
     SELECT    => 'TP_ID',
     EX_PARAMS => 'multiple="multiple"',
   });
-  $FORM{TP_ID} =~ s/,/;/g if $FORM{TP_ID};
+  $FORM{TP_ID} =~ s/,/;/xg if $FORM{TP_ID};
 
   $Triplay_->{INTERNET_TP} = sel_tp({
     MODULE    => 'Internet',
     SELECT    => 'INTERNET_TP',
     EX_PARAMS => 'multiple="multiple"',
   });
-  $FORM{INTERNET_TP} =~ s/,/;/g if $FORM{INTERNET_TP};
+  $FORM{INTERNET_TP} =~ s/,/;/xg if $FORM{INTERNET_TP};
 
   $Triplay_->{IPTV_TP} = sel_tp({
     MODULE    => 'Iptv',
     SELECT    => 'IPTV_TP',
     EX_PARAMS => 'multiple="multiple"',
   });
-  $FORM{IPTV_TP} =~ s/,/;/g if $FORM{IPTV_TP};
+  $FORM{IPTV_TP} =~ s/,/;/gx if $FORM{IPTV_TP};
 
   $Triplay_->{VOIP_TP} = sel_tp({
     MODULE    => 'Voip',
     SELECT    => 'VOIP_TP',
     EX_PARAMS => 'multiple="multiple"',
   });
-  $FORM{VOIP_TP} =~ s/,/;/g if $FORM{VOIP_TP};
+  $FORM{VOIP_TP} =~ s/,/;/xg if $FORM{VOIP_TP};
 
   use Abon;
   my $Abon = Abon->new($db, $admin, \%conf);
@@ -742,14 +815,14 @@ sub triplay_users_search{
     SEL_OPTIONS => { '' => '--' },
     MULTIPLE    => 1
   });
-  $FORM{ABON_TP} =~ s/,/;/g if $FORM{ABON_TP};
+  $FORM{ABON_TP} =~ s/,/;/xg if $FORM{ABON_TP};
 
   $Triplay_->{SERVICE_STATUS} = sel_status({
     STATUS      => $FORM{SERVICE_STATUS} || '',
     NAME        => 'SERVICE_STATUS',
     EX_PARAMS   => 'multiple="multiple"',
   });
-  $FORM{SERVICE_STATUS} =~ s/,/;/g if $FORM{SERVICE_STATUS};
+  $FORM{SERVICE_STATUS} =~ s/,/;/xg if $FORM{SERVICE_STATUS};
 
   my $user_status_list = $users->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
   my %statuses_hash =();
@@ -798,7 +871,7 @@ sub triplay_users_search{
 sub triplay_form_schedule {
 
   if ($FORM{add} && $admin->{permissions}{0}{18} && defined($FORM{ACTION})) {
-    my ($Y, $M, $D) = split(/-/, ($FORM{DATE} || $DATE), 3);
+    my ($Y, $M, $D) = split(/-/xm, ($FORM{DATE} || $DATE), 3);
 
     if (date_diff($DATE, "$Y-$M-$D") < 1) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: $lang{DATE}");
@@ -844,6 +917,8 @@ sub triplay_form_schedule {
   }
 
   _triplay_schedule_list({ UID => $FORM{UID} });
+
+  return 1;
 }
 
 #**********************************************************
@@ -881,8 +956,8 @@ sub _triplay_schedule_list {
     my $action = $line->{action};
     my $service_id = 0;
 
-    if ($action =~ /:/) {
-      ($service_id, $action) = split(/:/, $action);
+    if ($action =~ /:/xm) {
+      ($service_id, $action) = split(/:/xm, $action);
     }
 
     if ($line->{type} eq 'status') {

@@ -1,11 +1,11 @@
 <div class='card card-primary card-outline box-form'>
 <div class='card-body'>
 
-<FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' name='add_message' id='add_message' class='form-horizontal'>
+<FORM action='%SELF_URL%' METHOD='POST'  enctype='multipart/form-data' name='add_message' id='add_message' class='form-horizontal'>
     <legend>_{TEMPLATES}_</legend>
 <fieldset>
 
-<input type='hidden' name='index' value='$index'/>
+<input type='hidden' name='index' value='%index%'/>
 <input type='hidden' name='add_form' value='1'/>
 <input type='hidden' name='ID' value='$FORM{chg}'/>
 

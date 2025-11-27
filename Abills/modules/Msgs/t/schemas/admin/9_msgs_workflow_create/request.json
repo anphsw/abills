@@ -1,0 +1,18 @@
+{
+  "name": "ADMIN_MSGS_WORKFLOW_CREATE",
+  "method": "POST",
+  "path": "msgs/workflow/",
+  "body": {
+    "name": "Test name",
+    "descr": "Some descr",
+    "disable": 0
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "workflow_id",
+        "value": "insertId"
+      }
+    ]
+  }
+}

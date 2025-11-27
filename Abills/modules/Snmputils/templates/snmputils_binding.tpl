@@ -1,5 +1,5 @@
-<FORM action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
+<FORM action=%SELF_URL% METHOD=POST>
+<input type=hidden name=index value=%index%>
 <input type=hidden name=ID value='$FORM{chg}'>
 <input type=hidden name=UID value='$FORM{UID}'>
 <TABLE class=form>

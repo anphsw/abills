@@ -49,7 +49,7 @@
 <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{IT_DECOMPOSITION}_</h4></div>
     <form name='DECOMPOSITION' id='form_DECOMPOSITION' method='post' class='form form-horizontal'>
-        <input type='hidden' name='index' value='$index' />
+        <input type='hidden' name='index' value='%index%' />
         <input type='hidden' name='submit' value='1' />
         <div class='list-group-flush'>
             %CHECKBOXES%

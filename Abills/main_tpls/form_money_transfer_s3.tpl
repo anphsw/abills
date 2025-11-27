@@ -24,7 +24,7 @@
     </div>
   </div>
   <div class='card-footer'>
-    <a href='$SELF_URL' class='btn btn-success'><span class='fa fa-home'></span></a>
+    <a href='%SELF_URL%' class='btn btn-success'><span class='fa fa-home'></span></a>
   </div>
 </div>
 

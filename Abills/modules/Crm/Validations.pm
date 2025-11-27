@@ -40,25 +40,28 @@ use constant {
 
 use constant {
   POST_CRM_LEADS_SOCIAL           => {
-    FIO      => {
+    FIO       => {
       type => 'string',
     },
-    PHONE    => {
+    PHONE     => {
       type => 'string',
     },
-    EMAIL    => {
+    EMAIL     => {
       type => 'string',
     },
-    UID      => {
+    UID       => {
       type => 'unsigned_integer',
     },
-    BUILD_ID => {
+    BUILD_ID  => {
       type => 'unsigned_integer',
+    },
+    RECIPIENT => {
+      type => 'string'
     }
   },
   POST_CRM_LEADS_DIALOGUE_MESSAGE => {
     MESSAGE     => {
-      type     => 'string',
+      type => 'string',
     },
     ATTACHMENTS => {
       type  => 'array',
@@ -67,6 +70,9 @@ use constant {
         properties => ATTACHMENT_OBJ
       }
     },
+    EXTERNAL_ID => {
+      type => 'string'
+    }
   }
 };
 

@@ -57,53 +57,77 @@ sub new {
 =cut
 #**********************************************************
 sub abon_docs {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my @services = ();
   my $uid = $attr->{UID} || $form->{UID};
 
-  my $list = $Abon->user_tariff_list($uid, {
+  my $abon_list = $Abon->user_tariff_list($uid, {
     PAYMENT_TYPE     => $attr->{PAYMENT_TYPE},
     TP_REDUCTION_FEE => '_SHOW',
+    DISCOUNT_ACTIVATE=> '_SHOW',
+    DISCOUNT_EXPIRE  => '_SHOW',
     COLS_NAME        => 1
   });
 
   my %info = ();
-  foreach my $line (@{$list}) {
+  foreach my $service_info (@{$abon_list}) {
     %info = ();
-    next if (!$line->{date});
+    next if (!$service_info->{date});
+    my $discount = $service_info->{discount} || 0;
 
-    $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100) if ($line->{discount} > 0);
-    $line->{price} = $line->{price} * $line->{service_count} if ($line->{service_count} > 1);
-
-    $info{id} = $line->{id};
-    $info{tp_name} = $line->{tp_name};
-    $info{service_name} = "$lang->{ABON}: ($line->{id}) " . $line->{tp_name};
-    $info{module_name} = $lang->{ABON};
-    $info{tp_reduction_fee} = $line->{reduction_fee} || 0;
-    $info{extra}{comments} = $line->{comments};
-    $info{extra}{personal_description} = $line->{personal_description};
-
-    if ($line->{period} == 1) {
-      $info{month} += $line->{price};
+    if ($discount > 0) {
+      if ($service_info->{discount_activate} && date_diff($main::DATE, $service_info->{discount_activate}) > 0) {
+        #print " Wrong activate" if ($debug);
+      }
+      elsif($service_info->{discount_expire} && date_diff($main::DATE, $service_info->{discount_expire}) < 0){
+        #print " Wrong expire $DATE_, $attr->{DISCOUNT_EXPIRE}: " . date_diff($DATE_, $attr->{DISCOUNT_EXPIRE}) if ($debug);
+      }
+      else {
+        $service_info->{price} = $service_info->{price} * ((100 - $discount) / 100);
+      }
     }
-    elsif ($line->{period} == 0) {
-      $info{day} += $line->{price};
+
+    $service_info->{price} = $service_info->{price} * $service_info->{service_count} if ($service_info->{service_count} > 1);
+    $info{id} = $service_info->{id};
+    $info{tp_name} = $service_info->{tp_name} || q{};
+
+    my %FEES_DSC = (
+      MODULE          => 'Abon',
+      SERVICE_NAME    => 'Abon',
+      TP_ID           => $service_info->{id},
+      TP_NAME         => $service_info->{tp_name},
+      FEES_PERIOD_DAY => $lang->{MONTH_FEE_SHORT},
+      FEES_METHOD     => $service_info->{fees_method} ? $main::FEES_METHODS{$service_info->{fees_method}} : undef,
+    );
+
+    $info{service_name} = ::fees_dsc_former(\%FEES_DSC);
+    $info{module_name} = $lang->{ABON} || 'Abon';
+    $info{module} = 'Abon';
+    $info{tp_reduction_fee} = ($discount  > 0) ? 0 : $service_info->{reduction_fee};
+    $info{extra}{comments} = $service_info->{comments};
+    $info{extra}{personal_description} = $service_info->{personal_description};
+    if ($service_info->{period} == 1) {
+      $info{month} += $service_info->{price};
+    }
+    elsif ($service_info->{period} == 0) {
+      $info{day} += $service_info->{price};
     }
 
     if ($attr->{FULL_INFO}) {
       push @services, { %info };
     }
-    else {
-      $line->{price} = $line->{price} * 30 if ($line->{period} == 0);
-      push @services, "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}" .
-        "|$line->{comments} |$line->{price}|$line->{id}|$line->{tp_name}";
-    }
+    # else {
+    #   $line->{price} = $line->{price} * 30 if ($line->{period} == 0);
+    #   push @services, "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}" .
+    #     "|$line->{comments} |$line->{price}|$line->{id}|$line->{tp_name}";
+    # }
   }
 
   return \%info if ($attr->{FEES_INFO});
+
+  $self->{SERVICES}=\@services;
 
   return \@services;
 }
@@ -120,8 +144,7 @@ sub abon_docs {
 =cut
 #*******************************************************************
 sub abon_quick_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my $uid = $form->{UID};
@@ -152,8 +175,7 @@ sub abon_quick_info {
 =cut
 #**********************************************************
 sub abon_payments_maked {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   require Abon::Services;
   Abon::Services->import();
@@ -183,8 +205,7 @@ sub abon_payments_maked {
 =cut
 #**********************************************************
 sub abon_promotional_tp {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $user_info = $attr->{USER};
   return if !$user_info || !$user_info->{UID} || $user_info->{DISABLE};
@@ -223,7 +244,7 @@ sub abon_promotional_tp {
 
   return if !$items;
 
-  $html->message('callout', $html->tpl_show(main::_include('abon_promotion_tp_carousel', 'Abon'),
+  return $html->message('callout', $html->tpl_show(main::_include('abon_promotion_tp_carousel', 'Abon'),
     { ITEMS => $items }, { OUTPUT2RETURN => 1 }), q{}, { class => 'info mb-0 p-0' });
 }
 
@@ -233,8 +254,7 @@ sub abon_promotional_tp {
 =cut
 #*******************************************************************
 sub abon_user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
 
@@ -250,8 +270,7 @@ sub abon_user_del {
 =cut
 #**********************************************************
 sub abon_user_services {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
 

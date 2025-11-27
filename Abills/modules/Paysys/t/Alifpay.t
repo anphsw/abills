@@ -22,7 +22,6 @@ our (
 my $Payment_plugin = Paysys::Plugins::Alifpay->new($db, $admin, \%conf);
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = 100000 + int(rand(10000));
 my $transaction_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());
 $transaction_date =~ s/[-: ]//g;
 
@@ -40,7 +39,7 @@ our @requests = (
     name    => 'CHECK',
     request => qq/
 {
-  "id": $transaction_id,
+  "id": $payment_id,
   "action": "check",
   "account": "$user_id"
 }/,
@@ -53,7 +52,7 @@ our @requests = (
     name    => 'PAY',
     request => qq/
 {
-  "id": $transaction_id,
+  "id": $payment_id,
   "action": "pay",
   "account": "$user_id",
   "amount": $payment_sum,
@@ -68,7 +67,7 @@ our @requests = (
     name    => 'STATUS',
     request => qq/
 {
-  "id": $transaction_id,
+  "id": $payment_id,
   "action": "status"
 }/,
     headers   => [

@@ -44,35 +44,6 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_streets($path_params, $query_params)
-
-  Endpoint GET /streets/
-
-=cut
-#**********************************************************
-sub get_streets {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
-
-  foreach my $param (keys %{$query_params}) {
-    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
-  }
-
-  # return {
-  #   errno  => 10,
-  #   errstr => 'Access denied'
-  # } if !$self->{admin}->{permissions}{0}{34};
-
-  $Address->street_list({
-    DISTRICT_ID => '_SHOW',
-    STREET_NAME => '_SHOW',
-    BUILD_COUNT => '_SHOW',
-    %$query_params,
-    COLS_NAME   => 1,
-  });
-}
-
-#**********************************************************
 =head2 get_streets_id($path_params, $query_params)
 
   Endpoint GET /streets/:id/

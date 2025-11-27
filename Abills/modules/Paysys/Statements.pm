@@ -10,7 +10,7 @@ package Paysys::Statements;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(in_array is_number date_inc);
+use Abills::Base qw(in_array is_number date_inc date_format convert _bp);
 use Companies;
 use Users;
 use Paysys::Core;
@@ -33,14 +33,13 @@ my Paysys::Core $Paysys_Core;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf) = @_;
+  my ($class, $db, $admin, $conf) = @_;
 
   my $self = {
-    db        => $db,
-    admin     => $admin,
-    conf      => $conf,
-    debug     => $conf->{PAYSYS_DEBUG} || 0,
+    db    => $db,
+    admin => $admin,
+    conf  => $conf,
+    debug => $conf->{PAYSYS_DEBUG} || 0,
   };
 
   bless($self, $class);
@@ -58,19 +57,18 @@ sub new {
 =cut
 #**********************************************************
 sub paysys_statement_processing {
-  my $self = shift;
-  my ($statement) = @_;
+  my ($self, $statement) = @_;
 
   return 1 if (!$self->{conf}->{PAYSYS_STATEMENTS_MULTI_CHECK});
 
-  my @check_arr = split(/;\s?/, $self->{conf}->{PAYSYS_STATEMENTS_MULTI_CHECK});
+  my @check_arr = split(';\s?', $self->{conf}->{PAYSYS_STATEMENTS_MULTI_CHECK});
 
   return 1 if (!scalar @check_arr);
 
   my $regex = $self->{conf}->{PAYSYS_STATEMENTS_MULTI_CHECK_REGEX} || '\s';
 
-  my @values = split(/$regex/, $statement);
-  @values = grep { defined $_ && $_ ne '' } @values;
+  my @values = split(/$regex/x, $statement);
+  @values = grep {defined $_ && $_ ne ''} @values;
 
   foreach my $check_field (@check_arr) {
     my ($field_name, $field_type, $field_regex, $extract_regex, $type) = split(/:/, $check_field);
@@ -78,7 +76,7 @@ sub paysys_statement_processing {
     next if (!$field_name);
     $field_name = uc($field_name);
 
-    my $pattern = $field_regex ? qr/$field_regex/ : '';
+    my $pattern = $field_regex ? qr/$field_regex/x : '';
     my $search_str = '';
 
     if ($field_type && $field_type eq 'INT') {
@@ -86,16 +84,16 @@ sub paysys_statement_processing {
         next if (!is_number($value));
         next if ($pattern && $value !~ $pattern);
         if ($extract_regex) {
-          ($value) = $value =~ /$extract_regex/gm;
+          ($value) = $value =~ /$extract_regex/xgm;
         }
         $search_str .= "$value,";
       }
     }
     else {
       foreach my $value (@values) {
-        next if ($pattern && $value !~ /$pattern/);
+        next if ($pattern && $value !~ /$pattern/x);
         if ($extract_regex) {
-          ($value) = $value =~ /$extract_regex/gm;
+          ($value) = $value =~ /$extract_regex/xgm;
         }
         if ($check_field eq 'FIO') {
           $search_str .= "*$value*,";
@@ -106,7 +104,7 @@ sub paysys_statement_processing {
       }
     }
 
-    $search_str =~ s/,$//;
+    $search_str =~ s/\,$//x;
 
     my $CHECK_FIELD = $field_name || '';
     my $users_list = [];
@@ -184,12 +182,12 @@ sub paysys_statement_processing {
       my $matched_user = '';
 
       foreach my $user_obj (@{$users_list{$key}}) {
-        my @fio = split(/\s/, lc($user_obj->{FIO}));
-        @fio = grep { defined $_ && $_ ne '' } @fio;
+        my @fio = split('\s', lc($user_obj->{FIO}));
+        @fio = grep {defined $_ && $_ ne ''} @fio;
 
-        my $fio_pattern = '(?=.*' . join(')(?=.*', map { quotemeta } @fio) . ')';
+        my $fio_pattern = '(?=.*' . join(')(?=.*', map {quotemeta} @fio) . ')';
 
-        if (lc($statement) =~ /$fio_pattern/) {
+        if (lc($statement) =~ /$fio_pattern/x) {
           if ($matched_user) {
             $matched_user = '';
             last;
@@ -219,8 +217,7 @@ sub paysys_statement_processing {
 =cut
 #**********************************************************
 sub paysys_edrpou_check {
-  my $self = shift;
-  my ($edrpou, $CHECK_FIELD) = @_;
+  my (undef, $edrpou, $CHECK_FIELD) = @_;
 
   return '' if (!$edrpou);
 
@@ -233,11 +230,11 @@ sub paysys_edrpou_check {
 
   my $uid = (!$Companies->{errno} && scalar @{$company}) ? ($company->[0]->{company_admin} || $company->[0]->{uid}) : '';
 
-  return $uid if (($uid || length($edrpou) == 8) && $CHECK_FIELD eq 'UID');
+  return $uid if (!$uid || $CHECK_FIELD eq 'UID');
 
   my $users = $Users->list({
     $CHECK_FIELD => '_SHOW',
-    TAX_NUMBER   => $uid ? '_SHOW' : $edrpou,
+    UID          => $uid,
     FIO          => '_SHOW',
     LOGIN        => '_SHOW',
     COLS_NAME    => 1,
@@ -245,11 +242,11 @@ sub paysys_edrpou_check {
     PAGE_ROWS    => 2
   });
 
-  if (!$uid && !$Users->{errno} && scalar(@$users) && scalar(@$users) == 1) {
+  if (!$Users->{errno} && scalar(@$users) && scalar(@$users) == 1) {
     return $users->[0]->{$CHECK_FIELD} || '';
   }
 
-  return $uid;
+  return '';
 }
 
 #**********************************************************
@@ -266,8 +263,7 @@ sub paysys_edrpou_check {
 =cut
 #**********************************************************
 sub paysys_statement_transaction {
-  my $self = shift;
-  my ($payment, $report_data, $reg_payments, $plugin_conf) = @_;
+  my ($self, $payment, $report_data, $reg_payments, $plugin_conf) = @_;
 
   my $PAYSYSTEM_SHORT_NAME = $plugin_conf->{PAYSYSTEM_SHORT_NAME};
   my ($transaction, $ext_id) = ('', '');
@@ -284,7 +280,7 @@ sub paysys_statement_transaction {
       foreach my $format (@{$report_data->{TRANSACTION_FORMAT}}) {
         if ($format->{type} eq 'field') {
           Encode::_utf8_off($payment->{$format->{value}});
-          $transaction .=  $payment->{$format->{value}} || '';
+          $transaction .= $payment->{$format->{value}} || '';
         }
         else {
           $transaction .= $format->{value} || '';
@@ -315,12 +311,11 @@ sub paysys_statement_transaction {
 =cut
 #**********************************************************
 sub _paysys_report_transaction_prefix_check {
-  my $self = shift;
-  my ($payment, $report_data, $reg_payments) = @_;
+  my (undef, $payment, $report_data, $reg_payments) = @_;
 
   foreach my $tran_check (@{$report_data->{TRANSACTION_PREFIX_CHECK}}) {
     if ($tran_check->{REGEX}) {
-      my ($transaction) = $payment->{$tran_check->{FIELD}} =~ /$tran_check->{REGEX}/gm;
+      my ($transaction) = $payment->{$tran_check->{FIELD}} =~ /$tran_check->{REGEX}/xgm;
 
       next if (!$transaction);
 
@@ -343,8 +338,7 @@ sub _paysys_report_transaction_prefix_check {
 =cut
 #**********************************************************
 sub paysys_statements_periodic {
-  my $self = shift;
-  my ($reg_payments, $statements_data, $Payment_Plugin) = @_;
+  my ($self, $reg_payments, $statements_data, $Payment_Plugin) = @_;
 
   my $PAYSYSTEM_SHORT_NAME = $Payment_Plugin->{SHORT_NAME};
   my $payments = $statements_data->{PAYMENTS} || [];
@@ -448,8 +442,7 @@ sub paysys_statements_periodic {
 =cut
 #**********************************************************
 sub paysys_get_reg_payments {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   require Payments;
   Payments->import();
@@ -459,8 +452,10 @@ sub paysys_get_reg_payments {
   require POSIX;
   POSIX->import(qw(mktime strftime));
 
-  my ($Y, $M, $D) = split(/-/, ($attr->{DATE_FROM} || $main::DATE), 3);
-  ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) - (86400 * 7)))));
+  my $period = $self->{conf}->{PAYSYS_STATEMENTS_PERIOD} || 3;
+
+  my ($Y, $M, $D) = split('-', ($attr->{DATE_FROM} || $main::DATE), 3);
+  ($Y, $M, $D) = split('-', POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) - (86400 * ($period + 4))))));
 
   my $payments_list = $Payments->list({
     FROM_DATE => "$Y-$M-$D",
@@ -483,6 +478,83 @@ sub paysys_get_reg_payments {
   }
 
   return \%reg_payments_list;
+}
+
+#**********************************************************
+=head2 paysys_import_parse($content, $import_expr, $BINDING_FIELD) - Parce file
+
+  Arguments:
+    $content
+    $import_expr
+    $BINDING_FIELD
+    $attr
+      DEBUG
+      ENCODE
+      SKIP_ROWS - Skip [SKIP_ROWS] count
+
+  Returns:
+    return \@DATA_ARR, \@BINDING_IDS;
+
+=cut
+#**********************************************************
+sub paysys_import_parse {
+  my ($self, $content, $import_expr, $BINDING_FIELD, $attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+
+  my @DATA_ARR = ();
+  my @BINDING_IDS = ();
+
+  $import_expr =~ s/[\n\s]//gx;
+  my ($expression, $columns) = split(':', $import_expr);
+  my @EXPR_IDS = split(',', $columns);
+  print "EXPRESSION: $expression\nColumns: $columns\n" if ($debug > 0);
+
+  my @rows = split(/[\r]{0,1}\n/x, $content);
+  my $line_count = 1;
+  my $first_row = 0;
+  if ($attr->{SKIP_ROWS}) {
+    $first_row = $attr->{SKIP_ROWS};
+  }
+
+  for (my $row = $first_row; $row <= $#rows; $row++) {
+    my $line = $rows[$row];
+    my %DATA_HASH = ();
+
+    if ($attr->{ENCODE}) {
+      $line = convert($line, { $attr->{ENCODE} => 1 });
+    }
+
+    my @res = ($line =~ m/$expression/x);
+
+    next if (!scalar(@res));
+
+    for (my $i = 0; $i <= $#res; $i++) {
+      my $field_name = $EXPR_IDS[$i] || q{};
+      _bp('', "$field_name => $res[$i]\n", { HEADER => 1 }) if ($debug > 5);
+      next if ($field_name eq 'UNDEF');
+      $DATA_HASH{$field_name} = $res[$i];
+
+      my %preprocess = (
+        PHONE       => sub {$_[0] =~ s/\-//xg},
+        CONTRACT_ID => sub {$_[0] =~ s/\-//xg},
+        LOGIN       => sub {$_[0] =~ s/\s//xg},
+        SUM         => sub {$_[0] =~ s/\,/\./xg},
+        DATE        => sub {$_[0] = date_format($_[0], '%Y-%m-%d')},
+      );
+
+      if (my $rule = $preprocess{$field_name}) {
+        $rule->($DATA_HASH{$field_name});
+      }
+    }
+
+    push @DATA_ARR, \%DATA_HASH;
+    push @BINDING_IDS, $DATA_HASH{$BINDING_FIELD} if ($DATA_HASH{$BINDING_FIELD});
+
+    $line_count++;
+  }
+
+  return \@DATA_ARR, \@BINDING_IDS;
 }
 
 1;

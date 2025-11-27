@@ -4,6 +4,8 @@
   $ref: "./paths/usersAll.yaml"
 /users/{uid}:
   $ref: "./paths/users_uid.yaml"
+/users/{uid}/recommendedPay:
+  $ref: "./paths/users_uid_recommendedPay.yaml"
 /users/{uid}/pi:
   $ref: "./paths/users_uid_Pi.yaml"
 /users/{uid}/contacts:

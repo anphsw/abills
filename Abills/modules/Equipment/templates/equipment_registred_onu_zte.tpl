@@ -90,8 +90,15 @@
 
       <div class='form-group row'>
         <label for='DEBUG' class='control-label col-md-4'>_{DEBUG}_:</label>
-        <div class='col-md-8'>
-          %DEBUG_SEL%
+         <div class='col-md-8'>
+                <select ID='DEBUG' name='DEBUG'>
+                    <option value=0 selected>--</option>
+                    <option value=1>1</option>
+                    <option value=2>2</option>
+                    <option value=3>3</option>
+                    <option value=4>4</option>
+                    <option value=5>5</option>
+                </select>
         </div>
       </div>
 

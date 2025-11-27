@@ -2,7 +2,7 @@
     <div class='card-header with-border'><h4 class='card-title'>_{CABLE_RESERVE}_</h4></div>
     <div class='card-body'>
         <form name='CABLECAT_CROSS' id='form_CABLECAT_CROSS' method='post' class='form form-horizontal'>
-            <input type='hidden' name='index' value='$index' />
+            <input type='hidden' name='index' value='%index%' />
             <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
             <input type='hidden' name='ID' value='%ID%' />
 

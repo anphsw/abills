@@ -124,7 +124,7 @@ sub employees_cashbox_main {
         'name'          => "$lang{NAME}",
         'id'            => "ID",
         'admin_default' => "$lang{ADMIN_DEFAULT}",
-        'admins'        => "$lang{ADMINS}",
+        'admins'        => "$lang{ADMINS} $lang{PERMISSION}",
         'comments'      => "$lang{COMMENTS}"
       },
       TABLE           => {
@@ -185,6 +185,8 @@ sub employees_cashbox_balance {
     my $days_in_month = days_in_month();
     $to_date = "$y-$m-$days_in_month";
   }
+
+  $Employees->{debug} = 1 if ($FORM{debug});
 
   # get list of comings and spendings
   my $coming_cashbox_list = $Employees->employees_list_coming({
@@ -248,7 +250,7 @@ sub employees_cashbox_balance {
   }
 
   $CASHBOX{CASHBOX_SELECT} = employees_cashbox_select({ ID => $FORM{ID} });
-  $CASHBOX{COMING_TYPE_SELECT} = employees_coming_select({ ID => $FORM{ID} });
+  $CASHBOX{COMING_TYPE_SELECT} = employees_coming_select({ ID => $FORM{ID}, NO_DEFAULT_TYPE => 1 });
   $CASHBOX{SPENDING_TYPE_SELECT} = employees_spending_select({ ID => $FORM{ID} });
   $CASHBOX{PERIOD} = $html->form_daterangepicker({
     NAME      => 'FROM_DATE/TO_DATE',
@@ -273,13 +275,14 @@ sub employees_cashbox_balance {
   });
 
   #COMING BALANCE TABLE
-  my @coming_title_plain = ($lang{SUM}, $lang{CASHBOX}, "$lang{COMING} $lang{TYPE}", $lang{DATE}, $lang{ADMIN}, $lang{COMMENTS});
+  my @coming_title_plain = ($lang{SUM}, $lang{CASHBOX}, "$lang{COMING} $lang{TYPE}", $lang{DATE}, $lang{LOGIN}, $lang{ADMIN}, $lang{COMMENTS});
 
   my $coming_list = $Employees->employees_list_coming({
     FROM_DATE      => $from_date,
     TO_DATE        => $to_date,
     CASHBOX_ID     => $FORM{CASHBOX_ID} || '',
     COMING_TYPE_ID => $FORM{COMING_TYPE_ID} || '',
+    LOGIN          => '_SHOW',
     PAGE_ROWS      => 9999,
     COLS_NAME      => 1,
   });
@@ -302,6 +305,7 @@ sub employees_cashbox_balance {
       $coming->{cashbox_name},
       $coming->{coming_type_name},
       $coming->{date},
+      ($coming->{login}) ? $html->button($coming->{login}, "index=15&UID=$coming->{uid}") : '',
       $coming->{admin},
       $coming->{comments},
     );
@@ -414,6 +418,7 @@ sub employees_cashbox_spending_type {
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{ADDED}");
+      $Employees->employees_spending_types_admins_add({ IDS => $FORM{ADMINS}, TYPE_ID => $Employees->{INSERT_ID} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{TYPE} $lang{NOT} $lang{ADDED}");
@@ -424,6 +429,8 @@ sub employees_cashbox_spending_type {
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+      $Employees->employees_spending_types_admins_del({ TYPE_ID => $FORM{ID} });
+      $Employees->employees_spending_types_admins_add({ IDS => $FORM{ADMINS}, TYPE_ID => $FORM{ID} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
@@ -432,6 +439,7 @@ sub employees_cashbox_spending_type {
 
   if ($FORM{del}) {
     $Employees->employees_delete_type({ SPENDING => 1, ID => $FORM{del} });
+    $Employees->employees_spending_types_admins_del({ TYPE_ID => $FORM{del} });
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{DELETED}");
@@ -445,13 +453,13 @@ sub employees_cashbox_spending_type {
     $action = 'change';
     $action_lang = $lang{CHANGE};
 
-    $html->message("info", $lang{CHANGE});
-
     my $spending_type = $Employees->employees_info_type({ SPENDING => 1, ID => $FORM{chg} });
     $CASHBOX{ID} = $FORM{chg};
     $CASHBOX{NAME} = $spending_type->{NAME};
     $CASHBOX{COMMENTS} = $spending_type->{COMMENTS};
+    $CASHBOX{ADMINS} = $spending_type->{ADMINS};
   }
+  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}, MULTIPLE => 1 });
 
   $html->tpl_show(_include('employees_spending_type', 'Employees'), {
     %CASHBOX,
@@ -462,13 +470,13 @@ sub employees_cashbox_spending_type {
   result_former({
     INPUT_DATA      => $Employees,
     FUNCTION        => 'employees_list_spending_type',
-    BASE_FIELDS     => 3,
     DEFAULT_FIELDS  => "id, name, comments",
     FUNCTION_FIELDS => "change, del",
     EXT_TITLES      => {
       'name'     => "$lang{NAME}",
       'id'       => "#",
-      'comments' => "$lang{COMMENTS}"
+      'comments' => "$lang{COMMENTS}",
+      'admins'   => "$lang{ADMINS} $lang{PERMISSION}",
     },
     TABLE           => {
       width   => '100%',
@@ -678,7 +686,7 @@ sub employees_cashbox_spending_add {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $CASHBOX{SPENDING_TYPE_ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ NAME => '_SHOW', AID => $admin->{AID}, PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -1166,7 +1174,7 @@ sub employees_cashbox_select {
 sub employees_spending_select {
   my ($attr) = @_;
 
-  my $list = $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 });
+  my $list = $Employees->employees_list_spending_type({ NAME => '_SHOW', AID => $admin->{AID}, PAGE_ROWS => 1000, COLS_NAME => 1 });
 
   push(@$list, { 'id' => '!0', name => "$lang{NO_TYPE}" });
 
@@ -1205,11 +1213,14 @@ sub employees_coming_select {
   my $list = $Employees->employees_list_coming_type({ COLS_NAME => 1 });
 
   my $default_type = 0;
-  foreach my $type (@$list) {
-    if ( $type->{default_coming} == 1){
-      $default_type = $type->{id};
-      last;
-    };
+
+  if (!$attr->{NO_DEFAULT_TYPE}){
+    foreach my $type (@$list) {
+      if ( $type->{default_coming} == 1){
+        $default_type = $type->{id};
+        last;
+      };
+    }
   }
 
   push(@$list, { 'id' => '!0', name => "$lang{NO_TYPE}" });
@@ -2032,7 +2043,7 @@ sub employees_pay_salary {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ NAME => '_SHOW', PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2510,7 +2521,7 @@ sub employees_cashbox_moving_type {
     'SPENDING_TYPE',
     {
       SELECTED    => $FORM{SPENDING_TYPE} || $CASHBOX{SPENDING_TYPE},
-      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ NAME => '_SHOW', PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2801,7 +2812,7 @@ sub employees_pay_salary_all {
     'SPENDING_TYPE_ID',
     {
       SELECTED    => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
-      SEL_LIST    => $Employees->employees_list_spending_type({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
+      SEL_LIST    => $Employees->employees_list_spending_type({ NAME => '_SHOW', PAGE_ROWS => 1000, COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,

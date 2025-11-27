@@ -52,11 +52,10 @@ sub new {
 =cut
 #**********************************************************
 sub accident_quick_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
-  my $uid = $form->{UID};
+  my $uid = $form->{UID} || '-1';
 
   $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
 

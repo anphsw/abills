@@ -1,4 +1,4 @@
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
     <input type='hidden' name='E_MAIL_2' value='%E_MAIL%'>
     <input type='hidden' name='module' value='Price'>
     <div class='card box-primary'>

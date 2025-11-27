@@ -11,9 +11,7 @@ jQuery(document).ready(() => {
   jQuery('.esign_user_button').on('click', async function() {
 
     const res = await sendRequest(`/api.cgi/user/docs/edocs/sign/${jQuery(this).attr('value')}/`,
-      {}, 'POST', {
-      USERSID: window['SID']
-    });
+      {}, 'POST');
 
     if (res?.errno || res?.error) {
       loadDataToModal(`ERROR - ${res?.errno || res?.error}`, true);

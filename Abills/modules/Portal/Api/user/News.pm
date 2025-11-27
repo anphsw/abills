@@ -53,8 +53,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_user_portal_menu {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $self->_portal_menu({
     UID       => $path_params->{uid} || '',
@@ -71,15 +70,14 @@ sub get_user_portal_menu {
 =cut
 #**********************************************************
 sub get_user_portal_news {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $self->_portal_menu({
-    UID       => $path_params->{uid} || '',
-    DOMAIN_ID => $query_params->{DOMAIN_ID},
+    UID            => $path_params->{uid} || '',
+    DOMAIN_ID      => $query_params->{DOMAIN_ID},
     PORTAL_MENU_ID => $query_params->{PORTAL_MENU_ID},
-    MAIN_PAGE => $query_params->{MAIN_PAGE},
-    LIST      => 1
+    MAIN_PAGE      => $query_params->{MAIN_PAGE},
+    LIST           => 1
   });
 }
 
@@ -92,8 +90,7 @@ sub get_user_portal_news {
 =cut
 #**********************************************************
 sub get_user_portal_news_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $self->_portal_menu({
     UID        => $path_params->{uid} || '',
@@ -118,8 +115,7 @@ sub get_user_portal_news_id {
 =cut
 #**********************************************************
 sub _portal_menu {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %menu = ();
   my %article_params = ();
@@ -137,7 +133,9 @@ sub _portal_menu {
     %article_params,
     ARCHIVE   => 0,
     COLS_NAME => 1,
-    PAGE_ROWS => 10000
+    PAGE_ROWS => 10000,
+    SORT      => 'id',
+    DESC      => 'DESC'
   });
 
   return {
@@ -192,7 +190,7 @@ sub _portal_menu {
     $Users->{DISTRICT_ID} //= 0;
     $Users->{STREET_ID} //= 0;
     $Users->{LOCATION_ID} //= 0;
-    $Users->{ADDRESS_FLAT} //= '',
+    $Users->{ADDRESS_FLAT} //= '';
   }
 
   my $Tags = q{};
@@ -203,7 +201,7 @@ sub _portal_menu {
   }
 
   foreach my $news (@{$news_list}) {
-    my @gids = split(/,\s*/, $news->{gid} || '');
+    my @gids = split(/,\s*/x, $news->{gid} || '');
 
     my $time_check = !$news->{etimestamp} || ($news->{utimestamp} && $news->{etimestamp} >= time && $news->{utimestamp} < time);
     my $gid_check = !$news->{gid} || $news->{gid} eq '0' || $news->{gid} eq '*' || grep { $_ eq "$Users->{GID}"} @gids;

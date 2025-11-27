@@ -1,6 +1,6 @@
 <div class='card collapsed-card mb-0 border-top card-outline'>
   <div class='card-header with-border'>
-    <h3 class='card-title'>_{CONTRACT}_</h3>
+    <h3 class='card-title'>_{CONTRACT}_: %CONTRACT_HEADER%</h3>
     <div class='card-tools float-right'>
       <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-plus'></i>
@@ -18,7 +18,7 @@
           <div class='input-group-append'>
             %SIGN_CONTRACT%
             %PRINT_CONTRACT%
-            <a href='$SELF_URL?qindex=13&COMPANY_ID=$FORM{COMPANY_ID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
+            <a href='%SELF_URL%?qindex=13&COMPANY_ID=$FORM{COMPANY_ID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
                class='btn input-group-button' target=_new>
               <i class='fa fa-envelope'></i>
             </a>

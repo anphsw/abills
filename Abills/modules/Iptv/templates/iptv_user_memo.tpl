@@ -3,7 +3,7 @@
 <TR><TD class=cel_border>
 <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
 <TR><TH class='form_title' COLSPAN='2'>_{INFO}_</TH></TR>
-<TR class='odd'><TD>_{LOGIN}_:</TD><TD><a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a></TD></TR>
+<TR class='odd'><TD>_{LOGIN}_:</TD><TD><a href='%SELF_URL%?index=15&UID=%UID%'>%LOGIN%</a></TD></TR>
 <TR class='odd'><TD>UID:</TD><TD>%UID%</TD></TR>
 <TR class='odd'><TD>_{DEPOSIT}_:</TD><TD>%DEPOSIT%</TD></TR>
 <TR class='odd'><TD>_{FIO}_:</TD><TD>%FIO%</TD></TR>

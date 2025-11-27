@@ -35,10 +35,8 @@ if ($debug > 3) {
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 $payment_sum = int($payment_sum * 100);
 
-our @requests = (
-  {
-    name    => 'PAY',
-    request => qq{<?xml version="1.0" encoding="utf-8"?>
+my $pay_request = << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
 <payment id="$payment_id">
   <ident>941a161bdf0d6208a820e4004bc5d2afecdb3efe</ident>
   <status>5</status>
@@ -79,17 +77,11 @@ our @requests = (
   </settlements>
   <salt>bfe63b5d97b5c7903b8a9fdb7bab65b9e10d04cc</salt>
   <sign>52096b12a7b537ea9b7fa90513d5d71c5724eda3a3ef70d52906c2b12ad619433655b72804690912f02a0107ae05e4dcdaa5e9bee9ad572431d496c4b7ca9ca2</sign>
-</payment>},
-    result  => q{}
-  },
-  {
-    name    => 'CHECK',
-    request => qq{xml=<?xml version="1.0" encoding="utf-8"?><check><mch_id>dfcbc8b24aef69c676ed9bff3df3d503b9d15445</mch_id><srv_id>0</srv_id><pay_account>$user_id</pay_account></check>},
-    result  => q{}
-  },
-  {
-    name    => 'CANCEL',
-    request => qq{<?xml version="1.0" encoding="utf-8"?>
+</payment>
+[END]
+
+my $cancel_request = << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
 <payment id="$payment_id">
   <ident>941a161bdf0d6208a820e4004bc5d2afecdb3efe</ident>
   <status>9</status>
@@ -130,7 +122,24 @@ our @requests = (
   </settlements>
   <salt>bfe63b5d97b5c7903b8a9fdb7bab65b9e10d04cc</salt>
   <sign>52096b12a7b537ea9b7fa90513d5d71c5724eda3a3ef70d52906c2b12ad619433655b72804690912f02a0107ae05e4dcdaa5e9bee9ad572431d496c4b7ca9ca2</sign>
-</payment>},
+</payment>
+[END]
+
+
+my @requests = (
+  {
+    name    => 'PAY',
+    request => $pay_request,
+    result  => q{}
+  },
+  {
+    name    => 'CHECK',
+    request => qq{xml=<?xml version="1.0" encoding="utf-8"?><check><mch_id>dfcbc8b24aef69c676ed9bff3df3d503b9d15445</mch_id><srv_id>0</srv_id><pay_account>$user_id</pay_account></check>},
+    result  => q{}
+  },
+  {
+    name    => 'CANCEL',
+    request => $cancel_request,
     result  => q{}
   },
 );

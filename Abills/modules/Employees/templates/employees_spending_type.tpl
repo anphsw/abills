@@ -1,22 +1,28 @@
-<form action='$SELF_URL' METHOD=POST>
+<form action='%SELF_URL%' METHOD=POST>
 
-  <input type='hidden' name='index' value=$index>
+  <input type='hidden' name='index' value=%index%>
   <input type='hidden' name='ID' value='%ID%'>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
-      <h4 class='card-title table-caption'>_{ADD}_ _{TYPE}_</h4>
+      <h4 class='card-title table-caption'>%ACTION_LANG% _{TYPE}_</h4>
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>_{NAME}_:</label>
-        <div class='col-md-8'>
-          <input type='text' class='form-control' name='NAME' value='%NAME%' placeholder='_{TYPE_IN_SPENDING_TYPE}_'>
+        <label class='col-md-4 col-form-label text-md-right required'>_{NAME}_</label>
+        <div class='col-md-6'>
+          <input type='text' class='form-control' name='NAME' value='%NAME%' placeholder='_{TYPE_IN_SPENDING_TYPE}_' required>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>_{COMMENTS}_:</label>
-        <div class='col-md-8'>
+        <label class='col-md-4 col-form-label text-md-right'>_{ADMINS}_ _{PERMISSION}_</label>
+        <div class='col-md-6'>
+          %ADMINS_SELECT%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{COMMENTS}_</label>
+        <div class='col-md-6'>
           <textarea class='form-control' name='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>

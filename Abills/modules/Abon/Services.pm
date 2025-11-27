@@ -12,9 +12,12 @@ my $Fees;
 my $Abon_base;
 
 use POSIX qw(strftime mktime);
-use Abills::Base qw/days_in_month date_diff get_period_dates cmd sendmail/;
+use Abills::Base qw/days_in_month date_diff get_period_dates cmd sendmail next_month/;
 use Abills::Loader;
 use Users;
+
+use Control::Errors;
+my Control::Errors $Errors;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -43,6 +46,8 @@ sub new {
   use Fees;
   $Fees = Fees->new($db, $admin, $CONF);
 
+  $Errors = Control::Errors->new($db, $admin, $CONF, { lang => \%lang, module => 'Abon' });
+
   bless($self, $class);
 
   return $self;
@@ -69,9 +74,9 @@ sub abon_user_tariff_activate {
   my ($self, $attr) = @_;
 
   my $user_info = $attr->{USER_INFO};
-  if (!$user_info && $attr->{UID}) {
+  if (!$user_info && $attr->{UID} || !$user_info->{PASSWORD}) {
     my $Users = Users->new($db, $admin, $CONF);
-    $Users->info($attr->{UID});
+    $Users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
     $Users->pi({ UID => $attr->{UID} });
     $user_info = $Users;
   }
@@ -98,6 +103,17 @@ sub abon_user_tariff_activate {
 
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
+
+  if ($tariff_info->{MAIN_TP_IDS}) {
+    $tariff_info->{MAIN_TP_IDS} =~ s/,/;/xg;
+
+    my $user_main_tariffs = $Abon->user_tariff_list($user_info->{UID}, { 
+      ACTIVE_ONLY => 1, ID => $tariff_info->{MAIN_TP_IDS}, COLS_NAME => 1 });
+
+    if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1) {
+      return $Errors->throw_error(1020003);
+    }
+  }
 
   if ($tariff_info->{PROMO_PERIOD} && !$tariff_info->{PERIOD}) {
     $attr->{DATE} = strftime('%Y-%m-%d', localtime(time + int($tariff_info->{PROMO_PERIOD}) * 86400));
@@ -168,8 +184,10 @@ sub abon_user_tariff_activate {
   $attr->{ACTIVATE} = $attr->{DATE};
 
   if ($attr->{DATE} && $attr->{DATE} ne '0000-00-00' && $active_period > -30) {
-    #print "simle form: $tariff_info->{PERIOD_ALIGNMENT} /DATE: $attr->{DATE} ";
-    if (! $tariff_info->{PERIOD_ALIGNMENT}) {
+    #print "simle form: $tariff_info->{PERIOD_ALIGNMENT} /DATE: $attr->{DATE} "
+    my $next_month = next_month({ DATE => $cur_date });
+    my $next_month_fee = date_diff($next_month, $attr->{DATE});
+    if (! $tariff_info->{PERIOD_ALIGNMENT} || $next_month_fee >= 0) {
       $attr->{PERIOD} = $tariff_info->{PERIOD};
       return $Abon->user_tariff_add($attr);
     }
@@ -322,13 +340,28 @@ sub abon_user_tariff_deactivate {
   return { errno => 20002, errstr => 'ERR_TARIFF_ID' } if (!$attr->{ID});
 
   my $user_tariffs = $Abon->user_tariff_list($user_info->{UID}, { ID => $attr->{ID}, COLS_NAME => 1 });
-  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
+  return $Abon if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
 
   my $user_tariff = $user_tariffs->[0];
-  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if (!$user_tariff->{active_service});
+  return {} if (!$user_tariff->{active_service});
 
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
+
+  if ($tariff_info->{SUB_TP_IDS}) {
+    $tariff_info->{SUB_TP_IDS} =~ s/,/;/g;
+
+    my $user_main_tariffs = $Abon->user_tariff_list($user_info->{UID}, {
+      ACTIVE_ONLY => 1, ID => $tariff_info->{SUB_TP_IDS}, COLS_NAME => 1 });
+
+    if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0) {
+      foreach my $main_tariff (@{$user_main_tariffs}) {
+        next if !$main_tariff->{id};
+        my $result = $self->abon_user_tariff_deactivate({ %{$attr}, ID => $main_tariff->{id} });
+        return $result if $result->{errno};
+      }
+    }
+  }
 
   my $ext_cmd = $tariff_info->{EXT_CMD};
   if ($ext_cmd) {
@@ -386,8 +419,7 @@ sub abon_user_tariff_deactivate {
 =cut
 #**********************************************************
 sub abon_service_activate {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $user_info = $attr->{USER_INFO};
   my $debug = $attr->{DEBUG} || 0;

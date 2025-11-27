@@ -1,5 +1,5 @@
 <form name='CAMS_STREAM_ADD' id='form_CAMS_STREAM_ADD' method='post' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>
   <input type='hidden' name='sid' value='$sid'/>

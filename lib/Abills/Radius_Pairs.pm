@@ -34,8 +34,8 @@ sub parse_radius_params_json {
     return '';
   }
 
-  $pairs_json =~ s/\\//g;
-  $pairs_json =~ s/’/'/g;
+  $pairs_json =~ s/\\//xg;
+  $pairs_json =~ s/’/'/xg;
 
   require JSON;
   my $json = JSON->new()->utf8(0);
@@ -55,7 +55,6 @@ sub parse_radius_params_json {
 #**********************************************************
 sub parse_radius_params_string {
   my ($radius_pairs_string) = @_;
-
 
   if(!$radius_pairs_string) {
     return '[]';

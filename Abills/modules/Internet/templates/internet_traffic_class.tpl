@@ -3,10 +3,10 @@
         <h4 class='card-title'>_{TRAFFIC_CLASS}_</h4>
     </div>
     <div class='card-body'>
-        <form name='TRAFFIC_CLASS_FORM' id='form_TRAFFIC_CLASS_FORM' action='$SELF_URL'
+        <form name='TRAFFIC_CLASS_FORM' id='form_TRAFFIC_CLASS_FORM' action='%SELF_URL%'
               method='post'
               class='form form-horizontal'>
-            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='index' value='%index%'/>
             <input type='hidden' name='ID' value='$FORM{chg}'>
 
             <div class='form-group row'>

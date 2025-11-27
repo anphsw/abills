@@ -1,6 +1,6 @@
 <form class='double_enter_check' action='%SELF_URL%' method='post' ID='user' name=user role='form' onsubmit=\"postthread('submitbutton');\">
   <input type=hidden name=UID value='%UID%'>
-  <input type=hidden name=index value='$index'>
+  <input type=hidden name=index value='%index%'>
   <input type=hidden name=subf value='$FORM{subf}'>
 
   <div class='card card-primary card-outline container-md'>

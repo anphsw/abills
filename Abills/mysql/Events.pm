@@ -63,9 +63,9 @@ use parent 'dbcore';
 #**********************************************************
 sub AUTOLOAD {
   our $AUTOLOAD;
-  return if ( $AUTOLOAD =~ /::DESTROY$/ );
+  return if ( $AUTOLOAD =~ /::DESTROY$/x );
   
-  my ($entity_name, $operation) = $AUTOLOAD =~ /.*::(.*)_(add|del|change|info)$/;
+  my ($entity_name, $operation) = $AUTOLOAD =~ /.*::(.*)_(add|del|change|info)$/x;
   
   die "Undefined function $AUTOLOAD" unless ( $operation && $entity_name );
   
@@ -162,8 +162,7 @@ sub new {
 =cut
 #**********************************************************
 sub events_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'e.id';
   my $DESC = ($attr->{DESC}) ? '' : 'DESC';
@@ -207,8 +206,8 @@ sub events_list {
   }
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} e.id
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} e.id
     FROM events e
     LEFT JOIN events_privacy epriv FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.privacy_id = epriv.id)
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
@@ -218,27 +217,27 @@ sub events_list {
     $WHERE
     GROUP BY e.id
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    {
-      COLS_NAME => 1,
-      %{ $attr ? $attr : {} }
-    }
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, {
+    COLS_NAME => 1,
+    %{ $attr ? $attr : {} }
+  });
   
   my $list = $self->{list};
-  $self->query(
-    "SELECT COUNT(*) AS total
+  $sql = <<"SQL";
+    SELECT COUNT(*) AS total
     FROM events e
     LEFT JOIN events_privacy epriv FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.privacy_id = epriv.id)
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
     LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
     LEFT JOIN events_priority_send_types epst FORCE INDEX FOR JOIN (`priority_id`) ON (e.priority_id = epst.priority_id AND e.aid = epst.aid)
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+    $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
   
   return [] if ( $self->{errno} );
   
@@ -257,8 +256,7 @@ sub events_list {
 =cut
 #**********************************************************
 sub state_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
@@ -272,15 +270,11 @@ sub state_list {
   }
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} id FROM events_state $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    {
-      COLS_NAME => 1,
-      %{ $attr ? $attr : {} }
-    }
-  );
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} id FROM events_state $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, %{ $attr ? $attr : {} } });
   
   return [] if ( $self->{errno} );
   
@@ -299,8 +293,7 @@ sub state_list {
 =cut
 #**********************************************************
 sub privacy_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
@@ -312,17 +305,13 @@ sub privacy_list {
   if ( $attr->{SHOW_ALL_COLUMNS} ) {
     map {$attr->{ $_->[0] } = '_SHOW' unless ( exists $attr->{ $_->[0] } )} @{$search_columns};
   }
-  
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} id FROM events_privacy $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    {
-      COLS_NAME => 1,
-      %{ $attr ? $attr : {} }
-    }
-  );
+
+  my $sql = <<"SQL";
+  SELECT $self->{SEARCH_FIELDS} id FROM events_privacy $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, {COLS_NAME => 1, %{ $attr ? $attr : {} } });
   
   return $self->{list} || [];
 }
@@ -339,8 +328,7 @@ sub privacy_list {
 =cut
 #**********************************************************
 sub priority_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
@@ -358,15 +346,12 @@ sub priority_list {
   }
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} id FROM events_priority $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    {
-      COLS_NAME => 1,
-      %{ $attr ? $attr : {} }
-    }
-  );
+
+  my $sql = <<"SQL";
+  SELECT $self->{SEARCH_FIELDS} id FROM events_priority $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, %{ $attr ? $attr : {} } });
   
   return $self->{list} || [];
 }
@@ -399,13 +384,14 @@ sub priority_send_types_list {
     map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @{$search_columns};
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} priority_id
+    FROM events_priority_send_types
+    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
   
-  $self->query("SELECT $self->{SEARCH_FIELDS} priority_id
-   FROM events_priority_send_types
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-      COLS_NAME => 1,
-      %{ $attr ? $attr : {}} }
-  );
+  $self->query($sql, undef, { COLS_NAME => 1, %{ $attr ? $attr : {}} });
   
   return $self->{list} || [];
 }
@@ -422,8 +408,7 @@ sub priority_send_types_list {
 =cut
 #**********************************************************
 sub group_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
@@ -441,16 +426,15 @@ sub group_list {
   }
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} id FROM events_group $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
   
-  $self->query(
-    "SELECT $self->{SEARCH_FIELDS} id FROM events_group $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    {
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      %{ $attr ? $attr : {} }
-    }
-  );
+  $self->query($sql, undef, {
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+    %{ $attr ? $attr : {} }
+  });
   
   return $self->{list} || [];
 }
@@ -492,13 +476,14 @@ sub admin_group_list {
     map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @{$search_columns};
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query("SELECT $self->{SEARCH_FIELDS} aid
+
+  my $sql = <<"SQL";
+   SELECT $self->{SEARCH_FIELDS} aid
    FROM events_admin_group
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-      COLS_NAME => 1,
-      %{ $attr // {}} }
-  );
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+  
+  $self->query($sql, undef, { COLS_NAME => 1, %{ $attr // {}} });
   
   return $self->{list} || [];
 }
@@ -528,13 +513,13 @@ sub admin_group_add {
   if ($attr->{REPLACE}){
     $self->query_del('events_admin_group', undef, { AID => $data->{AID} });
   }
-  
-  $self->query(
-    "INSERT INTO `events_admin_group` (`aid`, `group_id`)
-     VALUES (?, ?);",
-    undef,
-    { MULTI_QUERY => [ map { [ $data->{AID}, $_ ] } @groups ] }
-  );
+
+  my $sql = <<'SQL';
+    INSERT INTO `events_admin_group` (`aid`, `group_id`)
+    VALUES (?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => [ map { [ $data->{AID}, $_ ] } @groups ] });
   
   return 1;
 }
@@ -555,12 +540,14 @@ sub admins_for_group {
   my ($self, $group_id) = @_;
   
   return 0 if ( !$group_id );
-  
-  $self->query(
-    "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
-     FROM `events_admin_group`
-     WHERE group_id=?",
-    undef, { Bind => [ $group_id ] });
+
+  my $sql = <<'SQL';
+    SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
+    FROM `events_admin_group`
+    WHERE group_id=?
+SQL
+
+  $self->query($sql, undef, { Bind => [ $group_id ] });
   
   if ( $self->{list} && ref $self->{list} eq 'ARRAY' && scalar(@{$self->{list}}) ) {
     return wantarray ? split(',', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
@@ -585,12 +572,15 @@ sub groups_for_admin {
   my ($self, $aid) = @_;
   
   return 0 if ( !$aid );
-  
-  $self->query(
-    "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
-     FROM `events_admin_group`
-     WHERE aid=?",
-    undef, { Bind => [ $aid ] });
+
+  my $sql = <<'SQL';
+    SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
+    FROM `events_admin_group`
+    WHERE aid=?
+SQL
+
+
+  $self->query($sql, undef, { Bind => [ $aid ] });
   
   if ( $self->{list} && ref $self->{list} eq 'ARRAY' && scalar(@{$self->{list}}) ) {
     return wantarray ? split(',', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
@@ -615,16 +605,17 @@ sub admins_subscribed_to_module_list {
   my ($self, $module) = @_;
   
   return 0 unless $module;
-  
-  $self->query("SELECT GROUP_CONCAT(DISTINCT `aid` SEPARATOR ', ')
+
+  my $sql = <<'SQL';
+    SELECT GROUP_CONCAT(DISTINCT `aid` SEPARATOR ', ')
     FROM `events_group` `eg` LEFT JOIN `events_admin_group` `eag` ON (`eg`.`id` = `eag`.`group_id`)
-    WHERE eg.modules LIKE ?;",
-    undef,
-    { Bind => [ "%$module%" ] }
-  );
+    WHERE eg.modules LIKE ?;
+SQL
+
+  $self->query($sql, undef, { Bind => [ "%$module%" ] });
   
   if ( $self->{list} && ref $self->{list} eq 'ARRAY' && scalar(@{$self->{list}}) ) {
-    return wantarray ? split(', ', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
+    return wantarray ? split(',\s+', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
   }
   
   return 0;
@@ -671,8 +662,7 @@ sub get_group_for_module {
 =cut
 #**********************************************************
 sub log_rotate{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @rq = ();
 
@@ -692,7 +682,6 @@ sub log_rotate{
 
   return $self;
 }
-
 
 sub DESTROY{};
 

@@ -34,7 +34,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = int(rand(10000)) + 100000;
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $secret = $Payment_plugin->{conf}->{PAYSYS_UPAY_SECRET} || '';
 my $checksum_pay = Digest::MD5::md5_hex($payment_id . $secret . $payment_sum . $user_id);

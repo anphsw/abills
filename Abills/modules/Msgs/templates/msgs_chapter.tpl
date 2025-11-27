@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data'>
-  <input type='hidden' name='index' value='$index'/>
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
   <div class='card card-outline card-form card-primary'>

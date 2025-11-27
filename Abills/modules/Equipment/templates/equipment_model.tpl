@@ -10,8 +10,8 @@
 
 <FORM action='%SELF_URL%' METHOD='POST' class='form-horizontal' id='EQUIPMENT_MODEL_INFO_FORM'>
   <input type='hidden' name='index' value='%index%'>
-  <input type='hidden' name='ID' value='$FORM{chg}'>
-  <input type='hidden' name='chg' value='$FORM{chg}'>
+  <input type='hidden' name='ID' value='%chg%'>
+  <input type='hidden' name='chg' value='%chg%'>
   <input type='hidden' name='HAS_EXTRA_PORTS' id='HAS_EXTRA_PORTS'>
 
     <div class='card card-primary card-outline container-md'>

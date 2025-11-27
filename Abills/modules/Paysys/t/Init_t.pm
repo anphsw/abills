@@ -6,10 +6,13 @@
 
 use strict;
 use warnings FATAL => 'all';
+
+use FindBin '$Bin';
+
 use parent 'Exporter';
+use Test::More;
 
 our (
-  %FORM,
   %LIST_PARAMS,
   %functions,
   %conf,
@@ -28,8 +31,9 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/mysql/");
 }
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
+# useless for not package functions
 our (%EXPORT_TAGS);
 our @EXPORT = qw(
   test_runner
@@ -40,14 +44,22 @@ our @EXPORT_OK = qw(
 
 do "libexec/config.pl";
 
-use Abills::Base;
+our $base_dir = '/usr/abills/';
+
+if ($Bin =~ m/\/abills(\/)/) {
+  $base_dir = substr($Bin, 0, $-[1]);
+  $base_dir .= '/';
+}
+
+use Abills::Base qw/parse_arguments mk_unique_value/;
 use Abills::Init qw/$db $admin $users %conf/;
+use Abills::Validator qw(xml_compare json_compare);
 
 $conf{language} = 'english';
 do "language/$conf{language}.pl";
 do "../lng_english.pl";
 
-require Paysys::Paysys_Base;
+require Abills::Misc;
 
 our $argv = parse_arguments(\@ARGV);
 
@@ -56,24 +68,19 @@ if (defined($argv->{help})) {
   exit;
 }
 
-our $debug = $argv->{debug} || 0;
+our $debug = $argv->{debug} || $argv->{DEBUG} || 0;
 our $user_id = $argv->{user_id} || $argv->{user} || $conf{PAYSYS_TEST_USER} || 1;
 our $payment_sum = $argv->{payment_sum} || $conf{PAYSYS_TEST_SUM} || 1;
-our $payment_id = $argv->{payment_id} || mk_unique_value(6, { SYMBOLS => '0123456789' });
+our $payment_id = $argv->{payment_id} || mk_unique_value(4, { SYMBOLS => '123456789' });
 
 our $program_name = $0;
-if ($program_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
+if ($program_name =~ /\/?([a-zA-Z0-9\.\_\-]+)$/xm) {
   $program_name = $1;
-}
-
-our $html;
-if (!defined($ENV{'REQUEST_METHOD'})) {
-  $html = Abills::HTML->new({ CONF => \%conf });
 }
 
 our @methods = ();
 if ($argv->{methods}) {
-  @methods = split(/,\s?/, $argv->{methods});
+  @methods = split(/,\s?/x, $argv->{methods});
 }
 
 #*******************************************************************
@@ -106,7 +113,7 @@ if ($argv->{methods}) {
 sub test_runner {
   my ($Payment_plugin, $requests, $attr) = @_;
 
-  if ($program_name !~ /.+\.t$/) {
+  if ($program_name !~ /.+\.t$/xm) {
     return 0;
   }
 
@@ -119,74 +126,95 @@ sub test_runner {
 
     $ENV{PATH_INFO} = $request_block->{path} if ($request_block->{path});
 
-    print "REQUEST: $request_block->{name} ======================\n";
-    print(($request_block->{request} || q{}) . "\n");
-    $FORM{__BUFFER} = $request_block->{request} || q{};
+    my %request = (
+      __BUFFER => $request_block->{request} || q{},
+    );
 
+    #TODO: remove in future after migration to query_params
     if ($request_block->{get}) {
-      $request_block->{request} =~ s/\n/\&/g;
-      $request_block->{request} =~ s/\&\&/\&/g;
-      my @rows = split(/&/, $request_block->{request});
+      $request_block->{request} =~ s/\n/\&/xg;
+      $request_block->{request} =~ s/\&\&/\&/xg;
+      my @rows = split(/&/x, $request_block->{request});
       foreach my $pairs (sort @rows) {
-        my ($key, undef, $value)=split(/(=|\s+=>\s?)(?!\s|$)/, $pairs);
+        my ($key, undef, $value)=split(/(=|\s+=>\s?)(?!\s|$)/xm, $pairs);
         next if (! $key);
-        $key =~ s/^\s+|\s+$//g;
-        $FORM{$key}=$value;
+        $key =~ s/^\s+|\s+$//xg;
+        $request{$key}=$value;
       }
+    }
+    elsif ($request_block->{query_params}) {
+      $request{__BUFFER} = '';
+      foreach my $key (keys %{$request_block->{request}}) {
+        $request{$key} = $request_block->{request}{$key}{val};
+        $request{__BUFFER} .= "$key=$request_block->{request}{$key}{val}\n"
+      }
+    }
+
+    if ($debug > 1) {
+      print "REQUEST: $request_block->{name} ======================\n";
+    }
+
+    if ($debug > 2) {
+      print(($request{__BUFFER} || q{}) . "\n");
     }
 
     if ($request_block->{headers}) {
       foreach my $header (@{$request_block->{headers}}) {
         my ($name, $value) = split(':', $header);
-        $name =~ s/\-/_/g;
-        $value =~ s/^\s+//;
+        $name =~ s/\-/_/xg;
+        $value =~ s/^\s+//x;
 
         $ENV{'HTTP_' . uc($name)} = $value;
       }
     }
 
-    $Payment_plugin->proccess(\%FORM);
+    $Payment_plugin->proccess(\%request);
 
-    print "\nRESPONSE GET:=====================\n";
-    print ($Payment_plugin->{RESULT} || q{});
     if ($debug > 1) {
-      print "\nRESPONSE REQUIRED:======================\n";
+      print "RESPONSE GET:=====================\n";
+    }
+
+    if ($debug > 2) {
+      print($Payment_plugin->{RESULT} || q{});
+    }
+
+    if ($debug > 3) {
+      print "RESPONSE REQUIRED:======================\n";
       print $request_block->{result} . "\n";
     }
 
     if ($attr->{VALIDATE}) {
       my $validate_function = $attr->{VALIDATE};
       if (defined(&$validate_function)) {
-        my $validatin = &{ \&$validate_function }($Payment_plugin->{RESULT}, $request_block->{result});
+        my $schema = '';
+        if ($request_block->{result_schema}) {
+          $schema = "$base_dir/Abills/modules/Paysys/t/$request_block->{result_schema}";
+        }
 
-        print "\n======================\n";
-        print "\nVALIDATION: $validatin";
+        my $validation = &{ \&$validate_function }({
+          RESULT => $Payment_plugin->{RESULT},
+          SCHEMA => $schema,
+          DEBUG  => $debug
+        });
+
+        if ($debug)  {
+          print "======================\n";
+          print "VALIDATION: $validation\n";
+        }
+
+        ok($validation == 1, "$request_block->{name}");
       }
       else {
         print "\nERROR: '$validate_function' validate function not exists\n";
       }
     }
 
-    print "\n======================\n\n\n";
+    if ($debug > 2) {
+      print "======================\n\n\n";
+    }
   }
 
-  return 1;
-}
-
-#*******************************************************************
-=head2 xml_compare($result, $compare) - Compare function
-
-  Arguments:
-    $result   - Request result
-    $compare  - Compare result
-
-  Return:
-    TRUE or FALSE
-
-=cut
-#*******************************************************************
-sub xml_compare {
-  my($result, $compare)=@_;
+  done_testing( $#{ $requests } + 1 );
 
   return 1;
 }

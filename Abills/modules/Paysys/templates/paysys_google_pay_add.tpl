@@ -163,7 +163,6 @@
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
-              USERSID: window['SID'],
             },
             body: JSON.stringify(request),
           },

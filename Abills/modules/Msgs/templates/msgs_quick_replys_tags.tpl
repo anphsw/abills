@@ -1,4 +1,4 @@
-<form id='msgs_tags' method='POST' action='$SELF_URL'>
+<form id='msgs_tags' method='POST' action='%SELF_URL%'>
   <input type='hidden' name='index' value='%INDEX%'/>
   <input type='hidden' name='chg' value='%MSGS_ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>

@@ -117,7 +117,6 @@
     /// TODO: delete it when will be deleted select of tooltip statuses
     jQuery(document).ready(function() {
       document.getElementById('user_form').addEventListener('submit', function (e) {
-        e.preventDefault();
         const checkboxes = document.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
           if (checkbox.name === 'DISABLE' && !checkbox.checked) {
@@ -183,7 +182,7 @@
   <input type=hidden name='create_company_id' id='create_company_id' value='%company%'>
   <input type=hidden name='company_name' id='company_name' value='%company_name%'>
 
-  <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
+  <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{USER_ACCOUNT}_</h4>
       <div class='card-tools float-right'>

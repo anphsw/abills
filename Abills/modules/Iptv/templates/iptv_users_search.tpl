@@ -115,7 +115,7 @@
   function autoReload() {
     let services = document.getElementById('SERVICE_ID');
     let result = services.value;
-    jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + result, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + result, function (data) {
       tp_select.textContent = '';
       tp_select.value = '';
       tp_select.innerHTML = data;

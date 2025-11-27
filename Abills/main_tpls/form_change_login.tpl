@@ -1,5 +1,5 @@
-<form method='POST' action='$SELF_URL' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form method='POST' action='%SELF_URL%' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='edit_login' value='%edit_login%'>
   <input type='hidden' name='UID' value='%UID%'>
   <div class='card card-primary card-outline'>
@@ -50,7 +50,7 @@
       jQuery('#LOGIN').removeClass('is-valid').addClass('is-invalid');
       return 1;
     }
-    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
       if (data === 'success') {
         jQuery('#LOGIN').removeClass('is-invalid').addClass('is-valid');
       } else {

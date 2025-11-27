@@ -140,7 +140,7 @@ sub list {
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS=> [ $skip_fields ]
+      # SKIP_USERS_FIELDS=> [ $skip_fields ]
     }
   );
 

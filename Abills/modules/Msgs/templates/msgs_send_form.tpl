@@ -76,7 +76,7 @@
       <input type='hidden' name='ID' value='%ID%'/>
       <input type='hidden' name='PARENT' value='%PARENT%'/>
       <input type='hidden' name='PAR' value='%PAR%'/>
-      <input type='hidden' name='step' value='$FORM{step}'/>
+      <input type='hidden' name='step' value='%step%'/>
       <input type='hidden' name='check_repeat' value='$FORM{CHECK_REPEAT}'/>
 
       <div class='form-group row'>
@@ -303,6 +303,13 @@
             %SURVEY_SEL%
           </div>
         </div>
+
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='CLIENT_RESPONSIBLE'>_{MSGS_RESPONSIBLE_PERSON_CLIENT_SIDE}_:</label>
+          <div class='col-md-9'>
+            <input id='CLIENT_RESPONSIBLE' name='CLIENT_RESPONSIBLE' class='form-control' type='text'>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -378,7 +385,7 @@
       var select_value = this.value;
       if (select_value) {
         jQuery.ajax({
-          url: '$SELF_URL?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' + select_value + '',
+          url: '%SELF_URL%?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' + select_value + '',
           success: function (result) {
             if (result) {
               jQuery('textarea#MESSAGE').val(result);
@@ -399,7 +406,7 @@
 
         let link = 'header=2&get_index=msgs_repeat_ticket&UID=' + uid + '&LOCATION_ID=' + location_id;
         jQuery.ajaxSetup({async: false});
-        jQuery.get('$SELF_URL', link, function (result) {
+        jQuery.get('%SELF_URL%', link, function (result) {
           results = result.split(':');
         });
 

@@ -1,5 +1,5 @@
 <form class='form-horizontal' id='voip_recalculate'>
-  <input type=hidden name='index' value=$index>
+  <input type=hidden name='index' value=%index%>
   <input type=hidden name='UID' value='%UID%'>
   <div class='card card-primary card-outline box-form'>
     <div class='card-header with-border'>

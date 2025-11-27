@@ -8,7 +8,7 @@ package Viber::db::Viber;
 
 use strict;
 use parent 'dbcore';
-my $MODULE = 'Viber';
+
 
 #**********************************************************
 =head2 new($db, $admin, \%conf)
@@ -16,9 +16,9 @@ my $MODULE = 'Viber';
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf) = @_;
+  my ($class, $db, $admin, $conf) = @_;
 
+  my $MODULE = 'Viber';
   $admin->{MODULE} = $MODULE;
   
   my $self = {
@@ -38,8 +38,7 @@ sub new {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($sender_id) = @_;
+  my ($self, $sender_id) = @_;
 
   $self->query("SELECT * FROM viber_tmp WHERE sender_id = ?;",
     undef,
@@ -57,8 +56,7 @@ sub info {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('viber_tmp', $attr);
 
@@ -71,8 +69,7 @@ sub add {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -89,8 +86,7 @@ sub change {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($sender_id) = @_;
+  my ($self, $sender_id) = @_;
 
   $self->query_del("viber_tmp", {}, { SENDER_ID => $sender_id });
 
@@ -98,11 +94,11 @@ sub del {
 }
 
 #**********************************************************
-=head2 truncate()
+=head2 clear_tables()
 
 =cut
 #**********************************************************
-sub truncate {
+sub clear_tables {
   my $self = shift;
 
   $self->query_del("viber_tmp", {}, {}, {CLEAR_TABLE => 1});

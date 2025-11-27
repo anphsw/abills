@@ -1,5 +1,5 @@
 <form class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='$FORM{chg}'/>
 
   <div class="card card-primary card-outline container-md">

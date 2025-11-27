@@ -18,7 +18,7 @@ our (
 );
 
 our Abills::HTML $html;
-my $Receipt = Extreceipt->new($db, $admin, \%conf);
+
 
 #**********************************************************
 =head2 extreceipts_list()
@@ -28,7 +28,10 @@ my $Receipt = Extreceipt->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub extreceipts_list {
-  my $list = $Receipt->list({
+
+  my $Receipt = Extreceipt->new($db, $admin, \%conf);
+
+  my $receipts_list = $Receipt->list({
     UID  => $user->{UID},
   });
 
@@ -39,11 +42,11 @@ sub extreceipts_list {
     width      => '100%',
     caption    => $lang{CHECKS},
     title      => [ $lang{DATE}, $lang{CHECK}, "$lang{CHECK} $lang{RETURN}" ],
-    ID         => 'Extreceipts',
+    ID         => 'EXTRECEIPTS',
     DATA_TABLE => { lengthMenu => [ [ 50, 100, -1 ], [ 50, 100, $lang{ALL} ] ] },
   });
 
-  foreach my $check (@{$list}) {
+  foreach my $check (@{$receipts_list}) {
     next if (!$check->{api_id});
     my @columns = ();
     push @columns, $check->{DATE};

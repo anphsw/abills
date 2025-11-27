@@ -10,7 +10,7 @@
   </button>
 </div>
 
-<form action='$SELF_URL' class='form-horizontal' METHOD='post' enctype='multipart/form-data'
+<form action='%SELF_URL%' class='form-horizontal' METHOD='post' enctype='multipart/form-data'
       name='info_attachment'>
   <input type='hidden' name='index' value='%INDEX%'/>
   <input type='hidden' name='UID' value='%UID%'/>

@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post' class='form form-horizontal'>
-  <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' method='post' class='form form-horizontal'>
+  <input type=hidden name=index value=%index%>
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'>
       <h4 class="card-title table-caption">_{FILTERS}_</h4>

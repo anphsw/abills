@@ -14,7 +14,6 @@ require Control::Service_control;
 
 our (
   %lang,
-  $Tv_service,
   $db,
   $admin,
   @service_status,
@@ -28,6 +27,9 @@ my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 $users = Users->new($db, $admin, \%conf) if !$users;
+
+use Iptv::Services;
+my $Iptv_services = Iptv::Services->new($db, $admin, \%conf, { lang => \%lang, ENABLE_FEES_MESSAGES => 1, USER_PORTAL => 1 });
 
 #**********************************************************
 =head2 iptv_subcribe_add() - IPTV user interface
@@ -69,12 +71,6 @@ sub iptv_subcribe_add {
 
   my @skip_tp_changes = $conf{IPTV_SKIP_CHG_TPS} ? split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS}) : ();
 
-  $Tv_service = init_iptv_service($db, $admin, \%conf, {
-    SERVICE_ID => $FORM{SERVICE_ID} || $Iptv->{SERVICE_ID},
-    HTML       => $html,
-    LANG       => \%lang
-  });
-
   my $tps_table = $html->table({
     width       => '100%',
     title_plain => [ '', $lang{NAME}, $lang{PRICE} ],
@@ -102,7 +98,10 @@ sub iptv_subcribe_add {
       });
     }
 
-    $tp->{COMMENTS} = $Tv_service->service_info($tp)  if $Tv_service && $Tv_service->can('service_info');
+    my $service_infos = $Iptv_services->service_info({ TP_ID => $tp->{tp_id} });
+    if ($service_infos && ref $service_infos ne 'HASH') {
+      $tp->{COMMENTS} = $service_infos;
+    }
 
     my $tp_name = $html->tpl_show(_include('iptv_tp_info_panel', 'Iptv'), $tp, { OUTPUT2RETURN => 1 });
     $tps_table->addrow($tp->{RADIO_BUTTON}, $tp_name, $tp->{MONTH_FEE} || $tp->{DAY_FEE});
@@ -143,7 +142,6 @@ sub iptv_user_info {
     $LIST_PARAMS{SKIP_GID} = 1;
   }
 
-  #my $Shedule = Shedule->new($db, $admin, \%conf);
   my %PORTAL_ACTIONS = ();
   my $service_list = $Iptv->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
 
@@ -158,92 +156,19 @@ sub iptv_user_info {
 
   if ($FORM{add_form}) {
     if ($FORM{add}) {
-      $Iptv->{db}{db}->{AutoCommit} = 0;
-      $Iptv->{db}->{TRANSACTION} = 1;
+      my $result = $Iptv_services->user_add({ UID => $user->{UID}, TP_ID => $FORM{TP_ID} });
+      $result->{message} = $result->{errmsg} if $result->{errmsg};
+      if (!_error_show($result)) {
+        $html->message('info', $lang{ADDED});
 
-      my $service_info = $Iptv->services_info($FORM{SERVICE_ID});
-      $Iptv->user_list({
-        SERVICE_ID => $FORM{SERVICE_ID},
-        UID        => $user->{UID},
-        COLS_NAME  => 1,
-        PAGE_ROWS  => 99999,
-      });
-
-      if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= ($Iptv->{TOTAL} || 0)) {
-        $html->message("err", $lang{ERROR}, "$lang{IPTV_MAX_SUBSCRIPTIONS_REACHED}: $service_info->{SUBSCRIBE_COUNT}");
-        return 0;
-      }
-
-      if ($conf{IPTV_USER_UNIQUE_TP}) {
-        $Iptv->user_list({
-          SERVICE_ID => $FORM{SERVICE_ID},
-          UID        => $user->{UID},
-          TP_ID      => $FORM{TP_ID},
-          COLS_NAME  => 1,
-        });
-
-        if ($Iptv->{TOTAL}) {
-          $html->message("err", $lang{ERROR}, $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED});
-          return 0;
-        }
-      }
-
-      $Tariffs->info($FORM{TP_ID});
-
-      $Iptv->user_add({
-        %FORM,
-        UID           => $user->{UID},
-        IPTV_ACTIVATE => !$Tariffs->{PERIOD_ALIGNMENT} && $DATE ? $DATE : '0000-00-00'
-      });
-      if (!$Iptv->{errno}) {
-        # $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
-        $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
-        $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} ||= 0;
-
-        service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV}, MODULE => 'Iptv' }) if (!$FORM{STATUS});
-        $Iptv->{ID} = $Iptv->{INSERT_ID};
-
-        $Iptv->user_info($Iptv->{ID});
-
-        $Iptv->{SERVICE_ID} //= $FORM{SERVICE_ID};
-        $Tv_service = init_iptv_service($db, $admin, \%conf, {
-          SERVICE_ID => $Iptv->{SERVICE_ID},
-          HTML       => $html,
-          LANG       => \%lang
-        });
-
-        my DBI $db_ = $Iptv->{db}{db};
-        if (!_error_show($Iptv) && $Tv_service) {
-
-          my $result = iptv_account_action({
-            %FORM,
-            ID         => $FORM{ID} || $Iptv->{ID},
-            SCREEN_ID  => undef,
-            USER_INFO  => $user,
-            SERVICE_ID => $Iptv->{SERVICE_ID}
-          });
-
-          if ($result) {
-            _error_show($Iptv, {
-              ID          => 835,
-              MESSAGE     => $Iptv->{errstr},
-              MODULE_NAME => $Tv_service->{SERVICE_NAME}
-            });
-
-            $db_->rollback();
-            $Iptv->{ID} = undef;
-            return 1;
+        if ($result->{FEES_MESSAGES} && ref $result->{FEES_MESSAGES} eq 'ARRAY') {
+          foreach my $message (@{$result->{FEES_MESSAGES}}) {
+            $html->message('info', $lang{INFO}, $message);
           }
-          delete($Iptv->{db}->{TRANSACTION});
-          $db_->commit();
-          $db_->{AutoCommit} = 1;
         }
-        else {
-          delete($Iptv->{db}->{TRANSACTION});
-          $db_->commit();
-          $db_->{AutoCommit} = 1;
-        }
-        $html->message('info', $lang{INFO}, "$lang{ADDED} ID: $Iptv->{ID}");
+      }
+      else {
+        return 0;
       }
     }
     else {
@@ -358,7 +283,7 @@ sub iptv_user_service {
   my $user_service_id = $attr->{ID} || 0;
   $FORM{ID} = $user_service_id;
   my $service_status = sel_status({ HASH_RESULT => 1 });
-  my $additional_tables;
+  my $additional_tables = '';
 
   $Iptv->user_info($user_service_id, { UID => $user->{UID} });
   my $iptv_service_id = $Iptv->{SERVICE_ID} || 0;
@@ -368,34 +293,22 @@ sub iptv_user_service {
     return 1;
   }
 
-  $Tv_service = init_iptv_service($db, $admin, \%conf, {
-    SERVICE_ID => $Iptv->{SERVICE_ID},
-    HTML       => $html,
-    LANG       => \%lang
-  });
-
-  if ($FORM{additional_functions}) {
-    return iptv_additional_functions();
-  }
-  if ($FORM{activ_code}) {
-    iptv_activation();
-    return 2;
-  }
-  if ($FORM{watch_now}) {
-    iptv_watch();
-    return 2;
-  }
-  if ($FORM{get_status}) {
-    iptv_conax_get_status();
-    return 2;
-  }
-
   if ($Iptv->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 801 });
     return 0;
   }
   elsif ($FORM{ACTIVATE}) {
-    iptv_user_activate($Iptv, { USER => $user });
+    my $result = $Iptv_services->user_activate({ ID => $FORM{chg}, UID => $user->{UID} });
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    if (!_error_show($result)) {
+      $html->message('info', $lang{CHANGED});
+
+      if ($result->{FEES_MESSAGES} && ref $result->{FEES_MESSAGES} eq 'ARRAY') {
+        foreach my $message (@{$result->{FEES_MESSAGES}}) {
+          $html->message('info', $lang{INFO}, $message);
+        }
+      }
+    }
     return 0;
   }
   elsif ($Iptv->{STATUS} && $Iptv->{STATUS} == 5) {
@@ -405,51 +318,37 @@ sub iptv_user_service {
         { class => 'btn btn-primary' }), { ID => 802 });
     return 0;
   }
-  if ($FORM{UID} && $FORM{ID} && !$FORM{change_now} && !$FORM{change_shedule}) {
-    if ($Tv_service && $Tv_service->can('get_code')) {
-      $Iptv->{ACTIVE_CODE} = $html->button($lang{ACTIVATION_CODE},
-        "qindex=$index&activ_code=1&chg=$user_service_id&header=2",
-        {
-          class         => 'btn btn-success',
-          LOAD_TO_MODAL => 1,
-        });
+
+  my $user_service_info = $Iptv_services->user_info({ %FORM, ID => $attr->{ID} });
+  _error_show($user_service_info);
+
+  foreach my $action (@{$user_service_info->{actions}}) {
+    if ($action->{type} eq 'message') {
+      $html->message($action->{level}, $lang{INFO}, $action->{message});
+    }
+    elsif ($action->{type} eq 'redirect') {
+      $html->redirect($action->{url});
+    }
+    elsif ($action->{type} eq 'template') {
+      $html->tpl_show(_include($action->{template}, 'Iptv'), { %{$Iptv}, %FORM });
     }
 
-    if ($Tv_service && $Tv_service->can('get_url')) {
-      $Iptv->{WATCH_NOW} = $html->button($lang{WATCH_NOW},
-        "qindex=$index&watch_now=1&UID=" . ($FORM{UID} || "") . "&chg=" . $user_service_id . "&MODULE=" .
-          ($FORM{MODULE} || "") . "&sid=" . ($FORM{sid} || "") . "&header=2",
-        {
-          class  => 'btn btn-success',
-          target => '_new',
-        });
+    return 2 if $FORM{IN_MODAL};
+  }
+
+  my $buttons = $user_service_info->{data}{buttons};
+  if ($buttons && %{$buttons}) {
+    my $buttons_html = '';
+
+    $FORM{chg} ||= $Iptv->{ID};
+    foreach my $button_name (sort keys %{$buttons}) {
+      my $button = $buttons->{$button_name};
+      my $url = "qindex=$index&header=2&chg=$FORM{chg}&UID=$Iptv->{UID}&$button_name=1";
+
+      $buttons_html .= $html->button($button->{title}, $url, $button);
     }
 
-    if ($Tv_service && $Tv_service->can('get_user_status')) {
-      if ($Tv_service && $Tv_service->can('get_user_status')) {
-        $Iptv->{CONAX_STATUS} = $html->button("get status",
-          "qindex=$index&get_status=1&chg=$user_service_id&header=2",
-          {
-            class         => 'btn btn-success',
-            LOAD_TO_MODAL => 1,
-          });
-      }
-    }
-    if ($Tv_service && $Tv_service->can('additional_functions') && !$attr->{additional_functions}) {
-      $attr->{FUNCTION_INDEX} = $index;
-      my $result = $Tv_service->additional_functions({ %FORM, %$attr, %$Iptv });
-      if (ref $result eq "HASH" && $result->{FIRST} && $result->{SECOND}) {
-        $Iptv->{WATCH_NOW} = $result->{FIRST};
-        $Iptv->{ACTIVE_CODE} = $result->{SECOND};
-      }
-      elsif (ref $result eq "HASH" && $result->{KEY} && $result->{VALUE}) {
-        $Iptv->{$result->{KEY}} = $result->{VALUE};
-      }
-    }
-
-    if ($Tv_service && $Tv_service->can('additional_info')) {
-      $additional_tables = iptv_portal_additional_info();
-    }
+    $Iptv->{EXTRA_BUTTONS} = $html->element('div', $buttons_html, { class => 'btn-group', OUTPUT2RETURN => 1 });
   }
 
   if ($conf{IPTV_USER_CHG_TP} && !$Iptv->{STATUS} && $PORTAL_ACTIONS->{$iptv_service_id} == 2) {
@@ -505,7 +404,6 @@ sub iptv_user_service {
     });
   }
 
-  _iptv_portal_get_service_info_btn();
   iptv_m3u({ SERVICE_INFO => $Iptv }) if $conf{IPTV_CLIENT_M3U};
 
   _iptv_portal_extra_fields();
@@ -526,7 +424,31 @@ sub iptv_user_service {
   iptv_user_channels({ SERVICE_INFO => $Iptv, SHOW_ONLY => (!$conf{IPTV_USER_CHG_CHANNELS}) ? 1 :
     undef, CHANNEL_DISABLE => $user_portal_info });
 
-  map $_->show(), @{$additional_tables} if ($additional_tables && ref $additional_tables eq 'ARRAY');
+  my $additional_info = $user_service_info->{data}{additional_info};
+  if ($additional_info->{tables}) {
+    foreach my $table_info (@{$additional_info->{tables}}) {
+      for my $row_idx (0 .. $#{$table_info->{buttons} || []}) {
+        my $row_buttons = $table_info->{buttons}[$row_idx] || [];
+
+        for my $btn_idx (0 .. $#{$row_buttons}) {
+          my $button = $row_buttons->[$btn_idx];
+          my $button_key = "zbutton$btn_idx";
+
+          $table_info->{data}[$row_idx]{$button_key} = $html->button($button->{title}, $button->{url}, $button->{params});
+          $table_info->{titles}{$button_key} = '-';
+        }
+      }
+
+      result_former({
+        TABLE           => $table_info->{table},
+        EXT_TITLES      => $table_info->{titles},
+        DATAHASH        => $table_info->{data},
+        SKIP_TOTAL_FORM => 1,
+        TOTAL           => 1,
+        OUTPUT2RETURN   => 1
+      });
+    }
+  }
 
   return 1;
 }
@@ -602,7 +524,6 @@ sub iptv_user_chg_tp {
     COLS_UPPER   => 1,
     SORT         => 's.y, s.m, s.d'
   });
-
 
   if (_iptv_portal_show_exist_shedule($shedules)) {
     $Tariffs->{UID} = $attr->{SERVICE_INFO}->{UID};
@@ -683,11 +604,12 @@ sub iptv_m3u {
   if ($FORM{m3u_download}) {
 
     my $m3u = '#EXTM3U';
-    if ($Tv_service && $Tv_service->can('get_playlist_m3u')) {
-      $m3u = $Tv_service->get_playlist_m3u({ %FORM });
+    my $can_get_m3u_playlist = $Iptv_services->service_m3u_playlist({ ID => $Iptv->{ID}, CHECK_METHOD_AVAILABLE => 1 });
+    if ($can_get_m3u_playlist) {
+      $m3u = $Iptv_services->service_m3u_playlist({ ID => $Iptv->{ID} });
     }
 
-    if (!$Iptv->{STATUS} && (!$Tv_service || !$Tv_service->can('get_playlist_m3u'))) {
+    if (!$Iptv->{STATUS} && !$can_get_m3u_playlist) {
 
       my $list = $Tariffs->ti_list({
         TP_ID     => $tp_id,
@@ -738,61 +660,6 @@ sub iptv_m3u {
     "index=$index&chg=$Iptv->{ID}&UID=$user->{UID}&m3u_download=tv_channels.m3u", { class => 'btn btn-primary' });
 
   return 1;
-}
-
-#**********************************************************
-=head2 iptv_watch_now($attr) - Activation code
-
-=cut
-#**********************************************************
-sub iptv_watch {
-
-  if ($Tv_service && $Tv_service->can('get_url')) {
-    my $result = $Tv_service->get_url({ %FORM, %LIST_PARAMS, INDEX => $index, DEVICE => 1, });
-    if ($result->{result}{web_url}) {
-      $html->redirect($result->{result}{web_url});
-    }
-    else {
-      print "Error";
-    }
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 iptv_activation_code($attr) - Activation code
-
-=cut
-#**********************************************************
-sub iptv_activation {
-
-  if ($Tv_service && $Tv_service->can('get_code')) {
-    $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
-    $Iptv->user_info($FORM{chg});
-    $Tv_service->get_code({ %$user, %{$Iptv}, INDEX => $index, DEVICE => 1, });
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 iptv_portal_additional_info($attr)
-
-=cut
-#**********************************************************
-sub iptv_portal_additional_info {
-
-  return [] if !$FORM{chg} || !$FORM{UID} || !$FORM{sid};;
-
-  $Iptv->user_info($FORM{chg});
-  $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
-  my $url = "index=$index&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}&sid=$FORM{sid}";
-  my $result = $Tv_service->additional_info({ %{$users}, %FORM, %LIST_PARAMS, %{$Iptv}, URL => $url });
-
-  return $result->{TABLES} if (ref $result eq "HASH" && $result->{TABLES} && ref $result->{TABLES} eq 'ARRAY');
-
-  return [];
 }
 
 #**********************************************************
@@ -861,12 +728,14 @@ sub _iptv_portal_get_service_info_btn {
   my $function_index = get_function_index('iptv_portal_service_info');
 
   return 0 if !$function_index;
-  
-  if ($FORM{chg} && $Tv_service && $Tv_service->can('service_info')) {
+
+  my $can_service_info = $Iptv_services->service_info({ TP_ID => $Iptv->{TP_ID} || $tp_info->{tp_id}, CHECK_METHOD_AVAILABLE => 1 });
+
+  if ($FORM{chg} && $can_service_info && ref $can_service_info ne 'HASH') {
     $Iptv->user_info($FORM{chg});
     return 1 if !$Iptv->{TOTAL};
 
-    my $link = "qindex=$function_index&show_service_info=$Iptv->{SERVICE_ID}&tp_id=$Iptv->{TP_ID}&header=2";
+    my $link = "qindex=$function_index&SHOW_SERVICE_INFO=1&TP_ID=$Iptv->{TP_ID}&header=2";
 
     $Iptv->{ADDITIONAL_BUTTON} .= ' ' . $html->button($lang{CHANNELS}, $link, {
       class         => 'btn btn-success',
@@ -877,21 +746,17 @@ sub _iptv_portal_get_service_info_btn {
     return 1;
   }
 
-  return 1 unless $tp_info;
+  return 1 if !$tp_info;
 
   my $tp_name = $html->b($tp_info->{name} || q{}) . $html->br() . convert($tp_info->{comments} || q{}, { text2html => 1 });
 
-  return $tp_name unless $tp_info->{service_id};
+  return $tp_name if !$tp_info->{service_id};
 
-  $Tv_service = init_iptv_service($db, $admin, \%conf, {
-    SERVICE_ID => $tp_info->{service_id},
-    HTML       => $html,
-    LANG       => \%lang
-  });
+  if (!$can_service_info || ref $can_service_info eq 'HASH') {
+    return $tp_name;
+  }
 
-  return $tp_name unless ($Tv_service && $Tv_service->can('service_info'));
-  
-  return $html->button($tp_name, "qindex=$function_index&show_service_info=$tp_info->{service_id}&tp_id=$tp_info->{tp_id}&header=2", {
+  return $html->button($tp_name, "qindex=$function_index&SHOW_SERVICE_INFO=1&TP_ID=$tp_info->{tp_id}&header=2", {
     LOAD_TO_MODAL => 1,
     ex_params     => "style='cursor: pointer'",
   });
@@ -909,19 +774,11 @@ sub _iptv_portal_get_service_info_btn {
 sub iptv_portal_service_info {
   my ($attr) = @_;
 
-  return 0 unless ($FORM{show_service_info} && $FORM{tp_id});
+  if (!$FORM{SHOW_SERVICE_INFO} || !$FORM{TP_ID}) {
+    return 0;
+  }
 
-  $Tv_service = init_iptv_service($db, $admin, \%conf, {
-    SERVICE_ID => $FORM{show_service_info},
-    HTML       => $html,
-    LANG       => \%lang
-  });
-  # $Tv_service ||= tv_load_service('', { SERVICE_ID => $FORM{show_service_info} });
-
-  return 0 unless ($Tv_service && $Tv_service->can('service_info'));
-
-  $Tariffs->info(undef, { TP_ID => $FORM{tp_id} });
-  my $service_infos = $Tv_service->service_info($Tariffs);
+  my $service_infos = $Iptv_services->service_info(\%FORM);
 
   $html->tpl_show(_include('iptv_channels_list', 'Iptv'), { CHANNELS => $service_infos });
 
@@ -963,41 +820,21 @@ sub _iptv_portal_extra_fields {
     }, { OUTPUT2RETURN => 1 });
   }
 
-  _iptv_portal_service_extra_fields(\@extra_fields);
+  my $service_extra_fields = $Iptv_services->user_service_extra_fields({ ID => $Iptv->{ID} });
+  if ($service_extra_fields && ref $service_extra_fields eq 'ARRAY') {
+    foreach my $item (@{$service_extra_fields}) {
+      push @extra_fields, $html->tpl_show(templates('form_row_client'), {
+        ID        => $item->{id} || '',
+        NAME      => _translate($item->{name}),
+        VALUE     => $item->{value},
+        EXT_CLASS => 'text-bold',
+        TITLE     => $item->{title} || ''
+      }, { OUTPUT2RETURN => 1 });
+    }
+  }
 
   $Iptv->{IPTV_EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
 
-  return 0;
-}
-
-#**********************************************************
-=head2 _iptv_portal_service_extra_fields($attr)
-
-  Arguments:
-
-  Return:
-
-=cut
-#**********************************************************
-sub _iptv_portal_service_extra_fields {
-  my ($extra_fields) = @_;
-
-  return if !$Tv_service || !$Tv_service->can('get_iptv_portal_extra_fields');
-  
-  my $service_extra_fields = $Tv_service->get_iptv_portal_extra_fields($Iptv);
-
-  return if ref $service_extra_fields ne 'ARRAY';
-
-  foreach my $item (@{$service_extra_fields}) {
-    push @{$extra_fields}, $html->tpl_show(templates('form_row_client'), {
-      ID        => $item->{id} || '',
-      NAME      => _translate($item->{name}),
-      VALUE     => $item->{value},
-      EXT_CLASS => 'text-bold',
-      TITLE     => $item->{title} || ''
-    }, { OUTPUT2RETURN => 1 });
-  }
-  
   return 0;
 }
 

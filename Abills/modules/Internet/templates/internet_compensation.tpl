@@ -1,8 +1,8 @@
 <div class='d-print-none'>
 
-  <form action='$SELF_URL' method='POST' name='compensation' class='form-horizontal'>
+  <form action='%SELF_URL%' method='POST' name='compensation' class='form-horizontal'>
     <div class='card card-primary card-outline container-md col-md-6'>
-      <input type=hidden name='index' value='$index'>
+      <input type=hidden name='index' value='%index%'>
       <input type=hidden name='UID' value='$FORM{UID}'>
       <div class='card-header with-border'>
         <h4 class='card-title'>_{COMPENSATION}_</h4>

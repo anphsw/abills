@@ -669,12 +669,12 @@ sub add_friend {
 
   my $referral_link = $SELF_URL;
   my $script_name = $ENV{SCRIPT_NAME} || q{};
-  $referral_link =~ s/$script_name/\/registration.cgi?REFERRER=$user->{UID}/;
+  $referral_link =~ s/$script_name/\/registration.cgi?module=Referral&REFERRER=$user->{UID}/;
 
   $Referral->get_default_tp();
 
   my $address_sel = form_address({
-    SHOW => 0,
+    # SHOW => 0,
   });
 
   $html->tpl_show(_include('referral_add_form', 'Referral'), {
@@ -1348,5 +1348,27 @@ sub referral_link_registered {
 
   return 1;
 }
+
+#**********************************************************
+=head2 referral_registration($attr)
+
+=cut
+#**********************************************************
+sub referral_registration {
+  my ($attr) = @_;
+  my $action_res = {};
+
+  if ($FORM{add}) {
+    $FORM{LOCATION_ID} = $FORM{BUILD_ID} if ($FORM{BUILD_ID});
+    $action_res = $Referral_users->referral_user_manage({ %FORM });
+    $html->message('info', $lang{ADDED}, "ID=$action_res->{referral_id}") if ($action_res->{referral_id});
+  }
+
+  $Referral->{ADDRESS_SEL} = form_address({ SHOW => 1 });
+  $html->tpl_show(_include('referral_registration', 'Referral'), { %{$Referral}, %FORM, %{$attr} }, { ID => 'REFERRAL_REGISTRATION' });
+
+  return 1;
+}
+
 
 1;

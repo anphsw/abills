@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post' enctype='multipart/form-data'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' method='post' enctype='multipart/form-data'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='add_delivery' value='%ID%'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='UPLOAD_FILES' value=0>
@@ -47,14 +47,14 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DELIVERY_SEND_DATE'>_{SEND_DATE}_:</label>
+        <label class='col-md-3 control-label' for='DELIVERY_SEND_DATE'>_{DATE}_:</label>
         <div class='col-md-9'>
           %DATE_PIKER%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='DELIVERY_SEND_TIME'>_{TIME}_</label>
+        <label class='col-md-3 control-label' for='DELIVERY_SEND_TIME'>_{TIME}_:</label>
         <div class='col-md-9'>
           %TIME_PIKER%
         </div>

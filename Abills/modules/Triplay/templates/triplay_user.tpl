@@ -2,7 +2,7 @@
 
     <input type='hidden' name='index' value=%index%>
     <input type='hidden' name='UID' value=%UID%>
-    <input type='hidden' name='step' value='$FORM{step}'>
+    <input type='hidden' name='step' value='%step%'>
 
     <div class='card card-primary card-outline card-big-form for_sort container-md'>
         <div class='card-header with-border'>

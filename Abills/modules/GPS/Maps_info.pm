@@ -38,7 +38,11 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  my $self = { db => $db, admin => $admin, conf => $CONF };
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   bless($self, $class);
 
@@ -84,8 +88,7 @@ sub maps_layers {
 
 #**********************************************************
 sub maps_gps_show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @export_arr = ();
 
@@ -95,22 +98,29 @@ sub maps_gps_show {
   my $tracked_admins = $Gps->tracked_admins_list($attr->{AID} || '');
   foreach my $admin_ (@{$tracked_admins}) {
     my $route = $Gps->tracked_admin_route_info($admin_->{aid}, undef, {
-      SHOW_ALL_COLUMNS => 1,
-      FROM_DATE        => $date_from,
-      TO_DATE          => $date_to,
-      PAGE_ROWS        => !$date_from ? 1 : 99999,
-      DESC             => !$date_from ? 'DESC' : '',
+      GPS_DATE  => '_SHOW',
+      GPS_TIME  => '_SHOW',
+      BATTERY   => '_SHOW',
+      SPEED     => '_SHOW',
+      NAME      => '_SHOW',
+      STATUS    => '_SHOW',
+      COORD_Y   => '_SHOW',
+      COORD_X   => '_SHOW',
+      FROM_DATE => $date_from,
+      TO_DATE   => $date_to,
+      PAGE_ROWS => !$date_from ? 1 : 99999,
+      DESC      => !$date_from ? 'DESC' : '',
     });
 
     next if ($route == 0);
 
     my $result = $Gps->admins_color_info({ AID => $admin_->{aid} });
-    my $color = $Gps->{TOTAL} > 0 ? $result->{COLOR} : '#49bcff';
+    my $color = ($Gps->{TOTAL} > 0) ? $result->{COLOR} : '#49bcff';
 
     my %coords_by_date = ();
 
-    my @coords = ();
-    my @points_info = ();
+    # my @coords = ();
+    # my @points_info = ();
     foreach my $point (@{$route}) {
       push @{$coords_by_date{$point->{gps_date}}{coords}}, [ $point->{coord_y}, $point->{coord_x} ];
 
@@ -123,8 +133,9 @@ sub maps_gps_show {
         _gps_info_item('fa fa-info-circle', $lang->{STATUS}, $point->{status}) .
         "</ul>" .
         "</div>";
-      my $info = "<div class='panel-group'>$tb</div>";
-      $info .= "<button class='btn btn-default btn-sm mt-1 route-$admin_->{aid}'><i class='fa fa-road'></i> $lang->{ROUTE}</button>";
+
+      my $info = "<div class='panel-group'>$tb</div>"
+        . "<button class='btn btn-default btn-sm mt-1 route-$admin_->{aid}'><i class='fa fa-road'></i> $lang->{ROUTE}</button>";
 
       push @{$coords_by_date{$point->{gps_date}}{info}}, $info;
       push @{$coords_by_date{$point->{gps_date}}{speed}}, $point->{speed};
@@ -160,23 +171,35 @@ sub maps_gps_show {
 }
 
 #**********************************************************
-=head2 _gps_info_item()
+=head2 _gps_info_item($icon, $key, $value)
+
+  Arguments:
+    $icon
+    $key
+    $value
+
+  Results:
+    $info_item
 
 =cut
 #**********************************************************
 sub _gps_info_item {
   my ($icon, $key, $value) = @_;
 
-  return qq{
-    <li class='list-group-item p-1 d-flex'>
+  return <<"[TEXT]";
+  <li class='list-group-item p-1 d-flex'>
       <i class='$icon p-2' style='font-size: 16px;min-width: 36px;'></i>
       <div><div><p class='m-0'><strong>$value</strong></p></div><div><p class='m-0 small text-muted'>$key</p></div></div>
     </li>
-  }
+[TEXT]
 }
 
 #**********************************************************
-=head2 _gps_info_icon()
+=head2 _gps_info_icon($color)
+
+  Arguments:
+    $color
+  Results:
 
 =cut
 #**********************************************************
@@ -184,8 +207,8 @@ sub _gps_info_icon {
   my $color = shift;
   $color ||= '#49bcff';
 
-  return qq{
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-labelledby="title"
+  return <<"[TEXT]";
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-labelledby="title"
       aria-describedby="desc" role="img" xmlns:xlink="http://www.w3.org/1999/xlink">
       <title>Aim</title>
       <desc>A color styled icon from Orion Icon Library.</desc>
@@ -198,11 +221,15 @@ sub _gps_info_icon {
       <circle data-name="stroke" cx="32" cy="32" r="22" fill="none" stroke="$color"
       stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle>
     </svg>
-  };
+[TEXT]
 }
 
 #**********************************************************
-=head2 _gps_car_icon()
+=head2 _gps_car_icon($color)
+
+  Arguments:
+    $color
+  Results:
 
 =cut
 #**********************************************************
@@ -210,7 +237,7 @@ sub _gps_car_icon {
   my $color = shift;
 
   $color ||= '#49bcff';
-  return qq{
+  return <<"[TEXT]";
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-labelledby="title"
       aria-describedby="desc" role="img" xmlns:xlink="http://www.w3.org/1999/xlink">
       <title>Car</title>
@@ -242,7 +269,8 @@ sub _gps_car_icon {
       <circle data-name="stroke" cx="50" cy="42" r="6" fill="none"
       stroke="#2e4369" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle>
     </svg>
-  };
+[TEXT]
+
 }
 
 1;

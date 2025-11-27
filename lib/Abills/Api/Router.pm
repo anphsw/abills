@@ -53,8 +53,7 @@ sub new {
 =cut
 #**********************************************************
 sub preprocess {
-  my $self = shift;
-  my ($url, $query_params) = @_;
+  my ($self, $url, $query_params) = @_;
 
   if (!in_array($self->{request_method}, [ 'GET', 'POST', 'PATCH', 'PUT', 'DELETE' ])) {
     $self->{result} = {
@@ -67,7 +66,7 @@ sub preprocess {
     return $self;
   }
 
-  $url =~ s/\?.+//g;
+  $url =~ s/\?.+//xg;
   my @params = split('/', $url);
   my $resource_name = $params[1] || q{};
 
@@ -84,10 +83,7 @@ sub preprocess {
     libpath => $self->{libpath}
   });
 
-  if ($self->{direct}) {
-    $self->{query_params} = $query_params;
-  }
-  elsif (in_array($self->{request_method}, [ 'GET', 'DELETE' ])) {
+  if ($self->{direct} || in_array($self->{request_method}, [ 'GET', 'DELETE' ])) {
     $self->{query_params} = $query_params;
   }
   elsif ($ENV{CONTENT_TYPE} && $ENV{CONTENT_TYPE} =~ 'multipart/form-data') {
@@ -129,7 +125,6 @@ sub preprocess {
   #TODO: if in future one Router object will be used for multiple queries, move this to new()
   $self->{resource_own} = $Paths->load_own_resource_info({
     package => $self->{current_package},
-    debug   => $self->{debug},
     type    => $self->{current_type},
   });
 
@@ -139,7 +134,6 @@ sub preprocess {
     $self->{current_package} = 'User_core';
     $self->{resource_own} = $Paths->load_own_resource_info({
       package => 'User_core',
-      debug   => $self->{debug},
       type    => 'user',
     });
     # FIXME: /user/config error log logging
@@ -168,28 +162,38 @@ sub preprocess {
 }
 
 #***********************************************************
-=head2 transform()
+=head2 transform($transformer)
+
+  Arguments:
+    $transformer
+  Results:
+    $self
 
 =cut
 #***********************************************************
 sub transform {
-  my $self = shift;
-  my ($transformer) = @_;
+  my ($self, $transformer) = @_;
 
   $self->{result} = $transformer->($self->{result});
   return 1;
 }
 
 #***********************************************************
-=head2 add_credential()
+=head2 add_credential($credential_name, $credential_handler)
+
+  Arguments:
+    $credential_name
+    $credential_handler
+  Results:
+    TRUE
 
 =cut
 #***********************************************************
 sub add_credential {
-  my $self = shift;
-  my ($credential_name, $credential_handler) = @_;
+  my ($self, $credential_name, $credential_handler) = @_;
 
   $self->{credentials}->{$credential_name} = $credential_handler;
+
   return 1;
 }
 
@@ -207,9 +211,8 @@ sub handle {
   }
 
   my $handler = $self->parse_request();
-  my $route = $handler->{route} if ($handler);
 
-  if (!$route) {
+  if (! $handler || ! $handler->{route}) {
     $self->{result} = {
       errno  => 2,
       errstr => 'No such route'
@@ -223,6 +226,7 @@ sub handle {
     return 0;
   }
 
+  my $route = $handler->{route};
   my $cred = q{};
 
   # check is allowed to execute this path
@@ -302,7 +306,7 @@ sub handle {
 
   my $result = '';
 
-  return $self if !$self->_load_module($route->{controller});
+  return $self if (!$self->_load_module($route->{controller}));
 
   my $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
     { lang => $self->{lang}, module => $self->{current_package}
@@ -313,7 +317,8 @@ sub handle {
     lang    => $self->{lang},
     html    => $self->{html},
     Errors  => $Errors,
-    libpath => $self->{libpath}
+    libpath => $self->{libpath},
+    debug   => $self->{debug}
   });
 
   eval {
@@ -337,6 +342,8 @@ sub handle {
 
     return 0;
   }
+
+  $self->{USER_INFO} = $controller->{USER_INFO} if ($controller->{USER_INFO});
 
   $self->{content_type} = $route->{content_type} || q{};
 
@@ -377,10 +384,9 @@ sub handle {
 =cut
 #***********************************************************
 sub _load_module {
-  my $self = shift;
-  my ($module) = @_;
+  my ($self, $module) = @_;
 
-  if ($module !~ /^[a-zA-Z0-9_:]+$/) {
+  if ($module !~ /^[a-zA-Z0-9_:]+$/xm) {
     $self->{status} = 502;
     $self->{result} = {
       errno  => 3,
@@ -390,9 +396,8 @@ sub _load_module {
   }
 
   my $module_path = $module . '.pm';
-  $module_path =~ s{::}{/}g;
+  $module_path =~ s{::}{/}xg;
   eval { require $module_path };
-
   if ($@ || !$module->can('new')) {
     $self->{status} = 502;
     $self->{result} = {
@@ -438,11 +443,11 @@ sub parse_request {
 
     my $route_path_template = $route->{path};
 
-    my @path_keys = $route_path_template =~ m/:([a-zA-Z0-9_]+)(?=\/)/g;
+    my @path_keys = $route_path_template =~ m/:([a-zA-Z0-9_]+)(?=\/)/xg;
 
-    $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/([a-zA-Z0-9:_-]+)/gm;
-    $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
-    $route_path_template =~ s/(\/)/\\\//g;
+    $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/([a-zA-Z0-9:_-]+)/xgm;
+    $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/xg;
+    $route_path_template =~ s/(\/)/\\\//xg;
     $route_path_template = '^' . $route_path_template . '$';
 
     next if ($request_path !~ $route_path_template);
@@ -453,7 +458,7 @@ sub parse_request {
     while (@path_keys) {
       my $key = shift(@path_keys);
 
-      $key =~ s/string_//;
+      $key =~ s/string_//x;
       my $value = shift(@request_values);
 
       $path_params{$key} = $value;
@@ -485,10 +490,18 @@ sub parse_request {
       query_params => \%query_params,
     };
   }
+
+  return {};
 }
 
 #***********************************************************
-=head2 process_request_body($query_params)
+=head2 process_request_body($query_params, $attr)
+
+  Arguments:
+    $query_params,
+    $attr
+  Results:
+    $query_params
 
 =cut
 #***********************************************************

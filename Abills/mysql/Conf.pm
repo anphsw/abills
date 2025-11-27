@@ -20,7 +20,20 @@ my $admin;
 my $CONF;
 
 #**********************************************************
-# Init
+=head2 new())
+
+  Arguments:
+    $db
+    $admin
+    $conf
+    $attr
+      SKIP_CONF
+
+
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
@@ -55,7 +68,7 @@ sub new {
     $CONF->{$line->[0]}=$line->[1];
   }
 
-  $self->_fill_conf_defaults();
+  $self->_fill_conf_defaults($CONF);
 
   return $self;
 }
@@ -77,8 +90,7 @@ sub new {
 =cut
 #**********************************************************
 sub config_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -121,8 +133,7 @@ sub config_list {
 =cut
 #**********************************************************
 sub config_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{DOMAIN_ID} = 0 if (!$attr->{DOMAIN_ID});
 
@@ -147,11 +158,14 @@ sub config_info {
        VALUE
        WITHOUT_PARAM_CHANGE - Change without param
 
+  Return:
+    $self
+
 =cut
 #**********************************************************
 sub config_change {
-  my $self = shift;
-  my ($param, $attr) = @_;
+  my ($self,  $param, $attr) = @_;
+
   if ($attr->{WITHOUT_PARAM_CHANGE}) {
     $self->changes({
       CHANGE_PARAM => 'PARAM',
@@ -188,8 +202,7 @@ sub config_change {
 =cut
 #**********************************************************
 sub config_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('config',
     { %$attr,
@@ -197,7 +210,8 @@ sub config_add {
     },
     { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
 
-  if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID}) && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
+  if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID})
+    && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/xg) {
     $self->query_add('config',
       { %$attr,
         DOMAIN_ID => 0
@@ -216,15 +230,15 @@ sub config_add {
 =cut
 #**********************************************************
 sub config_del {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my %params = (
     param => $id
   );
 
   if ($attr->{DEL_WITH_DOMAIN}) {
-    if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID}) && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
+    if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID})
+      && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/xg) {
       $self->query_del('config', undef,  { %params, domain_id => 0 });
     }
 
@@ -243,8 +257,7 @@ sub config_del {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('config_variables', $attr);
   $admin->action_add(0, "CONFIG_VAR:$attr->{PARAM}", { TYPE => 1 });
@@ -255,11 +268,16 @@ sub add {
 #**********************************************************
 =head2 del($id) - Del config variables
 
+  Arguments:
+    $id
+
+  Result:
+    $self
+
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('config_variables', undef, {  param=> $id });
   $admin->action_add(0, "CONFIG_VAR:$id", { TYPE => 10 });
@@ -273,8 +291,7 @@ sub del {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'PARAM',
@@ -293,11 +310,9 @@ sub change {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT * FROM config_variables
-    WHERE param= ? ;",
+  $self->query("SELECT * FROM config_variables WHERE param= ? ;",
    undef,
    {
      INFO      => 1,
@@ -311,48 +326,44 @@ sub info {
 #**********************************************************
 =head2 list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   if ($attr->{COMMENTS}) {
     $attr->{COMMENTS}='*'. $attr->{COMMENTS}. '*';
   }
 
-  my $WHERE = $self->search_former($attr, [
-      ['PARAM',     'STR',  'param',      ],
-      ['COMMENTS',  'STR',  'comments',   ],
-    ],
-    { WHERE => 1,
-    }
+  my @search_params = (
+    [ 'PARAM',    'STR', 'param',    ],
+    [ 'COMMENTS', 'STR', 'comments', ]
   );
 
-  $self->query("SELECT *
-        FROM config_variables
-        $WHERE
-        ORDER BY $SORT $DESC
-        LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 } );
+
+  my $sql = <<"SQL";
+  SELECT *
+  FROM config_variables
+  $WHERE
+SQL
+
+
+  $self->query_list($sql, $attr);
 
   return [ ] if ($self->{errno});
 
-  my $list = $self->{list} || [];
+  my $list = $self->{list};
 
-  if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
-    $self->query("SELECT COUNT(*) AS total FROM config_variables $WHERE",
+  $self->query("SELECT COUNT(*) AS total FROM config_variables $WHERE",
       undef, { INFO => 1 });
-  }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -383,20 +394,20 @@ sub check_password {
   my $upper_required = $case == 0 || $case == 2;
   my $lower_required = $case == 1 || $case == 2;
 
-  if ($upper_required && $password !~ /[A-Z]/) {
+  if ($upper_required && $password !~ /[A-Z]/xm) {
     return 0;
   }
-  if ($lower_required && $password !~ /[a-z]/) {
+  if ($lower_required && $password !~ /[a-z]/xm) {
     return 0;
   }
 
   my $digit_required    = $special_chars == 0 || $special_chars == 2;
   my $special_required  = $special_chars == 1 || $special_chars == 2;
 
-  if ($digit_required && $password !~ /\d/) {
+  if ($digit_required && $password !~ /\d/xm) {
     return 0;
   }
-  if ($special_required && $password !~ /[-_!&%@#:]/) {
+  if ($special_required && $password !~ /[-_!&%@#:]/xm) {
     return 0;
   }
 
@@ -404,10 +415,13 @@ sub check_password {
 }
 
 #**********************************************************
-=head2 _fill_conf_defaults()
+=head2 _fill_conf_defaults($conf)
 
   This function is for filling some configuration
   variables that must, in any cases, have values.
+
+  Arguments:
+    $conf
 
   Returns:
     $self
@@ -415,14 +429,14 @@ sub check_password {
 =cut
 #**********************************************************
 sub _fill_conf_defaults {
-  my $self = shift;
+  my ($self, $conf_) = @_;
 
-  $CONF->{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
-  $CONF->{PASSWD_LENGTH} //= 8;
-  $CONF->{MSGS_REFRESH_HEADER_MENU} //= 30;
-  $CONF->{MSGS_HEADER_MENU_DYNAMIC} //= 1;
-  $CONF->{CURRENCY_ICON} //= 'fas fa-euro-sign';
-  $CONF->{WEB_ENABLE_TEMPLATES_CHANGE_MESSAGE} //= 0;
+  $conf_->{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
+  $conf_->{PASSWD_LENGTH} //= 8;
+  $conf_->{MSGS_REFRESH_HEADER_MENU} //= 30;
+  $conf_->{MSGS_HEADER_MENU_DYNAMIC} //= 1;
+  $conf_->{CURRENCY_ICON} //= 'fas fa-euro-sign';
+  $conf_->{WEB_ENABLE_TEMPLATES_CHANGE_MESSAGE} //= 0;
 
   return $self;
 }

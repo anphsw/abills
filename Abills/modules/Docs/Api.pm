@@ -273,6 +273,16 @@ sub user_routes {
       ]
     },
     {
+      method      => 'GET',
+      path        => '/user/docs/invoices/document/',
+      controller  => 'Docs::Api::user::Root',
+      endpoint    => \&Docs::Api::user::Root::get_user_docs_invoice_document,
+      credentials => [
+        'PUBLIC'
+      ],
+      content_type => 'Content-type: application/octet-stream',
+    },
+    {
       method      => 'POST',
       path        => '/user/docs/edocs/sign/:id/',
       controller  => 'Docs::Api::user::Edocs',

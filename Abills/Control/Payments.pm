@@ -16,8 +16,8 @@ our(
   $admin,
   %lang,
   %permissions,
-  @MONTHES,
-  @WEEKDAYS,
+  # @MONTHES,
+  # @WEEKDAYS,
   %err_strs,
   @bool_vals,
   @state_colors,
@@ -79,7 +79,7 @@ sub form_payments {
   }
 
   $FORM{METHOD} = $FORM{FIELDS} if $FORM{FIELDS};
-  $FORM{METHOD} =~ s/,/;/g if $FORM{METHOD};
+  $FORM{METHOD} =~ s/,/;/xg if $FORM{METHOD};
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
     form_search({
@@ -265,11 +265,11 @@ sub form_payment_add {
 
     if ($permissions{1}{4}) {
       if ($COOKIES{hold_date}) {
-        ($DATE, $TIME) = split(/ /, $COOKIES{hold_date}, 2);
+        ($DATE, $TIME) = split(/\s+/x, $COOKIES{hold_date}, 2);
       }
 
       if ($FORM{DATE}) {
-        ($DATE, $TIME) = split(/ /, $FORM{DATE});
+        ($DATE, $TIME) = split(/\s+/x, $FORM{DATE});
       }
 
       my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
@@ -405,15 +405,14 @@ sub payment_add {
   our $Docs;
   my $er;
   my $user = $attr->{USER_INFO};
-  #$Payments->{AUTOFOCUS}  = '';
-  $FORM{SUM} =~ s/,/\./g;
-  $FORM{SUM} =~ s/\s+//g;
+  $FORM{SUM} =~ s/,/\./xg;
+  $FORM{SUM} =~ s/\s+//xg;
 
   $db->{TRANSACTION}=1;
   my DBI $db_ = $db->{db};
   $db_->{AutoCommit} = 0;
 
-  if ($FORM{SUM} !~ /[0-9\.]+/) {
+  if ($FORM{SUM} !~ /[0-9\.]+/xm) {
     $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_SUM} SUM: $FORM{SUM}", { ID => 22 });
     return 0 if ($attr->{REGISTRATION});
   }
@@ -606,22 +605,10 @@ sub form_payments_list {
     FUNCTION_INDEX  => $index,
     MULTISELECT     => $FORM{UID} && $permissions{0}{41} ? 'del:id:PAYMENTS' : '',
     FILTER_VALUES   => {
-      ext_deposit      => sub {
-        my $ext_deposit = shift;
-        $ext_deposit //= 0;
-
-        return ($ext_deposit < 0) ? $html->color_mark(format_sum($ext_deposit), $_COLORS[6]) : format_sum($ext_deposit);
-      },
       ext_id           => sub {
         my $ext_id = shift;
 
         return convert($ext_id, { text2html => 1 });
-      },
-      ext_bill_deposit => sub {
-        my $ext_bill_deposit = shift;
-
-        return $ext_bill_deposit if !$conf{EXT_BILL_ACCOUNT};
-        return $ext_bill_deposit < 0 ? $html->color_mark($ext_bill_deposit, $_COLORS[6]) : $ext_bill_deposit;
       },
       deleted          => sub {
         my $deleted = shift;
@@ -633,18 +620,6 @@ sub form_payments_list {
 
         $dsc = convert($dsc, { text2html => 1 }) if $dsc;
         return ($dsc || q{}) . ($line->{inner_describe} ? $html->b("($line->{inner_describe})") : '');
-      },
-      deposit          => sub {
-        my $deposit = shift;
-        $deposit //= 0;
-
-        return ($deposit < 0) ? $html->color_mark(format_sum($deposit), $_COLORS[6]) : format_sum($deposit);
-      },
-      last_deposit     => sub {
-        my $last_deposit = shift;
-        $last_deposit //= 0;
-
-        return ($last_deposit < 0) ? $html->color_mark(format_sum($last_deposit), $_COLORS[6]) : format_sum($last_deposit);
       },
       method           => sub {
         my $method = shift;
@@ -728,7 +703,8 @@ sub form_payments_list {
       ID               => 'PAYMENTS',
       MENU             => "$lang{SEARCH}:search_form=1&index=2" . (($FORM{UID}) ? "&UID=$FORM{UID}&LOGIN=" . ($users->{LOGIN} || q{}) : q{}) . ":search",
       SHOW_COLS_HIDDEN => {
-        TYPE_PAGE => $FORM{type}
+        TYPE_PAGE  => $FORM{type},
+        COMPANY_ID => $FORM{COMPANY_ID},
       },
       SELECT_ALL          => $FORM{UID} && $permissions{0}{41} ? "PAYMENTS:del:$lang{SELECT_ALL}" : '',
       MULTISELECT_ACTIONS => $FORM{UID} && $permissions{0}{41} ? [
@@ -765,121 +741,6 @@ sub form_payments_list {
 
   print $table->show();
 
-  # $table->{SKIP_FORMER}=1;
-  #
-  # my %i2p_hash = ();
-  # if (in_array('Docs', \@MODULES)) {
-  #
-  #   our $Docs;
-  #   load_module('Docs', $html);
-  #   my @payment_id_arr = ();
-  #   foreach my $p (@$payments_list) {
-  #     push @payment_id_arr, $p->{id};
-  #   }
-  #
-  #   my $i2p_list = $Docs->invoices2payments_list({
-  #     PAYMENT_ID => join(';', @payment_id_arr),
-  #     PAGE_ROWS  => ($LIST_PARAMS{PAGE_ROWS} || 25)*3,
-  #     COLS_NAME  => 1
-  #   });
-  #
-  #   foreach my $i2p (@$i2p_list) {
-  #     push @{ $i2p_hash{$i2p->{payment_id}} }, ($i2p->{invoice_id} || '') .':'. ($i2p->{invoiced_sum} || '') .':'. ($i2p->{invoice_num} || '');
-  #   }
-  # }
-  #
-  # $pages_qs .= "&subf=2" if (!$FORM{subf});
-  #
-  # foreach my $line (@$payments_list) {
-  #   my $delete = ($permissions{1}{2}) ? $html->button( $lang{DEL},
-  #       "index=2&del=$line->{id}$pages_qs". (($pages_qs !~ /UID=/) ? "&UID=$line->{uid}" : q{} ),
-  #       { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
-  #
-  #   my @fields_array = ();
-  #   for (my $i = 0; $i < 1+$Payments->{SEARCH_FIELDS_COUNT}; $i++) {
-  #     my $field_name = $Payments->{COL_NAMES_ARR}->[$i] || q{};
-  #
-  #     if ($conf{EXT_BILL_ACCOUNT} && $field_name eq 'ext_bill_deposit') {
-  #       $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};
-  #     }
-  #     elsif($field_name eq 'deleted') {
-  #       if (defined($line->{deleted})){
-  #         $line->{deleted} = $html->color_mark( $bool_vals[ $line->{deleted} ],
-  #             ($line->{deleted} && $line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '' );
-  #       }
-  #     }
-  #     elsif ($field_name eq 'ext_id' && $line->{ext_id}) {
-  #       $line->{ext_id} = convert($line->{ext_id}, { text2html => 1 });
-  #     }
-  #     elsif($field_name eq 'login' && $line->{uid}) {
-  #       $line->{login} = $html->button($line->{login}, "index=15&UID=$line->{uid}");
-  #     }
-  #     elsif($field_name eq 'dsc') {
-  #       if ($line->{dsc}) {
-  #         $line->{$field_name} = convert($line->{$field_name}, { text2html => 1 });
-  #       }
-  #
-  #       $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
-  #     }
-  #     elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
-  #       $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
-  #     }
-  #     elsif($field_name eq 'method') {
-  #       $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : (defined($line->{method}) && $PAYMENTS_METHODS->{ defined($line->{method}) }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
-  #     }
-  #     elsif($field_name eq 'login_status' && defined($line->{login_status})) {
-  #       $line->{login_status} = ($line->{login_status} > 0) ? $html->color_mark($service_status[ $line->{login_status} ], $service_status_colors[ $line->{login_status} ]) : $service_status[$line->{login_status}];
-  #     }
-  #     elsif ($field_name eq 'bill_id') {
-  #       $line->{bill_id} = ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? $BILL_ACCOUNTS{ $line->{bill_id} } : $line->{bill_id};
-  #     }
-  #     elsif($field_name eq 'invoice_num') {
-  #       if (in_array('Docs', \@MODULES) && ! $FORM{xml}) {
-  #         my $payment_sum = $line->{sum};
-  #         my $i2p         = '';
-  #
-  #         if ($i2p_hash{$line->{id}}) {
-  #           foreach my $val ( @{ $i2p_hash{$line->{id}} }  ) {
-  #             my ($invoice_id, $invoiced_sum, $invoice_num)=split(/:/, $val);
-  #             $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button( $invoice_num,
-  #               "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice_id&search=1" ) . $html->br();
-  #             $payment_sum -= $invoiced_sum || 0;
-  #           }
-  #         }
-  #         if ($payment_sum > 0) {
-  #           $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark( "$lang{UNAPPLIED}",
-  #             $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
-  #             "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
-  #         }
-  #
-  #         $line->{invoice_num} = $i2p;
-  #       }
-  #     }
-  #     elsif($field_name eq 'admin_name') {
-  #       $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
-  #       delete $line->{admin_disable};
-  #     }
-  #
-  #     if ($Payments->{SEARCH_FIELDS_COUNT} == $i) {
-  #       delete $line->{admin_disable};
-  #     }
-  #
-  #     push @fields_array, $line->{$field_name};
-  #   }
-  #
-  #   $table->addrow(@fields_array, $delete);
-  # }
-  #
-  # if (!$admin->{MAX_ROWS}) {
-  #   $table->addfooter(
-  #      '',
-  #      "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
-  #      . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
-  #      . "$lang{SUM}: " . format_sum($Payments->{SUM})
-  #   );
-  # }
-  #
-  # print $table->show();
   return 1;
 }
 

@@ -143,15 +143,15 @@ sub internet_ipoe_activate {
     }
   }
 
-  if ($FORM{CONNECT_INFO} && $FORM{CONNECT_INFO} =~ m/Amon/x) {
-    $FORM{CONNECT_INFO} = time();
-    if ($ENV{HTTP_USER_AGENT} =~ m/^AMon \[(\S+)\]/x) {
-      $FORM{CONNECT_INFO} .= ":" . $1;
-    }
-  }
-  else {
-    $FORM{CONNECT_INFO} = '';
-  }
+  #  if ($FORM{CONNECT_INFO} && $FORM{CONNECT_INFO} =~ m/Amon/x) {
+  #    $FORM{CONNECT_INFO} = time();
+  #    if ($ENV{HTTP_USER_AGENT} =~ m/^AMon \[(\S+)\]/x) {
+  #      $FORM{CONNECT_INFO} .= ":" . $1;
+  #    }
+  #  }
+  #  else {
+  $FORM{CONNECT_INFO} = '';
+  #  }
 
   if ($FORM{ALIVE}) {
     if ($FORM{REMOTE_ADDR} !~ m/^$IPV4$/x) {
@@ -172,123 +172,148 @@ sub internet_ipoe_activate {
     return 0;
   }
   elsif ($attr->{ACTIVE}) {
-
-    if (int($nas_id) < 1) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_UNKNOWN_IP}, { ID => 323 });
-    }
-    else {
-      $user = $users->info($LIST_PARAMS{UID});
-      $Internet_ipoe->online_alive({
-        LOGIN       => $user->{LOGIN},
-        REMOTE_ADDR => $ip,
-      });
-
-      if ($Internet_ipoe->{TOTAL} < 1) {
-        $Nas->info({ NAS_ID => $nas_id });
-
-        if ($Internet->{SIMULTANEONSLY} && $Internet->{SIMULTANEONSLY} == 1) {
-          $Ipoe_collector->acct_stop({
-            USER_NAME            => $user->{LOGIN},
-            NAS_ID               => $nas_id,
-            STATUS               => 2,
-            CALLING_STATION_ID   => $Internet->{CID} || $ip,
-            ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6
-          });
-        }
-
-        ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT}) = split(/:/x, $Nas->{NAS_MNG_IP_PORT} || q{});
-
-        my %DATA = (
-          ACCT_STATUS_TYPE   => 1,
-          USER_NAME          => $user->{LOGIN},
-          SESSION_START      => 0,
-          ACCT_SESSION_ID    => mk_unique_value(10),
-          FRAMED_IP_ADDRESS  => $ip,
-          NETMASK            => $Internet->{NETMASK},
-          NAS_ID             => $nas_id,
-          NAS_TYPE           => $Nas->{NAS_TYPE},
-          NAS_IP_ADDRESS     => $Nas->{NAS_IP},
-          NAS_MNG_USER       => $Nas->{NAS_MNG_USER},
-          NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
-          NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
-          NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
-          NAS_MNG_PASSWORD   => $Nas->{NAS_MNG_PASSWORD} || q{},
-          TP_ID              => $Internet->{TP_ID},
-          CALLING_STATION_ID => $Internet->{CID} || $ip,
-          NAS_PORT           => $Internet->{PORT},
-          FILTER_ID          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
-          CONNECT_INFO       => $FORM{CONNECT_INFO},
-          UID                => $user->{UID},
-          SERVICE_ID         => $attr->{ID} || 0
-        );
-
-        my %RAD_REQUEST = (
-          'Acct-Status-Type'   => 1,
-          'User-Name'          => $user->{LOGIN},
-          'Acct-Session-Id'    => $DATA{ACCT_SESSION_ID},
-          'Framed-IP-Address'  => $ip,
-          'Calling-Station-Id' => $Internet->{CID} || $ip,
-          'NAS-IP-Address'     => $Nas->{NAS_IP},
-          'NAS-Port'           => $Internet->{PORT},
-          'Filter-Id'          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
-          'Connect-Info'       => $FORM{CONNECT_INFO},
-        );
-
-        require Auth2;
-        Auth2->import();
-        my $Auth = Auth2->new($db, \%conf);
-        $Auth->{SERVICE_ID} = $attr->{ID};
-        my ($r, $RAD_PAIRS) = $Auth->auth(\%RAD_REQUEST, $Nas);
-        delete($RAD_PAIRS->{'Session-Timeout'});
-
-        my $debug = $FORM{DEBUG} || 0;
-        if ($debug) {
-          print "Result: $r\n";
-          while (my ($k, $v) = each %$RAD_PAIRS) {
-            print "  $k -> $v\n";
-          }
-        }
-
-        if ($RAD_PAIRS->{'Filter-Id'}) {
-          $DATA{FILTER_ID} = $RAD_PAIRS->{'Filter-Id'};
-        }
-        else {
-          while (my ($k, $v) = each %{$RAD_PAIRS}) {
-            $DATA{FILTER_ID} .= "$k=$v, ";
-          }
-        }
-
-        if ($r == 1) {
-          $html->message('err', $lang{ERROR}, $RAD_PAIRS->{'Reply-Message'}, { ID => 324 });
-          $Log->log_add({
-            LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
-            ACTION    => 'AUTH',
-            USER_NAME => $user->{LOGIN} || '-',
-            MESSAGE   => $RAD_PAIRS->{'Reply-Message'},
-            NAS_ID    => $nas_id
-          });
-        }
-        else {
-          $Internet_ipoe->user_status({ %DATA });
-          $DATA{NAS_PORT} = $Internet_ipoe->{PORT} || $DATA{NAS_PORT} || 0;
-
-          internet_ipoe_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
-
-          if ($ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} !~ /index.cgi/ && $html->{SID}) {
-            print "Location: $ENV{HTTP_REFERER}" . "\n\n";
-            exit;
-          }
-        }
-      }
-      else {
-        #  $html->message( 'info', $lang{INFO}, "$lang{ACTIVATE}" );
-      }
-    }
+    $attr->{NAS_ID} = $nas_id;
+    $attr->{IP} = $ip;
+    internet_ipoe_session_start($attr);
   }
 
   return 1;
 }
 
+
+#**********************************************************
+=head2 internet_ipoe_session_start($attr)
+
+  Arguments:
+    $attr
+      NAS_ID
+      IP
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_ipoe_session_start {
+  my ($attr) = @_;
+
+  my $nas_id = $attr->{NAS_ID};
+  my $ip = $attr->{IP};
+
+  if (int($nas_id) < 1) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_UNKNOWN_IP}, { ID => 323 });
+    return 0;
+  }
+
+  $user = $users->info($LIST_PARAMS{UID});
+  $Internet_ipoe->online_alive({
+    LOGIN       => $user->{LOGIN},
+    REMOTE_ADDR => $ip,
+  });
+
+  if ($Internet_ipoe->{TOTAL} < 1) {
+    $Nas->info({ NAS_ID => $nas_id });
+
+    if ($Internet->{SIMULTANEONSLY} && $Internet->{SIMULTANEONSLY} == 1) {
+      $Ipoe_collector->acct_stop({
+        USER_NAME            => $user->{LOGIN},
+        NAS_ID               => $nas_id,
+        STATUS               => 2,
+        CALLING_STATION_ID   => $Internet->{CID} || $ip,
+        ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6
+      });
+    }
+
+    ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT}) = split(/:/x, $Nas->{NAS_MNG_IP_PORT} || q{});
+
+    my %REQUEST = (
+      ACCT_STATUS_TYPE   => 1,
+      USER_NAME          => $user->{LOGIN},
+      SESSION_START      => 0,
+      ACCT_SESSION_ID    => mk_unique_value(10),
+      FRAMED_IP_ADDRESS  => $ip,
+      NETMASK            => $Internet->{NETMASK},
+      NAS_ID             => $nas_id,
+      NAS_TYPE           => $Nas->{NAS_TYPE},
+      NAS_IP_ADDRESS     => $Nas->{NAS_IP},
+      NAS_MNG_USER       => $Nas->{NAS_MNG_USER},
+      NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
+      NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
+      NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
+      NAS_MNG_PASSWORD   => $Nas->{NAS_MNG_PASSWORD} || q{},
+      TP_ID              => $Internet->{TP_ID},
+      CALLING_STATION_ID => $Internet->{CID} || $ip,
+      NAS_PORT           => $Internet->{PORT},
+      FILTER_ID          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
+      CONNECT_INFO       => $FORM{CONNECT_INFO},
+      UID                => $user->{UID},
+      SERVICE_ID         => $attr->{ID} || 0
+    );
+
+    my %RAD_REQUEST = (
+      'Acct-Status-Type'   => 1,
+      'User-Name'          => $user->{LOGIN},
+      'Acct-Session-Id'    => $REQUEST{ACCT_SESSION_ID},
+      'Framed-IP-Address'  => $ip,
+      'Calling-Station-Id' => $Internet->{CID} || $ip,
+      'NAS-IP-Address'     => $Nas->{NAS_IP},
+      'NAS-Port'           => $Internet->{PORT},
+      'Filter-Id'          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
+      'Connect-Info'       => $FORM{CONNECT_INFO},
+    );
+
+    require Auth2;
+    Auth2->import();
+    my $Auth = Auth2->new($db, \%conf);
+    $Auth->{SERVICE_ID} = $attr->{ID};
+    my ($r, $RAD_PAIRS) = $Auth->auth(\%RAD_REQUEST, $Nas);
+    delete($RAD_PAIRS->{'Session-Timeout'});
+
+    my $debug = $FORM{DEBUG} || 0;
+    if ($debug) {
+      print "Result: $r\n";
+      while (my ($k, $v) = each %$RAD_PAIRS) {
+        print "  $k -> $v\n";
+      }
+    }
+
+    if ($RAD_PAIRS->{'Filter-Id'}) {
+      $REQUEST{FILTER_ID} = $RAD_PAIRS->{'Filter-Id'};
+    }
+    else {
+      while (my ($k, $v) = each %{$RAD_PAIRS}) {
+        $REQUEST{FILTER_ID} .= "$k=$v, ";
+      }
+    }
+
+    if ($r == 1) {
+      $html->message('err', $lang{ERROR}, $RAD_PAIRS->{'Reply-Message'}, { ID => 324 });
+      $Log->log_add({
+        LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
+        ACTION    => 'AUTH',
+        USER_NAME => $user->{LOGIN} || '-',
+        MESSAGE   => $RAD_PAIRS->{'Reply-Message'},
+        NAS_ID    => $nas_id
+      });
+    }
+    else {
+      $Internet_ipoe->user_status({ %REQUEST });
+      $REQUEST{NAS_PORT} = $Internet_ipoe->{PORT} || $REQUEST{NAS_PORT} || 0;
+
+      internet_ipoe_change_status({ STATUS => 'ONLINE_ENABLE', %REQUEST });
+
+      if ($ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} !~ /index.cgi/xm && $html->{SID}) {
+        print "Location: $ENV{HTTP_REFERER}" . "\n\n";
+        exit;
+      }
+    }
+  }
+  else {
+    #  $html->message( 'info', $lang{INFO}, "$lang{ACTIVATE}" );
+  }
+
+  return 1;
+}
 
 #**********************************************************
 =head2 internet_ipoe_change_status($attr)
@@ -715,7 +740,7 @@ sub ipoe_recalculate {
 
     if ($Internet_ipoe->{TOTAL} > 0) {
       my $TP_ID = 0;
-      my $user = $users->info($LIST_PARAMS{UID});
+      my $user_ = $users->info($LIST_PARAMS{UID});
 
       if (!$FORM{TP_ID}) {
         print "NOT_FOUND_TP_ID";
@@ -730,14 +755,12 @@ sub ipoe_recalculate {
       my @CAPTION = ($lang{START}, "$lang{TRAFFIC}  ID", $lang{RECV}, $lang{SEND}, 'NAS', 'IP',
         $lang{INTERVALS}, $lang{SUM}, 'SID', $lang{RECALCULATE});
 
-      my $table = $html->table(
-        {
-          caption => $lang{RECALCULATE},
-          width   => '100%',
-          title   => \@CAPTION,
-          ID      => 'IPN_RECALCULATE'
-        }
-      );
+      my $table = $html->table({
+        caption => $lang{RECALCULATE},
+        width   => '100%',
+        title   => \@CAPTION,
+        ID      => 'IPN_RECALCULATE'
+      });
 
       my $total_sum = 0;
       my %TIME_INTERVALS = ();
@@ -775,13 +798,11 @@ sub ipoe_recalculate {
 
         # Work with prepaid traffic
         if ($prepaid > 0) {
-          my ($used_traffic) = $Ipoe_collector->traffic_user_get(
-            {
-              UID      => $LIST_PARAMS{UID},
-              ACTIVATE => $users->{ACTIVATE},
-              INTERVAL => "0000-00-00/$line->[0]"
-            }
-          );
+          my ($used_traffic) = $Ipoe_collector->traffic_user_get({
+            UID      => $LIST_PARAMS{UID},
+            ACTIVATE => $users->{ACTIVATE},
+            INTERVAL => "0000-00-00/$line->[0]"
+          });
           my $online = 0;
 
           if ($OCTETS_DIRECTION == 1) {
@@ -861,7 +882,7 @@ sub ipoe_recalculate {
         if ($recalculate != 0) {
           $Internet_ipoe->traffic_recalc_bill({
             SUM     => $recalculate,
-            BILL_ID => $user->{BILL_ID}
+            BILL_ID => $user_->{BILL_ID}
           });
 
           print $html->message('info', $lang{RECALCULATE}, "$lang{SUM}: $recalculate, $lang{TARIF_PLAN}: $TP_ID");

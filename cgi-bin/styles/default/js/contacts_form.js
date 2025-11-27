@@ -94,6 +94,8 @@ jQuery(function () {
   }
 
   function renderContact(contact_json, position) {
+    contact_json.type_id ||= contact_json?.typeId;
+    contact_json.is_default ||= contact_json?.isDefault;
     if (CONTACTS_JSON.options.in_reg_wizard) {
 
       if (typeof options.types[contact_json.type_id - 1] === 'undefined'){
@@ -265,59 +267,35 @@ jQuery(function () {
     $sub_btn_icon.attr('class', 'fa fa-spinner fa-pulse');
 
     var contacts_to_send = parseCurrentDisplayedContacts();
+    let url = CONTACTS_JSON.options.AID ? `/api.cgi/admins/${options.AID}/contacts/` : `/api.cgi/users/${options.uid}/contacts/`;
 
-    var request = null;
+    sendRequest(url, {CONTACTS: contacts_to_send}, 'POST')
+      .then((data) => {
 
-    if (CONTACTS_JSON.options.AID) {
-      request = {
-        'qindex'  : options.callback_index,
-        'header'  : 2,
-        'AID'     : options.AID,
-        'subf'    : options.subf,
-        'CONTACTS': JSON.stringify(contacts_to_send)
-      };
-    }
-    else {
-      request = {
-        'qindex'  : options.callback_index,
-        'header'  : 2,
-        'uid'     : options.uid,
-        'CONTACTS': JSON.stringify(contacts_to_send)
-      };
-    }
+        $sub_btn.prop('disabled', false);
+        $sub_btn_icon.attr('class', 'fa fa-check');
 
-    $.post(SELF_URL, request, function (data) {
-      var object = null;
+        if (data?.errno) {
+          const errorMessage = (window.ERRORS_DESC?.[data?.errstr]) || data?.errstr || 'Unknown error';
+          (new ATooltip()).displayError(errorMessage);
+          renderContactsBlock(contacts_raw);
+          return false;
+        }
 
-      try {
-        object = JSON.parse(data);
-        contacts_raw = object.contacts.contacts;
+        contacts_raw = data?.list || [];
         renderContactsBlock(contacts_raw);
-      }
-      catch (JSONParseError) {
-        (new ATooltip()).displayError(JSONParseError.toString());
-        renderContactsBlock(contacts_raw);
-      }
 
-      $sub_btn.prop('disabled', false);
-      $sub_btn_icon.attr('class', 'fa fa-check');
+        $response_span.text('Changed');
 
-      if (object === null) return false;
-
-      $response_span.text(object.message);
-
-      if (object.status === 0) {
         setTimeout(function () {
           $response_span.text('');
         }, 3000);
         setContactsChangedStatus(false);
-      }
-      else {
-        (new ATooltip()).displayError(object.message);
+      })
+      .catch(err => {
+        (new ATooltip()).displayError(err);
         renderContactsBlock(contacts_raw);
-        return false;
-      }
-    });
+      });
   }
 
   function setContactsChangedStatus(boolean) {

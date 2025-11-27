@@ -63,17 +63,21 @@ our $Tv_service;
 
 require Iptv::Users;
 require Iptv::Subscribes;
-require Iptv::Services;
+require Iptv::Plugins;
 require Iptv::User_portal;
 require Iptv::Periodic;
 require Iptv::Configure;
 require Iptv::Base;
+require Iptv::Monitoring;
 
 my $Iptv_base = Iptv::Base->new($db, $admin, \%conf, { LANG => \%lang });
 
 if ($permissions{3}) {
   require Iptv::Reports;
 }
+
+use Iptv::Services;
+my $Iptv_services = Iptv::Services->new($db, $admin, \%conf, { lang => \%lang, ENABLE_FEES_MESSAGES => 1 });
 
 #**********************************************************
 =head2 iptv_users_search($Iptv)
@@ -174,6 +178,9 @@ sub iptv_users_list {
   if (defined $FORM{LOGIN_STATUS}) {
     $pages_qs .= "&LOGIN_STATUS=$FORM{LOGIN_STATUS}" if $pages_qs !~ /&LOGIN_STATUS=/;
     $LIST_PARAMS{LOGIN_STATUS} = $FORM{LOGIN_STATUS};
+  }
+  if ($FORM{DISABLED_USERS}) {
+    $LIST_PARAMS{DISABLED_USERS} = $FORM{DISABLED_USERS};
   }
 
   ($table, $list) = result_former({
@@ -303,6 +310,8 @@ sub iptv_users_list {
     });
   }
 
+  delete $LIST_PARAMS{GROUP_BY};
+
   return 1;
 }
 
@@ -403,318 +412,20 @@ sub iptv_multiuser {
   }
 
   if ($params{TP_ID} || defined $params{STATUS} || $params{SERVICE_ACTIVATE} || $params{SERVICE_EXPIRE}) {
-    $FORM{change} = 1;
     foreach my $id (@multiuser_arr) {
-      $Iptv->{db}{db}->{AutoCommit} = 0;
-      $Iptv->{db}->{TRANSACTION} = 1;
+      my $result = $Iptv_services->user_change({
+        %params,
+        UID => $uid_hash->{$id},
+        ID  => $id
+      });
 
-      iptv_user_change({ %params, UID => $uid_hash->{$id}, ID => $id });
-
-      last if _error_show($Iptv, { MODULE_NAME => $lang{Iptv} });
-      push @multiuser_no_error, $id;
-
-      iptv_user_services(\%FORM);
+      if (!_error_show($result, { MODULE_NAME => $lang{Iptv} })) {
+        push @multiuser_no_error, $id;
+      }
     }
 
     $html->message('info', $lang{MULTIUSER_OP}, "$lang{CHANGED}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
   }
-}
-
-#**********************************************************
-=head2 iptv_ext_cmd($cmd, $attr) - Iptv cmd
-
-=cut
-#**********************************************************
-# #@deprecated
-# sub iptv_ext_cmd {
-#   my ($cmd, $attr) = @_;
-#
-#   if (in_array('Dhcphosts', \@MODULES)) {
-#     require Dhcphosts;
-#     Dhcphosts->import();
-#     my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-#     my $hosts_list = $Dhcphosts->hosts_list({
-#       PORTS             => '!',
-#       LOGIN             => 'LOGIN',
-#       UID               => $attr->{UID},
-#       NAS_ID            => '>0',
-#       NAS_IP            => '!0.0.0.0',
-#       SHOW_NAS_MNG_INFO => 1,
-#       COLS_NAME         => 1
-#     });
-#
-#     my $cmd_tpl = $cmd;
-#     my @cmd_arr = ();
-#     foreach my $host (@{$hosts_list}) {
-#       $cmd = tpl_parse($cmd_tpl,
-#         {
-#           LOGIN        => $host->{login},
-#           NAS_IP       => $host->{mng_host_port} || $host->{nas_ip},
-#           NAS_ID       => $host->{nas},
-#           PORT_ID      => $host->{ports},
-#           IP           => $host->{ip},
-#           NAS_LOGIN    => $host->{mng_user},
-#           NAS_PASSWORD => $host->{mng_password},
-#         }
-#       );
-#       push @cmd_arr, $cmd;
-#     }
-#     if ($#cmd_arr > -1) {
-#       $cmd = join(';', @cmd_arr);
-#     }
-#   }
-#   if (!$attr->{ACTION}) {
-#     $attr->{ACTION} = 'up';
-#   }
-#
-#   cmd($cmd, {
-#     PARAMS => { %{$attr} },
-#     DEBUG  => $conf{IPTV_CMD_DEBUG}
-#   });
-#
-#   return 1;
-# }
-
-#*******************************************************************
-=head2 online_users() - Active users
-
-=cut
-#*******************************************************************
-sub iptv_online {
-
-  require Nas;
-  Nas->import();
-  my $Nas = Nas->new($db, \%conf, $admin);
-
-  my Iptv $sessions = $Iptv;
-
-  my $message;
-
-  if ($FORM{ping}) {
-    require Internet::Diagnostic;
-    Internet::Diagnostic->import('host_diagnostic');
-    my $result = host_diagnostic($FORM{ping});
-    $html->message('info', $lang{INFO}, $result);
-  }
-  elsif ($FORM{hangup}) {
-    my (undef, $acct_session_id) = split('\s', $FORM{hangup});
-    my $iptv_online = $Iptv->online({
-      ACCT_SESSION_ID => $acct_session_id,
-      ID              => '_SHOW',
-      COLS_NAME       => 1,
-      PAGE_ROWS       => 1,
-    });
-
-    if ($Iptv->{TOTAL} == 1) {
-      my $user_info = $Iptv->user_info($iptv_online->[0]{id});
-      $Iptv->{SERVICE_ID} = $user_info->{SERVICE_ID};
-      iptv_account_action({
-        hangup     => 1,
-        ID         => $user_info->{ID},
-        REBOOT     => 1,
-        SERVICE_ID => $Iptv->{SERVICE_ID}
-      }) if $Iptv->{TOTAL};
-    }
-  }
-  elsif ($FORM{zap}) {
-    my ($nas_id, $acct_session_id, $nas_port_id) = split(/ /, $FORM{zap}, 3);
-    $sessions->zap($nas_id, $acct_session_id);
-    if (_error_show($sessions, { MESSAGE => "ZAP SESSION" })) {
-      return 0;
-    }
-    $Nas->info({ NAS_ID => $nas_id, SECRETKEY => $conf{secretkey} });
-    $message = "<table width=100%>
-     <tr><th colspan=2 align=left>$lang{CLOSED}</th></tr>
-     <tr><td>$lang{NAS}:</td><td>$Nas->{NAS_IP} / $Nas->{NAS_INDENTIFIER}</td></tr>
-     <tr><td>$lang{PORT}:</td><td>$nas_port_id</td></tr>
-     <tr><td>SESSION_ID:</td><td>$acct_session_id</td></tr>
-     </table>\n";
-    $sessions->online({
-      ACCT_SESSION_ID => $acct_session_id,
-      NAS_ID          => $Nas->{NAS_ID}
-    });
-    if ($sessions->{TOTAL} < 1) {
-      $message .= $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id", { BUTTON => 1 }) . "
-         " . $html->button("$lang{DEL}", "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id",
-        { BUTTON => 1 });
-    }
-    else {
-      $message = $lang{EXIST};
-      $sessions->online_del(
-        {
-          NAS_ID          => $nas_id,
-          ACCT_SESSION_ID => $acct_session_id
-        }
-      );
-    }
-    $html->message('info', $lang{INFO}, $message);
-  }
-  elsif ($FORM{del} || $FORM{dellist}) {
-    if ($FORM{dellist}) {
-      my @sessions_list = split(/, /, $FORM{dellist});
-      $sessions->online_del({ SESSIONS_LIST => \@sessions_list });
-      $FORM{del} = $FORM{dellist};
-    }
-    else {
-      $sessions->online_del({
-        NAS_ID          => $FORM{nas_id},
-        ACCT_SESSION_ID => $FORM{del}
-      });
-    }
-    if (!$sessions->{errno}) {
-      my $table = $html->table({
-        width => '100%',
-        rows  => [ [ "NAS_ID", $FORM{nas_id} ], [ "ACCT_SESSION_ID", $FORM{del} ] ]
-      });
-      $html->message('info', $lang{DELETED}, $table->show());
-    }
-  }
-
-  my $form_link = '';
-  my $cure = '';
-  if ($FORM{ZAPED}) {
-    $LIST_PARAMS{ZAPED} = '1';
-    $form_link = $html->button('On line', "index=$index", { BUTTON => 1 });
-    $cure = 'Zap';
-  }
-  else {
-    $cure = 'Online';
-  }
-  %LIST_PARAMS = (
-    %LIST_PARAMS,
-    LOGIN       => '_SHOW',
-    FIO         => '_SHOW',
-    STARTED     => '_SHOW',
-    DURATION    => '_SHOW',
-    CLIENT_IP   => '_SHOW',
-    TP_NAME     => '_SHOW',
-    ONLINE_BASE => '_SHOW',
-  );
-
-  my $dub_logins = $sessions->{dub_logins};
-  my Abills::HTML $table;
-  ($table) = result_former({
-    INPUT_DATA      => $sessions,
-    FUNCTION        => 'online',
-    BASE_FIELDS     => 1,
-    FUNCTION_FIELDS => 'iptv_ping, iptv_zap, iptv_hangup',
-    EXT_TITLES      => {
-      'ip'              => 'IP',
-      'netmask'         => 'NETMASK',
-      'speed'           => $lang{SPEED},
-      'port'            => $lang{PORT},
-      'CID'             => 'CID',
-      'filter_id'       => 'Filter ID',
-      'tp_name'         => $lang{TARIF_PLAN},
-      'dv_status'       => $lang{STATUS},
-      'started',        => $lang{START},
-      'duration'        => $lang{DURATION},
-      'last_alive'      => "Last alive",
-      'iptv_expire'     => "$lang{TV} $lang{EXPIRE}",
-      'acct_session_id' => "ACCT_SESSION_ID",
-    },
-    TABLE           => {
-      width   => '100%',
-      caption => "$cure",
-      qs      => $pages_qs,
-      ID      => 'IPTV_ONLINE',
-      EXPORT  => 1,
-    },
-    SKIP_PAGES      => 1
-  });
-  my $bg = '';
-  my $online = $sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 1 });
-
-  foreach my $nas_row (@{$nas_list}) {
-    $nas_row->{id} = 0;
-    next if (!defined($online->{ $nas_row->{id} }));
-    my $online_users = $online->{ $nas_row->{id} };
-
-    foreach my $line (@{$online_users}) {
-      my @fields_array = ();
-      for (my $i = 0; $i < 1 + $sessions->{SEARCH_FIELDS_COUNT}; $i++) {
-        if ($conf{EXT_BILL_ACCOUNT} && $sessions->{COL_NAMES_ARR}->[$i] eq 'ext_bill_deposit') {
-          $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit},
-            $_COLORS[6]) : $line->{ext_bill_deposit};
-        }
-        elsif ($sessions->{COL_NAMES_ARR}->[$i] eq 'deleted') {
-          $line->{deleted} = $html->color_mark($bool_vals[ $line->{deleted} ],
-            ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
-        }
-        elsif ($sessions->{COL_NAMES_ARR}->[$i] eq 'login') {
-          $line->{login} = user_ext_menu($line->{uid}, $line->{login});
-        }
-        push @fields_array, $line->{ $sessions->{COL_NAMES_ARR}->[$i] };
-      }
-
-      undef($table->{rowcolor});
-      undef($table->{extra});
-
-      if (defined($dub_logins->{ $line->{login} })) {
-        $bg = '#FFFF00';
-      }
-      elsif ($line->{status} && $line->{status} == 3) {
-        $bg = '#FF0000';
-      }
-      else {
-        $bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
-      }
-
-      $table->addrow(
-        @fields_array,
-        $html->button('P', "index=$index&ping=$line->{client_ip}", { TITLE => 'Ping', BUTTON => 1 }),
-        $html->button('Z', "index=$index&zap=$nas_row->{id}+$line->{acct_session_id}", { TITLE => 'Zap', BUTTON => 1 })
-        ,
-        ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->{acct_session_id}",
-          { TYPE => 'checkbox', { BUTTON => 1 } }) : $html->button('H',
-          "index=$index&hangup=$nas_row->{id}+$line->{acct_session_id}", { TITLE => 'Hangup', BUTTON => 1 })
-      );
-    }
-  }
-
-  my $table2 = $html->table({
-    width => '100%',
-    rows  => [ [ "$lang{TOTAL}:", $html->b($sessions->{TOTAL}), "$form_link" ] ]
-  });
-
-  my $total = $table2->show();
-  my $output = $total . $table->show();
-  $table = $html->table({
-    width       => '100%',
-    title_plain => [ "$lang{REFRESH} (sec): " . $html->form_input('REFRESH', int(($FORM{REFRESH}) ? $FORM{REFRESH} : 0),
-      { SIZE => 4 }), $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }) ],
-    cols_align  => [ 'center:d-print-none', 'center:d-print-none' ],
-  });
-
-  if ($FORM{ZAPED}) {
-    $output = $html->form_main(
-      {
-        CONTENT => $output,
-        HIDDEN  => {
-          index => "$index",
-          ZAPED => 1
-        },
-        SUBMIT  => { go => "$lang{DEL}" },
-        METHOD  => 'GET'
-      }
-    );
-  }
-  else {
-    $output .= $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => { index => "$index" },
-        METHOD  => 'GET'
-      }
-    );
-    $output .= $html->button('Zap All', "index=$index&zapall=1",
-      { MESSAGE => "Do you realy want zap all sessions ?", BUTTON => 1 });
-  }
-
-  print $output;
-
-  return 1;
 }
 
 #**********************************************************
@@ -940,7 +651,11 @@ sub iptv_user_channels {
 
   #change channels immediately
   elsif ($FORM{change_now}) {
-    _iptv_channels_change_now({ %{$attr}, SELECT_CHANNELS => \%select_channels, MANDATORY_ARR => \@mandatory_arr });
+    # _iptv_channels_change_now({ %{$attr}, SELECT_CHANNELS => \%select_channels, MANDATORY_ARR => \@mandatory_arr });
+    use Iptv::Services;
+    my $Iptv_services = Iptv::Services->new($db, $admin, \%conf, { lang => \%lang });
+    my @channels_ids = split(/,\s?/, $FORM{IDS} || '');
+    $Iptv_services->user_change_channels({ %FORM, %{$attr}, IDS => \@channels_ids });
   }
   elsif ($FORM{del_shedule}) {
     $Shedule->del({ ID => $FORM{SHEDULE_ID}, UID => $Iptv->{UID} });
@@ -1193,21 +908,7 @@ sub iptv_service_deactivate {
         STATUS => $attr->{STATUS}
       );
 
-      $Iptv->user_change(\%params);
-
-      iptv_account_action({
-        #NEGDEPOSIT   => 1,
-        change       => 1,
-        FILTER_ID    => $user_info->{FILTER_ID},
-        ID           => $user_info->{ID},
-        UID          => $user_info->{UID},
-        LOGIN        => $user_info->{LOGIN},
-        SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
-        TP_NUM       => $user_info->{TP_NUM},
-        SERVICE_ID   => $user_info->{SERVICE_ID},
-        TP_ID        => $user_info->{TP_ID},
-        STATUS       => $attr->{STATUS}
-      });
+      $Iptv_services->user_change(\%params);
 
       if ($attr->{RECALCULATE} && $Iptv->{MONTH_ABON}) {
         $Iptv->{TP_INFO_OLD}->{MONTH_FEE} = $Iptv->{MONTH_ABON} || 0;
@@ -1216,7 +917,6 @@ sub iptv_service_deactivate {
         $Iptv->{TP_INFO_OLD}->{ABON_DISTRIBUTION} = $Iptv->{ABON_DISTRIBUTION} || 0;
         service_recalculate($Iptv, $attr);
       }
-
     }
 
     $action = 1;
@@ -1234,18 +934,12 @@ sub iptv_service_deactivate {
     $params{STATUS} = 5 if ($tp_info->{small_deposit_action} == -1);
     $params{TP_ID} = $tp_info->{small_deposit_action} if ($tp_info->{small_deposit_action} != -1);
 
-    $Iptv->user_change(\%params);
-
-    iptv_account_action({
-      NEGDEPOSIT   => 1,
-      FILTER_ID    => $tp_info->{filter_id},
-      ID           => $user_info->{ID},
-      UID          => $user_info->{UID},
-      LOGIN        => $user_info->{LOGIN},
-      SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
-      TP_NUM       => $tp_info->{tp_num},
-      SERVICE_ID   => $user_info->{SERVICE_ID}
-    });
+    if ($params{TP_ID}) {
+      $Iptv_services->user_change(\%params);
+    }
+    else {
+      $Iptv_services->user_negdeposit(\%params);
+    }
 
     $action = 1;
   }
@@ -1257,9 +951,9 @@ sub iptv_service_deactivate {
     });
   }
 
-  if ($action) {
-    _external('', { EXTERNAL_CMD => 'Iptv', %{$attr->{USER_INFO}}, %{$Iptv}, QUITE => 1 });
-  }
+  # if ($action) {
+  #   _external('', { EXTERNAL_CMD => 'Iptv', %{$attr->{USER_INFO}}, %{$Iptv}, QUITE => 1 });
+  # }
 
   return $action;
 }
@@ -1387,15 +1081,10 @@ sub iptv_transfer_service {
         push @channels, $channel->{ID};
       }
 
-      $Iptv->user_channels({
+      $Iptv_services->user_change_channels({
         ID    => $Iptv_info->{ID},
         TP_ID => $Iptv_info->{TP_ID},
-        IDS   => join(', ', @channels)
-      });
-
-      iptv_account_action({
-        ADD_ID   => \@channels,
-        channels => 1
+        IDS   => \@channels
       });
     }
   }
@@ -1590,309 +1279,309 @@ sub iptv_show_tp {
 
 =cut
 #**********************************************************
-sub iptv_user_activate {
-  my ($Iptv_info, $attr) = @_;
-
-  my $user_info = $Users->info($Iptv_info->{UID});
-  my $user = $attr->{USER};
-  $user->{DEPOSIT} = $user_info->{DEPOSIT} || $user->{DEPOSIT};
-  $user->{CREDIT} = $user_info->{CREDIT} || $user->{CREDIT};
-  $user->{CREDIT} = $user->{CREDIT} && $user->{CREDIT} > 0 ? $user->{CREDIT} : ($Iptv_info->{TP_CREDIT} || 0);
-  
-  $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
-
-  my %users_services = ();
-  my $debug_output = '';
-  my $debug = 0;
-  my $d = (split(/-/, $DATE))[2];
-
-  my %FEES_DSC = (
-    MODULE            => 'Iptv',
-    SERVICE_NAME      => $lang{TV},
-    TP_ID             => $Iptv_info->{TP_NUM},
-    TP_NAME           => $Iptv_info->{TP_NAME},
-    FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT}
-  );
-
-  push @{$users_services{$Iptv_info->{UID}}}, {
-    SUM          => $Iptv_info->{MONTH_FEE},
-    DESCRIBE     => fees_dsc_former(\%FEES_DSC),
-    FILTER_ID    => $Iptv_info->{TP_FILTER_ID},
-    ID           => $Iptv_info->{ID},
-    CHANGE_PRICE => $Iptv_info->{TP_CHANGE_PRICE} || 0,
-    TP_AGE       => $Iptv_info->{TP_AGE} || 0,
-    METHOD       => $Iptv_info->{FEES_METHOD} || 1
-  };
-
-  my %users_services_channels = ();
-  my %users_services_screens = ();
-  my @result_message = ();
-
-  $debug_output .= $Iptv_base->iptv_channels_fees({
-    UID              => $Iptv_info->{UID},
-    TP_ID            => $Iptv_info->{TP_ID},
-    TP_NUM           => $Iptv_info->{TP_NUM},
-    TP               => $Iptv_info,
-    DEBUG            => $debug,
-    SKIP_MONTH_PRICE => 1,
-    USERS_SERVICES   => \%users_services_channels,
-  });
-
-  $debug_output .= $Iptv_base->iptv_screen_fees({
-    UID            => $Iptv_info->{UID},
-    TP_ID          => $Iptv_info->{TP_ID},
-    TP_NUM         => $Iptv_info->{TP_NUM},
-    TP             => $Iptv_info,
-    DEBUG          => $debug,
-    USERS_SERVICES => \%users_services_screens,
-  });
-
-  my $total_sum = 0;
-  foreach my $service (@{$users_services{$Iptv_info->{UID}}}, @{$users_services_channels{$Iptv_info->{UID}}},
-    @{$users_services_screens{$Iptv_info->{UID}}}) {
-    $total_sum += $service->{SUM};
-  }
-
-  $total_sum = ($user->{REDUCTION} && $user->{REDUCTION} > 0) ? $total_sum * (100 - $user->{REDUCTION}) / 100 : $total_sum;
-  if ($Iptv_info->{ABON_DISTRIBUTION}) {
-    my $days_in_month = days_in_month();
-    $total_sum = sprintf("%.6f", $total_sum / $days_in_month);
-  }
-
-  if ($Iptv_info->{STATUS} && $Iptv_info->{STATUS} == 5 && $user->{DEPOSIT} + $user->{CREDIT} < $total_sum) {
-    if (!$attr->{SILENT}) {
-      $html->message('err', "$lang{TV} $lang{ERROR}",
-        $lang{NEGATIVE_DEPOSIT} . "\n $lang{DEPOSIT}: $user->{DEPOSIT}\n$lang{SUM}: " . sprintf("%.2f", $total_sum), { ID => 810 });
-    }
-    return 0;
-  }
-  elsif ($Iptv_info->{STATUS} == 0 && !$attr->{REACTIVATE}) {
-    if (!$attr->{SILENT}) {
-      $html->message('info', $lang{INFO}, "$lang{TV} $lang{ACTIVATE}");
-    }
-    return 0;
-  }
-
-  my %change_params = (
-    ID     => $Iptv_info->{ID},
-    UID    => $Iptv_info->{UID},
-    STATUS => 0,
-  );
-
-  $change_params{IPTV_ACTIVATE} = $DATE if ($DATE && $Iptv_info->{IPTV_ACTIVATE} ne '0000-00-00');
-  $Iptv->{db}->{db}->{AutoCommit} = 0;
-  $Iptv->user_change({ %change_params });
-
-  foreach my $service (@{$users_services{$Iptv_info->{UID}}}) {
-    iptv_account_action({
-      add          => 1,
-      UID          => $Iptv_info->{UID},
-      ID           => $Iptv_info->{ID},
-      TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
-      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
-      BUNDLE_TYPE  => 'subs_renew',
-      USER_INFO    => $user,
-      STATUS       => 0,
-      DEBUG        => $debug
-    });
-    $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
-
-    my $tp_change_price = ($user->{REDUCTION} && $user->{REDUCTION} > 0)
-      ? $Iptv_info->{TP_CHANGE_PRICE} * (100 - $user->{REDUCTION}) / 100 : $Iptv_info->{TP_CHANGE_PRICE};
-
-    my $sum = $conf{IPTV_CUSTOM_PERIOD} && $user->{DEPOSIT} + $user->{CREDIT} >= $tp_change_price
-      && $Iptv_info->{TP_AGE} ? $Iptv_info->{TP_CHANGE_PRICE} : $service->{SUM};
-    $sum = ($user->{REDUCTION} && $user->{REDUCTION} > 0) ? $sum * (100 - $user->{REDUCTION}) / 100 : $sum;
-
-    if ($attr->{FULL_MONTH_FEE}) {
-
-    }
-    elsif ($Iptv_info->{PERIOD_ALIGNMENT} && !$Iptv_info->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month({ DATE => $DATE });
-      $sum = sprintf("%.6f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
-      $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
-    }
-    if ($Iptv_info->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month();
-      $sum = sprintf("%.6f", $sum / $days_in_month);
-    }
-
-    push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
-
-    $service->{SUM} = $sum;
-    print qq{
-      $sum
-      $service->{DESCRIBE}
-      $service->{FILTER_ID}
-      <br>
-    } if ($debug);
-  }
-
-  foreach my $service (@{$users_services_screens{$Iptv_info->{UID}}}) {
-    iptv_account_action({
-      SCREEN_ID    => $service->{SCREEN_ID},
-      BUNDLE_TYPE  => 'subs_renew',
-      TP_FILTER_ID => $service->{FILTER_ID},
-      ID           => $Iptv_info->{ID},
-      UID          => $Iptv_info->{UID},
-      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
-      USER_INFO    => $user,
-      DEBUG        => $debug
-    });
-
-    my $sum = $service->{SUM};
-    if ($Iptv_info->{PERIOD_ALIGNMENT}) {
-      my $days_in_month = days_in_month({ DATE => $DATE });
-      $sum = sprintf("%.2f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
-      $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
-    }
-    elsif ($Iptv_info->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month();
-      $sum = sprintf("%.6f", $sum / $days_in_month);
-    }
-
-    push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
-
-    $service->{SUM} = $sum;
-    print qq{
-      $sum
-      $service->{DESCRIBE}
-      $service->{FILTER_ID}
-      <br>
-    } if ($debug);
-  }
-
-  my @channels_ids = ();
-  foreach my $service (@{$users_services_channels{$Iptv_info->{UID}}}) {
-    push @channels_ids, $service->{ID};
-    my $sum = $service->{SUM};
-    if ($Iptv_info->{PERIOD_ALIGNMENT}) {
-      my $days_in_month = days_in_month({ DATE => $DATE });
-      $sum = sprintf("%.2f", (($sum / $days_in_month) * ($days_in_month - $d + 1)));
-      $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
-    }
-    elsif ($Iptv_info->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month();
-      $sum = sprintf("%.6f", $sum / $days_in_month);
-    }
-
-    push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
-
-    $service->{SUM} = $sum;
-    print qq{
-      $sum
-      $service->{DESCRIBE}
-      $service->{FILTER_ID}
-      ID: $service->{ID}
-      <br>
-    } if ($debug);
-  }
-
-  if ($#channels_ids > -1) {
-    iptv_account_action({
-      channels     => 1,
-      ADD_ID       => \@channels_ids,
-      BUNDLE_TYPE  => 'subs_renew',
-      TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
-      ID           => $Iptv_info->{ID},
-      UID          => $Iptv_info->{UID},
-      SERVICE_ID   => $Iptv_info->{SERVICE_ID},
-      USER_INFO    => $user,
-      DEBUG        => $debug
-    });
-  }
-
-  push @{$users_services{$Iptv_info->{UID}}}, @{$users_services_screens{$Iptv_info->{UID}}};
-  push @{$users_services{$Iptv_info->{UID}}}, @{$users_services_channels{$Iptv_info->{UID}}};
-
-  #Get fees
-  get_service_fee($user, \%users_services, {
-    DATE              => $DATE,
-    METHOD            => 1,
-    DEBUG             => $debug,
-    # PERIOD_ALIGNMENT  => $Iptv_info->{PERIOD_ALIGNMENT},
-    # #Fixme
-    # ABON_DISTRIBUTION => $Iptv_info->{ABON_DISTRIBUTION}
-  });
-
-  $Iptv->{db}->{db}->commit() if(! $Iptv->{db}->{db}->{AutoCommit});
-  $Iptv->{db}->{db}->{AutoCommit} = 1;
-
-  if (!$attr->{SILENT}) {
-    $html->message('info', $lang{TV}, "$lang{ACTIVATE} \n" . join("\n", @result_message), { ID => 803 });
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 iptv_users_screen_add($Iptv_info, $attr) - User screens show
-
-  Arguments:
-    $Iptv_info
-    $attr
-      SHOW_FULL
-
-  Results:
-
-=cut
-#**********************************************************
-sub iptv_users_screen_add {
-  my ($Iptv_info, $attr) = @_;
-
-  my $list = $Iptv->screens_list({
-    TP_ID     => $Iptv_info->{TP_ID},
-    NUM       => $attr->{screen},
-    FILTER_ID => '_SHOW',
-    COLS_NAME => 1
-  });
-
-  if ($attr->{chg}) {
-    my $service_id = $Iptv->{SERVICE_ID};
-    $Iptv->users_screens_info($attr->{chg}, { SCREEN_ID => $attr->{screen} });
-    $Iptv->{SERVICE_ID} = $service_id;
-
-    $attr->{OLD_CID} = $Iptv->{CID} if ($Iptv->{CID} && $Iptv->{CID} ne $attr->{CID});
-  }
-
-  my $result = iptv_account_action({
-    %$attr,
-    SCREEN_ID    => $attr->{screen},
-    TP_FILTER_ID => $list->[0]->{filter_id},
-    ID           => $Iptv_info->{ID},
-    SERVICE_ID   => $Iptv->{SERVICE_ID}
-  });
-
-  return if $result;
-
-  # $Iptv->users_screens_add({
-  #   SERVICE_ID => $attr->{SERVICE_ID} || $attr->{chg},
-  #   SCREEN_ID  => $attr->{SCREEN_ID} || $attr->{screen},
-  #   %$attr
-  # });
-
-  if (!$Iptv->{errno} && ($attr->{add_screen} && $attr->{add_screen} ne $lang{CHANGE})) {
-    $html->message('info', $lang{INFO}, "$lang{SCREENS} $lang{ADDED} \n ID: $result");
-
-    my %users_services = ();
-    $Iptv_base->iptv_screen_fees({
-      UID            => $attr->{UID},
-      TP_ID          => $Iptv_info->{TP_ID},
-      TP_NUM         => $Iptv_info->{TP_NUM},
-      TP             => $Iptv_info,
-      USERS_SERVICES => \%users_services,
-      SCREEN_ID      => $attr->{SCREEN_ID} || $attr->{screen},
-    });
-
-    #Get fees
-    get_service_fee($users, \%users_services, { %$Iptv_info, METHOD => 1 });
-  }
-  elsif (!$Iptv->{errno} && ($attr->{add_screen} && $attr->{add_screen} eq $lang{CHANGE})) {
-    $html->message('info', $lang{INFO}, "$lang{SCREENS} $lang{CHANGED} \n ID: $result");
-  }
-
-  return 1;
-}
+# sub iptv_user_activate {
+#   my ($Iptv_info, $attr) = @_;
+#
+#   my $user_info = $Users->info($Iptv_info->{UID});
+#   my $user = $attr->{USER};
+#   $user->{DEPOSIT} = $user_info->{DEPOSIT} || $user->{DEPOSIT};
+#   $user->{CREDIT} = $user_info->{CREDIT} || $user->{CREDIT};
+#   $user->{CREDIT} = $user->{CREDIT} && $user->{CREDIT} > 0 ? $user->{CREDIT} : ($Iptv_info->{TP_CREDIT} || 0);
+#
+#   $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
+#
+#   my %users_services = ();
+#   my $debug_output = '';
+#   my $debug = 0;
+#   my $d = (split(/-/, $DATE))[2];
+#
+#   my %FEES_DSC = (
+#     MODULE            => 'Iptv',
+#     SERVICE_NAME      => $lang{TV},
+#     TP_ID             => $Iptv_info->{TP_NUM},
+#     TP_NAME           => $Iptv_info->{TP_NAME},
+#     FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT}
+#   );
+#
+#   push @{$users_services{$Iptv_info->{UID}}}, {
+#     SUM          => $Iptv_info->{MONTH_FEE},
+#     DESCRIBE     => fees_dsc_former(\%FEES_DSC),
+#     FILTER_ID    => $Iptv_info->{TP_FILTER_ID},
+#     ID           => $Iptv_info->{ID},
+#     CHANGE_PRICE => $Iptv_info->{TP_CHANGE_PRICE} || 0,
+#     TP_AGE       => $Iptv_info->{TP_AGE} || 0,
+#     METHOD       => $Iptv_info->{FEES_METHOD} || 1
+#   };
+#
+#   my %users_services_channels = ();
+#   my %users_services_screens = ();
+#   my @result_message = ();
+#
+#   $debug_output .= $Iptv_base->iptv_channels_fees({
+#     UID              => $Iptv_info->{UID},
+#     TP_ID            => $Iptv_info->{TP_ID},
+#     TP_NUM           => $Iptv_info->{TP_NUM},
+#     TP               => $Iptv_info,
+#     DEBUG            => $debug,
+#     SKIP_MONTH_PRICE => 1,
+#     USERS_SERVICES   => \%users_services_channels,
+#   });
+#
+#   $debug_output .= $Iptv_base->iptv_screen_fees({
+#     UID            => $Iptv_info->{UID},
+#     TP_ID          => $Iptv_info->{TP_ID},
+#     TP_NUM         => $Iptv_info->{TP_NUM},
+#     TP             => $Iptv_info,
+#     DEBUG          => $debug,
+#     USERS_SERVICES => \%users_services_screens,
+#   });
+#
+#   my $total_sum = 0;
+#   foreach my $service (@{$users_services{$Iptv_info->{UID}}}, @{$users_services_channels{$Iptv_info->{UID}}},
+#     @{$users_services_screens{$Iptv_info->{UID}}}) {
+#     $total_sum += $service->{SUM};
+#   }
+#
+#   $total_sum = ($user->{REDUCTION} && $user->{REDUCTION} > 0) ? $total_sum * (100 - $user->{REDUCTION}) / 100 : $total_sum;
+#   if ($Iptv_info->{ABON_DISTRIBUTION}) {
+#     my $days_in_month = days_in_month();
+#     $total_sum = sprintf("%.6f", $total_sum / $days_in_month);
+#   }
+#
+#   if ($Iptv_info->{STATUS} && $Iptv_info->{STATUS} == 5 && $user->{DEPOSIT} + $user->{CREDIT} < $total_sum) {
+#     if (!$attr->{SILENT}) {
+#       $html->message('err', "$lang{TV} $lang{ERROR}",
+#         $lang{NEGATIVE_DEPOSIT} . "\n $lang{DEPOSIT}: $user->{DEPOSIT}\n$lang{SUM}: " . sprintf("%.2f", $total_sum), { ID => 810 });
+#     }
+#     return 0;
+#   }
+#   elsif ($Iptv_info->{STATUS} == 0 && !$attr->{REACTIVATE}) {
+#     if (!$attr->{SILENT}) {
+#       $html->message('info', $lang{INFO}, "$lang{TV} $lang{ACTIVATE}");
+#     }
+#     return 0;
+#   }
+#
+#   my %change_params = (
+#     ID     => $Iptv_info->{ID},
+#     UID    => $Iptv_info->{UID},
+#     STATUS => 0,
+#   );
+#
+#   $change_params{IPTV_ACTIVATE} = $DATE if ($DATE && $Iptv_info->{IPTV_ACTIVATE} ne '0000-00-00');
+#   $Iptv->{db}->{db}->{AutoCommit} = 0;
+#   $Iptv->user_change({ %change_params });
+#
+#   foreach my $service (@{$users_services{$Iptv_info->{UID}}}) {
+#     iptv_account_action({
+#       add          => 1,
+#       UID          => $Iptv_info->{UID},
+#       ID           => $Iptv_info->{ID},
+#       TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
+#       SERVICE_ID   => $Iptv_info->{SERVICE_ID},
+#       BUNDLE_TYPE  => 'subs_renew',
+#       USER_INFO    => $user,
+#       STATUS       => 0,
+#       DEBUG        => $debug
+#     });
+#     $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
+#
+#     my $tp_change_price = ($user->{REDUCTION} && $user->{REDUCTION} > 0)
+#       ? $Iptv_info->{TP_CHANGE_PRICE} * (100 - $user->{REDUCTION}) / 100 : $Iptv_info->{TP_CHANGE_PRICE};
+#
+#     my $sum = $conf{IPTV_CUSTOM_PERIOD} && $user->{DEPOSIT} + $user->{CREDIT} >= $tp_change_price
+#       && $Iptv_info->{TP_AGE} ? $Iptv_info->{TP_CHANGE_PRICE} : $service->{SUM};
+#     $sum = ($user->{REDUCTION} && $user->{REDUCTION} > 0) ? $sum * (100 - $user->{REDUCTION}) / 100 : $sum;
+#
+#     if ($attr->{FULL_MONTH_FEE}) {
+#
+#     }
+#     elsif ($Iptv_info->{PERIOD_ALIGNMENT} && !$Iptv_info->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month({ DATE => $DATE });
+#       $sum = sprintf("%.6f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
+#       $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+#     }
+#     if ($Iptv_info->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month();
+#       $sum = sprintf("%.6f", $sum / $days_in_month);
+#     }
+#
+#     push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
+#
+#     $service->{SUM} = $sum;
+#     print qq{
+#       $sum
+#       $service->{DESCRIBE}
+#       $service->{FILTER_ID}
+#       <br>
+#     } if ($debug);
+#   }
+#
+#   foreach my $service (@{$users_services_screens{$Iptv_info->{UID}}}) {
+#     iptv_account_action({
+#       SCREEN_ID    => $service->{SCREEN_ID},
+#       BUNDLE_TYPE  => 'subs_renew',
+#       TP_FILTER_ID => $service->{FILTER_ID},
+#       ID           => $Iptv_info->{ID},
+#       UID          => $Iptv_info->{UID},
+#       SERVICE_ID   => $Iptv_info->{SERVICE_ID},
+#       USER_INFO    => $user,
+#       DEBUG        => $debug
+#     });
+#
+#     my $sum = $service->{SUM};
+#     if ($Iptv_info->{PERIOD_ALIGNMENT}) {
+#       my $days_in_month = days_in_month({ DATE => $DATE });
+#       $sum = sprintf("%.2f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
+#       $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+#     }
+#     elsif ($Iptv_info->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month();
+#       $sum = sprintf("%.6f", $sum / $days_in_month);
+#     }
+#
+#     push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
+#
+#     $service->{SUM} = $sum;
+#     print qq{
+#       $sum
+#       $service->{DESCRIBE}
+#       $service->{FILTER_ID}
+#       <br>
+#     } if ($debug);
+#   }
+#
+#   my @channels_ids = ();
+#   foreach my $service (@{$users_services_channels{$Iptv_info->{UID}}}) {
+#     push @channels_ids, $service->{ID};
+#     my $sum = $service->{SUM};
+#     if ($Iptv_info->{PERIOD_ALIGNMENT}) {
+#       my $days_in_month = days_in_month({ DATE => $DATE });
+#       $sum = sprintf("%.2f", (($sum / $days_in_month) * ($days_in_month - $d + 1)));
+#       $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+#     }
+#     elsif ($Iptv_info->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month();
+#       $sum = sprintf("%.6f", $sum / $days_in_month);
+#     }
+#
+#     push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
+#
+#     $service->{SUM} = $sum;
+#     print qq{
+#       $sum
+#       $service->{DESCRIBE}
+#       $service->{FILTER_ID}
+#       ID: $service->{ID}
+#       <br>
+#     } if ($debug);
+#   }
+#
+#   if ($#channels_ids > -1) {
+#     iptv_account_action({
+#       channels     => 1,
+#       ADD_ID       => \@channels_ids,
+#       BUNDLE_TYPE  => 'subs_renew',
+#       TP_FILTER_ID => $Iptv_info->{TP_FILTER_ID},
+#       ID           => $Iptv_info->{ID},
+#       UID          => $Iptv_info->{UID},
+#       SERVICE_ID   => $Iptv_info->{SERVICE_ID},
+#       USER_INFO    => $user,
+#       DEBUG        => $debug
+#     });
+#   }
+#
+#   push @{$users_services{$Iptv_info->{UID}}}, @{$users_services_screens{$Iptv_info->{UID}}};
+#   push @{$users_services{$Iptv_info->{UID}}}, @{$users_services_channels{$Iptv_info->{UID}}};
+#
+#   #Get fees
+#   get_service_fee($user, \%users_services, {
+#     DATE              => $DATE,
+#     METHOD            => 1,
+#     DEBUG             => $debug,
+#     # PERIOD_ALIGNMENT  => $Iptv_info->{PERIOD_ALIGNMENT},
+#     # #Fixme
+#     # ABON_DISTRIBUTION => $Iptv_info->{ABON_DISTRIBUTION}
+#   });
+#
+#   $Iptv->{db}->{db}->commit() if(! $Iptv->{db}->{db}->{AutoCommit});
+#   $Iptv->{db}->{db}->{AutoCommit} = 1;
+#
+#   if (!$attr->{SILENT}) {
+#     $html->message('info', $lang{TV}, "$lang{ACTIVATE} \n" . join("\n", @result_message), { ID => 803 });
+#   }
+#
+#   return 1;
+# }
+#
+# #**********************************************************
+# =head2 iptv_users_screen_add($Iptv_info, $attr) - User screens show
+#
+#   Arguments:
+#     $Iptv_info
+#     $attr
+#       SHOW_FULL
+#
+#   Results:
+#
+# =cut
+# #**********************************************************
+# sub iptv_users_screen_add {
+#   my ($Iptv_info, $attr) = @_;
+#
+#   my $list = $Iptv->screens_list({
+#     TP_ID     => $Iptv_info->{TP_ID},
+#     NUM       => $attr->{screen},
+#     FILTER_ID => '_SHOW',
+#     COLS_NAME => 1
+#   });
+#
+#   if ($attr->{chg}) {
+#     my $service_id = $Iptv->{SERVICE_ID};
+#     $Iptv->users_screens_info($attr->{chg}, { SCREEN_ID => $attr->{screen} });
+#     $Iptv->{SERVICE_ID} = $service_id;
+#
+#     $attr->{OLD_CID} = $Iptv->{CID} if ($Iptv->{CID} && $Iptv->{CID} ne $attr->{CID});
+#   }
+#
+#   my $result = iptv_account_action({
+#     %$attr,
+#     SCREEN_ID    => $attr->{screen},
+#     TP_FILTER_ID => $list->[0]->{filter_id},
+#     ID           => $Iptv_info->{ID},
+#     SERVICE_ID   => $Iptv->{SERVICE_ID}
+#   });
+#
+#   return if $result;
+#
+#   # $Iptv->users_screens_add({
+#   #   SERVICE_ID => $attr->{SERVICE_ID} || $attr->{chg},
+#   #   SCREEN_ID  => $attr->{SCREEN_ID} || $attr->{screen},
+#   #   %$attr
+#   # });
+#
+#   if (!$Iptv->{errno} && ($attr->{add_screen} && $attr->{add_screen} ne $lang{CHANGE})) {
+#     $html->message('info', $lang{INFO}, "$lang{SCREENS} $lang{ADDED} \n ID: $result");
+#
+#     my %users_services = ();
+#     $Iptv_base->iptv_screen_fees({
+#       UID            => $attr->{UID},
+#       TP_ID          => $Iptv_info->{TP_ID},
+#       TP_NUM         => $Iptv_info->{TP_NUM},
+#       TP             => $Iptv_info,
+#       USERS_SERVICES => \%users_services,
+#       SCREEN_ID      => $attr->{SCREEN_ID} || $attr->{screen},
+#     });
+#
+#     #Get fees
+#     get_service_fee($users, \%users_services, { %$Iptv_info, METHOD => 1 });
+#   }
+#   elsif (!$Iptv->{errno} && ($attr->{add_screen} && $attr->{add_screen} eq $lang{CHANGE})) {
+#     $html->message('info', $lang{INFO}, "$lang{SCREENS} $lang{CHANGED} \n ID: $result");
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 iptv_users_screens($Iptv_info, $attr) - User screens show
@@ -1920,16 +1609,31 @@ sub iptv_users_screens {
     $Iptv->{NUM} = $FORM{screen} if ($FORM{screen});
 
     if ($FORM{del_screen}) {
-      iptv_account_action({ %FORM, DEL => 1, SCREEN_ID => $FORM{screen}, SERVICE_ID => $Iptv_info->{SERVICE_ID} });
-
-      $Iptv->users_screens_del(\%FORM);
-      if (!_error_show($Iptv, { SILENT_MODE => 1 })) {
+      my $result = $Iptv_services->user_screen_del({
+        ID        => $Iptv_info->{ID},
+        SCREEN_ID => $FORM{screen}
+      });
+      if (!_error_show($result, { SILENT_MODE => 1 })) {
         delete $Iptv->{SCREEN_ID};
         $html->message('info', $lang{INFO}, $lang{DELETED});
       }
     }
     elsif ($FORM{add_screen}) {
-      iptv_users_screen_add($Iptv_info, \%FORM);
+      my $result = $Iptv_services->user_screen_add({
+        %FORM,
+        ID        => $Iptv_info->{ID},
+        SCREEN_ID => $FORM{screen}
+      });
+      if (!_error_show($result, { SILENT_MODE => 1 })) {
+        delete $Iptv->{SCREEN_ID};
+        $html->message('info', $lang{INFO}, $lang{ADDED});
+
+        if ($result->{FEES_MESSAGES} && ref $result->{FEES_MESSAGES} eq 'ARRAY') {
+          foreach my $message (@{$result->{FEES_MESSAGES}}) {
+            $html->message('info', $lang{INFO}, $message);
+          }
+        }
+      }
     }
   }
 
@@ -1968,13 +1672,7 @@ sub iptv_users_screens {
         });
     }
 
-    if ($Tv_service && $Tv_service->{SERVICE_USER_SCREEN_FORM}) {
-      my $fn = $Tv_service->{SERVICE_USER_SCREEN_FORM};
-      &{\&$fn}($attr);
-    }
-    else {
-      $html->tpl_show(_include('iptv_user_screens', 'Iptv'), { %{$Iptv}, DISABLED_INPUT => $attr->{DISABLED_INPUT} ? 'disabled' : '' });
-    }
+    $html->tpl_show(_include('iptv_user_screens', 'Iptv'), { %{$Iptv}, DISABLED_INPUT => $attr->{DISABLED_INPUT} ? 'disabled' : '' });
   }
 
   if ($attr->{SHOW_FULL}) {
@@ -2021,181 +1719,166 @@ sub iptv_users_screens {
   return 1;
 }
 
-#**********************************************************
-=head iptv_password_change($attr) - Password change for plugins
-
-  Arguments:
-    $attr
-
-=cut
-#**********************************************************
-sub iptv_password_change {
-  #my ($attr) = @_;
-
-
-  return 1;
-}
-
-#**********************************************************
-=head iptv_devices($attr)
-
-  Arguments:
-    $attr
-
-=cut
-#**********************************************************
-sub iptv_devices {
-
-  my $services = $html->form_main({
-    CONTENT => tv_services_sel({ HIDE_MENU_BTN => 1 }),
-    HIDDEN  => { index => $index },
-    class   => 'form-inline ml-auto mr-auto flex-nowrap',
-  });
-
-  func_menu({ $lang{NAME} => $services });
-
-  return if !$FORM{SERVICE_ID};
-  my %other_attr = ();
-
-  if ($FORM{add}) {
-    $Iptv->device_info({
-      DEVICE_ID  => $FORM{DEVICE_ID},
-      SERVICE_ID => $FORM{SERVICE_ID},
-    });
-
-    if (!$Iptv->{TOTAL}) {
-      $Iptv->device_add({
-        DEV_ID        => $FORM{DEVICE_ID},
-        UID           => $FORM{USER_SELECT},
-        ENABLE        => (defined($FORM{ENABLE})) ? 0 : 1,
-        DATE_ACTIVITY => POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime()),
-        IP_ACTIVITY   => $FORM{IP_ACTIVITY} || '',
-        SERVICE_ID    => $FORM{SERVICE_ID},
-        CODE          => $FORM{CODE},
-      });
-    }
-    else {
-      $html->message('error', $lang{ERROR}, "Device is already exist");
-    }
-    $other_attr{BTN_ACTION} = "add";
-    $other_attr{BTN_LNG} = "$lang{ADD}";
-    $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
-  }
-  elsif ($FORM{chg}) {
-    $Iptv->device_info({
-      DEVICE_ID  => $FORM{DEVICE_ID},
-      SERVICE_ID => $FORM{SERVICE_ID},
-    });
-
-    if (($FORM{DEV_ID} && $Iptv->{TOTAL} == 1 && $Iptv->{ID} eq $FORM{DEV_ID}) || (!$Iptv->{TOTAL})) {
-      $Iptv->device_change({
-        ID            => $FORM{DEV_ID},
-        CODE          => $FORM{CODE},
-        DEV_ID        => $FORM{DEVICE_ID},
-        UID           => $FORM{USER_SELECT},
-        ENABLE        => (defined($FORM{ENABLE})) ? 0 : 1,
-        DATE_ACTIVITY => POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime()),
-        IP_ACTIVITY   => $FORM{IP_ACTIVITY} || '',
-      });
-    }
-    elsif ($Iptv->{TOTAL} == 1) {
-      $html->message('error', $lang{ERROR}, "Device is already exist");
-    }
-
-    $other_attr{BTN_ACTION} = "add";
-    $other_attr{BTN_LNG} = "$lang{ADD}";
-    $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
-  }
-  elsif ($FORM{delete}) {
-    $Iptv->device_del($FORM{DEVICE_ID});
-    $other_attr{BTN_ACTION} = "add";
-    $other_attr{BTN_LNG} = "$lang{ADD}";
-    $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
-  }
-  elsif ($FORM{change}) {
-    my $chg_device = $Iptv->device_list({
-      ID            => $FORM{DEVICE_ID},
-      UID           => '_SHOW',
-      ENABLE        => '_SHOW',
-      DATE_ACTIVITY => '_SHOW',
-      IP_ACTIVITY   => '_SHOW',
-      DEV_ID        => '_SHOW',
-      CODE          => '_SHOW',
-    });
-
-    $other_attr{DEVICE_ID} = $chg_device->[0]{DEV_ID};
-    $other_attr{IP_ACTIVITY} = $chg_device->[0]{IP_ACTIVITY};
-    $other_attr{UID} = $chg_device->[0]{UID};
-    $other_attr{BTN_ACTION} = "chg";
-    $other_attr{BTN_LNG} = "$lang{CHANGE}";
-    $other_attr{DEVICE_ACTION} = "$lang{CHANGE} $lang{DEVICE}";
-    $other_attr{DEV_ID} = $FORM{DEVICE_ID};
-    $other_attr{CODE} = $chg_device->[0]{CODE};
-    if (!$chg_device->[0]{ENABLE} || $chg_device->[0]{ENABLE} ne '1') {
-      $other_attr{ENABLE} = 1
-    }
-  }
-  else {
-    $other_attr{BTN_ACTION} = "add";
-    $other_attr{BTN_LNG} = "$lang{ADD}";
-    $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
-  }
-
-  my $access_users = $Iptv->device_list({
-    UID        => '_SHOW',
-    SERVICE_ID => $FORM{SERVICE_ID},
-    USERS      => 1,
-    COLS_NAME  => 1,
-    PAGE_ROWS  => 99999,
-  });
-
-  my $select_users = $html->form_select('USER_SELECT', {
-    SELECTED    => $other_attr{UID} || 0,
-    SEL_LIST    => $access_users,
-    SEL_KEY     => 'uid',
-    SEL_VALUE   => 'LOGIN',
-    NO_ID       => 1,
-    SEL_OPTIONS => { '' => '--' },
-  });
-
-  $html->tpl_show(_include('iptv_devices_main', 'Iptv'), {
-    USERS_LIST => $select_users,
-    SERVICE_ID => $FORM{SERVICE_ID},
-    %other_attr,
-  });
-
-  my $devices = $Iptv->device_list({
-    UID           => '_SHOW',
-    ENABLE        => '_SHOW',
-    DATE_ACTIVITY => '_SHOW',
-    IP_ACTIVITY   => '_SHOW',
-    DEV_ID        => '_SHOW',
-    CODE          => '_SHOW',
-    SERVICE_ID    => $FORM{SERVICE_ID},
-  });
-
-  my $table = $html->table({
-    width      => '100%',
-    title      => [ "ID", $lang{USER}, $lang{DEVICE}, $lang{DATE}, "IP", $lang{ENABLE}, $lang{CODE}, $lang{CHANGE}, $lang{REMOVE} ],
-    caption    => $lang{DEVICE},
-    ID         => 'IPTV_DEVICE',
-    DATA_TABLE => 1,
-  });
-
-  my $change_buttons = '';
-  my $delete_buttons = '';
-  foreach my $element (@$devices) {
-    my $enable = ($element->{ENABLE} && $element->{ENABLE} eq '1') ? $lang{DISABLE} : $lang{ENABLE};
-    my $device_id = $element->{ID} || '';
-    $change_buttons = $html->button($lang{CHANGE}, "index=$index&change=1&DEVICE_ID=$device_id&SERVICE_ID=$FORM{SERVICE_ID}", { class => 'change' });
-    $delete_buttons = $html->button($lang{REMOVE}, "index=$index&delete=1&DEVICE_ID=$device_id&SERVICE_ID=$FORM{SERVICE_ID}", { class => 'del' });
-    $table->addrow($element->{ID}, $element->{LOGIN} || "", $element->{DEV_ID} || "", $element->{DATE_ACTIVITY} || "",
-      $element->{IP_ACTIVITY} || "", $enable, $element->{CODE} || "", $change_buttons, $delete_buttons);
-  }
-  print $table->show();
-
-  return 1;
-}
+# #**********************************************************
+# =head iptv_devices($attr)
+#
+#   Arguments:
+#     $attr
+#
+# =cut
+# #**********************************************************
+# sub iptv_devices {
+#
+#   my $services = $html->form_main({
+#     CONTENT => tv_services_sel({ HIDE_MENU_BTN => 1 }),
+#     HIDDEN  => { index => $index },
+#     class   => 'form-inline ml-auto mr-auto flex-nowrap',
+#   });
+#
+#   func_menu({ $lang{NAME} => $services });
+#
+#   return if !$FORM{SERVICE_ID};
+#   my %other_attr = ();
+#
+#   if ($FORM{add}) {
+#     $Iptv->device_info({
+#       DEVICE_ID  => $FORM{DEVICE_ID},
+#       SERVICE_ID => $FORM{SERVICE_ID},
+#     });
+#
+#     if (!$Iptv->{TOTAL}) {
+#       $Iptv->device_add({
+#         DEV_ID        => $FORM{DEVICE_ID},
+#         UID           => $FORM{USER_SELECT},
+#         ENABLE        => (defined($FORM{ENABLE})) ? 0 : 1,
+#         DATE_ACTIVITY => POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime()),
+#         IP_ACTIVITY   => $FORM{IP_ACTIVITY} || '',
+#         SERVICE_ID    => $FORM{SERVICE_ID},
+#         CODE          => $FORM{CODE},
+#       });
+#     }
+#     else {
+#       $html->message('error', $lang{ERROR}, "Device is already exist");
+#     }
+#     $other_attr{BTN_ACTION} = "add";
+#     $other_attr{BTN_LNG} = "$lang{ADD}";
+#     $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
+#   }
+#   elsif ($FORM{chg}) {
+#     $Iptv->device_info({
+#       DEVICE_ID  => $FORM{DEVICE_ID},
+#       SERVICE_ID => $FORM{SERVICE_ID},
+#     });
+#
+#     if (($FORM{DEV_ID} && $Iptv->{TOTAL} == 1 && $Iptv->{ID} eq $FORM{DEV_ID}) || (!$Iptv->{TOTAL})) {
+#       $Iptv->device_change({
+#         ID            => $FORM{DEV_ID},
+#         CODE          => $FORM{CODE},
+#         DEV_ID        => $FORM{DEVICE_ID},
+#         UID           => $FORM{USER_SELECT},
+#         ENABLE        => (defined($FORM{ENABLE})) ? 0 : 1,
+#         DATE_ACTIVITY => POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime()),
+#         IP_ACTIVITY   => $FORM{IP_ACTIVITY} || '',
+#       });
+#     }
+#     elsif ($Iptv->{TOTAL} == 1) {
+#       $html->message('error', $lang{ERROR}, "Device is already exist");
+#     }
+#
+#     $other_attr{BTN_ACTION} = "add";
+#     $other_attr{BTN_LNG} = "$lang{ADD}";
+#     $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
+#   }
+#   elsif ($FORM{delete}) {
+#     $Iptv->device_del($FORM{DEVICE_ID});
+#     $other_attr{BTN_ACTION} = "add";
+#     $other_attr{BTN_LNG} = "$lang{ADD}";
+#     $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
+#   }
+#   elsif ($FORM{change}) {
+#     my $chg_device = $Iptv->device_list({
+#       ID            => $FORM{DEVICE_ID},
+#       UID           => '_SHOW',
+#       ENABLE        => '_SHOW',
+#       DATE_ACTIVITY => '_SHOW',
+#       IP_ACTIVITY   => '_SHOW',
+#       DEV_ID        => '_SHOW',
+#       CODE          => '_SHOW',
+#     });
+#
+#     $other_attr{DEVICE_ID} = $chg_device->[0]{DEV_ID};
+#     $other_attr{IP_ACTIVITY} = $chg_device->[0]{IP_ACTIVITY};
+#     $other_attr{UID} = $chg_device->[0]{UID};
+#     $other_attr{BTN_ACTION} = "chg";
+#     $other_attr{BTN_LNG} = "$lang{CHANGE}";
+#     $other_attr{DEVICE_ACTION} = "$lang{CHANGE} $lang{DEVICE}";
+#     $other_attr{DEV_ID} = $FORM{DEVICE_ID};
+#     $other_attr{CODE} = $chg_device->[0]{CODE};
+#     if (!$chg_device->[0]{ENABLE} || $chg_device->[0]{ENABLE} ne '1') {
+#       $other_attr{ENABLE} = 1
+#     }
+#   }
+#   else {
+#     $other_attr{BTN_ACTION} = "add";
+#     $other_attr{BTN_LNG} = "$lang{ADD}";
+#     $other_attr{DEVICE_ACTION} = "$lang{ADD} $lang{DEVICE}";
+#   }
+#
+#   my $access_users = $Iptv->device_list({
+#     UID        => '_SHOW',
+#     SERVICE_ID => $FORM{SERVICE_ID},
+#     USERS      => 1,
+#     COLS_NAME  => 1,
+#     PAGE_ROWS  => 99999,
+#   });
+#
+#   my $select_users = $html->form_select('USER_SELECT', {
+#     SELECTED    => $other_attr{UID} || 0,
+#     SEL_LIST    => $access_users,
+#     SEL_KEY     => 'uid',
+#     SEL_VALUE   => 'LOGIN',
+#     NO_ID       => 1,
+#     SEL_OPTIONS => { '' => '--' },
+#   });
+#
+#   $html->tpl_show(_include('iptv_devices_main', 'Iptv'), {
+#     USERS_LIST => $select_users,
+#     SERVICE_ID => $FORM{SERVICE_ID},
+#     %other_attr,
+#   });
+#
+#   my $devices = $Iptv->device_list({
+#     UID           => '_SHOW',
+#     ENABLE        => '_SHOW',
+#     DATE_ACTIVITY => '_SHOW',
+#     IP_ACTIVITY   => '_SHOW',
+#     DEV_ID        => '_SHOW',
+#     CODE          => '_SHOW',
+#     SERVICE_ID    => $FORM{SERVICE_ID},
+#   });
+#
+#   my $table = $html->table({
+#     width      => '100%',
+#     title      => [ "ID", $lang{USER}, $lang{DEVICE}, $lang{DATE}, "IP", $lang{ENABLE}, $lang{CODE}, $lang{CHANGE}, $lang{REMOVE} ],
+#     caption    => $lang{DEVICE},
+#     ID         => 'IPTV_DEVICE',
+#     DATA_TABLE => 1,
+#   });
+#
+#   my $change_buttons = '';
+#   my $delete_buttons = '';
+#   foreach my $element (@$devices) {
+#     my $enable = ($element->{ENABLE} && $element->{ENABLE} eq '1') ? $lang{DISABLE} : $lang{ENABLE};
+#     my $device_id = $element->{ID} || '';
+#     $change_buttons = $html->button($lang{CHANGE}, "index=$index&change=1&DEVICE_ID=$device_id&SERVICE_ID=$FORM{SERVICE_ID}", { class => 'change' });
+#     $delete_buttons = $html->button($lang{REMOVE}, "index=$index&delete=1&DEVICE_ID=$device_id&SERVICE_ID=$FORM{SERVICE_ID}", { class => 'del' });
+#     $table->addrow($element->{ID}, $element->{LOGIN} || "", $element->{DEV_ID} || "", $element->{DATE_ACTIVITY} || "",
+#       $element->{IP_ACTIVITY} || "", $enable, $element->{CODE} || "", $change_buttons, $delete_buttons);
+#   }
+#   print $table->show();
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 iptv_registration($attr)
@@ -2242,33 +1925,28 @@ sub iptv_registration {
       return 0 if ($users->{errno});
 
       if (!$FORM{STATUS}) {
-        require Abills::Misc;
-        require Iptv::Users;
-        require Iptv::Services;
-
-        my $tv_service_id = iptv_user_add({
-          %FORM,
-          TP_ID       => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
-          UID         => $uid,
-          SERVICE_ADD => 1,
-          USER_INFO   => $users,
-          add         => 1,
-          DISABLE     => 5,
-          STATUS      => 5,
+        my $result = $Iptv_services->user_add({ %FORM,
+          TP_ID  => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
+          UID    => $uid,
+          STATUS => 5
         });
+        my $tv_service_id = $result->{INSERT_ID};
 
-        if ($tv_service_id) {
+        if ($tv_service_id && !$result->{errno}) {
           $html->message('info', $lang{ADDED}, " # $tv_service_id");
 
           #Send sms
           if ($FORM{PHONE} && in_array('Sms', \@MODULES) && $conf{REGISTRATION_SEND_SMS} && !$FORM{REGISTRATION_SKIP_SEND_SMS}) {
-            load_module('Sms', $html);
+            require Abills::Sender::Core;
+            Abills::Sender::Core->import();
+            my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
-            my $message = $html->tpl_show(_include('iptv_reg_complete_sms', 'Iptv'), { %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });;
-            sms_send({
-              NUMBER  => $FORM{PHONE},
-              MESSAGE => $message,
-              UID     => $uid,
+            my $message = $html->tpl_show(_include('iptv_reg_complete_sms', 'Iptv'), { %FORM, PASSWORD => $password }, { OUTPUT2RETURN => 1 });
+            $Sender->send_message({
+              TO_ADDRESS  => $FORM{PHONE},
+              MESSAGE     => $message,
+              UID         => $uid,
+              SENDER_TYPE => 'Sms',
             });
           }
           #Send mail
@@ -2320,328 +1998,328 @@ sub iptv_registration {
 
 =cut
 #**********************************************************
-sub _iptv_get_fees_mandatory_channels {
-  my ($attr) = @_;
+# sub _iptv_get_fees_mandatory_channels {
+#   my ($attr) = @_;
+#
+#   $attr->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID}) if ($attr->{TP_ID} && !$attr->{MANDATORY_CHANNELS});
+#
+#   return '' if !$attr->{MANDATORY_CHANNELS};
+#
+#   $Tariffs->info(undef, { TP_ID => $attr->{TP_ID} });
+#   $Users->info($attr->{UID});
+#   my $days_in_month = days_in_month();
+#   my $message = '';
+#   my $debug_output = '';
+#
+#   foreach my $channel (keys %{$attr->{MANDATORY_CHANNELS}}) {
+#     next unless $attr->{MANDATORY_CHANNELS}{$channel}{MONTH_PRICE};
+#
+#     my $sum = $attr->{MANDATORY_CHANNELS}{$channel}{MONTH_PRICE};
+#     $sum = $sum * (100 - $Users->{REDUCTION}) / 100 if ($attr->{REDUCTION_FEE} && $Users->{REDUCTION} && $Users->{REDUCTION} > 0);
+#     $sum = $sum = sprintf("%.6f", $sum / $days_in_month) if ($Tariffs->{ABON_DISTRIBUTION});
+#
+#     next if $sum <= 0;
+#
+#     my %FEES_DSC = (
+#       MODULE       => "Iptv",
+#       TP_ID        => $attr->{TP_ID},
+#       DESCRIBE     => "$lang{TV}: $lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME}",
+#       METHOD       => $Tariffs->{FEES_METHOD} || 2
+#     );
+#
+#     if ($attr->{USERS_SERVICES}) {
+#       $debug_output .= " Login: $Users->{LOGIN} ($Users->{UID}) TP_ID: $attr->{TP_ID} Channel: $channel Month Price: $sum " .
+#         "REDUCTION: $Users->{REDUCTION}\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 3);
+#
+#       %FEES_DSC = (
+#         MODULE            => "Iptv",
+#         SERVICE_NAME      => $lang{TV},
+#         TP_ID             => $attr->{TP_ID},
+#         TP_NAME           => "$lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME}",
+#         FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
+#         FEES_METHOD       => $Tariffs->{FEES_METHOD} ? $FEES_METHODS{ $Tariffs->{FEES_METHOD} } : 2
+#       );
+#
+#       push @{$attr->{USERS_SERVICES}->{ $Users->{UID} }}, {
+#         SUM       => $sum,
+#         DESCRIBE  => fees_dsc_former(\%FEES_DSC),
+#         FILTER_ID => $attr->{MANDATORY_CHANNELS}{$channel}{FILTER_ID},
+#         ID        => $channel,
+#       };
+#       next;
+#     }
+#
+#     $Fees->take($Users, $sum, \%FEES_DSC);
+#     if ($Fees->{errno}) {
+#       _error_show($Fees) if (!$attr->{RETURN_MSG});
+#     }
+#     else {
+#       $message .= "$lang{TV}: $lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME} $lang{SUM}: $sum\n";
+#     }
+#   }
+#
+#   return $message if $attr->{RETURN_MSG};
+#   return $debug_output if $attr->{RETURN_DEBUG};
+#
+#   $html->message('info', $lang{INFO}, $message) if $html;
+#
+#   return '';
+# }
 
-  $attr->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID}) if ($attr->{TP_ID} && !$attr->{MANDATORY_CHANNELS});
-
-  return '' if !$attr->{MANDATORY_CHANNELS};
-
-  $Tariffs->info(undef, { TP_ID => $attr->{TP_ID} });
-  $Users->info($attr->{UID});
-  my $days_in_month = days_in_month();
-  my $message = '';
-  my $debug_output = '';
-
-  foreach my $channel (keys %{$attr->{MANDATORY_CHANNELS}}) {
-    next unless $attr->{MANDATORY_CHANNELS}{$channel}{MONTH_PRICE};
-
-    my $sum = $attr->{MANDATORY_CHANNELS}{$channel}{MONTH_PRICE};
-    $sum = $sum * (100 - $Users->{REDUCTION}) / 100 if ($attr->{REDUCTION_FEE} && $Users->{REDUCTION} && $Users->{REDUCTION} > 0);
-    $sum = $sum = sprintf("%.6f", $sum / $days_in_month) if ($Tariffs->{ABON_DISTRIBUTION});
-
-    next if $sum <= 0;
-
-    my %FEES_DSC = (
-      MODULE       => "Iptv",
-      TP_ID        => $attr->{TP_ID},
-      DESCRIBE     => "$lang{TV}: $lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME}",
-      METHOD       => $Tariffs->{FEES_METHOD} || 2
-    );
-
-    if ($attr->{USERS_SERVICES}) {
-      $debug_output .= " Login: $Users->{LOGIN} ($Users->{UID}) TP_ID: $attr->{TP_ID} Channel: $channel Month Price: $sum " .
-        "REDUCTION: $Users->{REDUCTION}\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 3);
-
-      %FEES_DSC = (
-        MODULE            => "Iptv",
-        SERVICE_NAME      => $lang{TV},
-        TP_ID             => $attr->{TP_ID},
-        TP_NAME           => "$lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME}",
-        FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD       => $Tariffs->{FEES_METHOD} ? $FEES_METHODS{ $Tariffs->{FEES_METHOD} } : 2
-      );
-
-      push @{$attr->{USERS_SERVICES}->{ $Users->{UID} }}, {
-        SUM       => $sum,
-        DESCRIBE  => fees_dsc_former(\%FEES_DSC),
-        FILTER_ID => $attr->{MANDATORY_CHANNELS}{$channel}{FILTER_ID},
-        ID        => $channel,
-      };
-      next;
-    }
-
-    $Fees->take($Users, $sum, \%FEES_DSC);
-    if ($Fees->{errno}) {
-      _error_show($Fees) if (!$attr->{RETURN_MSG});
-    }
-    else {
-      $message .= "$lang{TV}: $lang{CHANNELS}:$channel $attr->{MANDATORY_CHANNELS}{$channel}{NAME} $lang{SUM}: $sum\n";
-    }
-  }
-
-  return $message if $attr->{RETURN_MSG};
-  return $debug_output if $attr->{RETURN_DEBUG};
-
-  $html->message('info', $lang{INFO}, $message) if $html;
-
-  return '';
-}
-
-#**********************************************************
-=head2 _iptv_channels_change_now($attr)
-
-  Arguments:
-    ID
-    TP_ID
-    MANDATORY_ARR
-    channels
-    MANDATORY_CHANNELS
-    UID
-    IPTV_
-
-  Return:
-
-=cut
-#**********************************************************
-sub _iptv_channels_change_now {
-  my ($attr) = @_;
-
-  my DBI $db_ = $Iptv->{db}{db};
-  $db_->{AutoCommit} = 0;
-
-  my $service_id = $attr->{ID} || $Iptv->{ID};
-  my $tp_id      = $attr->{TP_ID} || $Iptv->{TP_ID};
-  my $select_channels = $attr->{SELECT_CHANNELS} || ();
-  my @new_arr = ();
-  my @ids_arr = split(/,\s?/, $FORM{IDS} || '');
-  my %ids_hash = ();
-  my @add_arr = ();
-  my @add_filters = ();
-  my @new_channels_fees = ();
-  my $user_deposit = $users->{CREDIT} + ($users->{DEPOSIT} || 0);
-
-  map $ids_hash{$_} = 1, @ids_arr;
-
-  foreach my $channel (keys %{$select_channels}) {
-    next if (!$ids_hash{$channel});
-
-    delete $ids_hash{$channel};
-    push @add_arr, $channel;
-  }
-
-  @new_arr = keys %ids_hash;
-
-  if ($#new_arr > -1) {
-    my $channel_ti_list = $Iptv->channel_ti_list({
-      %LIST_PARAMS,
-      COLS_NAME        => 1,
-      USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID},
-      IDS              => join('; ', @new_arr)
-    });
-
-    foreach my $line (@{$channel_ti_list}) {
-      if (defined($users->{DEPOSIT}) && (($user_deposit) > $line->{month_price} || $Iptv->{PAYMENT_TYPE} || $Iptv->{POSTPAID_MONTHLY_FEE})) {
-
-        push @new_channels_fees, {
-          PERIOD_ALIGNMENT    => $Iptv->{PERIOD_ALIGNMENT} || 0,
-          MONTH_FEE           => $line->{month_price},
-          DAY_FEE             => $line->{day_price},
-          NAME                => $line->{name} || '',
-          TP_ID               => $tp_id,
-          ABON_DISTRIBUTION   => $Iptv->{ABON_DISTRIBUTION},
-          REDUCTION_FEE       => $Iptv->{REDUCTION_FEE},
-          INTERVAL_CHANNEL_ID => $line->{interval_channel_id},
-        };
-
-        my $channel_price = 0;
-        if ($users->{REDUCTION} && $users->{REDUCTION} > 0 && $Iptv->{REDUCTION_FEE}) {
-          $channel_price = $line->{month_price} > 0 ? ($line->{month_price} * (100 - $users->{REDUCTION}) / 100) : $line->{day_price};
-        }
-        else {
-          $channel_price = $line->{month_price} > 0 ? $line->{month_price} : $line->{day_price};
-        }
-
-        $user_deposit -= $channel_price;
-
-        $select_channels->{ $line->{channel_id} } = '1';
-        push @add_arr, $line->{channel_id};
-        push @add_filters, $line->{filter_id};
-      }
-      else {
-        $html->message('err', $lang{ERROR},
-          "$lang{ERR_SMALL_DEPOSIT}\n$lang{MONTH_FEE}:$line->{month_price}\nDEPOSIT:$user_deposit") if (!$attr->{QUIET});
-      }
-    }
-  }
-
-  delete $FORM{IDS};
-  push @add_arr, @{$attr->{MANDATORY_ARR}} if $attr->{MANDATORY_ARR} && ref $attr->{MANDATORY_ARR} eq 'ARRAY';
-
-  $Iptv->user_channels({
-    ID    => $service_id,
-    TP_ID => $tp_id,
-    IDS   => join(',', @add_arr)
-  });
-
-  if (!_error_show($Iptv)) {
-    my $action_result = iptv_account_action({
-      ADD_ID   => \@add_arr,
-      DEL      => $select_channels,
-      channels => 1
-    });
-
-    if ($attr->{MANDATORY_CHANNELS}) {
-      delete($Iptv->{db}->{TRANSACTION});
-      $db_->commit();
-      $db_->{AutoCommit} = 1;
-
-      _iptv_get_new_channel_fees(\@new_channels_fees);
-
-      return 0;
-    }
-
-    if (!$action_result) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED} " . ($#add_arr + 1)) if (!$attr->{QUIET});
-      delete($Iptv->{db}->{TRANSACTION});
-      $db_->commit();
-      $db_->{AutoCommit} = 1;
-
-      _iptv_get_new_channel_fees(\@new_channels_fees);
-    }
-    else {
-      $db_->rollback();
-    }
-  }
-  else {
-    delete($Iptv->{db}->{TRANSACTION});
-    $db_->commit();
-    $db_->{AutoCommit} = 1;
-  }
-
-  return 0;
-}
-
-#**********************************************************
-=head2 _iptv_get_new_channel_fees($attr)
-
-  Arguments:
-
-  Return:
-
-=cut
-#**********************************************************
-sub _iptv_get_new_channel_fees {
-  my ($channels) = @_;
-
-  foreach my $channel (@{$channels}) {
-    $Iptv->{TP_INFO} = $channel;
-
-    if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
-      # $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
-      service_get_month_fee($Iptv, {
-        EXT_DESCRIBE => " $lang{CHANNEL}: $channel->{INTERVAL_CHANNEL_ID}",
-        SERVICE_NAME => $lang{TV},
-        MODULE       => 'Iptv'
-      });
-    }
-    else {
-      my %PARAMS = (
-        DESCRIBE => "$lang{TV}: $lang{DAY_FEE}",
-        METHOD   => 1
-      );
-      $Fees->take($users, $Iptv->{TP_INFO}->{DAY_FEE}, { %PARAMS });
-    }
-  }
-
-  return 0;
-}
-
-#**********************************************************
-=head2 iptv_service_activate($attr)
-
-  Arguments:
-    $attr
-      TP_INFO
-      USER_INFO
-        UID
-        ID
-      STATUS
-      DEBUG
-
-=cut
-#**********************************************************
-sub iptv_service_activate {
-  my ($attr)=@_;
-
-  my $user_info = $attr->{USER_INFO};
-
-  if(! $user_info->{UID}) {
-    return 1;
-  }
-
-  if (defined($attr->{STATUS})) {
-    my $tv_services = $Iptv->user_list({
-      UID           => $user_info->{UID} || '-1',
-      ALL_FILTER_ID => '_SHOW',
-      LOGIN         => '_SHOW',
-      SUBSCRIBE_ID  => '_SHOW',
-      TP_NUM        => '_SHOW',
-      SERVICE_ID    => '_SHOW',
-      TP_ID         => '_SHOW',
-      COLS_UPPER    => 1,
-      COLS_NAME     => 1,
-    });
-
-    foreach $user_info (@$tv_services) {
-      my %params = (
-        ID     => $user_info->{ID},
-        UID    => $user_info->{UID},
-        STATUS => $attr->{STATUS}
-      );
-
-      $Iptv->user_change(\%params);
-
-      iptv_account_action({
-        #NEGDEPOSIT   => 1,
-        change       => 1,
-        FILTER_ID    => $user_info->{FILTER_ID},
-        ID           => $user_info->{ID},
-        UID          => $user_info->{UID},
-        LOGIN        => $user_info->{LOGIN},
-        SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
-        TP_NUM       => $user_info->{TP_NUM},
-        SERVICE_ID   => $user_info->{SERVICE_ID},
-        TP_ID        => $user_info->{TP_ID},
-        STATUS       => $user_info->{STATUS}
-      });
-
-      if ($attr->{GET_ABON}) {
-        $attr->{MODULE}='Iptv';
-        $attr->{SERVICE_NAME}='Iptv';
-        service_get_month_fee($Iptv, $attr);
-      }
-    }
-  }
-  else {
-    $Iptv->user_change({
-      ID     => $user_info->{ID},
-      UID    => $user_info->{UID},
-      STATUS => 0
-    });
-    $attr->{USER_INFO}->{SERVICE_STATUS} = 0;
-
-    iptv_account_action({
-      %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
-      change    => 1,
-      USER_INFO => $user_info,
-      SILENT    => 1
-    });
-  }
-
-  _external('', { EXTERNAL_CMD => 'Iptv', %{ $attr->{USER_INFO} }, QUITE => 1 });
-
-  return 1;
-}
+# #**********************************************************
+# =head2 _iptv_channels_change_now($attr)
+#
+#   Arguments:
+#     ID
+#     TP_ID
+#     MANDATORY_ARR
+#     channels
+#     MANDATORY_CHANNELS
+#     UID
+#     IPTV_
+#
+#   Return:
+#
+# =cut
+# #**********************************************************
+# sub _iptv_channels_change_now {
+#   my ($attr) = @_;
+#
+#   my DBI $db_ = $Iptv->{db}{db};
+#   $db_->{AutoCommit} = 0;
+#
+#   my $service_id = $attr->{ID} || $Iptv->{ID};
+#   my $tp_id      = $attr->{TP_ID} || $Iptv->{TP_ID};
+#   my $select_channels = $attr->{SELECT_CHANNELS} || ();
+#   my @new_arr = ();
+#   my @ids_arr = split(/,\s?/, $FORM{IDS} || '');
+#   my %ids_hash = ();
+#   my @add_arr = ();
+#   my @add_filters = ();
+#   my @new_channels_fees = ();
+#   my $user_deposit = $users->{CREDIT} + ($users->{DEPOSIT} || 0);
+#
+#   map $ids_hash{$_} = 1, @ids_arr;
+#
+#   foreach my $channel (keys %{$select_channels}) {
+#     next if (!$ids_hash{$channel});
+#
+#     delete $ids_hash{$channel};
+#     push @add_arr, $channel;
+#   }
+#
+#   @new_arr = keys %ids_hash;
+#
+#   if ($#new_arr > -1) {
+#     my $channel_ti_list = $Iptv->channel_ti_list({
+#       %LIST_PARAMS,
+#       COLS_NAME        => 1,
+#       USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID},
+#       IDS              => join('; ', @new_arr)
+#     });
+#
+#     foreach my $line (@{$channel_ti_list}) {
+#       if (defined($users->{DEPOSIT}) && (($user_deposit) > $line->{month_price} || $Iptv->{PAYMENT_TYPE} || $Iptv->{POSTPAID_MONTHLY_FEE})) {
+#
+#         push @new_channels_fees, {
+#           PERIOD_ALIGNMENT    => $Iptv->{PERIOD_ALIGNMENT} || 0,
+#           MONTH_FEE           => $line->{month_price},
+#           DAY_FEE             => $line->{day_price},
+#           NAME                => $line->{name} || '',
+#           TP_ID               => $tp_id,
+#           ABON_DISTRIBUTION   => $Iptv->{ABON_DISTRIBUTION},
+#           REDUCTION_FEE       => $Iptv->{REDUCTION_FEE},
+#           INTERVAL_CHANNEL_ID => $line->{interval_channel_id},
+#         };
+#
+#         my $channel_price = 0;
+#         if ($users->{REDUCTION} && $users->{REDUCTION} > 0 && $Iptv->{REDUCTION_FEE}) {
+#           $channel_price = $line->{month_price} > 0 ? ($line->{month_price} * (100 - $users->{REDUCTION}) / 100) : $line->{day_price};
+#         }
+#         else {
+#           $channel_price = $line->{month_price} > 0 ? $line->{month_price} : $line->{day_price};
+#         }
+#
+#         $user_deposit -= $channel_price;
+#
+#         $select_channels->{ $line->{channel_id} } = '1';
+#         push @add_arr, $line->{channel_id};
+#         push @add_filters, $line->{filter_id};
+#       }
+#       else {
+#         $html->message('err', $lang{ERROR},
+#           "$lang{ERR_SMALL_DEPOSIT}\n$lang{MONTH_FEE}:$line->{month_price}\nDEPOSIT:$user_deposit") if (!$attr->{QUIET});
+#       }
+#     }
+#   }
+#
+#   delete $FORM{IDS};
+#   push @add_arr, @{$attr->{MANDATORY_ARR}} if $attr->{MANDATORY_ARR} && ref $attr->{MANDATORY_ARR} eq 'ARRAY';
+#
+#   $Iptv->user_channels({
+#     ID    => $service_id,
+#     TP_ID => $tp_id,
+#     IDS   => join(',', @add_arr)
+#   });
+#
+#   if (!_error_show($Iptv)) {
+#     my $action_result = iptv_account_action({
+#       ADD_ID   => \@add_arr,
+#       DEL      => $select_channels,
+#       channels => 1
+#     });
+#
+#     if ($attr->{MANDATORY_CHANNELS}) {
+#       delete($Iptv->{db}->{TRANSACTION});
+#       $db_->commit();
+#       $db_->{AutoCommit} = 1;
+#
+#       _iptv_get_new_channel_fees(\@new_channels_fees);
+#
+#       return 0;
+#     }
+#
+#     if (!$action_result) {
+#       $html->message('info', $lang{INFO}, "$lang{CHANGED} " . ($#add_arr + 1)) if (!$attr->{QUIET});
+#       delete($Iptv->{db}->{TRANSACTION});
+#       $db_->commit();
+#       $db_->{AutoCommit} = 1;
+#
+#       _iptv_get_new_channel_fees(\@new_channels_fees);
+#     }
+#     else {
+#       $db_->rollback();
+#     }
+#   }
+#   else {
+#     delete($Iptv->{db}->{TRANSACTION});
+#     $db_->commit();
+#     $db_->{AutoCommit} = 1;
+#   }
+#
+#   return 0;
+# }
+#
+# #**********************************************************
+# =head2 _iptv_get_new_channel_fees($attr)
+#
+#   Arguments:
+#
+#   Return:
+#
+# =cut
+# #**********************************************************
+# sub _iptv_get_new_channel_fees {
+#   my ($channels) = @_;
+#
+#   foreach my $channel (@{$channels}) {
+#     $Iptv->{TP_INFO} = $channel;
+#
+#     if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
+#       # $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
+#       service_get_month_fee($Iptv, {
+#         EXT_DESCRIBE => " $lang{CHANNEL}: $channel->{INTERVAL_CHANNEL_ID}",
+#         SERVICE_NAME => $lang{TV},
+#         MODULE       => 'Iptv'
+#       });
+#     }
+#     else {
+#       my %PARAMS = (
+#         DESCRIBE => "$lang{TV}: $lang{DAY_FEE}",
+#         METHOD   => 1
+#       );
+#       $Fees->take($users, $Iptv->{TP_INFO}->{DAY_FEE}, { %PARAMS });
+#     }
+#   }
+#
+#   return 0;
+# }
+#
+# #**********************************************************
+# =head2 iptv_service_activate($attr)
+#
+#   Arguments:
+#     $attr
+#       TP_INFO
+#       USER_INFO
+#         UID
+#         ID
+#       STATUS
+#       DEBUG
+#
+# =cut
+# #**********************************************************
+# sub iptv_service_activate {
+#   my ($attr)=@_;
+#
+#   my $user_info = $attr->{USER_INFO};
+#
+#   if(! $user_info->{UID}) {
+#     return 1;
+#   }
+#
+#   if (defined($attr->{STATUS})) {
+#     my $tv_services = $Iptv->user_list({
+#       UID           => $user_info->{UID} || '-1',
+#       ALL_FILTER_ID => '_SHOW',
+#       LOGIN         => '_SHOW',
+#       SUBSCRIBE_ID  => '_SHOW',
+#       TP_NUM        => '_SHOW',
+#       SERVICE_ID    => '_SHOW',
+#       TP_ID         => '_SHOW',
+#       COLS_UPPER    => 1,
+#       COLS_NAME     => 1,
+#     });
+#
+#     foreach $user_info (@$tv_services) {
+#       my %params = (
+#         ID     => $user_info->{ID},
+#         UID    => $user_info->{UID},
+#         STATUS => $attr->{STATUS}
+#       );
+#
+#       $Iptv->user_change(\%params);
+#
+#       iptv_account_action({
+#         #NEGDEPOSIT   => 1,
+#         change       => 1,
+#         FILTER_ID    => $user_info->{FILTER_ID},
+#         ID           => $user_info->{ID},
+#         UID          => $user_info->{UID},
+#         LOGIN        => $user_info->{LOGIN},
+#         SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
+#         TP_NUM       => $user_info->{TP_NUM},
+#         SERVICE_ID   => $user_info->{SERVICE_ID},
+#         TP_ID        => $user_info->{TP_ID},
+#         STATUS       => $user_info->{STATUS}
+#       });
+#
+#       if ($attr->{GET_ABON}) {
+#         $attr->{MODULE}='Iptv';
+#         $attr->{SERVICE_NAME}='Iptv';
+#         service_get_month_fee($Iptv, $attr);
+#       }
+#     }
+#   }
+#   else {
+#     $Iptv->user_change({
+#       ID     => $user_info->{ID},
+#       UID    => $user_info->{UID},
+#       STATUS => 0
+#     });
+#     $attr->{USER_INFO}->{SERVICE_STATUS} = 0;
+#
+#     iptv_account_action({
+#       %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
+#       change    => 1,
+#       USER_INFO => $user_info,
+#       SILENT    => 1
+#     });
+#   }
+#
+#   _external('', { EXTERNAL_CMD => 'Iptv', %{ $attr->{USER_INFO} }, QUITE => 1 });
+#
+#   return 1;
+# }
 
 1

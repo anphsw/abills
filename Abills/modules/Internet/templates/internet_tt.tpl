@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' method='POST'>
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='TP_ID' value='%TP_ID%'>
   <input type=hidden name='tt' value='%TI_ID%'>
 

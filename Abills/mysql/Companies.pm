@@ -44,8 +44,7 @@ sub new {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!$attr->{NAME}) {
     $self->{errno} = 8;
@@ -54,7 +53,7 @@ sub add {
   }
 
   if ($attr->{CONTRACT_TYPE}) {
-    my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    my (undef, $sufix) = split(/\|/x, $attr->{CONTRACT_TYPE});
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
@@ -85,8 +84,8 @@ sub add {
 
   $admin->{MODULE} = $MODULE;
 
-  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE');
-  my %actions_history = ();
+  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU');
+  my %actions_history = (ID => $self->{COMPANY_ID});
 
   foreach my $param (@info) {
     next if !$attr->{$param};
@@ -111,8 +110,7 @@ sub add {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!defined($attr->{DISABLE})) {
     $attr->{DISABLE} = 0;
@@ -162,7 +160,7 @@ sub change {
 
   my ($prefix, $sufix);
   if ($attr->{CONTRACT_TYPE}) {
-    ($prefix, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    ($prefix, $sufix) = split(/\|/x, $attr->{CONTRACT_TYPE});
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
@@ -174,8 +172,8 @@ sub change {
 
   $admin->{MODULE} = $MODULE;
 
-  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE');
-  my %actions_history = ();
+  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU');
+  my %actions_history = (ID => $self->{ID} || $attr->{ID});
 
   foreach my $param (@info) {
     next if !$attr->{$param};
@@ -192,11 +190,15 @@ sub change {
 #**********************************************************
 =head2 del($company_id)
 
+  Arguments:
+    $company_id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($company_id) = @_;
+  my ($self, $company_id) = @_;
 
   $self->query_del('companies', { ID => $company_id });
 
@@ -216,8 +218,7 @@ sub del {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($company_id) = @_;
+  my ($self, $company_id) = @_;
 
   my @search_fields = ();
   my $EXT_TABLES = '';
@@ -244,18 +245,20 @@ sub info {
     $search_fields = join(', ', @search_fields) .', ';
   }
 
-  $self->query("SELECT c.*, $search_fields
-     b.deposit
-    FROM companies c
-    LEFT JOIN bills b ON (c.bill_id=b.id)
-    $EXT_TABLES
-    WHERE c.id= ? ;",
-    undef,
-    { INFO => 1,
-      Bind => [
-        $company_id
-      ] }
-  );
+  my $sql = <<"SQL";
+SELECT c.*, $search_fields
+  b.deposit
+FROM companies c
+       LEFT JOIN bills b ON (c.bill_id=b.id)
+  $EXT_TABLES
+WHERE c.id= ? ;
+SQL
+
+
+  $self->query($sql, undef, {
+    INFO => 1,
+    Bind => [ $company_id ]
+  });
 
   if ($self->{TOTAL} < 1) {
     $self->{errno} = 2;
@@ -264,11 +267,12 @@ sub info {
   }
 
   if ($CONF->{EXT_BILL_ACCOUNT} && $self->{EXT_BILL_ID} > 0) {
-    $self->query("SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
-     FROM bills b WHERE id= ? ;",
-      undef,
-      { INFO => 1, Bind => [ $self->{EXT_BILL_ID} ] }
-    );
+    $sql = <<'SQL';
+SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
+FROM bills b WHERE id= ? ;
+SQL
+
+    $self->query($sql, undef, { INFO => 1, Bind => [ $self->{EXT_BILL_ID} ] });
   }
 
   return $self;
@@ -277,56 +281,56 @@ sub info {
 #**********************************************************
 =head2 list($attr) - List
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my ($self, $attr) = @_;
 
   $attr->{SKIP_DEL_CHECK} = 1;
   $attr->{_COMPANY_LIST}  = 1;
 
+  my @search_fields = (
+    [ 'COMPANY_NAME',      'STR',  'company.name',                      ],
+    [ 'DEPOSIT',           'INT',  'cb.deposit',                      1 ],
+    [ 'CREDIT',            'INT',  'company.credit',                  1 ],
+    [ 'USERS_COUNT',       'INT',  'COUNT(u.uid) AS users_count',     1 ],
+    [ 'CREDIT_DATE',       'DATE', 'company.credit_date',             1 ],
+    [ 'ADDRESS',           'STR',  'company.address',                 1 ],
+    [ 'REGISTRATION',      'DATE', 'company.registration',            1 ],
+    [ 'DISABLE',           'INT',  'company.disable AS status',       1 ],
+    [ 'CONTRACT_ID',       'INT',  'company.contract_id',             1 ],
+    [ 'CONTRACT_DATE',     'DATE', 'company.contract_date',           1 ],
+    [ 'CONTRACT_SUFIX',    'STR',  'company.contract_sufix',          1 ],
+    [ 'INDICATION',        'STR',  'company.indication',              1 ],
+    [ 'CONTRACT_EXPIRY',   'STR',  'company.contract_expiry',         1 ],
+    [ 'ID',                'INT',  'company.id'                         ],
+    [ 'BILL_ID',           'INT',  'company.bill_id',                 1 ],
+    [ 'TAX_NUMBER',        'STR',  'company.tax_number',              1 ],
+    [ 'BANK_ACCOUNT',      'STR',  'company.bank_account',            1 ],
+    [ 'BANK_NAME',         'STR',  'company.bank_name',               1 ],
+    [ 'COR_BANK_ACCOUNT',  'STR',  'company.cor_bank_account',        1 ],
+    [ 'BANK_BIC',          'STR',  'company.bank_bic',                1 ],
+    [ 'PHONE',             'STR',  'company.phone',                   1 ],
+    [ 'EMAIL',             'STR',  'company.email',                   1 ],
+    [ 'VAT',               'INT',  'company.vat',                     1 ],
+    [ 'EXT_BILL_ID',       'INT',  'company.ext_bill_id',             1 ],
+    [ 'DOMAIN_ID',         'INT',  'company.domain_id',               1 ],
+    [ 'REPRESENTATIVE',    'STR',  'company.representative',          1 ],
+    [ 'LOCATION_ID',       'INT',  'company.location_id',             1 ],
+    [ 'ADDRESS_FLAT',      'STR',  'company.address_flat',            1 ],
+    [ 'COMPANY_ADMIN',     'INT',  'ca.uid',        'ca.uid AS company_admin' ],
+    [ 'COMPANY_ID',        'INT',  'company.id',                        ],
+    [ 'EDRPOU',            'STR',  'company.edrpou',                  1 ],
+    [ 'COMMENTS',          'STR',  'company.comments',                1 ],
+  );
+
   my @WHERE_RULES = ();
-  my $WHERE = $self->search_former($attr, [
-    [ 'COMPANY_NAME', 'STR', 'company.name', ],
-    [ 'DEPOSIT', 'INT', 'cb.deposit', 1 ],
-    [ 'CREDIT', 'INT', 'company.credit', 1 ],
-    [ 'USERS_COUNT', 'INT', 'COUNT(u.uid) AS users_count', 1 ],
-    [ 'CREDIT_DATE', 'DATE', 'company.credit_date', 1 ],
-    [ 'ADDRESS', 'STR', 'company.address', 1 ],
-    [ 'REGISTRATION', 'DATE', 'company.registration', 1 ],
-    [ 'DISABLE', 'INT', 'company.disable AS status', 1 ],
-    [ 'CONTRACT_ID', 'INT', 'company.contract_id', 1 ],
-    [ 'CONTRACT_DATE', 'DATE', 'company.contract_date', 1 ],
-    [ 'CONTRACT_SUFIX', 'STR', 'company.contract_sufix', 1 ],
-    [ 'INDICATION',           'STR', 'company.indication',      1 ],
-    [ 'CONTRACT_EXPIRY',      'STR', 'company.contract_expiry', 1 ],
-    [ 'ID', 'INT', 'company.id' ],
-    [ 'BILL_ID', 'INT', 'company.bill_id', 1 ],
-    [ 'TAX_NUMBER', 'STR', 'company.tax_number', 1 ],
-    [ 'BANK_ACCOUNT', 'STR', 'company.bank_account', 1 ],
-    [ 'BANK_NAME', 'STR', 'company.bank_name', 1 ],
-    [ 'COR_BANK_ACCOUNT', 'STR', 'company.cor_bank_account', 1 ],
-    [ 'BANK_BIC', 'STR', 'company.bank_bic', 1 ],
-    [ 'PHONE', 'STR', 'company.phone', 1 ],
-    [ 'EMAIL', 'STR', 'company.email', 1 ],
-    [ 'VAT', 'INT', 'company.vat', 1 ],
-    [ 'EXT_BILL_ID', 'INT', 'company.ext_bill_id', 1 ],
-    [ 'DOMAIN_ID', 'INT', 'company.domain_id', 1 ],
-    [ 'REPRESENTATIVE', 'STR', 'company.representative', 1 ],
-    [ 'LOCATION_ID', 'INT', 'company.location_id', 1 ],
-    [ 'ADDRESS_FLAT', 'STR', 'company.address_flat', 1 ],
-    [ 'COMPANY_ADMIN', 'INT', 'ca.uid', 'ca.uid AS company_admin' ],
-    [ 'COMPANY_ID', 'INT', 'company.id', ],
-    [ 'EDRPOU', 'STR', 'company.edrpou', 1 ],
-    [ 'COMMENTS', 'STR', 'company.comments', 1 ],
-    #['DOMAIN_ID',      'INT',  'company.domain_id',     1 ],
-  ],
+  my $WHERE = $self->search_former($attr, \@search_fields,
     {
       WHERE_RULES       => \@WHERE_RULES,
       USERS_FIELDS_PRE  => 1,
@@ -344,28 +348,29 @@ sub list {
     $EXT_TABLE .= "LEFT JOIN companie_admins ca ON (ca.company_id=company.id)";
   }
 
-  $self->query("SELECT company.name, $self->{SEARCH_FIELDS} company.id
+  my $sql = <<"SQL";
+  SELECT company.name, $self->{SEARCH_FIELDS} company.id
     FROM companies company
     LEFT JOIN users u ON (u.company_id=company.id)
     $EXT_TABLE
     $WHERE
     GROUP BY company.id
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
-  if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query("SELECT COUNT(DISTINCT company.id) AS total
-    FROM companies company
-    LEFT JOIN users u ON (u.company_id=company.id)
-    $EXT_TABLE
-    $WHERE;",
-      undef,
-      { INFO => 1 });
+  if ($self->{TOTAL} > 0) {
+    $sql = <<"SQL";
+SELECT COUNT(DISTINCT company.id) AS total
+FROM companies company
+       LEFT JOIN users u ON (u.company_id=company.id)
+  $EXT_TABLE
+  $WHERE;
+SQL
+
+    $self->query($sql, undef,  { INFO => 1 });
   }
 
   return $list;
@@ -377,13 +382,8 @@ sub list {
 =cut
 #**********************************************************
 sub admins_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
 
   my $company_field = 'ca.company_id';
@@ -403,38 +403,40 @@ sub admins_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' AND ', @WHERE_RULES) : q{};
 
-  $self->query("SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
-      u.id AS login,
-      pi.fio,
-      (SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email,
-      u.uid,
-      $company_field
-    FROM companies  c
-    INNER JOIN users u ON (u.company_id=c.id)
-    LEFT JOIN companie_admins ca ON (ca.company_id=c.id AND ca.uid=u.uid)
-    LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
+       u.id AS login,
+       pi.fio,
+       (SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email,
+       u.uid,
+       $company_field
+FROM companies  c
+       INNER JOIN users u ON (u.company_id=c.id)
+       LEFT JOIN companie_admins ca ON (ca.company_id=c.id AND ca.uid=u.uid)
+       LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+  $WHERE
+SQL
 
-  my $list = $self->{list} || [];
 
-  return $list;
+  $self->query_list($sql, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
 =head2 admins_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub admins_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my @ADMINS = split(/,\s?/, $attr->{IDS});
+  my @ADMINS = split(/,\s?/x, $attr->{IDS});
 
   $self->query_del('companie_admins', undef, { company_id => $attr->{COMPANY_ID} });
 
@@ -445,19 +447,29 @@ sub admins_change {
     });
   }
 
+  $admin->action_add(0, "ADMINS $attr->{IDS} COMPANY_ID $attr->{COMPANY_ID}", { TYPE => 2 });
+
   return $self;
 }
 
 #**********************************************************
 =head2 admins_del($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub admins_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_del('companie_admins', undef, { UID => $attr->{UID} || '--' });
+  my $uid = $attr->{UID} || '--';
+
+  $self->query_del('companie_admins', undef, { UID => $uid });
+
+  $admin->action_add(0, "ADMIN $uid", { TYPE => 10 });
 
   return $self;
 }
@@ -474,8 +486,7 @@ sub admins_del {
 =cut
 #**********************************************************
 sub bic_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('companies_bics', $attr);
 
@@ -494,14 +505,12 @@ sub bic_add {
 =cut
 #**********************************************************
 sub bic_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT * FROM companies_bics WHERE bank_bic = ?;", undef,
-    { INFO => 1,
-      Bind => [ $attr->{BANK_BIC} ]
-    }
-  );
+  $self->query("SELECT * FROM companies_bics WHERE bank_bic = ?;", undef, {
+    INFO => 1,
+    Bind => [ $attr->{BANK_BIC} ]
+  });
 
   return $self;
 }
@@ -518,8 +527,7 @@ sub bic_info {
 =cut
 #*******************************************************************
 sub bic_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'BANK_BIC',
@@ -542,8 +550,7 @@ sub bic_change {
 =cut
 #*******************************************************************
 sub bic_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('companies_bics', undef, $attr);
 
@@ -551,7 +558,6 @@ sub bic_del {
 }
 
 #*******************************************************************
-
 =head2  bic_list($attr) - list of bank BICs
 
   Arguments:
@@ -562,16 +568,9 @@ sub bic_del {
     $list or $list_hash
 
 =cut
-
 #*******************************************************************
 sub bic_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
       [ 'BANK_NAME',           'STR', 'cb.bank_name',            1 ],
@@ -580,14 +579,11 @@ sub bic_list {
     { WHERE => 1 }
   );
 
-  $self->query("
-    SELECT *
-    FROM companies_bics cb
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
+  my $sql = <<"SQL";
+SELECT * FROM companies_bics cb $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list};
 
@@ -599,15 +595,12 @@ sub bic_list {
     return \%list_hash;
   }
 
-  $self->query("
-    SELECT COUNT(*) AS total
-    FROM companies_bics
-    $WHERE;",
+  $self->query("SELECT COUNT(*) AS total FROM companies_bics $WHERE;",
     undef,
     { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
-1
+1;

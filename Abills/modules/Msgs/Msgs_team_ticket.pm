@@ -155,8 +155,8 @@ sub show_form {
   if ($chg_ticket_id) {
     my $date = $Msgs->respnosible_info_change($chg_ticket_id);
 
-    $team = $date->{responsible};
-    $ticket = $date->{id};
+    $team = $date->{RESPONSIBLE};
+    $ticket = $date->{ID};
     $button_name = $lang{CHANGE};
     $param_name = "chg";
   }
@@ -233,4 +233,4 @@ sub filter_brigade {
   return 1;
 }
 
-1
+1;

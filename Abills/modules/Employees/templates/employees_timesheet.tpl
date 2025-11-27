@@ -1,4 +1,4 @@
-<form class='form form-horizontal ' action=$SELF_URL method='POST'>
+<form class='form form-horizontal ' action=%SELF_URL% method='POST'>
   <input type='hidden' name='DATE' value='%DATE%'>
   <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='day' value='%day%'>

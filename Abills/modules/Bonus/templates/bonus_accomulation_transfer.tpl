@@ -1,14 +1,14 @@
-<form action=$SELF_URL method=post>
-    <input type=hidden name=index value=$index>
-    <input type=hidden name=UID value='$FORM{UID}'>
+<form action=%SELF_URL% method=post>
+    <input type=hidden name=index value=%index%>
+    <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=sid value='$sid'>
 
-    <div class='card box-primary'>
+    <div class='card card-primary card-outline card-form'>
         <div class='card-header with-border'>
             <h3 class='card-title'> _{BONUS}_ _{BALANCE_RECHARCHE}_</h3>
         </div>
-        <div class='card-body form form-horizontal'>
-            <div class='form-group'>
+        <div class='card-body'>
+            <div class='form-group row'>
                 <label class='control-label col-md-3'>_{SUM}_:</label>
 
                 <div class='col-md-9'>

@@ -78,5 +78,10 @@ $lang{ABON_PROMO_PERIOD} = 'Промо-период';
 $lang{ABON_HOT_DEAL} = 'Горячее предложение';
 $lang{ABON_DISCOUNT_ACTIVATE_DATE} = 'Дата активации скидки';
 $lang{ABON_DISCOUNT_EXPIRE_DATE} = 'Дата окончания скидки';
+$lang{ABON_MAIN_TARIFF_PLAN} = 'Основной тарифный план';
+
+$lang{ERR_MAIN_TARIFF_NOT_ACTIVE} = 'Основной тариф не активирован. Пожалуйста, активируйте основной тарифный план перед продолжением.';
+$lang{ERR_ABON_WRONG_SIGNATURE} = 'Недопустимая подпись запроса';
+$lang{ERR_NO_ABON_SERVICE} = 'Услуга недоступна';
 
 1;

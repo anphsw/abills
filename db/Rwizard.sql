@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS `reports_wizard`
     `quick_report` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     KEY `aid` (`aid`),
-    UNIQUE KEY `name` (`name`)
+    UNIQUE KEY `name` (`name`),
+    KEY `quick_report` (`quick_report`),
+    KEY `gid` (`gid`)
 )
     CHARSET = 'utf8'
     COMMENT = 'Reports Wizard';

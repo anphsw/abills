@@ -43,7 +43,7 @@ BEGIN {
   use FindBin '$Bin';
 
   my $libpath = "$Bin/../";
-  require "$libpath/libexec/config.pl";
+  do "$libpath/libexec/config.pl";
   unshift(@INC,
     "$libpath/",
     "$libpath/Abills",
@@ -60,7 +60,6 @@ use GPS;
 
 my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $Log = Log->new(undef, \%conf);
-#my $Gps = GPS->new($db, undef, \%conf);
 
 $| = 1;
 
@@ -91,7 +90,6 @@ if (defined $ARGS->{LOG_FILE}) {
 $Log->{LOG_FILE} = $log_file;
 
 
-
 my $start = sub {
   my $pid_file = daemonize(\%daemon_args);
   log_debug("Started... $pid_file", 'Daemon', 1);
@@ -104,12 +102,10 @@ my $stop = sub {
 };
 
 if (defined($ARGS->{stop})) {
-  #stop_server();
   $stop->();
   exit;
 }
 elsif (defined($ARGS->{start})) {
-  #stop_server();
   $start->();
   exit;
 }
@@ -134,7 +130,7 @@ my $socket = IO::Socket::INET->new(
   Reuse     => 1
 );
 
-die "cannot create socket $!\n" unless ($socket);
+die "cannot create socket $!\n" if (! $socket);
 print "server waiting for client connection on port $port\n";
 
 $SIG{INT} = sub {
@@ -173,8 +169,7 @@ sub gps_server {
     );
 
     $client_socket = $socket->accept();
-
-    log_debug("AGGGGGGGGGGGGGGGGGGGAIN", '----------------' . ($client_socket || 'NOT_DEFINED'), 4);
+    log_debug("START: ", '----------------' . ($client_socket || 'NOT_DEFINED'), 4);
   }
 
   # log_debug("0000000000000000", '++++++++ ->' . $socket, 4);
@@ -187,11 +182,16 @@ sub gps_server {
 
   # read up to 2048 (max GET length) characters from the connected client
   my $data = "";
-  $client_socket->recv($data, 2048);
-  # my $CHUNK_MAX = 1024;
-  #  while ( sysread( $client_socket, my $buffer, $CHUNK_MAX ) ) {
-  #    $data .= unpack( "H*", $buffer );
-  #  }
+
+  if ($ARGV->{PORT} && $ARGV->{PORT} ne '8790') {
+    my $CHUNK_MAX = 1024;
+    while ( sysread( $client_socket, my $buffer, $CHUNK_MAX ) ) {
+      $data .= unpack( "H*", $buffer );
+    }
+  }
+  else {
+    $client_socket->recv($data, 2048);
+  }
 
   log_debug("Raw HTTP", $data, 4);
 
@@ -214,8 +214,8 @@ sub gps_server {
 
     # write response data to the connected client
     if ($request->{RESPONSE}) {
-      $request->{RESPONSE} =~ s/\%response\%/$response/g;
-      $request->{RESPONSE} =~ s/\%status\%/$status/g;
+      $request->{RESPONSE} =~ s/\%response\%/$response/xg;
+      $request->{RESPONSE} =~ s/\%status\%/$status/xg;
       $client_socket->send($request->{RESPONSE});
       #$client_socket->send("HTTP/1.1 $status $response\nContent-Length:0\n\n");
     }
@@ -230,23 +230,6 @@ sub gps_server {
   return 1;
 }
 
-# #**********************************************************
-# =head2 get_admin_id_by_tracker_id($gps_id)
-#
-#   Arguments:
-#     $gps_id - GPS id
-#
-#   Returns:
-#     Tracked admin
-#
-# =cut
-# #**********************************************************
-# sub get_admin_id_by_tracker_id {
-#   my ($gps_id) = @_;
-#
-#   return
-# }
-
 #**********************************************************
 =head2 write_to_db($attr, $ip_address)
 
@@ -254,6 +237,7 @@ sub gps_server {
     $attr,
       GPS_IMEI
       IP
+      PROTOCAL
 
   Returns:
     TRUE or FALSE
@@ -266,7 +250,8 @@ sub add2db {
   my $Gps = GPS->new($db, undef, \%conf);
 
   log_debug("Client ID", $attr->{GPS_IMEI}, 1);
-
+  my DBI $db_ = $Gps->{db}->{db};
+  $db_->ping();
   my $aid = $Gps->tracked_admin_id_by_imei($attr->{GPS_IMEI});
 
   if (!$aid) {
@@ -284,7 +269,7 @@ sub add2db {
 
 
 #**********************************************************
-=head2 parse_http_request()
+=head2 parse_http_request($http_request)
 
   Arguments:
     $http_request
@@ -299,20 +284,22 @@ sub parse_http_request {
 
   my %FORM = ();
 
-  my $buffer = [ split(/\n/, $http_request) ]->[0];
-  $buffer =~ s/^.*\?//;
-  $buffer =~ s/\s.*$//;
+  #my $buffer = [ split(/\n/x, $http_request) ]->[0];
+  my $buffer = [ split(/\r?\n\r?\n/x, $http_request) ]->[1];
 
-  my @pairs = split(/&/, $buffer);
+  $buffer =~ s/^.*\?//x;
+  $buffer =~ s/\s.*$//x;
+
+  my @pairs = split(/&/x, $buffer);
   $FORM{__BUFFER} = $buffer if ($#pairs > -1);
 
   foreach my $pair (@pairs) {
-    my ($side, $value) = split(/=/, $pair, 2);
+    my ($side, $value) = split(/=/x, $pair, 2);
     if (defined($value)) {
       $value =~ tr/+/ /;
-      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-      $value =~ s/<!--(.|\n)*-->//g;
-      $value =~ s/<([^>]|\n)*>//g;
+      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg;
+      $value =~ s/<!--(.|\n)*-->//xg;
+      $value =~ s/<([^>]|\n)*>//xg;
     }
     else {
       $value = '';
@@ -320,8 +307,18 @@ sub parse_http_request {
     $FORM{$side} = $value;
   }
 
+  if($buffer =~ /altitude\":(\d+)/xm) {
+    $FORM{altitude} = $1;
+  }
+
+  if ($buffer =~ /level\":([0-9\.]+)/xm) {
+    $FORM{batt} = $1 * 100;
+  }
+
   if ($FORM{id}) {
     $FORM{gps_imei}=$FORM{id};
+    $FORM{protocol}='traccar';
+    $FORM{timestamp}=iso_to_unixtime($FORM{timestamp});
     #Response for TRaccar
     $FORM{RESPONSE}="HTTP/1.1 %status% %response%\nContent-Length:0\n\n";
   }
@@ -431,20 +428,49 @@ sub log_debug {
 }
 
 #**********************************************************
-=head2 UTC2LocalString()
+=head2 iso_to_unixtime($iso_time)
+  # Example input: 2025-10-29T08:34:09.506Z
+  Arguments:
+    $t - time
+
+  Results:
+    $unixtime
+
+=cut
+#**********************************************************
+sub iso_to_unixtime {
+  my ($iso_time) = @_;
+
+  my ($year, $mon, $mday, $hour, $min, $sec) =
+    $iso_time =~ /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/xm;
+
+  return 0 if (! defined $sec);
+
+  $year -= 1900;
+  $mon  -= 1;
+
+  my $unixtime = timegm($sec, $min, $hour, $mday, $mon, $year);
+
+  return $unixtime;
+}
+
+#**********************************************************
+=head2 UTC2LocalString($t)
 
   Arguments:
     $t - time
+
+  Results:
 
 =cut
 #**********************************************************
 sub UTC2LocalString {
   my $t = shift;
-  my ($datehour, $rest) = split(/:/, $t, 2);
-  my ($year, $month, $day, $hour) = $datehour =~ /(\d+)-(\d\d)-(\d\d)\s+(\d\d)/;
+  my ($datehour, $rest) = split(/:/x, $t, 2);
+  my ($year, $month, $day, $hour) = $datehour =~ /(\d+)-(\d\d)-(\d\d)\s+(\d\d)/xm;
 
   $month = $month - 1;
-  if ($month eq -1) {
+  if ($month == -1) {
     return ('1970-01-01 00:00:00');
   }
   my $epoch = timegm(0, 0, $hour, $day, $month, $year);
@@ -472,21 +498,28 @@ sub UTC2LocalString {
 sub define_the_protocol {
   my ($ps_data) = @_;
   my $result;
+  my $protocol = q{};
 
   #TK102
   if (substr($ps_data, 0, 2) eq '(0' && substr($ps_data, -9) eq '00000000)') {
     # (027043576388BR00150919A4949.6147N02402.0461E000.60650290.000000000000L00000000)
+    $protocol = 'tk102';
     $result = parse_tk103($ps_data);
   }
   elsif (substr($ps_data, 0, 3) eq '*HQ') {
+    $protocol = '5013_h02';
     $result = parse_5013_h02($ps_data);
   }
   elsif ($conf{GPS_PROTOCOL}) {
+    $protocol = 'fm_xxx';
     parse_fm_xxx($ps_data);
   }
   else {
-    $result = parse_http_request($ps_data)
+    $protocol = 'traccar';
+    $result = parse_http_request($ps_data);
   }
+
+  #log_debug("PROTOCOL:", $protocol, 4);
 
   return $result;
 }
@@ -510,7 +543,7 @@ sub parse_fm_xxx {
 
   my %FORM = ();
 
-  my @arr = $ps_data =~ /(\S{2})/g;
+  my @arr = $ps_data =~ /(\S{2})/xmg;
 
   $FORM{CODEC_ID} = $arr[0] || 0;
   $FORM{NUMOFDATA} = $arr[1] || 0;
@@ -542,7 +575,7 @@ sub parse_fm_xxx {
 =cut
 #**********************************************************
 sub parse_5013_h02 {
-  my ($ps_data, $attr) = @_;
+  my ($ps_data) = @_;
 
   my %status = (
     'fbfffbff' => 0,
@@ -550,7 +583,7 @@ sub parse_5013_h02 {
 
   my ($ihdr, $gps_imei, $instruction_pkg, $time, $data_valid_bit, $latitude, $latitude_symbol,
     $longitude, $longitude_symbol,$speed,$direction,$date,
-    $terminal_status, $power, $count, $country_code, $operation_code, $disctrict_code) = split(/,/, $ps_data);
+    $terminal_status, $power, $count, $country_code, $operation_code, $disctrict_code) = split(/,/x, $ps_data);
 
   my %result = (
     gps_imei => $gps_imei,
@@ -634,7 +667,7 @@ sub parse_tk103 {
 
     $result{lat} = $ps_x;
     $result{lon} = $ps_y;
-    my ($year, $mon, $mday, $hour, $min, $sec) = split(/[\s\-\:]+/, $ps_local_date);
+    my ($year, $mon, $mday, $hour, $min, $sec) = split(/[\s\-\:]+/x, $ps_local_date);
     my $time = timelocal($sec, $min, $hour, $mday, $mon - 1, $year);
     $result{timestamp} = $time;
   }

@@ -1,5 +1,5 @@
 <form action='#' name='EQUIPMENT_SNMP_BACKUP' id='EQUIPMENT_SNMP_BACKUP' method='post' class='form form-horizontal'>
-  <input type='hidden' name='qindex' value='$index'/>
+  <input type='hidden' name='qindex' value='%index%'/>
   <input type='hidden' name='header' value='2'/>
 
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'/>

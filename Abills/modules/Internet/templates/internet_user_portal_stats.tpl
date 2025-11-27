@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='GET' name='stats' role='form'>
+<form action='%SELF_URL%' method='GET' name='stats' role='form'>
   <input type='hidden' name='sid' value='%SID%'>
   <input type='hidden' name='index' value='%INDEX%'>
   <input type='hidden' name='ID' value='%ID%'>

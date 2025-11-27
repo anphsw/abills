@@ -15,7 +15,7 @@
     </div>
 
     <div id='MAIN_CONTAINER'>
-      <form action='$SELF_URL' METHOD='post' name='form_forgot_password_chg' id='form_forgot_password_chg'>
+      <form action='%SELF_URL%' METHOD='post' name='form_forgot_password_chg' id='form_forgot_password_chg'>
         <input type='hidden' name='CODE' value='%CODE%'/>
         <input type='hidden' name='FORGOT_PASSWD' value='1'>
         <div class='row p-0 m-0'>

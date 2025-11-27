@@ -62,11 +62,11 @@ sub paysys_log {
 
   if ($FORM{info}) {
     $Paysys->info({ ID => $FORM{info} });
-    my @info_arr = split(/\n/, $Paysys->{INFO} || q{});
+    my @info_arr = split('\n', $Paysys->{INFO} || q{});
     my $table = $html->table({ width => '100%' });
     my $i = 0;
     foreach my $line (@info_arr) {
-      my ($k, $v) = split(/,/, $line, 2);
+      my ($k, $v) = split(',', $line, 2);
       # json/xml value
       if (!$i && $k && $k eq 'DATA') {
         my $value = convert($Paysys->{INFO}, { text2html => 1 });
@@ -267,7 +267,7 @@ sub paysys_reports {
   my $selection_group = $html->element('div', $select, { class => 'input-group' });
 
   if ($permissions{4}) {
-    my %debug_list = map { $_ => $_ } 1..9;
+    my %debug_list = map { $_ => $_ } 0..9;
 
     my $debug_select = $html->form_select('DEBUG', {
       SELECTED => $FORM{DEBUG} || '',
@@ -385,9 +385,9 @@ sub _paysys_import_file {
   if ($FORM{UPLOAD_FILE}) {
     return 0 if (!$FORM{SAVE_FILE});
 
-    my $allowed_picture_size = 50000000;
+    my $allowed_size = 50_000_000;
 
-    if ($FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} > $allowed_picture_size) {
+    if ($FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} > $allowed_size) {
       $html->message('err', $lang{ERROR}, "LIMIT 50 Mbyte");
       return 0;
     }
@@ -443,7 +443,7 @@ sub _paysys_import_payments {
       next;
     }
 
-    $FORM{"DESC_$urlencoded_transaction_id"} =~ s/\\\"/\"/gm if ($FORM{"DESC_$urlencoded_transaction_id"});
+    $FORM{"DESC_$urlencoded_transaction_id"} =~ s/\\\"/\"/xgm if ($FORM{"DESC_$urlencoded_transaction_id"});
     my ($status) = $Pay_plugin->report_import({
       ID              => $transaction_id,
       UID             => $attr->{"USER_$urlencoded_transaction_id"} || '',
@@ -496,6 +496,7 @@ sub _paysys_import_payments {
     TRANSACTION_AS_MD5?: bool - convert transaction into md5 string
     IMPORT_FILE?: bool        - allow upload files from local machine to server process
     TRANSACTION_PREFIX_CHECK?: bool - check is present any payments with such
+    SKIP_FIO_SHOW?: bool      - do not show fio in internal reports
 
 
   $reg_payments
@@ -513,10 +514,17 @@ sub _paysys_report {
   my $PAYSYSTEM_NAME = $settings{NAME} || $attr->{PAYSYSTEM_NAME} || '--';
   my $PAYSYSTEM_ID = $settings{ID} || $attr->{PAYSYSTEM_ID} || '--';
 
-  my $table = '';
   my $preview_list;
   my $credit = 0;
+  my $credit_successful = 0;
+  my $credit_not_found = 0;
+  my $credit_found = 0;
   my $debit = 0;
+  my $credit_total = 0;
+  my $credit_successful_total = 0;
+  my $credit_not_found_total = 0;
+  my $credit_found_total = 0;
+  my $debit_total = 0;
 
   if ($attr->{IMPORT_PREVIEW} && $attr->{IDS}) {
     $preview_list = _paysys_report_preview_list($report_data, $attr);
@@ -532,16 +540,41 @@ sub _paysys_report {
     $report_data->{TITLE} = $title_lang;
   }
 
-  if ($report_data->{PAYMENTS}) {
-    $table = $html->table({
-      width      => '100%',
-      caption    => $PAYSYSTEM_NAME,
-      title      => $report_data->{TITLE},
-      ID         => 'PAYSYS_REPORT_TABLE',
-      DATA_TABLE => { lengthMenu => [ [ 50, 100, -1 ], [ 50, 100, $lang{ALL} ] ] },
-      SELECT_ALL => $lang{SELECT_ALL},
-    });
+  my @ids = split(', ', $attr->{IDS}) if ($attr->{IDS});
 
+  my $qs = "index=$index&SYSTEM_ID=$FORM{SYSTEM_ID}";
+  $qs .= "&DATE_FROM=$FORM{DATE_FROM}&DATE_TO=$FORM{DATE_TO}" if ($FORM{DATE_FROM} && $FORM{DATE_TO});
+
+  my @payment_statuses = (
+    "$lang{ALL}:$qs&PAYMENTS_STATUS=0",
+    "$lang{ADDED}:$qs&PAYMENTS_STATUS=1",
+    "$lang{RECOGNIZED_NOT_ENTERED}:$qs&PAYMENTS_STATUS=2",
+    "$lang{NOT_RECOGNIZED}:$qs&PAYMENTS_STATUS=3",
+  );
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $PAYSYSTEM_NAME,
+    title      => $report_data->{TITLE},
+    header     => $html->table_header(\@payment_statuses),
+    ID         => 'PAYSYS_REPORT_TABLE',
+    DATA_TABLE => { lengthMenu => [ [ 50, 100, -1 ], [ 50, 100, $lang{ALL} ] ] },
+    SELECT_ALL => $lang{SELECT_ALL},
+  });
+
+  # moved to the top
+  my $payments_json = '';
+  if ($attr->{UPLOAD_FILE}) {
+    $payments_json = json_former($report_data->{PAYMENTS});
+    $payments_json =~ s/'/\\"/xgm;
+  }
+  elsif ($attr->{PAYMENTS_FILE}) {
+    $attr->{PAYMENTS_FILE} =~ s/\\"/"/xgm;
+    $attr->{PAYMENTS_FILE} =~ s/\\\\"/\\\"/xgm;
+    $payments_json = $attr->{PAYMENTS_FILE};
+  }
+
+  if ($report_data->{PAYMENTS}) {
     my @fields;
     if ($report_data->{FIELDS}) {
       @fields = @{$report_data->{FIELDS}};
@@ -549,8 +582,6 @@ sub _paysys_report {
     else {
       @fields = sort keys %{$report_data->{PAYMENTS}->[0]};
     }
-
-    my @ids = split(', ', $attr->{IDS}) if ($attr->{IDS});
 
     foreach my $payment (@{$report_data->{PAYMENTS}}) {
 
@@ -567,6 +598,7 @@ sub _paysys_report {
         if ($field eq $report_data->{IMPORT_FIELD}) {
           if ($payment->{_DEPOSIT_PAYMENT}) {
             $debit += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+            $debit_total++;
             unshift @result_rows, '', '';
             $table->{rowcolor} = 'table-info';
             push @result_rows, $value;
@@ -574,6 +606,7 @@ sub _paysys_report {
           }
 
           $credit += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+          $credit_total++;
           my ($transaction, $ext_id) = $Paysys_Statements->paysys_statement_transaction($payment, $report_data, $reg_payments, {
             PAYSYSTEM_SHORT_NAME => $PAYSYSTEM_SHORT_NAME,
           });
@@ -590,10 +623,22 @@ sub _paysys_report {
           my $ext_id_field = q{};
 
           if ($payment->{_SKIP_PAYMENT}) {
+            if (!$attr->{IDS} && $FORM{PAYMENTS_STATUS} && $FORM{PAYMENTS_STATUS} != 1) {
+              @result_rows = ();
+              last;
+            }
+            $credit_successful_total++;
+            $credit_successful += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
             $ext_id_field = $payment->{_SKIP_PAYMENT};
           }
           elsif (exists($reg_payments->{$ext_id})) {
-            $input_filed =$html->button("LOGIN: $reg_payments->{$ext_id}->{login}", "index=11&search=1&UID=$reg_payments->{$ext_id}->{uid}", { class => $btn_class, ex_params => "style='width:100%; min-height:50px; margin-top:12px;'" })
+            if (!$attr->{IDS} && $FORM{PAYMENTS_STATUS} && $FORM{PAYMENTS_STATUS} != 1) {
+              @result_rows = ();
+              last;
+            }
+            $credit_successful_total++;
+            $credit_successful += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+            $input_filed = $html->button("LOGIN: $reg_payments->{$ext_id}->{login}", "index=11&search=1&UID=$reg_payments->{$ext_id}->{uid}", { class => $btn_class, ex_params => "style='width:100%; min-height:50px; margin-top:12px;'" })
           }
           else {
             my $checkbox_status = 0;
@@ -617,7 +662,11 @@ sub _paysys_report {
                   { class => 'btn btn-xs btn-info' });
                 $table->{rowcolor} = 'table-warning';
                 $user_id = $preview_list->{$urlencoded_ext_id}->{$CHECK_FIELD};
-                $user_info = "<br> $lang{FIO}: " . ($preview_list->{$urlencoded_ext_id}->{fio} || q{}) . "<br>LOGIN: " . ($preview_list->{$urlencoded_ext_id}->{login} || q{});
+                $user_info = '';
+                if (!$report_data->{SKIP_FIO_SHOW} || !$preview_list->{$urlencoded_ext_id}->{company_name}) {
+                  $user_info .= "<br> $lang{FIO}: " . ($preview_list->{$urlencoded_ext_id}->{fio} || q{});
+                }
+                $user_info .= "<br>LOGIN: " . ($preview_list->{$urlencoded_ext_id}->{login} || q{});
                 $user_info .= "<br> $lang{COMPANY_NAME}: $preview_list->{$urlencoded_ext_id}->{company_name}" if ($preview_list->{$urlencoded_ext_id}->{company_name});
               }
             }
@@ -628,7 +677,7 @@ sub _paysys_report {
               if ($report_data->{EDRPOU_CHECK}) {
                 my $CHECK_FIELD = $report_data->{CHECK_FIELD} || 'UID';
 
-                $user_id = $Paysys_Statements->paysys_edrpou_check($payment->{EDRPOU}, $CHECK_FIELD);
+                $user_id = $Paysys_Statements->paysys_edrpou_check($payment->{$report_data->{EDRPOU_CHECK} || 'EDRPOU'}, $CHECK_FIELD);
               }
 
               if (!$user_id && $Pay_plugin->can('_search_user')) {
@@ -648,12 +697,22 @@ sub _paysys_report {
               . $inputs;
 
             $btn_class = 'btn btn-danger';
-            if ($user_id) {
-              $table->{rowcolor} = 'table-warning';
+
+            my %map = (
+              1 => { status => 2, color => 'table-warning', credit => \$credit_found, total => \$credit_found_total },
+              0 => { status => 3, color => 'table-danger', credit => \$credit_not_found, total => \$credit_not_found_total },
+            );
+
+            my $conf = $map{ $user_id ? 1 : 0 };
+
+            if (!$attr->{IDS} && $FORM{PAYMENTS_STATUS} && $FORM{PAYMENTS_STATUS} != $conf->{status}) {
+              @result_rows = ();
+              last;
             }
-            else {
-              $table->{rowcolor} = 'table-danger';
-            }
+
+            $table->{rowcolor} = $conf->{color};
+            ${$conf->{credit}} += $payment->{$report_data->{IMPORT_FIELDS}->{SUM}} || 0;
+            ${$conf->{total}}++;
           }
 
           if (!$ext_id_field) {
@@ -738,25 +797,20 @@ sub _paysys_report {
   $submit_buttons->{FORCE_IMPORT} = $lang{FORCE_IMPORT} if ($conf{PAYSYS_REPORTS_FORCE_IMPORT});
   $submit_buttons->{IMPORT_PREVIEW} = $lang{PREVIEW};
 
-  my @params = ();
-  push @params, $lang{DEPOSIT}, $debit if ($debit);
-  push @params, $lang{CREDIT}, $credit if ($credit);
+  my @rows = ();
+  push @rows, [$lang{DEPOSIT}, $html->b($debit), "$lang{TOTAL}", $html->b($debit_total)] if ($debit);
+  push @rows, ["$lang{TOTAL} $lang{CREDIT}", $html->b($credit), "$lang{TOTAL}", $html->b($credit_total)] if ($credit);
+  push @rows, ["$lang{ADDED} $lang{CREDIT}", $html->b($credit_successful), "$lang{TOTAL}", $html->b($credit_successful_total)] if ($credit_successful_total);
+  push @rows, ["$lang{NOT_RECOGNIZED} $lang{CREDIT}", $html->b($credit_not_found), "$lang{TOTAL}", $html->b($credit_not_found_total)] if ($credit_not_found_total);
+  push @rows, ["$lang{RECOGNIZED_NOT_ENTERED} $lang{CREDIT}", $html->b($credit_found), "$lang{TOTAL}", $html->b($credit_found_total)] if ($credit_found_total);
 
-  $table->addfooter(@params);
-
-  my $payments_json = '';
-  if ($attr->{UPLOAD_FILE}) {
-    $payments_json = json_former($report_data->{PAYMENTS});
-    $payments_json =~ s/'/\\"/gm;
-  }
-  elsif ($attr->{PAYMENTS_FILE}) {
-    $attr->{PAYMENTS_FILE} =~ s/\\"/"/gm;
-    $attr->{PAYMENTS_FILE} =~ s/\\\\"/\\\"/gm;
-    $payments_json = $attr->{PAYMENTS_FILE};
-  }
+  my $table_footer = $html->table({
+    width => '100%',
+    rows  => \@rows
+  });
 
   print $html->form_main({
-    CONTENT => $header . ($table ? $table->show() : '') . $date_import_sel . $currency_sel,
+    CONTENT => $header . ($table ? $table->show() : '') . ($table_footer ? $table_footer->show() : '') . $date_import_sel . $currency_sel,
     HIDDEN  => {
       index             => $index,
       SYSTEM_ID         => $attr->{SYSTEM_ID},
@@ -765,6 +819,7 @@ sub _paysys_report {
       DATE_TO           => $attr->{DATE_TO},
       DATE_FROM_DATE_TO => $attr->{DATE_FROM_DATE_TO},
       PAYMENTS_FILE     => $payments_json ? $payments_json : '',
+      PAYMENTS_STATUS   => $attr->{PAYMENTS_STATUS} || ''
     },
     SUBMIT  => $submit_buttons,
     NAME    => 'FORM_PAYSYS_REPORT_FILTER',
@@ -833,7 +888,7 @@ sub _paysys_report_preview_list {
 #**********************************************************
 sub _paysys_get_exchange_rates {
   if (defined($conf{PAYSYS_EXCHANGE_RATES})) {
-    return split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
+    return split(',\s?', $conf{PAYSYS_EXCHANGE_RATES});
   }
   else {
     return ('USD', 'EUR', 'UAH', 'GBP', 'KZT');
@@ -1048,7 +1103,7 @@ sub paysys_users {
 sub paysys_request_log {
   if ($FORM{search_form} && !$user->{UID}) {
     if($FORM{FROM_DATE_TO_DATE}){
-      ($FORM{FROM_DATE}, $FORM{TO_DATE}) = $FORM{"FROM_DATE_TO_DATE"} =~/(.+)\/(.+)/;
+      ($FORM{FROM_DATE}, $FORM{TO_DATE}) = $FORM{"FROM_DATE_TO_DATE"} =~ /(\.+)\/(\.+)/x;
     }
     $FORM{SYSTEM_ID} = $FORM{PAYMENT_SYSTEM};
     my %PAY_SYSTEMS = ();
@@ -1200,8 +1255,8 @@ sub _paysys_log_filter {
     return $values->{VALUES}->{paysys_name} || $lang{UNKNOWN};
   }
   elsif ($string) {
-    $string =~ s/</&lt;/gm;
-    $string =~ s/>/&gt;/gm;
+    $string =~ s/</&lt;/xgm;
+    $string =~ s/>/&gt;/xgm;
     $string = '<pre>' . $string . '</pre>';
   }
 

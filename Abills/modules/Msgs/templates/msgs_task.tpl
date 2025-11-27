@@ -69,7 +69,7 @@
   -->
 </script>
 
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
       class='form-horizontal'>
   <!-- <legend>_{MESSAGES}_</legend> -->
   <fieldset>
@@ -78,12 +78,12 @@
       <div class='card-header with-border'><h4 class='card-title'>_{TASK}_</h4></div>
       <div class='card-body'>
 
-        <input type='hidden' name='index' value='$index'/>
+        <input type='hidden' name='index' value='%index%'/>
         <input type='hidden' name='add_form' value='1'/>
         <!-- <input type='hidden' name='UID' value='$FORM{UID}'/> -->
         <input type='hidden' name='ID' value='%ID%'/>
         <input type='hidden' name='PAR' value='%PAR%'/>
-        <input type='hidden' name='step' value='$FORM{step}'/>
+        <input type='hidden' name='step' value='%step%'/>
         <input type='hidden' name='TASK' value='$FORM{TASK}'/>
 
         <div class='form-group'>

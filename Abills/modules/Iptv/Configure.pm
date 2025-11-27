@@ -47,21 +47,16 @@ sub iptv_tp{
   $tarif_info->{LNG_ACTION} = $lang{ADD};
   $tarif_info->{ACTION} = 'ADD_TP';
 
-  if ( $FORM{ADD_TP} ){
-    if ($FORM{create_fees_type}) {
-      my $Fees = Finance->fees($db, $admin, \%conf);
-      $Fees->fees_type_add({ NAME => $FORM{NAME}});
-      $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
-    }
+  if ($FORM{ADD_TP}) {
     $FORM{ID} = $FORM{CHG_TP_ID};
-    $Tariffs->add( { %FORM, MODULE => 'Iptv' } );
-    if ( !$Tariffs->{errno} ){
-      $html->message( 'info', $lang{ADDED}, "$lang{ADDED} $Tariffs->{TP_ID}" );
+    $Tariffs->add({ %FORM, MODULE => 'Iptv' });
+    if (!$Tariffs->{errno}) {
+      $html->message('info', $lang{ADDED}, "$lang{ADDED} $Tariffs->{TP_ID}");
     }
   }
-  elsif ( defined( $FORM{TP_ID} ) ){
-    $tarif_info = $Tariffs->info( $FORM{TP_ID} );
-    if ( _error_show( $Tariffs ) ){
+  elsif (defined($FORM{TP_ID})) {
+    $tarif_info = $Tariffs->info($FORM{TP_ID});
+    if (_error_show($Tariffs)) {
       return 0;
     }
 
@@ -97,34 +92,27 @@ sub iptv_tp{
 
     return 0 if ($FORM{subf});
 
-    if ( $FORM{change} ){
-      if ($FORM{create_fees_type}) {
-        my $Fees = Finance->fees($db, $admin, \%conf);
-        $Fees->fees_type_add({ NAME => $FORM{NAME}});
-        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
-      }
-
+    if ($FORM{change}) {
       $FORM{ID} = $FORM{CHG_TP_ID};
-      $Tariffs->change( $FORM{TP_ID}, { %FORM, MODULE => 'Iptv' } );
-      if ( !$Tariffs->{errno} ){
-        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} $Tariffs->{TP_ID}" );
+      $Tariffs->change($FORM{TP_ID}, { %FORM, MODULE => 'Iptv' });
+      if (!$Tariffs->{errno}) {
+        $html->message('info', $lang{CHANGED}, "$lang{CHANGED} $Tariffs->{TP_ID}");
       }
     }
     $tarif_info->{LNG_ACTION} = $lang{CHANGE};
     $tarif_info->{ACTION} = 'change';
     $FORM{add_form} = 1;
   }
-  elsif ( defined( $FORM{del} ) && $FORM{COMMENTS} ){
-    $Tariffs->del( $FORM{del} );
-    if ( !$Tariffs->{errno} ){
-      $html->message( 'info', $lang{DELETE}, "$lang{DELETED} $FORM{del}" );
+  elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
+    $Tariffs->del($FORM{del});
+    if (!$Tariffs->{errno}) {
+      $html->message('info', $lang{DELETE}, "$lang{DELETED} $FORM{del}");
     }
   }
 
   _error_show( $Tariffs );
 
   if ($FORM{add_form}) {
-
     $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
       SELECTED => $tarif_info->{PAYMENT_TYPE},
       SEL_HASH => \%payment_types,
@@ -138,16 +126,6 @@ sub iptv_tp{
       MAIN_MENU_ARGV => "chg=". ($tarif_info->{TP_GID} || q{})
     });
 
-    # $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
-    #   SELECTED       => $tarif_info->{FEES_METHOD} || 1,
-    #   SEL_HASH       => get_fees_types(),
-    #   NO_ID          => 1,
-    #   SORT_KEY       => 1,
-    #   SEL_OPTIONS    => { 0 => '' },
-    #   MAIN_MENU      => get_function_index('form_fees_types'),
-    #   CHECKBOX       => 'create_fees_type',
-    #   CHECKBOX_TITLE => $lang{CREATE}
-    # });
     $tarif_info->{SEL_METHOD} = sel_fees_methods('FEES_METHOD', $tarif_info->{FEES_METHOD} || 1, {
       MAIN_MENU      => get_function_index('form_fees_types'),
       CHECKBOX       => 'create_fees_type',

@@ -40,6 +40,10 @@ sub form_quick_reports {
   $quick_reports{payments_types} = $lang{PAYMENT_TYPE} if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
   $quick_reports{payments_self} = "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}" if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
 
+  if ($conf{SHOW_LICENSE}) {
+    $quick_reports{license_info}='License';
+  }
+
   foreach my $mod_name (@MODULES) {
     load_module($mod_name, $html);
 
@@ -64,7 +68,6 @@ sub form_quick_reports {
     if ($quick_reports{$FORM{show_reports}}) {
       my ($mod, $fn) = split(/:/x, $FORM{show_reports});
       $fn = 'start_page_' . $mod if (!$fn);
-
       print &{\&$fn}();
     }
 
@@ -181,7 +184,7 @@ sub start_page_last_payments {
     DATETIME   => '_SHOW',
     SUM        => '_SHOW',
     ADMIN_NAME => '_SHOW',
-    SORT       => 'date',
+    SORT       => 'id',
     DESC       => 'desc',
     PAGE_ROWS  => 5,
     COLS_NAME  => 1
@@ -279,6 +282,11 @@ sub start_page_payments_types {
 #**********************************************************
 =head2 start_page_users_summary($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub start_page_users_summary {
@@ -311,9 +319,13 @@ sub start_page_users_summary {
   return $table->show();
 }
 
-
 #**********************************************************
 =head2 start_page_payments_self($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -357,6 +369,26 @@ sub start_page_payments_self {
   $table->addrow($lang{TOTAL}, $all_sum);
 
   return $table->show();
+}
+
+#**********************************************************
+=head2 license_info()
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub start_page_license_info {
+
+  $users->{PRE_ADD} = 1;
+  $users->check_params();
+
+  return $html->tpl_show(templates('form_license_info'), {
+    LICENSE      => sprintf("%07d", $users->{ll}),
+    TOTAL        => sprintf("%07d", $users->{list}->[0]->[0]),
+  }, { OUTPUT2RETURN => 1 });
 }
 
 1;

@@ -65,10 +65,10 @@ require Nas;
 Nas->import();
 
 require Auth2;
-Auth->import();
+Auth2->import();
 
 require Acct2;
-Acct->import();
+Acct2->import();
 
 require Log;
 Log->import();
@@ -230,32 +230,25 @@ sub accounting {
   #   return RLM_MODULE_OK;
   # }
 
-  # $RAD_REQUEST{INTERIUM_INBYTE}   = 0;
-  # $RAD_REQUEST{INTERIUM_OUTBYTE}  = 0;
-  # $RAD_REQUEST{INTERIUM_INBYTE2}  = 0;
-  # $RAD_REQUEST{INTERIUM_OUTBYTE2} = 0;
-  # $RAD_REQUEST{INBYTE2}           = 0;
-  # $RAD_REQUEST{OUTBYTE2}          = 0;
-
   #Cisco-AVPair
   if ($RAD_REQUEST{'Cisco-AVPair'}) {
-    if ($RAD_REQUEST{'Cisco-AVPair'} =~ /client-mac-address=([a-f0-9\.\-\:]+)/) {
+    if ($RAD_REQUEST{'Cisco-AVPair'} =~ /client-mac-address=([a-f0-9\.\-\:]+)/xm) {
       $RAD_REQUEST{'Calling-Station-Id'} = $1;
-      if ($RAD_REQUEST{'Calling-Station-Id'} =~ /(\S{2})(\S{2})\.(\S{2})(\S{2})\.(\S{2})(\S{2})/) {
+      if ($RAD_REQUEST{'Calling-Station-Id'} =~ /(\S{2})(\S{2})\.(\S{2})(\S{2})\.(\S{2})(\S{2})/xm) {
         $RAD_REQUEST{'Calling-Station-Id'} = "$1:$2:$3:$4:$5:$6";
       }
     }
     elsif (ref $RAD_REQUEST{'Cisco-AVPair'} eq 'ARRAY') {
       foreach my $line (@{ $RAD_REQUEST{'Cisco-AVPair'} }) {
-        if ($line =~ /client-mac-address=([a-f0-9\.\-\:]+)/) {
+        if ($line =~ /client-mac-address=([a-f0-9\.\-\:]+)/xm) {
           $RAD_REQUEST{'Calling-Station-Id'} = $1;
-          if ($RAD_REQUEST{'Calling-Station-Id'} =~ /(\S{2})(\S{2})\.(\S{2})(\S{2})\.(\S{2})(\S{2})/) {
+          if ($RAD_REQUEST{'Calling-Station-Id'} =~ /(\S{2})(\S{2})\.(\S{2})(\S{2})\.(\S{2})(\S{2})/xm) {
             $RAD_REQUEST{'Calling-Station-Id'} = "$1:$2:$3:$4:$5:$6";
           }
         }
       }
     }
-    elsif (defined($RAD_REQUEST{'NAS-Port'}) && $RAD_REQUEST{'NAS-Port'} == 0 && ($RAD_REQUEST{'Cisco-NAS-Port'} && $RAD_REQUEST{'Cisco-NAS-Port'} =~ /\d\/\d\/\d\/(\d+)/)) {
+    elsif (defined($RAD_REQUEST{'NAS-Port'}) && $RAD_REQUEST{'NAS-Port'} == 0 && ($RAD_REQUEST{'Cisco-NAS-Port'} && $RAD_REQUEST{'Cisco-NAS-Port'} =~ /\d\/\d\/\d\/(\d+)/xm)) {
       $RAD_REQUEST{'NAS-Port'} = $1;
     }
   }
@@ -354,7 +347,7 @@ sub post_auth {
       my $nas_type = 'dhcp';
       if (!defined($auth_mod{$nas_type})) {
         if (! $AUTH{ $nas_type }) {
-          $AUTH{ $nas_type }='Mac_auth';
+          $AUTH{ $nas_type }='Mac_auth2';
         }
 
         eval { require $AUTH{ $nas_type } . '.pm'; };
@@ -400,20 +393,21 @@ sub post_auth {
         %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
       }
 
-      if ($conf{DHCP_FREERADIUS_DEBUG} && $conf{DHCP_FREERADIUS_DEBUG} == 2) {
-        my $out = "\nREQUEST ======================================\n";
-        while (my ($k, $v) = each %RAD_REQUEST) {
-          $out .= "$k -> $v\n";
-        }
-        $out .= "RePLY ======================================\n";
-        while (my ($k, $v) = each %RAD_REPLY) {
-          $out .= "$k -> $v\n";
-        }
-        if (open( my $fh, '>>', '/tmp/rad_reply_' )) {
-          print $fh $out;
-          close( $fh );
-        }
-      }
+      # Better make it in radius dirrect
+      # if ($conf{DHCP_FREERADIUS_DEBUG} && $conf{DHCP_FREERADIUS_DEBUG} == 2) {
+      #   my $out = "\nREQUEST ======================================\n";
+      #   while (my ($k, $v) = each %RAD_REQUEST) {
+      #     $out .= "$k -> $v\n";
+      #   }
+      #   $out .= "RePLY ======================================\n";
+      #   while (my ($k, $v) = each %RAD_REPLY) {
+      #     $out .= "$k -> $v\n";
+      #   }
+      #   if (open( my $fh, '>>', '/tmp/rad_reply_' )) {
+      #     print $fh $out;
+      #     close( $fh );
+      #   }
+      # }
 
       if ($r == 0) {
         return RLM_MODULE_OK;
@@ -422,7 +416,7 @@ sub post_auth {
     # END DHCP SECTION
     else {
       #Check pass ok
-      if ($RAD_CHECK{'Post-Auth-Type'} !~ /Reject/i) {
+      if ($RAD_CHECK{'Post-Auth-Type'} !~ /Reject/xi) {
         #Second step auth - MS chap authentification
         if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP' || $RAD_CHECK{'Auth-Type'} eq 'eap') {
           if (auth_($db, \%RAD_REQUEST, $nas) == 0) {
@@ -459,6 +453,11 @@ sub post_auth {
         $RAD_REPLY{'Reply-Message'} = $reject_info;
       }
 
+      if ($begin_time > 0 && ! $conf{CONNECT_LOG}) {
+        my $gen_time = Time::HiRes::gettimeofday() - $begin_time;
+        $GT = sprintf(" GT: %2.5f", $gen_time);
+      }
+
       $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "$reject_info$CID$GT", { NAS => $nas });
     }
   }
@@ -468,6 +467,13 @@ sub post_auth {
 
 #*******************************************************************
 =head2 get_nas_info($db, $RAD);
+
+  Arguments:
+    $db
+    $NAS
+
+  Resultts:
+    $nas_info
 
 =cut
 #*******************************************************************
@@ -500,24 +506,23 @@ sub get_nas_info {
   else {
     $WHERE .= " AND nas_identifier=''";
   }
+  my $sql = <<"SQL";
+SELECT id AS nas_id,
+       nas_identifier,
+       INET_NTOA(ip) AS nas_ip,
+       nas_type,
+       auth_type AS nas_auth_type,
+       alive AS nas_alive,
+       disable AS nas_disable,
+       ext_acct AS nas_ext_acct,
+       rad_pairs AS nas_rad_pairs,
+       mac,
+       domain_id
+FROM nas
+WHERE $WHERE;
+SQL
 
-  $Nas->query(
-    "SELECT id AS nas_id,
-      nas_identifier,
-      INET_NTOA(ip) AS nas_ip,
-      nas_type,
-      auth_type AS nas_auth_type,
-      alive AS nas_alive,
-      disable AS nas_disable,
-      ext_acct AS nas_ext_acct,
-      rad_pairs AS nas_rad_pairs,
-      mac,
-      domain_id
-    FROM nas
-    WHERE $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+  $Nas->query($sql, undef, { INFO => 1 });
 
   if ($Nas->{errno}) {
     if ($RAD->{'Mikrotik-Host-IP'}) {
@@ -552,6 +557,14 @@ sub get_nas_info {
 
 #*******************************************************************
 =head2 auth_($db, $RAD, $nas);
+
+  Arguments:
+    $db
+    $RAD
+    $nas
+
+  Results:
+    True or FALSE
 
 =cut
 #*******************************************************************
@@ -604,34 +617,15 @@ sub auth_ {
     }
 
     if ($auth_mod{'default'}->{errstr} && $auth_mod{'default'}->{errno} != 2) {
-      $auth_mod{'default'}->{errstr} =~ s/\n//g;
+      $auth_mod{'default'}->{errstr} =~ s/\n//gx;
     }
 
     $RAD_CHECK{'Auth-Type'} = 'REJECT';
     return $r;
   }
   else {
-    #GEt Nas rad pairs
     if ($nas->{NAS_RAD_PAIRS}) {
-      $nas->{NAS_RAD_PAIRS} =~ tr/\n\r//d;
-      my @pairs_arr = split(/,[ \n]+/, $nas->{NAS_RAD_PAIRS});
-      foreach my $line (@pairs_arr) {
-        if ($line =~ /([a-zA-Z0-9\-:]{6,25})\+\=(.{1,200})/) {
-          my $left  = $1;
-          my $right = $2;
-          push @{ $RAD_REPLY{$left} }, $right;
-        }
-        else {
-          my ($left, $right) = split(/=/, $line, 2);
-          if ($left =~ s/^!//) {
-            delete $RAD_REPLY{$left};
-            delete $RAD_PAIRS->{$left};
-          }
-          else {
-            $RAD_REPLY{$left} = $right;
-          }
-        }
-      }
+      mk_rad_pairs($nas->{NAS_RAD_PAIRS});
     }
 
     $RAD_CHECK{'Auth-Type'} = 'Accept' if ($RAD->{'CHAP-Password'});
@@ -655,9 +649,55 @@ sub auth_ {
   return $r;
 }
 
+#*******************************************************************
+=head2 mk_rad_pairs($pairs);
+
+  Arguments:
+    $pairs
+    $attr
+
+  Returns:
+    \%RAD_REPLY
+
+=cut
+#*******************************************************************
+sub mk_rad_pairs {
+  my($pairs)=@_;
+
+  $pairs =~ tr/\n\r//d;
+  my @pairs_arr = split(/,[\s\n]+/x, $pairs);
+  foreach my $line (@pairs_arr) {
+    if ($line =~ /([a-zA-Z0-9\-:]{6,25})\+\=(.{1,200})/xm) {
+      my $left_part  = $1;
+      my $right_part = $2;
+      push @{ $RAD_REPLY{$left_part} }, $right_part;
+    }
+    else {
+      my ($left_part, $right_part) = split(/=/x, $line, 2);
+      if ($left_part =~ s/^!//x) {
+        delete $RAD_REPLY{$left_part};
+        delete $RAD_PAIRS->{$left_part};
+      }
+      else {
+        $RAD_REPLY{$left_part} = $right_part;
+      }
+    }
+  }
+
+
+  return \%RAD_REPLY;
+}
 
 #*******************************************************************
 =head2 access_deny($user_name, $message, $nas, $db, $attr);
+
+  Arguments:
+    $user_name,
+    $message,
+    $nas
+
+  Returns:
+    TRUE or FALSE
 
 =cut
 #*******************************************************************
@@ -666,18 +706,6 @@ sub access_deny {
 
   $Log->{ACTION} = 'AUTH';
   $Log->log_print('LOG_WARNING', $user_name, $message, { NAS => $nas });
-
-  #External script for error connections
-  # if ($conf{AUTH_ERROR_CMD}) {
-  #   my @cmds = split(/;/, $conf{AUTH_ERROR_CMD});
-  #   foreach my $expr_cmd (@cmds) {
-  #     $RAD_REQUEST{'Nas-Port'} = 0 if (!$RAD_REQUEST{'Nas-Port'});
-  #     my ($expr, $cmd) = split(/:/, $expr_cmd);
-  #     if ($message =~ /$expr/) {
-  #       system("$cmd USER_NAME=$user_name NAS_PORT=$RAD_REQUEST{'Nas-Port'} NAS_IP=$nas->{NAS_IP} ERROR=$message");
-  #     }
-  #   }
-  # }
 
   return 1;
 }
@@ -755,4 +783,4 @@ sub test_vars {
 =cut
 #}
 
-1
+1;

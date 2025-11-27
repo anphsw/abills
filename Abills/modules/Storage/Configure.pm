@@ -522,6 +522,11 @@ sub storage_storages {
   }
 
   if (!$FORM{add} && !$FORM{change}) {
+    $Storage->{RESPONSIBLE_SEL} = sel_admins({
+      NAME         => 'RESPONSIBLE',
+      RESPONSIBLE  => $Storage->{RESPONSIBLE} ? $Storage->{RESPONSIBLE} : ''
+    });
+
     $html->tpl_show(_include('storage_storages', 'Storage'), $Storage);
   }
 
@@ -530,14 +535,17 @@ sub storage_storages {
   result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storages_list',
-    BASE_FIELDS     => 3,
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,ADMIN_NAME,COMMENTS',
+    HIDDEN_FIELDS   => 'DOMAIN_ID',
     FUNCTION_FIELDS => 'storage_storages:$lang{ADMINS}:id:&access=1,change,del',
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => { name => '_translate' },
     EXT_TITLES      => {
-      id       => '#',
-      name     => $lang{NAME},
-      comments => $lang{COMMENTS}
+      id         => '#',
+      name       => $lang{NAME},
+      admin_name => $lang{RESPONSIBLE},
+      comments   => $lang{COMMENTS}
     },
     TABLE           => {
       width   => '100%',
@@ -599,7 +607,7 @@ sub storage_admin_access {
     caption     => "$lang{STORAGE_ACCESS_LEVEL}. $lang{STORAGE}: $FORM{ID}",
     title_plain => [ $lang{ADMIN}, $lang{STORAGE_VIEW_ONLY}, $lang{STORAGE_MANAGEMENT} ],
     ID          => 'STORAGE_ADMINS_ACCESS',
-    DATA_TABLE  => 1
+    # DATA_TABLE  => 1
   });
 
   foreach my $admin_info (@{$admins}) {

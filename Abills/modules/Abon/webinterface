@@ -10,7 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abon;
 use Abills::Defs;
-use Abills::Base qw(in_array sendmail days_in_month cmd date_diff get_period_dates);
+use Abills::Base qw(in_array sendmail days_in_month cmd date_diff get_period_dates json_former);
 use Abills::Loader;
 use Abon::Services;
 require Abon::Base;
@@ -66,263 +66,17 @@ sub abon_user {
   my $uid = $users->{UID} || $LIST_PARAMS{UID} || $FORM{UID} || $attr->{UID} || '';
 
   if ($FORM{chg}) {
-    $Abon->tariff_info($FORM{chg});
-
-    if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0 && $Abon->{ID}) {
-      my $params = {
-        TITLE => $html->button(join(': ', ($Abon->{ID}, $Abon->{NAME} || '')), "get_index=abon_tariffs&full=1&ABON_ID=$Abon->{ID}")
-      };
-
-      my $user_tp_info = $Abon->user_tariff_list($uid, {
-        ID                => $FORM{chg},
-        DISCOUNT_ACTIVATE => '_SHOW',
-        DISCOUNT_EXPIRE   => '_SHOW',
-        COLS_NAME         => 1,
-        COLS_UPPER        => 1
-      });
-
-      if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0) {
-        my $first_tp_info = shift(@{$user_tp_info}) || {};
-        %{$params} = (%{$first_tp_info}, %{$params});
-      }
-
-      # if (!$params->{NEXT_ABON} || $params->{NEXT_ABON} eq '0000-00-00') {
-      #   $params->{NEXT_ABON} = $html->date_fld2('DATE_' . $FORM{chg}, {
-      #     WEEK_DAYS => \@WEEKDAYS,
-      #     MONTHES   => \@MONTHES,
-      #     DATE      => '0000-00-00'
-      #   });
-      # }
-
-      # $params->{DISCOUNT_ACTIVATE_DATE} = $html->date_fld2('DISCOUNT_ACTIVATE_' . $FORM{chg}, {
-      #   WEEK_DAYS => \@WEEKDAYS,
-      #   MONTHES   => \@MONTHES,
-      #   DATE      => $params->{DISCOUNT_ACTIVATE} || '0000-00-00'
-      # });
-      #
-      # $params->{DISCOUNT_EXPIRE_DATE} = $html->date_fld2('DISCOUNT_EXPIRE_' . $FORM{chg}, {
-      #   WEEK_DAYS => \@WEEKDAYS,
-      #   MONTHES   => \@MONTHES,
-      #   DATE      => $params->{DISCOUNT_EXPIRE} || '0000-00-00'
-      # });
-
-      $params->{CREATE_DOCS} = 'checked' if $params->{CREATE_DOCS};
-      $params->{SEND_DOCS} = 'checked' if $params->{SEND_DOCS};
-      $params->{MANUAL_FEE} = 'checked' if $params->{MANUAL_FEE};
-      $params->{ACTIVATED} = 'checked' if $params->{ACTIVE_SERVICE};
-
-      if ($params->{NEXT_ABON}) {
-        $params->{START_DISABLED} = 'disabled';
-        $params->{END_DISABLED} = 'disabled';
-      }
-
-      $html->tpl_show(_include('abon_add_form', 'Abon'), {
-        %{$params},
-        ID  => $FORM{chg},
-        UID => $uid
-      }, { ID => 'abon_add_form' });
-    }
+    abon_user_chg($attr);
   }
 
   if ($FORM{change} || $FORM{add}) {
-    if ($FORM{FULL_INFO_ACTIVATE_TP_ID}) {
-      if ($FORM{IDS}) {
-        $attr->{ACTIVATE_ONLY} = 1;
-        $FORM{ 'CREATE_DOCS_' . $FORM{IDS} } ||= 0;
-        $FORM{ 'SEND_DOCS_' . $FORM{IDS} } ||= 0;
-        $FORM{ 'MANUAL_FEE_' . $FORM{IDS} } ||= 0;
-      }
-      else {
-        my $user_tps = $Abon->user_list({ UID => $uid, TP_ID => "!$FORM{FULL_INFO_ACTIVATE_TP_ID}", COLS_NAME => 1 });
-        if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0) {
-          $FORM{IDS} = join(',', map {$_->{tp_id}} @{$user_tps});
-        }
-      }
-    }
-
-    $FORM{QUICK} = 1;
-    load_module('Docs', $html);
-
-    $users = $attr->{USER_INFO} if $attr->{USER_INFO};
-
-    $users->pi({ UID => $uid });
-    my @new_arr = ();
-    my @ids_arr = ();
-
-    if ($attr->{CHECK_TP} && $attr->{TP_NAMES}) {
-      my $tp_ids = abon_check_tps({ TP_NAMES => $attr->{TP_NAMES} });
-      $FORM{IDS} = join(', ', keys %{$tp_ids});
-    }
-
-    if ($FORM{IDS}) {
-      @ids_arr = split(/,\s?/x, $FORM{IDS});
-    }
-
-    my %ids_hash = ();
-    my @add_arr = ();
-    my @del_arr = ();
-
-    if ($FORM{ACTIVATE}) {
-      push @new_arr, $FORM{ACTIVATE};
-    }
-    else {
-      foreach my $k (@ids_arr) {
-        $ids_hash{$k} = 1;
-      }
-
-      my $list = $Abon->user_tariff_list($uid, { DISCOUNT_ACTIVATE => '_SHOW', DISCOUNT_EXPIRE => '_SHOW', COLS_NAME => 1 });
-      foreach my $line (@{$list}) {
-        if ($ids_hash{ $line->{id} } && $line->{date}) {
-
-          #check changes
-          my @compare = (
-            'COMMENTS_:comments',
-            'SERVICE_COUNT_:service_count',
-
-            'DISCOUNT_:discount',
-            'CREATE_DOCS_:create_docs',
-            'SEND_DOCS_:send_docs',
-            'MANUAL_FEE_:manual_fee',
-            'FEES_PERIOD_:fees_period',
-            'PERSONAL_DESCRIPTION_:personal_description',
-            'DISCOUNT_ACTIVATE_:discount_activate',
-            'DISCOUNT_EXPIRE_:discount_expire',
-          );
-
-          foreach my $l (@compare) {
-            my ($input_value, $db_value) = split(':', $l);
-            if (defined($FORM{ $input_value . $line->{id} }) && defined($line->{$db_value})
-              && $FORM{ $input_value . $line->{id} } ne $line->{$db_value}) {
-
-              next if (!$FORM{ $input_value . $line->{id} } && !$line->{$db_value});
-
-              my $change_params = {
-                UID                  => $uid,
-                TP_ID                => $line->{id},
-                FEES_PERIOD          => $FORM{ 'FEES_PERIOD_' . $line->{id} },
-                COMMENTS             => $FORM{ 'COMMENTS_' . $line->{id} },
-                DISCOUNT             => $FORM{ 'DISCOUNT_' . $line->{id} },
-                SERVICE_COUNT        => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
-                PERSONAL_DESCRIPTION => $FORM{ 'PERSONAL_DESCRIPTION_' . $line->{id} },
-                DISCOUNT_EXPIRE      => $FORM{ 'DISCOUNT_EXPIRE_' . $line->{id} },
-                DISCOUNT_ACTIVATE    => $FORM{ 'DISCOUNT_ACTIVATE_' . $line->{id} },
-              };
-
-              if ($FORM{FULL_INFO_ACTIVATE_TP_ID}) {
-                $change_params->{CREATE_DOCS} = $FORM{ 'CREATE_DOCS_' . $line->{id} };
-                $change_params->{SEND_DOCS} = $FORM{ 'SEND_DOCS_' . $line->{id} };
-                $change_params->{MANUAL_FEE} = $FORM{ 'MANUAL_FEE_' . $line->{id} };
-              }
-              else {
-                $change_params->{CREATE_DOCS} = $line->{create_docs};
-                $change_params->{SEND_DOCS} = $line->{send_docs};
-                $change_params->{MANUAL_FEE} = $line->{manual_fee};
-              }
-
-              $Abon->user_tariff_change($change_params);
-              last;
-            }
-          }
-
-          delete $ids_hash{ $line->{id} };
-        }
-        elsif ($line->{date} && !$attr->{ACTIVATE_ONLY}) {
-          push @del_arr, $line->{id};
-        }
-      }
-
-      @new_arr = keys %ids_hash;
-    }
-
-    my @docs_ids = ();
-    foreach my $id (@new_arr) {
-      my $result_activate = $Abon_services->abon_user_tariff_activate({
-        %{$attr || {}},
-        %FORM,
-        USER_INFO            => $users,
-        UID                  => $uid,
-        ID                   => $id,
-        DATE                 => $FORM{'DATE_' . $id},
-        SERVICE_ACTIVATE     => $FORM{'DATE_' . $id},
-        PERIOD               => $FORM{'PERIOD_' . $id},
-        COMMENTS             => $FORM{'COMMENTS_' . $id},
-        SERVICE_COUNT        => $FORM{'SERVICE_COUNT_' . $id},
-        DISCOUNT             => $FORM{'DISCOUNT_' . $id},
-        DISCOUNT_ACTIVATE    => $FORM{'DISCOUNT_ACTIVATE_' . $id},
-        DISCOUNT_EXPIRE      => $FORM{'DISCOUNT_EXPIRE_' . $id},
-        FEES_PERIOD          => $FORM{'FEES_PERIOD_' . $id},
-        MANUAL_FEE           => $FORM{'MANUAL_FEE_' . $id},
-        CREATE_DOCS          => $FORM{'CREATE_DOCS_' . $id},
-        SEND_DOCS            => $FORM{'SEND_DOCS_' . $id},
-        PERSONAL_DESCRIPTION => $FORM{'PERSONAL_DESCRIPTION_' . $id},
-        ACTIVATE             => $FORM{ACTIVATE},
-        END_DATE             => $FORM{'END_DATE_'. $id}
-      });
-
-      if (_error_show($result_activate)) {
-        $FORM{ 'error_' . $id } = $result_activate->{errno};
-        $FORM{ 'error_comments_' . $id } = $result_activate->{errstr};
-        next;
-      };
-
-      if ($result_activate && defined $result_activate->{LICENSE}) {
-        if (ref $result_activate->{LICENSE} ne 'HASH') {
-          my $textarea = $html->element('textarea', $result_activate->{LICENSE}, { name => 'LICENSE', rows => 14,
-            class                                                                       => 'form-control', readonly => 1, OUTPUT2RETURN => 1 });
-          my $col = $html->element('div', $textarea, { class => 'col-md-12', OUTPUT2RETURN => 1 });
-          my $form_group = $html->element('div', $col, { class => 'form-group row', OUTPUT2RETURN => 1 });
-
-          $result_activate->{LICENSE} = { LICENSE_FORM => $form_group };
-        }
-
-        $html->tpl_show(_include('abon_license', 'Abon'), {
-          %{$result_activate->{LICENSE} || {}},
-          TP_ID => $id
-        });
-
-        return 0;
-      };
-
-      if ($result_activate && $result_activate->{MESSAGES} && ref $result_activate->{MESSAGES} eq 'ARRAY') {
-        my $message = join("\n", @{$result_activate->{MESSAGES}});
-        $html->message('info', $lang{ABON}, $message) if ($message);
-      }
-
-      # TODO: Move docs_invoice to package
-      if ($result_activate && $result_activate->{CREATE_DOCS}) {
-        my $doc_id = $#docs_ids + 2;
-        $FORM{ 'SUM_' . $doc_id } = $result_activate->{DOCS_SUM};
-        $FORM{ 'COUNT_' . $doc_id } = $FORM{'SERVICE_COUNT_' . $id};
-        $FORM{ 'ORDER_' . $doc_id } = $result_activate->{DOCS_ORDER};
-        $FORM{SEND_EMAIL} = $FORM{'SEND_DOCS_' . $id} || undef;
-        push @docs_ids, $doc_id;
-      }
-    }
-
-    foreach my $del_id (@del_arr) {
-      my $result_deactivate = $Abon_services->abon_user_tariff_deactivate({ %{$attr || {}}, %FORM,
-        USER_INFO => $users,
-        UID       => $uid,
-        ID        => $del_id,
-      });
-      _error_show($result_deactivate)
-    }
-
-    delete $FORM{IDS};
-    if ($#docs_ids > -1) {
-      $FORM{create} = 1;
-      $FORM{CUSTOMER} = '-';
-      $FORM{IDS} = join(', ', @docs_ids);
-      docs_invoice({ QUITE => 1 });
-    }
-
-    _error_show($Abon);
-    return 1 if ($attr->{QUITE} || $attr->{REGISTRATION});
+    abon_user_change($attr);
   }
 
   my $user_tariff_list = $Abon->user_tariff_list($uid, {
     %LIST_PARAMS,
     HOT_DEAL  => '_SHOW',
+    SUB_TP_ID => 'IS NULL',
     GID       => $users->{GID} || 0,
     SORT      => $LIST_PARAMS{SORT} || 'at.hot_deal',
     DESC      => $LIST_PARAMS{DESC} || (!$LIST_PARAMS{SORT} ? 'DESC' : ''),
@@ -391,25 +145,6 @@ sub abon_user {
       $html->form_input('FEES_PERIOD_' . $line->{id}, $line->{fees_period} || 0, { SIZE => 4 }),
       $line->{date},
       ($line->{next_abon}) ? "$line->{next_abon}" : $html->date_fld2('DATE_' . $line->{id}, { FORM_NAME => 'ABON_USER_TPS', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, DATE => '0000-00-00' }),
-      # $html->form_input('DISCOUNT_' . $line->{id}, $FORM{ 'DISCOUNT_' . $line->{id} } || $line->{discount}, { SIZE => '8' }),
-      # $html->form_input('CREATE_DOCS_' . $line->{id}, "1", { TYPE => 'CHECKBOX', STATE => ($line->{create_docs}) ? 1 : undef }),
-      # $html->form_input(
-      #   'SEND_DOCS_' . $line->{id},
-      #   "1",
-      #   {
-      #     TYPE  => 'CHECKBOX',
-      #     STATE => ($line->{send_docs}) ? 1 : undef
-      #   }
-      # ),
-      # $html->form_input(
-      #   'MANUAL_FEE_' . $line->{id},
-      #   "1",
-      #   {
-      #     TYPE      => 'checkbox',
-      #     STATE     => ($line->{manual_fee}) ? 1 : undef,
-      #     EX_PARAMS => ' data-return="1" '
-      #   }
-      # ),
       $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}&UID=$uid", { class => 'change' }),
       ($state && $line->{manual_activate})
         ? $html->button($lang{ACTIVATE},
@@ -432,8 +167,14 @@ sub abon_user {
 
   $table->addcardfooter($action);
 
+  my %periods_hash = map { $_ => $PERIODS[$_] } 0..$#PERIODS;
+  my $content = $table->show({ OUTPUT2RETURN => 1 });
+  $content .= $html->tpl_show(_include('abon_user_subtariffs', 'Abon'), {
+    PERIODS => json_former(\%periods_hash)
+  }, { OUTPUT2RETURN => 1 });
+
   my $user_service_form = $html->form_main({
-    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    CONTENT => $content,
     HIDDEN  => {
       index        => $index,
       UID          => $uid,
@@ -456,7 +197,313 @@ sub abon_user {
 }
 
 #**********************************************************
+=head2 abon_user_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub abon_user_change {
+  my($attr)=@_;
+
+  my $uid = $users->{UID} || $LIST_PARAMS{UID} || $FORM{UID} || $attr->{UID} || '';
+
+  if ($FORM{FULL_INFO_ACTIVATE_TP_ID}) {
+    if ($FORM{IDS}) {
+      $attr->{ACTIVATE_ONLY} = 1;
+      $FORM{ 'CREATE_DOCS_' . $FORM{IDS} } ||= 0;
+      $FORM{ 'SEND_DOCS_' . $FORM{IDS} } ||= 0;
+      $FORM{ 'MANUAL_FEE_' . $FORM{IDS} } ||= 0;
+    }
+    else {
+      my $user_tps = $Abon->user_list({ UID => $uid, TP_ID => "!$FORM{FULL_INFO_ACTIVATE_TP_ID}", COLS_NAME => 1 });
+      if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0) {
+        $FORM{IDS} = join(',', map {$_->{tp_id}} @{$user_tps});
+      }
+    }
+  }
+
+  $FORM{QUICK} = 1;
+
+  $users = $attr->{USER_INFO} if $attr->{USER_INFO};
+
+  $users->pi({ UID => $uid });
+  my @new_arr = ();
+  my @ids_arr = ();
+
+  if ($attr->{CHECK_TP} && $attr->{TP_NAMES}) {
+    my $tp_ids = abon_check_tps({ TP_NAMES => $attr->{TP_NAMES} });
+    $FORM{IDS} = join(', ', keys %{$tp_ids});
+  }
+
+  if ($FORM{IDS}) {
+    @ids_arr = split(/,\s?/x, $FORM{IDS});
+  }
+
+  my %ids_hash = ();
+  #my @add_arr = ();
+  my @del_arr = ();
+
+  if ($FORM{ACTIVATE}) {
+    push @new_arr, $FORM{ACTIVATE};
+  }
+  else {
+    foreach my $k (@ids_arr) {
+      $ids_hash{$k} = 1;
+    }
+
+    my $list = $Abon->user_tariff_list($uid, { DISCOUNT_ACTIVATE => '_SHOW', DISCOUNT_EXPIRE => '_SHOW', COLS_NAME => 1 });
+    foreach my $line (@{$list}) {
+      if ($ids_hash{ $line->{id} } && $line->{date}) {
+        #check changes
+        my @compare = (
+          'COMMENTS_:comments',
+          'SERVICE_COUNT_:service_count',
+
+          'DISCOUNT_:discount',
+          'CREATE_DOCS_:create_docs',
+          'SEND_DOCS_:send_docs',
+          'MANUAL_FEE_:manual_fee',
+          'FEES_PERIOD_:fees_period',
+          'PERSONAL_DESCRIPTION_:personal_description',
+          'DISCOUNT_ACTIVATE_:discount_activate',
+          'DISCOUNT_EXPIRE_:discount_expire',
+        );
+
+        foreach my $l (@compare) {
+          my ($input_value, $db_value) = split(':', $l);
+          if (defined($FORM{ $input_value . $line->{id} }) && defined($line->{$db_value})
+            && $FORM{ $input_value . $line->{id} } ne $line->{$db_value}) {
+
+            next if (!$FORM{ $input_value . $line->{id} } && !$line->{$db_value});
+
+            my $change_params = {
+              UID                  => $uid,
+              TP_ID                => $line->{id},
+              FEES_PERIOD          => $FORM{ 'FEES_PERIOD_' . $line->{id} },
+              COMMENTS             => $FORM{ 'COMMENTS_' . $line->{id} },
+              DISCOUNT             => $FORM{ 'DISCOUNT_' . $line->{id} },
+              SERVICE_COUNT        => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
+              PERSONAL_DESCRIPTION => $FORM{ 'PERSONAL_DESCRIPTION_' . $line->{id} },
+              DISCOUNT_EXPIRE      => $FORM{ 'DISCOUNT_EXPIRE_' . $line->{id} },
+              DISCOUNT_ACTIVATE    => $FORM{ 'DISCOUNT_ACTIVATE_' . $line->{id} },
+            };
+
+            if ($FORM{FULL_INFO_ACTIVATE_TP_ID}) {
+              $change_params->{CREATE_DOCS} = $FORM{ 'CREATE_DOCS_' . $line->{id} };
+              $change_params->{SEND_DOCS} = $FORM{ 'SEND_DOCS_' . $line->{id} };
+              $change_params->{MANUAL_FEE} = $FORM{ 'MANUAL_FEE_' . $line->{id} };
+            }
+            else {
+              $change_params->{CREATE_DOCS} = $line->{create_docs};
+              $change_params->{SEND_DOCS} = $line->{send_docs};
+              $change_params->{MANUAL_FEE} = $line->{manual_fee};
+            }
+
+            $Abon->user_tariff_change($change_params);
+            last;
+          }
+        }
+
+        delete $ids_hash{ $line->{id} };
+      }
+      elsif ($line->{date} && !$attr->{ACTIVATE_ONLY}) {
+        push @del_arr, $line->{id};
+      }
+    }
+
+    @new_arr = keys %ids_hash;
+  }
+
+  my @docs_ids = ();
+
+  if (scalar(@new_arr) > 0) {
+    my $sorted_tp_list = $Abon->tariff_list({
+      ABON_ID   => join(';', @new_arr),
+      SORT      => 'ats.sub_tp_id',
+      COLS_NAME => 1
+    });
+
+    @new_arr = map { $_->{id} } @{$sorted_tp_list};
+  }
+
+  foreach my $id (@new_arr) {
+    my $result_activate = $Abon_services->abon_user_tariff_activate({
+      %{$attr || {}},
+      %FORM,
+      USER_INFO            => $users,
+      UID                  => $uid,
+      ID                   => $id,
+      DATE                 => $FORM{'DATE_' . $id},
+      SERVICE_ACTIVATE     => $FORM{'DATE_' . $id},
+      PERIOD               => $FORM{'PERIOD_' . $id},
+      COMMENTS             => $FORM{'COMMENTS_' . $id},
+      SERVICE_COUNT        => $FORM{'SERVICE_COUNT_' . $id},
+      DISCOUNT             => $FORM{'DISCOUNT_' . $id},
+      DISCOUNT_ACTIVATE    => $FORM{'DISCOUNT_ACTIVATE_' . $id},
+      DISCOUNT_EXPIRE      => $FORM{'DISCOUNT_EXPIRE_' . $id},
+      FEES_PERIOD          => $FORM{'FEES_PERIOD_' . $id},
+      MANUAL_FEE           => $FORM{'MANUAL_FEE_' . $id},
+      CREATE_DOCS          => $FORM{'CREATE_DOCS_' . $id},
+      SEND_DOCS            => $FORM{'SEND_DOCS_' . $id},
+      PERSONAL_DESCRIPTION => $FORM{'PERSONAL_DESCRIPTION_' . $id},
+      ACTIVATE             => $FORM{ACTIVATE},
+      END_DATE             => $FORM{'END_DATE_'. $id}
+    });
+
+    if (_error_show($result_activate)) {
+      $FORM{ 'error_' . $id } = $result_activate->{errno};
+      $FORM{ 'error_comments_' . $id } = $result_activate->{errstr};
+      next;
+    };
+
+    if ($result_activate && defined $result_activate->{LICENSE}) {
+      if (ref $result_activate->{LICENSE} ne 'HASH') {
+        my $textarea = $html->element('textarea', $result_activate->{LICENSE}, {
+          name          => 'LICENSE',
+          rows          => 14,
+          class         => 'form-control',
+          readonly      => 1,
+          OUTPUT2RETURN => 1
+        });
+        my $col = $html->element('div', $textarea, { class => 'col-md-12', OUTPUT2RETURN => 1 });
+        my $form_group = $html->element('div', $col, { class => 'form-group row', OUTPUT2RETURN => 1 });
+
+        $result_activate->{LICENSE} = { LICENSE_FORM => $form_group };
+      }
+
+      $html->tpl_show(_include('abon_license', 'Abon'), {
+        %{$result_activate->{LICENSE} || {}},
+        TP_ID => $id
+      });
+
+      return 0;
+    };
+
+    if ($result_activate && $result_activate->{MESSAGES} && ref $result_activate->{MESSAGES} eq 'ARRAY') {
+      my $message = join("\n", @{$result_activate->{MESSAGES}});
+      $html->message('info', $lang{ABON}, $message) if ($message);
+    }
+
+    # TODO: Move docs_invoice to package
+    if ($result_activate && $result_activate->{CREATE_DOCS}) {
+      my $doc_id = $#docs_ids + 2;
+      $FORM{ 'SUM_' . $doc_id } = $result_activate->{DOCS_SUM};
+      $FORM{ 'COUNT_' . $doc_id } = $FORM{'SERVICE_COUNT_' . $id};
+      $FORM{ 'ORDER_' . $doc_id } = $result_activate->{DOCS_ORDER};
+      $FORM{SEND_EMAIL} = $FORM{'SEND_DOCS_' . $id} || undef;
+      push @docs_ids, $doc_id;
+    }
+  }
+
+  foreach my $del_id (@del_arr) {
+    my $result_deactivate = $Abon_services->abon_user_tariff_deactivate({ %{$attr || {}}, %FORM,
+      USER_INFO => $users,
+      UID       => $uid,
+      ID        => $del_id,
+    });
+    _error_show($result_deactivate)
+  }
+
+  delete $FORM{IDS};
+  if ($#docs_ids > -1) {
+    load_module('Docs', $html);
+    $FORM{create} = 1;
+    $FORM{CUSTOMER} = '-';
+    $FORM{IDS} = join(', ', @docs_ids);
+    docs_invoice({ QUITE => 1 });
+  }
+
+  _error_show($Abon);
+  #return 1 if ($attr->{QUITE} || $attr->{REGISTRATION});
+
+  return 1;
+}
+
+#**********************************************************
+=head2 abon_user_chg($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub abon_user_chg {
+  my ($attr)=@_;
+
+  my $uid = $users->{UID} || $LIST_PARAMS{UID} || $FORM{UID} || $attr->{UID} || '';
+
+  $Abon->tariff_info($FORM{chg});
+
+  if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0 && $Abon->{ID}) {
+    my $params = {
+      TITLE => $html->button(join(': ', ($Abon->{ID}, $Abon->{NAME} || '')), "get_index=abon_tariffs&full=1&ABON_ID=$Abon->{ID}")
+    };
+
+    my $user_tp_info = $Abon->user_tariff_list($uid, {
+      ID                => $FORM{chg},
+      DISCOUNT_ACTIVATE => '_SHOW',
+      DISCOUNT_EXPIRE   => '_SHOW',
+      COLS_NAME         => 1,
+      COLS_UPPER        => 1
+    });
+
+    if ($Abon->{TOTAL} && $Abon->{TOTAL} > 0) {
+      my $first_tp_info = shift(@{$user_tp_info}) || {};
+      %{$params} = (%{$first_tp_info}, %{$params});
+    }
+
+    my $action_list = $admin->action_list({
+      ACTIONS     => "*TP_ID:$FORM{chg}*",
+      MODULE      => 'Abon',
+      PAGE_ROWS   => 1,
+      DESC        => 'DESC',
+      UID         => $uid,
+      COLS_NAME   => 1
+    });
+
+    $params->{ACTIONS} = $action_list->[0]->{actions} || '';
+    while ($params->{ACTIONS} =~ m/([A-Z\_]+)[:|\s]{1}/xg) {
+      my $marker = $1;
+      my $lang_res = $lang{$marker};
+      $lang_res = $marker if (!$lang_res);
+      $lang_res = $html->b($lang_res);
+      $params->{ACTIONS} =~ s/$marker/$lang_res/xg;
+    }
+
+    $params->{CREATE_DOCS} = 'checked' if $params->{CREATE_DOCS};
+    $params->{SEND_DOCS} = 'checked' if $params->{SEND_DOCS};
+    $params->{MANUAL_FEE} = 'checked' if $params->{MANUAL_FEE};
+    $params->{ACTIVATED} = 'checked' if $params->{ACTIVE_SERVICE};
+
+    if ($params->{NEXT_ABON}) {
+      $params->{START_DISABLED} = 'disabled';
+      $params->{END_DISABLED} = 'disabled';
+    }
+
+    $html->tpl_show(_include('abon_add_form', 'Abon'), {
+      %{$params},
+      ID  => $FORM{chg},
+      UID => $uid
+    }, { ID => 'abon_add_form' });
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
 =head2 abon_user_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -486,17 +533,15 @@ sub abon_user_list {
       }
     );
 
-    form_search(
-      {
-        SEARCH_FORM  => $html->tpl_show(
-          _include('abon_users_search', 'Abon'), {
-          %{$Abon},
-          %FORM,
-          TP_ID => $tp_id_select
-        }, { OUTPUT2RETURN => 1 }),
-        ADDRESS_FORM => 1
-      }
-    );
+    form_search({
+      SEARCH_FORM  => $html->tpl_show(
+        _include('abon_users_search', 'Abon'), {
+        %{$Abon},
+        %FORM,
+        TP_ID => $tp_id_select
+      }, { OUTPUT2RETURN => 1 }),
+      ADDRESS_FORM => 1
+    });
   }
 
   $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
@@ -927,6 +972,10 @@ sub _plugin_action {
 =head1 abon_user_add($attr) - client interface
 
   Attributes:
+    $attr
+
+  Results:
+    $tp_id or FALSE
 
 =cut
 #**********************************************************
@@ -935,6 +984,7 @@ sub abon_user_add {
 
   $FORM{IDS} = $attr->{TP_ID};
   $FORM{add} = 1;
+  my $uid = $LIST_PARAMS{UID} || 0;
   #$FORM{ 'MANUAL_FEE_' . $FORM{IDS} } = 1;
 
   my $result = abon_user({
@@ -946,7 +996,7 @@ sub abon_user_add {
   });
 
   if ($result) {
-    $html->message('info', $lang{INFO}, "$lang{ACTIVATED} [$LIST_PARAMS{UID}]") if (!$attr->{QUITE});
+    $html->message('info', $lang{INFO}, "$lang{ACTIVATED} [$uid]") if (!$attr->{QUITE});
     return $attr->{TP_ID};
   }
 

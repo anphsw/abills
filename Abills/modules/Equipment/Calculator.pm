@@ -22,7 +22,6 @@ our $Equipment = Equipment->new($db, $admin, \%conf);
 #************************************************************
 sub calculator_main {
 
-
   if($FORM{new_types}){
     $FORM{new_types} =~ s/\\"/"/g;
     my $new_types = decode_json($FORM{new_types});

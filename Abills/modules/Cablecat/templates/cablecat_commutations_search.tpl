@@ -2,7 +2,7 @@
   <div class='card-header with-border'><h4 class='card-title'>_{COMMUTATION}_ _{SEARCH}_</h4></div>
   <div class='card-body'>
 
-    <!--<input type='hidden' name='index' value='$index'/>-->
+    <!--<input type='hidden' name='index' value='%index%'/>-->
 
     <div class='form-group row'>
       <label class='col-md-4 col-form-label text-md-right' for='ID_ID'>ID</label>

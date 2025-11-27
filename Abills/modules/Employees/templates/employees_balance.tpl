@@ -1,6 +1,6 @@
-<form method='POST' action=$SELF_URL class='form-horizontal'>
+<form method='POST' action=%SELF_URL% class='form-horizontal'>
 
-  <input type='hidden' name='index' value=$index>
+  <input type='hidden' name='index' value=%index%>
 
   <div class='card box-primary card-form'>
     <div class='card-header with-border'>
@@ -43,7 +43,6 @@
 <div class='row'>
   <div class='col-md-6'>%COMING_TABLE%</div>
   <div class='col-md-6'>%SPENDING_TABLE%</div>
-
 </div>
 <div class='row'>
   <div class='col-md-6'>%TOTAL_COMING_TABLE%</div>

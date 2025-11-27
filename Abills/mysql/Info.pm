@@ -102,7 +102,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_comments ($type, $id)
+=head2 comments_get ($type, $id)
 
  Main function to get comments for $type, $id
    $type - The table name for object you want get comments for
@@ -116,7 +116,7 @@ sub new {
 
 =head2 EXAMPLES
   Get comments for Administrator with aid = 2
-    my $comments = $Info->get_comments('admins', 2, { COLS_NAME => 1 });
+    my $comments = $Info->comments_get('admins', 2, { COLS_NAME => 1 });
 
   Will return:
     [
@@ -129,21 +129,21 @@ sub new {
     ]
 =cut
 #**********************************************************
-sub get_comments {
-  my $self = shift;
-  my ($obj_type, $id, $attr) = @_;
+sub comments_get {
+
+  my ($self,$obj_type, $id, $attr) = @_;
 
   if (!(defined $obj_type && defined $id)) {
     $self->{errno} = 2;
     $self->{errstr} = 'Parameters error';
     return 0;
   }
-  return _get_info_list($obj_type, $id, COMMENT_TABLE, $attr);
+  return _info_list_get($obj_type, $id, COMMENT_TABLE, $attr);
 }
 
 #**********************************************************
 
-=head2 add_comment
+=head2 comment_add
 
  Main function to add comment for $type, $id
    $attr - hash reference of extra arguments
@@ -155,20 +155,19 @@ sub get_comments {
 
 =cut
 #**********************************************************
-sub add_comment {
-  my $self = shift;
-  my ($attr) = @_;
+sub comment_add {
+  my ($self, $attr) = @_;
 
   my $obj_type = $attr->{OBJ_TYPE};
   my $id = $attr->{OBJ_ID};
 
   $admin->action_add($attr->{OBJ_ID}, $attr->{TEXT}, { TYPE => 1 });
 
-  return _add_info($obj_type, $id, COMMENT_TABLE, $attr);
+  return _info_add($obj_type, $id, COMMENT_TABLE, $attr);
 }
 
 #**********************************************************
-=head2 del_comment
+=head2 comment_del
 
  Main function to delete comment by $id
    $attr - hash reference of extra arguments
@@ -178,18 +177,17 @@ sub add_comment {
 
 =cut
 #**********************************************************
-sub del_comment {
-  my $self = shift;
-  my ($attr) = @_;
+sub comment_del {
+  my ($self, $attr) = @_;
 
   $admin->action_add($attr->{UID}, $attr->{COMMENTS}, { TYPE => 10 });
 
-  return _del_info(COMMENT_TABLE, $attr);
+  return _info_del(COMMENT_TABLE, $attr);
 }
 
 
 #**********************************************************
-=head2 get_comments ($type, $id)
+=head2 images_get ($type, $id)
 
  Main function to get comments for $type, $id
    $type - The table name for object you want get comments for
@@ -203,7 +201,7 @@ sub del_comment {
 
 =head2 EXAMPLES
   Get comments for Administrator with aid = 2
-    my $comments = $Info->get_comments('admins', 2, { COLS_NAME => 1 });
+    my $comments = $Info->images_get('admins', 2, { COLS_NAME => 1 });
 
   Will return:
     [
@@ -216,32 +214,30 @@ sub del_comment {
     ]
 =cut
 #**********************************************************
-sub get_images {
-  my $self = shift;
-  my ($obj_type, $id, $attr) = @_;
+sub images_get {
+  my ($self, $obj_type, $id, $attr) = @_;
 
   if (!(defined $obj_type && defined $id)) {
     $self->{errno} = 2;
     $self->{errstr} = 'Parameters not defined: OBJ_TYPE || OBJ_ID';
     return 0;
   }
-  return _get_info_list($obj_type, $id, IMAGE_TABLE, $attr);
+  return _info_list_get($obj_type, $id, IMAGE_TABLE, $attr);
 }
 
 #**********************************************************
-=head2 get_image_info($image_id, $attr)
+=head2 image_get_info($image_id, $attr)
 
 =cut
 #**********************************************************
-sub get_image_info {
-  my $self = shift;
-  my ($image_id, $attr) = @_;
+sub image_get_info {
+  my ($self, $image_id, $attr) = @_;
 
-  return _get_info_info(IMAGE_TABLE, $image_id, $attr);
+  return _info_info_get(IMAGE_TABLE, $image_id, $attr);
 }
 
 #**********************************************************
-=head2 add_comment
+=head2 image_add
 
  Main function to add comment for $type, $id
    $attr - hash reference of extra arguments
@@ -253,17 +249,16 @@ sub get_image_info {
 
 =cut
 #**********************************************************
-sub add_image {
-  my $self = shift;
-  my ($attr) = @_;
+sub image_add {
+  my ($self, $attr) = @_;
 
-  return _add_info($attr->{OBJ_TYPE}, $attr->{OBJ_ID}, IMAGE_TABLE,
+  return _info_add($attr->{OBJ_TYPE}, $attr->{OBJ_ID}, IMAGE_TABLE,
     $attr
   );
 }
 
 #**********************************************************
-=head2 del_image
+=head2 image_del
 
  Main function to delete image by $id
    $attr - hash reference of extra arguments
@@ -273,17 +268,16 @@ sub add_image {
 
 =cut
 #**********************************************************
-sub del_image {
-  my $self = shift;
-  my ($attr) = @_;
+sub image_del {
+  my ($self, $attr) = @_;
 
-  _del_info(IMAGE_TABLE, $attr);
+  _info_del(IMAGE_TABLE, $attr);
 
   return 1;
 }
 
 #**********************************************************
-=head2 get_locations ($type, $id)
+=head2 location_get ($type, $id)
 
  Main function to get locations for $type, $id
    $type - The table name for object you want get locations for
@@ -297,7 +291,7 @@ sub del_image {
 
 =head2 EXAMPLES
   Get locations for Administrator with aid = 2
-    my $locations = $Info->get_locations('admins', 2, { COLS_NAME => 1 });
+    my $locations = $Info->location_get('admins', 2, { COLS_NAME => 1 });
 
   Will return:
     [
@@ -310,36 +304,34 @@ sub del_image {
     ]
 =cut
 #**********************************************************
-sub get_locations {
-  my $self = shift;
-  my ($obj_type, $id, $attr) = @_;
+sub location_get {
+  my ($self, $obj_type, $id, $attr) = @_;
 
-  return _get_info_list(
+  return _info_list_get(
     $obj_type, $id, LOCATION_TABLE, $attr
   );
 }
 
 #**********************************************************
-=head2 add_location($obj_type, $obj_id, $attr)
+=head2 location_add($obj_type, $obj_id, $attr)
 
 =cut
 #**********************************************************
-sub add_location {
-  my $self = shift;
-  my ($obj_type, $obj_id, $attr) = @_;
+sub location_add {
+  my ($self, $obj_type, $obj_id, $attr) = @_;
 
   if ($attr->{TIME}) {
     $attr->{TIME} = strftime('%F %T', localtime($attr->{TIME}))
   }
-  if ($attr->{TIMESTAMP} && $attr->{TIMESTAMP} =~ /\d*/) {
+  if ($attr->{TIMESTAMP} && $attr->{TIMESTAMP} =~ /\d*/xm) {
     $attr->{TIMESTAMP} = strftime('%F %T', localtime($attr->{TIMESTAMP}))
   }
 
-  return _add_info($obj_type, $obj_id, LOCATION_TABLE, $attr);
+  return _info_add($obj_type, $obj_id, LOCATION_TABLE, $attr);
 }
 
 #**********************************************************
-=head2 del_location
+=head2 location_del
 
  Main function to delete location by $id
    $attr - hash reference of extra arguments
@@ -349,15 +341,14 @@ sub add_location {
 
 =cut
 #**********************************************************
-sub del_location {
-  my $self = shift;
-  my ($attr) = @_;
+sub location_del {
+  my ($self, $attr) = @_;
 
-  return _del_info(LOCATION_TABLE, $attr);
+  return _info_del(LOCATION_TABLE, $attr);
 }
 
 #**********************************************************
-=head2 get_documents ($type, $id)
+=head2 documents_get ($type, $id)
 
  Main function to get documents for $type, $id
    $type - The table name for object you want get documents for
@@ -371,7 +362,7 @@ sub del_location {
 
 =head2 EXAMPLES
   Get documents for Administrator with aid = 2
-    my $documents = $Info->get_documents('admins', 2, { COLS_NAME => 1 });
+    my $documents = $Info->documents_get('admins', 2, { COLS_NAME => 1 });
 
   Will return:
     [
@@ -384,41 +375,38 @@ sub del_location {
     ]
 =cut
 #**********************************************************
-sub get_documents {
-  my $self = shift;
-  my ($obj_type, $id, $attr) = @_;
+sub documents_get {
+  my ($self, $obj_type, $id, $attr) = @_;
 
-  return _get_info_list(
+  return _info_list_get(
     $obj_type, $id, DOCUMENT_TABLE, $attr
   );
 }
 
 #**********************************************************
-=head2 get_document_info($document_id, $attr)
+=head2 document_info($document_id, $attr)
 
 =cut
 #**********************************************************
-sub get_document_info {
-  my $self = shift;
-  my ($document_id, $attr) = @_;
+sub document_info {
+  my ($self, $document_id, $attr) = @_;
 
-  return _get_info_info(DOCUMENT_TABLE, $document_id, $attr);
+  return _info_info_get(DOCUMENT_TABLE, $document_id, $attr);
 }
 
 #**********************************************************
-=head2 add_document($obj_type, $obj_id, $attr)
+=head2 document_add($obj_type, $obj_id, $attr)
 
 =cut
 #**********************************************************
-sub add_document {
-  my $self = shift;
-  my ($obj_type, $obj_id, $attr) = @_;
+sub document_add {
+  my ($self, $obj_type, $obj_id, $attr) = @_;
 
-  return _add_info($obj_type, $obj_id, DOCUMENT_TABLE, $attr);
+  return _info_add($obj_type, $obj_id, DOCUMENT_TABLE, $attr);
 }
 
 #**********************************************************
-=head2 del_document
+=head2 document_del
 
  Main function to delete document by $id
    $attr - hash reference of extra arguments
@@ -428,13 +416,11 @@ sub add_document {
 
 =cut
 #**********************************************************
-sub del_document {
-  my $self = shift;
-  my ($attr) = @_;
+sub document_del {
+  my ($self, $attr) = @_;
 
-  return _del_info(DOCUMENT_TABLE, $attr);
+  return _info_del(DOCUMENT_TABLE, $attr);
 }
-
 
 #**********************************************************
 =head2 del_info abstraction of deleting Info module related information
@@ -448,7 +434,7 @@ sub del_document {
 
 =cut
 #**********************************************************
-sub _del_info {
+sub _info_del {
   my ($table, $attr) = @_;
 
   my $key = uc($table->{TYPE}) . "_ID";
@@ -463,11 +449,11 @@ sub _del_info {
 }
 
 #**********************************************************
-=head2 _get_info_info($table, $type_id, $attr) - generalization for DB Select
+=head2 _info_info_get($table, $type_id, $attr) - generalization for DB Select
 
 =cut
 #**********************************************************
-sub _get_info_info {
+sub _info_info_get {
   my ($table, $type_id, $attr) = @_;
 
   if (!defined $type_id) {
@@ -479,22 +465,18 @@ sub _get_info_info {
   my $type = $table->{TYPE};
   my $table_name = $table->{NAME};
   my $table_al = $table->{ALIAS};
-
-  $instance->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
       $COLUMNS
       FROM
       $table_name $table_al
       LEFT JOIN info_info i ON ($table_al.id = i.$type\_id)
       LEFT JOIN admins a ON (i.aid = a.aid)
       WHERE i.$type\_id <> 0 AND $table_al.id = ?
-      LIMIT 1",
-    undef,
-    {
-      %{$attr},
-      Bind => [ $type_id ]
-    }
-  );
+      LIMIT 1
+SQL
+
+  $instance->query($sql, undef, { %{$attr}, Bind => [ $type_id ] } );
 
   if ($instance->{errno}) {
     return {};
@@ -504,11 +486,11 @@ sub _get_info_info {
 }
 
 #**********************************************************
-=head2 _get_info_list($obj_type, $id, $table, $attr)
+=head2 _info_list_get($obj_type, $id, $table, $attr)
 
 =cut
 #**********************************************************
-sub _get_info_list {
+sub _info_list_get {
   my ($obj_type, $id, $table, $attr) = @_;
 
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -522,37 +504,33 @@ sub _get_info_list {
   my $ALIAS = $table->{ALIAS} || return get_error(1, "Uncorrect Table definition");
   my $type = $table->{TYPE} || return get_error(1, "Uncorrect Table definition");
   my $table_name = $table->{NAME} || return get_error(1, "Uncorrect Table definition");
-  $instance->query(
-    "SELECT
-      $COLUMNS
-      FROM
-      info_info i
-      LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.$type\_id)
-      LEFT JOIN admins a ON (i.aid = a.aid)
-      WHERE i.$type\_id <> 0 AND i.obj_type= ? AND i.obj_id= ?
-      LIMIT $PG, $PAGE_ROWS",
-    undef,
-    {
-      %{$attr},
-      Bind => [ $obj_type, $id ]
-    }
-  );
+  my $sql = <<"SQL";
+    SELECT
+     $COLUMNS
+    FROM info_info i
+    LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.$type\_id)
+    LEFT JOIN admins a ON (i.aid = a.aid)
+    WHERE i.$type\_id <> 0 AND i.obj_type= ? AND i.obj_id= ?
+    LIMIT $PG, $PAGE_ROWS
+SQL
+
+  $instance->query($sql, undef, { %{$attr}, Bind => [ $obj_type, $id ]});
 
   my $list = $instance->{list};
 
   if (wantarray) {
-    $instance->query("SELECT COUNT(*) AS total
+    $sql = <<"SQL";
+    SELECT COUNT(*) AS total
         FROM
         info_info i
         LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.comment_id)
         LEFT JOIN admins a ON (i.aid = a.aid)
-        WHERE i.obj_type= ? AND i.obj_id= ? ",
-      undef,
-      {
-        INFO => 1,
-        Bind => [ $obj_type, $id ]
-      }
-    );
+        WHERE i.obj_type= ? AND i.obj_id= ?
+SQL
+    $instance->query($sql, undef, {
+      INFO => 1,
+      Bind => [ $obj_type, $id ]
+    });
 
     my $total = $instance->{list};
     return ($list, $total);
@@ -562,11 +540,11 @@ sub _get_info_list {
 }
 
 #**********************************************************
-=head2 _add_info($obj_type, $obj_id, $table, $attr)
+=head2 _info_add($obj_type, $obj_id, $table, $attr)
 
 =cut
 #**********************************************************
-sub _add_info {
+sub _info_add {
   my ($obj_type, $obj_id, $table, $attr) = @_;
 
   #All entities has autoincrement ID. If it was passed here that would cause error writing to DB
@@ -586,16 +564,13 @@ sub _add_info {
     return 0;
   }
 
-  $instance->query_add(
-    'info_info',
-    {
-      OBJ_TYPE => $obj_type,
-      OBJ_ID   => $obj_id,
-      $key     => $instance->{INSERT_ID},
-      DATE     => 'NOW()',
-      AID      => $instance->{admin}{AID}
-    }
-  );
+  $instance->query_add('info_info',{
+    OBJ_TYPE => $obj_type,
+    OBJ_ID   => $obj_id,
+    $key     => $instance->{INSERT_ID},
+    DATE     => 'NOW()',
+    AID      => $instance->{admin}{AID}
+  });
 
   return 1;
 }
@@ -626,19 +601,19 @@ sub get_error {
 =cut
 #**********************************************************
 sub search_comments {
-  my $self = shift;
-  my ($comments) = @_;
+  my ($self, $comments) = @_;
+  my $sql = <<"SQL";
+    SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.aid FROM info_comments AS ic
+   LEFT JOIN info_info AS ii ON ic.id = ii.id WHERE ic.text LIKE '\%$comments\%'
+SQL
 
-  $self->query("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.aid FROM info_comments AS ic
-   LEFT JOIN info_info AS ii ON ic.id = ii.id WHERE ic.text LIKE '\%$comments\%'", undef, {
-    COLS_NAME => 1
-  });
+  $self->query($sql, undef, { COLS_NAME => 1 });
 
   return $self;
 }
 
 #**********************************************************
-=head2 change_comments()
+=head2 comments_change()
 
   Arguments:
     ID            - ID change comment
@@ -652,13 +627,13 @@ sub search_comments {
 
 =cut
 #**********************************************************
-sub change_comments {
-  my $self = shift;
-  my ($attr) = @_;
+sub comments_change {
+  my ($self, $attr) = @_;
+  my $sql = <<'SQL';
+    UPDATE info_comments SET text = ? WHERE id = ?
+SQL
 
-  $self->query("UPDATE info_comments SET text = ? WHERE id = ?", undef, {
-    Bind => [ $attr->{TEXT}, $attr->{ID} ]
-  });
+  $self->query($sql, undef, { Bind => [ $attr->{TEXT}, $attr->{ID} ] });
 
   $self->query_add('info_change_comments', {
     ID_COMMENTS => $attr->{ID},
@@ -675,7 +650,7 @@ sub change_comments {
 }
 
 #**********************************************************
-=head2 log_comments()
+=head2 comments_log()
 
   Arguments:
     -
@@ -685,26 +660,29 @@ sub change_comments {
 
 =cut
 #**********************************************************
-sub log_comments {
-  my $self = shift;
-  my ($attr) = @_;
+sub comments_log {
+  my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} || '1';
   my $DESC = $attr->{DESC} ? 'DESC' : '';
+  my $sql = '';
 
   if ($attr->{COMMENT_ID}) {
-    $self->query("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
+    $sql = <<'SQL';
+      SELECT * FROM info_change_comments WHERE id_comments = ?;
+SQL
+    $self->query($sql, undef, {
       COLS_NAME => 1,
       Bind      => [ $attr->{COMMENT_ID} ]
     });
   }
   else {
-    $self->query("
-      SELECT icc.id_comments, icc.old_comment, icc.text, icc.uid, icc.aid, icc.date_change
+    $sql = <<"SQL";
+    SELECT icc.id_comments, icc.old_comment, icc.text, icc.uid, icc.aid, icc.date_change
       FROM info_change_comments AS icc
-      ORDER BY $SORT $DESC;", undef, {
-      COLS_NAME => 1
-    });
+      ORDER BY $SORT $DESC;
+SQL
+    $self->query($sql, undef, {COLS_NAME => 1});
   }
 
   return $self->{list};
@@ -716,8 +694,7 @@ sub log_comments {
 =cut
 #**********************************************************
 sub info_document_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   # If have one attachment linked to a lot messages, will save it as one file
   my $comment_id = $attr->{COMMENT_ID};
@@ -740,8 +717,7 @@ sub info_document_add {
 =cut
 #**********************************************************
 sub info_documents_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = $attr->{SORT} || 'id';
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
@@ -768,12 +744,15 @@ sub info_documents_list {
   }
 
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} ind.id
+    FROM info_documents ind
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;
+SQL
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} ind.id
-   FROM info_documents ind
-   $WHERE
-   ORDER BY $SORT $DESC
-   LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query($sql, undef, {
     COLS_NAME  => 1,
     COLS_UPPER => 1,
     %{$attr // {}} }
@@ -790,11 +769,12 @@ sub info_documents_list {
 =cut
 #**********************************************************
 sub info_document_info {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
+  my $sql = <<'SQL';
+    SELECT * FROM info_documents WHERE id = ?;
+SQL
 
-  $self->query("SELECT * FROM info_documents WHERE id = ?;", undef,
-    { INFO => 1, Bind => [ $id ] });
+  $self->query($sql, undef, { INFO => 1, Bind => [ $id ] });
 
   return 0 if $self->{errno};
 
@@ -816,8 +796,7 @@ sub info_document_info {
 =cut
 #**********************************************************
 sub info_document_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!$attr->{ID}) {
     $self->{errno} = 115;
@@ -828,7 +807,7 @@ sub info_document_del {
   $self->query_del('info_documents', undef, { ID => $attr->{ID} });
 
   if ($self->{FILENAME}) {
-    if ($self->{FILE} =~ /FILE(?:NAME)?: .+\/\/?([a-zA-Z0-9_\-.]+)/) {
+    if ($self->{FILE} =~ /FILE(?:NAME)?: .+\/\/?([a-zA-Z0-9_\-.]+)/xm) {
       $attr->{FILENAME} = $1;
       delete $attr->{UID};
       $Attach->attachment_file_del($attr);
@@ -854,12 +833,11 @@ sub info_document_del {
 =cut
 #**********************************************************
 sub _save_to_disk {
-  my $self = shift;
-  my ($comment_id, $filename, $attr) = @_;
+  my ($self, $comment_id, $filename, $attr) = @_;
 
   # filename should contain only alphanumeric_symbols
   $filename //= '';
-  $filename =~ s/[^a-zA-Z0-9._-]/_/g;
+  $filename =~ s/[^a-zA-Z0-9._-]/_/xg;
 
   # Should change filename. map will replace undefined values with 0
   my $disk_filename = join('_', map {$_ // '0'} ($comment_id, $filename));
@@ -891,10 +869,9 @@ sub _save_to_disk {
 =cut
 #**********************************************************
 sub _read_file_from_disk {
-  my $self = shift;
-  my ($directory, $filename) = @_;
+  my ($self, $directory, $filename) = @_;
 
-  return 0 if ($directory =~ /\.\.\//);
+  return 0 if ($directory =~ /\.\.\//xm);
 
   if (open(my $fh, '<', $directory . $filename)) {
     my $content = '';
@@ -924,10 +901,9 @@ sub _read_file_from_disk {
 =cut
 #**********************************************************
 sub _read_file_params {
-  my $self = shift;
-  my ($content_field_value) = @_;
+  my ($self, $content_field_value) = @_;
 
-  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/) {
+  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/xm) {
     my $directory = $1;
     my $filename = $2;
 

@@ -5,7 +5,7 @@ package Dom;
 
 =VERSION
 
-  VERSION = 0.02
+  VERSION = 0.03
 =cut
 
 use strict;
@@ -36,15 +36,14 @@ sub new {
   my $class = shift;
   my $db = shift;
   ($admin, $CONF) = @_;
-
-  my $self = {};
-  bless($self, $class);
-
   $admin->{MODULE} = $MODULE;
 
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+  bless($self, $class);
 
   return $self;
 }
@@ -61,16 +60,14 @@ sub new {
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
   my @WHERE_RULES = ();
-  my $WHERE = $self->search_former($attr, [
+  my @search_columns = (
     [ 'FIO', 'STR', 'pi.fio', 1 ],
     [ 'ADDRESS_BUILD', 'INT', 'pi.address_build', 1 ],
     [ 'UID', 'INT', 'pi.uid', 1 ],
@@ -82,30 +79,35 @@ sub list {
     [ 'CREDITOR', 'INT', 'creditor', "IF(u.credit>0, 1, 0) AS creditor ", 1 ],
     [ 'DEBETOR', 'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, b.deposit)<0, 1, 0) AS debetor", 1 ],
     [ 'ADDRESS_STREET', 'STR', 'pi.address_street', 1 ],
-  ],
-    {
-      WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    });
-  $self->query("SELECT $self->{SEARCH_FIELDS} pi.email
+  );
+  my $WHERE = $self->search_former($attr, \@search_columns, {
+    WHERE       => 1,
+    WHERE_RULES => \@WHERE_RULES
+  });
+
+  my $sql = <<"SQL";
+     SELECT $self->{SEARCH_FIELDS} pi.email
      FROM users_pi pi
       LEFT JOIN users u ON (pi.uid=u.uid)
       LEFT JOIN bills b ON (u.bill_id = b.id)
       LEFT JOIN companies company ON  (u.company_id=company.id)
     $WHERE
       GROUP BY pi.uid
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
-     FROM users_pi pi
-     $WHERE;",
-    undef, { INFO => 1 }
-  );
+  $sql = <<"SQL";
+    SELECT COUNT(*) AS total
+    FROM users_pi pi
+    $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
+
   return $list;
 }
 
@@ -116,14 +118,15 @@ sub list {
 #**********************************************************
 sub users_online_by_builds {
   my $self = shift;
+  my $sql = <<'SQL';
+   SELECT b.id AS id, u.uid, u.fio, i.status, b.number
+   FROM internet_online AS i
+       LEFT JOIN users_pi u ON (u.uid=i.uid)
+       LEFT JOIN builds AS b ON (b.id=u.location_id)
+   GROUP BY u.uid;
+SQL
 
-  my $online_list = $self->query("SELECT b.id AS id, u.uid, u.fio, i.status, b.number
-    FROM internet_online AS i
-    LEFT JOIN users_pi u ON (u.uid=i.uid)
-    LEFT JOIN builds AS b ON (b.id=u.location_id)
-    GROUP BY u.uid;",
-    undef, { COLS_NAME => 1 }
-  );
+  my $online_list = $self->query($sql, undef, { COLS_NAME => 1 });
 
   return $online_list->{list} || [];
 }
@@ -135,16 +138,17 @@ sub users_online_by_builds {
 #**********************************************************
 sub users_offline_by_builds {
   my $self = shift;
-
-  my $online_list = $self->query("SELECT b.id AS id, up.uid, up.fio, b.number, i.status
+  my $sql = <<'SQL';
+    SELECT b.id AS id, up.uid, up.fio, b.number, i.status
     FROM users u
-    LEFT JOIN internet_online i ON (i.uid = u.uid)
-    LEFT JOIN users_pi up ON (up.uid=u.uid)
-    LEFT JOIN builds AS b ON (b.id=up.location_id)
+       LEFT JOIN internet_online i ON (i.uid = u.uid)
+       LEFT JOIN users_pi up ON (up.uid=u.uid)
+       LEFT JOIN builds AS b ON (b.id=up.location_id)
     WHERE i.status IS NULL
-    GROUP BY u.uid;",
-    undef, { COLS_NAME => 1 }
-  );
+    GROUP BY u.uid;
+SQL
+
+  my $online_list = $self->query($sql, undef, { COLS_NAME => 1 });
 
   return $online_list->{list} || [];
 }
@@ -159,26 +163,30 @@ sub users_offline_by_builds {
 =cut
 #**********************************************************
 sub streets_list_with_builds {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former($attr, [ [ 'DISTRICT_ID', 'INT', 'st.district_id', 1 ], ], { WHERE => 1 });
+  my $sql = <<'SQL';
+    SET SESSION group_concat_max_len = 1000000;
+SQL
 
-  $self->query("SET SESSION group_concat_max_len = 1000000;", 'do');
-  $self->query("SELECT st.id AS street_id, st.name as street_name, st.second_name AS second_name,
-    GROUP_CONCAT(DISTINCT CONCAT(b.number, '|', b.id, '|', b.users_count) ORDER BY b.number + 0) as builds_number
+  $self->query($sql, 'do');
+  $sql = <<"SQL";
+    SELECT st.id AS street_id, st.name as street_name, st.second_name AS second_name,
+       GROUP_CONCAT(DISTINCT CONCAT(b.number, '|', b.id, '|', b.users_count) ORDER BY b.number + 0) as builds_number
     FROM streets st
-    LEFT JOIN (
-      SELECT b.number as number, b.id as id, b.street_id as street_id, COUNT(pi.uid) AS users_count
-      FROM builds b
+      LEFT JOIN (
+    SELECT b.number as number, b.id as id, b.street_id as street_id, COUNT(pi.uid) AS users_count
+    FROM builds b
       LEFT JOIN users_pi pi ON (b.id=pi.location_id)
-      GROUP BY b.id
-    ) b ON (b.street_id=st.id)
-    $WHERE GROUP BY st.id ORDER BY street_name;",
-    undef, { COLS_NAME => 1 }
-  );
+    GROUP BY b.id
+     ) b ON (b.street_id=st.id)
+  $WHERE GROUP BY st.id ORDER BY street_name;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1 });
 
   return $self->{list} || [];
 }
 
-1
+1;

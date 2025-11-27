@@ -920,7 +920,7 @@ function defineFeesMethodsLogic(context) {
           return;
         }
 
-        sendRequest(`/api.cgi/fees/types?PARENT_ID=${parentId}`, {}, 'GET').then(data => {
+        sendRequest(`/api.cgi/fees/types?PAGE_ROWS=100000&PARENT_ID=${parentId}`, {}, 'GET').then(data => {
           if (!Array.isArray(data) || data.length < 1) {
             return;
           }
@@ -990,9 +990,13 @@ function defineInfoFieldsLogic(context) {
 
   function initElements() {
     jQuery('[name^="_"][data-id]', context).each(function() {
-      const $element = jQuery(this).closest('div.form-group.row');
-      const dataId = jQuery(this).attr('data-id');
-      const parentId = jQuery(this).attr('data-parent') || "0";
+      const $currentElement = jQuery(this);
+      const $element = $currentElement.closest('div.form-group.row');
+      const $form = $currentElement.closest('form');
+
+      const dataId = $currentElement.attr('data-id');
+      const parentId = $currentElement.attr('data-parent') || "0";
+      const name = $currentElement.attr('name');
 
       elements[dataId] = {
         $element: $element,
@@ -1000,16 +1004,63 @@ function defineInfoFieldsLogic(context) {
         children: []
       };
 
-      if (jQuery(this).is('select')) {
-        jQuery(this).on('change', function() {
-          updateChildrenInputs(jQuery(this).val(), dataId);
-        });
+      if ($currentElement.is('select')) {
+        setupSelectElement($currentElement, $form, dataId, name);
       }
 
       if (parentId !== "0") {
         withParent[dataId] = true;
       }
     });
+  }
+
+  function setupSelectElement($select, $form, dataId, name) {
+    $select.on('change', function() {
+      updateChildrenInputs(jQuery(this).val(), dataId);
+    });
+
+    setupOptionButtons($select, $form, name);
+  }
+
+  function setupOptionButtons($select, $form, name) {
+    const $element = $select.closest('div.form-group.row');
+    const $selectsWithNewOptionsInput = getOrCreateHiddenInput($form);
+
+    $element.find('.input-group-button').each(function() {
+      jQuery(this).on('click', function() {
+        const isSelectOpener = jQuery(this).find('span.fa-list').length > 0;
+        handleOptionButtonClick(isSelectOpener, $selectsWithNewOptionsInput, $select, name);
+      });
+    });
+  }
+
+  function getOrCreateHiddenInput($form) {
+    let $input = $form.find('[name="INFO_FIELDS_CUSTOM_OPTION_SELECTS"]').first();
+
+    if ($input.length === 0) {
+      $input = jQuery('<input>', {
+        type: 'hidden',
+        name: 'INFO_FIELDS_CUSTOM_OPTION_SELECTS'
+      });
+      $form.append($input);
+    }
+
+    return $input;
+  }
+
+  function handleOptionButtonClick(isSelectOpener, $input, $select, name) {
+    const currentSelects = $input.val().split(',').filter(n => n !== '');
+
+    if (isSelectOpener) {
+      const updatedSelects = currentSelects.filter(selectName => selectName !== name);
+      $input.val(updatedSelects.join(','));
+    } else {
+      if (!currentSelects.includes(name)) {
+        currentSelects.push(name);
+      }
+      $input.val(currentSelects.join(','));
+      $select.val('').trigger('change');
+    }
   }
 
   function buildElementTree() {

@@ -3,7 +3,7 @@
     <div class='card-header with-border'><h4 class='card-title'>_{SETTINGS}_</h4></div>
     <div class='card-body'>
 
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='%SUBMIT_BTN_VALUE%'/>
       <input type='hidden' name='chg' value='%ID%'/>
 

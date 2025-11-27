@@ -34,7 +34,7 @@ use Abills::Fetcher qw(web_request);
 use Users;
 use Admins;
 
-require Abills::Templates;
+use Abills::Templates;
 require Abills::Misc;
 
 our (
@@ -53,12 +53,12 @@ our Abills::HTML $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
 if ($conf{LANGS}) {
-  $conf{LANGS} =~ s/\n//g;
+  $conf{LANGS} =~ s/\n//xg;
   my (@lang_arr) = split(/;/, $conf{LANGS});
   %LANG = ();
   foreach my $l (@lang_arr) {
-    my ($lang, $lang_name) = split(/:/, $l);
-    $lang =~ s/^\s+//;
+    my ($lang, $lang_name) = split(/:/x, $l);
+    $lang =~ s/^\s+//x;
     $LANG{$lang} = $lang_name;
   }
 }
@@ -78,6 +78,15 @@ if ($html->{language} ne 'english') {
 if (-f $libpath . "/language/$html->{language}.pl") {
   do $libpath . "/language/$html->{language}.pl";
 }
+
+Abills::Templates::template_init({
+  LIBPATH => $libpath,
+  ADMIN  => $admin,
+  HTML   => $html,
+  FORM   => \%FORM,
+  LANG   => \%lang,
+  CONF   => \%conf
+});
 
 if ($conf{NEW_REGISTRATION_FORM}) {
   require Control::Registration_new;

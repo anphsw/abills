@@ -1,0 +1,5 @@
+{
+  "name": "USER_PAYSYS_GATEWAY_SEARCH",
+  "method": "POST",
+  "path": "/user/paysys/gateway/search/"
+}

@@ -3,9 +3,10 @@ package Sms::Services;
 use strict;
 use warnings FATAL => 'all';
 
-use Sms;
+use Abills::Loader qw/load_plugin/;
 use Control::Errors;
-use Abills::Loader qw /load_plugin/;
+
+use Sms;
 
 my Sms $Sms;
 my Control::Errors $Errors;
@@ -16,11 +17,7 @@ my Control::Errors $Errors;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db = shift;
-  my $admin = shift;
-  my $conf = shift;
-  my $attr = shift;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db    => $db,
@@ -55,13 +52,13 @@ sub new {
 =cut
 #**********************************************************
 sub sms_service_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  return $Errors->throw_error(1160001) if !$attr->{PLUGIN};
+  return $Errors->throw_error(1160001) if (!$attr->{PLUGIN});
 
   my $Plugin = load_plugin("Sms::Plugins::$attr->{PLUGIN}", { SERVICE => { %{$self}, %{$attr} } });
-  return $Errors->throw_error(1160001) if !$Plugin;
+
+  return $Errors->throw_error(1160001) if (!$Plugin);
   return $Plugin if ref $Plugin eq 'HASH' && $Plugin->{errno};
 
   $Sms->service_add($attr);
@@ -101,17 +98,16 @@ sub sms_service_add {
 =cut
 #**********************************************************
 sub sms_service_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $service_id = $attr->{ID};
 
-  return $Errors->throw_error(1160002) if !$service_id;
-  return $Errors->throw_error(1160001) if !$attr->{PLUGIN};
+  return $Errors->throw_error(1160002) if (!$service_id);
+  return $Errors->throw_error(1160001) if (!$attr->{PLUGIN});
 
   my $Plugin = load_plugin("Sms::Plugins::$attr->{PLUGIN}", { SERVICE => { %{$self}, %{$attr} } });
-  return $Errors->throw_error(1160001) if !$Plugin;
-  return $Plugin if ref $Plugin eq 'HASH' && $Plugin->{errno};
+  return $Errors->throw_error(1160001) if (!$Plugin);
+  return $Plugin if (ref $Plugin eq 'HASH' && $Plugin->{errno});
 
   $Sms->service_change($attr);
   return $Sms if !$Plugin->can('get_settings');
@@ -148,25 +144,24 @@ sub sms_service_change {
 =cut
 #**********************************************************
 sub sms_services_sel {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$self->{html};
 
   my $services = $Sms->service_list({
     NAME      => '_SHOW',
+    STATUS    => '0',
     COLS_NAME => 1
   });
 
   return $self->{html}->form_select($attr->{NAME} || 'SMS_SERVICE', {
     SELECTED    => $attr->{SELECTED},
-    SEL_LIST    => $Sms->service_list({ NAME => '_SHOW', STATUS => '0', COLS_NAME => 1 }),
+    SEL_LIST    => $services,
     SEL_KEY     => 'id',
     SEL_VALUE   => 'name',
     NO_ID       => 1,
     SEL_OPTIONS => { '' => '--' }
   });
 }
-
 
 1;

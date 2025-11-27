@@ -61,7 +61,7 @@ sub form_nas {
     form_nas_search({ STANDART => 1 });
   }
   elsif ($FORM{add} && $permissions{4} && $permissions{4}{1}) {
-    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i && ! $conf{NAS_SKIP_CHECK_MAC}) {
+    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/xi && ! $conf{NAS_SKIP_CHECK_MAC}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} MAC: '$FORM{MAC}'");
     }
     elsif(! $FORM{IP}) {
@@ -120,7 +120,7 @@ sub form_nas {
         $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
         if (in_array('Equipment', \@MODULES)) {
           my $Equipment = Equipment->new($db, $admin, \%conf);
-          $Equipment->_del($FORM{del});
+          $Equipment->del($FORM{del});
         }
       }
     }
@@ -135,7 +135,7 @@ sub form_nas {
   my %equipment_filter = ();
   if (in_array('Equipment', \@MODULES)) {
     my $Equipment = Equipment->new($db, $admin, \%conf);
-    my $list = $Equipment->_list({ COLS_NAME => 1, PAGE_ROWS => 100000 });
+    my $list = $Equipment->list({ COLS_NAME => 1, PAGE_ROWS => 100000 });
     foreach my $line (@$list) {
       $equipment_filter{ $line->{nas_id} } = $lang{YES};
     }
@@ -188,7 +188,7 @@ sub form_nas_mng {
   }
   elsif ($Nas->{NAS_TYPE} && $Nas->{NAS_TYPE} eq 'chillispot') {
     if (-f "../wrt_configure.cgi") {
-      $ENV{HTTP_HOST} =~ s/\:(\d+)//g;
+      $ENV{HTTP_HOST} =~ s/\:(\d+)//xg;
       $Nas->{EXTRA_PARAMS} = $html->tpl_show(
         templates('form_nas_configure'),
         {
@@ -211,27 +211,25 @@ sub form_nas_mng {
   }
 
   $Nas->{CHANGED}  = "($lang{CHANGED}: $Nas->{CHANGED})";
-  $Nas->{NAME_SEL} = $html->form_main(
-    {
-      CONTENT => $html->form_select(
-        'NAS_ID',
-        {
-          SELECTED   => $FORM{NAS_ID},
-          SEL_LIST   => $Nas->list({ %LIST_PARAMS, NAS_ID => undef, PAGE_ROWS => 60000, COLS_NAME => 1 }),
-          SEL_KEY    => 'nas_id',
-          SEL_VALUE  => 'nas_name,nas_ip',
-          AUTOSUBMIT => 'form'
-        }
-      ),
-      HIDDEN => {
-        index => '62',
-        AID   => $FORM{AID} || undef,
-        subf  => $FORM{subf},
-        show  => 1
-      },
-      class  => 'form-inline ml-auto flex-nowrap',
-    }
-  );
+  $Nas->{NAME_SEL} = $html->form_main({
+    CONTENT => $html->form_select(
+      'NAS_ID',
+      {
+        SELECTED   => $FORM{NAS_ID},
+        SEL_LIST   => $Nas->list({ %LIST_PARAMS, NAS_ID => undef, PAGE_ROWS => 60000, COLS_NAME => 1 }),
+        SEL_KEY    => 'nas_id',
+        SEL_VALUE  => 'nas_name,nas_ip',
+        AUTOSUBMIT => 'form'
+      }
+    ),
+    HIDDEN  => {
+      index => '62',
+      AID   => $FORM{AID} || undef,
+      subf  => $FORM{subf},
+      show  => 1
+    },
+    class   => 'form-inline ml-auto flex-nowrap',
+  });
 
   if (in_array('Equipment', \@MODULES)) {
     my $equpment_index = get_function_index('equipment_info');
@@ -284,7 +282,7 @@ sub form_nas_mng {
     return form_mrtg_cfg($Nas);
   }
   elsif ($FORM{change} && $permissions{4} && $permissions{4}{2}) {
-    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i && ! $conf{NAS_SKIP_CHECK_MAC}) {
+    if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/xi && ! $conf{NAS_SKIP_CHECK_MAC}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} MAC: '$FORM{MAC}'");
     }
 
@@ -299,7 +297,7 @@ sub form_nas_mng {
         $html->message('info', $lang{SUCCESS}, "Freeradius $lang{RESTART}");
       }
       else{
-        if($FORM{NAS_TYPE} =~ /(cisco|mikrotik|accel_ppp|mpd5|mx80|redback|other)/){
+        if($FORM{NAS_TYPE} =~ /(cisco|mikrotik|accel_ppp|mpd5|mx80|redback|other)/xm){
           $html->message( 'warning', $lang{TIP},
             "$lang{RESTART} Freeradius $lang{OR} $lang{ADD} \$conf{RESTART_RADIUS} $lang{IN} config.pl" );
         }
@@ -519,27 +517,37 @@ sub form_nas_add {
 #**********************************************************
 =head2 form_nas_console($NAS, $attr)
 
+  Arguments:
+    $Nas_
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_nas_console {
   my ($Nas_) = @_;
 
-  if ($FORM{SAVE} && !$FORM{change}) {
-    $Nas_->nas_cmd_add({%FORM});
+  require Nas_manage;
+  Nas_manage->import();
+  my $Nas_manage = Nas_manage->new($db, \%conf, $admin);
 
-    if (!$Nas_->{errno}) {
+
+  if ($FORM{SAVE} && !$FORM{change}) {
+    $Nas_manage->nas_cmd_add({%FORM});
+
+    if (!$Nas_manage->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{ADDED}");
     }
   }
   elsif ($FORM{del}) {
-    $Nas_->nas_cmd_del({ ID => $FORM{del} });
+    $Nas_manage->nas_cmd_del({ ID => $FORM{del} });
 
     if (!$Nas_->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{DELETED}");
     }
   }
   elsif ($FORM{info}) {
-    my $cmd_info = $Nas_->nas_cmd_info({ ID => $FORM{info}, COLS_NAME => 1 });
+    my $cmd_info = $Nas_manage->nas_cmd_info({ ID => $FORM{info}, COLS_NAME => 1 });
 
     $FORM{CMD}      = $cmd_info->{CMD};
     $FORM{COMMENTS} = $cmd_info->{COMMENTS};
@@ -547,18 +555,75 @@ sub form_nas_console {
     $FORM{change}   = $FORM{info};
   }
   elsif ($FORM{change} && $FORM{SAVE}) {
-    $Nas_->nas_cmd_change({ ID => $FORM{change}, %FORM });
+    $Nas_manage->nas_cmd_change({ ID => $FORM{change}, %FORM });
 
     if (!$Nas_->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{CHANGED}");
     }
   }
 
-  _error_show($Nas_);
+  _error_show($Nas_manage);
 
   if ($FORM{ACTION}) {
     form_nas_console_command($Nas_, \%FORM);
   }
+
+  my $quick_cmd = nas_cmd_templates($Nas_);
+
+  foreach my $cmd (@$quick_cmd) {
+    if($FORM{CMD} && $FORM{CMD} eq $cmd){
+      $Nas_->{QUICK_CMD} .= $html->button($cmd, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=$cmd&ACTION=1", { class =>'btn btn-xs btn-success' });
+    }
+    else {
+      $Nas_->{QUICK_CMD} .= $html->button($cmd, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=$cmd&ACTION=1", { BUTTON => 2 });
+    }
+  }
+
+  $Nas_->{TYPE_SEL} = $html->form_select(
+    'TYPE',
+    {
+      SELECTED  => $FORM{TYPE},
+      SEL_ARRAY => [ 'telnet', 'ssh', 'rsh' ]
+    }
+  );
+
+  $html->tpl_show(templates('form_nas_console'), { %$Nas_, %FORM }, { ID => 'form_nas_console' });
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => "NAS $lang{COMMAND}",
+    title   => [ "ID", "NAS", $lang{COMMAND}, $lang{TYPE}, $lang{COMMENTS} ],
+    qs      => $pages_qs,
+    ID      => 'NAS_CMD',
+    export  => 1
+  });
+
+  my $cmd_list = $Nas_manage->nas_cmd_list({ COLS_NAME => 1 });
+
+  foreach my $saved_cmd (@$cmd_list) {
+    my $del_button = $html->button($lang{DEL}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&del=$saved_cmd->{id}", { DEL => 1 });
+    my $chg_button = $html->button($lang{CHANGE}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&info=$saved_cmd->{id}", { CHANGE => 1 });
+    $table->addrow($saved_cmd->{id}, $Nas_->{NAS_NAME}, $saved_cmd->{cmd}, $saved_cmd->{type}, $saved_cmd->{comments}, "$chg_button $del_button");
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 nas_cmd_templates($NAS) - NAS BRAS command templates
+
+  Arguments
+    $NAS
+
+  Results:
+    \@quick_cmd
+
+=cut
+#***********************************************************
+sub nas_cmd_templates {
+  my ($Nas_)=@_;
 
   my $nas_type = $Nas_->{NAS_TYPE} || q{};
 
@@ -614,46 +679,11 @@ sub form_nas_console {
     }
   }
 
-  foreach my $cmd (@quick_cmd) {
-    if($FORM{CMD} && $FORM{CMD} eq $cmd){
-      $Nas_->{QUICK_CMD} .= $html->button($cmd, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=$cmd&ACTION=1", { class =>'btn btn-xs btn-success' });
-    }
-    else {
-      $Nas_->{QUICK_CMD} .= $html->button($cmd, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=$cmd&ACTION=1", { BUTTON => 2 });
-    }
-  }
-
-  $Nas_->{TYPE_SEL} = $html->form_select(
-    'TYPE',
-    {
-      SELECTED  => $FORM{TYPE},
-      SEL_ARRAY => [ 'telnet', 'ssh', 'rsh' ]
-    }
-  );
-
-  $html->tpl_show(templates('form_nas_console'), { %$Nas_, %FORM }, { ID => 'form_nas_console' });
-
-  my $table = $html->table({
-    width   => '100%',
-    caption => "NAS $lang{COMMAND}",
-    title   => [ "ID", "NAS", $lang{COMMAND}, $lang{TYPE}, $lang{COMMENTS} ],
-    qs      => $pages_qs,
-    ID      => 'NAS_CMD',
-    export  => 1
-  });
-
-  my $cmd_list = $Nas_->nas_cmd_list({ COLS_NAME => 1 });
-
-  foreach my $saved_cmd (@$cmd_list) {
-    my $del_button = $html->button($lang{DEL}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&del=$saved_cmd->{id}", { DEL => 1 });
-    my $chg_button = $html->button($lang{CHANGE}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&info=$saved_cmd->{id}", { CHANGE => 1 });
-    $table->addrow($saved_cmd->{id}, $Nas_->{NAS_NAME}, $saved_cmd->{cmd}, $saved_cmd->{type}, $saved_cmd->{comments}, "$chg_button $del_button");
-  }
-
-  print $table->show();
-
-  return 1;
+  return \@quick_cmd;
 }
+
+
+
 #**********************************************************
 =head2 form_nas_console_command($Nas_, $attr) - runs command on NAS and prints its output with HTML formatting
 
@@ -699,7 +729,7 @@ sub form_nas_console_command {
 
   $admin->system_action_add("NAS_Command:$attr->{CMD}", { TYPE => 14 });
 
-  if ($attr->{CMD} =~ /^([a-z]+):(.+)/) {
+  if ($attr->{CMD} =~ /^([a-z]+):(.+)/xm) {
     $attr->{TYPE} = $1 || q{};
     $attr->{CMD}  = $2 || q{};
   }
@@ -718,23 +748,23 @@ sub form_nas_console_command {
   my $type = $attr->{TYPE} || '';
   my $online_index = get_function_index('internet_online');
 
-  if ($Nas_->{NAS_TYPE} =~ /mpd|accel/ || ($type eq 'telnet')) {
+  if ($Nas_->{NAS_TYPE} =~ /mpd|accel/xm || ($type eq 'telnet')) {
     my $telnet_attr = {
       PROMPT  => ($conf{NAS_MNG_PROMPT} ? $conf{NAS_MNG_PROMPT} : '\n.*[\$%#\]>\?] ?$'),
       TIMEOUT => $attr->{TIMEOUT}
     };
 
-    if ($Nas_->{NAS_TYPE} =~ /accel/) {
+    if ($Nas_->{NAS_TYPE} =~ /accel/xm) {
       $wait_char     = '#'; #XXX should be used as prompt for accel? test it.
     }
-    elsif ($Nas_->{NAS_TYPE} =~ /mpd/) {
+    elsif ($Nas_->{NAS_TYPE} =~ /mpd/xm) {
       $telnet_attr->{PROMPT}  = '\n\[.*\] $';
       $telnet_attr->{NO_CRLF} = 1; #mpd interprets CRLF as two newlines somewhy
     }
 
     $col_delimeter = '\||\+'; #XXX sometimes splits lines when it shouldn't (example: mikrotik's /system clock print, "gmt-offset: +03:00")
 
-    my ($nas_ip, $nas_rad_port, $nas_telnet_port, undef) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{});
+    my ($nas_ip, $nas_rad_port, $nas_telnet_port, undef) = split(/:/x, $Nas_->{NAS_MNG_IP_PORT} || q{});
 
     if (!$nas_telnet_port) {
       $nas_telnet_port = $nas_rad_port || 23;
@@ -757,7 +787,7 @@ sub form_nas_console_command {
     }
 
     $result = [];
-    $attr->{CMD} =~ s/\r//g;
+    $attr->{CMD} =~ s/\r//xg;
     my @cmds = split '\n', $attr->{CMD};
     foreach my $cmd (@cmds) { #XXX only result of last cmd will be shown, is it ok?
       $result = $t->cmd($cmd);
@@ -771,7 +801,7 @@ sub form_nas_console_command {
     if (!$attr->{SIMPLER_OUTPUT}) {
       my @caption = ();
 
-      if($result->[0] && $result->[0] =~ /\|/) {
+      if($result->[0] && $result->[0] =~ /\|/xm) {
         if ($result && $#{$result} > -1) {
           @caption = split('\|', $result->[0]);
         }
@@ -797,12 +827,12 @@ sub form_nas_console_command {
 
         foreach my $line ( @{$result} ) {
           if($line){
-            $line =~ s/\s+$//g;
-            $line =~ s/\s+/\|/g;
+            $line =~ s/\s+$//xg;
+            $line =~ s/\s+/\|/xg;
             my @row = split('\|', $line || '');
 
             my $ip = $row[$ip_col] || q{};
-            $ip =~ s/\s+//g;
+            $ip =~ s/\s+//xg;
             next if(! $ip);
 
             my $uid             = $users_online->{$ip}->{uid} || '';
@@ -942,7 +972,7 @@ sub form_nas_console_command {
       }
     }
     else {
-      $cmd =~ s/ +/\//g;
+      $cmd =~ s/\s+/\//xg;
       $result = $Mikrotik->execute([ [$cmd] ], { SHOW_RESULT => 1 });
       $html->pre($result);
     }
@@ -950,7 +980,7 @@ sub form_nas_console_command {
   }
   else {
     $table->{table} .= $table->table_title_plain(["result"]);
-    $attr->{CMD} =~ s/\\\"/\"/g;
+    $attr->{CMD} =~ s/\\\"/\"/xg;
     $result = ssh_cmd($attr->{CMD}, {
       DEBUG => $attr->{DEBUG},
       %$Nas_
@@ -959,20 +989,20 @@ sub form_nas_console_command {
     my $half_string = "";
     foreach my $line (@$result) {
       if ($half_string) {
-        if ($half_string =~ m/\=$/) {
-          $line =~ s/^\s+//;
+        if ($half_string =~ m/\=$/x) {
+          $line =~ s/^\s+//x;
         }
         else {
-          $line =~ s/^\s+/ /;
+          $line =~ s/^\s+/ /x;
         }
         push (@result2, $half_string . $line);
         $half_string = "";
         next;
       }
-      if ($line =~ m/\\/) {
+      if ($line =~ m/\\/x) {
         $half_string = $line;
-        $half_string =~ s/\\//;
-        $half_string =~ s/\s+$//;
+        $half_string =~ s/\\//x;
+        $half_string =~ s/\s+$//x;
         next;
       }
       else {
@@ -988,7 +1018,7 @@ sub form_nas_console_command {
   }
 
   my $internet_online = {};
-  if ($attr->{CMD} =~ /^sh sss session$/) {
+  if ($attr->{CMD} =~ /^sh\s+sss\s+session$/xm) {
     $col_delimeter = '\s+';
     $internet_online = _get_online({
       NAS_ID    => $nas_id,
@@ -1009,21 +1039,21 @@ sub form_nas_console_command {
       my @row = ();
 
       if ($col_delimeter) {
-        @row = split(/$col_delimeter/, $line || q{});
+        @row = split(/$col_delimeter/x, $line || q{});
       }
-      elsif ($attr->{CMD} =~ /compact/) {
+      elsif ($attr->{CMD} =~ /compact/xm) {
         push @row, $line;
       }
       else {
-        $line =~ s/\s/\&nbsp;/g;
+        $line =~ s/\s/\&nbsp;/xg;
         push @row, $html->color_mark($line, 'code');
       }
 
-      if ($attr->{CMD} =~ /^sh sss session$/) {
+      if ($attr->{CMD} =~ /^sh\s+sss\s+session$/xm) {
         if ($#row > 6) {
           next;
         }
-        if ($row[0] && $row[0] !~ /^Current/) {
+        if ($row[0] && $row[0] !~ /^Current/xm) {
           push @row, $html->button($lang{SHOW},
             "index=$index&console=1&NAS_ID=$nas_id&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1",
             { BUTTON => 1});
@@ -1054,10 +1084,6 @@ sub form_nas_console_command {
 
     print $table->show();
 
-    # foreach my $login (keys %$internet_online) {
-    #   print "$login<br>";
-    # }
-
     if ($total_rows) {
       $table = $html->table({
         width => '100%',
@@ -1080,22 +1106,28 @@ sub form_nas_console_command {
 =cut
 #**********************************************************
 sub form_mrtg_cfg {
-  my Nas $Nas_ = shift;
-  my ($attr) = @_;
+  my ($Nas_, $attr) = @_;
 
   if (!$Nas_) {
     $Nas_ = Nas->new($db, \%conf, $admin);
     $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($attr->{NAS_ID});
   };
 
-  #my $comments;
   $FORM{query_type} //= 1;
 
   my $mrtg_cfgmaker = cmd("which cfgmaker");
-  $mrtg_cfgmaker =~ s/[\r\n]+$//;
+  $mrtg_cfgmaker =~ s/[\r\n]+$//x;
 #  print $mrtg_cfgmaker;
   if ($mrtg_cfgmaker) {
-    my @SELECT_DATA = `ls /usr/abills/misc/mrtg/templates/`;
+    my $cfg_dir = '/usr/abills/misc/mrtg/templates/';
+    opendir my $fh, $cfg_dir or do {
+      $html->message( 'err', 'ERROR', "Can't open dir '$cfg_dir' $!\n" );
+      return [];
+    };
+
+    my @SELECT_DATA = grep { !/^\.\.?$/x } readdir $fh;
+    closedir $fh;
+
     my $select = $html->form_select(
       'SELECT_NAME',
       {
@@ -1107,7 +1139,7 @@ sub form_mrtg_cfg {
     my $nas_name = $Nas->{NAS_NAME};
     if ( $FORM{confirm} ) {
       my $mrtg_template = $SELECT_DATA[$FORM{SELECT_NAME}];
-      $mrtg_template =~ s/\s//g;;
+      $mrtg_template =~ s/\s//xg;;
       $html->message('info', "$lang{INFO}", "$mrtg_cfgmaker --nointerfaces \ <br>--global \"WorkDir: $FORM{WORK_DIR}\" \ <br>--host-template /usr/abills/misc/mrtg/templates/$SELECT_DATA[$FORM{SELECT_NAME}] $FORM{COMMUNITY}\@$Nas->{NAS_IP}");
       my $mrtg_make_cfg = "$mrtg_cfgmaker --global=\'WorkDir: $FORM{WORK_DIR}\' --nointerfaces --host-template=\'/usr/abills/misc/mrtg/templates/$mrtg_template\' $FORM{COMMUNITY}\@$Nas->{NAS_IP}";
       print $mrtg_make_cfg;
@@ -1148,200 +1180,17 @@ sub form_nas_test {
   my Nas $Nas_ = shift;
   my ($attr) = @_;
 
-  my $nas_id = $attr->{NAS_ID} || $FORM{NAS_ID} || q{};
+  my $nas_id = $attr->{NAS_ID} || $FORM{NAS_ID} || 0;
 
   if (!$Nas_) {
     $Nas_ = Nas->new($db, \%conf, $admin);
-    $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($nas_id);
+    $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($nas_id > 0);
   }
 
-  my $comments;
   $FORM{query_type} //= 1;
 
-  # test start
   if ($FORM{runtest}) {
-    my $ip     = $conf{RADIUS_TEST_IP}     || '127.0.0.1';
-    my $secret = $conf{RADIUS_TEST_SECRET} || 'secretpass';
-    my ($mng_port, $second_port) = ('1812', '1812');
-
-    if($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+):(\d+)/) {
-      $ip          = $1;
-      $mng_port    = $2;
-      $second_port = $3;
-    }
-
-    my $request_type = 'ACCESS_REQUEST';
-
-    # settings for radius statistics
-    if (defined $FORM{query_type} && ($FORM{query_type} >= 5 && $FORM{query_type} <= 7)) {
-      $ip       = '127.0.0.1';
-      $secret   = 'adminsecret';
-      $mng_port = '18121';
-    }
-    if (defined $FORM{query_type} && $FORM{query_type} == 2) {
-      $mng_port     = '1813';
-      $request_type = 'ACCOUNTING_REQUEST';
-    }
-
-    # settings for COA
-    elsif (defined $FORM{query_type} && ($FORM{query_type} == 4 || $FORM{query_type} == 3)) {
-      if (!$Nas_->{NAS_MNG_IP_PORT}) {
-        print "Can't find NAS IP and port. NAS: $Nas_->{NAS_ID}\n";
-        return 'ERR:';
-      }
-
-      ($ip, $mng_port, $second_port) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{}, 3);
-      $mng_port = 1700 if (!$mng_port);
-      $secret = $Nas_->{NAS_MNG_PASSWORD};
-    }
-
-    if ($FORM{TYPE}) {
-      if (!$Nas_->{NAS_MNG_IP_PORT}) {
-        print "Radius Hangup failed. Can't find NAS IP and port. NAS: $Nas_->{NAS_ID}\n";
-        return 'ERR:';
-      }
-
-      ($ip, $mng_port, $second_port) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{}, 3);
-      $mng_port     = 1700 if (!$mng_port);
-      $request_type = $FORM{TYPE};
-      $secret       = $Nas_->{NAS_MNG_PASSWORD};
-    }
-
-    my $table = $html->table({
-      width   => '100%',
-      caption => "RAD_REPLY $ip:$mng_port " . ((!$attr->{USER_TEST}) ? " Secret: " . ($Nas_->{NAS_MNG_PASSWORD} || q{}) : ''),
-      title  => [ "KEY", $lang{VALUE} ],
-      ID     => 'RAD_TEST_REPLY',
-      class  => 'table',
-      EXPORT => 1,
-    });
-
-    require Radius;
-    Radius->import();
-
-    my $r = Radius->new(
-      Host   => "$ip:$mng_port",
-      Secret => $secret,
-      Debug  => $attr->{DEBUG} || 0,
-    ) or print $html->message('err', $lang{ERROR}, "Can't connect '$ip:$mng_port' $!");
-
-    $conf{'dictionary'} = $base_dir . '/lib/dictionary' if (!$conf{'dictionary'});
-
-    if (!$r->load_dictionary($conf{'dictionary'})) {
-      $html->message('err', $lang{ERROR}, "Error load dictionary");
-    }
-
-    # if query_type equel simple radius auth
-    if ($FORM{query_type} < 4 || $FORM{query_info}) {
-      if ($FORM{query_info}) {
-        my $q_info = $Nas_->query_info({ ID => $FORM{query_info} });
-        $FORM{RAD_REQUEST} = $q_info->{RAD_QUERY};
-        $comments = $q_info->{COMMENTS};
-      }
-      elsif ($attr->{RAD_REQUEST}) {
-        $FORM{RAD_REQUEST} = $attr->{RAD_REQUEST};
-      }
-
-      my @pairs_arr = split(/[\r\n]/, $FORM{RAD_REQUEST} || q{});
-      $FORM{RAD_REQUEST} = '';
-      $r->clear_attributes();
-
-      foreach my $line (@pairs_arr) {
-        my ($key, $val) = split(/=/, $line || q{}, 2);
-        next if (!$key);
-        $val //= q{};
-        $key =~ s/\s+//g;
-        $val =~ s/^\s+//g;
-        $val =~ s/\s+$//g;
-        $val =~ s/^\\?\"//g;
-        $val =~ s/\\?\"$//g;
-
-        $r->add_attributes({ Name => $key, Value => $val });
-
-        $table->addrow($key, $val);
-        $FORM{RAD_REQUEST} .= "$key = $val\n";
-      }
-
-      if ($FORM{RAD_REQUEST} !~ m/NAS-IP-Address/g) {
-        if (!$r->add_attributes({ Name => 'NAS-IP-Address', Value => $Nas_->{NAS_IP} })) {
-          print "Error";
-        }
-        $table->addrow('NAS-IP-Address', $Nas_->{NAS_IP});
-      }
-      my $type;
-      #    my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
-      #    if ($attr->{COA}) {
-      #      $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
-      #    }
-      #    else {
-      #      $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
-      #    }
-
-      my $request_num = 1;
-
-      if ($FORM{query_type} == 2) {
-        $request_num = 4;
-      }
-      elsif ($FORM{query_type} == 4) {
-        $request_num = 44;
-      }
-      elsif ($FORM{query_type} == 5) {
-        $request_num = 40;
-      }
-
-      $r->send_packet($request_num) and $type = $r->recv_packet;
-      if (!defined $type) {
-
-        # No responce from COA/POD server
-        my $message = "No responce from $request_type server '$ip:$mng_port'";
-        $html->message('err', $lang{ERROR}, "$message");
-      }
-      else {
-        if ($type == 3) {
-          $table->{rowcolor} = 'bg-danger';
-        }
-        else {
-          $table->{rowcolor} = 'bg-success';
-        }
-
-        $table->addrow("$lang{REPLY}", ($type == 3) ? 'ACCESS_REJECT' : 'ACCESS_ACCEPT');
-
-        for my $rad_attr ($r->get_attributes()) {
-          $table->addrow($rad_attr->{'Name'}, $rad_attr->{'Value'});
-        }
-      }
-    }
-
-    # if query_type equel statistics for radius server
-    elsif ($FORM{query_type} >= 5 && $FORM{query_type} <= 7) {
-      my $statistics_type = 1;
-
-      if ($FORM{query_type} == 6) {
-        $statistics_type = 2;
-      }
-      elsif ($FORM{query_type} == 7) {
-        $statistics_type = 0x1f;
-      }
-
-      $r->clear_attributes();
-      $r->add_attributes({ Name => 'FreeRADIUS-Statistics-Type', Value => $statistics_type });
-      $r->add_attributes({ Name => 'Message-Authenticator',      Value => '0x00000000000000000000000000000000' });
-      my $type;
-      $r->send_packet(12) and $type = $r->recv_packet;
-
-      if ($type) {
-        for my $rad_attr ($r->get_attributes()) {
-
-          # print "$rad_attr->{'Name'}, $rad_attr->{'Value'} <hr>";
-          $table->{rowcolor} = 'info';
-          $table->addrow($rad_attr->{'Name'}, $rad_attr->{'Value'});
-        }
-      }
-      $FORM{RAD_REQUEST} = "FreeRADIUS-Statistics-Type = $statistics_type\n";
-      $FORM{RAD_REQUEST} .= "Message-Authenticator = 0x00000000000000000000000000000000\n";
-    }
-
-    print $table->show();
+    nas_test_run($Nas_, $attr);
   }
 
   if (!defined($FORM{RAD_REQUEST})) {
@@ -1366,7 +1215,7 @@ sub form_nas_test {
     'query_type',
     {
       SELECTED => $FORM{query_type} || 0,
-      SEL_HASH => {%query_types},
+      SEL_HASH => \%query_types,
       NO_ID    => 1,
     }
   );
@@ -1375,32 +1224,53 @@ sub form_nas_test {
     templates('form_radtest'),
     {
       RAD_PAIRS  => $FORM{RAD_REQUEST},
-      COMMENTS   => $comments,
+      COMMENTS   => $FORM{COMMENTS},
       QUERY_TYPE => $query_type_select,
       NAS_ID     => $nas_id
     }
   );
 
-  # saving query to database
-  if ($FORM{SAVE} && $FORM{query_type} == 1) {
-    $Nas_->add_radtest_query({
-      COMMENTS  => $FORM{COMMENTS},
-      RAD_QUERY => $FORM{RAD_REQUEST},
+  nas_test_save(\%FORM);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 nas_test_save($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub nas_test_save {
+  my ($attr) = @_;
+
+  require Nas_manage;
+  Nas_manage->import();
+  my $Nas_manage = Nas_manage->new($db, \%conf, $admin);
+  my $nas_id = $attr->{NAS_ID} || q{};
+
+  if ($attr->{SAVE} && $attr->{query_type} == 1) {
+    $Nas_manage->radtest_query_add({
+      COMMENTS  => $attr->{COMMENTS},
+      RAD_QUERY => $attr->{RAD_REQUEST},
       DATETIME  => 'NOW()'
     });
 
-    _error_show($Nas_) || $html->message('info', $lang{ADDED}, "$lang{ADDED}");
+    _error_show($Nas_manage) || $html->message('info', $lang{ADDED}, $lang{ADDED});
   }
-  elsif ($FORM{query_del}) {
-    $Nas_->del_query({ ID => $FORM{query_del} });
-    if (!_error_show($Nas_)) {
+  elsif ($attr->{query_del}) {
+    $Nas_manage->radtest_query_del({ ID => $attr->{query_del} });
+    if (!_error_show($Nas_manage)) {
       $html->message('info', "$lang{DELETED}", "$lang{DELETED}");
     }
   }
 
-  my $query_list = $Nas_->query_list({ COLS_NAME => 1 });
+  my $query_list = $Nas_manage->radtest_query_list({ COLS_NAME => 1 });
 
-  # table with query list
   my $query_table = $html->table({
     width   => '100%',
     caption => $lang{QUERY},
@@ -1408,16 +1278,214 @@ sub form_nas_test {
     ID      => 'QUERY',
   });
 
-  # make query table rows
   foreach my $qr (@$query_list) {
     $query_table->addrow(
-      $qr->{datetime}, $qr->{comments},
+      $qr->{datetime},
+      $qr->{comments},
       $html->button("$lang{QUERY} . $qr->{id}", "index=$index&NAS_ID=$nas_id&radtest=1&query_info=$qr->{id}&runtest=1"),
       $html->button($lang{DEL}, "index=$index&NAS_ID=$nas_id&radtest=1&query_del=$qr->{id}", { MESSAGE => "$lang{DEL} $qr->{id}?", class => 'del' })
     );
   }
 
   print $query_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 nas_test_run($Nas_, $attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub nas_test_run {
+  my ($Nas_, $attr)=@_;
+
+  my $ip     = $conf{RADIUS_TEST_IP}     || '127.0.0.1';
+  my $secret = $conf{RADIUS_TEST_SECRET} || 'secretpass';
+  my ($mng_port, $second_port) = ('1812', '1812');
+
+  if($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+):(\d+)/xm) {
+    $ip          = $1;
+    $mng_port    = $2;
+    $second_port = $3;
+  }
+
+  my $request_type = 'ACCESS_REQUEST';
+
+  # settings for radius statistics
+  if (defined $FORM{query_type} && ($FORM{query_type} >= 5 && $FORM{query_type} <= 7)) {
+    $ip       = '127.0.0.1';
+    $secret   = 'adminsecret';
+    $mng_port = '18121';
+  }
+  if (defined $FORM{query_type} && $FORM{query_type} == 2) {
+    $mng_port     = '1813';
+    $request_type = 'ACCOUNTING_REQUEST';
+  }
+
+  # settings for COA
+  elsif (defined $FORM{query_type} && ($FORM{query_type} == 4 || $FORM{query_type} == 3)) {
+    if (!$Nas_->{NAS_MNG_IP_PORT}) {
+      print "Can't find NAS IP and port. NAS: $Nas_->{NAS_ID}\n";
+      return 'ERR:';
+    }
+
+    ($ip, $mng_port, $second_port) = split(/:/x, $Nas_->{NAS_MNG_IP_PORT} || q{}, 3);
+    $mng_port = 1700 if (!$mng_port);
+    $secret = $Nas_->{NAS_MNG_PASSWORD};
+  }
+
+  if ($FORM{TYPE}) {
+    if (!$Nas_->{NAS_MNG_IP_PORT}) {
+      print "Radius Hangup failed. Can't find NAS IP and port. NAS: $Nas_->{NAS_ID}\n";
+      return 'ERR:';
+    }
+
+    ($ip, $mng_port, $second_port) = split(/:/x, $Nas_->{NAS_MNG_IP_PORT} || q{}, 3);
+    $mng_port     = 1700 if (!$mng_port);
+    $request_type = $FORM{TYPE};
+    $secret       = $Nas_->{NAS_MNG_PASSWORD};
+  }
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => "RAD_REPLY $ip:$mng_port " . ((!$attr->{USER_TEST}) ? " Secret: " . ($Nas_->{NAS_MNG_PASSWORD} || q{}) : ''),
+    title  => [ "KEY", $lang{VALUE} ],
+    ID     => 'RAD_TEST_REPLY',
+    class  => 'table',
+    EXPORT => 1,
+  });
+
+  require Radius;
+  Radius->import();
+
+  my $r = Radius->new(
+    Host   => "$ip:$mng_port",
+    Secret => $secret,
+    Debug  => $attr->{DEBUG} || 0,
+  ) or print $html->message('err', $lang{ERROR}, "Can't connect '$ip:$mng_port' $!");
+
+  $conf{'dictionary'} = $base_dir . '/lib/dictionary' if (!$conf{'dictionary'});
+
+  if (!$r->load_dictionary($conf{'dictionary'})) {
+    $html->message('err', $lang{ERROR}, "Error load dictionary");
+  }
+
+  # if query_type equel simple radius auth
+  if ($FORM{query_type} < 4 || $FORM{query_info}) {
+    if ($FORM{query_info}) {
+      require Nas_manage;
+      Nas_manage->import();
+      my $Nas_manage = Nas_manage->new($db, \%conf, $admin);
+
+      my $q_info = $Nas_manage->radtest_query_info({ ID => $FORM{query_info} });
+      $FORM{RAD_REQUEST} = $q_info->{RAD_QUERY};
+      $FORM{COMMENTS} = $q_info->{COMMENTS};
+    }
+    elsif ($attr->{RAD_REQUEST}) {
+      $FORM{RAD_REQUEST} = $attr->{RAD_REQUEST};
+    }
+
+    my @pairs_arr = split(/[\r\n]/x, $FORM{RAD_REQUEST} || q{});
+    $FORM{RAD_REQUEST} = '';
+    $r->clear_attributes();
+
+    foreach my $line (@pairs_arr) {
+      my ($key, $val) = split(/=/x, $line || q{}, 2);
+      next if (!$key);
+      $val //= q{};
+      $key =~ s/\s+//xg;
+      $val =~ s/^\s+//xg;
+      $val =~ s/\s+$//xg;
+      $val =~ s/^\\?\"//xg;
+      $val =~ s/\\?\"$//xg;
+
+      $r->add_attributes({ Name => $key, Value => $val });
+
+      $table->addrow($key, $val);
+      $FORM{RAD_REQUEST} .= "$key = $val\n";
+    }
+
+    if ($FORM{RAD_REQUEST} !~ m/NAS\-IP\-Address/xg) {
+      if (!$r->add_attributes({ Name => 'NAS-IP-Address', Value => $Nas_->{NAS_IP} })) {
+        print "Error";
+      }
+      $table->addrow('NAS-IP-Address', $Nas_->{NAS_IP});
+    }
+    my $type;
+    #    my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
+    #    if ($attr->{COA}) {
+    #      $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
+    #    }
+    #    else {
+    #      $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
+    #    }
+
+    my $request_num = 1;
+
+    if ($FORM{query_type} == 2) {
+      $request_num = 4;
+    }
+    elsif ($FORM{query_type} == 4) {
+      $request_num = 44;
+    }
+    elsif ($FORM{query_type} == 5) {
+      $request_num = 40;
+    }
+
+    $r->send_packet($request_num) and $type = $r->recv_packet;
+    if (!defined $type) {
+      my $message = "No responce from $request_type server '$ip:$mng_port'";
+      $html->message('err', $lang{ERROR}, "$message");
+    }
+    else {
+      if ($type == 3) {
+        $table->{rowcolor} = 'bg-danger';
+      }
+      else {
+        $table->{rowcolor} = 'bg-success';
+      }
+
+      $table->addrow("$lang{REPLY}", ($type == 3) ? 'ACCESS_REJECT' : 'ACCESS_ACCEPT');
+
+      for my $rad_attr ($r->get_attributes()) {
+        $table->addrow($rad_attr->{'Name'}, $rad_attr->{'Value'});
+      }
+    }
+  }
+  # if query_type equel statistics for radius server
+  elsif ($FORM{query_type} >= 5 && $FORM{query_type} <= 7) {
+    my $statistics_type = 1;
+
+    if ($FORM{query_type} == 6) {
+      $statistics_type = 2;
+    }
+    elsif ($FORM{query_type} == 7) {
+      $statistics_type = 0x1f;
+    }
+
+    $r->clear_attributes();
+    $r->add_attributes({ Name => 'FreeRADIUS-Statistics-Type', Value => $statistics_type });
+    $r->add_attributes({ Name => 'Message-Authenticator',      Value => '0x00000000000000000000000000000000' });
+    my $type;
+    $r->send_packet(12) and $type = $r->recv_packet;
+
+    if ($type) {
+      for my $rad_attr ($r->get_attributes()) {
+        $table->{rowcolor} = 'info';
+        $table->addrow($rad_attr->{'Name'}, $rad_attr->{'Value'});
+      }
+    }
+    $FORM{RAD_REQUEST} = "FreeRADIUS-Statistics-Type = $statistics_type\n";
+    $FORM{RAD_REQUEST} .= "Message-Authenticator = 0x00000000000000000000000000000000\n";
+  }
+
+  print $table->show();
 
   return 1;
 }
@@ -1442,28 +1510,25 @@ sub form_wrt_configure {
   }
   elsif ($FORM{change}) {
     foreach my $key (sort keys %FORM) {
-      if ($key =~ /^\d+_wrt_/) {
+      if ($key =~ /^\d+_wrt_/xm) {
         my $value = $FORM{$key};
-        $key =~ s/^\d+_wrt_//g;
-        $key =~ s/(_\d+)//;
+        $key =~ s/^\d+_wrt_//xg;
+        $key =~ s/(_\d+)//x;
         $key = convert($key, { html2text => 1 });
-        $value =~ s/\\\\/\\/g;
-        $value =~ s/\\\"/\"/g;
-        $value =~ s/\\\'/\'/g;
+        $value =~ s/\\\\/\\/xg;
+        $value =~ s/\\\"/\"/xg;
+        $value =~ s/\\\'/\'/xg;
 
-        #$value =~ s/&rsquo;/\\\'/g;
         $content .= qq{$key "$value"\n};
       }
     }
 
-    file_op(
-      {
-        WRITE    => 1,
-        FILENAME => 'wrt_defaults.cfg',
-        PATH     => $conf{TPL_DIR},
-        CONTENT  => $content
-      }
-    );
+    file_op({
+      WRITE    => 1,
+      FILENAME => 'wrt_defaults.cfg',
+      PATH     => $conf{TPL_DIR},
+      CONTENT  => $content
+    });
   }
 
   my $table = $html->table({
@@ -1474,24 +1539,22 @@ sub form_wrt_configure {
     MENU    => "$lang{BACK}:NAS_ID=$FORM{nas}&index=$index:btn btn-xs btn-secondary"
   });
 
-  my $rows = file_op(
-    {
-      FILENAME => (-f "$conf{TPL_DIR}/wrt_defaults.cfg") ? 'wrt_defaults.cfg' : 'wrt_defaults.cfg.default',
-      PATH     => (-f "$conf{TPL_DIR}/wrt_defaults.cfg") ? $conf{TPL_DIR}     : '../../libexec/',
-      ROWS     => 1
-    }
-  );
+  my $rows = file_op({
+    FILENAME => (-f "$conf{TPL_DIR}/wrt_defaults.cfg") ? 'wrt_defaults.cfg' : 'wrt_defaults.cfg.default',
+    PATH     => (-f "$conf{TPL_DIR}/wrt_defaults.cfg") ? $conf{TPL_DIR} : '../../libexec/',
+    ROWS     => 1
+  });
 
   my %main_hash = ();
   my $i         = 0;
 
   foreach my $line (@{$rows}) {
-    my ($key, $value) = split(/\s+/, $line || q{}, 2);
+    my ($key, $value) = split(/\s+/x, $line || q{}, 2);
     $key   //= '';
     $value //= '';
 
-    $key =~ s/^\"|\"$//g;
-    $value =~ s/^\"|\"$//g;
+    $key =~ s/^\"|\"$//xg;
+    $value =~ s/^\"|\"$//xg;
 
     my $input_name =
       $i . '_' . 'wrt_'
@@ -1515,20 +1578,18 @@ sub form_wrt_configure {
     $i++;
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show(),
-      HIDDEN  => {
-        index         => $index,
-        nas           => $FORM{nas},
-        wrt_configure => 1,
-      },
-      SUBMIT => {
-        change  => $lang{CHANGE},
-        default => $lang{DEFAULT}
-      }
+  print $html->form_main({
+    CONTENT => $table->show(),
+    HIDDEN  => {
+      index         => $index,
+      nas           => $FORM{nas},
+      wrt_configure => 1,
+    },
+    SUBMIT  => {
+      change  => $lang{CHANGE},
+      default => $lang{DEFAULT}
     }
-  );
+  });
 
   return 1;
 }
@@ -1577,40 +1638,38 @@ sub form_nas_groups {
     $html->tpl_show(templates('form_nas_group'), $Nas);
   }
 
-  result_former(
-    {
-      INPUT_DATA      => $Nas,
-      FUNCTION        => 'nas_group_list',
-      DEFAULT_FIELDS  => 'COUNTS',
-      BASE_FIELDS     => 4,
-      FUNCTION_FIELDS => 'form_nas:$lang{NAS}:gid:&search=1,change,del',
-      SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => {
-        disable => {
-          0 => "$lang{ENABLE}:$state_colors[0]",
-          1 => "$lang{DISABLE}:$state_colors[1]"
-        },
+  result_former({
+    INPUT_DATA      => $Nas,
+    FUNCTION        => 'nas_group_list',
+    DEFAULT_FIELDS  => 'COUNTS',
+    BASE_FIELDS     => 4,
+    FUNCTION_FIELDS => 'form_nas:$lang{NAS}:gid:&search=1,change,del',
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      disable => {
+        0 => "$lang{ENABLE}:$state_colors[0]",
+        1 => "$lang{DISABLE}:$state_colors[1]"
       },
-      EXT_TITLES => {
-        id       => '#',
-        name     => $lang{NAME},
-        comments => $lang{COMMENTS},
-        disable  => $lang{STATUS},
-        counts   => $lang{NASS}
-      },
-      TABLE => {
-        width   => '100%',
-        caption => "$lang{NAS} $lang{GROUPS}",
-        qs      => $pages_qs,
-        ID      => 'NAS_GROUPS',
-        EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-      },
-      MAKE_ROWS     => 1,
-      SEARCH_FORMER => 1,
-      TOTAL         => 1
-    }
-  );
+    },
+    EXT_TITLES      => {
+      id       => '#',
+      name     => $lang{NAME},
+      comments => $lang{COMMENTS},
+      disable  => $lang{STATUS},
+      counts   => $lang{NASS}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{NAS} $lang{GROUPS}",
+      qs      => $pages_qs,
+      ID      => 'NAS_GROUPS',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -1666,10 +1725,10 @@ sub form_ip_pools {
     $FORM{COUNTS} = sprintf("%d", $mask << ($FORM{BIT_MASK} - 1)) - 2;
     my $netmask = int2ip(4294967296 - sprintf("%d", $mask << ($FORM{BIT_MASK} - 1)));
 
-    my @addrb = split(/\./, $FORM{NAS_IP_SIP} || '0.0.0.0');
+    my @addrb = split(/\./x, $FORM{NAS_IP_SIP} || '0.0.0.0');
     my ($addrval) = unpack("N", pack("C4", @addrb));
 
-    my @maskb = split(/\./, $netmask);
+    my @maskb = split(/\./x, $netmask);
     my ($maskval) = unpack("N", pack("C4", @maskb));
 
     # calculate network address
@@ -1688,23 +1747,8 @@ sub form_ip_pools {
     elsif($FORM{NAME} || $FORM{IP}) {
       $Nas->ip_pools_add({ %FORM, GATEWAY => ip2int($FORM{GATEWAY}) });
       if (!$Nas->{errno}) {
-        $Nas->divide_ips({
-          FIRST   => ip2int($FORM{IP}),
-          COUNT   => $FORM{COUNTS},
-          POOL_ID => $Nas->{INSERT_ID},
-        });
-
-        if ($FORM{IP_SKIP}) {
-          my @arr_ip_skip = split(/,\s?|;\s?/, $FORM{IP_SKIP});
-          foreach my $element_ip (@arr_ip_skip) {
-            $Nas->remove_ippools_ips({
-              IPPOOL_ID => $Nas->{INSERT_ID},
-              IP        => ip2int($element_ip)
-            });
-          }
-        }
-
         $FORM{chg} = $Nas->{INSERT_ID} || 0;
+        ip_pools_mkips({ %FORM, IP_POOL => $Nas->{INSERT_ID} });
         $html->message('info', $lang{INFO}, "$lang{ADDED} [$FORM{chg}]");
       }
     }
@@ -1714,36 +1758,16 @@ sub form_ip_pools {
       $html->message('err', $lang{ERROR}, "Select Mask");
     }
     else {
-      $Nas->ip_pools_change(
-        {
-          %FORM,
-          ID             => $FORM{chg},
-          NAS_IP_SIP_INT => ip2int($FORM{NAS_IP_SIP}),
-          GATEWAY        => ip2int($FORM{GATEWAY}),
-          NEXT_POOL_ID   => $FORM{NEXT_POOL_ID} ? $FORM{NEXT_POOL_ID} : 0,
-        }
-      );
+      $Nas->ip_pools_change({
+        %FORM,
+        ID             => $FORM{chg},
+        NAS_IP_SIP_INT => ip2int($FORM{NAS_IP_SIP}),
+        GATEWAY        => ip2int($FORM{GATEWAY}),
+        NEXT_POOL_ID   => $FORM{NEXT_POOL_ID} ? $FORM{NEXT_POOL_ID} : 0,
+      });
 
       if (!$Nas->{errno}) {
-        $Nas->remove_ippools_ips({
-          CHG => $FORM{chg}
-        });
-        $Nas->divide_ips({
-          FIRST   => ip2int($FORM{IP}),
-          COUNT   => $FORM{COUNTS},
-          POOL_ID => $FORM{chg},
-        });
-        $html->message('info', $lang{INFO}, $lang{CHANGED});
-
-        if ($FORM{IP_SKIP}) {
-          my @arr_ip_skip = split(/,\s?|;\s?/, $FORM{IP_SKIP});
-          foreach my $element_ip (@arr_ip_skip) {
-            $Nas->remove_ippools_ips({
-              IPPOOL_ID => $FORM{chg},
-              IP        => ip2int($element_ip)
-            });
-          }
-        }
+        ip_pools_mkips({ %FORM, IP_POOL => $FORM{chg} });
       }
     }
   }
@@ -1847,7 +1871,7 @@ sub form_ip_pools {
     );
 
     if ($Nas->{IP} && ! $FORM{chg}) {
-      $Nas->{IP}=join('.', (split(/\./, int2ip($Nas->{IP})))[0..2] ) .'.'.'2';
+      $Nas->{IP}=join('.', (split(/\./x, int2ip($Nas->{IP})))[0..2] ) .'.'.'2';
     }
 
     $html->tpl_show(templates('form_ip_pools'), {
@@ -2035,33 +2059,27 @@ sub form_nas_stats {
     PAGE_ROWS => 1
   });
 
-  my $first_session = $Log->log_list(
-    {
-      COLS_NAME => 1,
-      NAS_ID    => $FORM{NAS_ID},
-      SORT      => 1,
-      LOG_TYPE  => 6,
-      PAGE_ROWS => 1
-    }
-  );
+  my $first_session = $Log->log_list({
+    COLS_NAME => 1,
+    NAS_ID    => $FORM{NAS_ID},
+    SORT      => 1,
+    LOG_TYPE  => 6,
+    PAGE_ROWS => 1
+  });
 
-  my $false_connect = $Log->log_list(
-    {
-      COLS_NAME => 1,
-      NAS_ID    => $FORM{NAS_ID},
-      DATE      => $FORM{DATE} || $DATE,
-      LOG_TYPE  => 4
-    }
-  );
+  my $false_connect = $Log->log_list({
+    COLS_NAME => 1,
+    NAS_ID    => $FORM{NAS_ID},
+    DATE      => $FORM{DATE} || $DATE,
+    LOG_TYPE  => 4
+  });
 
-  my $success_connect = $Log->log_list(
-    {
-      COLS_NAME => 1,
-      NAS_ID    => $FORM{NAS_ID},
-      DATE      => $FORM{DATE} || $DATE,
-      LOG_TYPE  => 6
-    }
-  );
+  my $success_connect = $Log->log_list({
+    COLS_NAME => 1,
+    NAS_ID    => $FORM{NAS_ID},
+    DATE      => $FORM{DATE} || $DATE,
+    LOG_TYPE  => 6
+  });
 
   my $users_online = $Sessions->online({ COLS_NAME => 1, NAS_ID => $FORM{NAS_ID} });
 
@@ -2133,8 +2151,8 @@ sub build_radius_params_result_response {
 sub parse_radius_params_json {
   my ($pairs_json) = @_;
 
-  $pairs_json =~ s/\\//g;
-  $pairs_json =~ s/’/'/g;
+  $pairs_json =~ s/\\//xg;
+  $pairs_json =~ s/’/'/xg;
 
   my $json = JSON->new()->utf8(0);
 
@@ -2274,25 +2292,21 @@ sub form_nas_search {
       Users->import();
       my $users = Users->new($db, $admin, \%conf);
       # Check for location_id on this user
-      my $list = $users->list(
-        {
-          UID            => $FORM{UID},
-          LOCATION_ID    => '_SHOW',
-          ADDRESS_STREET => '_SHOW',
-          ADDRESS_BUILD  => '_SHOW',
-          COLS_NAME      => 1
-        }
-      );
+      my $list = $users->list({
+        UID            => $FORM{UID},
+        LOCATION_ID    => '_SHOW',
+        ADDRESS_STREET => '_SHOW',
+        ADDRESS_BUILD  => '_SHOW',
+        COLS_NAME      => 1
+      });
 
       if ($users->{TOTAL} && $list->[0]->{build_id}) {
         my $table_caption = ' ' . ($list->[0]->{address_street} || q{}) . ', ' . $list->[0]->{address_build};
-        my $nases_list = $Nas->list(
-          {
-            %FORM,
-            LOCATION_ID => $list->[0]->{build_id},
-            COLS_NAME   => 1
-          }
-        );
+        my $nases_list = $Nas->list({
+          %FORM,
+          LOCATION_ID => $list->[0]->{build_id},
+          COLS_NAME   => 1
+        });
 
         my $nases_table = form_nas_search_nas_table($nases_list, $table_caption);
 
@@ -2307,14 +2321,12 @@ sub form_nas_search {
       $FORM{ADDRESS_FULL} = "*$FORM{ADDRESS_FULL}*";
     }
 
-    my $nases_list = $Nas->list(
-      {
-        %FORM,
-        DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-        PAGE_ROWS => 100000,
-        COLS_NAME => 1
-      }
-    );
+    my $nases_list = $Nas->list({
+      %FORM,
+      DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+      PAGE_ROWS => 100000,
+      COLS_NAME => 1
+    });
 
     print form_nas_search_nas_table($nases_list, '');
     return 1;
@@ -2369,15 +2381,13 @@ sub form_nas_search_nas_table {
 
   return '' if (!($nases_list && scalar @{$nases_list}));
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{NAS} . ' : ' . ($table_caption // ''),
-      title_plain => [ 'ID', $lang{NAME}, 'IP', $lang{TYPE}, 'mac' ],
-      pages       => scalar @{$nases_list},
-      ID          => 'NAS_SEARCH'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{NAS} . ' : ' . ($table_caption // ''),
+    title_plain => [ 'ID', $lang{NAME}, 'IP', $lang{TYPE}, 'mac' ],
+    pages       => scalar @{$nases_list},
+    ID          => 'NAS_SEARCH'
+  });
 
   foreach my $line (@{$nases_list}) {
     $table->addrow(
@@ -2406,6 +2416,9 @@ sub form_nas_search_nas_table {
   Arguments:
     $nas_info - NAS object
 
+  Returns:
+    TRUe or FALSE
+
 =cut
 #**********************************************************
 sub form_ssh_key {
@@ -2416,15 +2429,15 @@ sub form_ssh_key {
     $html->message('warn', "", "SELECT_USER");
     exit;
   }
-  elsif ($nas_info->{NAS_MNG_USER} !~ /^[a-z0-9\_\.\-]+$/) {
+  elsif ($nas_info->{NAS_MNG_USER} !~ /^[a-z0-9\_\.\-]+$/xm) {
     print $html->header();
     $html->message('warn', "", "WRONG_NAME");
     exit;
   }
 
-  my $filename    = 'id_rsa.' . $nas_info->{NAS_MNG_USER} . '.pub';
-  my $size        = 0;
-  my $content     = q{};
+  my $filename = 'id_rsa.' . $nas_info->{NAS_MNG_USER} . '.pub';
+  my $size = 0;
+  my $content = q{};
   my $abills_path = '/usr/abills/';
 
   if ($FORM{create}) {
@@ -2435,13 +2448,11 @@ sub form_ssh_key {
     exit;
   }
   elsif ($FORM{download}) {
-    $content = file_op(
-      {
-        FILENAME => $filename,
-        PATH     => $abills_path . '/Certs/',
-        QUIET    => 1
-      }
-    );
+    $content = file_op({
+      FILENAME => $filename,
+      PATH     => $abills_path . '/Certs/',
+      QUIET    => 1
+    });
 
     if ($content eq '-1') {
       print $html->header();
@@ -2449,7 +2460,6 @@ sub form_ssh_key {
     }
     else {
       print "Content-Type: application/octet-stream;  filename=\"$filename\"\n" . "Content-Disposition: attachment;  filename=\"$filename\";  size=$size" . "\n\n";
-
       print $content;
     }
 
@@ -2512,7 +2522,6 @@ sub ip_pools_import {
 
     $html->message( 'info', $lang{INFO},
       "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total" );
-
     return 1;
   }
 
@@ -2522,18 +2531,17 @@ sub ip_pools_import {
   });
 
   return 1;
-
 }
 
 #**********************************************************
-=head2 import_ip($attr)
+=head2 import_ip($import_info, %ippools_hash)
 
   Arguments:
     import_info   - import ip pools
     ippools_hash  - ip pools in system
 
   Return:
-    -
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -2546,6 +2554,7 @@ sub import_ip {
     }
   }
 
+  return 1;
 }
 
 #**********************************************************
@@ -2568,18 +2577,17 @@ sub add_ip_import {
   my @ip_and_mask;
 
   if (ref($ip_tmp) eq 'HASH' && $ip_tmp->{IP}) {
-
-    $ip_tmp->{IP} =~ s/,//g;
-    if ($ip_tmp->{IP} =~ /\//) {
-      @ip_and_mask = split(/\//, $ip_tmp->{IP});
+    $ip_tmp->{IP} =~ s/,//gx;
+    if ($ip_tmp->{IP} =~ /\//xm) {
+      @ip_and_mask = split(/\//x, $ip_tmp->{IP});
     }
     else {
       push @ip_and_mask, $ip_tmp->{IP};
     }
   }
   else {
-    if ($ip_tmp =~ /\//) {
-      @ip_and_mask = split(/\//, $ip_tmp);
+    if ($ip_tmp =~ /\//xm) {
+      @ip_and_mask = split(/\//x, $ip_tmp);
     }
     else {
       push @ip_and_mask, $ip_tmp;
@@ -2602,6 +2610,7 @@ sub add_ip_import {
     });
   }
 
+  return 1;
 }
 
 #**********************************************************
@@ -2615,8 +2624,8 @@ sub add_ip_import {
 =cut
 #**********************************************************
 sub _uniq {
-    my %seen;
-    grep !$seen{$_}++, @_;
+  my %seen;
+  grep { !$seen{$_}++ } @_;
 }
 
 #**********************************************************
@@ -2662,6 +2671,52 @@ sub _get_online {
   my $users_online = sort_array_to_hash($users_online_list, $key_field);
 
   return $users_online;
+}
+
+#**********************************************************
+=head2 ip_pools_mkips($attr) -
+
+  Arguments:
+    $attr
+      IP_POOL
+
+  Return:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub ip_pools_mkips {
+  my ($attr)=@_;
+
+  my $ip_pool = $attr->{IP_POOL};
+
+  $Nas->remove_ippools_ips({
+    POOL_ID => "$ip_pool"
+  });
+
+  if ($attr->{STATIC}) {
+    return 1;
+  }
+
+  $Nas->divide_ips({
+    FIRST   => ip2int($attr->{IP}),
+    COUNT   => $attr->{COUNTS},
+    POOL_ID => $ip_pool
+  });
+
+  $html->message('info', $lang{INFO}, $lang{CHANGED});
+
+  if ($attr->{IP_SKIP}) {
+    my @arr_ip_skip = split(/,\s?|;\s?/x, $attr->{IP_SKIP});
+    foreach my $element_ip (@arr_ip_skip) {
+      $Nas->remove_ippools_ips({
+        IPPOOL_ID => $ip_pool,
+        IP        => ip2int($element_ip)
+      });
+    }
+  }
+
+  return 1;
 }
 
 1;

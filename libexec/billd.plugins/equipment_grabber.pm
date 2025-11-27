@@ -31,7 +31,8 @@ use SNMP_util;
 use SNMP_Session;
 use Events;
 use Events::API;
-use Abills::Misc qw(snmp_get);
+require Abills::Misc;
+use Internet::Diagnostic;
 require Internet::Diagnostic;
 
 our (
@@ -39,8 +40,7 @@ our (
   %conf,
   $argv,
   $debug,
-  $var_dir,
-  %lang
+  $var_dir
 );
 
 our Admins $Admin;
@@ -135,7 +135,7 @@ sub equipment_grab {
 
     $Equipment->{debug} = 1 if ($debug > 5);
 
-    $Equipment->_list({ NAS_ID => $info->{NAS_ID} });
+    $Equipment->list({ NAS_ID => $info->{NAS_ID} });
 
     if (!$Equipment->{TOTAL}) {
 
@@ -154,7 +154,7 @@ sub equipment_grab {
       $info->{MODEL_ID} = $model->[0]->{ID} || 0;
 
       if ($info->{MODEL_ID}) {
-        $Equipment->_add($info);
+        $Equipment->add($info);
         next;
       }
       elsif ($info->{MODEL}) {
@@ -199,16 +199,16 @@ sub equipment_from_file {
     return [];
   }
 
-  my @rows = split(/[\r]\n/, $content);
+  my @rows = split(/[\r]\n/x, $content);
   my @cols_name = ('IP');
 
   if ($argv->{COLS_NAME}) {
-    @cols_name = split(/,\s?/, $argv->{COLS_NAME});
+    @cols_name = split(/,\s?/x, $argv->{COLS_NAME});
   }
 
   foreach my $line (@rows) {
     chomp($line);
-    my @cols = split(/\t/, $line);
+    my @cols = split(/\t/x, $line);
     my %equipment_info = ();
 
     for (my $i = 0; $i <= $#cols; $i++) {
@@ -237,10 +237,10 @@ sub equipment_from_file {
 sub equipment_scan {
   my ($ip_range) = @_;
 
-  my ($ip, $mask) = split /\//, $ip_range;
+  my ($ip, $mask) = split(/\//x, $ip_range);
   die "Wrong mask: '$mask'" unless ($mask > 0 && $mask < 32);
   my $ip_count = 2 ** (32 - $mask);
-  my $split_ip = my ($w, $x, $y, $z) = split /\./, $ip;
+  my $split_ip = my ($w, $x, $y, $z) = split(/\./x, $ip);
   die "Wrong ip: '$ip'" unless ($split_ip == 4);
 
   my $i = 0;
@@ -262,7 +262,6 @@ sub equipment_scan {
 
     print "check $w.$x.$y.$z\n" if ($argv->{DEBUG} || $argv->{INFO_ONLY});
 
-    use Internet::Diagnostic;
     my $ping = host_diagnostic("$w.$x.$y.$z", {
       QUITE         => 1,
       RETURN_RESULT => 1,
@@ -315,7 +314,7 @@ sub equipment_scan {
 #**********************************************************
 sub equipment_get_version {
 
-  my $Equipment_List = $Equipment->_list({
+  my $Equipment_List = $Equipment->list({
     COLS_NAME         => 1,
     NAS_MNG_HOST_PORT => '_SHOW',
     NAS_MNG_PASSWORD  => '_SHOW',
@@ -333,7 +332,7 @@ sub equipment_get_version {
       });
 
       if ($Version) {
-        $Equipment->_change({
+        $Equipment->change({
           NAS_ID   => $element->{nas_id},
           FIRMWARE => $Version,
         });
@@ -354,7 +353,7 @@ sub equipment_get_version {
 #**********************************************************
 sub equipment_scan_equipment {
 
-  my $Equipment_List = $Equipment->_list({
+  my $Equipment_List = $Equipment->list({
     NAS_ID            => $argv->{NAS_ID} || '',
     COLS_NAME         => 1,
     NAS_MNG_HOST_PORT => '_SHOW',
@@ -392,7 +391,7 @@ sub equipment_scan_equipment {
       }
 
       foreach my $port (@$all_ports) {
-        my ($port_number, $port_status) = split(/:/, $port);
+        my ($port_number, $port_status) = split(/:/x, $port);
         if (!in_array($port_number, \@exPorts)) {
           $Equipment->port_add({
             NAS_ID => $element->{nas_id},
@@ -449,7 +448,7 @@ sub _equipment_port_vlan {
 
   if (@$All_ports) {
     foreach my $port (@$All_ports) {
-      my ($port_number, $port_vlan) = split(/:/, $port);
+      my ($port_number, $port_vlan) = split(/:/x, $port);
 
       $Equipment->port_change({
         ID   => $Port_id->{$port_number},
@@ -482,7 +481,7 @@ sub _equipment_port_description {
 
   if (@$All_ports) {
     foreach my $port (@$All_ports) {
-      my ($port_number, $port_description) = split(/:/, $port);
+      my ($port_number, $port_description) = split(/:/x, $port);
 
       $Equipment->port_change({
         ID       => $Port_id->{$port_number},
@@ -508,6 +507,8 @@ sub equipment_delete_ports {
       NAS_ID => $argv->{NAS_ID},
     })
   }
+
+  return 1;
 }
 
 #**********************************************************

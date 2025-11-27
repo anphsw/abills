@@ -13,26 +13,20 @@ our ($db,
   $admin,
   %conf,
   %permissions,
-  %msgs_permissions
+  %msgs_permissions,
+  @priority_colors,
+  @priority
 );
 
 our Abills::HTML $html;
 
-my @priority_lit = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-
-my @priority = (
-    $html->element('span', '', { class => 'fa fa-thermometer-empty',   title => $priority_lit[0],   OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-quarter', title => $priority_lit[1],   OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-half',    title => $priority_lit[2],   OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-three-quarters', title => $priority_lit[3], OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-full',    title => $priority_lit[4],   OUTPUT2RETURN => 1 })
+my @priority_elements = (
+    $html->element('span', '', { class => 'fa fa-thermometer-empty',   title => $priority[0],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-quarter', title => $priority[1],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-half',    title => $priority[2],   OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-three-quarters', title => $priority[3], OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-full',    title => $priority[4],   OUTPUT2RETURN => 1 })
 );
-
-$_COLORS[6] //= 'red';
-$_COLORS[8] //= '#FFFFFF';
-$_COLORS[9] //= '#FFFFFF';
-
-my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
@@ -53,7 +47,7 @@ sub msgs_form_search {
   $Msgs->{PRIORITY_SEL} = $html->form_select('PRIORITY', {
     SELECTED     => $FORM{PRIORITY} || '_SHOW',
     SEL_OPTIONS  => { '_SHOW' => $lang{ALL} },
-    SEL_ARRAY    => \@priority_lit,
+    SEL_ARRAY    => \@priority,
     STYLE        => \@priority_colors,
     ARRAY_NUM_ID => 1
   });
@@ -219,13 +213,14 @@ sub msgs_list {
     'client_responsible'     => $lang{MSGS_RESPONSIBLE_PERSON_CLIENT_SIDE},
   };
 
+  $LIST_PARAMS{EXTERNAL_CHAT_ID} = $FORM{EXTERNAL_CHAT_ID} || 0;
   my $replies = {};
   ($table, $list) = result_former({
     INPUT_DATA        => $Msgs,
     BASE_FIELDS       => 0,
     DEFAULT_FIELDS    => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
     HIDDEN_FIELDS     => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,CLIENT_RESPONSIBLE,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS,TEAM_ID,REPLIES_COUNTS',
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS,TEAM_ID,REPLIES_COUNTS,EXTERNAL_CHAT_ID',
     APPEND_FIELDS     => 'UID',
     FUNCTION          => 'messages_list',
     FUNCTION_FIELDS   => join(',', @function_fields),
@@ -279,9 +274,9 @@ sub msgs_list {
       },
       priority_id            => sub {
         my ($priority_id) = @_;
-        $priority_id ||= 3; # Normal
-        $priority_id = 3 if (!defined($priority[$priority_id]));
-        return $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
+        $priority_id ||= 3;
+        $priority_id = 3 if (!defined($priority_elements[$priority_id]));
+        return $html->color_mark($priority_elements[$priority_id], $priority_colors[$priority_id]);
       },
       replies_counts         => sub {
         my ($priority_id, $line, $col_name, $list) = @_;
@@ -717,65 +712,6 @@ sub _msgs_message_tags_name {
   }
 
   return $tags_name;
-}
-
-#**********************************************************
-=head2 _msgs_generate_replies_html($$replies)
-
-=cut
-#**********************************************************
-sub _msgs_generate_replies_html {
-  my ($replies) = @_;
-
-  my $messages = '';
-  foreach my $reply (@{$replies}) {
-    my $direct_chat_text = $html->element('div', $reply->{text}, { class => 'direct-chat-text' });
-    my $chat_info = '';
-    my $msg_class = 'direct-chat-msg';
-
-    if ($reply->{aid}) {
-      my $sender = $html->element('span', $reply->{creator}, { class => 'direct-chat-name float-left' });
-      my $date   = $html->element('span', $reply->{date}, { class => 'direct-chat-timestamp float-right' });
-      $chat_info = $html->element('div', $sender . $date, { class => 'direct-chat-infos clearfix' });
-    }
-    else {
-      $msg_class .= ' right';
-      my $sender = $html->element('span', $reply->{creator}, { class => 'direct-chat-name float-right' });
-      my $date   = $html->element('span', $reply->{date}, { class => 'direct-chat-timestamp float-left' });
-      $chat_info = $html->element('div', $sender . $date, { class => 'direct-chat-infos clearfix' });
-    }
-
-    $messages .= $html->element('div', $chat_info . $direct_chat_text, { class => $msg_class });
-  }
-
-  my $card_body = $html->element(
-    'div',
-    $html->element('div', $messages, { class => 'direct-chat-messages' }),
-    { class => 'card-body' }
-  );
-
-  my $collapse_button = $html->element(
-    'button',
-    $html->element('i', '', { class => 'fas fa-plus' }),
-    {
-      type => 'button',
-      class => 'btn btn-tool',
-      'data-card-widget' => 'collapse',
-    }
-  );
-
-  my $card_header = $html->element(
-    'div',
-    $html->element('h3', $lang{REPLYS}, { class => 'card-title' }) .
-      $html->element('div', $collapse_button, { class => 'card-tools' }),
-    { class => 'card-header' }
-  );
-
-  return $html->element(
-    'div',
-    $card_header . $card_body,
-    { class => 'card card-primary card-outline direct-chat direct-chat-primary collapsed-card' }
-  );
 }
 
 1;

@@ -25,7 +25,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = int(rand(10000)) + 100000;
 $payment_sum = $payment_sum;
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 

@@ -1,9 +1,9 @@
-<form action='$SELF_URL' METHOD='POST' name='user' ID='user' class='pswd-confirm'>
-  <input type=hidden name=sid value='$sid'>
+<form action='%SELF_URL%' METHOD='POST' name='user' ID='user' class='pswd-confirm'>
+  <input type=hidden name=sid value='%sid%'>
   <input type=hidden name=ID value='%ID%'>
   <input type=hidden name=UID value='%UID%'>
   <input type=hidden name=m value='%m%'>
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
 
   <div class='card card-outline card-primary'>
     <div class='card-header with-border'>
@@ -12,7 +12,7 @@
     <div class='card-body form form-horizontal'>
       <div class='form-group row'>
         <label class='col-md-2 control-label'>_{CURRENT}_:</label>
-        <label class='cold-md-10 control-label'>$user->{TP_ID} %TP_NAME% </label>
+        <label class='cold-md-10 control-label'>%TP_ID% %TP_NAME% </label>
       </div>
       <div class='form-group row'>
         <label class='col-md-2 control-label'>_{CHANGE}_ _{ON}_:</label>

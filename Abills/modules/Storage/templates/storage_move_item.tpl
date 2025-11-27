@@ -1,6 +1,6 @@
-<form method='post' action='$SELF_URL'>
+<form method='post' action='%SELF_URL%'>
   <input type='hidden' name='' value=''>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='INCOMING_ARTICLE_ID' value='%INCOMING_ARTICLE_ID%'>
   <input type='hidden' name='SUPPLIER_ID' value='%SUPPLIER_ID%'>
   <input type='hidden' name='OLD_STORAGE_ID' value='%OLD_STORAGE_ID%'>

@@ -1,4 +1,4 @@
-package Abills::Control::Auth::User;
+package Control::Auth::User;
 
 use strict;
 use warnings FATAL => 'all';
@@ -17,6 +17,8 @@ my Users $user;
     $db    - ref to DB
     $admin - current Web session admin
     $CONF  - ref to %conf
+    $attr
+      USER
 
   Returns:
     object
@@ -24,8 +26,7 @@ my Users $user;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db      => $db,
@@ -36,7 +37,12 @@ sub new {
     libpath => $attr->{libpath} || ''
   };
 
-  $user = Users->new($db, $admin, $conf);
+  if ($attr->{USER}) {
+    $user = $attr->{USER};
+  }
+  else {
+    $user = Users->new($db, $admin, $conf);
+  }
 
   bless($self, $class);
 
@@ -54,22 +60,19 @@ sub new {
       FORM - Input form
 
   Returns:
-    ($ret, $session_id, $login)
+    ($uid, $session_id, $login, ?$obj_return)
 
 =cut
 #**********************************************************
 sub auth_user {
-  my $self = shift;
-  my ($login, $password, $session_id, $attr) = @_;
+  my ($self, $login, $password, $session_id, $attr) = @_;
 
   my $params = {};
   if ($attr->{FORM}) {
     $params = $attr->{FORM};
   }
 
-  # my $lang = $self->{lang};
-  # my $html = $self->{html};
-  my $index = $attr->{index} || 0;
+  my $index = $params->{index} || $attr->{index} || 0;
 
   my $ret = 0;
   my $res = 0;
@@ -79,7 +82,7 @@ sub auth_user {
   my $Auth;
 
   # request from apple only POST without custom prop, we dont handle query params in POST request
-  $params->{external_auth} = 'Apple' if ($self->{conf}->{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/);
+  $params->{external_auth} = 'Apple' if ($self->{conf}->{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/xm);
 
   if ($params->{external_auth}) {
     $Auth = Abills::Auth::Core->new({
@@ -98,13 +101,13 @@ sub auth_user {
     $Auth->check_access($params);
 
     if ($Auth->{auth_url}) {
-      return {
+      return ($ret, $session_id, $login, {
         result       => 'OK',
         redirect_url => $Auth->{auth_url},
-      };
+      });
     }
     elsif ($Auth->{RETURN_RESULT}) {
-      return $Auth->{RETURN_RESULT};
+      return ($ret, $session_id, $login, $Auth->{RETURN_RESULT});
     }
     elsif ($Auth->{USER_ID}) {
       $user->list({
@@ -140,18 +143,16 @@ sub auth_user {
       }
       else {
         if (!$session_id) {
-          return {
-            errno  => 1001001,
-            errstr => 'ERR_UNKNOWN_SN_ACCOUNT',
-          };
+          $self->{errno}  = 1001001;
+          $self->{errstr} = 'ERR_UNKNOWN_SN_ACCOUNT';
+          return 0;
         }
       }
     }
     else {
-      return {
-        errno  => 1001002,
-        errstr => 'ERR_SN_ERROR_AUTH',
-      };
+      $self->{errno}  = 1001002;
+      $self->{errstr} = 'ERR_SN_ERROR_AUTH';
+      return 0;
     }
   }
 
@@ -172,10 +173,11 @@ sub auth_user {
     ($ret, $session_id, $login) = $self->_passwordless_access($REMOTE_ADDR, $session_id, $login,
       { PASSWORDLESS_GUEST_ACCESS => $self->{conf}->{PASSWORDLESS_GUEST_ACCESS} });
 
+    $session_id //= q{};
+    $session_id =~ s/\W+//xg;
+
     if ($self->{conf}->{user_portal_debug}) {
       my $total = $user->{TOTAL} // 'N/D';
-      $session_id //= q{};
-      $session_id =~ s/\W+//g;
       my $p = $self->{conf}->{PASSWORDLESS_ACCESS} || 0;
       `echo "PA: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $main::DATE $main::TIME PASWORDLESS: $p" >> portal_auth.log`;
     }
@@ -183,8 +185,6 @@ sub auth_user {
     if ($ret) {
       if ($self->{conf}->{user_portal_debug}) {
         my $total = $user->{TOTAL} // 'N/D';
-        $session_id //= q{};
-        $session_id =~ s/\W+//g;
         my $p = $self->{conf}->{PASSWORDLESS_ACCESS} || 0;
         `echo "PA ADD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $main::DATE $main::TIME PASWORDLESS: $p" >> portal_auth.log`;
       }
@@ -193,8 +193,6 @@ sub auth_user {
       if ($user->{errno} && $user->{errno} == 2) {
         if ($self->{conf}->{user_portal_debug}) {
           my $total = $user->{TOTAL} // 'N/D';
-          $session_id //= q{};
-          $session_id =~ s/\W+//g;
           my $p = $self->{conf}{PASSWORDLESS_ACCESS} || 0;
           `echo "PA ADDD: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $main::DATE $main::TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
         }
@@ -212,8 +210,6 @@ sub auth_user {
         $session_id = $user->{SID};
         if ($self->{conf}->{user_portal_debug}) {
           my $total = $user->{TOTAL} // 'N/D';
-          $session_id //= q{};
-          $session_id =~ s/\W+//g;
           my $p = $self->{conf}->{PASSWORDLESS_ACCESS} || 0;
           `echo "PA UPDATE: IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $main::DATE $main::TIME PASWORDLESS: $p A: $ENV{HTTP_USER_AGENT}" >> portal_auth.log`;
         }
@@ -238,7 +234,7 @@ sub auth_user {
       if ($self->{conf}->{user_portal_debug}) {
         #$html->message('err', $lang->{ERROR}, $lang->{NOT_LOGINED}, { ID => 9999 });
         my $total = $user->{TOTAL} // 'N/D';
-        $session_id =~ s/\W+//g;
+        $session_id =~ s/\W+//xg;
         my $p = $self->{conf}->{PASSWORDLESS_ACCESS} || 0;
         `echo " IP: $REMOTE_ADDR SESSION_ID: $session_id TOTAL: $total index: $index DATE: $main::DATE $main::TIME PASWORDLESS: $p" >> portal_auth.log`;
       }
@@ -251,17 +247,15 @@ sub auth_user {
     }
     elsif ($self->{conf}->{web_session_timeout} < $user->{SESSION_TIME}) {
       $user->web_session_del({ SID => $session_id });
-      return {
-        errno  => 1001003,
-        errstr => 'ERR_SESSION_EXPIRE',
-      };
+      $self->{errno}  = 1001003;
+      $self->{errstr} = 'ERR_SESSION_EXPIRE';
+      return 0;
     }
     elsif (!$self->{conf}->{USERPORTAL_MULTI_SESSIONS} && $user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
       $user->web_session_del({ SID => $session_id });
-      return {
-        errno  => 1001004,
-        errstr => 'ERR_WRONG_IP',
-      };
+      $self->{errno}  = 1001004;
+      $self->{errstr} = 'ERR_WRONG_IP';
+      return 0;
     }
     else {
       $user->info($user->{UID}, { USERS_AUTH => 1 });
@@ -276,13 +270,13 @@ sub auth_user {
           });
         }
         else {
-          return {
-            errno  => 1001005,
-            errstr => 'ERR_SN_ACCOUNT_LINKED_TO_OTHER_ACCOUNT',
-            # errmsg => 'You already linked this social auth account to another account identifier.',
-          };
+          $self->{errno}  = 1001005;
+          $self->{errstr} = 'ERR_SN_ACCOUNT_LINKED_TO_OTHER_ACCOUNT';
+          return 0;
         }
       }
+
+      $self->{USER_INFO} = $user;
 
       return ($user->{UID}, $session_id, $user->{LOGIN});
     }
@@ -297,11 +291,10 @@ sub auth_user {
       });
 
       if ($user->{TOTAL} > $self->{conf}->{wi_bruteforce}) {
-        return {
-          errno  => 1001006,
-          errstr => 'ERR_PASSWD_BRUTEFORCE'
+        $self->{errno}  = 1001006;
+        $self->{errstr} = 'ERR_PASSWD_BRUTEFORCE';
           # errmsg => 'You try to brute password and system block your account. Please contact system administrator.'
-        };
+        return 0;
       }
     }
 
@@ -321,14 +314,12 @@ sub auth_user {
     #check password direct from SQL
     else {
       $res = $self->_auth_sql($login, $password, $params) if ($res < 1);
-      return $res if (ref $res eq 'HASH');
     }
   }
   elsif ($login && !$password) {
-    return {
-      errno  => 1001007,
-      errstr => 'ERR_WRONG_PASSWD',
-    };
+    $self->{errno}  = 1001007;
+    $self->{errstr} = 'ERR_WRONG_PASSWD';
+    return 0;
   }
   #Get user ip
   if (defined($res) && $res > 0) {
@@ -352,10 +343,9 @@ sub auth_user {
         });
 
         if (!$OATH->check_access({ SECRET => $user->{_G2FA}, PIN => $params->{g2fa} })) {
-          return {
-            errno  => 1001008,
-            errstr => 'G2FA_WRONG_CODE',
-          };
+          $self->{errno}  = 1001008;
+          $self->{errstr} = 'G2FA_WRONG_CODE';
+          return 0;
         }
       }
     }
@@ -380,10 +370,9 @@ sub auth_user {
             AUTH_STATE  => 0
           });
 
-          return {
-            errno  => 1001009,
-            errstr => 'ERR_ACCESS_DENY',
-          };
+          $self->{errno}  = 1001009;
+          $self->{errstr} = 'ERR_ACCESS_DENY';
+          return 0;
         }
       }
 
@@ -398,10 +387,9 @@ sub auth_user {
       });
     }
     else {
-      return {
-        errno  => 1001010,
-        errstr => 'ERR_WRONG_PASSWD',
-      };
+      $self->{errno}  = 1001010;
+      $self->{errstr} = 'ERR_WRONG_PASSWD';
+      return 0;
     }
   }
   else {
@@ -413,14 +401,15 @@ sub auth_user {
         AUTH_STATE  => $ret
       });
 
-      return {
-        errno  => 1001011,
-        errstr => 'ERR_WRONG_PASSWD',
-      };
+      $self->{errno}  = 1001011;
+      $self->{errstr} = 'ERR_WRONG_PASSWD';
+      return 0;
     }
 
     $ret = 0;
   }
+
+  $self->{USER_INFO} = $user;
 
   return ($ret, $session_id, $login);
 }
@@ -441,8 +430,8 @@ sub auth_user {
 =cut
 #**********************************************************
 sub _passwordless_access {
-  my $self = shift;
-  my ($remote_addr, $session_id, $login, $attr) = @_;
+  my ($self, $remote_addr, $session_id, $login, $attr) = @_;
+
   my $auth_uid = 0;
 
   require Internet::Sessions;
@@ -477,10 +466,9 @@ sub _passwordless_access {
       $user->group_info($user->{GID});
 
       if ($user->{DISABLE_ACCESS}) {
-        return {
-          errno  => 1001012,
-          errstr => 'ERR_ACCESS_DENY',
-        };
+        $self->{errno}  = 1001012;
+        $self->{errstr} = 'ERR_ACCESS_DENY';
+        return 0;
       }
     }
   }
@@ -506,10 +494,9 @@ sub _passwordless_access {
         $user->group_info($user->{GID});
 
         if ($user->{DISABLE_ACCESS}) {
-          return {
-            errno  => 1001013,
-            errstr => 'ERR_ACCESS_DENY',
-          };
+          $self->{errno}  = 1001013;
+          $self->{errstr} = 'ERR_ACCESS_DENY';
+          return 0;
         }
       }
 
@@ -518,6 +505,8 @@ sub _passwordless_access {
   }
 
   $session_id= mk_unique_value(14) if ($auth_uid);
+
+  $self->{USER_INFO}=$user;
 
   return ($auth_uid, $session_id, $login);
 }
@@ -528,8 +517,8 @@ sub _passwordless_access {
 =cut
 #**********************************************************
 sub _auth_sql {
-  my $self = shift;
-  my ($user_name, $password, $attr) = @_;
+  my ($self, $user_name, $password, $attr) = @_;
+
   my $ret = 0;
 
   $self->{conf}->{WEB_AUTH_KEY} //= 'LOGIN';
@@ -543,7 +532,7 @@ sub _auth_sql {
     });
   }
   else {
-    my @a_method = split(/,/, $self->{conf}->{WEB_AUTH_KEY});
+    my @a_method = split(/,/x, $self->{conf}->{WEB_AUTH_KEY});
     foreach my $auth_param (@a_method) {
       $user->list({
         $auth_param => $user_name,
@@ -562,26 +551,24 @@ sub _auth_sql {
 
   if ($user->{TOTAL} < 1) {
     if (!$self->{conf}->{PORTAL_START_PAGE}) {
-      return {
-        errno  => 1001014,
-        errstr => 'ERR_WRONG_PASSWD',
-      };
+      $self->{errno}  = 1001014;
+      $self->{errstr} = 'ERR_WRONG_PASSWD';
+      return 0;
     }
   }
   elsif ($user->{errno}) {
-    return {
-      errno  => 1001015,
-      errstr => 'ERR_ACCESS_DENY',
-    };
+    $self->{errno}  = 1001015;
+    $self->{errstr} = 'ERR_ACCESS_DENY';
+    return 0;
   }
   elsif ($user->{DELETED}) {
-    return {
-      errno  => 1001016,
-      errstr => 'ERR_ACCESS_DENY',
-    };
+    $self->{errno}  = 1001016;
+    $self->{errstr} = 'ERR_ACCESS_DENY';
+    return 0;
   }
   else {
     $ret = $user->{UID} || $user->{list}->[0]->{uid};
+    $self->{USER_INFO}=$user;
   }
 
   $self->{admin}->{DOMAIN_ID} = $user->{DOMAIN_ID};

@@ -1,0 +1,6 @@
+/user/addresses/districts:
+  $ref: "./paths/districts.yaml"
+/user/addresses/streets:
+  $ref: "./paths/streets.yaml"
+/user/addresses/builds:
+  $ref: "./paths/builds.yaml"

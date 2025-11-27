@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <form name='HOTSPOT_ADVERT' id='form_HOTSPOT_ADVERT' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 
       <div class='form-group'>

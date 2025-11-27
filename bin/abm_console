@@ -19,13 +19,12 @@ use strict;
 use warnings FATAL => 'all';
 our (
   %lang,
-  %FORM,
+  #%FORM,
   %conf,
   $admin,
   @MODULES,
   $DATE,
   $TIME,
-  @_COLORS
 );
 
 BEGIN {
@@ -53,7 +52,7 @@ use Abills::Defs;
 use Abills::Misc;
 use Abills::Templates;
 
-my $version = 0.42;
+my $version = 0.43;
 my $debug = 1;
 my $user;
 
@@ -69,12 +68,12 @@ $admin = Admins->new($db, \%conf);
 our $html = Abills::HTML->new({ CONF => \%conf });
 
 my $ip = '127.0.0.5';
-if ($ENV{SSH_CLIENT} && $ENV{SSH_CLIENT} =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {
+if ($ENV{SSH_CLIENT} && $ENV{SSH_CLIENT} =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/xm) {
   $ip = $1;
 }
 else {
-  $ip = `if [ \`uname\` = 'FreeBSD' ]; then cure_tty=\`tty | sed  's/.*\\(p[0-9]]*\\)/\\1/g'\`; w -n | grep \${cure_tty} | awk '{ print \$3 }'; else  who -m | awk '{ print \$5 }'; fi`;
-  if ($ip && $ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {
+  $ip = cmd("if [ \`uname\` = 'FreeBSD' ]; then cure_tty=\`tty | sed  's/.*\\(p[0-9]]*\\)/\\1/g'\`; w -n | grep \${cure_tty} | awk '{ print \$3 }'; else  who -m | awk '{ print \$5 }'; fi");
+  if ($ip && $ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/xm) {
     $ip = $1;
   }
 }
@@ -165,35 +164,35 @@ if ($#ARGV == -1) {
     if ($input eq '?') {
       console_help();
     }
-    elsif ($input =~ /exit|q|quit/) {
+    elsif ($input =~ /exit|q|quit/xm) {
       exit;
     }
     else {
       $LIST_PARAMS{LOGIN} = $input;
-      form_users();
+      form_users($argv);
     }
   }
 }
 
 if ($argv->{INTERNET_USER}) {
-  internet_users();
+  internet_users($argv);
 }
 elsif ($argv->{PAYMENTS}) {
-  form_payments();
+  form_payments($argv);
 }
 elsif ($argv->{FEES}) {
-  form_fees();
+  form_fees($argv);
 }
 elsif ($argv->{LOGIN} || $argv->{ADD_USER}) {
-  form_users({ %$argv });
+  form_users($argv);
 }
 elsif ($argv->{PI}) {
   $LIST_PARAMS{LOGIN} = $argv->{PI};
-  form_users({ %$argv });
+  form_users($argv);
 }
 elsif ($argv->{LOGIN_CHANGE}) {
   $LIST_PARAMS{LOGIN} = $argv->{LOGIN_CHANGE};
-  form_users({ %$argv });
+  form_users($argv);
 }
 elsif ($argv->{IMPORT}) {
   form_login_import();
@@ -218,36 +217,41 @@ if ($debug > 3) {
 #************************************************
 =head2 internet_users($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #************************************************
 sub internet_users {
-  #my ($attr) = @_;
+  my ($attr) = @_;
 
   my $list;
-  if ($argv->{CONTRACT_ID}) {
-    $list = $users->list({ CONTRACT_ID => $argv->{CONTRACT_ID}, COLS_NAME => 1 });
-    $argv->{INTERNET_USER} = $list->[0]->{login};
+  if ($attr->{CONTRACT_ID}) {
+    $list = $users->list({ CONTRACT_ID => $attr->{CONTRACT_ID}, COLS_NAME => 1 });
+    $attr->{INTERNET_USER} = $list->[0]->{login};
   }
 
-  $users->info(0, { LOGIN => $argv->{ADD_USER} || $argv->{INTERNET_USER} || $list->[0]->{login} });
+  $users->info(0, { LOGIN => $attr->{ADD_USER} || $attr->{INTERNET_USER} || $list->[0]->{login} });
 
   if ($users->{TOTAL}) {
     print "LOGIN: $users->{LOGIN} UID: $users->{UID}\n";
   }
 
-  if ($argv->{add} || $argv->{ADD_USER}) {
-    form_users($argv);
+  if ($attr->{add} || $attr->{ADD_USER}) {
+    form_users($attr);
 
-    $Internet->user_add($argv);
+    $Internet->user_add($attr);
     if (!$Internet->{errno}) {
       print "Added\n";
     }
   }
-  elsif ($argv->{change}) {
-    $Internet->change({ UID => $users->{UID}, $argv });
+  elsif ($attr->{change}) {
+    $Internet->change({ UID => $users->{UID}, $attr });
 
     if ($Internet->{TP_INFO}->{MONTH_FEE} > 0) {
-      $Internet->{ACTIVATE} = ($argv->{ACTIVATE}) ? $argv->{ACTIVATE} : $users->{ACTIVATE};
+      $Internet->{ACTIVATE} = ($attr->{ACTIVATE}) ? $attr->{ACTIVATE} : $users->{ACTIVATE};
       internet_get_month_fee($Internet);
     }
 
@@ -266,6 +270,11 @@ sub internet_users {
 
 #**********************************************************
 =head2 internet_get_month_fee($Internet, $attr) - Make month feee
+
+  Arguments:
+    $Internet
+  Results:
+    TRUE or FASLE
 
 =cut
 #**********************************************************
@@ -300,8 +309,8 @@ sub internet_get_month_fee {
     my $message = '';
 
     #Current Month
-    my ($y, $m, $d) = split(/-/, $DATE, 3);
-    my ($active_y, $active_m, $active_d) = split(/-/, $Internet_->{ACTIVATE}, 3);
+    my ($y, $m, $d) = split(/-/x, $DATE, 3);
+    my ($active_y, $active_m, $active_d) = split(/-/x, $Internet_->{ACTIVATE}, 3);
 
     if ($Internet_->{TP_INFO}->{PERIOD_ALIGNMENT}) {
       $message = "$lang{MONTH_ALIGNMENT}, ";
@@ -384,59 +393,6 @@ sub internet_get_month_fee {
   return 1;
 }
 
-##**********************************************************
-#=head2 mk_menu_console()
-#
-#=cut
-##**********************************************************
-#sub mk_menu_console {
-#  my %module_fl  = ();
-#  my %menu_names = ();
-#  my %module     = ();
-#  my %functions  = ();
-#  my %uf_menus   = ();
-#  my %menu_args  = ();
-#  my %menu_items = ();
-#
-#  my $maxnumber = 0;
-#
-#  foreach my $m (@MODULES) {
-#    if (my $return = do "Abills/modules/$m/config") {
-#    }
-#
-#    next if (keys %FUNCTION_LIST < 1);
-#    my @sordet_module_menu = sort keys %FUNCTION_LIST;
-#
-#    foreach my $line (@sordet_module_menu) {
-#      $maxnumber++;
-#      my ($ID, $SUB, $NAME, $FUNTION_NAME, $argv) = split(/:/, $line, 5);
-#      $ID = int($ID);
-#      my $v = $FUNCTION_LIST{$line};
-#
-#      $module_fl{"$ID"} = $maxnumber;
-#
-#      #$fl .= "$FUNTION_NAME $maxnumber\n";
-#      $menu_args{$maxnumber} = $argv;
-#
-#      if ($SUB > 0) {
-#        $menu_items{$maxnumber}{ $module_fl{$SUB} } = $NAME;
-#      }
-#      else {
-#        $menu_items{$maxnumber}{$v} = $NAME;
-#        if ($SUB == -1) {
-#          $uf_menus{$maxnumber} = $NAME;
-#        }
-#      }
-#
-#      $menu_names{$maxnumber} = $NAME;
-#      $functions{$maxnumber}  = $FUNTION_NAME if ($FUNTION_NAME ne '');
-#      $module{$maxnumber}     = $m;
-#    }
-#
-#    %FUNCTION_LIST = ();
-#  }
-#}
-
 #**********************************************************
 =head2 get_admin_info($login)
 
@@ -455,13 +411,13 @@ sub get_admin_info {
     close($fh);
   }
 
-  my @rows = split(/\n/, $content);
+  my @rows = split(/\n/x, $content);
 
   foreach my $line (@rows) {
-    next if ($line =~ /^#/);
-    my ($k, $v) = split(/=/, $line, 2);
-    $k =~ s/ //g if ($k);
-    $v =~ s/ //g if ($v);
+    next if ($line =~ /^\#/x);
+    my ($k, $v) = split(/=/x, $line, 2);
+    $k =~ s/\s+//xg if ($k);
+    $v =~ s/\s+//xg if ($v);
     $admin_info{$k} = $v;
   }
 
@@ -490,6 +446,12 @@ sub get_admin_info {
 #**********************************************************
 =head2 check_permissions($login, $password, $attr)
 
+  Arguments:
+    $login
+    $password
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub check_permissions {
@@ -499,10 +461,10 @@ sub check_permissions {
     return 1;
   }
 
-  $login =~ s/"/\\"/g;
-  $login =~ s/'/\''/g;
-  $password =~ s/"/\\"/g;
-  $password =~ s/'/\\'/g;
+  $login =~ s/"/\\"/xg;
+  $login =~ s/'/\''/xg;
+  $password =~ s/"/\\"/xg;
+  $password =~ s/'/\\'/xg;
 
   my %PARAMS = (
     LOGIN     => "$login",
@@ -523,9 +485,9 @@ sub check_permissions {
   }
 
   if ($admin->{WEB_OPTIONS}) {
-    my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS});
+    my @WO_ARR = split(/;/x, $admin->{WEB_OPTIONS});
     foreach my $line (@WO_ARR) {
-      my ($k, $v) = split(/=/, $line);
+      my ($k, $v) = split(/=/x, $line);
       $admin->{SETTINGS}{$k} = $v if($k);
     }
   }
@@ -574,6 +536,7 @@ abm_console console ABillS managment. Version: $version
 
 [END]
 
+  return 1;
 }
 
 #**********************************************************
@@ -641,10 +604,16 @@ sub form_pi {
   my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
   print "$lang{FIO}: " . (($user->{FIO}) ? $user->{FIO} : '') . "\n" . "$lang{PHONE}: " . (($user->{PHONE}) ? $user->{PHONE} : '') . "\n" . "$lang{ADDRESS}:   $user->{ADDRESS_STREET}$build_delimiter$user->{ADDRESS_BUILD}$build_delimiter$user->{ADDRESS_FLAT}\n" . "$lang{CONTRACT}:  $user->{CONTRACT_ID} $user->{CONTRACT_DATE}\n";
 
+  return 1;
 }
 
 #**********************************************************
 =head2 form_users_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FASLE
 
 =cut
 #**********************************************************
@@ -677,35 +646,43 @@ sub form_users_change {
 
     return 0;
   }
+
+  return 1;
 }
 
 #**********************************************************
 =head2 form_users($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
 
 =cut
 #**********************************************************
 sub form_users {
   my ($attr) = @_;
 
-  if ($argv->{ADD_USER}) {
-    $argv->{LOGIN} = $argv->{ADD_USER};
-    $argv->{CREATE_BILL} = 1;
+  if ($attr->{ADD_USER}) {
+    $attr->{LOGIN} = $attr->{ADD_USER};
+    $attr->{CREATE_BILL} = 1;
 
-    $users->add($argv);
+    $users->add($attr);
     if (!$users->{errno}) {
-      $argv->{UID} = $users->{UID};
-      $users->pi_add($argv);
+      $attr->{UID} = $users->{UID};
+      $users->pi_add($attr);
 
       if (!$users->{errno}) {
-        print "$argv->{ADD_USER} added\n";
-        $argv->{SUM} = $argv->{DEPOSIT};
-        delete($argv->{DEPOSIT});
-        if ($argv->{SUM} > 0) {
-          $argv->{ADD} = 1;
+        print "$attr->{ADD_USER} added\n";
+        $attr->{SUM} = $attr->{DEPOSIT};
+        delete($attr->{DEPOSIT});
+        if ($attr->{SUM} > 0) {
+          $attr->{ADD} = 1;
           form_payments();
         }
-        elsif ($argv->{SUM} < 0) {
-          $argv->{GET} = 1;
+        elsif ($attr->{SUM} < 0) {
+          $attr->{GET} = 1;
           form_fees();
         }
       }
@@ -748,7 +725,7 @@ sub form_users {
 
       while (1) {
         for (my $i = 0; $i <= $#user_functions; $i++) {
-          my ($function_name, undef) = split(/:/, $user_functions[$i], 2);
+          my ($function_name, undef) = split(/:/x, $user_functions[$i], 2);
           print " [$i] $function_name\n";
         }
 
@@ -760,13 +737,13 @@ sub form_users {
         if ($input eq '') {
 
         }
-        elsif ($input =~ /exit|quite|q/ || ($input =~ /\d+/ && $input == 1)) {
+        elsif ($input =~ /exit|quite|q/xm || ($input =~ /\d+/xm && $input == 1)) {
           return 0;
         }
-        elsif ($input =~ /(\d+)/) {
+        elsif ($input =~ /(\d+)/xm) {
           my $function_id = $1;
           if ($user_functions[$function_id]) {
-            my (undef, $function) = split(/:/, $user_functions[$function_id], 2);
+            my (undef, $function) = split(/:/x, $user_functions[$function_id], 2);
             &{\&$function}({ USER_INFO => $users });
           }
         }
@@ -802,25 +779,25 @@ sub form_users {
         %LIST_PARAMS,
         COLS_NAME => 1
       });
-      $total = $Internet->{TOTAL};
+      $total = $Internet->{TOTAL} || 0;
     }
     else {
       $users_list = $users->list({ %LIST_PARAMS, COLS_NAME => 1 });
-      $total = $users->{TOTAL};
+      $total = $users->{TOTAL} || 0;
     }
 
-    if ($total) {
+    if ($total > 0) {
       if ($total == 1) {
         $LIST_PARAMS{UID} = $users_list->[0]->{uid};
       }
 
-      if( $argv->{FULL_DELETE}) {
+      if( $attr->{FULL_DELETE}) {
         my $deleted = 0;
 
         foreach my $line (@$users_list) {
           $deleted++;
           print "User: $line->{uid} (DELETED: ". ($line->{deleted} || q{}) .")\n";
-          if (defined($argv->{FULL_DELETE})) {
+          if (defined($attr->{FULL_DELETE})) {
             if ($line->{deleted}) {
               $users->info($line->{uid});
               print "DELETED ($deleted)\n";
@@ -864,14 +841,14 @@ sub form_users {
   if ($attr->{PI}) {
     $users->pi_change({ %$attr, UID => $LIST_PARAMS{UID} });
   }
-  elsif($LIST_PARAMS{UID} && ! $argv->{DEL}) {
+  elsif($LIST_PARAMS{UID} && ! $attr->{DEL}) {
     $users->change($LIST_PARAMS{UID}, { %$attr, UID => $LIST_PARAMS{UID} });
   }
   else {
     foreach my $line ( @$users_list ) {
       printf(" %-16s|%20s|%11f|%-5d|\n", $line->{login}, $line->{fio} || q{}, $line->{deposit} || 0, $line->{uid});
 
-      if($argv->{DEL}) {
+      if($attr->{DEL}) {
         $users->change($line->{uid}, { UID => $line->{uid}, DELETED => 1 });
       }
     }
@@ -884,7 +861,6 @@ sub form_users {
     print "[$users->{errno}] $users->{errstr}\n";
   }
 
-
   return 0;
 }
 
@@ -894,7 +870,7 @@ sub form_users {
 =cut
 #**********************************************************
 sub form_fees {
-  #my ($attr) = @_;
+  my ($attr) = @_;
 
   if ($interact) {
     print ">> $lang{FEES}:\n";
@@ -921,24 +897,24 @@ sub form_fees {
     return 0;
   }
 
-  if ($argv->{GET}) {
-    if (!$argv->{UID}) {
-      $argv->{LOGIN} = $argv->{FEES} if (!$argv->{LOGIN});
+  if ($attr->{GET}) {
+    if (!$attr->{UID}) {
+      $attr->{LOGIN} = $attr->{FEES} if (!$attr->{LOGIN});
     }
 
-    delete $argv->{FEES};
+    delete $attr->{FEES};
     my $list = $users->list({
       BILL_ID   => '_SHOW',
-      %$argv,
+      %$attr,
       %LIST_PARAMS,
       COLS_NAME => 1,
       FEES      => undef
     });
 
     my $FORM;
-    $FORM->{SUM} = abs($argv->{SUM} || $argv->{GET});
-    $FORM->{DESCRIBE} = $argv->{DESCRIBE} || '';
-    $FORM->{METHOD} = $argv->{METHOD} || '';
+    $FORM->{SUM} = abs($attr->{SUM} || $attr->{GET});
+    $FORM->{DESCRIBE} = $attr->{DESCRIBE} || '';
+    $FORM->{METHOD} = $attr->{METHOD} || '';
 
     if ($users->{TOTAL} > 0) {
       foreach my $line (@$list) {
@@ -949,7 +925,7 @@ sub form_fees {
 
         print "LOGIN: $line->{login} UID: $user_->{UID} BILL_ID: $user_->{BILL_ID} SUM: $FORM->{SUM}\n" if ($debug > 0);
 
-        $Fees->take($user_, $FORM->{SUM}, { %$FORM, %$argv });
+        $Fees->take($user_, $FORM->{SUM}, { %$FORM, %$attr });
 
         if ($Fees->{errno}) {
           print "Error: $Fees->{errno}";
@@ -961,8 +937,8 @@ sub form_fees {
 
   my @args = ('GET', 'DEL', 'METHOD', 'DATE', 'DESCRIBE', 'LOGIN', 'UID');
   foreach my $arg (@args) {
-    if (defined($argv->{$arg})) {
-      $LIST_PARAMS{$arg} = $argv->{$arg};
+    if (defined($attr->{$arg})) {
+      $LIST_PARAMS{$arg} = $attr->{$arg};
     }
   }
 
@@ -979,7 +955,7 @@ sub form_fees {
   foreach my $line (@$list) {
     printf("%-5d| %-16s|%19s|%11.2f|%-20s|\n", $line->{id}, $line->{login}, $line->{datetime}, $line->{sum}, $line->{dsc});
 
-    if ($argv->{DEL}) {
+    if ($attr->{DEL}) {
       $Fees->del({ UID => $line->{uid} }, $line->{id});
       print "$lang{DEL}\n";
     }
@@ -1000,7 +976,7 @@ sub form_fees {
 =cut
 #**********************************************************
 sub form_payments {
-  #my ($attr) = @_;
+  my ($attr) = @_;
 
   my $FORM;
 
@@ -1031,17 +1007,17 @@ sub form_payments {
     return 0;
   }
 
-  if ($argv->{ADD}) {
-    if (!$argv->{UID}) {
-      $argv->{LOGIN} = $argv->{PAYMENTS} if (!$argv->{LOGIN});
+  if ($attr->{ADD}) {
+    if (!$attr->{UID}) {
+      $attr->{LOGIN} = $attr->{PAYMENTS} if (!$attr->{LOGIN});
     }
 
-    delete $argv->{PAYMENTS};
+    delete $attr->{PAYMENTS};
     delete $LIST_PARAMS{PAYMENTS};
 
-    if ($argv->{GROUP_NAME}) {
+    if ($attr->{GROUP_NAME}) {
       my $groups_list = $users->groups_list({
-        G_NAME          => $argv->{GROUP_NAME},
+        G_NAME          => $attr->{GROUP_NAME},
         COLS_NAME       => 1,
         GID             => '_SHOW',
         NAME            => '_SHOW',
@@ -1059,16 +1035,16 @@ sub form_payments {
 
     my $list = $users->list({
       BILL_ID   => '_SHOW',
-      %$argv,
+      %$attr,
       %LIST_PARAMS,
       COLS_NAME => 1
     });
 
-    $FORM->{SUM} = $argv->{ADD} || $argv->{SUM};
-    $FORM->{DESCRIBE} = $argv->{DESCRIBE} || '';
-    $FORM->{METHOD} = $argv->{METHOD} || '';
+    $FORM->{SUM} = $attr->{ADD} || $attr->{SUM};
+    $FORM->{DESCRIBE} = $attr->{DESCRIBE} || '';
+    $FORM->{METHOD} = $attr->{METHOD} || '';
 
-    my $ext_id = $argv->{EXT_ID};
+    my $ext_id = $attr->{EXT_ID};
 
     if ($users->{TOTAL} > 0) {
       foreach my $line (@$list) {
@@ -1079,7 +1055,7 @@ sub form_payments {
 
         if ($ext_id) {
           $FORM->{EXT_ID} = $ext_id || '';
-          $FORM->{EXT_ID} =~ s/\%UID\%/$line->{uid}/g;
+          $FORM->{EXT_ID} =~ s/\%UID\%/$line->{uid}/xg;
           $FORM->{CHECK_EXT_ID} = $FORM->{EXT_ID} || '';
         }
 
@@ -1089,7 +1065,7 @@ sub form_payments {
           {
             SUM    => $FORM->{SUM},
             %$FORM,
-            %$argv,
+            %$attr,
             EXT_ID => ($ext_id) ? $FORM->{EXT_ID} : ''
           }
         );
@@ -1100,8 +1076,8 @@ sub form_payments {
 
   my @args = ('ADD', 'DEL', 'METHOD', 'DATE', 'DESCRIBE');
   foreach my $arg (@args) {
-    if (defined($argv->{$arg})) {
-      $LIST_PARAMS{$arg} = $argv->{$arg};
+    if (defined($attr->{$arg})) {
+      $LIST_PARAMS{$arg} = $attr->{$arg};
     }
   }
 
@@ -1122,7 +1098,7 @@ sub form_payments {
       $line->{dsc} || q{},
       $line->{sum} || 0);
 
-    if ($argv->{DEL}) {
+    if ($attr->{DEL}) {
       $Payments->del({ UID => $line->{uid} }, $line->{id});
       print "$lang{DEL}\n";
     }
@@ -1146,7 +1122,7 @@ sub form_parse2 {
   my ($keys) = @_;
   my %values = ();
   foreach my $k (@$keys) {
-    my ($describe, $key, $default) = split(/:/, $k);
+    my ($describe, $key, $default) = split(/:/x, $k);
     print "$describe:";
     my $val = '';
     chop($val = <STDIN>);
@@ -1173,12 +1149,14 @@ sub form_parse2 {
 #
 #**********************************************************
 sub console_help {
+
   print <<"[END]";
 ABM Console Help. Version: $version:
  s           - user search menu
  exit|q|quit - exit
 
 [END]
+  return 1;
 }
 
 #**********************************************************
@@ -1210,13 +1188,13 @@ sub mk_bonus {
       print "\n";
     }
 
-    $argv->{ADD} = 1;
+    $attr->{ADD} = 1;
 
-    $argv->{UID} = $line->{UID};
-    $argv->{SUM} = $line->{SUM} || $argv->{SUM};;
+    $attr->{UID} = $line->{UID};
+    $attr->{SUM} = $line->{SUM} || $attr->{SUM};;
     #BILL_ID  LAST_DEPOSIT METHOD NOW() SUM UID
-    $argv->{DESCRIBE} = $line->{DESCRIBE} || $argv->{DESCRIBE};
-    $argv->{METHOD} = $line->{METHOD} || $argv->{METHOD};
+    $attr->{DESCRIBE} = $line->{DESCRIBE} || $attr->{DESCRIBE};
+    $attr->{METHOD} = $line->{METHOD} || $attr->{METHOD};
 
     form_payments();
 
@@ -1246,20 +1224,25 @@ sub form_login_import {
 }
 
 #**********************************************************
-=head2 internet_main
-  main function for internet operations
+=head2 internet_main($attr) - main function for internet operations
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub internet_main {
+  my ($attr)=@_;
 
-  if ($argv->{CREDIT}) {
+  if ($attr->{CREDIT}) {
     print "\nCredit: ";
-    print internet_credit();
+    print internet_credit($attr);
   }
-  elsif ($argv->{CHANGE_TP}) {
+  elsif ($attr->{CHANGE_TP}) {
     print "\nChange_tp: ";
-    print internet_change_tp();
+    print internet_change_tp($attr);
   }
 
   return 1;
@@ -1267,25 +1250,30 @@ sub internet_main {
 
 #**********************************************************
 =head2 internet_credit
-  activate credit
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub internet_credit {
+  my ($attr)=@_;
 
-  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change});
+  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/x, $conf{user_credit_change});
 
-  return "Error. Wrong UID.\n" unless ($argv->{UID});
+  return "Error. Wrong UID.\n" unless ($attr->{UID});
 
-  $users->info($argv->{UID});
-  $Internet->user_info($argv->{UID});
+  $users->info($attr->{UID});
+  $Internet->user_info($attr->{UID});
 
   if ($user->{DISABLE}) {
     return "_{DISABLE}_\n";
   }
 
   if ($month_changes) {
-    my ($y, $m, undef) = split(/\-/, $DATE);
+    my ($y, $m, undef) = split(/\-/x, $DATE);
     $admin->action_list(
       {
         UID       => $users->{UID},
@@ -1313,10 +1301,10 @@ sub internet_credit {
       PERCENT         => 100
     );
 
-    my @params_arr = split(/;/, $payments_expr);
+    my @params_arr = split(/;/x, $payments_expr);
 
     foreach my $line (@params_arr) {
-      my ($k, $v) = split(/=/, $line);
+      my ($k, $v) = split(/=/x, $line);
       $params{$k} = $v;
     }
 
@@ -1340,7 +1328,6 @@ sub internet_credit {
   }
 
   if ($users->{CREDIT} < sprintf("%.2f", $sum)) {
-
     $users->change(
       $user->{UID},
       {
@@ -1366,25 +1353,31 @@ sub internet_credit {
   else {
     return "_{CREDIT}_ _{UNAVAILABLE}_\n";
   }
+
 }
 
 #**********************************************************
-=head2 internet_change_tp
-  activate credit
+=head2 internet_change_tp($attr) -  activate credit
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub internet_change_tp {
+  my($attr)=@_;
 
-  return "UID not specified\n" if (!$argv->{UID});
+  return "UID not specified\n" if (!$attr->{UID});
 
-  $users->info($argv->{UID});
+  $users->info($attr->{UID});
   use Internet::Service_mng;
   my $Service = Internet::Service_mng->new({ db => $db, admin => $admin, conf => \%conf });
   $Service->service_chg_tp({
-    UID          => $argv->{UID},
-    ID           => $argv->{SERVICE},
-    TP_ID        => $argv->{CHANGE_TP},
+    UID          => $attr->{UID},
+    ID           => $attr->{SERVICE},
+    TP_ID        => $attr->{CHANGE_TP},
     SERVICE      => $Internet,
     USER         => $users,
     set          => 1,
@@ -1403,4 +1396,4 @@ sub internet_change_tp {
   return "_{CHANGED}_\n";
 }
 
-1
+1;

@@ -180,7 +180,7 @@ sub export_task {
   if ($self->{RESULT} && $self->{RESULT}->{issue}->{id}) {
     $self->{TASK_ID} = $self->{RESULT}->{issue}->{id};
     $self->{TASK_LINK} = $self->{api_url};
-    $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//;
+    $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//x;
     $self->{TASK_LINK} .= '/issues/' . $self->{TASK_ID};
   }
 
@@ -204,7 +204,7 @@ sub task_info {
     METHOD   => 'GET',
   });
   $self->{TASK_LINK} = $self->{api_url};
-  $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//;
+  $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//x;
   $self->{TASK_LINK} .= '/issues/' . $task_id;
 
   if ($self->{RESULT} && $self->{RESULT}{issues} && $self->{RESULT}{issues}[0]) {
@@ -244,7 +244,6 @@ sub project_info {
 #**********************************************************
 sub project_list {
   my $self = shift;
-  #my ($attr) = @_;
 
   $self->send_request({ ACTION => 'projects.json' });
 
@@ -289,22 +288,21 @@ sub send_request {
     TPL_DIR       => $CONF->{TPL_DIR}
   });
 
-
   $result = $attr->{_RESULT} if ($attr->{_RESULT});
 
-  if ($result =~ /API not enabled/) {
+  if ($result =~ /API\s+not\s+enabled/xm) {
     $self->{errno} = 3;
     $self->{error} = 3;
     $self->{errstr} = "API_NOT_ENABLED";
     return $result;
   }
-  elsif ($result =~ /Timeout/) {
+  elsif ($result =~ /Timeout/xm) {
     $self->{errno} = 50;
     $self->{error} = 50;
     $self->{errstr} = "TIMEOUT";
     return $result;
   }
-  elsif ($result =~ /Not Found/) {
+  elsif ($result =~ /Not\s+Found/xm) {
     $self->{errno} = 4;
     $self->{error} = 4;
     $self->{errstr} = "NOT_FOUND";
@@ -326,4 +324,4 @@ sub send_request {
   return $result;
 }
 
-1
+1;

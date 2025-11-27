@@ -1,5 +1,5 @@
 <form method='post'>
-<input type='hidden' name='index' value='$index' />
+<input type='hidden' name='index' value='%index%' />
 <input type='hidden' name='export' value='1' />
 
 <div class='card box-primary form-horizontal'>

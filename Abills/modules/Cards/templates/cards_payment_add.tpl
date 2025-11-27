@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' name='form_card_add'>
+<form action='%SELF_URL%' METHOD='POST' name='form_card_add'>
   <div class='card card-secondary'>
     <div class='card-header with-border'>
       <h4 class='card-title'>
@@ -7,7 +7,7 @@
     </div>
     <div class='card-body form'>
       <input type='hidden' name='sid' value='%sid%'>
-      <input type='hidden' name='index' value='$index'>
+      <input type='hidden' name='index' value='%index%'>
       <input type='hidden' name='UID' value='%UID%'>
 
       <div class='form-group row %SERIAL_HIDDEN%'>

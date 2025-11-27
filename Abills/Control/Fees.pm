@@ -25,6 +25,11 @@ our Abills::HTML $html;
 #**********************************************************
 =head2 form_fees($attr)
 
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub form_fees {
@@ -39,7 +44,7 @@ sub form_fees {
   my $FEES_METHODS = get_fees_types({ PARENT_ID => 0 });
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
-    $FORM{METHOD} =~ s/,/;/g if $FORM{METHOD};
+    $FORM{METHOD} =~ s/,/;/xg if $FORM{METHOD};
     $FORM{type} = $FORM{subf} if ($FORM{subf});
     if ($FORM{search_form} || $FORM{search}) {
       form_search({
@@ -71,8 +76,8 @@ sub form_fees {
 
     $Fees->{UID} = $user->{UID};
     if ($FORM{take} && $FORM{SUM}) {
-      $FORM{SUM} =~ s/,/\./g;
-      $FORM{SUM} =~ s/\s+//g;
+      $FORM{SUM} =~ s/,/\./xg;
+      $FORM{SUM} =~ s/\s+//xg;
 
       if ($FORM{ER} && $FORM{ER} > 0) {
         my $er = $Fees->exchange_info($FORM{ER});
@@ -91,7 +96,7 @@ sub form_fees {
           }
         }
         else {
-          my ($Y, $M, $D) = split(/-/, $FEES_DATE);
+          my ($Y, $M, $D) = split(/-/x, $FEES_DATE);
           $FORM{METHOD} //= 0;
           $Shedule->add({
             DESCRIBE => $FORM{DESCR},
@@ -144,7 +149,7 @@ sub form_fees {
         return 0;
       }
 
-      if ($FORM{del} !~ /,/ || ($FORM{UID} && $permissions{0}{42})) {
+      if ($FORM{del} !~ /,/xm || ($FORM{UID} && $permissions{0}{42})) {
         my @fees_ids = split(',\s?', $FORM{del});
         foreach my $fees_id (@fees_ids) {
           $Fees->del($user, $fees_id, { COMMENTS => $FORM{COMMENTS} });
@@ -172,7 +177,7 @@ sub form_fees {
       });
 
       foreach my $line (@$list) {
-        my ($sum, undef) = split(/:/, $line->{action});
+        my ($sum, undef) = split(/:/x, $line->{action});
         my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL}, "index=85&del=$line->{id}",
           { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' } ) : '';
 
@@ -302,18 +307,6 @@ sub form_fees_list {
     FUNCTION_INDEX  => $index,
     MULTISELECT     => $FORM{UID} && $permissions{0}{42} ? 'del:id:FEES' : '',
     FILTER_VALUES   => {
-      ext_deposit      => sub {
-        my $ext_deposit = shift;
-        $ext_deposit //= 0;
-
-        return ($ext_deposit < 0) ? $html->color_mark(format_sum($ext_deposit), $_COLORS[6]) : format_sum($ext_deposit);
-      },
-      ext_bill_deposit => sub {
-        my $ext_bill_deposit = shift;
-
-        return $ext_bill_deposit if !$conf{EXT_BILL_ACCOUNT};
-        return $ext_bill_deposit < 0 ? $html->color_mark($ext_bill_deposit, $_COLORS[6]) : $ext_bill_deposit;
-      },
       deleted          => sub {
         my $deleted = shift;
         $deleted //= 0;
@@ -323,33 +316,21 @@ sub form_fees_list {
         my ($dsc, $fee) = @_;
 
         $dsc //= '';
-        $dsc =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/g;
+        $dsc =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/xg;
         $dsc = Abills::Base::convert($dsc, { text2html => 1 });
-        if ($dsc =~ /PAYMENT: (\d+)/) {
+        if ($dsc =~ /PAYMENT:\s+(\d+)/x) {
           my $button = $html->button($1, "index=2&search=1&ID=$1", { BUTTON => 1 });
-          $dsc =~ s/PAYMENT: (\d+)/PAYMENT: $button/;
+          $dsc =~ s/PAYMENT:\s+(\d+)/PAYMENT: $button/x;
         }
         $fee->{inner_describe} = Abills::Base::convert($fee->{inner_describe}, { text2html => 1 }) if ($fee->{inner_describe});
 
-        if ($dsc =~ /# (\d+)/ && in_array('Msgs', \@MODULES)) {
+        if ($dsc =~ /\#\s+(\d+)/mx && in_array('Msgs', \@MODULES)) {
           $dsc = $html->button($dsc, "index=" . get_function_index('msgs_admin') . "&chg=$1");
         }
 
         $dsc = _translate($dsc);
         $dsc = ($dsc || q{}) . $html->b(" ($fee->{inner_describe})") if ($fee->{inner_describe});
         return $dsc;
-      },
-      deposit          => sub {
-        my $deposit = shift;
-        $deposit //= 0;
-
-        return ($deposit < 0) ? $html->color_mark($deposit, $_COLORS[6]) : $deposit;
-      },
-      last_deposit     => sub {
-        my $last_deposit = shift;
-        $last_deposit //= 0;
-
-        return ($last_deposit < 0) ? $html->color_mark($last_deposit, $_COLORS[6]) : $last_deposit;
       },
       method           => sub {
         my $method = shift;
@@ -429,6 +410,7 @@ sub form_fees_list {
       tax_sum          => "$lang{TAX} $lang{SUM}",
       invoice_id       => $lang{INVOICE},
       subconto         => "$lang{SUBCONTO}1",
+      after_deposit    => $lang{AFTER_OPERATION_DEPOSIT},
       ext_bill_deposit => "$lang{EXTRA} $lang{DEPOSIT}"
     },
     TABLE           => {
@@ -469,149 +451,6 @@ sub form_fees_list {
 
   print $table->show();
 
-  # $table->{SKIP_FORMER}=1;
-  #
-  # # return;
-  # _error_show($Fees);
-  #
-  # my %i2p_hash = ();
-  # if (in_array('Docs', \@MODULES)) {
-  #
-  #   our $Docs;
-  #   load_module('Docs', $html);
-  #   my @fees_ids = ();
-  #   foreach my $p (@$fees_list) {
-  #     push @fees_ids, $p->{id};
-  #   }
-  #
-  #   my $i2p_list = $Docs->invoices_list({
-  #     FEES_ID    => join(';', @fees_ids),
-  #     PAGE_ROWS  => ($LIST_PARAMS{PAGE_ROWS} || 25)*3,
-  #     SUM        => '_SHOW',
-  #     COLS_NAME  => 1
-  #   });
-  #
-  #   foreach my $i2p (@$i2p_list) {
-  #     push @{ $i2p_hash{$i2p->{id}} },
-  #       {
-  #         payment_id  => $i2p->{payment_id} || '',
-  #         payment_sum => $i2p->{payment_sum} || '',
-  #         invoice_sum => $i2p->{invoice_sum} || '',
-  #         invoice_num => $i2p->{invoice_num} || ''
-  #       }
-  #   }
-  # }
-  #
-  # $pages_qs .= "&subf=2" if (!$FORM{subf});
-  # foreach my $fee (@$fees_list) {
-  #   my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL},
-  #     "index=3&del=$fee->{id}$pages_qs" . (($pages_qs !~ /UID=/) ? "&UID=$fee->{uid}" : ''),
-  #     { MESSAGE => "$lang{DEL} [$fee->{id}] ?", class => 'del' } ) : '';
-  #
-  #   my @fields_array = ();
-  #   for (my $i = 0; $i < 1+$Fees->{SEARCH_FIELDS_COUNT}; $i++) {
-  #     my $field_name = $Fees->{COL_NAMES_ARR}->[$i];
-  #
-  #     if ($conf{EXT_BILL_ACCOUNT} && $field_name eq 'ext_bill_deposit') {
-  #       $fee->{ext_bill_deposit} = ($fee->{ext_bill_deposit} < 0) ? $html->color_mark($fee->{ext_bill_deposit}, $_COLORS[6]) : $fee->{ext_bill_deposit};
-  #     }
-  #     elsif($field_name eq 'deleted') {
-  #       $fee->{deleted} //= 0;
-  #       $fee->{deleted} = $html->color_mark($bool_vals[ $fee->{deleted} ], ($fee->{deleted} == 1) ? $state_colors[ $fee->{deleted} ] : '');
-  #     }
-  #     elsif($field_name eq 'login' && $fee->{uid}) {
-  #       $fee->{login} = $html->button($fee->{login}, "index=15&UID=$fee->{uid}");
-  #     }
-  #     elsif($field_name eq 'dsc') {
-  #       # fees period from-to
-  #       $fee->{dsc} =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/g;
-  #       $fee->{$field_name} = Abills::Base::convert($fee->{$field_name}, { text2html => 1 });
-  #       $fee->{inner_describe} = Abills::Base::convert($fee->{inner_describe}, { text2html => 1 }) if ($fee->{inner_describe});
-  #
-  #       $fee->{dsc} //= '';
-  #       if ($fee->{dsc} =~ /# (\d+)/ && in_array('Msgs', \@MODULES)) {
-  #         $fee->{dsc} = $html->button($fee->{dsc}, "index=". get_function_index('msgs_admin')."&chg=$1");
-  #       }
-  #
-  #       $fee->{dsc} = _translate($fee->{dsc});
-  #       $fee->{dsc} = ($fee->{dsc} || q{}) . $html->b(" ($fee->{inner_describe})") if ($fee->{inner_describe});
-  #     }
-  #     elsif($field_name =~ /deposit/ && defined($fee->{$field_name})) {
-  #       $fee->{$field_name} = ($fee->{$field_name} < 0) ? $html->color_mark($fee->{$field_name}, $_COLORS[6]) : $fee->{$field_name};
-  #     }
-  #     elsif($field_name eq 'method') {
-  #       $fee->{method} //= 0;
-  #       $fee->{method} = ($FORM{METHOD_NUM}) ? $fee->{method} : ($FEES_METHODS->{ $fee->{method} } || $fee->{method} );
-  #     }
-  #     elsif($field_name eq 'login_status' && defined($fee->{$field_name})) {
-  #       $fee->{login_status} = ($fee->{login_status} > 0) ? $html->color_mark($service_status[ $fee->{login_status} ], $service_status_colors[ $fee->{login_status} ]) : $service_status[$fee->{login_status}];
-  #     }
-  #     elsif($field_name eq 'bill_id') {
-  #       $fee->{bill_id} = ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS->{ $fee->{bill_id} } || q{--}) : $fee->{bill_id};
-  #     }
-  #     elsif($field_name eq 'admin_name') {
-  #       $fee->{admin_name} = _status_color_state($fee->{admin_name}, $fee->{admin_disable});
-  #       delete $fee->{admin_disable};
-  #     }
-  #     elsif($field_name eq 'invoice_id') {
-  #       my $invoice_id = $fee->{invoice_id} || 0;
-  #       if ($invoice_id > 0) {
-  #         my $payment_sum = $fee->{sum};
-  #         my $i2p         = '';
-  #
-  #         if ($i2p_hash{$invoice_id}) {
-  #           foreach my $invoice ( @{ $i2p_hash{$invoice_id} }  ) {
-  #             #my $payment_id = $invoice->{payment_id};
-  #             my $paid_sum = $invoice->{payment_sum};
-  #             my $invoice_num = $invoice->{invoice_num};
-  #             #my $invoiced_sum = $invoice->{invoice_sum};
-  #
-  #             $i2p .= sprintf("$lang{PAID}: %.2f",  $paid_sum || 0) ." $lang{INVOICE} #" . $html->button( $invoice_num,
-  #               "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice_id&search=1" ) . $html->br();
-  #             $payment_sum -= $paid_sum || 0;
-  #           }
-  #         }
-  #
-  #         if ($payment_sum > 0) {
-  #           $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark( $lang{UNAPPLIED},
-  #             $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY}, "index=2&SUM=$payment_sum"
-  #               . "&UNINVOICED=$invoice_id&FEES_ID=$fee->{id}&UID=$fee->{uid}&INVOICE_ID=$invoice_id" ) . ')';
-  #         }
-  #
-  #         $fee->{invoice_id} = $i2p;
-  #       }
-  #       else {
-  #         $fee->{invoice_id} = $html->button('ADD',
-  #           'index=' . get_function_index('docs_invoices_list')
-  #             . '&SUM_1=' . $fee->{sum}
-  #             . '&ORDER_1=' . $fee->{dsc}
-  #             . '&UID=' . $fee->{uid}
-  #             . '&FEES_ID_1=' . $fee->{id},
-  #           { BUTTON => 2, TITLE => "$lang{INVOICE} $lang{ADD}" });
-  #       }
-  #     }
-  #
-  #     if ($Fees->{SEARCH_FIELDS_COUNT} == $i) {
-  #       delete $fee->{admin_disable};
-  #     }
-  #
-  #     push @fields_array, $fee->{$field_name};
-  #   }
-  #
-  #   $table->addrow(@fields_array, $delete);
-  # }
-  #
-  # if (!$admin->{MAX_ROWS}) {
-  #   $table->addfooter(
-  #     '',
-  #     "$lang{TOTAL}: " .  $Fees->{TOTAL} . $html->br()
-  #       . (($Fees->{TOTAL_USERS} && $Fees->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Fees->{TOTAL_USERS}) .$html->br() : q{})
-  #       . "$lang{SUM}: " . format_sum($Fees->{SUM})
-  #   );
-  # }
-  #
-  # print $table->show();
-
   return 1;
 }
 
@@ -633,7 +472,7 @@ sub form_fees_list {
 sub dynamic_types {
   my ($attr) = @_;
 
-  my ($y, $m, $d) = split(/-/, $DATE, 3);
+  my ($y, $m, $d) = split(/-/x, $DATE, 3);
   my $m_lit = $MONTHES[ int($m) - 1 ];
   my $y_lit = "$y $lang{YEAR_SHORT}";
 

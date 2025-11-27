@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
 my $Msgs;
@@ -66,18 +65,22 @@ sub plugin_info {
 =head2 _msgs_create_delivery($attr)
 
   Arguments:
+    $attr
 
   Return:
 
 =cut
 #**********************************************************
 sub _msgs_create_delivery {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if !$attr->{DELIVERY_CREATE};
 
-  $Msgs->msgs_delivery_add({
+  require Msgs::db::Delivery;
+  Msgs::db::Delivery->import();
+  my $Delivery = Msgs::db::Delivery->new($db, $admin, $CONF);
+
+  $Delivery->delivery_add({
     %{$attr},
     TEXT        => $attr->{MESSAGE},
     SUBJECT     => $attr->{SUBJECT},
@@ -88,9 +91,9 @@ sub _msgs_create_delivery {
     PRIORITY    => $attr->{DELIVERY_PRIORITY},
   });
 
-  $attr->{DELIVERY} = $Msgs->{DELIVERY_ID};
-  $Msgs->{DELIVERY} = $Msgs->{DELIVERY_ID};
-  $html->message('info', $lang->{INFO}, "$lang->{DELIVERY} $lang->{ADDED}") if (!$Msgs->{errno});
+  $attr->{DELIVERY} = $Delivery->{DELIVERY_ID};
+  $Delivery->{DELIVERY} = $Delivery->{DELIVERY_ID};
+  $html->message('info', $lang->{INFO}, "$lang->{DELIVERY} $lang->{ADDED}") if (!$Delivery->{errno});
 
   return 0;
 }
@@ -105,26 +108,30 @@ sub _msgs_create_delivery {
 =cut
 #**********************************************************
 sub _msgs_make_delivery {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if !$attr->{DELIVERY};
 
   my $users_list = $attr->{USERS_LIST} ? $attr->{USERS_LIST} : ();
   my $uids = join(', ', map {$_->{uid}} @{$users_list}) || '';
 
-  $Msgs->delivery_user_list_add({
+  require Msgs::db::Delivery;
+  Msgs::db::Delivery->import();
+  my $Delivery = Msgs::db::Delivery->new($db, $admin, $CONF);
+
+
+  $Delivery->user_list_add({
     DELIVERY_ID => $attr->{DELIVERY},
-    IDS          => $uids,
+    IDS         => $uids
   });
 
-  $html->message('info', $lang->{INFO}, "$Msgs->{TOTAL} $lang->{USERS_ADDED_TO_DELIVERY} №:$attr->{DELIVERY}") if (!$Msgs->{errno});
+  $html->message('info', $lang->{INFO}, "$Delivery->{TOTAL} $Delivery->{USERS_ADDED_TO_DELIVERY} №:$attr->{DELIVERY}") if (!$Delivery->{errno});
 
   return {
     RETURN_VALUE => $attr->{PREVIEW_FORM} ? 2 : 1,
     CALLBACK     => {
       FUNCTION     => 'msgs_admin_add_form',
-      PARAMS       => { %{$attr} },
+      PARAMS       => $attr,
       PRINT_RESULT => 1
     }
   };

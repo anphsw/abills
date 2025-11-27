@@ -34,6 +34,17 @@
     padding: 5px;
     font-size: 13px;
     margin-top : 5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.titleQBinfo {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .msgQBinfo > .link_button{

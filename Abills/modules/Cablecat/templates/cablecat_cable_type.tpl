@@ -1,5 +1,5 @@
 <form name='CABLECAT_CABLE_TYPE' id='form_CABLECAT_CABLE_TYPE' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 

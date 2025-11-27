@@ -1124,7 +1124,7 @@ class GPS {
 
 var LayersConfiguration = (function () {
   function showLayers(layers) {
-    jQuery.each(layers.sort((a, b) => (a.module > b.module) ? 0 : ((b.module > a.module) ? -1 : 1)), function (index) {
+    jQuery.each(layers, function (index) {
       Layers[layers[index].id] = layers[index];
       Configuration.createMenuButton(layers[index]);
     });

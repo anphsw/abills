@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD=POST>
-    <input type=hidden name=index value=$index>
+<FORM action='%SELF_URL%' METHOD=POST>
+    <input type=hidden name=index value=%index%>
     <input type=hidden name=CID value='%ISG_CID_CUR%'>
     <input type=hidden name=sid value='$sid'>
 

@@ -8,7 +8,7 @@
       %MESSAGE%
     </div>
 
-    <div class='timeline-footer text-right timeline-item-footer'>
+    <div style='background-color: rgba(0,0,0,.03);' class='timeline-footer timeline-item timeline-item-all-footer d-flex justify-content-between align-items-start'>
       %FOOTER%
     </div>
 

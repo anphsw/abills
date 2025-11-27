@@ -17,8 +17,7 @@ use Abills::Base qw/gen_time/;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($conf, $bot, $bot_db, $APILayer, $user_config) = @_;
+  my ($class, $conf, $bot, $bot_db, $APILayer, $user_config) = @_;
 
   my $self = {
     conf        => $conf,
@@ -45,10 +44,10 @@ sub buttons_list {
   my $err = '';
 
   foreach my $file (@buttons_files) {
-    my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
+    my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/xm;
 
     eval {
-      require "Viber/buttons/$button.pm";
+      do "Viber/buttons/$button.pm";
 
       my $obj = "Viber::buttons::$button"->new(
         @$self{qw(conf bot bot_db api user_config)}
@@ -83,8 +82,7 @@ sub buttons_list {
 =cut
 #**********************************************************
 sub viber_button_fn {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $button = $attr->{button};
   my $fn = $attr->{fn};

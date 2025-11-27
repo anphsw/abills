@@ -78,7 +78,8 @@ sub _start {
     Iptv      => $lang{IPTV},
     Msgs      => $lang{APPLICATIONS},
     Crm       => $lang{LEAD},
-    Multidoms => $lang{REGISTRATION}
+    Multidoms => $lang{REGISTRATION},
+    Referral  => $lang{REFERRAL},
   );
 
   my $choose_module_buttons = '';
@@ -179,9 +180,10 @@ sub _start {
     unless ($FORM{FORGOT_PASSWD}) {
       $address_modal_form = form_address_select({
         REGISTRATION_MODAL => 1,
-        DISTRICT_SELECT_ID => 'REG_DISTRICT_ID',
-        STREET_SELECT_ID   => 'REG_STREET_ID',
-        BUILD_SELECT_ID    => 'REG_BUILD_ID',
+        DISTRICT_SELECT_ID => 'FORGOT_PASSWD_DISTRICT_ID',
+        STREET_SELECT_ID   => 'FORGOT_PASSWD_STREET_ID',
+        BUILD_SELECT_ID    => 'FORGOT_PASSWD_BUILD_ID',
+        STREET_EX_PARAMS   => 'onChange="GetBuildsReg(this)" '
       });
     }
 

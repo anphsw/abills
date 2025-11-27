@@ -105,7 +105,7 @@ sub update_onus_disabled_statuses {
     $nas_ids_for_uids = join ';', keys %nas_ids;
   }
 
-  my $Equipment_list = $Equipment->_list({
+  my $Equipment_list = $Equipment->list({
     NAS_ID           => $nas_ids_for_uids || $attr->{NAS_IDS} || '_SHOW',
     NAS_NAME         => '_SHOW',
     MODEL_NAME       => '_SHOW',

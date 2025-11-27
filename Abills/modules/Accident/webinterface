@@ -36,7 +36,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.32,
+    REQUIRE_VERSION => 8.36,
   })
 ) {
   exit;
@@ -87,6 +87,11 @@ my $Configure = Accident::Configure->new($db, $admin, \%conf, { lang => \%lang }
 #**********************************************************
 sub accident_log {
 
+  require Nas;
+  Nas->import();
+  my $Nas = Nas->new($db, \%conf, $admin);
+  my $nas_list = $Nas->list({ SORT => 1, PAGE_ROWS => 10000, COLS_NAME => 1 });
+
   $Accident->{ACTION} = 'add';
   $Accident->{LNG_ACTION} = $lang{ADD};
   my $accident_types = $Accident->type_list({ COLS_NAME => 1 });
@@ -124,7 +129,7 @@ sub accident_log {
   }
 
   if ($FORM{add_form} || $FORM{chg}) {
-    $Accident->{SELECT_PRIORITY} = $html->form_select('PRIORITY', {
+    $Accident->{PRIORITY_SEL} = $html->form_select('PRIORITY', {
       SELECTED    => $Accident->{PRIORITY} || $FORM{PRIORITY} || 2,
       SEL_HASH    => \%priority,
       SORT_KEY    => 1,
@@ -132,7 +137,7 @@ sub accident_log {
       SEL_OPTIONS => { '' => '' }
     });
 
-    $Accident->{SELECT_STATUS} = $html->form_select('STATUS', {
+    $Accident->{STATUS_SEL} = $html->form_select('STATUS', {
       SELECTED    => $Accident->{STATUS} || $FORM{STATUS} || 0,
       SEL_HASH    => \%status,
       SORT_KEY    => 1,
@@ -140,7 +145,7 @@ sub accident_log {
       SEL_OPTIONS => { '' => '' }
     });
 
-    $Accident->{SELECT_TYPE} = $html->form_select('TYPE', {
+    $Accident->{TYPE_SEL} = $html->form_select('TYPE', {
       SELECTED    => $Accident->{TYPE} || $FORM{TYPE},
       SEL_HASH    => \%accident_types_name,
       SORT_KEY    => 1,
@@ -148,13 +153,46 @@ sub accident_log {
       SEL_OPTIONS => { '' => '' }
     });
 
+    $Accident->{NAS_SEL} = $html->form_select('NAS_ID', {
+      SELECTED       => $FORM{NAS_ID} || $Accident->{NAS_ID} || '',
+      SEL_LIST       => $nas_list,
+      SEL_KEY        => 'nas_id',
+      SEL_VALUE      => 'nas_name',
+      SEL_OPTIONS    => { '' => '' },
+    });
+
+    my $port_list = '';
+    my $type_id = '';
+
+    if ($FORM{NAS_ID} || $Accident->{NAS_ID}){
+      my $equipment_info = $Equipment->list({ NAS_ID => ($FORM{NAS_ID} || $Accident->{NAS_ID}), TYPE_ID   => '_SHOW', COLS_NAME => 1 });
+      $type_id = $equipment_info->[0]->{type_id} || '';
+
+      if ($type_id && $type_id eq '4') {
+        $port_list = $Equipment->onu_list({ NAS_ID => $FORM{NAS_ID} || $Accident->{NAS_ID}, COLS_NAME => 1, PAGE_ROWS => 10000 });
+      }
+      else{
+        $port_list = $Equipment->port_list({ NAS_ID  => $FORM{NAS_ID} || $Accident->{NAS_ID}, COLS_NAME => 1, PAGE_ROWS => 10000 });
+      }
+    }
+
+    $Accident->{PORT_SEL} = $html->form_select('PORT', {
+      SELECTED       => $FORM{PORT} || $Accident->{PORT} || '',
+      SEL_LIST       => $port_list,
+      NO_ID          =>  1,
+      SEL_KEY        => ($type_id && $type_id eq '4') ? 'dhcp_port' : 'port',
+      SEL_VALUE      => ($type_id && $type_id eq '4') ? 'dhcp_port' : 'port',
+      SEL_OPTIONS    => { '' => '' },
+    });
+
     my $current_time_in_sec = time2sec($TIME) + 3600;
     my $default_time = sec2time($current_time_in_sec, { format => 1 });
 
-    $Accident->{ADMIN_SELECT} = sel_admins({ SELECTED => $Accident->{AID} || $FORM{AID} || $admin->{AID}, REQUIRED => 1 });
+    $Accident->{ADMIN_SEL} = sel_admins({ SELECTED => $Accident->{AID} || $FORM{AID} || $admin->{AID}, REQUIRED => 1 });
     $Accident->{DATEPICKER_END} = $html->form_datetimepicker('END_TIME', $Accident->{END_TIME} || $FORM{END_TIME} || "$DATE $default_time");
     $Accident->{DATEPICKER_REAL} = $html->form_datetimepicker('REALY_TIME', $Accident->{REALY_TIME} || $FORM{REALY_TIME});
     $Accident->{DATE} = $html->form_datetimepicker('DATE', $Accident->{DATE} || $FORM{DATE} || "$DATE $TIME");
+    $Accident->{GROUP_SEL} = sel_groups({ GID => $FORM{GID} || $Accident->{GID} || '' });
 
     $html->tpl_show(_include('accident_add', 'Accident'), { %FORM, %{$Accident},
       GEOLOCATION_TREE => geolocation_tree({ RETURN_TREE => 1, CITY_BRANCH => 1 }, $Accident->{ADDRESS_LIST})
@@ -162,7 +200,7 @@ sub accident_log {
   }
   elsif ($FORM{search_form}) {
     form_search({ TPL => $html->tpl_show(_include('accident_log_search', 'Accident'), {
-      SELECT_PRIORITY     => $html->form_select('PRIORITY', {
+      PRIORITY_SEL     => $html->form_select('PRIORITY', {
         SELECTED    => $FORM{PRIORITY},
         SEL_HASH    => \%priority,
         SORT_KEY    => 1,
@@ -176,28 +214,40 @@ sub accident_log {
         RETURN_INPUT => 1
       }),
       DATE_PICKER_CHECKED => $FORM{FROM_DATE_TO_DATE} ? 'checked' : '',
-      SELECT_ADDRESS      => form_address_select({
+      ADDRESS_SEL      => form_address_select({
         %FORM,
         HIDE_FLAT             => 1,
         HIDE_ADD_BUILD_BUTTON => 1,
       }),
-      SELECT_ADMIN        => sel_admins({ SELECTED => $FORM{AID} }),
-      SELECT_STATUS       => $html->form_select('STATUS', {
+      ADMIN_SEL     => sel_admins({ SELECTED => $FORM{AID} }),
+      STATUS_SEL      => $html->form_select('STATUS', {
         SELECTED    => $FORM{STATUS},
         SEL_HASH    => \%status,
         SORT_KEY    => 1,
         NO_ID       => 1,
         SEL_OPTIONS => { '' => '' }
       }),
-      SELECT_TYPE => $html->form_select('ACCIDENT_TYPE', {
+      TYPE_SEL        => $html->form_select('ACCIDENT_TYPE', {
         SELECTED    => $FORM{ACCIDENT_TYPE} || '',
         SEL_HASH    => \%accident_types_name,
         SORT_KEY    => 1,
         NO_ID       => 1,
         SEL_OPTIONS => { '' => '' }
       }),
+      GROUP_SEL  => sel_groups({ GID => $FORM{GID} || '', MULTISELECT => 1 }),
+      NAS_SEL    => $html->form_select('NAS_ID', {
+        SELECTED    => $FORM{NAS_ID} || '',
+        SEL_LIST    => $nas_list,
+        SEL_KEY    => 'nas_id',
+        SEL_VALUE  => 'nas_id,nas_name',
+        SORT_KEY    => 1,
+        NO_ID       => 1,
+        SEL_OPTIONS => { '' => '' }
+      }),
     }, { OUTPUT2RETURN => 1 }) });
   }
+
+  my $groups_hash = sel_groups({ HASH_RESULT => 1 });
 
   result_former({
     INPUT_DATA      => $Accident,
@@ -218,6 +268,9 @@ sub accident_log {
       realy_time   => $lang{WORK_REALY_DATE},
       full_address => $lang{ADDRESS},
       accident_type=> $lang{TYPE},
+      gid          => $lang{GROUP},
+      nas_id       => $lang{NAS},
+      port         => $lang{PORT},
     },
     FILTER_VALUES   => {
       priority => sub {
@@ -231,6 +284,10 @@ sub accident_log {
       accident_type => sub {
         my $type_id = shift;
         return $html->color_mark($accident_types_name{$type_id || 0}, $accident_types_color{$type_id || 0});
+      },
+      gid => sub {
+        my $gid = shift;
+        return $groups_hash->{$gid || 0};
       },
     },
     TABLE           => {
@@ -294,7 +351,7 @@ sub accident_widget {
 =cut
 #**********************************************************
 sub accident_for_equipment {
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     NAS_ID    => '_SHOW',
     STATUS    => '_SHOW',
     NAS_NAME  => '_SHOW',
@@ -450,12 +507,12 @@ sub accident_equipment_log {
     STATUS       => '_SHOW',
     AID          => '_SHOW',
     TYPE         => '_SHOW',
-    SORT         => $FORM{sort},
-    DESC         => $FORM{desc},
+    SORT         => $FORM{sort} || 2,
+    DESC         => $FORM{desc} || '',
     COLS_NAME    => 1,
   });
 
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     NAS_ID    => '_SHOW',
     NAS_NAME  => '_SHOW',
     PAGE_ROWS => 9999,
@@ -515,7 +572,7 @@ sub _equipment_error {
       $tpl_info{chg} = $attr->{change};
     }
 
-    my $info = $Equipment->_list({
+    my $info = $Equipment->list({
       NAS_ID    => $attr->{add_form} || $tpl_info{ID_EQUIPMENT},
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1

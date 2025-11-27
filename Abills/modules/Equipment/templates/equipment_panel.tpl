@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST' class='form-inline'>
-  <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST' class='form-inline'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='visual' value='$FORM{visual}'>
   <fieldset class='form-inline'>
 

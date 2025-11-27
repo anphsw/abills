@@ -144,7 +144,6 @@ sub form_purchase_module {
   eval { require $module.'.pm'; };
 
   if (!$@) {
-
     $module_name->import();
     my $module_version = $module_name->VERSION || 0;
 
@@ -186,7 +185,8 @@ sub form_purchase_module {
       print "Content-Type: text/html\n\n";
     }
 
-    print "<div class='alert alert-block alert-danger'><p>модуль '$attr->{MODULE}' не установлен в системе, по вопросам приобретения модуля обратитесь к разработчику
+    print<< "[END]";
+<div class='alert alert-block alert-danger'><p>модуль '$attr->{MODULE}' не установлен в системе, по вопросам приобретения модуля обратитесь к разработчику
     <a href='http://abills.net.ua' target=_newa>ABillS.net.ua</a>
     </p>
     <p>
@@ -194,7 +194,8 @@ sub form_purchase_module {
     <p>
     For more information visit <a href='http://abills.net.ua' target=_newa>ABillS.net.ua</a>
     </p>
-    </div>";
+    </div>
+[END]
 
     if ($attr->{DEBUG} || $FORM{DEBUG}) {
       print "<pre>\n";
@@ -701,6 +702,11 @@ sub cross_modules {
 
       #@experimental
       my @modules = @MODULES;
+
+      if ($conf{MODULES_SEQUENCE}) {
+        @modules = split(/,\s?/x, $conf{MODULES_SEQUENCE});
+      }
+
       if ($attr->{MODULES}) {
         @modules = split(/,/x, $attr->{MODULES});
       }
@@ -715,14 +721,14 @@ sub cross_modules {
 
         eval { require $module_file };
         next if $@;
-        if ($attr->{DEBUG}) {
+        if ($debug) {
           print " $module -> " . lc($module) .'_' . $function_index . "<br>\n";
         }
 
         my $function = lc $module . '_' . $function_index;
 
-        next unless ($module_name->can('new'));
-        next unless ($module_name->can($function));
+        next if (!$module_name->can('new'));
+        next if (!$module_name->can($function));
 
         load_module($module, { %{$html || {}}, LANG_ONLY => 1 });
 
@@ -733,7 +739,7 @@ sub cross_modules {
 
         next if $@;
 
-        if ($attr->{DEBUG} && $check_time) {
+        if ($debug && $check_time) {
           print gen_time($check_time) . " <br>\n ";
           $check_time = check_time();
         }
@@ -834,7 +840,7 @@ sub fees_dsc_former {
     $text = $attr->{TEMPLATE};
   }
 
-  while ($text =~ /\%(\w+)\%/g) {
+  while ($text =~ /\%(\w+)\%/xg) {
     my $var = $1;
     if (!defined($attr->{$var})) {
       $attr->{$var} = '';
@@ -893,7 +899,7 @@ sub service_recalculate {
   my $Payments      = Finance->payments($Service->{db}, $admin, \%conf);
   my $Users         = $attr->{USER_INFO};
   my $days_in_month = days_in_month({ DATE => $date });
-  my (undef, undef, $d)   = split(/-/, $date, 3);
+  my (undef, undef, $d)   = split('-', $date, 3);
   my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE} || '0000-00-00';
   my $start_day = $conf{START_PERIOD_DAY} || 1;
 
@@ -1101,7 +1107,7 @@ sub service_get_month_fee {
   if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
     $tp->{MONTH_FEE}=$Service->{PERSONAL_TP};
     $Service->{TP_INFO_OLD}->{MONTH_FEE}=$Service->{PERSONAL_TP};
-    $tp->{NAME} = $lang{PERSONAL_TP} || 'PERSONAL_TP';
+    $tp->{NAME} = ($lang{PERSONAL_TP} || 'PERSONAL_TP') .': ' . $tp->{NAME};
   }
 
   if ($attr->{SHEDULER} && ($service_activate ne '0000-00-00' || $tp->{ABON_DISTRIBUTION})) {
@@ -1231,7 +1237,7 @@ sub service_get_month_fee {
     }
 
     if ($tp->{ABON_DISTRIBUTION}) {
-      $sum = $sum / $days_in_month; # (($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28)));
+      $sum = $sum / $days_in_month;
       $FEES_DSC{EXTRA} = " - $lang{ABON_DISTRIBUTION}";
     }
 
@@ -1353,15 +1359,15 @@ sub service_get_month_fee {
               ID       => $Service->{ID}
             });
           }
-          else {
-            $Users->change(
-              $uid,
-              {
-                ACTIVATE => ($conf{INTERNET_PAY_ACTIVATE}) ? $DATE : $account_activate,
-                UID      => $uid
-              }
-            );
-          }
+          # else {
+          #   $Users->change(
+          #     $uid,
+          #     {
+          #       ACTIVATE => ($conf{INTERNET_PAY_ACTIVATE}) ? $DATE : $account_activate,
+          #       UID      => $uid
+          #     }
+          #   );
+          # }
 
           if ($conf{INTERNET_PAY_ACTIVATE}) {
             ($active_y, $active_m, $active_d) = split('-', $DATE);
@@ -1409,6 +1415,7 @@ sub service_get_month_fee {
         $FEES_DSC{PERIOD} = ($tp->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
       }
 
+      $total_sum{FEES_DSC} = \%FEES_DSC;
       $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
       $FEES_PARAMS{DESCRIBE} .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
       $message .= $FEES_PARAMS{DESCRIBE};
@@ -1453,6 +1460,7 @@ sub service_get_month_fee {
   }
 
   if($debug < 6) {
+    $attr->{GET_ABON}=1;
     my $external_cmd = '_EXTERNAL_CMD';
     $external_cmd = uc($module).$external_cmd;
     if ($conf{$external_cmd}) {
@@ -1515,12 +1523,12 @@ sub _external {
 
   # 1 - ok
   if ($num && $num =~ m/^\d+$/x && $num == 1) {
-    $html->message('info', "EXTERNAL $lang{ADDED}", $message) if ($html && !$attr->{QUITE});
+    $html->message('info', $lang{EXTERNAL_CMD}, $message) if ($html && !$attr->{QUITE});
     return 1;
   }
   else {
     if ($html && !$attr->{QUITE}) {
-      $html->message('err', "EXTERNAL $lang{ERROR}", "[" . ($num || '') . "] " . ($message || q{}) . " ERROR: " . ($error || q{}));
+      $html->message('err', $lang{EXTERNAL_CMD}, "[" . ($num || '') . "] " . ($message || q{}) . " ERROR: " . ($error || q{}));
     }
     return 0;
   }
@@ -1809,6 +1817,7 @@ sub file_op {
        FILE_NAME                - Filename for saving
        EXTENTIONS               - Allow extensions (String - comma separated)
        REWRITE                  - Allow rewrite file
+       FILE_PATH                - path of saving file
 
   Retursn:
     TRUE or FALSE
@@ -1847,11 +1856,11 @@ sub upload_file {
     }
   }
 
-  my $dir = ($attr->{PREFIX}) ? "$conf{TPL_DIR}/" . $attr->{PREFIX} : $conf{TPL_DIR};
+  my $dir = ($attr->{FILE_PATH}) ? $attr->{FILE_PATH} : ($attr->{PREFIX}) ? "$conf{TPL_DIR}/" . $attr->{PREFIX} : $conf{TPL_DIR};
 
   if (!-d $dir) {
     if(! mkdir($dir)) {
-      $html->message('err', $lang{ERROR}, "$lang{ERROR} '$dir'  '$!'");
+      $html->message('err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$dir' $lang{ERROR}: $!");
       return 0;
     }
   }
@@ -2107,6 +2116,13 @@ sub mk_menu {
 #**********************************************************
 =head2 mk_menu_extra($module_menu, $maxnumber, $module)
 
+  Arguments:
+    $module_menu
+    $maxnumber
+    $module
+  Results:
+    $menu
+
 =cut
 #**********************************************************
 sub mk_menu_extra {
@@ -2212,7 +2228,8 @@ sub get_version {
   my $version = '';
   $base_dir //= '/usr/abills/';
 
-  if (-f $base_dir.'/VERSION') {
+  my $filename = $base_dir.'/VERSION';
+  if (-f $filename) {
     if (open(my $fh, '<', $base_dir."/VERSION")) {
       $version = <$fh>;
       close($fh);
@@ -2302,7 +2319,7 @@ sub _get_files_in{
     return [];
   };
 
-  my @contents = grep !/^\.\.?$/x, readdir $fh;
+  my @contents = grep { !/^\.\.?$/x } readdir $fh;
   closedir $fh;
 
   # No .name files
@@ -2322,7 +2339,7 @@ sub _get_files_in{
 
   # Apply REGEXP filter if needed
   if ( $filter && $filter ne '' ) {
-    @contents = grep /$filter/x, @contents;
+    @contents = grep { /$filter/x } @contents;
   }
 
   # Concat directory path if needed
@@ -2421,6 +2438,12 @@ sub recomended_pay {
 
   $user_->{TOTAL_DEBET} = 0;
 
+  if ($conf{RECOMMENDED_PAY_CMD}) {
+    my $debug = $attr->{DEBUG} // 0;
+    my $recommended_sum = cmd("$conf{RECOMMENDED_PAY_CMD} UID=$user_->{UID} DEBUG=$debug ");
+    return $recommended_sum;
+  }
+
   if ($conf{PAYSYS_RECOMMENDED_SUM_AS_DEPOSIT}) {
     return 0 if (!defined($user_->{DEPOSIT}));
     return ($user_->{DEPOSIT} < 0) ? abs($user_->{DEPOSIT}) : 0;
@@ -2439,7 +2462,6 @@ sub recomended_pay {
     do 'Control/Services.pm';
     $service_info = get_services($user_, { SKIP_MODULES => 'Sqlcmd' });
   }
-
 
   $user_->{TOTAL_DEBET} = $service_info->{total_sum} || 0;
 
@@ -2492,8 +2514,7 @@ sub format_sum {
     }
 
     my $integer  = int($sum);
-
-    my $fraction = int(($sum - $integer) * 100);
+    my $fraction = int(($sum * 100) - ($integer * 100));
     $fraction = sprintf('%02d', $fraction);
     my $rev = scalar reverse ($integer);
     $result = scalar reverse (join (' ', $rev =~ m/\d{1,3}/xg));

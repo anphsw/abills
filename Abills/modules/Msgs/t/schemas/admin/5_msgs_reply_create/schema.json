@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "properties": {
+    "adminRead": {
+      "type": "string"
+    },
+    "affected": {
+      "type": "integer"
+    },
+    "aid": {
+      "type": "integer"
+    },
+    "aName": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "chapter": {
+      "type": "integer"
+    },
+    "chapterName": {
+      "type": "string"
+    },
+    "clientResponsible": {
+      "type": "string"
+    },
+    "closedAid": {
+      "type": "integer"
+    },
+    "closedDate": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "contactId": {
+      "type": "integer"
+    },
+    "date": {
+      "type": "string"
+    },
+    "datetime": {
+      "type": "string"
+    },
+    "deligation": {
+      "type": "integer"
+    },
+    "deligationLevel": {
+      "type": "integer"
+    },
+    "dispatchId": {
+      "type": "integer"
+    },
+    "domainId": {
+      "type": "integer"
+    },
+    "doneDate": {
+      "type": "string"
+    },
+    "externalChatId": {
+      "type": "integer"
+    },
+    "fgName": {
+      "type": "string"
+    },
+    "gid": {
+      "type": "integer"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "id": {
+      "type": "integer"
+    },
+    "innerMsg": {
+      "type": "integer"
+    },
+    "insertId": {
+      "type": "integer"
+    },
+    "ip": {
+      "type": "integer"
+    },
+    "lastReplieDate": {
+      "type": "string"
+    },
+    "locationId": {
+      "type": "integer"
+    },
+    "lockMsg": {
+      "type": "integer"
+    },
+    "login": {
+      "type": "string"
+    },
+    "mainMsg": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "par": {
+      "type": "integer"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "planDate": {
+      "type": "string"
+    },
+    "planInterval": {
+      "type": "integer"
+    },
+    "planPosition": {
+      "type": "integer"
+    },
+    "planTime": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "integer"
+    },
+    "rating": {
+      "type": "integer"
+    },
+    "ratingComment": {
+      "type": "string"
+    },
+    "readiness": {
+      "type": "integer"
+    },
+    "reply": {
+      "type": "string"
+    },
+    "replyId": {
+      "type": "integer"
+    },
+    "responsibleName": {
+      "type": "string"
+    },
+    "resposible": {
+      "type": "integer"
+    },
+    "runTime": {
+      "type": "integer"
+    },
+    "state": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "integer"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "surveyId": {
+      "type": "integer"
+    },
+    "taskClosed": {
+      "type": "integer"
+    },
+    "text": {
+      "type": "string"
+    },
+    "ticketRunTime": {
+      "type": "string"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "uid": {
+      "type": "integer"
+    },
+    "userRead": {
+      "type": "string"
+    },
+    "list": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "subject",
+    "message",
+    "date"
+  ]
+}

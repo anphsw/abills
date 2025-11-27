@@ -113,7 +113,8 @@ $lang{COMMISSION_LIQPAY}='Комиссия за улучшенный серви�
 $lang{BALANCE_RECHARCHE}='Пополнение счёта';
 $lang{ENTER}='Введите свой';
 $lang{SUBSCRIBES}='Подписки';
-$lang{ERR_TRANSACTION_ERROR}='Ошибка проверки результата. Сообщите в техподдержку!';
+$lang{VALIDATION_ERROR}='Ошибка проверки результата. Сообщите в техподдержку!';
+$lang{VALIDATION_SUCCESSFUL}='Успешно! Результат правильный';
 $lang{TINKOF_AUTO_OFFER} = 'Устанавливая галочку, Вы ';
 $lang{TINKOF_AUTO_OFFER_URL} = 'соглашаетесь на подключение сервиса Автоплатеж';
 $lang{TINKOF_OFFER}         = 'Нажимая кнопку, Вы даёте согласие на обработку';
@@ -177,6 +178,9 @@ $lang{EVENT_PAYSYS_GROUP_CHANGED_MESSAGE} = 'Изменены настройки
 $lang{EVENT_PAYSYS_GROUP_DELETED_TITLE}   = 'Paysys настройки группы изменены';
 $lang{EVENT_PAYSYS_GROUP_DELETED_MESSAGE} = 'Удалены все настройки для группы с id %GID%';
 $lang{PAYSYS_IMPORT_NOT_CONFIGURED} = 'Настройки выписок настроены не корректно. Проверьте настройки $conf{PAYSYS_IMPORT_RULES} и другие параметры согласно документации';
+
+$lang{RECOGNIZED_NOT_ENTERED} = 'Распознан не внесен';
+$lang{NOT_RECOGNIZED} = 'Не распознан';
 
 $lang{STATUS_0}   = 'Операция прошла успешно';
 $lang{STATUS_1}   = 'Пользователь не присутствует в системе';

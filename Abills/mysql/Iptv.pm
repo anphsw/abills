@@ -394,6 +394,10 @@ sub user_list{
     }
   }
 
+  if ($attr->{DISABLED_USERS}) {
+    push @WHERE_RULES, "(service.disable <> 0 OR u.disable <> 0)";
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [

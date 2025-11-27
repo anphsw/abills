@@ -2,7 +2,7 @@
   <div class='card-header with-border text-center'><h5></h5></div>
     <div class='card-body'>
 
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='ID' id='ID' value='%ID%'/>
       <input type='hidden' name='UID' id='UID' value='%UID%'/>
       <input type='hidden' name='TIME_START' id='TIME_START' value='%TIME_START%'/>
@@ -59,7 +59,7 @@
 
     <div class='card-footer'>
       <form name='RING_CHANGE_USER' id='RING_CHANGE_USER' method='post' class='form form-horizontal'>
-        <input type='hidden' name='index' value='$index'/>
+        <input type='hidden' name='index' value='%index%'/>
         <input type='hidden' name='ID' value='%ID%'/>
         <button type='submit' class='btn btn-primary float-left'>_{FILTER}_</button>
       </form>
@@ -105,7 +105,7 @@
 
     let time = totalHours.toString().padStart(2, '0') + ":" + totalMin.toString().padStart(2, '0') + ":" + totalSec.toString().padStart(2, '0');
 
-    fetch('$SELF_URL?get_index=ring_user_filters&full=1&change=1&STATUS='+status+'&TIME='+time+'&COMMENTS='+comments+'&ID='+r_id+'&UID='+uid+'&PHONE='+phone)
+    fetch('%SELF_URL%?get_index=ring_user_filters&full=1&change=1&STATUS='+status+'&TIME='+time+'&COMMENTS='+comments+'&ID='+r_id+'&UID='+uid+'&PHONE='+phone)
       .then(response => {
         if (!response.ok) throw response;
         return response;

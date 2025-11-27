@@ -1,5 +1,5 @@
 <form name='CHOOSE_IP_ADD_FORM' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='NETMASK' id='MASK_INPUT' value='%SUBNET_MASK%'>
   <input type='hidden' name='IP' value='$FORM{IP}'>
   <input type='hidden' name='ADD' value='1'>

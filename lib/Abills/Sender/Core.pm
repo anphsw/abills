@@ -32,7 +32,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
-use Abills::Base qw(in_array mk_unique_value);
+use Abills::Base qw(in_array mk_unique_value cmd);
 use Contacts;
 
 my Contacts $Contacts;
@@ -58,6 +58,7 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   14 => 'Viber',
   15 => 'Facebook',
   16 => 'Instagram',
+  17 => 'Echat',
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -85,8 +86,7 @@ my @special_contact_types = qw(
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $CONF, $attr) = @_;
+  my ($class, $db, $admin, $CONF, $attr) = @_;
 
   # Sender soft check designed to fix load performance issues (around 60-200 ms)
   # with all Senders when it's far from needed.
@@ -99,7 +99,8 @@ sub new {
     Telegram  => sub { $CONF->{TELEGRAM_BOT_NAME} },
     Push      => sub { $CONF->{GOOGLE_PROJECT_ID} && $CONF->{FIREBASE_KEY} },
     Hyber     => sub { $CONF->{GMS_WORLDWIDE_CLIENT_ID} },
-    Viber     => sub { ($CONF->{SMS_OMNICELL_VIBER} || $CONF->{SMS_TURBOSMS_VIBER}) },
+    # cannot check easily like before right now
+    # Viber     => sub { ($CONF->{SMS_OMNICELL_VIBER} || $CONF->{SMS_TURBOSMS_VIBER}) },
     Facebook  => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
     Instagram => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
   };
@@ -146,11 +147,10 @@ sub new {
 =cut
 #**********************************************************
 sub sender_load {
-  my $self = shift;
-  my ($sender_type, $attr) = @_;
+  my ($self, $sender_type, $attr) = @_;
 
   $base_dir //= $self->{conf}{base_dir} || '/usr/abills';
-  return if ( !$sender_type || !-f $base_dir . "/lib/Abills/Sender/$sender_type.pm" );
+  return if (!$sender_type || !-f "$base_dir/lib/Abills/Sender/$sender_type.pm");
 
   eval {
     # Require
@@ -275,7 +275,7 @@ sub send_message {
         CONTACT    => $_
       })  } @contacts );
 
-    `echo " $DATE_TIME \n $dumped" >> /tmp/sender_debug`;
+    cmd("echo \" $DATE_TIME \n $dumped\" >> /tmp/sender_debug");
   }
 
   my Abills::Sender::Plugin $plugin = $self->{$send_type};
@@ -296,7 +296,7 @@ sub send_message {
         %{$attr},
         SENDER_TYPE => $TYPE_ID_FOR_PLUGIN_NAME{$send_type},
         DESTINATION => $contacts[0]{value},
-        RESULT      => $result
+        RESULT      => $result && ref($result) eq 'HASH' ? (defined($result->{errno}) ? 0 : 1) : $result
       });
     }
 
@@ -310,17 +310,17 @@ sub send_message {
         TO_ADDRESS => $contact->{value},
         CONTACT    => $contact
       });
-
+      my $send_status = $send_result && ref($send_result) eq 'HASH' ? (defined($send_result->{errno}) ? 0 : 1) : $send_result;
       if ($self->{conf}{SENDER_LOG}) {
         $Contacts->sender_log_add({
           %{$attr},
           SENDER_TYPE => $TYPE_ID_FOR_PLUGIN_NAME{$send_type},
           DESTINATION => $contacts[0]{value},
-          RESULT      => $send_result
+          RESULT      => $send_status
         });
       }
 
-      $at_least_once_successful ||= $send_result;
+      $at_least_once_successful ||= $send_status;
     }
 
     return $at_least_once_successful;
@@ -379,7 +379,7 @@ sub send_message_auto {
   }
   else {
     @{$send_messages_types} = $self->{conf}{MSGS_SEND_MESSAGES_TYPES} ?
-      split(/,\s?/, $self->{conf}{MSGS_SEND_MESSAGES_TYPES}) : values %PLUGIN_NAME_FOR_TYPE_ID;
+      split(',\s?', $self->{conf}{MSGS_SEND_MESSAGES_TYPES}) : values %PLUGIN_NAME_FOR_TYPE_ID;
   }
 
   my $at_least_one_was_successful = 0;

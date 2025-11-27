@@ -21,6 +21,8 @@ sub check_access {
   my $self = shift;
   my ($attr) = @_;
 
+  return $self if (!$self->{conf}->{AUTH_TELEGRAM_ID});
+
   if ($attr->{hash}) {
     my $hash = $attr->{hash} || '';
 

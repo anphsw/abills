@@ -40,21 +40,27 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-3'>_{STORAGE_IDENT}_1:</label>
+        <label class='col-form-label text-md-right col-md-3'>_{IDENT1}_:</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='IDENT1' value='%IDENT1%'>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-3'>_{STORAGE_IDENT}_2:</label>
+        <label class='col-form-label text-md-right col-md-3'>_{IDENT2}_:</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='IDENT2' value='%IDENT2%'>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-3'>_{STORAGE_IDENT}_3:</label>
+        <label class='col-form-label text-md-right col-md-3'>_{IDENT3}_:</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='IDENT3' value='%IDENT3%'>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-3'>_{IDENT4}_:</label>
+        <div class='col-md-9'>
+          <input class='form-control' type='text' name='IDENT4' value='%IDENT4%'>
         </div>
       </div>
 

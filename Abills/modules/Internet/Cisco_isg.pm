@@ -9,8 +9,8 @@
 
 =cut
 
-use strict;
 use warnings FATAL => 'all';
+use strict;
 use Abills::Base qw(ip2int);
 use Radius;
 use Nas;
@@ -26,7 +26,6 @@ our (
 );
 
 our Abills::HTML $html;
-#our Log $Log;
 my $Log = Log->new($db, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 
@@ -58,6 +57,10 @@ my $Nas = Nas->new($db, \%conf, $admin);
 sub cisco_isg_cmd {
   my ($user_ip, $command, $attr) = @_;
 
+  if ($conf{INTERNET_ISG_IP})  {
+    $user_ip = $conf{INTERNET_ISG_IP};
+  }
+
   my $debug = $conf{ISG_DEBUG} || 0;
   my $service_name = $attr->{SERVICE_NAME};
 
@@ -68,7 +71,7 @@ sub cisco_isg_cmd {
     print "User IP: $user_ip" . $html->br();
   }
 
-  if (! $conf{INTERNET_ISG}) {
+  if (!$conf{INTERNET_ISG}) {
     return 1;
   }
 
@@ -101,9 +104,9 @@ sub cisco_isg_cmd {
 
   #Get Active session info
   my @RAD_REQUEST = (
-    { 'User-Name'          => $attr->{USER_NAME} },
+    { 'User-Name' => $attr->{USER_NAME} },
     { 'Cisco-Account-Info' => "S$user_ip" },
-    { 'Cisco-AVPair'       => "subscriber:command=$command" }
+    { 'Cisco-AVPair' => "subscriber:command=$command" }
   );
 
   # Deactivate cur service
@@ -154,19 +157,19 @@ sub cisco_isg_cmd {
 
   #Reply
   for my $ra ($r->get_attributes) {
-    if ($ra->{'Value'} =~ /\$MA(\S+)/) {
+    if ($ra->{'Value'} =~ /\$MA(\S+)/xm) {
       $Isg->{ISG_CID_CUR} = $1 || '';
     }
-    elsif ($ra->{'Value'} =~ /^S(\S+)/) {
+    elsif ($ra->{'Value'} =~ /^S(\S+)/xm) {
       $Isg->{ISG_CID_CUR} = $1 || '';
     }
     elsif ($ra->{'Name'} eq 'Reply-Message') {
       $Isg->{MESSAGE} = $ra->{'Value'};
     }
-    elsif ($ra->{'Value'} =~ /^N1TURBO_SPEED(\d+);(\d+)/) {
+    elsif ($ra->{'Value'} =~ /^N1TURBO_SPEED(\d+);(\d+)/xm) {
       $Isg->{TURBO_MODE_RUN} = $2 || '';
     }
-    elsif ($ra->{'Value'} =~ /^N1(TP_[0-9\_]+);(\d+)/) {
+    elsif ($ra->{'Value'} =~ /^N1(TP_[0-9\_]+);(\d+)/xm) {
       $Isg->{CURE_SERVICE} = $1 || '';
       $Isg->{ISG_SESSION_DURATION} = $2 || 0;
     }
@@ -180,15 +183,13 @@ sub cisco_isg_cmd {
   if ($RAD_REPLY{'Error-Cause'}) {
     my $message = "ISG: $command, ERROR: $RAD_REPLY{'Error-Cause'}, MESSAGE: $RAD_REPLY{'Reply-Message'}";
     $html->message('err', $lang{ERROR}, $message, { ID => 100 });
-    $Log->log_add(
-      {
-        LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
-        ACTION    => 'AUTH',
-        USER_NAME => $attr->{USER_NAME} || '-',
-        MESSAGE   => $message,
-        NAS_ID    => $Nas->{NAS_ID} || 0
-      }
-    );
+    $Log->log_add({
+      LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
+      ACTION    => 'AUTH',
+      USER_NAME => $attr->{USER_NAME} || '-',
+      MESSAGE   => $message,
+      NAS_ID    => $Nas->{NAS_ID} || 0
+    });
 
     return 0;
   }
@@ -200,10 +201,10 @@ sub cisco_isg_cmd {
     if (!$Isg->{ISG_CID_CUR}) {
       $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} ID: '$user_ip' ", { ID => 11 });
     }
-    elsif ($Isg->{ISG_CID_CUR} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+    elsif ($Isg->{ISG_CID_CUR} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/xm) {
       my $DHCP_INFO;
 
-      if($conf{INTERNET_ISG}) {
+      if ($conf{INTERNET_ISG}) {
         #print "Content-Type: text/thml\n\n";
         #print "// $Isg->{ISG_CID_CUR} //";
         $DHCP_INFO = internet_dhcp_get_mac($Isg->{ISG_CID_CUR});
@@ -236,20 +237,17 @@ sub cisco_isg_cmd {
     $return = 0;
   }
 
-  if( $log_message) {
-    $Log->log_add(
-      {
-        LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
-        ACTION    => 'AUTH',
-        USER_NAME => $attr->{USER_NAME} || '-',
-        MESSAGE   => $log_message,
-        NAS_ID    => $Nas->{NAS_ID} || 0
-      }
-    );
+  if ($log_message) {
+    $Log->log_add({
+      LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
+      ACTION    => 'AUTH',
+      USER_NAME => $attr->{USER_NAME} || '-',
+      MESSAGE   => $log_message,
+      NAS_ID    => $Nas->{NAS_ID} || 0
+    });
   }
 
   return $return;
 }
-
 
 1;

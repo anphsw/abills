@@ -31,8 +31,8 @@ our ($db,
   $admin,
   %permissions,
   $ui,
-  @WEEKDAYS,
-  @MONTHES,
+  #@WEEKDAYS,
+  #@MONTHES,
   %err_strs,
   %lang,
   $PG,
@@ -50,14 +50,17 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
 my $Log      = Log->new($db, \%conf);
-#my $Language = Abills::Experimental::Language->new($base_dir || '/usr/abills/', $conf{default_language});
 
 require Control::Services;
 if (($functions{$index} && $functions{$index} eq 'form_intervals')
   || ($FORM{subf} && $functions{$FORM{subf}} && $functions{$FORM{subf}} eq 'form_intervals')) {
   require Control::System;
 }
-require Internet::User_portal;
+
+if ($user && $user->{UID}) {
+  require Internet::User_portal;
+}
+
 require Internet::Quick_reports;
 
 if($permissions{3}) {
@@ -178,6 +181,7 @@ sub internet_users_search {
   $Internet_->{REGISTRATION_RANGE} = $html->form_daterangepicker({
     NAME         => 'REGISTRATION_FROM/REGISTRATION_TO',
     VALUE        => $FORM{'REGISTRATION_FROM_REGISTRATION_TO'},
+    EX_PARAMS    => 'disabled="disabled"',
     RETURN_INPUT => 1
   });
 
@@ -241,6 +245,7 @@ sub internet_multiuser {
     LIST2HASH => 'id,uid',
     PAGE_ROWS => 99999,
   });
+
   my $uid_hash = $Internet->{list_hash};
 
   if ($FORM{MU_TP} && $FORM{TP_SHEDULE} eq '0000-00-00') {
@@ -269,7 +274,6 @@ sub internet_multiuser {
     $params{SERVICE_EXPIRE} = $FORM{MU_SERVICE_EXPIRE_DATE};
   }
 
-
   if ($#multiuser_arr < 0) {
     $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
     return 1;
@@ -290,7 +294,7 @@ sub internet_multiuser {
         ADMIN_ACTION => 1
       });
 
-      last if _error_show($Shedule);
+      last if (_error_show($Shedule));
 
       push @multiuser_no_error, $id;
     }
@@ -329,7 +333,7 @@ sub internet_multiuser {
   }
   elsif ($FORM{MU_SET_IPV4}) {
     require Internet::User_ips;
-    my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
+    $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
 
     foreach my $id (@multiuser_arr) {
       $Internet->user_change({
@@ -501,11 +505,11 @@ sub internet_users_list {
     if ($attr->{TP}) {
       if ($FORM{TP_NUM}) {
         $FORM{TP_ID} = $FORM{TP_NUM};
-        $FORM{TP_ID} =~ s/,/;/g;
+        $FORM{TP_ID} =~ s/,/;/xg;
       }
 
       $LIST_PARAMS{TP_ID} = $FORM{TP_NUM} || $FORM{TP_ID};
-      if ($FORM{subf} && $pages_qs !~ /subf/) {
+      if ($FORM{subf} && $pages_qs !~ /subf/xm) {
         $pages_qs .= "&subf=$FORM{subf}";
       }
     }
@@ -534,8 +538,8 @@ sub internet_users_list {
   }
 
   internet_users_search($Internet);
-  if ($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/) {
-    $LIST_PARAMS{TP_ID} =~ s/,\s?/;/g;
+  if ($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/xm) {
+    $LIST_PARAMS{TP_ID} =~ s/,\s?/;/xg;
   }
   if ($LIST_PARAMS{INTERNET_STATUS} && $LIST_PARAMS{INTERNET_STATUS} =~ m/,/x) {
     $LIST_PARAMS{INTERNET_STATUS} =~ s/,\s?/;/xg;
@@ -987,19 +991,20 @@ sub internet_error {
     my $user_mac = q{};
 
     #xx:xx:xx:xx:xx:xx xxxx.xxxx.xxxx
-    if($message =~ /NAS_MAC: ([a-f\:0-9\.]{14,17})/i) {
-      $auth_switch = $1;
-      if ($nas_ids{$auth_switch}) {
+    my $switch_expr = q{NAS_MAC:\s+([a-f\:0-9\.]{14,17}|[a-z0-9\-\_]{1,20})\s+};
+    if($message =~ /$switch_expr/xmi) {
+      $auth_switch = $1 || q{};
+      if ($auth_switch && $nas_ids{$auth_switch}) {
         $auth_switch = $nas_ids{$auth_switch};
       }
-      if ($nas_mac_ids{$1}) {
-        $nas_id = $nas_mac_ids{$1};
+      if ($nas_mac_ids{$auth_switch}) {
+        $nas_id = $nas_mac_ids{$auth_switch};
       }
     }
 
-    $port = $1 if ($message =~ /PORT: ([0-9A-Fa-f\/]+)/);
-    $vlan = $1 if ($message =~ /VLAN: ([0-9A-Fa-f]+)/);
-    $user_mac = $1 if ($message =~ / MAC: ([0-9A-Fa-f\:\.\-]+)/);
+    ($port) = $message =~ /PORT:\s+([0-9A-Fa-f\/]+)/xm;
+    ($vlan) = $message =~ /VLAN:\s+([0-9A-Fa-f]+)/xm;
+    ($user_mac) = $message =~ /\s+MAC:\s+([0-9A-Fa-f\:\.\-]+)/xm;
 
     my $registration_btn = '';
     if ($nas_id && $port && $FORM{UID}){
@@ -1011,12 +1016,12 @@ sub internet_error {
     }
 
     if ($conf{ERRORS_LOG_TRANSLATE}){
-      while ($line->{message} =~ /([A-Z\_]+)/g) {
+      while ($line->{message} =~ /([A-Z\_]+)/xmg) {
         my $res = $1;
         my $lang_res = $lang{$res};
         $lang_res = $res if (!$lang_res);
         $lang_res = $html->b($lang_res);
-        $message =~ s/$res/$lang_res/g;
+        $message =~ s/$res/$lang_res/xg;
       }
     }
 
@@ -1071,7 +1076,7 @@ sub internet_error {
   });
 
   foreach my $line (@$log_list) {
-    if ($line =~ m/LOG_WARNING/i) {
+    if ($line =~ m/LOG_WARNING/xi) {
       $line = $html->color_mark($line, $_COLORS[6]);
     }
 
@@ -1131,7 +1136,7 @@ sub internet_period_select {
     DATE_PICKER => $date_picker,
     DIMENSION   => $dimension,
     ONLINE      => (! $FORM{rows} && ! $FORM{ONLINE}) ? '' : 'checked',
-    ROWS        => ($conf{list_max_recs} && $conf{list_max_recs} =~ /^\d+$/) ? ($FORM{ROWS} || $conf{list_max_recs}) : 25,
+    ROWS        => ($conf{list_max_recs} && $conf{list_max_recs} =~ /^\d+$/xm) ? ($FORM{ROWS} || $conf{list_max_recs}) : 25,
     SID         => $sid,
     INDEX       => $index,
     ID          => $attr->{ID},
@@ -1181,10 +1186,10 @@ sub internet_registration {
   }
 
   if ($FORM{reg}) {
-    if ($attr->{SKIP_EMAIL_CHECK} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if ($attr->{SKIP_EMAIL_CHECK} && ! email_valid($FORM{EMAIL})) {
       $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
     }
-    elsif (!$FORM{PHONE} || ($conf{PHONE_FORMAT} && $FORM{PHONE} !~ m/$conf{PHONE_FORMAT}/ ))  {
+    elsif (!$FORM{PHONE} || ($conf{PHONE_FORMAT} && $FORM{PHONE} !~ m/$conf{PHONE_FORMAT}/x ))  {
       $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "// $FORM{PHONE} / $conf{PHONE_FORMAT} /". $lang{ERR_WRONG_PHONE}. (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}));
     }
     elsif (! $FORM{ACCEPT_RULES}) {
@@ -1204,7 +1209,7 @@ sub internet_registration {
           _internet_registration_form($attr);
           return 1;
         }
-        if ($conf{PASSWD_SYMBOLS} && $FORM{newpassword} !~ /[$conf{PASSWD_SYMBOLS}]/) {
+        if ($conf{PASSWD_SYMBOLS} && $FORM{newpassword} !~ /[$conf{PASSWD_SYMBOLS}]/xm) {
           $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA}, { ID => 100103 });
           _internet_registration_form($attr);
           return 1;
@@ -1330,6 +1335,7 @@ sub internet_registration {
         }
 
         #3 personal info
+        $FORM{LOCATION_ID} ||= $FORM{BUILD_ID};
         $users->pi_add({
           %FORM,
           UID   => $uid,
@@ -1407,18 +1413,21 @@ sub internet_registration {
 
           #Sendsms
           if ($FORM{PHONE} && in_array('Sms', \@MODULES) && $conf{INTERNET_REGISTRATION_SEND_SMS} && ! $FORM{REGISTRATION_SKIP_SEND_SMS}) {
-            load_module('Sms', $html);
-
             my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), {
               %$Internet, %FORM,
               PASSWORD => "$password",
               BILL_URL => $addr
             }, { OUTPUT2RETURN => 1 });
 
-            sms_send({
-              NUMBER  => $FORM{PHONE},
-              MESSAGE => $message,
-              UID     => $uid,
+            require Abills::Sender::Core;
+            Abills::Sender::Core->import();
+            my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+            $Sender->send_message({
+              TO_ADDRESS  => $FORM{PHONE},
+              MESSAGE     => $message,
+              UID         => $uid,
+              SENDER_TYPE => 'Sms',
             });
           }
           #Send mail
@@ -1529,17 +1538,6 @@ sub _internet_registration_form {
   }, { ID => 'INTERNET_REGISTRATION' });
 
   return 0;
-}
-
-#**********************************************************
-=head2 _sec2time_str($sec);
-
-=cut
-#**********************************************************
-sub _sec2time_str {
-  my($value) = @_;
-
-  return sec2time($value, { str => 1 });
 }
 
 #**********************************************************
@@ -1703,7 +1701,7 @@ sub internet_nas_access{
   my %allow_nas = ();
 
   if ( $FORM{ids} ){
-    @allow = split( /, /, $FORM{ids} );
+    @allow = split(/,\s+/x, $FORM{ids});
   }
 
   my %EX_HIDDEN_PARAMS = (
@@ -1764,15 +1762,13 @@ sub internet_nas_access{
     return 0;
   }
 
-  require Nas;
-  Nas->import();
-  my $Nas = Nas->new($db, \%conf, $admin);
+  $Nas = Nas->new($db, \%conf, $admin);
   my $table = $html->table({
-      width      => '100%',
-      caption    => $lang{NAS},
-      title      => [ $lang{ALLOW}, $lang{NAME}, 'NAS-Identifier', 'IP', $lang{TYPE} ],
-      qs         => $pages_qs,
-      ID         => 'NAS_ALLOW'
+    width   => '100%',
+    caption => $lang{NAS},
+    title   => [ $lang{ALLOW}, $lang{NAME}, 'NAS-Identifier', 'IP', $lang{TYPE} ],
+    qs      => $pages_qs,
+    ID      => 'NAS_ALLOW'
   });
 
   if (!defined($FORM{sort})) {
@@ -1815,4 +1811,4 @@ sub internet_nas_access{
   return 1;
 }
 
-1
+1;

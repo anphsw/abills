@@ -56,7 +56,7 @@ var AMessageChecker = (function () {
     if (!self.disabled) {
       setSoundsDisabled(self.soundsDisabled);
 
-      self.loader = new JSONLoaderCached({
+      self.loader = new NewJSONLoaderCached({
         id         : 'message_checker',
         url        : self.link + '&AJAX=1',
         refresh    : self.interval,
@@ -235,86 +235,86 @@ var AMessageChecker = (function () {
   }
 })();
 
-function JSONLoaderCached(options) {
-
-  var self = this;
-
-  this.id      = options.id;
-  this.url     = options.url;
-  this.refresh = options.refresh;
-
-  this.callback        = options.callback;
-  this.format_callback = options.format;
-  this.fail            = options.fail || function () {console.log(self.id, 'Got bad JSON')};
-
-  this.after       = options.after || 0;
-  this.ignoreCache = options.ignoreCache || false;
-
-  this.intervalHandler = null;
-  this.once            = options.once || false;
-
-  this.checkUpdates = function (force, callback) {
-    var currentTimestamp = (new Date()).getTime();
-    var lastUpdate       = aStorage.getValue(this.id + '_last_update', currentTimestamp);
-    var timeleft         = (parseInt(lastUpdate) + parseInt(self.refresh)) - parseInt(currentTimestamp);
-
-    if (timeleft <= 0 || force) {
-      $.getJSON(self.url, data => {
-        var formatted = data;
-
-        if (self.format_callback) {
-          formatted = self.format_callback(data);
-        }
-
-        self.callback(formatted);
-
-        aStorage.setValue(self.id + '_cache', JSON.stringify(formatted));
-        aStorage.setValue(self.id + '_last_update', currentTimestamp);
-
-        if (callback) callback();
-      }).fail(self.fail);
-    }
-    else if (this.ignoreCache) { return }
-    else {
-      var data   = aStorage.getValue(this.id + '_cache', '[]');
-      var parsed = [];
-      try {
-        parsed = JSON.parse(data);
-      }
-      catch (parseError) {
-        console.warn(this.id, parseError);
-      }
-      self.callback(parsed);
-    }
-
-    return timeleft;
-  };
-
-  this.stop = function () {
-    if (this.intervalHandler) {
-      clearInterval(this.intervalHandler);
-      return null;
-    }
-    else {
-      console.log('[ JSONLoaderCached ]', 'failed to stop, no intervalHandler');
-      return this;
-    }
-  };
-
-  this.timeleft = this.checkUpdates();
-
-  if (!this.once) {
-    var delay = (this.timeleft <= 0) ? this.after : this.timeleft + this.after;
-
-    setTimeout(function () {
-      self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
-    }, delay);
-  }
-
-  aStorage.subscribeToChanges(this.id + '_cache', function () {
-    self.checkUpdates(false);
-  });
-}
+// function JSONLoaderCached(options) {
+//
+//   var self = this;
+//
+//   this.id      = options.id;
+//   this.url     = options.url;
+//   this.refresh = options.refresh;
+//
+//   this.callback        = options.callback;
+//   this.format_callback = options.format;
+//   this.fail            = options.fail || function () {console.log(self.id, 'Got bad JSON')};
+//
+//   this.after       = options.after || 0;
+//   this.ignoreCache = options.ignoreCache || false;
+//
+//   this.intervalHandler = null;
+//   this.once            = options.once || false;
+//
+//   this.checkUpdates = function (force, callback) {
+//     var currentTimestamp = (new Date()).getTime();
+//     var lastUpdate       = aStorage.getValue(this.id + '_last_update', currentTimestamp);
+//     var timeleft         = (parseInt(lastUpdate) + parseInt(self.refresh)) - parseInt(currentTimestamp);
+//
+//     if (timeleft <= 0 || force) {
+//       $.getJSON(self.url, data => {
+//         var formatted = data;
+//
+//         if (self.format_callback) {
+//           formatted = self.format_callback(data);
+//         }
+//
+//         self.callback(formatted);
+//
+//         aStorage.setValue(self.id + '_cache', JSON.stringify(formatted));
+//         aStorage.setValue(self.id + '_last_update', currentTimestamp);
+//
+//         if (callback) callback();
+//       }).fail(self.fail);
+//     }
+//     else if (this.ignoreCache) { return }
+//     else {
+//       var data   = aStorage.getValue(this.id + '_cache', '[]');
+//       var parsed = [];
+//       try {
+//         parsed = JSON.parse(data);
+//       }
+//       catch (parseError) {
+//         console.warn(this.id, parseError);
+//       }
+//       self.callback(parsed);
+//     }
+//
+//     return timeleft;
+//   };
+//
+//   this.stop = function () {
+//     if (this.intervalHandler) {
+//       clearInterval(this.intervalHandler);
+//       return null;
+//     }
+//     else {
+//       console.log('[ JSONLoaderCached ]', 'failed to stop, no intervalHandler');
+//       return this;
+//     }
+//   };
+//
+//   this.timeleft = this.checkUpdates();
+//
+//   if (!this.once) {
+//     var delay = (this.timeleft <= 0) ? this.after : this.timeleft + this.after;
+//
+//     setTimeout(function () {
+//       self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
+//     }, delay);
+//   }
+//
+//   aStorage.subscribeToChanges(this.id + '_cache', function () {
+//     self.checkUpdates(false);
+//   });
+// }
 
 function NavbarDropdownMenu(id, options) {
   this.$wrapper = $('li.dropdown#' + id);
@@ -372,6 +372,13 @@ function NavbarDropdownMenu(id, options) {
     return this.$badge2.text();
   };
   this.getMeta      = function () {return this.meta};
+  this.updateCount  = function (count) {
+    // cringe solution because no direct access to lang
+    let text = this.$header_text.text();
+    text = text.replace(/\d+$/, count);
+    this.setHeader(text);
+    this.setBadge(count);
+  };
 
   this.clear = function () {
     this.$list.html('');
@@ -438,6 +445,138 @@ function NavbarDropdownMenu(id, options) {
   }
 }
 
+function NewJSONLoaderCached(options) {
+
+  var self = this;
+
+  this.id      = options.id;
+  this.url     = options.url;
+  this.refresh = options.refresh;
+
+  this.callback        = options.callback;
+  this.format_callback = options.format;
+  this.fail            = options.fail || function () {console.log(self.id, 'Got bad JSON')};
+
+  this.after       = options.after || 0;
+  this.ignoreCache = options.ignoreCache || false;
+
+  this.intervalHandler = null;
+
+  this.channel = new BroadcastChannel(this.id + '_channel');
+  this.local_storage_key = this.id + '_shared_data';
+  this.leader_key = this.id + '_leader_tab_id';
+  this.fetch_interval = 5000;
+
+  this.tab_id = Date.now() + '_' + Math.random();
+
+  this.checkUpdates = function (force, callback) {
+
+    setTimeout(() => {
+      const currentLeader = aStorage.getValue(this.leader_key);
+      if (!currentLeader) {
+        self.becomeLeader();
+      }
+    }, 100);
+
+    var currentTimestamp = (new Date()).getTime();
+    var lastUpdate        = aStorage.getValue(this.id + '_last_update', currentTimestamp);
+    var timeleft         = (parseInt(lastUpdate) + parseInt(self.refresh)) - parseInt(currentTimestamp);
+
+    if (timeleft <= 0 || force) {
+      $.getJSON(self.url, data => {
+        var formatted = data;
+
+        if (self.format_callback) {
+          formatted = self.format_callback(data);
+        }
+
+        self.callback(formatted);
+
+        aStorage.setValue(self.id + '_cache', JSON.stringify(formatted));
+        aStorage.setValue(self.id + '_last_update', currentTimestamp);
+
+        if (callback) callback();
+      }).fail(self.fail);
+    }
+    else if (this.ignoreCache) { return }
+    else {
+      var data   = aStorage.getValue(this.id + '_cache', '[]');
+      var parsed = [];
+      try {
+        parsed = JSON.parse(data);
+      }
+      catch (parseError) {
+        console.warn(this.id, parseError);
+      }
+      self.callback(parsed);
+    }
+
+    return timeleft;
+  };
+
+  this.isLeader = function() {
+    return aStorage.getValue(this.leader_key) === this.tab_id;
+  }
+
+  this.becomeLeader = function () {
+    aStorage.setValue(this.leader_key, this.tab_id);
+  }
+
+  this.broadcast = function (data) {
+    this.channel.postMessage(data);
+    aStorage.setValue(this.local_storage_key, JSON.stringify(data));
+  }
+
+  this.stop = function () {
+    if (this.intervalHandler) {
+      clearInterval(this.intervalHandler);
+      return null;
+    }
+    else {
+      console.log('[ JSONLoaderCached ]', 'failed to stop, no intervalHandler');
+      return this;
+    }
+  };
+
+  this.channel.onmessage = (event) => {
+    aStorage.setValue(this.local_storage_key, JSON.stringify(event.data));
+  };
+
+  window.addEventListener('beforeunload', () => {
+    if (self.isLeader()) {
+      localStorage.removeItem(self.leader_key);
+      self.stop();
+    }
+  });
+
+  window.addEventListener('storage', (e) => {
+    if (e.key === self.leader_key) {
+      if (e.newValue === null) {
+        setTimeout(() => {
+          const currentLeader = aStorage.getValue(self.leader_key);
+          if (!currentLeader) {
+            self.becomeLeader();
+          }
+        }, 100);
+      } else if (!self.isLeader()) {
+        self.stop();
+      }
+    }
+  });
+
+  this.timeleft = this.checkUpdates();
+
+  var delay = (this.timeleft <= 0) ? this.after : this.timeleft + this.after;
+
+  setTimeout(function () {
+    self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
+  }, delay);
+
+  aStorage.subscribeToChanges(this.id + '_cache', function () {
+    self.checkUpdates(false);
+  });
+}
+
 var MessagesMenu = function (id, options) {
   var self = this;
 
@@ -466,7 +605,7 @@ var MessagesMenu = function (id, options) {
         var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
 
         // Start loader
-        self.loader = new JSONLoaderCached({
+        self.loader = new NewJSONLoaderCached({
           id      : id,
           url     : this.meta['UPDATE'],
           refresh : refresh,
@@ -478,6 +617,7 @@ var MessagesMenu = function (id, options) {
           },
           format  : function (rawData) {
             var result = [];
+            self.$menu.updateCount(rawData.total);
             if (rawData && rawData.list) {
               rawData.list.map(message => {
                 if (self.filter(message)) {
@@ -692,7 +832,7 @@ var EventsMenu = function (id, options) {
 
       var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
       // Start loader
-      self.loader = new JSONLoaderCached({
+      self.loader = new NewJSONLoaderCached({
         id      : id,
         url     : this.meta['UPDATE'],
         refresh : refresh,
@@ -704,6 +844,9 @@ var EventsMenu = function (id, options) {
           parsed['DATA_1'].map(self.addEvent);
         },
         format  : function (rawData) {
+
+          // TODO: add updateCount when will be API
+
           if (rawData['DATA_1'] && $.isArray(rawData['DATA_1'])) {
             rawData['DATA_1'] = rawData['DATA_1'].map(self.parseMessage).reverse();
           }
@@ -937,7 +1080,7 @@ var CrmDialoguesMenu = function (id, options) {
         var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
 
         // Start loader
-        self.loader = new JSONLoaderCached({
+        self.loader = new NewJSONLoaderCached({
           id: id,
           url: this.meta['UPDATE'],
           refresh: refresh,
@@ -948,6 +1091,9 @@ var CrmDialoguesMenu = function (id, options) {
             parsed.map(self.addEvent);
           },
           format: function (rawData) {
+
+            // TODO: add updateCount when will be normal API with returning count
+
             var result = [];
             if (rawData && rawData.constructor === Array) {
               rawData.map(message => {

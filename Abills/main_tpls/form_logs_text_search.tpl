@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' name='form_search' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST' name='form_search' class='form form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name="file" value='%FILE_DIR%'>
   <input type='hidden' name="name" value='%FILE_NAME%'>
   <div class='card card-primary card-outline box-big-form'>

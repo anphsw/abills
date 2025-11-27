@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='POST' class='form-horizontal' id='UREPORTS_SEARCH'>
+<form action='%SELF_URL%' method='POST' class='form-horizontal' id='UREPORTS_SEARCH'>
   <input type='hidden' name='index' value='%INDEX%'>
   <input type='hidden' name='search_form' value='1'>
 

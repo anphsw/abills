@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "The Root Schema",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "chapterName": {
+            "type": "string"
+          },
+          "chapterId": {
+            "type": "number"
+          },
+          "uid": {
+            "type": "number"
+          },
+          "stateId": {
+            "type": "number"
+          },
+          "state": {
+            "type": "number"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chapterId",
+          "uid",
+          "stateId",
+          "subject"
+        ]
+      }
+    },
+    "total": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

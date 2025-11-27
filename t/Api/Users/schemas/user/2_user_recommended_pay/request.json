@@ -1,0 +1,5 @@
+{
+  "name": "USER_RECOMMENDED_PAY",
+  "method": "GET",
+  "path": "user/recommendedPay/"
+}

@@ -18,7 +18,7 @@
   }
 
 </style>
-<form action='$SELF_URL' method='post' id='FORM_QUICK_REPORT_POSITION'>
+<form action='%SELF_URL%' method='post' id='FORM_QUICK_REPORT_POSITION'>
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
   <input type='hidden' name='QUICK' value='1'/>
 </form>

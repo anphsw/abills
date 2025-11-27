@@ -28,7 +28,6 @@ my (
   $stat_val,
   $stat_label,
   %stats,   # SHOW STATUS
-  %vars,    # SHOW VARIABLES
 );
 
 my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
@@ -65,7 +64,7 @@ sub sqlcmd {
   my %FORM2 = ();
   my @pairs = ();
   if ( $FORM{__BUFFER} ){
-    @pairs = split( /&/, $FORM{__BUFFER} );
+    @pairs = split(/&/x, $FORM{__BUFFER} );
   }
 
   $LIST_PARAMS{PAGE_ROWS} = 15;
@@ -78,9 +77,9 @@ sub sqlcmd {
   }
   else {
     foreach my $pair (@pairs) {
-      my ($side, $value) = split(/=/, $pair);
+      my ($side, $value) = split(/=/x, $pair);
       $value =~ tr/+/ /;
-      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg;
 
       if (defined($FORM2{$side})) {
         $FORM2{$side} .= ", $value";
@@ -91,7 +90,7 @@ sub sqlcmd {
     }
 
     if ($FORM{WIZARD}) {
-      my @f = split(/, /, $FORM{FIELDS});
+      my @f = split(/,\s+/x, $FORM{FIELDS});
 
       $FORM{QUERY} = "SELECT ";
 
@@ -166,72 +165,27 @@ sub sqlcmd {
 
   if (!$FORM{FIELD}) {
     $FORM{QUERY} = '' if (! $FORM{QUERY});
-    $FORM{QUERY} =~ s/\\\'/\'/g;
-    $FORM{QUERY} =~ s/\\\"/\"/g;
+    $FORM{QUERY} =~ s/\\\'/\'/xg;
+    $FORM{QUERY} =~ s/\\\"/\"/xg;
     $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 }, { SKIP_VARS => '[YyMmDdHhIiSs]{1}[-:]{1}' });
 
-    if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
-      if ($FORM2{qindex} && $FORM2{QUERY} =~ /CREATE |UPDATE |INSERT |ALTER /i) {
-        # Disable write queries for export
-        # Without this protection intruder can bruteforce GET query for indexes
-        # and pass write query from export - we cant let it happen.
-        # The probability of this event is small, but it cannot be allowed.
-        $list = [];
-      } else {
-        $list = $Sqlcmd->list({ %FORM2 });
-      }
-    }
-
-    if ($FORM{QUERY} && !$FORM{xml}) {
+    if ($FORM{QUERY}) {
       $FORM{SQL_QUERY} = $FORM{QUERY};
 
-      $table = $html->table({
-        width => '100%',
-      });
-
-      #Syntax highlight
-      my @func = ('CURDATE', 'NOW', 'DECODE', 'ENCODE', 'CONCAT', 'INET_NTOA', 'INET_ATON');
-      my @syntax = (
-        'SELECT', 'FROM', 'WHERE',   'MIN',   'MAX',   'AVG', 'SUM',    'IF',       'INSERT', 'UPDATE', 'INTO',    'VALUES',   'GROUP BY', 'ORDER BY', 'LIMIT', 'DATE_FORMAT', 'LEFT JOIN', 'INNER JOIN', ' IN', 'HAVING', 'AS', 'CASE',
-        'THEN', 'ELSE', 'END', 'WHEN',
-        'ON',     'AND',  'EXPLAIN', 'ALTER', 'TABLE', 'ADD', 'COLUMN', 'UNSIGNED', 'NOT',    'NULL',   'DEFAULT', 'INTERVAL', 'COUNT',    'DESC',     'ASC',   @func
-      );
-
-      #my @types    = ('INT',  'VARCHAR', 'SMALLINT',  'CHAR',     'TINYINT',  'DOUBLE');
-      my @division = ('FROM', 'WHERE',   'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT', 'AND', 'HAVING', 'CASE');
-
-      foreach my $query (@{ $Sqlcmd->{EXECUTED_QUERY} }) {
-        my $show_query = $query;
-        $show_query =~ s/</&lt;/g;
-        $show_query =~ s/>/&gt;/g;
-        $show_query =~ s/\"/&quot;/g;
-
-        foreach my $s (@division) {
-          $show_query =~ s/$s | $s / <br>$s /ig;
+      if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
+        if ($FORM2{qindex} && $FORM2{QUERY} =~ /CREATE\s+|UPDATE\s+|INSERT\s+|ALTER\s+/ix) {
+          # Disable write queries for export
+          # Without this protection intruder can bruteforce GET query for indexes
+          # and pass write query from export - we cant let it happen.
+          # The probability of this event is small, but it cannot be allowed.
+          $list = [];
         }
-
-        foreach my $s (@syntax) {
-          #Extended
-          $show_query =~ s/$s | $s / <b>$s<\/b> /ig;
-          $show_query =~ s/$s\(/ <b>$s<\/b>\(/gi;
-          $show_query =~ s/'(\S+)'/ <font color=\"#0000FF\">'$1'<\/font> /gi;
-          #          if ($show_query =~ /\s+(\d+)|(\d+),/){
-          #            $show_query =~ s/\s+(\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
-          #          }
+        else {
+          $list = $Sqlcmd->list({ %FORM2 });
         }
-
-        $show_query =~ s/(FROM[\/<>b]+\s+)([a-z0-9 _\s\n,]+)/$1 %TABLES% /gi;
-        my $tables = $2 || '';
-
-        $tables     =~ s/(([a-z0-9_]+)([\sa-z0-9]{0,10})?)([,]?)/<a href="#" onclick="window.open('$SELF_URL?qindex=$index&TABLE_INFO=$2', null, 'toolbar=0,location=0,directories=0,status=1,menubar=0,'+'scrollbars=1,resizable=1,'+'width=640, height=600');">$2<\/a> $3$4/gi;
-        $show_query =~ s/%TABLES%/$tables/g;
-
-        $show_query =~ s/(JOIN[\/<>b]+\s+)(\S+)/$1<a href="#" onclick="window.open('$SELF_URL?qindex=$index&TABLE_INFO=$2', null, 'toolbar=0,location=0,directories=0,status=1,menubar=0,'+'scrollbars=1,resizable=1,'+'width=640, height=600');">$2<\/a>/gi;
-
-        $table->addrow("$show_query", "Ok");
       }
 
-      print $table->show();
+      sqlcmd_query_info($Sqlcmd);
 
       if ($FORM{HISTORY}) {
         if (!$FORM{COMMENTS}) {
@@ -248,208 +202,364 @@ sub sqlcmd {
       $Sqlcmd_main->history_add(\%FORM2);
     }
 
-    if ($Sqlcmd->{errno}) {
-      $html->message('err', $lang{ERROR}, "[$Sqlcmd->{errno}] $Sqlcmd->{errno}\n"
-        . ' ' . ($Sqlcmd->{errstr} || q{}) . "\n"
-        . ' ' . ( $Sqlcmd->{sql_errstr} || q{} ), { ID => $Sqlcmd->{db}->{db}->state() });
-      return 0;
-    }
-
-    $pages_qs .= "&QUERY=" . urlencode($FORM{QUERY});
-
-    my @CAPTION = ();
-
-    @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
-
-    $table = $html->table({
-      width   => '100%',
-      caption => $lang{RESULT},
-      title   => ($#CAPTION > -1) ? [ @CAPTION ] : [],
-      qs      => $pages_qs,
-      pages   => $Sqlcmd->{TOTAL},
-      ID      => 'SQLCMD_RESULT',
-      EXPORT  => 1,
-    });
-
-    my %caption2id = ();
-    for (my $i=0; $i<=$#CAPTION; $i++) {
-      $caption2id{$CAPTION[$i]}=$i;
-    }
-
-    foreach my $line (@$list) {
-      my @table_row = ();
-      if (ref $line eq 'ARRAY') {
-        my $i = 0;
-        foreach my $l (@{$line}) {
-          $l = convert($l, { text2html => 1 });
-
-          if ($CAPTION[$i] && $CAPTION[$i] eq 'login' && $caption2id{uid}) {
-            $l = $html->button($l, "index=15&UID=" . ($line->[$caption2id{uid}] || q{}));
-          }
-
-          push @table_row, $l;
-          $i++;
-        }
-      }
-
-      $table->addrow(@table_row);
-    }
-    print $table->show();
-
-    if(! $Sqlcmd->{db}->{db}) {
-      $html->message('err', $lang{ERROR}, "CANT_CONNECT");
-      return 1;
-    }
-
-    $table = $html->table({
-      width => '100%',
-      rows  => [ [
-        "$lang{TOTAL}: " . $html->b($Sqlcmd->{TOTAL}),
-        "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
-        "STATE: " . $Sqlcmd->{db}->{db}->state()
-      ] ]
-    });
-
-    print $table->show();
+    sqlcmd_query_table($list);
   }
 
   if ($FORM{TABLE_INFO}) {
-    if ($FORM{FIELD}) {
-      if ($FORM{change}) {
-
-        if ($FORM{COLUMN_TYPE} =~ /INT/ig) {
-          $FORM{COLLATION} = "";
-        }
-        elsif ($FORM{COLLATION}) {
-          $FORM{COLLATION}      = " COLLATE $FORM{COLLATION} ";
-          $FORM{AUTO_INCREMENT} = '';
-        }
-
-        $FORM{COLUMN_LENGTH} = "($FORM{COLUMN_LENGTH})" if ($FORM{COLUMN_LENGTH});
-        $FORM{DEFAULT} = "''" if (!$FORM{DEFAULT});
-
-        my $query = "ALTER TABLE $FORM{TABLE_INFO} CHANGE COLUMN `$FORM{FIELD}` `$FORM{NAME}` "
-          . ($FORM{COLUMN_TYPE} || ''). ($FORM{COLUMN_LENGTH} || '') .' '. ($FORM{AUTO_INCREMENT} || '')
-          . ' ' . ($FORM{COLLATION} || '').' '. ($FORM{ATTRIBUTE_TYPE} || '') ." DEFAULT $FORM{DEFAULT} ";
-
-        $html->message('info', '', $query);
-
-        if(! $FORM{SHOW}) {
-          $Sqlcmd->list({ QUERY => $query });
-          if ($Sqlcmd->{errno}) {
-            $html->message('err', '', $query);
-          }
-        }
-      }
-
-      $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM $conf{dbname}.$FORM{TABLE_INFO} LIKE '$FORM{FIELD}' " });
-      $FORM{NAME} = $FORM{FIELD};
-
-      if ($list->[0]->[1] && $list->[0]->[1] =~ /(\S+)\((\d+)\)\s?(.{0,30})?/) {
-        $FORM{COLUMN_TYPE}    = uc($1);
-        $FORM{COLUMN_LENGTH}  = $2;
-        $FORM{ATTRIBUTE_TYPE} = $3;
-      }
-      else {
-        $FORM{COLUMN_TYPE} = uc($list->[0]->[1] || q{});
-      }
-
-      $FORM{COLLATION}      = $list->[0]->[2];
-      $FORM{DEFAULT}        = $list->[0]->[5];
-      $FORM{AUTO_INCREMENT} = ($list->[0]->[6] && $list->[0]->[6] eq 'auto_increment') ? 'checked' : '';
-
-      my %COLUMN_TYPES = (
-        # most used
-        'INT'     => 'INT',
-        'VARCHAR' => 'VARCHAR',
-        'TEXT'    => 'TEXT',
-        'DATE'    => 'DATE',
-
-        # numeric
-        'NUMERIC' => [ 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'INT', 'BIGINT', '-', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL', '-', 'BIT', 'BOOLEAN', 'SERIAL', ],
-
-        # Date/Time
-        'DATE and TIME' => [ 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'YEAR', ],
-
-        # Text
-        'STRING' => [ 'CHAR', 'VARCHAR', '-', 'TINYTEXT', 'TEXT', 'MEDIUMTEXT', 'LONGTEXT', '-', 'BINARY', 'BINARY', 'VARBINARY', '-', 'TINYBLOB', 'MEDIUMBLOB', 'BLOB', 'LONGBLOB', '-', 'ENUM', 'SET', ],
-
-        'SPATIAL' => [ 'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION', ]
-      );
-
-      $Sqlcmd->{COLUMN_TYPE_SEL} = $html->form_select('COLUMN_TYPE', {
-        SELECTED => $FORM{COLUMN_TYPE},
-        SEL_HASH => \%COLUMN_TYPES,
-        NO_ID    => 1
-      });
-
-      my @ATTRIBUTE_TYPES = ('', 'BINARY', 'UNSIGNED', 'UNSIGNED ZEROFILL', 'on update CURRENT_TIMESTAMP');
-
-      $Sqlcmd->{ATTRIBUTE_TYPE_SEL} = $html->form_select('ATTRIBUTE_TYPE', {
-        SELECTED  => $FORM{ATTRIBUTE_TYPE},
-        SEL_ARRAY => \@ATTRIBUTE_TYPES,
-        NO_ID     => 1
-      });
-
-      $Sqlcmd->{COLLATION_SEL} = sqlcmd_collation();
-
-      $html->tpl_show(_include('sqlcmd_field', 'Sqlcmd'), { %$Sqlcmd, %FORM });
-    }
-
-    $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM " . ($conf{dbname} ? $conf{dbname} : q{}) .".$FORM{TABLE_INFO}" });
-
-    my @CAPTION = ();
-    if ($Sqlcmd->{MYSQL_FIELDS_NAMES} && ref $Sqlcmd->{MYSQL_FIELDS_NAMES} eq 'ARRAY'){
-      @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} };
-    }
-
-    $table = $html->table({
-      width       => '100%',
-      caption     => $FORM{TABLE_INFO},
-      title_plain => [ @CAPTION, '-' ]
-    });
-
-    foreach my $line (@$list) {
-      $table->{rowcolor} = ($FORM{FIELD} && $line->[0] eq $FORM{FIELD}) ? 'info' : undef;
-
-      $table->addrow($html->form_input('FIELDS', $line->[0], { TYPE => 'CHECKBOX' }) . " $line->[0]",
-        $line->[1],
-        $line->[2],
-        $line->[3],
-        $line->[4],
-        $line->[5],
-        $line->[6],
-        $line->[7],
-        $line->[8],
-        $html->button($lang{CHANGE}, "index=$index&TABLE_INFO=$FORM{TABLE_INFO}&FIELD=$line->[0]", { class => 'change' }));
-    }
-
-    my $table2 = $html->table({
-      width       => '100%',
-      title_plain => [ $html->form_input('WIZARD', $lang{SHOW}, { TYPE => 'SUBMIT' }) ]
-    });
-
-    print $html->form_main({
-      CONTENT => $table->show() . $table2->show(),
-      HIDDEN  => {
-        index      => $index,
-        TABLE_INFO => $FORM{TABLE_INFO}
-      },
-      METHOD  => 'GET'
-    });
-
-    $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
-    $table = $html->table({
-      width   => '100%',
-      caption => 'SQL Dump',
-      rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
-    });
-
-    print $table->show();
+    sqlcmd_table_info(\%FORM);
   }
 
   return 1;
 }
+
+
+#**********************************************************
+=head2 sqlcmd_query_info($query)
+
+  Arguments:
+    $Sqlcmd
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub sqlcmd_query_info {
+  my ($sqlcmd)=@_;
+  my $table = $html->table({
+    width => '100%',
+  });
+
+  foreach my $query (@{ $sqlcmd->{EXECUTED_QUERY} }) {
+    my $show_query = _query_format($query);
+    $table->addrow($show_query, "Ok");
+  }
+
+  print $table->show();
+  return 1;
+}
+
+#**********************************************************
+=head2 _query_format($query)
+
+  Arguments:
+    $query
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub sqlcmd_query_table {
+  my ($query_list) =@_;
+
+  if ($Sqlcmd->{errno}) {
+    $html->message('err', $lang{ERROR}, "[$Sqlcmd->{errno}] $Sqlcmd->{errno}\n"
+      . ' ' . ($Sqlcmd->{errstr} || q{}) . "\n"
+      . ' ' . ( $Sqlcmd->{sql_errstr} || q{} ), { ID => $Sqlcmd->{db}->{db}->state() });
+    return 0;
+  }
+
+  $pages_qs .= "&QUERY=" . urlencode($FORM{QUERY});
+
+  my @CAPTION = ();
+
+  @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{RESULT},
+    title   => ($#CAPTION > -1) ? [ @CAPTION ] : [],
+    qs      => $pages_qs,
+    pages   => $Sqlcmd->{TOTAL},
+    ID      => 'SQLCMD_RESULT',
+    EXPORT  => 1,
+  });
+
+  my %caption2id = ();
+  for (my $i=0; $i<=$#CAPTION; $i++) {
+    $caption2id{$CAPTION[$i]}=$i;
+  }
+
+  foreach my $line (@$query_list) {
+    my @table_row = ();
+    if (ref $line eq 'ARRAY') {
+      my $i = 0;
+      foreach my $l (@{$line}) {
+        $l = convert($l, { text2html => 1 });
+
+        if ($CAPTION[$i]) {
+          if ($CAPTION[$i] eq 'login' && $caption2id{uid}) {
+            $l = $html->button($l, "index=15&UID=" . ($line->[$caption2id{uid}] || q{}));
+          }
+          elsif ($CAPTION[$i] eq 'msg_id') {
+            $l = $html->button($l, "get_index=msgs_admin&full=1&chg=" . ($line->[$i] || q{}), { class => 'badge bg-blue' });
+          }
+        }
+
+        push @table_row, $l;
+        $i++;
+      }
+    }
+
+    $table->addrow(@table_row);
+  }
+  print $table->show();
+
+  if(! $Sqlcmd->{db}->{db}) {
+    $html->message('err', $lang{ERROR}, "CANT_CONNECT");
+    return 1;
+  }
+
+  my $db_ = $Sqlcmd->{db}->{db};
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [
+      "$lang{TOTAL}: " . $html->b($Sqlcmd->{TOTAL}),
+      "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
+      "STATE: " . $db_->state()
+    ] ]
+  });
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _query_format($query)
+
+  Arguments:
+    $query
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _query_format {
+  my ($query) = @_;
+
+  #Syntax highlight
+  my @func = ('CURDATE', 'NOW', 'DECODE', 'ENCODE', 'CONCAT', 'INET_NTOA', 'INET_ATON');
+  my @syntax = (
+    'SELECT', 'FROM', 'WHERE',   'MIN',   'MAX',   'AVG', 'SUM', 'IF', 'INSERT', 'UPDATE', 'INTO',  'VALUES', 'GROUP\s+BY', 'ORDER\s+BY', 'LIMIT', 'DATE_FORMAT', 'LEFT\s+JOIN', 'INNER\s+JOIN', '\s+IN', 'HAVING', 'AS', 'CASE',
+    'THEN', 'ELSE', 'END', 'WHEN',
+    '\s+ON', 'AND',  'EXPLAIN', 'ALTER', 'TABLE', 'ADD', 'COLUMN', 'UNSIGNED', 'NOT', 'NULL',   'DEFAULT', 'INTERVAL', 'COUNT', 'DESC', 'ASC',  @func
+  );
+
+  #my @types    = ('INT',  'VARCHAR', 'SMALLINT',  'CHAR', 'TINYINT',  'DOUBLE');
+  my @division = ('FROM', 'WHERE',   'LEFT\s+JOIN', 'GROUP\s+BY', 'ORDER\s+BY', 'LIMIT', 'AND', 'HAVING', 'CASE');
+
+  $query =~ s/</&lt;/xg;
+  $query =~ s/>/&gt;/xg;
+  $query =~ s/\"/&quot;/xg;
+  $query =~ s/[\r\n]+/ /xg;
+
+  foreach my $s (@division) {
+    my $clear_ = $s;
+    $clear_ =~ s/\\s\+/ /xg;
+    $query =~ s/$s\s+|\s+$s\s+/ <br>$clear_ /igx;
+  }
+
+  foreach my $s (@syntax) {
+    #Extended
+    my $clear_ = $s;
+    $clear_ =~ s/\\s\+/ /xg;
+    $query =~ s/$s\s+|\s+$s\s+/ <b>$clear_<\/b> /xig;
+    $query =~ s/$s\(/ <b>$s<\/b>\(/xgi;
+    $query =~ s/'(\S+)'/<font color=\"#0000FF\">'$1'<\/font> /xgi;
+    #          if ($show_query =~ /\s+(\d+)|(\d+),/){
+    #            $show_query =~ s/\s+(\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
+    #          }
+  }
+
+  $query =~ s/(FROM[\/<>b]+\s+)(\S+)/$1 %TABLES%/xgi;
+  my $tables = $2 || '';
+
+  $tables    =~ s/(([a-z0-9_]+)([\sa-z0-9]{0,10})?)([,]?)/<a href="#" onclick="window.open('$SELF_URL?qindex=$index&TABLE_INFO=$2', null, 'toolbar=0,location=0,directories=0,status=1,menubar=0,'+'scrollbars=1,resizable=1,'+'width=640, height=600');">$2<\/a>$3$4/xgi;
+  $query     =~ s/%TABLES%/$tables/xg;
+  $query =~ s/(JOIN[\/<>b]+\s+)(\S+)/$1<a href="#" onclick="window.open('$SELF_URL?qindex=$index&TABLE_INFO=$2', null, 'toolbar=0,location=0,directories=0,status=1,menubar=0,'+'scrollbars=1,resizable=1,'+'width=640, height=600');">$2<\/a>/xgi;
+
+  return $query;
+}
+
+
+#**********************************************************
+=head2 sqlcmd_triggers($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub sqlcmd_table_field {
+  my ($attr) = @_;
+
+  my $db_table = $attr->{TABLE_INFO};
+
+  if ($attr->{change}) {
+    if ($attr->{COLUMN_TYPE} =~ /INT/xmig) {
+      $attr->{COLLATION} = "";
+    }
+    elsif ($attr->{COLLATION}) {
+      $attr->{COLLATION}      = " COLLATE $attr->{COLLATION} ";
+      $attr->{AUTO_INCREMENT} = '';
+    }
+
+    $attr->{COLUMN_LENGTH} = "($attr->{COLUMN_LENGTH})" if ($attr->{COLUMN_LENGTH});
+    $attr->{DEFAULT} = "''" if (!$attr->{DEFAULT});
+
+    my $query = <<"SQL";
+ALTER TABLE $db_table CHANGE COLUMN `$attr->{FIELD}` `$attr->{NAME}` "
+SQL
+
+    $query .= ($attr->{COLUMN_TYPE} || ''). ($attr->{COLUMN_LENGTH} || '') .' '. ($attr->{AUTO_INCREMENT} || '')
+      . ' ' . ($attr->{COLLATION} || '').' '. ($attr->{ATTRIBUTE_TYPE} || '') ." DEFAULT $attr->{DEFAULT} ";
+
+    $html->message('info', '', $query);
+
+    if(! $attr->{SHOW}) {
+      $Sqlcmd->list({ QUERY => $query });
+      if ($Sqlcmd->{errno}) {
+        $html->message('err', '', $query);
+      }
+    }
+  }
+
+  my $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM $conf{dbname}.$db_table LIKE '$attr->{FIELD}' " });
+  $attr->{NAME} = $attr->{FIELD};
+
+  if ($list->[0]->[1] && $list->[0]->[1] =~ /(\S+)\((\d+)\)\s?(.{0,30})?/xm) {
+    $attr->{COLUMN_TYPE}    = uc($1);
+    $attr->{COLUMN_LENGTH}  = $2;
+    $attr->{ATTRIBUTE_TYPE} = $3;
+  }
+  else {
+    $attr->{COLUMN_TYPE} = uc($list->[0]->[1] || q{});
+  }
+
+  $attr->{COLLATION}      = $list->[0]->[2];
+  $attr->{DEFAULT}        = $list->[0]->[5];
+  $attr->{AUTO_INCREMENT} = ($list->[0]->[6] && $list->[0]->[6] eq 'auto_increment') ? 'checked' : '';
+
+  my %COLUMN_TYPES = (
+    # most used
+    'INT'     => 'INT',
+    'VARCHAR' => 'VARCHAR',
+    'TEXT'    => 'TEXT',
+    'DATE'    => 'DATE',
+
+    # numeric
+    'NUMERIC' => [ 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'INT', 'BIGINT', '-', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL', '-', 'BIT', 'BOOLEAN', 'SERIAL', ],
+
+    # Date/Time
+    'DATE and TIME' => [ 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'YEAR', ],
+
+    # Text
+    'STRING' => [ 'CHAR', 'VARCHAR', '-', 'TINYTEXT', 'TEXT', 'MEDIUMTEXT', 'LONGTEXT', '-', 'BINARY', 'BINARY', 'VARBINARY', '-', 'TINYBLOB', 'MEDIUMBLOB', 'BLOB', 'LONGBLOB', '-', 'ENUM', 'SET', ],
+
+    'SPATIAL' => [ 'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION', ]
+  );
+
+  $Sqlcmd->{COLUMN_TYPE_SEL} = $html->form_select('COLUMN_TYPE', {
+    SELECTED => $attr->{COLUMN_TYPE},
+    SEL_HASH => \%COLUMN_TYPES,
+    NO_ID    => 1
+  });
+
+  my @ATTRIBUTE_TYPES = ('', 'BINARY', 'UNSIGNED', 'UNSIGNED ZEROFILL', 'on update CURRENT_TIMESTAMP');
+
+  $Sqlcmd->{ATTRIBUTE_TYPE_SEL} = $html->form_select('ATTRIBUTE_TYPE', {
+    SELECTED  => $attr->{ATTRIBUTE_TYPE},
+    SEL_ARRAY => \@ATTRIBUTE_TYPES,
+    NO_ID     => 1
+  });
+
+  $Sqlcmd->{COLLATION_SEL} = sqlcmd_collation();
+
+  $html->tpl_show(_include('sqlcmd_field', 'Sqlcmd'), { %$Sqlcmd, %FORM });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 sqlcmd_triggers($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub sqlcmd_table_info {
+  my ($attr)=@_;
+
+  my $db_table = $attr->{TABLE_INFO};
+
+  if ($attr->{FIELD}) {
+    sqlcmd_table_field($attr);
+  }
+
+  my $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM " . ($conf{dbname} ? $conf{dbname} : q{}) .".$db_table" });
+
+  my @CAPTION = ();
+  if ($Sqlcmd->{MYSQL_FIELDS_NAMES} && ref $Sqlcmd->{MYSQL_FIELDS_NAMES} eq 'ARRAY'){
+    @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} };
+  }
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $db_table,
+    title_plain => [ @CAPTION, '-' ]
+  });
+
+  foreach my $line (@$list) {
+    $table->{rowcolor} = ($attr->{FIELD} && $line->[0] eq $attr->{FIELD}) ? 'info' : undef;
+
+    $table->addrow($html->form_input('FIELDS', $line->[0], { TYPE => 'CHECKBOX' }) . " $line->[0]",
+      $line->[1],
+      $line->[2],
+      $line->[3],
+      $line->[4],
+      $line->[5],
+      $line->[6],
+      $line->[7],
+      $line->[8],
+      $html->button($lang{CHANGE}, "index=$index&TABLE_INFO=$db_table&FIELD=$line->[0]", { class => 'change' }));
+  }
+
+  my $table2 = $html->table({
+    width       => '100%',
+    title_plain => [ $html->form_input('WIZARD', $lang{SHOW}, { TYPE => 'SUBMIT' }) ]
+  });
+
+  print $html->form_main({
+    CONTENT => $table->show() . $table2->show(),
+    HIDDEN  => {
+      index      => $index,
+      TABLE_INFO => $db_table
+    },
+    METHOD  => 'GET'
+  });
+
+  $Sqlcmd->query("SHOW CREATE TABLE $db_table");
+  $table = $html->table({
+    width   => '100%',
+    caption => 'SQL Dump',
+    rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
+  });
+
+  print $table->show();
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 sqlcmd_triggers()
@@ -468,31 +578,25 @@ sub sqlcmd_triggers {
   my @caption = ('Trigger', 'Event', 'Table', 'Statement', 'Timing', 'Created', 'sql_mode', 'Definer', 'character_set_client', 'collation_connection', 'Database Collation');
 
   my $table = $html->table({
-    width => '100%',
-    title => \@caption,
-    qs    => ($FORM{fields}) ? "&fields=$FORM{fields}" : ''
+     width => '100%',
+     title => \@caption,
+     qs    => ($FORM{fields}) ? "&fields=$FORM{fields}" : '',
+     ID    => 'SQL_TRIGGERS'
   });
-
-  #my @syntax = ('BEGIN', 'END\s+IF\s{0,10};', 'END$', 'IF', 'THEN', 'DECLARE', 'SET', 'INTEGER', 'new\.');
 
   my $list = $Sqlcmd->info({ TYPE => 'showtriggers', %LIST_PARAMS, %FORM });
   foreach my $line (@$list) {
-
     my $trigger = $line->[3];
-
-    #    foreach my $s (@syntax) {
-    #      #Extended
-    #      $trigger =~ s/($s)/ <b>$1<\/b>/ig;
-    #      $trigger =~ s/$s\(/ <b>$s<\/b>\(/gi;
-    #      $trigger =~ s/\'(\S+)\'/ <font color=\"#0000FF\">\'$1\'<\/font> /gi;
-    #      $trigger =~ s/\s?(\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
-    #    }
-
-    $table->addrow($line->[0], $line->[1], $html->button($line->[2], "TABLE_INFO=$line->[2]&QUERY=SELECt * FROM $line->[2] LIMIT 25&index=" . ($index - 2)), $html->pre("$trigger", { OUTPUT2RETURN => 1 }), $line->[4], $line->[5], $line->[6], $line->[7], $line->[8], $line->[9],);
+    $table->addrow($line->[0], $line->[1], $html->button($line->[2],
+      "TABLE_INFO=$line->[2]&QUERY=SELECt * FROM $line->[2] LIMIT 25&index=" . ($index - 2)), $html->pre("$trigger", { OUTPUT2RETURN => 1 }),
+      $line->[4], $line->[5], $line->[6], $line->[7], $line->[8], $line->[9]);
   }
 
   print $table->show();
+
+  return 1;
 }
+
 
 #**********************************************************
 =head2 sqlcmd_tables()
@@ -508,7 +612,7 @@ sub sqlcmd_tables {
 
   sqlcmd_cluster_info();
 
-  $FORM{sort} = 1 if !$FORM{sort};
+  $FORM{sort} = 1 if (!$FORM{sort});
 
   my @ACTIVE_FIELDS = ('Name', 'Engine', 'Row_format', 'Comment', 'Collation', 'Rows', 'Size');
 
@@ -541,11 +645,11 @@ sub sqlcmd_tables {
 
   my $list = $Sqlcmd->info({ TYPE => 'showtables', %LIST_PARAMS, %FORM });
 
-  return 0 if _error_show($Sqlcmd);
+  return 0 if (_error_show($Sqlcmd));
 
   push @ACTIVE_FIELDS, "ext_info", '-';
 
-  @ACTIVE_FIELDS = split(/, /, $FORM{'fields'}) if ($FORM{'fields'});
+  @ACTIVE_FIELDS = split(/,\s+/x, $FORM{'fields'}) if ($FORM{'fields'});
   $ACTIVE_FIELDS[0] = 'Name' if ($ACTIVE_FIELDS[0] ne 'Name');
   if ($FORM{ACTION} && $FORM{ACTION} eq 'SEARCH') {
     $Sqlcmd->{debug} = 1;
@@ -601,7 +705,7 @@ sub sqlcmd_tables {
     push @sorted, $list->[$line];
   }
 
-  my @active_tables = split(/, /, $FORM{TABLES} || '');
+  my @active_tables = split(/,\s+/x, $FORM{TABLES} || '');
 
   foreach my $line (@sorted) {
     my @table_rows = ($html->form_input('TABLES', $line->{Name},
@@ -609,13 +713,13 @@ sub sqlcmd_tables {
     my $table_name = $line->{'Name'} || '';
     for ($i = 0 ; $i <= $#ACTIVE_FIELDS ; $i++) {
       my $l = $ACTIVE_FIELDS[$i];
-      my $table_name=$line->{'Name'};
+      #my $table_name=$line->{'Name'};
 
       if ($l eq 'Size') {
         $l = int2byte(($line->{'Index_length'} || 0) + ($line->{'Data_length'} || 0) );
       }
       elsif ($l eq 'Name') {
-        if ($line->{$l} =~ /\d{4}_\d{2}_\d{2}$/) {
+        if ($line->{$l} =~ /\d{4}_\d{2}_\d{2}$/xm) {
           $line->{$l} = $html->color_mark($line->{$l}, $_COLORS[6]);
         }
 
@@ -675,7 +779,7 @@ sub sqlcmd_tables {
             'REPAIR'     => 'REPAIR',
             'RESTORE'    => 'RESTORE',
             'DEL_BACKUP' => "$lang{DEL} BACKUP",
-            'SEARCH'     => "$lang{SEARCH}",
+            'SEARCH'     => $lang{SEARCH},
             'COLLATION'  => 'COLLATION',
           },
           NO_ID => 1,
@@ -687,12 +791,12 @@ sub sqlcmd_tables {
   );
 
   print $html->form_main({
-    CONTENT => $table->show() . $table2->show() . $table3->show(),
-    HIDDEN  => { index => "$index" },
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }) . $table2->show() . $table3->show(),
+    HIDDEN  => { index => $index },
     METHOD  => 'POST',
     SUBMIT  => { $lang{SHOW} => $lang{ACTION} },
     NAME    => 'tables_list',
-    ID      => 'TABLES_LIST',
+    ID      => 'SQLCMD_TABLES',
   });
 
   return 1;
@@ -714,7 +818,7 @@ sub sqlcmd_info {
 
   my %op = ();
   %stats = %$stats;
-  %vars  = %$vars;
+  my %vars  = %$vars;
 
   sqlcmd_cluster_info();
 
@@ -746,12 +850,10 @@ sub sqlcmd_info {
   my $dms = $DMS_vals{SELECT} + $DMS_vals{INSERT} + $DMS_vals{REPLACE} + $DMS_vals{UPDATE} + $DMS_vals{DELETE};
 
   # First part of main report
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{INFO}",
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{INFO}",
+  });
 
   $table->addrow("MySQL: " . $vars->{'version'} . "<br>version_comment:     $vars->{'version_comment'}" . "<br>version_compile_os:  $vars->{'version_compile_os'}", '', "UPTIME: " . sec2time($stats->{'Uptime'}, { str => 1 }), '', scalar localtime);
 
@@ -780,7 +882,7 @@ sub sqlcmd_info {
   my %DTQ   = ();
   my $first = 1;
 
-  get_com_values();
+  get_com_values($stats, \%Com_vals);
 
   $stat_val = 0;
   for (values %Com_vals) {
@@ -991,30 +1093,38 @@ sub sqlcmd_info {
 }
 
 #**********************************************************
-=head2 get_com_values()
+=head2 get_com_values($stats, $Com_vals)
+
+  Arguments:
+    $stats
+    $Com_vals
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub get_com_values {
+  my ($stats, $Com_vals)=@_;
 
   # Make copy of just the Com_ values
-  for (keys %stats) {
-    if (grep /^Com_/, $_ and $stats{$_} > 0) {
-      /^Com_(.*)/;
-      $Com_vals{$1} = $stats{$_};
+  for (keys %$stats) {
+    if (grep /^Com_/x, $_ and $stats->{$_} > 0) {
+      /^Com_(.*)/xm;
+      $Com_vals{$1} = $stats->{$_};
     }
   }
 
   # Remove DMS values
-  delete $Com_vals{'select'};
-  delete $Com_vals{'insert'};
-  delete $Com_vals{'insert_select'};
-  delete $Com_vals{'replace'};
-  delete $Com_vals{'replace_select'};
-  delete $Com_vals{'update'};
-  delete $Com_vals{'update_multi'} if exists $Com_vals{'update_multi'};
-  delete $Com_vals{'delete'};
-  delete $Com_vals{'delete_multi'} if exists $Com_vals{'delete_multi'};
+  delete $Com_vals->{'select'};
+  delete $Com_vals->{'insert'};
+  delete $Com_vals->{'insert_select'};
+  delete $Com_vals->{'replace'};
+  delete $Com_vals->{'replace_select'};
+  delete $Com_vals->{'update'};
+  delete $Com_vals->{'update_multi'} if (exists $Com_vals{'update_multi'});
+  delete $Com_vals->{'delete'};
+  delete $Com_vals->{'delete_multi'} if (exists $Com_vals{'delete_multi'});
 
   return 1;
 }
@@ -1027,7 +1137,6 @@ sub get_com_values {
 sub make_short {
   my ($number, $kb) = @_;
   my $n = 0;
-  my $short;
 
   if (defined $kb) {
     while ($number > 1023) { $number /= 1024; $n++; }
@@ -1036,8 +1145,9 @@ sub make_short {
     while ($number > 999) { $number /= 1000; $n++; }
   }
 
-  $short = sprintf "%.2f%s", $number, ('', 'k', 'M', 'G', 'T')[$n];
-  if ($short =~ /^(.+)\.(00)$/) { return $1; }    # 12.00 -> 12 but not 12.00k -> 12k
+  my $short = sprintf "%.2f%s", $number, ('', 'k', 'M', 'G', 'T')[$n];
+  if ($short =~ /^(.+)\.(00)$/xm) { return $1; }    # 12.00 -> 12 but not 12.00k -> 12k
+
   return $short;
 }
 
@@ -1083,6 +1193,7 @@ sub t {
 
   return $result;
 }
+
 
 #**********************************************************
 =head2 sqlcmd_procs()
@@ -1152,9 +1263,7 @@ sub sqlcmd_procs {
 =cut
 #**********************************************************
 sub sqlcmd_cluster_info {
-  #my ($attr) = @_;
-
-  my (@cluster_hosts) = split(/,/, $conf{SQLCMD_CLUSTER_HOSTS} || '');
+  my (@cluster_hosts) = split(/,\s?/x, $conf{SQLCMD_CLUSTER_HOSTS} || '');
 
   if($conf{IPN_DBHOST}) {
     $conf{ 'SQLCMD_HOST' . ($#cluster_hosts + 2) . '_HOSTNAME' } = $conf{IPN_DBHOST};
@@ -1194,7 +1303,8 @@ sub sqlcmd_cluster_info {
   print $html->table_header(\@header_arr, { TABS => 1 });
 
   if ($FORM{HOST_ID} != 0 && !$conf{ 'SQLCMD_HOST' . $FORM{HOST_ID} . '_HOSTNAME' }) {
-    $html->message('info', $lang{INFO}, "Can't find DB: ". $conf{ 'SQLCMD_HOST' . $FORM{HOST_ID} . '_HOSTNAME' });
+    my $dbhost = ($conf{ 'SQLCMD_HOST' . $FORM{HOST_ID} . '_HOSTNAME' }) ? $conf{ 'SQLCMD_HOST' . $FORM{HOST_ID} . '_HOSTNAME' } : 'NO_HOST_DEFINED';
+    $html->message('info', $lang{INFO}, "Can't find DB: $dbhost" );
     $ret = 0;
   }
 
@@ -1207,15 +1317,10 @@ sub sqlcmd_cluster_info {
 =cut
 #**********************************************************
 sub sqlcmd_cluster {
-  #my ($attr) = @_;
-
-  my (@cluster_hosts) = split(/,/, $conf{SQLCMD_CLUSTER_HOSTS});
+  my (@cluster_hosts) = split(/,/x, $conf{SQLCMD_CLUSTER_HOSTS});
 
   my $id          = 0;
-  #my $active_host = $FORM{HOST_ID} || 0;
-  #my $ret         = 1;
   my $sql;
-  #my $host = '';
 
   my @servers = ();
   if ($FORM{SYNC}) {
@@ -1228,7 +1333,6 @@ sub sqlcmd_cluster {
     my @resync_sql = ("stop slave;", "load data from master;", "start slave;");
 
     foreach my $sql_cmd (@resync_sql) {
-      #my $q =
       $db_slave->do($sql_cmd);
 
       if ($db_slave->err) {
@@ -1248,13 +1352,11 @@ sub sqlcmd_cluster {
     #$Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
     $host = 'Unknown host' if (! $host);
     my $db_host = $host;
-    my $table   = $html->table(
-      {
-        width      => '100%',
-        caption    => ($id || '') .':' . $host . ' / ' . ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } || ''),
-        title      => [ 'key', 'val' ],
-      }
-    );
+    my $table = $html->table({
+      width   => '100%',
+      caption => ($id || '') . ':' . $host . ' / ' . ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } || ''),
+      title   => [ 'key', 'val' ],
+    });
 
     if ($id && !$conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' }) {
       $html->message('err', $lang{ERROR} . ' : BD INFO ' . $id . ' : ' . ($host || '') . ' / ' . ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } || ''), "$lang{ERROR}: $lang{NOT_EXIST}");
@@ -1285,7 +1387,7 @@ sub sqlcmd_cluster {
     $FORM{DB_ID} = $id;
     $Sqlcmd = Sqlcmd->new($db_slave, $admin, \%conf);
     my $query = ($id > 0) ? "SHOW SLAVE STATUS;" : "SHOW MASTER STATUS;";
-    my DBI $q = $db_slave->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || die $db_slave->errstr;
+    my DBI $q = $db_slave->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/xgi) ? 0 : 1 }) || die $db_slave->errstr;
     $q->execute();
 
     if ($db_slave->err) {
@@ -1320,32 +1422,16 @@ sub sqlcmd_cluster {
     $id++;
   }
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => 'host' || '-',
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => 'host' || '-',
+  });
 
-  for (my $i = 0 ; $i <= $#servers ; $i += 2) {
+  for (my $i = 0; $i <= $#servers; $i += 2) {
     $table->addtd($table->td($servers[$i]), $table->td($servers[ $i + 1 ]));
   }
 
   print $table->show();
-
-  # if($active_host != 0 && ! $conf{'SQLCMD_HOST'. $active_host .'_HOSTNAME'}) {
-  #    $html->message('info', $lang{INFO}, "Can't find DB");
-  #   	$ret = 0;
-  #   }
-
-  #$db = mysql_connect("master-host","master-user","master-pwd") or $db = false;
-  #if ($db!=false) {
-  #mysql_close($db);
-  #$db = mysql_connect("localhost","local-user","local-pwd") or die ("Could not connect to MySQL");
-  #mysql_select_db("my_database",$db);
-  #mysql_query("stop slave; DROP DATABASE my_database; load data from master; start slave;");
-  #mysql_close($db);
-  #}
 
   return 1;
 }
@@ -1357,10 +1443,11 @@ sub sqlcmd_cluster {
 #**********************************************************
 sub sqlcmd_collation {
 
-  $Sqlcmd->query("SHOW COLLATION");
+  $Sqlcmd->query("SHOW COLLATION;");
   my %COLLATION_HASH = ('' => '');
+
   foreach my $line (@{ $Sqlcmd->{list} }) {
-    push @{ $COLLATION_HASH{ $line->[1] } }, $line->[0];
+    push @{ $COLLATION_HASH{ $line->[1] || q{-} } }, $line->[0];
   }
 
   return $html->form_select('COLLATION', {
@@ -1382,20 +1469,17 @@ sub sqlcmd_collation_change {
   }
 
   my $tables_count= 0;
-  #my $field_count = 0;
-  my @tables      = split(/, /, $FORM{TABLES});
+  my @tables      = split(/,\s+/x, $FORM{TABLES});
 
   if($FORM{change}) {
 
   }
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{TABLES},
-      title_plain => [ $lang{TABLES}, $lang{FIELDS}, $lang{CHANGED} ],
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{TABLES},
+    title_plain => [ $lang{TABLES}, $lang{FIELDS}, $lang{CHANGED} ],
+  });
 
   # ALTER TABLE `tableName` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci
   foreach my $db_table (@tables) {
@@ -1408,7 +1492,10 @@ sub sqlcmd_collation_change {
         $table_fields++;
         if($FORM{COLLATION} && $FORM{COLLATION} ne $field->{Collation} ){
           my $null = ($field->{Null} eq 'NO') ? 'NOT NULL' : '';
-          my $query = "ALTER TABLE `$db_table` CHANGE COLUMN `$field->{Field}` `$field->{Field}` $field->{Type} COLLATE $FORM{COLLATION} $null DEFAULT '$field->{Default}';";
+          my $query = << "SQL";
+ALTER TABLE `$db_table` CHANGE COLUMN `$field->{Field}` `$field->{Field}` $field->{Type} COLLATE $FORM{COLLATION} $null DEFAULT '$field->{Default}';
+SQL
+
           print "$field->{Collation}: ". $query . $html->br();
           $Sqlcmd->list({ QUERY => $query });
           if($Sqlcmd->{errno}) {
@@ -1420,7 +1507,10 @@ sub sqlcmd_collation_change {
       }
     }
 
-    my $query = "ALTER TABLE $db_table DEFAULT  CHARACTER SET $conf{dbcharset} COLLATE $FORM{COLLATION};";
+    my $query = << "SQL";
+ALTER TABLE $db_table DEFAULT  CHARACTER SET $conf{dbcharset} COLLATE $FORM{COLLATION};
+SQL
+
     $Sqlcmd->list({ QUERY => $query });
     $table->addrow($db_table, $table_fields, $changed_fields);
     $tables_count++;

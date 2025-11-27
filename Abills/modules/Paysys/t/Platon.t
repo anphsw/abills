@@ -27,7 +27,6 @@ else {
   require Paysys::Plugins::Platon;
   $Payment_plugin = Paysys::Plugins::Platon->new($db, $admin, \%conf);
 }
-$payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 if ($debug > 3) {

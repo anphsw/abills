@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_REPORT_DYNAMICS",
+  "method": "GET",
+  "path": "msgs/report/dynamics/",
+  "params": {}
+}

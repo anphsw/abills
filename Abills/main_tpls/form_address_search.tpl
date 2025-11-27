@@ -68,6 +68,9 @@
   document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || "0";
 </script>
 <script>
+
+  const api_url_prefix = window['IS_CLIENT_INTERFACE'] ? '/api.cgi/user/addresses' : '/api.cgi';
+
   jQuery(function () {
     jQuery(document).on('keypress', 'span.select2', function (e) {
       if (e.originalEvent) jQuery(this).siblings('select').select2('open');
@@ -86,7 +89,7 @@
     let district_id = jQuery(data).val();
     district_id = district_id ? district_id : '_SHOW';
 
-    fetch(`/api.cgi/streets?SECOND_NAME=_SHOW&DISTRICT_ID=${district_id}&DISTRICT_NAME=_SHOW&PAGE_ROWS=1000000&SORT=street_name`, {
+    fetch(`${api_url_prefix}/streets?SECOND_NAME=_SHOW&DISTRICT_ID=${district_id}&DISTRICT_NAME=_SHOW&PAGE_ROWS=1000000&SORT=street_name`, {
       mode: 'cors',
       credentials: 'same-origin',
       headers: {'Content-Type': 'application/json'},
@@ -129,7 +132,7 @@
       jQuery('#ADD_LOCATION_ID').attr('value', '');
     }
 
-    fetch(`/api.cgi/builds?STREET_ID=${street_id}&STREET_NAME=_SHOW&PAGE_ROWS=1000000`, {
+    fetch(`${api_url_prefix}/builds?STREET_ID=${street_id}&STREET_NAME=_SHOW&PAGE_ROWS=1000000`, {
       mode: 'cors',
       credentials: 'same-origin',
       headers: {'Content-Type': 'application/json'},
@@ -144,6 +147,20 @@
       .then(data => {
         build.html('');
         if (data.length < 1) return 1;
+
+        data.sort((a, b) => {
+          const strA = String(a.number);
+          const strB = String(b.number);
+
+          const numA = parseInt(strA.match(/^\d+/)?.[0] || 0);
+          const numB = parseInt(strB.match(/^\d+/)?.[0] || 0);
+
+          if (numA !== numB) {
+            return numA - numB;
+          }
+
+          return strA.localeCompare(strB);
+        });
 
         const [streetIdKey, streetNameKey] = 'street_name' in (data[0] || {})
             ? ['street_id', 'street_name'] : ['streetId', 'streetName'];
@@ -190,7 +207,7 @@
   }
 
   function getObjectToMap() {
-    let url = '$SELF_URL?header=2&get_index=form_address_select&PRINT_BUTTON=1&MAP_BUILT_BTN=' + item;
+    let url = '%SELF_URL%?header=2&get_index=form_address_select&PRINT_BUTTON=1&MAP_BUILT_BTN=' + item;
     fetch(url)
       .then(function (response) {
         if (!response.ok)

@@ -8,14 +8,14 @@
 
 <div class='card-header with-border '>
 
-  <a href='/admin/index.cgi?index=$index&year=%LAST_YEAR%&month=%LAST_MONTH%'>
+  <a href='/admin/index.cgi?index=%index%&year=%LAST_YEAR%&month=%LAST_MONTH%'>
     <button type='submit' class='btn btn-secondary btn-xs' align='left'>
       <span class="fa fa-arrow-left" aria-hidden="true"></span>
     </button>
   </a>
   <label class='control-label'>%MONTH% %YEAR%</label>
   
-  <a href='/admin/index.cgi?index=$index&year=%NEXT_YEAR%&month=%NEXT_MONTH%'>
+  <a href='/admin/index.cgi?index=%index%&year=%NEXT_YEAR%&month=%NEXT_MONTH%'>
     <button type='submit' class='btn btn-secondary btn-xs' align='right'>
       <span class="fa fa-arrow-right" aria-hidden="true"></span>
     </button>

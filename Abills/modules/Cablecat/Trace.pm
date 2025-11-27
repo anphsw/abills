@@ -68,7 +68,7 @@ sub find_equipment_for_user {
 
   require Equipment;
   my $Equipment = Equipment->new(@{$self}{qw/db admin conf/});
-  my $nases_list = $Equipment->_list({
+  my $nases_list = $Equipment->list({
     NAS_ID    => join(';', @nas_ids),
     NAS_NAME  => '_SHOW',
     COLS_NAME => 1
@@ -133,7 +133,7 @@ sub get_uplink_chain_for {
   # Now should extend info with nas_name (for select)
   my @unique_nas_ids = sort keys %unique_nas_ids_hash;
 
-  my $nases_list = $Equipment->_list({
+  my $nases_list = $Equipment->list({
     NAS_ID    => join(';', @unique_nas_ids),
     NAS_NAME  => '_SHOW',
     COLS_NAME => 1

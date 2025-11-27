@@ -683,18 +683,22 @@ sub get_hotspot_account {
 
         #Sendsms
         if ($FORM{PHONE} && in_array('Sms', \@MODULES)) {
-          load_module('Sms', $html);
           my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), { %FORM, %{$line} },
             { OUTPUT2RETURN => 1 });
 
           my $phone = $PHONE_PREFIX . $FORM{PHONE};
 
-          my $sms_result = sms_send({
-            NUMBER     => $phone,
-            MESSAGE    => $message,
-            UID        => $line->{UID},
-            RIZE_ERROR => 1,
+          require Abills::Sender::Core;
+          Abills::Sender::Core->import();
+          my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+          my $sms_result = $Sender->send_message({
+            TO_ADDRESS  => $phone,
+            MESSAGE     => $message,
+            UID         => $line->{UID},
+            SENDER_TYPE => 'Sms',
           });
+
           if (!$sms_result) {
             $users->change($line->{UID},
               { UID             => $line->{UID},
@@ -936,16 +940,19 @@ sub buy_cards {
 
                 #Sendsms
                 if ($FORM{PHONE} && in_array('Sms', \@MODULES)) {
-                  load_module('Sms', $html);
-
                   my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'),
                     { %{($Cards) ? $Cards : {}}, %FORM },
                     { OUTPUT2RETURN => 1 });
 
-                  sms_send({
-                    NUMBER  => $FORM{PHONE},
-                    MESSAGE => $message,
-                    UID     => $line->{UID},
+                  require Abills::Sender::Core;
+                  Abills::Sender::Core->import();
+                  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+                  $Sender->send_message({
+                    TO_ADDRESS  => $FORM{PHONE},
+                    MESSAGE     => $message,
+                    UID         => $line->{UID},
+                    SENDER_TYPE => 'Sms',
                   });
                 }
 
@@ -1156,7 +1163,6 @@ sub _send_sms_with_pin {
   my ($attr) = @_;
 
   if (in_array('Sms', \@MODULES)) {
-    load_module('Sms', $html);
     my $message = "Пин код: $attr->{password}";
     my $phone = $PHONE_PREFIX . $attr->{phone};
     my $sms = Sms->new($db, $admin, \%conf);
@@ -1173,21 +1179,15 @@ sub _send_sms_with_pin {
       return 0;
     }
 
-    # my $uid_sms_list = $sms->list({ 
-    # UID      => $attr->{uid},
-    # INTERVAL => "$DATE/$DATE",
-    # });
-    # _bp('uid', $uid_sms_list, {HEADER => 1});
-    # if ( $uid_sms_list && scalar(@$uid_sms_list) >= 3 ) {
-    # $html->message( 'err', $lang{ERROR}, "Превышен лимит СМС для этого пользователя" );
-    # return 0;
-    # }
+    require Abills::Sender::Core;
+    Abills::Sender::Core->import();
+    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
-    sms_send({
-      NUMBER     => $phone,
-      MESSAGE    => $message,
-      UID        => $attr->{uid},
-      RIZE_ERROR => 1,
+    $Sender->send_message({
+      TO_ADDRESS  => $phone,
+      MESSAGE     => $message,
+      UID         => $attr->{UID},
+      SENDER_TYPE => 'Sms',
     });
   }
   else {

@@ -1,7 +1,7 @@
 package Api::Controllers::Common::Bots;
 =head NAME
 
-  Portal articles manage
+  Bots manage
 
   Endpoints:
     /user/bots/*
@@ -13,10 +13,11 @@ use strict;
 use warnings FATAL => 'all';
 
 use Control::Errors;
-use Contacts;
+use Control::Contacts;
 
-my Contacts $Contacts;
-my Control::Errors $Errors;
+my $Errors;
+my $Contacts_user;
+my $Contacts_admin;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -37,7 +38,8 @@ sub new {
 
   bless($self, $class);
 
-  $Contacts = Contacts->new($db, $admin, $conf);
+  $Contacts_user = Control::Contacts->new($db, $admin, $conf, { role => 'user' });
+  $Contacts_admin = Control::Contacts->new($db, $admin, $conf, { role => 'admin' });
 
   $Errors = $self->{attr}->{Errors};
 
@@ -67,28 +69,25 @@ sub post_bots_subscribe_phone {
     $query_params->{PHONE} =~ s/$left/$right/ge;
   }
 
-  my $admin = $self->{admin};
-
-  my $check_list = $Contacts->contacts_list({
+  my $user_contacts = $Contacts_user->contacts_list({
     TYPE  => $path_params->{bot},
     VALUE => $path_params->{user_id},
-    UID   => '_SHOW',
+    UID   => '_SHOW'
   });
-
-  my $check_list_admin = $admin->admins_contacts_list({
-    TYPE           => $path_params->{bot},
-    VALUE          => $path_params->{user_id},
-    SKIP_AID_CHECK => 1
-  });
-
-  if ($Contacts->{TOTAL} && scalar(@{$check_list}) > 0) {
+  if ($user_contacts->{total} && $user_contacts->{total} > 0) {
     return {
       result => 'Already subscribed',
       code   => 1,
       user   => 'true'
     };
   }
-  elsif (scalar(@{$check_list_admin}) > 0) {
+
+  my $admin_contacts = $Contacts_admin->contacts_list({
+    TYPE           => $path_params->{bot},
+    VALUE          => $path_params->{user_id},
+    SKIP_AID_CHECK => '_SHOW'
+  });
+  if ($admin_contacts->{total} && $admin_contacts->{total} > 0) {
     return {
       result => 'Already subscribed',
       code   => 1,
@@ -96,38 +95,43 @@ sub post_bots_subscribe_phone {
     };
   }
 
-  my $list = $Contacts->contacts_list({
-    VALUE => $query_params->{PHONE},
-    UID   => '_SHOW',
+  my $user_contacts_by_phone = $Contacts_user->contacts_list({
+    VALUE  => $query_params->{PHONE},
+    UID   => '_SHOW'
   });
+  if ($user_contacts_by_phone->{total} && $user_contacts_by_phone->{total} > 0) {
+    my $result = $Contacts_user->add_contact($user_contacts_by_phone->{list}->[0]->{uid}, {
+      TYPE_ID  => $path_params->{bot},
+      VALUE    => $path_params->{user_id},
+      PRIORITY => 0,
+    });
 
-  my $alist = $admin->admins_contacts_list({
+    if ($result->{errno}) {
+      return $result;
+    }
+
+    return {
+      result => 'Successfully added',
+      code   => 2,
+      user   => 'true'
+    };
+  }
+
+  my $admin_contacts_by_phone = $Contacts_admin->contacts_list({
     VALUE          => $query_params->{PHONE},
     AID            => '_SHOW',
     SKIP_AID_CHECK => 1
   });
-
-  if ($Contacts->{TOTAL} && $list->[0]->{uid}) {
-    $Contacts->contacts_add({
-      UID      => $list->[0]->{uid},
+  if ($admin_contacts_by_phone->{total} && $admin_contacts_by_phone->{total} > 0) {
+    my $result = $Contacts_admin->add_contact($admin_contacts_by_phone->{list}->[0]->{aid}, {
       TYPE_ID  => $path_params->{bot},
       VALUE    => $path_params->{user_id},
       PRIORITY => 0,
     });
 
-    return {
-      result => 'Successfully added',
-      code   => 2,
-      user   => 'true'
-    };
-  }
-  elsif (scalar @{$alist}) {
-    $admin->admin_contacts_add({
-      AID      => $alist->[0]->{aid},
-      TYPE_ID  => $path_params->{bot},
-      VALUE    => $path_params->{user_id},
-      PRIORITY => 0,
-    });
+    if ($result->{errno}) {
+      return $result;
+    }
 
     return {
       result => 'Successfully added',
@@ -135,9 +139,8 @@ sub post_bots_subscribe_phone {
       user   => 'false'
     };
   }
-  else {
-    return $Errors->throw_error(1770009);
-  }
+
+  return $Errors->throw_error(1770009);
 }
 
 #**********************************************************
@@ -155,13 +158,13 @@ sub post_bots_subscribe {
     return $Errors->throw_error(1770004, { lang_vars => { FIELD => 'token' } });
   }
 
-  my ($type, $sid) = $query_params->{TOKEN} =~ m/^([uae])_([a-zA-Z0-9]+)/;
+  my ($type, $sid) = $query_params->{TOKEN} =~ m/^([uae])_([a-zA-Z0-9]+)/x;
 
   if (!$type || !$sid) {
     return $Errors->throw_error(1770005);
   }
 
-  if ("$type" eq 'u') {
+  if ($type eq 'u') {
     require Users;
     Users->import();
     my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -171,19 +174,21 @@ sub post_bots_subscribe {
       return $Errors->throw_error(1770006);
     }
 
-    my $list = $Contacts->contacts_list({
+    my $user_contacts = $Contacts_user->contacts_list({
       TYPE  => $path_params->{bot},
       VALUE => $path_params->{user_id},
       UID   => '_SHOW',
     });
 
-    if (!$Contacts->{TOTAL} || scalar(@{$list}) == 0) {
-      $Contacts->contacts_add({
-        UID      => $Users->{UID},
+    if (defined $user_contacts->{total} && $user_contacts->{total} == 0) {
+      my $result = $Contacts_user->add_contact($Users->{UID}, {
         TYPE_ID  => $path_params->{bot},
         VALUE    => $path_params->{user_id},
         PRIORITY => 0,
       });
+      if ($result->{errno}) {
+        return $result;
+      }
 
       return {
         result => 'Successfully added',
@@ -199,7 +204,7 @@ sub post_bots_subscribe {
       };
     }
   }
-  elsif ("$type" eq 'e' || "$type" eq 'a') {
+  elsif ($type eq 'e' || $type eq 'a') {
     my $bot_id = $path_params->{user_id};
     my $admin = $self->{admin};
     $admin->online_info({ SID => $sid });
@@ -210,19 +215,21 @@ sub post_bots_subscribe {
       return $Errors->throw_error(1770008);
     }
 
-    my $list = $admin->admins_contacts_list({
+    my $admin_contacts = $Contacts_admin->contacts_list({
       TYPE           => 6,
       VALUE          => $bot_id,
       SKIP_AID_CHECK => 1
     });
 
-    if (!$admin->{TOTAL} || scalar(@{$list}) == 0) {
-      $admin->admin_contacts_add({
-        AID      => $aid,
+    if (defined $admin_contacts->{total} && $admin_contacts->{total} == 0) {
+      my $result = $Contacts_admin->add_contact($aid, {
         TYPE_ID  => $path_params->{bot},
         VALUE    => $bot_id,
-        PRIORITY => 0,
+        PRIORITY => 0
       });
+      if ($result->{errno}) {
+        return $result;
+      }
 
       return {
         result => 'Successfully added',

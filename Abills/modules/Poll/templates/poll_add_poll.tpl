@@ -1,5 +1,5 @@
 <script src='/styles/default/js/modules/poll.js'></script>
-<form action=$SELF_URL METHOD=POST class='form-horizontal' id='POLL_ANSWER_FORM'>
+<form action=%SELF_URL% METHOD=POST class='form-horizontal' id='POLL_ANSWER_FORM'>
 
 <input type='hidden' name='index' value="%INDEX%">
 <input type='hidden' name='action' value=%ACTION%>

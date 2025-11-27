@@ -64,7 +64,7 @@ sub admin_routes {
       controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins_aid_contacts,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
@@ -72,7 +72,7 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/admins/:aid/contacts/',
       controller  => 'Api::Controllers::Admin::Admins',
-      endpoint    => \&Api::Controllers::Admin::Admins::post_admins_aid_contacts,
+      endpoint    => \&Api::Controllers::Admin::Admins::put_admin_aid_contacts,
       credentials => [
         'ADMIN'
       ]

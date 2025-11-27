@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_CHAPTERS",
+  "method": "GET",
+  "path": "msgs/chapters/",
+  "params": {}
+}

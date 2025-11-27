@@ -3,7 +3,6 @@ package Extreceipt::Base;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
 my Abills::HTML $html;
 my $lang;
 
@@ -17,16 +16,16 @@ my Extreceipt $Extreceipt;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  $db = shift;
-  $admin = shift;
-  $CONF = shift;
-  my $attr = shift;
+  my ($class, $db, $admin, $CONF, $attr) = @_;
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
 
-  my $self = {};
+  my $self = {
+    db     => $db,
+    conf   => $CONF,
+    admin  => $admin
+  };
 
   $Extreceipt = Extreceipt->new($db, $admin, $CONF);
 
@@ -38,11 +37,16 @@ sub new {
 #**********************************************************
 =head2 extreceipt_payments_maked($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub extreceipt_payments_maked {
-  shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
 
@@ -73,8 +77,7 @@ sub extreceipt_payments_maked {
 =cut
 #**********************************************************
 sub extreceipt_payment_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if (!$attr->{ID});
   return 0 if (!$attr->{PAYMENT_INFO} || !$attr->{PAYMENT_INFO}->{SUM});
@@ -92,11 +95,12 @@ sub extreceipt_payment_del {
   ::load_module('Extreceipt');
   ($payment->[0]->{check_header}, $payment->[0]->{check_desc}, $payment->[0]->{check_footer}) = ::_extreceipt_receipt_ext_info($payment->[0]);
 
-  my $Plugin = init_extreceipt_service($db, $admin, $CONF, { API_ID => $api_id });
+  my $Plugin = init_extreceipt_service($self->{db}, $self->{admin}, $self->{conf}, { API_ID => $api_id });
 
   return 0 if (!$Plugin->{$api_id}->can('payment_cancel'));
 
   $Plugin->{$api_id}->payment_cancel($payment->[0]);
+
   return $self;
 }
 

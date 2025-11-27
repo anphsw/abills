@@ -268,16 +268,18 @@ class DistrictManager {
   calculateBuildStats(build) {
     let onlineUsers = 0;
     let offlineUsers = 0;
+    let hasGuests = false;
     const tooltipContainer = jQuery('<div></div>');
 
     if (this.onlineUsers[build.id]) {
       Object.entries(this.onlineUsers[build.id]).forEach(([, user]) => {
         const userSpan = jQuery('<div>', {
-          class: 'text-success',
+          class: user?.guest ? 'text-warning' : 'text-success',
           html: `${this.escapeHtml(user.fio)} - (UID: ${user.uid})`
         });
         tooltipContainer.append(userSpan);
         onlineUsers++;
+        if (user?.guest) hasGuests = true;
       });
     }
 
@@ -296,7 +298,8 @@ class DistrictManager {
       onlineUsers,
       offlineUsers,
       tooltipHtml: tooltipContainer.html(),
-      isEmpty: onlineUsers === 0 && offlineUsers === 0
+      isEmpty: onlineUsers === 0 && offlineUsers === 0,
+      hasGuests: hasGuests
     };
   }
 
@@ -331,7 +334,6 @@ class DistrictManager {
 
       buildButton.addClass(this.getBuildFilterClasses(buildStats));
 
-      // Додаємо до фрагменту замість прямого додавання в DOM
       fragment.appendChild(buildButton[0]);
 
       this.renderTooltip(buildButton, buildStats.tooltipHtml, 'bottom');
@@ -355,6 +357,7 @@ class DistrictManager {
 
   getBuildButtonType(stats) {
     if (stats.isEmpty) return 'btn-default';
+    if (stats.hasGuests) return 'btn-warning';
     return stats.offlineUsers > stats.onlineUsers ? 'btn-danger' : 'btn-success';
   }
 
@@ -379,7 +382,7 @@ class DistrictManager {
     });
 
     const cardHeader = jQuery('<div>', {
-      class: 'card-header-custom with-border'
+      class: 'card-header with-border'
     });
 
     let titleHtml = this.escapeHtml(titleText);
@@ -557,7 +560,7 @@ class DistrictManager {
     return this.requestSemaphore.acquire(async () => {
       try {
         const response = await sendRequest(
-          `/api.cgi/streets?DISTRICT_ID=${districtId}&DISTRICT_NAME=_SHOW`,
+          `/api.cgi/streets?DISTRICT_ID=${districtId}&DISTRICT_NAME=_SHOW&PAGE_ROWS=100000&SORT=street_name`,
           {},
           'GET'
         );
@@ -581,7 +584,7 @@ class DistrictManager {
     return this.requestSemaphore.acquire(async () => {
       try {
         const response = await sendRequest(
-          `/api.cgi/builds?STREET_ID=${streetId}`,
+          `/api.cgi/builds?STREET_ID=${streetId}&&PAGE_ROWS=100000`,
           {},
           'GET'
         );

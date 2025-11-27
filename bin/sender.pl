@@ -19,18 +19,17 @@ use utf8;
   
 =cut
 
-BEGIN{
+BEGIN {
   use FindBin '$Bin';
-  
   # We are in /usr/abills/bin
   unshift @INC, $Bin . '/../';
   unshift @INC, $Bin . '/../lib';
   unshift @INC, $Bin . '/../Abills/modules';
   unshift @INC, $Bin . '/../Abills/mysql';
-  
+  unshift @INC, $Bin . '/../Abills/';
 }
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 use Getopt::Long qw/GetOptions HelpMessage :config auto_help auto_version ignore_case/;
 use Pod::Usage;
@@ -54,30 +53,30 @@ GetOptions(
   'type|T=s'    => \$SENDER_TYPE,
 );
 
-if ( !$admin_ids || ref $admin_ids ne 'ARRAY' || !scalar(@{$admin_ids}) || !$MESSAGE ) {
+if (!$admin_ids || ref $admin_ids ne 'ARRAY' || !scalar(@{$admin_ids}) || !$MESSAGE) {
   pod2usage(2);
 }
 
 our (%conf);
-require 'libexec/config.pl';
+do 'libexec/config.pl';
 
-my $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/}, {CHARSET => $conf{dbcharset}});
+my $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/}, { CHARSET => $conf{dbcharset} });
 my $admin = Admins->new($db, \%conf);
-$admin->info($conf{SYSTEM_ADMIN_ID} || 2, { IP => '127.0.0.1' });
+$admin->info($conf{SYSTEM_ADMIN_ID} || 2, { IP => '127.0.0.10' });
 
 ####################################################################
 
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf, {
-    SENDER_TYPE => $SENDER_TYPE || 'Telegram'
-  });
+  SENDER_TYPE => $SENDER_TYPE || 'Telegram'
+});
 
-foreach my $aid ( @{$admin_ids} ) {
+foreach my $aid (@{$admin_ids}) {
   my $sent_message = $Sender->send_message({
     AID     => $aid,
     MESSAGE => $MESSAGE
   });
-  
-  if ( !$sent_message ) {
+
+  if (!$sent_message) {
     my $err = $Sender->{errstr} || 'unknown error';
     print "Can't sent message to $aid : $err \n";
   };
@@ -85,4 +84,4 @@ foreach my $aid ( @{$admin_ids} ) {
 
 exit 0;
 
-1;
+#1;

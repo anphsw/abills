@@ -1,5 +1,5 @@
 <center>
-<form action='$SELF_URL' METHOD=post>
+<form action='%SELF_URL%' METHOD=post>
 <input type=hidden name='index' value='$FORM{index}'>
 <input type=hidden name='FUNCTION' value='$FORM{FUNCTION}'>
 <input type=hidden name='language' value='%LANGUAGE%'>

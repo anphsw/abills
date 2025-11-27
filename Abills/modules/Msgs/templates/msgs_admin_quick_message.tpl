@@ -2,8 +2,8 @@
 
   <form name='form_MSGS_QUICK_MESSAGE' id='form_MSGS_QUICK_MESSAGE' method='post'
         class='form ajax-submit-form'>
-    <input type='hidden' name='qindex' value='$index'/>
-    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='qindex' value='%index%'/>
+    <input type='hidden' name='index' value='%index%'/>
     <input type='hidden' name='header' value='2'/>
 
     <div class='card card-primary card-outline'>

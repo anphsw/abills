@@ -149,7 +149,7 @@ subtest 'paysys_check_user' => sub {
 
 # paysys pay
 subtest 'paysys_pay' => sub {
-  plan tests => 38;
+  plan tests => 36;
 
   my $transaction = 100000 + int(rand(10000));
   my %payment_params = (
@@ -223,33 +223,39 @@ subtest 'paysys_pay' => sub {
 
 # paysys pay cancel
 subtest 'paysys_pay_cancel' => sub {
-  plan tests => 16;
+  plan tests => 18;
 
   # No valid params
   diag('No attr PAYSYS_ID or TRANSACTION_ID');
   my ($result, $payment_id) = $Paysys_Core->paysys_pay_cancel();
 
-  cmp_ok($result, '==', 11, 'Cancel status 11');
+  cmp_ok($result, '==', 21, 'Cancel status 21');
   is($payment_id, undef, 'Payment id is undef');
 
   # No valid params
   diag('No attr PAYSYS_ID or TRANSACTION_ID, but with RETURN_CANCELED_ID');
   ($result, $payment_id) = $Paysys_Core->paysys_pay_cancel({ RETURN_CANCELED_ID => 1 });
 
-  cmp_ok($result, '==', 11, 'Cancel status 11');
-  cmp_ok(0, '==', 0, 'Payment id is 0');
+  cmp_ok($result, '==', 21, 'Cancel status 21');
+  cmp_ok($payment_id, '==', 0, 'Payment id is 0');
 
   diag('Not exists transaction id');
   ($result, $payment_id) = $Paysys_Core->paysys_pay_cancel({ TRANSACTION_ID => 'NONSAS921921', RETURN_CANCELED_ID => 1 });
 
   cmp_ok($result, '==', 8, 'Cancel status 8');
-  cmp_ok(0, '==', 0, 'Payment id is 0');
+  cmp_ok($payment_id, '==', 0, 'Payment id is 0');
 
   diag('Not exists paysys id');
   ($result, $payment_id) = $Paysys_Core->paysys_pay_cancel({ PAYSYS_ID => 4294967291, RETURN_CANCELED_ID => 1 });
 
   cmp_ok($result, '==', 8, 'Cancel status 8');
-  cmp_ok(0, '==', 0, 'Payment id is 0');
+  cmp_ok($payment_id, '==', 0, 'Payment id is 0');
+
+  diag('Not exists paysys id without returning payment id');
+  ($result, $payment_id) = $Paysys_Core->paysys_pay_cancel({ PAYSYS_ID => 4294967291 });
+
+  cmp_ok($result, '==', 8, 'Cancel status 8');
+  is($payment_id, undef, 'Payment id is undef');
 
   my $paysys_id = _payment_after_transaction(600000 + int(rand(10000)));
 
@@ -361,15 +367,6 @@ sub _paysys_pay_not_valid_params {
   });
 
   cmp_ok($paysys_status, '==', 7, 'Status code is 7');
-  is($payments_id, undef, 'Payment id is undef');
-
-  diag("EXT_ID is no_ext_id");
-  ($paysys_status, $payments_id) = $Paysys_Core->paysys_pay({
-    %{$payment_params},
-    EXT_ID => 'no_ext_id',
-  });
-
-  cmp_ok($paysys_status, '==', 29, 'Status code is 29');
   is($payments_id, undef, 'Payment id is undef');
 
   diag("PAYSYS_ID not exists");

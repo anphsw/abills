@@ -40,8 +40,7 @@ sub new {
 =cut
 #**********************************************************
 sub question_info {
-  my $self = shift;
-  my ($question_id) = @_;
+  my ($self, $question_id) = @_;
 
   $self->query("SELECT *
     FROM expert_question
@@ -76,8 +75,7 @@ sub question_list {
 =cut
 #**********************************************************
 sub question_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('expert_question', $attr);
 
@@ -90,8 +88,7 @@ sub question_add {
 =cut
 #**********************************************************
 sub question_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -108,8 +105,7 @@ sub question_change {
 =cut
 #**********************************************************
 sub answers_info {
-  my $self = shift;
-  my ($answer_id) = @_;
+  my ($self,$answer_id) = @_;
 
   $self->query("SELECT *
     FROM expert_answer
@@ -147,8 +143,7 @@ sub answers_list {
 =cut
 #**********************************************************
 sub answer_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self,$attr) = @_;
 
   $self->query_add('expert_answer', $attr);
 
@@ -161,8 +156,7 @@ sub answer_add {
 =cut
 #**********************************************************
 sub answer_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self,$attr) = @_;
 
   $attr->{ID} = $attr->{ANSWER_ID};
 
@@ -181,8 +175,7 @@ sub answer_change {
 =cut
 #**********************************************************
 sub answer_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self,$id) = @_;
 
   $self->query_del('expert_answer', { ID => $id });
 
@@ -196,8 +189,7 @@ sub answer_del {
 =cut
 #**********************************************************
 sub faq_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self,$attr) = @_;
 
   $self->query_add('expert_faq', $attr);
 
@@ -210,8 +202,7 @@ sub faq_add {
 =cut
 #**********************************************************
 sub faq_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self,$id) = @_;
 
   $self->query_del('expert_faq', { ID => $id });
 
@@ -224,8 +215,7 @@ sub faq_del {
 =cut
 #**********************************************************
 sub faq_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self,$attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -242,8 +232,7 @@ sub faq_change {
 =cut
 #**********************************************************
 sub faq_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self,$attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -263,15 +252,17 @@ sub faq_list {
     { WHERE => 1 }
   );
 
-  $self->query("
+  my $sql = <<"SQL";
     SELECT
       $self->{SEARCH_FIELDS}
       ef.id
     FROM expert_faq ef
     $WHERE
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef,
     { %$attr,
       COLS_NAME  => 1,
     }

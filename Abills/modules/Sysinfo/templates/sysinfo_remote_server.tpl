@@ -97,7 +97,7 @@
 </script>
 
 <form name='SYSINFO_REMOTE' id='form_SYSINFO_REMOTE' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
   <input type='hidden' name='ID' value='%ID%'/>
 

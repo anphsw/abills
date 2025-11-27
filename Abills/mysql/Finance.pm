@@ -15,16 +15,15 @@ use parent 'dbcore';
 # Init Finance module
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db = shift;
-  my ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
-  my $self = { };
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
   bless( $self, $class );
-
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -34,8 +33,7 @@ sub new {
 #**********************************************************
 #@returns Fees
 sub fees{
-  my $self = shift;
-  my ($db, $admin, $CONF) = @_;
+  my (undef, $db, $admin, $CONF) = @_;
 
   require Fees;
   Fees->import();
@@ -50,8 +48,7 @@ sub fees{
 #**********************************************************
 #@returns Payments
 sub payments {
-  my $self = shift;
-  my ($db, $admin, $CONF) = @_;
+  my (undef, $db, $admin, $CONF) = @_;
 
   require Payments;
   Payments->import();
@@ -66,17 +63,18 @@ sub payments {
 =cut
 #**********************************************************
 sub exchange_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $self->query( "SELECT money, short_name, rate, iso, changed, id
+  my $sql = <<"SQL";
+  SELECT money, short_name, rate, iso, changed, id
     FROM exchange_rate
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr );
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr );
 
   return $self->{list};
 }
@@ -85,18 +83,34 @@ sub exchange_list{
 #**********************************************************
 =head2 exchange_add($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub exchange_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $money = (defined( $attr->{ER_NAME} )) ? $attr->{ER_NAME} : '';
   my $short_name = (defined( $attr->{ER_SHORT_NAME} )) ? $attr->{ER_SHORT_NAME} : '';
   my $rate = (defined( $attr->{ER_RATE} )) ? $attr->{ER_RATE} : '0';
 
-  $self->query( "INSERT INTO exchange_rate (money, short_name, rate, iso, changed)
-   values ('$money', '$short_name', '$rate', '$attr->{ISO}', now());", 'do' );
+  my $sql = <<'SQL';
+INSERT INTO exchange_rate (money, short_name, rate, iso, changed)
+values (?, ?, ?, ?, NOW());
+SQL
+
+  my @binds = (
+    $money,
+    $short_name,
+    $rate,
+    $attr->{ISO}
+  );
+
+  $self->query($sql, 'do', { Bind => \@binds } );
 
   return $self if ($self->{errno});
 
@@ -115,58 +129,91 @@ sub exchange_add{
 #**********************************************************
 =head2 exchange_del($id)
 
+  Arguments:
+    $id
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub exchange_del{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del( 'exchange_rate', { ID => $id } );
 
   $self->{admin}->system_action_add( $id, { TYPE => 42 } );
+
   return $self;
 }
-
 
 #**********************************************************
 =head2 exchange_change($id, $attr)
 
+  Arguments:
+    $id
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub exchange_change{
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   my $money = (defined( $attr->{ER_NAME} )) ? $attr->{ER_NAME} : '';
   my $short_name = (defined( $attr->{ER_SHORT_NAME} )) ? $attr->{ER_SHORT_NAME} : '';
   my $rate = (defined( $attr->{ER_RATE} )) ? $attr->{ER_RATE} : '0';
 
-  $self->query( "UPDATE exchange_rate SET
-    money='$money', 
-    short_name='$short_name', 
-    rate='$rate',
-    iso='$attr->{ISO}',
-    changed=now()
-   WHERE id='$id';", 'do' );
+  my $sql = <<'SQL';
+UPDATE exchange_rate
+SET
+  money     = ?,
+  short_name= ?,
+  rate      = ?,
+  iso       = ?,
+  changed   = NOW()
+WHERE id = ? ;
+SQL
 
-  $self->exchange_log_add( { RATE_ID => $id,
-      RATE                           => $rate
-    } );
+  my @binds = (
+    $money,
+    $short_name,
+    $rate,
+    $attr->{ISO},
+    $id
+  );
+
+  $self->query($sql, 'do', { Bind => \@binds  } );
+
+  if ($self->{errno}) {
+    return $self
+  }
+
+  $self->exchange_log_add({
+    RATE_ID => $id,
+    RATE    => $rate
+  });
 
   $self->{admin}->system_action_add( "$money/$short_name/$rate", { TYPE => 41 } );
 
   return $self;
 }
 
-
 #**********************************************************
 =head2 exchange_info($id, $attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
-sub exchange_info{
-  my $self = shift;
-  my ($id, $attr) = @_;
+sub exchange_info {
+  my ($self, $id, $attr) = @_;
 
   my $WHERE = '';
   if ( $attr->{SHORT_NAME} ){
@@ -179,14 +226,17 @@ sub exchange_info{
     $WHERE = "id='$id'";
   }
 
-  $self->query( "SELECT money AS er_name,
-    short_name AS er_short_name, 
-    rate AS er_rate, 
-    iso, 
-    changed 
-  FROM exchange_rate WHERE $WHERE;",
-    undef,
-    { INFO => 1 } );
+  my $sql = <<"SQL";
+SELECT money AS er_name,
+       short_name AS er_short_name,
+       rate AS er_rate,
+       iso,
+       changed
+FROM exchange_rate
+WHERE $WHERE;
+SQL
+
+  $self->query($sql,  undef,  { INFO => 1 } );
 
   return $self;
 }
@@ -195,11 +245,16 @@ sub exchange_info{
 #**********************************************************
 =head2 exchange_log_list($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub exchange_log_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -220,44 +275,62 @@ sub exchange_log_list{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query( "SELECT rl.date, r.money, rl.rate, rl.id, r.iso
-    FROM exchange_rate_log rl
-    LEFT JOIN exchange_rate  r ON (r.id=rl.exchange_rate_id)
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;", undef, $attr );
+  my $sql = <<"SQL";
+SELECT rl.date, r.money, rl.rate, rl.id, r.iso
+FROM exchange_rate_log rl
+       LEFT JOIN exchange_rate  r ON (r.id=rl.exchange_rate_id)
+  $WHERE
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr );
 
   return $self->{list};
 }
 
 #**********************************************************
-# exchange_add
+=head2 exchange_log_add($id)
+
+  Arguments:
+    $attr
+
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub exchange_log_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_add( 'exchange_rate_log', {
-      %$attr,
-      DATE             => 'NOW()',
-      EXCHANGE_RATE_ID => $attr->{RATE_ID}
-    } );
+  $self->query_add('exchange_rate_log', {
+    %$attr,
+    DATE             => 'NOW()',
+    EXCHANGE_RATE_ID => $attr->{RATE_ID}
+  });
 
   return $self;
 }
 
 #**********************************************************
-# exchange_del
+=head2 exchange_log_del($id)
+
+  Arguments:
+    $id
+
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub exchange_log_del{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query_del( 'exchange_rate_log', { ID => $id } );
+  $self->query_del('exchange_rate_log', { ID => $id });
 
-  $self->{admin}->system_action_add( $id, { TYPE => 42 } );
+  $self->{admin}->system_action_add($id, { TYPE => 42 });
+
   return $self;
 }
 
-
-1
+1;

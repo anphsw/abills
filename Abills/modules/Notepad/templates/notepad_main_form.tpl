@@ -1,5 +1,5 @@
 <form class='form-horizontal' name='notepad_form' method='POST'>
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
   <input type=hidden name='ID' value='$FORM{chg}'>
 

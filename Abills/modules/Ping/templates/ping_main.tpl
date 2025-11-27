@@ -1,8 +1,8 @@
 
-<form action='$SELF_URL' class='form-horizontal'>
+<form action='%SELF_URL%' class='form-horizontal'>
 
   <fieldset>
-   <input type=hidden  name=index value='$index'>
+   <input type=hidden  name=index value='%index%'>
 
    <div class="card card-primary card-outline ">
     <div class="card-header with-border">

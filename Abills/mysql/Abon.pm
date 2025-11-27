@@ -2,7 +2,7 @@ package Abon;
 
 =head1 NAME
 
-  Periodic fess managment functions
+  Periodic fees management functions
 
 =cut
 
@@ -37,11 +37,15 @@ sub new{
 #**********************************************************
 =head1 del(attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $admin->{MODULE}=$MODULE;
   $self->query_del( 'abon_user_list', undef, { uid => $self->{UID} } );
@@ -65,20 +69,32 @@ sub del{
 #**********************************************************
 =head2 tariff_info($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tariff_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *,
-      DECODE(password, '$self->{conf}{secretkey}') AS password,
-      (SELECT GROUP_CONCAT(ag.gid SEPARATOR \',\') FROM `abon_gids` ag WHERE ag.tp_id=abon_tariffs.id) as gid
+  my $sql = <<'SQL';
+SELECT *,
+       DECODE(password, ?) AS password,
+       (SELECT GROUP_CONCAT(ats.sub_tp_id SEPARATOR ',') FROM `abon_tariffs_subtariffs` ats WHERE ats.tp_id=abon_tariffs.id) as sub_tp_ids,
+      (SELECT GROUP_CONCAT(ats.tp_id SEPARATOR ',') FROM `abon_tariffs_subtariffs` ats WHERE ats.sub_tp_id=abon_tariffs.id) as main_tp_ids,
+      (SELECT GROUP_CONCAT(ag.gid SEPARATOR ',') FROM `abon_gids` ag WHERE ag.tp_id=abon_tariffs.id) as gid
       FROM abon_tariffs
-    WHERE id = ?;",
-    undef,
+    WHERE id = ?;
+SQL
+
+  $self->query($sql, undef,
     { INFO => 1,
-      Bind => [ $id || 0 ]
+      Bind => [
+        $self->{conf}{secretkey},
+      $id || 0
+    ]
     }
   );
 
@@ -88,11 +104,15 @@ sub tariff_info{
 #**********************************************************
 =head2 tariff_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tariff_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{PASSWORD}) {
     $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')";
@@ -115,11 +135,15 @@ sub tariff_add{
 #**********************************************************
 =head2 tariff_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tariff_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{CREATE_ACCOUNT} = 0 if (!$attr->{CREATE_ACCOUNT});
   $attr->{FEES_TYPE} = 0 if (!$attr->{FEES_TYPE});
@@ -153,6 +177,11 @@ sub tariff_change{
 #**********************************************************
 =head2 tariff_del($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tariff_del{
@@ -177,8 +206,10 @@ sub tariff_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
 
-  my $next_abon_query = "if (nonfix_period = 1,
+  my $next_abon_query = << "FIELDS";
+if (nonfix_period = 1,
       if (period = 0, curdate() + INTERVAL 2 DAY,
         if (period = 1, curdate() + INTERVAL 2 MONTH,
           if (period = 2, curdate() + INTERVAL 6 MONTH,
@@ -201,13 +232,18 @@ sub tariff_list {
           )
         )
       )
-    ) AS next_abon_date";
+    ) AS next_abon_date
+FIELDS
 
-  my $WHERE = $self->search_former( $attr, [
+  if ($attr->{SUB_TP_ID} && $attr->{SUB_TP_ID} eq 'IS NULL') {
+    push @WHERE_RULES, 'ats.sub_tp_id IS NULL';
+    $attr->{SUB_TP_ID} = '_SHOW';
+  }
+
+  my @search_params = (
     [ 'ABON_ID',               'INT', 'at.id',                         1 ],
     [ 'IDS',                   'INT', 'at.id'                            ],
     [ 'TP_ID',                 'INT', 'at.id AS tp_id',                1 ],
-    [ 'EXT_BILL_ACCOUNT',      'INT', 'at.ext_bill_account',           1 ],
     [ 'DOMAIN_ID',             'INT', 'at.domain_id',                    ],
     [ 'TP_NAME',               'STR', 'at.name AS tp_name',            1 ],
     [ 'FEES_TYPE',             'INT', 'at.fees_type',                  1 ],
@@ -232,11 +268,16 @@ sub tariff_list {
     [ 'NONFIX_PERIOD',         'INT', 'at.nonfix_period',              1 ],
     [ 'CATEGORY_ID',           'INT', 'at.category_id',                1 ],
     [ 'ACTIVATE_PRICE',        'INT', 'at.activate_price',             1 ],
+    [ 'EXT_BILL_ACCOUNT',      'INT', 'at.ext_bill_account',           1 ],
     [ 'PROMOTIONAL',           'INT', 'at.promotional',                1 ],
     [ 'PROMO_PERIOD',          'INT', 'at.promo_period',               1 ],
+    [ 'SUB_TP_ID',             'INT', 'ats.sub_tp_id',                 1 ],
+    [ 'MAIN_TP_ID',            'INT', 'ats.tp_id', 'ats.tp_id AS main_tp_id', 1 ],
     [ 'GID',                   'STR', '(SELECT GROUP_CONCAT(ag.gid SEPARATOR \',\') FROM `abon_gids` ag WHERE ag.tp_id=at.id) as gid', 1 ]
-  ],
-    { WHERE => 1 }
+  );
+
+  my $WHERE = $self->search_former( $attr, \@search_params,
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
 
   my $sql = <<"SQL";
@@ -246,11 +287,11 @@ sub tariff_list {
       FROM abon_tariffs at
       LEFT JOIN abon_user_list ul ON (at.id=ul.tp_id)
       LEFT JOIN abon_categories ac ON (at.category_id=ac.id)
+      LEFT JOIN abon_tariffs_subtariffs ats ON at.id = ats.sub_tp_id
     $WHERE
     GROUP BY at.id
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;
-    $WHERE
 SQL
 
   $self->query($sql,
@@ -264,11 +305,15 @@ SQL
 #**********************************************************
 =head2 user_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub user_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -278,7 +323,8 @@ sub user_list {
   my @WHERE_RULES = ("u.uid=ul.uid", "at.id=ul.tp_id");
   $self->{EXT_TABLES} = '';
 
-  my $next_abon_query = "if (at.nonfix_period = 1,
+  my $next_abon_query = << "FIELDS";
+if (at.nonfix_period = 1,
       if (at.period = 0, ul.date+ INTERVAL 1 DAY,
         if (at.period = 1, ul.date + INTERVAL 1 MONTH,
           if (at.period = 2, ul.date + INTERVAL 3 MONTH,
@@ -303,21 +349,26 @@ sub user_list {
             )
           )
         )
-      ) AS next_abon";
+      ) AS next_abon
+FIELDS
 
-  my $WHERE = $self->search_former($attr, [
-      [ 'ABON_ID',       'INT', 'at.id',                         1 ],
-      [ 'COMMENTS',      'STR', 'ul.comments',                   1 ],
-      [ 'DATE',          'INT', 'ul.date',                       1 ],
-      [ 'FEES_PERIOD',   'INT', 'ul.fees_period',                1 ],
-      [ 'MANUAL_FEE',    'INT', 'ul.manual_fee',                 1 ],
-      [ 'TP_NAME',       'STR', 'at.name AS tp_name',            1 ],
-      [ 'TP_ID',         'INT', 'ul.tp_id', 'ul.tp_id AS tp_id', 1 ],
-      [ 'NEXT_ABON',     'STR', $next_abon_query,                1 ],
-      [ 'PRICE',         'INT', 'at.price',                      1 ],
-      [ 'PERIOD',        'STR', 'at.period',                     1 ],
-      [ 'SERVICE_COUNT', 'STR', 'ul.service_count',              1 ]
-    ],
+  my @search_params = (
+    [ 'ABON_ID',              'INT', 'at.id',                         1 ],
+    [ 'COMMENTS',             'STR', 'ul.comments',                   1 ],
+    [ 'DATE',                 'INT', 'ul.date',                       1 ],
+    [ 'FEES_PERIOD',          'INT', 'ul.fees_period',                1 ],
+    [ 'PERSONAL_DESCRIPTION', 'STR', 'ul.personal_description',       1 ],
+    [ 'MANUAL_FEE',           'INT', 'ul.manual_fee',                 1 ],
+    [ 'TP_NAME',              'STR', 'at.name AS tp_name',            1 ],
+    [ 'TP_ID',                'INT', 'ul.tp_id', 'ul.tp_id AS tp_id', 1 ],
+    [ 'NEXT_ABON',            'STR', $next_abon_query,                1 ],
+    [ 'PRICE',                'INT', 'at.price',                      1 ],
+    [ 'PERIOD',               'STR', 'at.period',                     1 ],
+    [ 'SERVICE_COUNT',        'STR', 'ul.service_count',              1 ],
+    [ 'EXT_SERVICE_ID',       'STR', 'at.ext_service_id',             1 ],
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
     {
       WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -327,44 +378,37 @@ sub user_list {
     }
   );
 
-  # if ($attr->{TP_ID}) {
-  #   if ($attr->{TP_ID} =~ /, /) {
-  #     $WHERE .= " AND ul.tp_id IN ('$attr->{TP_ID}')";
-  #   }
-  #   else {
-  #     $WHERE .= " AND ul.tp_id = '$attr->{TP_ID}'";
-  #   }
-  # }
-
   my $EXT_TABLE = $self->{EXT_TABLES};
 
   if ($self->{SORT_BY}) {
     $SORT = $self->{SORT_BY};
   }
 
-  $self->query(
-    qq{SELECT $self->{SEARCH_FIELDS} u.uid
-    FROM abon_user_list ul
-    INNER JOIN abon_tariffs at ON at.id=ul.tp_id
-    INNER JOIN users u ON u.uid=ul.uid
-    $EXT_TABLE
-    $WHERE
-    GROUP BY ul.uid, ul.tp_id
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;},
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} u.uid
+FROM abon_user_list ul
+  INNER JOIN abon_tariffs at ON at.id=ul.tp_id
+  INNER JOIN users u ON u.uid=ul.uid
+  $EXT_TABLE
+  $WHERE
+GROUP BY ul.uid, ul.tp_id
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query( "SELECT COUNT(u.uid) AS total
-      FROM (users u, abon_user_list ul, abon_tariffs at)
-      $WHERE",
-      undef,
-      { INFO => 1 }
-    );
+    $sql = <<"SQL";
+SELECT COUNT(u.uid) AS total
+FROM (users u, abon_user_list ul, abon_tariffs at)
+$WHERE
+SQL
+
+    $self->query($sql, undef,  { INFO => 1 });
   }
 
   return $list;
@@ -373,11 +417,15 @@ sub user_list {
 #**********************************************************
 =head2  user_tariff_list($uid, $attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub user_tariff_list{
-  my $self = shift;
-  my ($uid, $attr) = @_;
+  my ($self, $uid, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -391,96 +439,104 @@ sub user_tariff_list{
     push @WHERE_RULES, "ul.uid>0";
   }
   if (defined($attr->{GID})) {
-    my $rule = "(SELECT GROUP_CONCAT(ag.gid SEPARATOR \',\') FROM `abon_gids` ag WHERE ag.tp_id=at.id) IS NULL";
+    my $rule = "NOT EXISTS (SELECT 1 FROM abon_gids ag WHERE ag.tp_id = at.id)";
     if ($attr->{GID}) {
-      $rule = '(' . $rule .
-        " OR
-        (SELECT GROUP_CONCAT(ag.gid SEPARATOR \',\') FROM `abon_gids` ag WHERE ag.tp_id=at.id) LIKE '%$attr->{GID}%')"
+      $rule = '(' . $rule . " OR EXISTS (SELECT 1 FROM abon_gids ag WHERE ag.tp_id = at.id AND ag.gid = $attr->{GID})" . ')'
     }
     push @WHERE_RULES, $rule;
   }
+  if ($attr->{SUB_TP_ID} && $attr->{SUB_TP_ID} eq 'IS NULL') {
+    push @WHERE_RULES, 'ats.sub_tp_id IS NULL';
+    $attr->{SUB_TP_ID} = '_SHOW';
+  }
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'USER_PORTAL',       'INT', 'at.user_portal',        1 ],
-      [ 'PAYMENT_TYPE',      'INT', 'at.payment_type',       1 ],
-      [ 'SERVICE_LINK',      'STR', 'at.service_link',       1 ],
-      [ 'SERVICE_IMG',       'STR', 'at.service_img',        1 ],
-      [ 'FEES_PERIOD',       'INT', 'at.fees_period',        1 ],
-      [ 'PERIOD_ALIGNMENT',  'INT', 'at.period_alignment',   1 ],
-      [ 'SERVICE_RECOVERY',  'INT', 'at.service_recovery',   1 ],
-      [ 'ID',                'STR', 'at.id',                   ],
-      [ 'CATEGORY_ID',       'INT', 'at.category_id',        1 ],
-      [ 'HOT_DEAL',          'INT', 'at.hot_deal',           1 ],
-      [ 'DISCOUNT_ACTIVATE', 'DATE', 'ul.discount_activate', 1 ],
-      [ 'DISCOUNT_EXPIRE',   'DATE', 'ul.discount_expire',   1 ],
-      #[ 'UID',          'INT', 'ul.uid',          1 ],
-    ],
+  my @search_params = (
+    [ 'USER_PORTAL',       'INT', 'at.user_portal',        1 ],
+    [ 'PAYMENT_TYPE',      'INT', 'at.payment_type',       1 ],
+    [ 'SERVICE_LINK',      'STR', 'at.service_link',       1 ],
+    [ 'SERVICE_IMG',       'STR', 'at.service_img',        1 ],
+    [ 'FEES_PERIOD',       'INT', 'at.fees_period',        1 ],
+    [ 'PERIOD_ALIGNMENT',  'INT', 'at.period_alignment',   1 ],
+    [ 'SERVICE_RECOVERY',  'INT', 'at.service_recovery',   1 ],
+    [ 'ID',                'STR', 'at.id',                   ],
+    [ 'CATEGORY_ID',       'INT', 'at.category_id',        1 ],
+    [ 'HOT_DEAL',          'INT', 'at.hot_deal',           1 ],
+    [ 'DISCOUNT_ACTIVATE', 'DATE', 'ul.discount_activate', 1 ],
+    [ 'DISCOUNT_EXPIRE',   'DATE', 'ul.discount_expire',   1 ],
+    [ 'EXT_SERVICE_ID',    'STR', 'at.ext_service_id',     1 ],
+    #[ 'UID',          'INT', 'ul.uid',          1 ],
+  );
+
+  my $WHERE = $self->search_former( $attr, \@search_params,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  $self->query( "SELECT
-      at.name as tp_name,
-      IF(ul.comments <> '', ul.comments, '') AS comments,
-      IF(ul.personal_description <> '', ul.personal_description, '') AS personal_description,
-      at.price,
-      at.period,
-      at.discount as reduction_fee,
-      at.description,
-      at.user_description,
-      SUM(ul.service_count) AS service_count,
-      ul.fees_period,
-      MAX(ul.date) AS date,
-      IF (at.nonfix_period = 1,
+  my $sql = <<"SQL";
+SELECT
+  at.name as tp_name,
+  IF(ul.comments <> '', ul.comments, '') AS comments,
+  IF(ul.personal_description <> '', ul.personal_description, '') AS personal_description,
+  at.price,
+  at.period,
+  at.discount as reduction_fee,
+  at.description,
+  at.user_description,
+  SUM(ul.service_count) AS service_count,
+  ul.fees_period,
+  MAX(ul.date) AS date,
+  IF (at.nonfix_period = 1,
       IF (at.period = 0, ul.date+ INTERVAL 1 DAY,
-        IF (at.period = 1, ul.date + INTERVAL 1 MONTH,
-          IF (at.period = 2, ul.date + INTERVAL 3 MONTH,
-            IF (at.period = 3, ul.date + INTERVAL 6 MONTH,
-              IF (at.period = 4, ul.date + INTERVAL 1 YEAR,
-                '-'
-                )
+          IF (at.period = 1, ul.date + INTERVAL 1 MONTH,
+              IF (at.period = 2, ul.date + INTERVAL 3 MONTH,
+                  IF (at.period = 3, ul.date + INTERVAL 6 MONTH,
+                      IF (at.period = 4, ul.date + INTERVAL 1 YEAR,
+                          '-'
+                      )
+                  )
               )
-            )
           )
-        ),
-        \@next_abon := if (at.period = 0, ul.date+ INTERVAL 1 DAY,
-        IF (at.period = 1, DATE_FORMAT(ul.date + INTERVAL 1 MONTH, '%Y-%m-01'),
-          IF (at.period = 2, CONCAT(YEAR(ul.date + INTERVAL 3 MONTH), '-' ,(QUARTER((ul.date + INTERVAL 3 MONTH))*3-2), '-01'),
-            IF (at.period = 3, CONCAT(YEAR(ul.date + INTERVAL 6 MONTH), '-', if(MONTH(ul.date + INTERVAL 6 MONTH) > 6, '06', '01'), '-01'),
-              IF (at.period = 4, DATE_FORMAT(ul.date + INTERVAL 1 YEAR, '%Y-01-01'),
-                '-'
-                )
-              )
-            )
-          )
-        )
-        ) AS next_abon,
-    ul.manual_fee,
-    MAX(ul.discount) AS discount,
-    COUNT(ul.uid) AS active_service,
-    ul.notification1,
-    ul.notification1_account_id,
-    ul.notification2,
-    ul.create_docs,
-    ul.send_docs,
-    ul.personal_description,
-    at.manual_activate,
-    at.plugin,
-    ul.uid,
-    at.promo_period,
-    $self->{SEARCH_FIELDS}
+      ),
+    \@next_abon := if (at.period = 0, ul.date+ INTERVAL 1 DAY,
+                       IF (at.period = 1, DATE_FORMAT(ul.date + INTERVAL 1 MONTH, '%Y-%m-01'),
+                           IF (at.period = 2, CONCAT(YEAR(ul.date + INTERVAL 3 MONTH), '-' ,(QUARTER((ul.date + INTERVAL 3 MONTH))*3-2), '-01'),
+                               IF (at.period = 3, CONCAT(YEAR(ul.date + INTERVAL 6 MONTH), '-', if(MONTH(ul.date + INTERVAL 6 MONTH) > 6, '06', '01'), '-01'),
+                                   IF (at.period = 4, DATE_FORMAT(ul.date + INTERVAL 1 YEAR, '%Y-01-01'),
+                                       '-'
+                                   )
+                               )
+                           )
+                       )
+                   )
+  ) AS next_abon,
+  ul.manual_fee,
+  MAX(ul.discount) AS discount,
+  COUNT(ul.uid) AS active_service,
+  ul.notification1,
+  ul.notification1_account_id,
+  ul.notification2,
+  ul.create_docs,
+  ul.send_docs,
+  ul.personal_description,
+  at.manual_activate,
+  at.plugin,
+  ul.uid,
+  at.promo_period,
+  $self->{SEARCH_FIELDS}
     at.id,
     IF (\@next_abon < CURDATE(), 1, 0) AS missing
-      FROM abon_tariffs at
-      LEFT JOIN abon_user_list ul ON (at.id=ul.tp_id AND ul.uid='$uid')
-      LEFT JOIN abon_categories ac ON (at.category_id=ac.id)
-      $WHERE
-      GROUP BY at.id
-      ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+FROM abon_tariffs at
+  LEFT JOIN abon_user_list ul ON (at.id=ul.tp_id AND ul.uid='$uid')
+  LEFT JOIN abon_categories ac ON (at.category_id=ac.id)
+  LEFT JOIN abon_tariffs_subtariffs ats ON at.id = ats.sub_tp_id
+  $WHERE
+GROUP BY at.id
+ORDER BY $SORT $DESC;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -493,20 +549,22 @@ sub user_tariff_list{
 =cut
 #**********************************************************
 sub user_tariff_summary{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'UID', 'INT', 'uid', 1 ],
-    ],
+    [ 'UID', 'INT', 'uid', 1 ],
+  ],
     { WHERE => 1 }
   );
 
-  $self->query( "SELECT COUNT(*) AS total_active,
-    SUM(IF(date<CURDATE() - INTERVAL 30 DAY, 1, 0)) AS lost_fee
-    FROM abon_user_list $WHERE;",
-    undef,
-    { INFO => 1 } );
+  my $sql = <<"SQL";
+SELECT COUNT(*) AS total_active,
+       SUM(IF(date<CURDATE() - INTERVAL 30 DAY, 1, 0)) AS lost_fee
+FROM abon_user_list
+$WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 } );
 
   return $self;
 }
@@ -530,8 +588,8 @@ sub  user_tariff_add {
   $admin->{MODULE} = $MODULE;
 
   if ($attr->{DATE} && $attr->{DATE} ne '0000-00-00') {
-    $date = (!$attr->{PERIOD}) ? "'$attr->{DATE}'" : "
-      if ($attr->{PERIOD} = 0, '$attr->{DATE}' -  INTERVAL 1 DAY,
+    $date = << "FIELD";
+if ($attr->{PERIOD} = 0, '$attr->{DATE}' -  INTERVAL 1 DAY,
         if ($attr->{PERIOD} = 1, '$attr->{DATE}' - INTERVAL 1 MONTH,
           if ($attr->{PERIOD} = 2, '$attr->{DATE}' - INTERVAL 3 MONTH,
             if ($attr->{PERIOD} = 3, '$attr->{DATE}' - INTERVAL 6 MONTH,
@@ -541,7 +599,12 @@ sub  user_tariff_add {
             )
           )
         )
-      )";
+      )
+FIELD
+
+    if (!$attr->{PERIOD}) {
+       $date = "'$attr->{DATE}'";
+     }
   }
   # $self->query_add('abon_user_list', {
   #   %$attr,
@@ -615,8 +678,7 @@ SQL
 =cut
 #**********************************************************
 sub user_tariff_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $admin->{MODULE} = $MODULE;
   $attr->{CREATE_DOCS} = 0 if !$attr->{CREATE_DOCS};
@@ -657,8 +719,7 @@ sub user_tariff_activate{
 =cut
 #**********************************************************
 sub user_tariff_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $tp_info = $self->user_tariff_list($attr->{UID}, { ID => $attr->{TP_ID}, COLS_NAME => 1 });
   my $personal_desc = '';
@@ -686,8 +747,7 @@ sub user_tariff_del{
 =cut
 #**********************************************************
 sub user_tariff_update{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{DATE} = "NOW()" if (! $attr->{DATE});
 
@@ -718,28 +778,29 @@ sub user_tariff_update{
 =cut
 #**********************************************************
 sub periodic_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $EXT_TABLES = '';
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'LOGIN',        'STR', 'u.id  ',           ],
-      [ 'TP_ID',        'INT', 'ul.tp_id',         ],
-      [ 'DELETED',      'INT', 'u.deleted',      1 ],
-      [ 'LOGIN_STATUS', 'INT', 'u.disable',      1 ],
-      [ 'MANUAL_FEE',   'INT', 'ul.manual_fee',  1 ],
-      [ 'LAST_DEPOSIT', 'INT', 'f.last_deposit', 1 ],
-      [ 'FEES_PERIOD',  'INT', 'ul.fees_period', 1 ],
-      [ 'PLUGIN',       'STR', 'at.plugin',      1 ],
-      [ 'UID',          'INT', 'u.uid',          1 ],
-      [ 'GID',          'INT', 'u.gid',          1 ],
-      [ 'COMPANY_ID',   'INT', 'u.company_id',   1 ],
-      [ 'DISCOUNT_ACTIVATE', 'DATE', 'ul.discount_activate', 1 ],
-      [ 'DISCOUNT_EXPIRE',   'DATE', 'ul.discount_expire',   1 ],
-      [ 'SERVICE_DISCOUNT',  'INT',  'ul.discount',     'ul.discount AS service_discount' ],
-    ],
+  my @search_params = (
+    [ 'LOGIN',        'STR', 'u.id  ',           ],
+    [ 'TP_ID',        'INT', 'ul.tp_id',         ],
+    [ 'DELETED',      'INT', 'u.deleted',      1 ],
+    [ 'LOGIN_STATUS', 'INT', 'u.disable',      1 ],
+    [ 'MANUAL_FEE',   'INT', 'ul.manual_fee',  1 ],
+    [ 'LAST_DEPOSIT', 'INT', 'f.last_deposit', 1 ],
+    [ 'FEES_PERIOD',  'INT', 'ul.fees_period', 1 ],
+    [ 'PLUGIN',       'STR', 'at.plugin',      1 ],
+    [ 'UID',          'INT', 'u.uid',          1 ],
+    [ 'GID',          'INT', 'u.gid',          1 ],
+    [ 'COMPANY_ID',   'INT', 'u.company_id',   1 ],
+    [ 'DISCOUNT_ACTIVATE', 'DATE', 'ul.discount_activate', 1 ],
+    [ 'DISCOUNT_EXPIRE',   'DATE', 'ul.discount_expire',   1 ],
+    [ 'SERVICE_DISCOUNT',  'INT',  'ul.discount',     'ul.discount AS service_discount' ]
+  );
+
+  my $WHERE = $self->search_former( $attr, \@search_params,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     }
@@ -748,111 +809,115 @@ sub periodic_list{
   $EXT_TABLES .= $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
   if ( $CONF->{EXT_BILL_ACCOUNT} ){
-    $EXT_TABLES = " LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
-      LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id)";
+    $EXT_TABLES = << "EXT_TABLES";
+LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
+      LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id)
+EXT_TABLES
+
     $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit,';
   }
 
-  $self->query("SELECT at.period, at.price, u.uid,
-  IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
-  u.id AS login,
-  at.id AS tp_id,
-  at.name AS tp_name,
-  IF(company.name IS NULL, b.deposit, cb.deposit) AS deposit,
-  IF(u.credit, u.credit,
-    IF (company.credit <> 0, company.credit, 0) ) AS credit,
-  u.disable,
-  at.payment_type,
-  ul.comments,
+  my $sql = <<"SQL";
+SELECT at.period, at.price, u.uid,
+       IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+       u.id AS login,
+       at.id AS tp_id,
+       at.name AS tp_name,
+       IF(company.name IS NULL, b.deposit, cb.deposit) AS deposit,
+       IF(u.credit, u.credit,
+          IF (company.credit <> 0, company.credit, 0) ) AS credit,
+       u.disable,
+       at.payment_type,
+       ul.comments,
   \@last_fees_date := IF(ul.date='0000-00-00', CURDATE(), ul.date),
   \@fees_date := if (at.nonfix_period = 1,
-      IF (at.period = 0, \@last_fees_date+ INTERVAL 1 DAY,
-        IF (at.period = 1, \@last_fees_date + INTERVAL 1 MONTH,
-          IF (at.period = 2, \@last_fees_date + INTERVAL 3 MONTH,
-            IF (at.period = 3, \@last_fees_date + INTERVAL 6 MONTH,
-              IF (at.period = 4, \@last_fees_date + INTERVAL 1 YEAR,
-                '-'
-              )
-            )
-          )
-        )
-      ),
-      IF (at.period = 0, \@last_fees_date + INTERVAL 1 DAY,
-        IF (at.period = 1, DATE_FORMAT(\@last_fees_date + INTERVAL 1 MONTH, '%Y-%m-01'),
-          IF (at.period = 2, CONCAT(YEAR(\@last_fees_date + INTERVAL 3 MONTH), '-' ,(QUARTER((\@last_fees_date + INTERVAL 3 MONTH))*3-2), '-01'),
-            IF (at.period = 3, CONCAT(YEAR(\@last_fees_date + INTERVAL 6 MONTH), '-', if(MONTH(\@last_fees_date + INTERVAL 6 MONTH) > 6, '06', '01'), '-01'),
-              IF (at.period = 4, DATE_FORMAT(\@last_fees_date + INTERVAL 1 YEAR, '%Y-01-01'),
-                '-'
-              )
-            )
-          )
-        )
-      )
-    ) AS abon_date,
-    at.ext_bill_account,
-    IF(u.company_id > 0, company.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
-    at.priority,
+                     IF (at.period = 0, \@last_fees_date+ INTERVAL 1 DAY,
+                         IF (at.period = 1, \@last_fees_date + INTERVAL 1 MONTH,
+                             IF (at.period = 2, \@last_fees_date + INTERVAL 3 MONTH,
+                                 IF (at.period = 3, \@last_fees_date + INTERVAL 6 MONTH,
+                                     IF (at.period = 4, \@last_fees_date + INTERVAL 1 YEAR,
+                                         '-'
+                                     )
+                                 )
+                             )
+                         )
+                     ),
+                     IF (at.period = 0, \@last_fees_date + INTERVAL 1 DAY,
+                         IF (at.period = 1, DATE_FORMAT(\@last_fees_date + INTERVAL 1 MONTH, '%Y-%m-01'),
+                             IF (at.period = 2, CONCAT(YEAR(\@last_fees_date + INTERVAL 3 MONTH), '-' ,(QUARTER((\@last_fees_date + INTERVAL 3 MONTH))*3-2), '-01'),
+                                 IF (at.period = 3, CONCAT(YEAR(\@last_fees_date + INTERVAL 6 MONTH), '-', if(MONTH(\@last_fees_date + INTERVAL 6 MONTH) > 6, '06', '01'), '-01'),
+                                     IF (at.period = 4, DATE_FORMAT(\@last_fees_date + INTERVAL 1 YEAR, '%Y-01-01'),
+                                         '-'
+                                     )
+                                 )
+                             )
+                         )
+                     )
+                 ) AS abon_date,
+       at.ext_bill_account,
+       IF(u.company_id > 0, company.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
+       at.priority,
 
-    fees_type,
-    create_account,
-    IF (at.notification1>0, \@fees_date - interval at.notification1 day, '0000-00-00') AS notification1,
-    IF (at.notification2>0, \@fees_date - interval at.notification2 day, '0000-00-00') AS notification2,
-    at.notification_account,
-    IF (at.alert > 0, \@fees_date, '0000-00-00'),
-    at.alert_account,
-    pi.email,
-    ul.notification1_account_id,
-    at.ext_cmd,
-    at.activate_notification,
-    at.vat,
-    \@nextfees_date := if (at.nonfix_period = 1,
-        IF (at.period = 0, \@last_fees_date+ INTERVAL 2 DAY,
-        IF (at.period = 1, \@last_fees_date + INTERVAL 2 MONTH,
-          IF (at.period = 2, \@last_fees_date + INTERVAL 6 MONTH,
-            IF (at.period = 3, \@last_fees_date + INTERVAL 12 MONTH,
-              IF (at.period = 4, \@last_fees_date + INTERVAL 2 YEAR,
-                '-'
-              )
-            )
-          )
-        )
-      ),
-      IF (at.period = 0, \@last_fees_date+ INTERVAL 1 DAY,
-        IF (at.period = 1, DATE_FORMAT(\@last_fees_date + INTERVAL 2 MONTH, '%Y-%m-01'),
-          IF (at.period = 2, CONCAT(YEAR(\@last_fees_date + INTERVAL 6 MONTH), '-' ,(QUARTER((\@last_fees_date + INTERVAL 6 MONTH))*6-2), '-01'),
-            IF (at.period = 3, CONCAT(YEAR(\@last_fees_date + INTERVAL 12 MONTH), '-', if(MONTH(\@last_fees_date + INTERVAL 12 MONTH) > 12, '06', '01'), '-01'),
-              IF (at.period = 4, DATE_FORMAT(\@last_fees_date + INTERVAL 2 YEAR, '%Y-01-01'),
-                '-'
-              )
-            )
-          )
-        )
-      )
-    ) AS next_abon_date,
-    IF(ul.discount>0, ul.discount,
-    IF(at.discount=1, u.reduction, 0)) AS discount,
-    ul.create_docs,
-    ul.send_docs,
-    ul.service_count,
-    $self->{SEARCH_FIELDS}
+       fees_type,
+       create_account,
+       IF (at.notification1>0, \@fees_date - interval at.notification1 day, '0000-00-00') AS notification1,
+       IF (at.notification2>0, \@fees_date - interval at.notification2 day, '0000-00-00') AS notification2,
+       at.notification_account,
+       IF (at.alert > 0, \@fees_date, '0000-00-00'),
+       at.alert_account,
+       pi.email,
+       ul.notification1_account_id,
+       at.ext_cmd,
+       at.activate_notification,
+       at.vat,
+  \@nextfees_date := if (at.nonfix_period = 1,
+                         IF (at.period = 0, \@last_fees_date+ INTERVAL 2 DAY,
+                             IF (at.period = 1, \@last_fees_date + INTERVAL 2 MONTH,
+                                 IF (at.period = 2, \@last_fees_date + INTERVAL 6 MONTH,
+                                     IF (at.period = 3, \@last_fees_date + INTERVAL 12 MONTH,
+                                         IF (at.period = 4, \@last_fees_date + INTERVAL 2 YEAR,
+                                             '-'
+                                         )
+                                     )
+                                 )
+                             )
+                         ),
+                         IF (at.period = 0, \@last_fees_date+ INTERVAL 1 DAY,
+                             IF (at.period = 1, DATE_FORMAT(\@last_fees_date + INTERVAL 2 MONTH, '%Y-%m-01'),
+                                 IF (at.period = 2, CONCAT(YEAR(\@last_fees_date + INTERVAL 6 MONTH), '-' ,(QUARTER((\@last_fees_date + INTERVAL 6 MONTH))*6-2), '-01'),
+                                     IF (at.period = 3, CONCAT(YEAR(\@last_fees_date + INTERVAL 12 MONTH), '-', if(MONTH(\@last_fees_date + INTERVAL 12 MONTH) > 12, '06', '01'), '-01'),
+                                         IF (at.period = 4, DATE_FORMAT(\@last_fees_date + INTERVAL 2 YEAR, '%Y-01-01'),
+                                             '-'
+                                         )
+                                     )
+                                 )
+                             )
+                         )
+                     ) AS next_abon_date,
+       IF(ul.discount>0, ul.discount,
+          IF(at.discount=1, u.reduction, 0)) AS discount,
+       ul.create_docs,
+       ul.send_docs,
+       ul.service_count,
+       $self->{SEARCH_FIELDS}
     ul.manual_fee
-    FROM abon_tariffs at
-      INNER JOIN abon_user_list ul ON (at.id=ul.tp_id)
-      INNER JOIN users u ON (ul.uid=u.uid)
-      LEFT JOIN bills b ON (u.bill_id=b.id)
-      LEFT JOIN companies company ON (u.company_id=company.id)
-      LEFT JOIN bills cb ON (company.bill_id=cb.id)
-      LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-      $EXT_TABLES
-    $WHERE
-    ORDER BY at.priority;",
-    undef,
-    $attr
-  );
+FROM abon_tariffs at
+  INNER JOIN abon_user_list ul ON (at.id=ul.tp_id)
+  INNER JOIN users u ON (ul.uid=u.uid)
+  LEFT JOIN bills b ON (u.bill_id=b.id)
+  LEFT JOIN companies company ON (u.company_id=company.id)
+  LEFT JOIN bills cb ON (company.bill_id=cb.id)
+  LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+  $EXT_TABLES
+  $WHERE
+ORDER BY at.priority;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -867,37 +932,37 @@ sub periodic_list{
 
 =cut
 #**********************************************************
-sub subscribe_add {
-  my $self = shift;
-  my ($uid, $abon_tp_id) = @_;
-  return 0 unless ($uid && $abon_tp_id);
-
-  # TODO: add subscription
-
-  return 1;
-}
-
-#**********************************************************
-=head2 subscribe_del($uid, $abon_tp_id)() - TODO
-
-  Arguments:
-    $uid        - user ID
-    $abon_tp_id - subscription identifier
-
-  Returns:
-    1 - if successfuly deleted user subscribe
-
-=cut
-#**********************************************************
-sub subscribe_del {
-  my $self = shift;
-  my ($uid, $abon_tp_id ) =  @_;
-  return 0 unless ($uid && $abon_tp_id);
-
-  # TODO: delete subscription
-
-  return 1;
-}
+# sub subscribe_add {
+#   my $self = shift;
+#   my ($uid, $abon_tp_id) = @_;
+#   return 0 unless ($uid && $abon_tp_id);
+#
+#   # TODO: add subscription
+#
+#   return 1;
+# }
+#
+# #**********************************************************
+# =head2 subscribe_del($uid, $abon_tp_id)() - TODO
+#
+#   Arguments:
+#     $uid        - user ID
+#     $abon_tp_id - subscription identifier
+#
+#   Returns:
+#     1 - if successfuly deleted user subscribe
+#
+# =cut
+# #**********************************************************
+# sub subscribe_del {
+#   my $self = shift;
+#   my ($uid, $abon_tp_id ) =  @_;
+#   return 0 unless ($uid && $abon_tp_id);
+#
+#   # TODO: delete subscription
+#
+#   return 1;
+# }
 
 
 #**********************************************************
@@ -912,8 +977,7 @@ sub subscribe_del {
 =cut
 #**********************************************************
 sub category_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('abon_categories', $attr);
 
@@ -932,12 +996,15 @@ sub category_add {
 =cut
 #**********************************************************
 sub category_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT *
-   FROM abon_categories
-   WHERE id = ?;",
+  my $sql = <<'SQL';
+SELECT *
+FROM abon_categories
+WHERE id = ?;
+SQL
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ]
@@ -959,8 +1026,7 @@ sub category_info {
 =cut
 #*******************************************************************
 sub category_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -983,8 +1049,7 @@ sub category_change {
 =cut
 #*******************************************************************
 sub category_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('abon_categories', $attr);
 
@@ -1081,5 +1146,32 @@ sub tariff_gid_del {
 
   return $self;
 }
+
+#**********************************************************
+=head2 tariffs_subtariffs_add($attr)
+
+=cut
+#**********************************************************
+sub tariffs_subtariffs_add {
+  my ($self, $attr) = @_;
+
+  $self->query_add('abon_tariffs_subtariffs', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 tariffs_subtariffs_del($attr)
+
+=cut
+#**********************************************************
+sub tariffs_subtariffs_del {
+  my ($self, $attr) = @_;
+
+  $self->query_del('abon_tariffs_subtariffs', undef, $attr);
+
+  return $self;
+}
+
 
 1;

@@ -8,7 +8,7 @@ my Abills::HTML $html;
 my $lang;
 my Bonus $Bonus;
 
-use Abills::Base qw/days_in_month in_array/;
+use Abills::Base qw/days_in_month in_array date_diff/;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -39,11 +39,16 @@ sub new {
 #**********************************************************
 =head2 bonus_payments_maked($attr) - Cross module payment maked
 
+  Arguments:
+    $attr
+      USER_INFO
+      METHOD
+      SUM
+
 =cut
 #**********************************************************
 sub bonus_payments_maked {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   # add this row if makes multiple time bonus
   # return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
@@ -51,6 +56,7 @@ sub bonus_payments_maked {
   return '' if (!$CONF->{BONUS_PAYMENTS} || !$attr->{SUM});
   my $form = $attr->{FORM} || {};
   my $score = 0;
+  my $bonus_id = 0;
   my %RESULT = ();
   my $user;
   $user = $attr->{USER_INFO} if $attr->{USER_INFO};
@@ -59,30 +65,28 @@ sub bonus_payments_maked {
 
   my $payment_method = $attr->{METHOD} || $form->{METHOD};
 
-  my ($year, $month, $day) = split(/-/,$user->{REGISTRATION}, 3);
-  my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
-  my $registration_days = int((time() - $seltime) / 86400);
-
+  my $registration_days = date_diff($user->{REGISTRATION}, $main::DATE);
   $Bonus->user_info($user->{UID});
 
   return '' if (!$Bonus->{STATE} || !$Bonus->{ACCEPT_RULES});
 
-  my $list = $Bonus->service_discount_list({
+  my $discounts_list = $Bonus->service_discount_list({
     REGISTRATION_DAYS => "<=$registration_days,>=0",
     PAGE_ROWS         => 20,
+    NAME              => '_SHOW',
     SORT              => "registration_days DESC, 1 DESC, 2 DESC, pay_method DESC",
     COLS_NAME         => 1
   });
 
   if ($Bonus->{TOTAL} > 0) {
-    foreach my $line (@$list) {
-      if (in_array('-1', [ split(', ', $line->{pay_method}) ])
-        || in_array($payment_method, [ split(', ', $line->{pay_method}) ])) {
-        $RESULT{DISCOUNT} = $line->{discount};
-        $RESULT{DISCOUNT_PERIOD} = $line->{discount_days};
-        $RESULT{BONUS_SUM} = $line->{bonus_sum};
-        $RESULT{BONUS_PERCENT} = $line->{bonus_percent};
-        $RESULT{BONUS_EXT_ACCOUNT} = $line->{ext_account};
+    foreach my $discount (@$discounts_list) {
+      if (in_array('-1', [ split(/,\s?/x, $discount->{pay_method}) ])
+        || in_array($payment_method, [ split(', ', $discount->{pay_method}) ])) {
+        $RESULT{DISCOUNT} = $discount->{discount};
+        $RESULT{DISCOUNT_PERIOD} = $discount->{discount_days};
+        $RESULT{BONUS_SUM} = $discount->{bonus_sum};
+        $RESULT{BONUS_PERCENT} = $discount->{bonus_percent};
+        $RESULT{BONUS_EXT_ACCOUNT} = $discount->{ext_account};
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
           $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
@@ -90,17 +94,24 @@ sub bonus_payments_maked {
 
         if ($RESULT{BONUS_PERCENT}) {
           $score = $attr->{SUM} / 100 * $RESULT{BONUS_PERCENT};
+          $bonus_id = $discount->{id} || 0;
         }
         last;
       }
     }
   }
 
-  if (!$attr->{QUITE} && $attr->{SUM} > 0) {
-    $html->message('info', $lang->{BONUS}, "$lang->{ADD} $lang->{BONUS} " . sprintf('%.2f', $score));
-  }
+  if ($score > 0) {
+    if (!$attr->{QUITE} && $attr->{SUM} > 0) {
+      $html->message('info', $lang->{BONUS}, "$lang->{ADD} $lang->{BONUS} " . sprintf('%.2f', $score) ."BONUS_ID: $bonus_id");
+    }
 
-  $Bonus->accomulation_scores_add({ UID => $user->{UID}, SCORE => $score });
+    $Bonus->accomulation_scores_add({
+      UID      => $user->{UID},
+      SCORE    => $score,
+      BONUS_ID => $bonus_id
+    });
+  }
 
   return 1;
 }
@@ -115,8 +126,7 @@ sub bonus_payments_maked {
 =cut
 #**********************************************************
 sub bonus_pre_payment {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
   my $REPORT = '';
@@ -141,8 +151,7 @@ sub bonus_pre_payment {
 =cut
 #**********************************************************
 sub bonus_turbo_mk {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $form = $attr->{FORM} || {};
 
@@ -166,7 +175,7 @@ sub bonus_turbo_mk {
   return 0 if $periods < 1;
 
   my %RESULT = ();
-  my ($year, $month, $day) = split(/-/, $attr->{USER_INFO}->{REGISTRATION}, 3);
+  my ($year, $month, $day) = split(/-/x, $attr->{USER_INFO}->{REGISTRATION}, 3);
   my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
   $registration_days = int((time() - $seltime) / 86400);
   my $list = $Bonus->bonus_turbo_list({
@@ -202,8 +211,7 @@ sub bonus_turbo_mk {
 =cut
 #**********************************************************
 sub bonus_service_discount_mk {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
 
@@ -211,11 +219,11 @@ sub bonus_service_discount_mk {
   my @excluder_arr = ();
 
   my $user_info = $attr->{USER_INFO};
-  if ($user_info->{GID} && !$attr->{QUITE}) {
+  if ($user_info->{GID}) {
     $user_info->group_info($user_info->{GID});
 
     if (!$user_info->{BONUS}) {
-      $html->message('warn', $lang->{BONUS_DISABLED_FOR_GROUP}, '', { ID => 1901 });
+      $html->message('warn', $lang->{BONUS_DISABLED_FOR_GROUP}, '', { ID => 1901 }) if (!$attr->{QUITE});
       return 0;
     }
   }
@@ -227,8 +235,8 @@ sub bonus_service_discount_mk {
   my $payment_sum = $attr->{SUM} || $form->{SUM};
   my $pay_method = $attr->{METHOD} || $form->{METHOD};
   my $exclude = $CONF->{BONUS_SERVICE_EXCLUDE};
-  $exclude =~ s/!//g;
-  @excluder_arr = split(/,\s?/, $exclude);
+  $exclude =~ s/!//xg;
+  @excluder_arr = split(/,\s?/x, $exclude);
 
   return 0 if in_array($pay_method, \@excluder_arr);
 
@@ -291,7 +299,7 @@ sub bonus_service_discount_mk {
 
   my %RESULT = ();
   if ($RULES{PERIOD}) {
-    my ($year, $month, $day) = split(/-/, $user_info->{REGISTRATION}, 3);
+    my ($year, $month, $day) = split(/-/x, $user_info->{REGISTRATION}, 3);
     my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
     $registration_days = int((time() - $seltime) / 86400);
 
@@ -362,7 +370,7 @@ sub bonus_service_discount_mk {
         my @pay_methods = ();
 
         if (defined($discount->{pay_method}) && $discount->{pay_method} ne '-1') {
-          @pay_methods = split(/,\s?/, $discount->{pay_method});
+          @pay_methods = split(/,\s?/x, $discount->{pay_method});
         }
 
         if (!$discount->{tp_id}) {

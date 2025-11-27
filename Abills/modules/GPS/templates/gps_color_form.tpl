@@ -1,6 +1,6 @@
 
-<form action=$SELF_URL method=post>
-    <input type='hidden' name='index' value=$index>
+<form action=%SELF_URL% method=post>
+    <input type='hidden' name='index' value=%index%>
     <input type='hidden' name='AID' value=%AID%>
 
     <div class='card card-primary card-outline box-form'>

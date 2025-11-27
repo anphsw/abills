@@ -6,7 +6,7 @@
 
 =cut
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
 use Docs;
 
@@ -27,8 +27,8 @@ our ($db,
   @MONTHES_LIT_NOM,
   @MONTHES,
   @WEEKDAYS,
-  %err_strs,
-  @units, # ??
+  #%err_strs,
+  #@units, # ??
   %permissions,
   %COOKIES,
 
@@ -41,9 +41,9 @@ our ($db,
   @tens,
   @hundred,
   @money_unit_names,
-  $Conf,
   %ADMIN_REPORT,
-  $Bin
+  $Bin,
+  $libpath
 );
 
 our Abills::HTML $html;
@@ -118,9 +118,9 @@ sub docs_contract{
     $contract_tpl = 'contract_company';
   }
 
-  my ($y, $m, $d) = split( /-/, $Docs->{CONTRACT_DATE} || $DATE, 3 );
+  my ($y, $m, $d) = split(/-/x, $Docs->{CONTRACT_DATE} || $DATE, 3 );
   $Docs->{CONTRACT_DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
-  if ( $y =~ /(\d{2})$/ ){
+  if ( $y =~ /(\d{2})$/xm){
     $users->{CONTRACT_YY} = $1;
   }
 
@@ -131,10 +131,10 @@ sub docs_contract{
   if ( $Docs->{CONTRACT_SUFIX} ){
     if ( $conf{DOCS_CONTRACT_TYPES} ){
       #PREFIX:SUFIX:NAME;
-      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
-      my (@contract_types_list) = split( /;/, $conf{DOCS_CONTRACT_TYPES} );
+      $conf{DOCS_CONTRACT_TYPES} =~ s/\n//xg;
+      my (@contract_types_list) = split(/;/x, $conf{DOCS_CONTRACT_TYPES} );
       foreach my $line ( @contract_types_list ){
-        my (undef, $sufix, undef, $tpl_name) = split( /:/, $line );
+        my (undef, $sufix, undef, $tpl_name) = split(/:/x, $line );
         if ( $sufix eq $Docs->{CONTRACT_SUFIX} ){
           $contract_tpl = $tpl_name;
           $Docs->{CONTRACT_ID} .= $Docs->{CONTRACT_SUFIX};
@@ -223,7 +223,7 @@ sub docs_take_variables {
   $Docs->{CONTRACT_DATE} = $DATE;
 
   if ($Docs->{CONTRACT_DATE}) {
-    my ($contract_y, $contract_m, $contract_d) = split(/-/, $Docs->{CONTRACT_DATE} || $DATE, 3);
+    my ($contract_y, $contract_m, $contract_d) = split(/-/x, $Docs->{CONTRACT_DATE} || $DATE, 3);
     $Docs->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
     $Docs->{CONTRACT_DATE_EURO_STANDART} = "$contract_d.$contract_m.$contract_y";
   }
@@ -249,7 +249,7 @@ sub docs_take_variables {
     'errstr'
   );
 
-  my @sorted_shared_vars = sort grep { my $id = $_; not grep $_ eq $id, @system_vars } @result;
+  my @sorted_shared_vars = sort grep { my $id = $_; not grep { $_ eq $id } @system_vars } @result;
 
   # additional variables for Invoice
   my @additional_var_invoice = (
@@ -342,6 +342,10 @@ sub docs_take_variables {
     'SUM',
     'MONTHES',
     'ACTUAL_SELL_PRICE',
+    'IDENT1',
+    'IDENT2',
+    'IDENT3',
+    'IDENT4',
   );
 
   if ($conf{STORAGE_EXTRA_DOCS_VARS} && $conf{STORAGE_EXTRA_DOCS_VARS} > 0) {
@@ -420,23 +424,11 @@ sub docs_print {
 
   $FORM{pdf} = 1 if ($attr->{PDF});
 
-  $conf{DOCS_LANGUAGE} = $conf{default_language} if (!$conf{DOCS_LANGUAGE});
+  $conf{DOCS_LANGUAGE} //= $conf{default_language};
 
-  if ( $conf{DOCS_LANGUAGE} && $html->{language} ne $conf{DOCS_LANGUAGE} ){
-    if ( -f "../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl" ){
-      do "../language/$conf{DOCS_LANGUAGE}.pl";
-      do "../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl";
-    }
-    elsif ( -f $Bin . "/../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl" ){
-      do $Bin . "/../language/$conf{DOCS_LANGUAGE}.pl";
-      do $Bin . "/../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl";
-    }
-    else{
-      do "../../language/$conf{DOCS_LANGUAGE}.pl";
-      do "../../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl";
-    }
-  }
+  load_language(($html->{language} ne $conf{DOCS_LANGUAGE}) ? $conf{DOCS_LANGUAGE} : q{} );
 
+  my $Conf = Conf->new($db, $admin, \%conf, { SKIP_PAYSYS => 1 });
   my $value_list = $Conf->config_list({
     CUSTOM   => 1,
     COLS_NAME=> 1
@@ -447,7 +439,7 @@ sub docs_print {
   }
 
   if ( @MONTHES_LIT && $attr->{DATE} ){
-    my ($y, $m, $d) = split( /-/, $attr->{DATE}, 3 );
+    my ($y, $m, $d) = split(/-/x, $attr->{DATE}, 3 );
 
     $attr->{FROM_DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     $attr->{DAY} = $d;
@@ -460,7 +452,7 @@ sub docs_print {
   }
   
   if ($attr->{CONTRACT_DATE}) {
-    my ($contract_y, $contract_m, $contract_d) = split(/-/, $attr->{CONTRACT_DATE} || $DATE, 3);
+    my ($contract_y, $contract_m, $contract_d) = split(/-/x, $attr->{CONTRACT_DATE} || $DATE, 3);
     $attr->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
     $attr->{CONTRACT_DATE_EURO_STANDART} = "$contract_d.$contract_m.$contract_y";
   }
@@ -477,7 +469,7 @@ sub docs_print {
 
   foreach my $attr_name (@lit_arr) {
     next if (!$attr->{$attr_name} || $attr->{$attr_name} eq '0000-00-00');
-    my ($y, $m, $d) = $attr->{$attr_name} =~ m/(\d{4})-(\d{2})-(\d{2})/;
+    my ($y, $m, $d) = $attr->{$attr_name} =~ m/(\d{4})-(\d{2})-(\d{2})/x;
     next if (!$y);
     $attr->{$attr_name . '_LIT'}  = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     $attr->{$attr_name . '_EURO'} = "$d.$m.$y";
@@ -506,7 +498,7 @@ sub docs_print {
   );
 
   if($attr->{TOTAL_SUM}) {
-    ($attr->{SUM_MAIN}, $attr->{SUM_SUB}) = split(/\./, $attr->{TOTAL_SUM});
+    ($attr->{SUM_MAIN}, $attr->{SUM_SUB}) = split(/\./x, $attr->{TOTAL_SUM});
     $attr->{SUM_LIT} = int2ml($attr->{TOTAL_SUM}, \%sum_locale);
   }
 
@@ -543,6 +535,9 @@ sub docs_print {
   }
 
   if ($Docs->{UID}) {
+    if (!$users || ref $users ne 'Users') {
+      $users = Users->new($db, $admin, \%conf);
+    }
     $users->info( $Docs->{UID} ) if (!$users->{BILL_ID});
     $users->pi( { UID => $Docs->{UID} } );
     # if ($users->{ADDRESS_STREET}) {
@@ -582,7 +577,7 @@ sub docs_print {
 
   # Make qrcode with organization params
   if ($conf{'DOCS_QRCODE_INCLUDE_' . uc($type)}) {
-    my @qrcode_params = split(/:/, $conf{'DOCS_QRCODE_INCLUDE_' . uc($type)});
+    my @qrcode_params = split(/:/x, $conf{'DOCS_QRCODE_INCLUDE_' . uc($type)});
     my $pdf_params = pop @qrcode_params; # Shift from the end
 
     # Will create file, so should run it only in need
@@ -638,7 +633,6 @@ sub docs_print {
       $html_old = $html;
       require Abills::PDF;
       my $pdf = Abills::PDF->new({
-        #IMG_PATH => $IMG_PATH,
         NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
         CONF     => \%conf,
         CHARSET  => $conf{default_charset}
@@ -647,8 +641,15 @@ sub docs_print {
     }
 
     eval {
+      require Abills::Template;
+      my $Templates = Abills::Template->new($db, $admin, \%conf, {
+        html    => $html,
+        lang    => \%lang,
+        libpath => $libpath
+      });
+
       $content = $html->tpl_show(
-        _include(
+        $Templates->_include(
           "docs_$template",
           'Docs',
           {
@@ -689,7 +690,7 @@ sub docs_print {
     my $doc = $Documents->document_print({
       %{$attr},
       PDF           => $FORM{pdf} ? 1 : 0,
-      PRINT_HEADERS => $FORM{qindex} || $FORM{get_index} || ''
+      PRINT_HEADERS => $FORM{qindex} || $FORM{get_index} || $attr->{PRINT_HEADERS} || ''
     });
     $content = $doc->{content};
   }
@@ -735,24 +736,10 @@ sub docs_print {
     }
   }
 
-  if ( $conf{DOCS_LANGUAGE} && $html->{language} ne $conf{DOCS_LANGUAGE} ){
-    if ( -f "../Abills/modules/Docs/lng_$html->{language}.pl" ){
-      do "../language/$html->{language}.pl";
-      do "../Abills/modules/Docs/lng_$html->{language}.pl";
-    }
-    elsif ( -f $Bin . "/../Abills/modules/Docs/lng_$html->{language}.pl" ){
-      do $Bin . "/../language/$html->{language}.pl";
-      do $Bin . "/../Abills/modules/Docs/lng_$html->{language}.pl";
-    }
-    else{
-      delete $INC{"../../language/$html->{language}.pl"};
-      do "../../language/$html->{language}.pl";
-      do "../../Abills/modules/Docs/lng_$html->{language}.pl";
-    }
-  }
+  load_language(($conf{DOCS_LANGUAGE} && $html->{language} ne $conf{DOCS_LANGUAGE}) ? $html->{language} : q{} );
 
   if ($attr->{SEND_VIBER} || $users->{VIBER} && $conf{DOCS_SEND_INVOICE_VIBER} && defined($FORM{SUM_1})) {
-    _send_invoice_viber($filename, $attr);
+    _send_invoice_viber($filename, $content, $attr);
   }
 
   if ( $attr->{SEND_EMAIL} && !$attr->{OUTPUT2RETURN} ){
@@ -771,7 +758,7 @@ sub docs_print {
       $attr->{EMAIL} || $users->{EMAIL},
       $attr->{EMAIL_MSG_SUBJECT} || "ABillS",
       $attr->{EMAIL_MSG_TEXT},
-      "$conf{MAIL_CHARSET}",
+      $conf{MAIL_CHARSET},
       '',
       {
         ATTACHMENTS => \@ATTACHMENTS,
@@ -1087,7 +1074,7 @@ sub docs_user{
     }
   }
 
-  my $user_service_form = $html->tpl_show( _include( 'docs_user', 'Docs' ), { %{$attr}, %{$Docs} }, { ID => 'docs_user', OUTPUT2RETURN => 1 } );
+  my $user_service_form = $html->tpl_show( _include( 'docs_user', 'Docs' ), { %{$attr}, %{$Docs}, %lang }, { ID => 'docs_user', OUTPUT2RETURN => 1 } );
 
   if($attr->{PROFILE_MODE}) {
     return $user_service_form;
@@ -1115,7 +1102,7 @@ sub docs_statement_of_account {
   $LIST_PARAMS{DATE}='>='. date_format($year_date, "%Y-01-01");
 
   if($year_date ne $DATE) {
-    my($y) = split(/-/, $year_date);
+    my($y) = split(/-/x, $year_date);
     $LIST_PARAMS{DATE}.=';<'. date_format($year_date, ($y+1) ."-01-01");
   }
 
@@ -1219,7 +1206,7 @@ sub docs_statement_of_account {
         my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
         my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
         my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
-        $describe =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/g;
+        $describe =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/xg;
         my $deposit = ($money_operation->{FEES})
         ? (sprintf("%.2f", $money_operation->{last_deposit} || 0) - sprintf("%.2f", $money_operation->{sum} || 0))
         : (sprintf("%.2f", $money_operation->{last_deposit} || 0) + sprintf("%.2f", $money_operation->{sum} || 0));
@@ -1261,7 +1248,7 @@ sub docs_statement_of_account {
     push @statment_rows, [('', '', '', $html->b("$lang{TOTAL_END_MONTH}: $month"), '', $month_fees || 0, $month_payments || 0, sprintf("%.2f", $month_balance || 0))];
   }
 
-  my ($y)=split(/-/, $DATE);
+  my ($y)=split(/-/x, $DATE);
   my %date_list = ();
   for (my $i = $y; $i>($y-3); $i--) {
     $date_list{"$i-01-01"}="$i-01-01";
@@ -1271,7 +1258,7 @@ sub docs_statement_of_account {
   my $period_to = '';
 
   if ($FORM{DATE}){
-    my ($year_period) = split(/-/, $FORM{DATE});
+    my ($year_period) = split(/-/x, $FORM{DATE});
     $period_to = ($year_period == $y) ? $DATE : "$year_period-12-31";
   }
   else {
@@ -1347,7 +1334,7 @@ sub docs_start_page{
 =cut
 #***************************************************************
 sub docs_sp_invoice_summary{
-  my ($Y, $M, $D) = split( /-/, $DATE, 3 );
+  my ($Y, $M, $D) = split(/-/x, $DATE, 3 );
 
   $Docs->invoices_list({
     FROM_DATE => "$Y-$M-01",
@@ -1384,7 +1371,7 @@ sub docs_registration_create{
   if ( $FORM{print} ){
     # Prepare QRCode
     my $base_url = $SELF_URL;
-    $base_url =~ s/\/admin\/index\.cgi//g;
+    $base_url =~ s/\/admin\/index\.cgi//xg;
     my $registration_url = "$base_url/registration.cgi";
 
     require Control::Qrcode;
@@ -1433,7 +1420,7 @@ sub docs_registration_preview{
   my ($attr) = @_;
 
   my $base_url = $SELF_URL;
-  $base_url =~ s/\/admin\/index\.cgi//g;
+  $base_url =~ s/\/admin\/index\.cgi//xg;
   my $registration_url = "$base_url/registration.cgi";
 
   require Control::Qrcode;
@@ -1505,19 +1492,6 @@ sub _docs_user_contacts_info {
 }
 
 #**********************************************************
-=head2 _alt_sum_filter($alt_sum, $currency);
-
-=cut
-#**********************************************************
-sub _alt_sum_filter {
-  my ($alt_sum, $currency) = @_;
-
-  $currency = ($currency) ? "($currency)" : q{};
-
-  return sprintf("%.2f %s", $alt_sum, $currency);
-}
-
-#**********************************************************
 =head2 docs_certs($attr);
 
   Arguments:
@@ -1546,8 +1520,8 @@ sub docs_certs {
 
     my $cmd = $conf{DOCS_CERT_CMD};
 
-    $cmd =~ s/\%INPUT_FILE\%/$tmp_file/g;
-    $cmd =~ s/\%CERT_FILE\%/$tmp_file.sig/g;
+    $cmd =~ s/\%INPUT_FILE\%/$tmp_file/xg;
+    $cmd =~ s/\%CERT_FILE\%/$tmp_file.sig/xg;
 
     my $debug = $attr->{DEBUG} || 0;
     if ($debug > 2) {
@@ -1650,7 +1624,7 @@ sub _docs_collect_qrcode_data {
     foreach my $key ( @keys ) {
       my ($name, $value) = ($key, $hash->{$key});
       
-      if ($key =~ /([a-zA-Z0-9_.]+)\(([a-zA-Z0-9_.]+)\)/){
+      if ($key =~ /([a-zA-Z0-9_.]+)\(([a-zA-Z0-9_.]+)\)/xm){
         $value = $hash->{$1 || ''};
         $name = $2 || '';
       }
@@ -1833,17 +1807,30 @@ sub docs_esign {
 =cut
 #**********************************************************
 sub _send_invoice_viber {
-  my ($filename, $attr) = @_;
+  my ($filename, $content, $attr) = @_;
+
+  require Viber::buttons::Invoices;
+  Viber::buttons::Invoices->import();
+  my $Viber_invoices = Viber::buttons::Invoices->new(\%conf);
+
+  my $base_url = $SELF_URL;
+  $base_url =~ s/\/admin\/index\.cgi//xg;
+
+  my $file_size = length($content);
+  my $doc_url = "$base_url/api.cgi/user/docs/invoices/document/";
+  my $token = $Viber_invoices->_generate_secure_download_token($attr->{UID}, $attr->{DOC_ID});
+  $doc_url .= "?token=$token";
 
   require Abills::Sender::Core;
   Abills::Sender::Core->import();
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   my @ATTACHMENTS_VIBER = ({
-    'content'      => "FILE: Abills/templates/Docs/$filename.pdf",
+    'content'      => $doc_url,
     'content_type' => 'Content-Type: application/pdf',
-    'content_size' => '100000',
-    'filename'     => "$filename.pdf"
+    'content_size' => $file_size || '100000',
+    'filename'     => "$filename.pdf",
+    'file_path'    => $doc_url
   });
 
   my $message = $html->tpl_show(_include('docs_invoice_viber', 'Docs'), $attr, { OUTPUT2RETURN => 1 });
@@ -1862,7 +1849,6 @@ sub _send_invoice_viber {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 docs_customers ()
@@ -1989,6 +1975,76 @@ sub docs_customers {
 
 
   return 1;
+}
+
+#**********************************************************
+=head2 load_language($language)
+
+   Arguments:
+     $language
+
+   Results:
+
+=cut
+#**********************************************************
+sub load_language {
+  my ($language) = @_;
+
+  return 0 if (! $language);
+
+  my @prefixes = (
+    '../',
+    $Bin .'/../',
+    '../../'
+  );
+
+  foreach my $prefix (@prefixes) {
+    if (-f "$prefix/Abills/modules/Docs/lng_$language.pl") {
+      do "$prefix/language/$language.pl";
+      do "$prefix/Abills/modules/Docs/lng_$language.pl";
+      last;
+    }
+  }
+
+  # if ( $conf{DOCS_LANGUAGE} && $html->{language} ne $conf{DOCS_LANGUAGE} ){
+  #   if ( -f "../Abills/modules/Docs/lng_$html->{language}.pl" ){
+  #     do "../language/$html->{language}.pl";
+  #     do "../Abills/modules/Docs/lng_$html->{language}.pl";
+  #   }
+  #   elsif ( -f $Bin . "/../Abills/modules/Docs/lng_$html->{language}.pl" ){
+  #     do $Bin . "/../language/$html->{language}.pl";
+  #     do $Bin . "/../Abills/modules/Docs/lng_$html->{language}.pl";
+  #   }
+  #   else{
+  #     delete $INC{"../../language/$html->{language}.pl"};
+  #     do "../../language/$html->{language}.pl";
+  #     do "../../Abills/modules/Docs/lng_$html->{language}.pl";
+  #   }
+  # }
+
+  return 1;
+}
+
+
+
+#**********************************************************
+=head2 _alt_sum_filter($alt_sum, $currency);
+
+  Arguments:
+    $alt_sum
+    $currensy
+
+  Results:
+    $alt_sum
+
+=cut
+#**********************************************************
+sub _alt_sum_filter {
+  my ($alt_sum, $currency) = @_;
+
+  $currency = ($currency) ? "($currency)" : q{};
+
+  return sprintf("%.2f %s", $alt_sum, $currency);
 }
 
 1;

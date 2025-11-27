@@ -7,13 +7,20 @@ CREATE TABLE IF NOT EXISTS `accident_log` (
   `date`       DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `aid`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `end_time`   DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `realy_time` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `realy_time` DATETIME             NOT NULL DEFAULT '0000-00-00',
   `status`     TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   `name`       VARCHAR(255)         NOT NULL DEFAULT '',
   `sent_open`  SMALLINT(6)  UNSIGNED  NOT NULL DEFAULT 0,
   `sent_close` SMALLINT(6)  UNSIGNED  NOT NULL DEFAULT 0,
   `type`       TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+  `gid`        SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
+  `nas_id`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+  `port`       VARCHAR(20)          NOT NULL DEFAULT '',
   KEY `status` (`status`),
+  KEY `aid` (`aid`),
+  KEY `gid` (`gid`),
+  KEY `nas_id` (`nas_id`),
+  KEY `port` (`port`),
   CONSTRAINT `accident_log` FOREIGN KEY (`aid`) REFERENCES `admins` (`aid`) ON DELETE CASCADE
 )
     DEFAULT CHARSET = utf8

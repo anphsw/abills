@@ -57,7 +57,7 @@
 
 <div class='%G2FA_HIDDEN%'>
   <form action='%SELF_URL%' METHOD='POST'>
-    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='index' value='%index%'>
     <input type='hidden' name='g2fa_secret' value='%G2FA_SECRET%'>
     <input type='hidden' name='g2fa_remove' value='%G2FA_REMOVE%'>
     %HIDDDEN_INPUT%

@@ -44,7 +44,7 @@ use Users;
 use Admins;
 use Conf;
 use Abills::Api::Handle;
-
+use Abills::Templates;
 require Control::Auth;
 
 # PLEASE DO NOT DELETE THIS GLOBAL VARIABLES
@@ -69,7 +69,7 @@ do $libpath . '/language/english.pl';
 
 if ($ENV{REQUEST_URI} && !$ENV{PATH_INFO}) {
   $ENV{PATH_INFO} = $ENV{REQUEST_URI};
-  $ENV{PATH_INFO} =~ s/\/api.cgi//;
+  $ENV{PATH_INFO} =~ s/\/api.cgi//x;
 }
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -82,22 +82,24 @@ our $admin      = Admins->new($db, \%conf);
 our Users $user = Users->new($db, $admin, \%conf);
 our $Conf       = Conf->new($db, $admin, \%conf);
 
-require Abills::Misc;
+
+#require Abills::Misc;
 
 our $html = Abills::HTML->new({
-  IMG_PATH   => 'img/',
+  #IMG_PATH   => 'img/',
   NO_PRINT   => 1,
   CONF       => \%conf,
   CHARSET    => $conf{default_charset},
-  HTML_STYLE => $conf{UP_HTML_STYLE},
+  #HTML_STYLE => $conf{UP_HTML_STYLE},
   language   => $conf{API_CONF_LANGUAGE} ? ($conf{default_language} || 'english') : 'english'
 });
 
-if ($conf{API_CONF_LANGUAGE} && -f $libpath . "/language/$html->{language}.pl") {
-  do $libpath . "/language/$html->{language}.pl";
+my $default_language_file = $libpath . "/language/$html->{language}.pl";
+if ($conf{API_CONF_LANGUAGE} && -f $default_language_file ) {
+  do $default_language_file;
 }
 
-if ($conf{API_SWAGGER} && $ENV{PATH_INFO} && "$ENV{PATH_INFO}" =~ /swagger/) {
+if ($conf{API_SWAGGER} && $ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /swagger/xm) {
   _swagger();
 }
 else {
@@ -111,28 +113,28 @@ else {
 
   Return:
    print return of API login
+
 =cut
 #**********************************************************
 sub _start {
-  my $handle = Abills::Api::Handle->new($db, $admin, $Conf->{conf}, {
+  my $Handle = Abills::Api::Handle->new($db, $admin, $Conf->{conf}, {
     html        => $html,
     lang        => \%lang,
     cookies     => \%COOKIES,
     return_type => 'json',
-    libpath     => $libpath
+    libpath     => $libpath,
+    begin_time  => $begin_time
   });
 
-  my ($response, $status, $content_type) = $handle->api_call({
+  my ($response, $status, $content_type) = $Handle->api_call({
     METHOD => $ENV{REQUEST_METHOD} || q{},
     PARAMS => \%FORM,
     PATH   => $ENV{PATH_INFO} || q{},
   });
 
-  my $header = $content_type ? $content_type : 'Content-Type: application/json; charset=utf-8';
-
   _custom_headers({
     STATUS       => $status || 200,
-    CONTENT_TYPE => $header,
+    CONTENT_TYPE => ($content_type) ? $content_type : 'Content-Type: application/json; charset=utf-8'
   });
 
   print $response;
@@ -151,7 +153,7 @@ sub _start {
 #**********************************************************
 sub _swagger {
   my $swagger = q{};
-  if ($ENV{PATH_INFO} && "$ENV{PATH_INFO}" =~ /swagger\/admin/) {
+  if ($ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /swagger\/admin/xm) {
     $swagger = _read_swagger('misc/api/bundle_admin.yaml');
   }
   else {
@@ -165,29 +167,32 @@ sub _swagger {
 }
 
 #**********************************************************
-=head2 _read_swagger() - read swagger file from misc swagger yaml file
+=head2 _read_swagger($path) - read swagger file from misc swagger yaml file
 
   Arguments:
     path - path of file of yaml swagger specification
 
   Return:
    return ADMIN or USER REST API
+
 =cut
 #**********************************************************
 sub _read_swagger {
   my ($path) = @_;
+
   my $content = '';
-  open(my $fh, '<', $base_dir . $path);
-  while(<$fh>) {
-    $content .= $_;
+  if(open(my $fh, '<', $base_dir . $path)) {
+    while (<$fh>) {
+      $content .= $_;
+    }
+    close($fh);
   }
-  close($fh);
 
   return $content;
 }
 
 #**********************************************************
-=head2 _custom_headers() - print own content type with headers
+=head2 _custom_headers($attr) - print own content type with headers
 
   Arguments:
     path - path of file of yaml swagger specification
@@ -206,6 +211,8 @@ sub _custom_headers {
   print "Access-Control-Allow-Origin: *\n";
   print "Access-Control-Allow-Headers: *\n";
   print "Status: $status\n\n";
+
+  return 1;
 }
 
 1;

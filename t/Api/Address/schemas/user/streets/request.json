@@ -1,0 +1,6 @@
+{
+  "name": "USER_GET_STREETS",
+  "method": "GET",
+  "path": "user/addresses/streets/",
+  "params": {}
+}

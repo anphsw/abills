@@ -4,7 +4,7 @@
   </div>
   <form name='ADD_FRIEND' id='form_ADD_FRIEND' method='post' class='form form-horizontal'>
     <div class='card-body'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='ID' value='%ID%'/>
 
       <div class='form-group row'>
@@ -43,8 +43,7 @@
   </div>
   <div class='card-body'>
     <div class='form-group row'>
-      <label class='col-sm-3 col-md-3' for='referral-link'>_{OR_SEND_URL}_</label>
-      <div class='col-sm-9 col-md-9 input-group'>
+      <div class='input-group'>
         <input type='text' class='form-control' id='referral-link' readonly value='%REFERRAL_LINK%'/>
         <div class='input-group-append'>
           <button class='btn input-group-button' onclick='copyLink()' id='copy-referral-link' type='button'>_{COPY}_</button>

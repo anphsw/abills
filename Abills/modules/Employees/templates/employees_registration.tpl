@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST'>
+<form action='%SELF_URL%' METHOD='POST'>
     <input type='hidden' name='module' value='Employees'>
     <div class='card container-md'>
         <div class='card-header with-border'>

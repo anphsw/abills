@@ -31,7 +31,7 @@ our (
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
-require Iptv::Services;
+require Iptv::Plugins;
 
 my $ftp = Net::FTP->new($conf{CONAX_FTP_HOST}, Timeout => 5, Debug => ($argv->{DEBUG} || 0)) or die print "Cannot connect to $conf{CONAX_FTP_HOST}: $@\n";
 

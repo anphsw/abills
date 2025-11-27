@@ -51,8 +51,7 @@ our %log_levels = (
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $CONF, $attr) = @_;
+  my ($class, $db, $CONF, $attr) = @_;
 
   my $self = {
     db   => $db,
@@ -89,8 +88,7 @@ sub new {
 =cut
 #**********************************************************
 sub log_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
@@ -102,45 +100,51 @@ sub log_list {
     push @WHERE_RULES, "message REGEXP '$attr->{TEXT}'";
   }
 
-  my $WHERE =  $self->search_former($attr, [
-      ['DATE',              'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')", 1 ],
-      ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
-      ['ACTION',            'STR',  'l.action',                        1 ],
-      ['LOGIN',             'STR',  'l.user',                          1 ],
-      ['USER',              'STR',  'l.user',                          1 ],
-      ['MESSAGE',           'STR',  'l.message',                       1 ],
-      ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
-      ['REQUEST_COUNT',     'INT',  'l.request_count',                 1 ],
-      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ],
-    ],
+  my @search_params = (
+    ['DATE',              'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')", 1 ],
+    ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
+    ['ACTION',            'STR',  'l.action',                        1 ],
+    ['LOGIN',             'STR',  'l.user',                          1 ],
+    ['USER',              'STR',  'l.user',                          1 ],
+    ['MESSAGE',           'STR',  'l.message',                       1 ],
+    ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
+    ['REQUEST_COUNT',     'INT',  'l.request_count',                 1 ],
+    ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ]
+  );
+
+  my $WHERE =  $self->search_former($attr, \@search_params,
     {
       WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES,
+      WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  $self->query("SELECT l.date, l.log_type, l.action, l.user, l.message, $self->{SEARCH_FIELDS} l.nas_id
-  FROM errors_log l
+  my $sql = <<"SQL";
+SELECT l.date, l.log_type, l.action, l.user, l.message, $self->{SEARCH_FIELDS} l.nas_id
+FROM errors_log l
   $WHERE
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
-  undef,
-  $attr
-  );
+ORDER BY $SORT $DESC
+LIMIT $PG, $PAGE_ROWS;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
-  $self->query("SELECT l.log_type, COUNT(*) AS count
-  FROM errors_log l
+  $sql = <<"SQL";
+SELECT l.log_type, COUNT(*) AS count
+FROM errors_log l
   $WHERE
-  GROUP BY 1
-  ORDER BY 1;",
-  undef,
-  $attr
-  );
+GROUP BY 1
+ORDER BY 1;
+SQL
 
-  return $list;
+
+  $self->query($sql, undef, $attr);
+
+  return $list || [];
 }
 
 #**********************************************************
@@ -170,8 +174,7 @@ sub log_list {
 =cut
 #**********************************************************
 sub log_print {
-  my $self = shift;
-  my ($LOG_TYPE, $USER_NAME, $MESSAGE, $attr) = @_;
+  my ($self, $LOG_TYPE, $USER_NAME, $MESSAGE, $attr) = @_;
   my $Nas = $attr->{NAS} || undef;
 
   my $action = $attr->{'ACTION'} || $self->{ACTION} || '';
@@ -194,21 +197,19 @@ sub log_print {
       $make_log = 1;
     }
   }
-  elsif(!$self->{conf}->{debugmods} || $self->{conf}->{debugmods} =~ /$LOG_TYPE/) {
+  elsif(!$self->{conf}->{debugmods} || $self->{conf}->{debugmods} =~ /$LOG_TYPE/xm) {
     $make_log = 1;
   }
 
   if ($make_log) {
     if (!$self->{LOG_FILE}) {
-      $self->log_add(
-        {
-          LOG_TYPE  => $log_levels{$LOG_TYPE},
-          ACTION    => $action,
-          USER_NAME => $USER_NAME || $self->{USER_NAME},
-          MESSAGE   => $MESSAGE,
-          NAS_ID    => $Nas->{NAS_ID} || 0
-        }
-      );
+      $self->log_add({
+        LOG_TYPE  => $log_levels{$LOG_TYPE},
+        ACTION    => $action,
+        USER_NAME => $USER_NAME || $self->{USER_NAME},
+        MESSAGE   => $MESSAGE,
+        NAS_ID    => $Nas->{NAS_ID} || 0
+      });
     }
     else {
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
@@ -261,19 +262,20 @@ sub log_print {
 =cut
 #**********************************************************
 sub log_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($self->{conf}->{CONNECT_LOG}) {
-    $self->query("SELECT request_count FROM errors_log
-      WHERE
-       date > CURDATE()
-       AND user= ?
-       AND message = ?
-       AND nas_id= ?
-      FOR UPDATE
-      ;",
-    undef,
+    my $sql = <<'SQL';
+SELECT request_count FROM errors_log
+WHERE
+  date > CURDATE()
+  AND user= ?
+  AND message = ?
+  AND nas_id= ?
+  FOR UPDATE;
+SQL
+
+    $self->query($sql, undef,
     { Bind => [
       $attr->{USER_NAME},
       $attr->{MESSAGE},
@@ -281,17 +283,19 @@ sub log_add {
     ]});
 
     if ($self->{TOTAL}) {
-      $self->query('UPDATE errors_log SET
-          request_count = request_count + 1,
-          date = NOW()
-        WHERE
-           date > curdate()
-           AND action = ?
-           AND user = ?
-           AND message = ?
-           AND nas_id =? ;
-         ',
-        'do',
+      $sql = <<'SQL';
+UPDATE errors_log SET
+                    request_count = request_count + 1,
+                    date = NOW()
+WHERE
+  date > curdate()
+  AND action = ?
+  AND user = ?
+  AND message = ?
+  AND nas_id =? ;
+SQL
+
+      $self->query($sql, 'do',
         { Bind => [
           $attr->{ACTION},
           $attr->{USER_NAME} || '-',
@@ -301,9 +305,12 @@ sub log_add {
       );
     }
     else {
-      $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id, request_count)
-  VALUES (NOW(), ?, ?, ?, ?, ?, 1);",
-        'do',
+      $sql = <<'SQL';
+INSERT INTO errors_log (date, log_type, action, user, message, nas_id, request_count)
+VALUES (NOW(), ?, ?, ?, ?, ?, 1);
+SQL
+
+      $self->query($sql, 'do',
         { Bind => [ $attr->{LOG_TYPE},
           $attr->{ACTION},
           $attr->{USER_NAME} || '-',
@@ -314,9 +321,12 @@ sub log_add {
     }
   }
   else {
-    $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
-  VALUES (NOW(), ?, ?, ?, ?, ?);",
-      'do',
+    my $sql = <<'SQL';
+INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
+VALUES (NOW(), ?, ?, ?, ?, ?);
+SQL
+
+    $self->query($sql, 'do',
       { Bind => [ $attr->{LOG_TYPE},
         $attr->{ACTION},
         $attr->{USER_NAME} || '-',
@@ -332,11 +342,15 @@ sub log_add {
 #**********************************************************
 =head2 log_del($attr) - Del log records
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub log_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("DELETE FROM errors_log WHERE user= ? ;", 'do', { Bind => [ $attr->{LOGIN} ] });
 
@@ -345,7 +359,7 @@ sub log_del {
 
 
 #**********************************************************
-=head2 log_reports() - Show log reports
+=head2 log_reports($attr) - Show log reports
 
   Arguments:
     $attr
@@ -357,21 +371,20 @@ sub log_del {
 =cut
 #**********************************************************
 sub log_reports {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  if ($attr->{RETRIES}) {
-    $self->query("SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
-      GROUP BY user
-      ORDER BY 2 DESC
-      LIMIT $attr->{RETRIES};", undef, $attr);
-  }
+  my $sql = <<'SQL';
+SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
+GROUP BY user
+ORDER BY 2 DESC
+LIMIT ? ;
+SQL
 
-  my $list = $self->{list};
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{RETRIES} || 20 ] });
 
-  return $list;
+  return $self->{list} || [];
 }
 
 
-1
+1;
 

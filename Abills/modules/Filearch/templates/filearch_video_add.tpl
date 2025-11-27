@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST'>
-<input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='ID' value='$FORM{ID}'>
 <input type='hidden' name='FILENAME' value='%FILENAME%'>
 <input type='hidden' name='FILEPATH' value='%PATH%'>

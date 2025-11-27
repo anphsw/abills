@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 use strict;
 use parent 'dbcore';
 use Conf;
+use Abills::Base qw(cmd);
 
 use Admins;
 my Admins $admin;
@@ -37,8 +38,7 @@ my $CONF;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin_, $CONF_, $attr) = @_;
+  my ($class, $db, $admin_, $CONF_, $attr) = @_;
   
   $admin = $admin_;
   $CONF = $CONF_;
@@ -81,8 +81,7 @@ sub new {
 =cut
 #**********************************************************
 sub save_file_to_disk {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   
   $self->{LAST_SAVE_PATH} = '';
   
@@ -175,8 +174,7 @@ sub save_file_to_disk {
 =cut
 #**********************************************************
 sub attachment_file_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $filename = $attr->{FILENAME};
   $self->{NEW_FILENAME} = $filename;
@@ -226,16 +224,14 @@ sub attachment_file_del {
 =cut
 #**********************************************************
 sub attachment_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if($attr->{FILENAME}) {
-    $attr->{FILENAME} =~ s/ /_/g;
-    $attr->{FILENAME} =~ s/\%20/_/g;
+    $attr->{FILENAME} =~ s/\s+/_/xg;
+    $attr->{FILENAME} =~ s/\%20/_/xg;
   }
 
   if($self->{conf}{ATTACH2FILE}) {
-    
     my $saved_filename = $self->save_file_to_disk($attr);
 
     if($self->{errno}) {
@@ -258,9 +254,13 @@ sub attachment_add{
     }
   }
 
-  $self->query( "INSERT INTO `$attr->{TABLE}`
+  my $sql = <<"SQL";
+  INSERT INTO `$attr->{TABLE}`
         (filename, content_type, content_size, content, create_time $extra_col_names)
-        VALUES (?, ?, ?, ?, NOW() $extra_bind_placeholders)",
+        VALUES (?, ?, ?, ?, NOW() $extra_bind_placeholders)
+SQL
+
+  $self->query($sql,
     'do', { Bind => [
         $attr->{FILENAME},
         $attr->{CONTENT_TYPE},
@@ -288,14 +288,13 @@ sub attachment_add{
 =cut
 #**********************************************************
 sub attachment_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->attachment_info($attr);
   $self->query_del($attr->{TABLE}, $attr);
 
   if ($self->{conf}{ATTACH2FILE} && $self->{FILENAME}) {
-    if ($self->{CONTENT} =~ /FILE(?:NAME)?: (.+\/\/?)([a-zA-Z0-9_\-.]+)/) {
+    if ($self->{CONTENT} =~ /FILE(?:NAME)?:\s+(.+\/\/?)([a-zA-Z0-9_\-.]+)/xm) {
       $attr->{FILEPATH} = $1;
       $attr->{FILENAME} = $2;
       $self->attachment_file_del($attr);
@@ -303,7 +302,7 @@ sub attachment_del {
   }
   elsif ($attr->{FULL_DELETE} && $self->{conf}{ATTACH2FILE}) {
     if ($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
-      `rm -R $self->{ATTACH2FILE}/$attr->{UID}`;
+      cmd("rm -R $self->{ATTACH2FILE}/$attr->{UID}");
     }
   }
 
@@ -313,11 +312,15 @@ sub attachment_del {
 #**********************************************************
 =head2 attachment_info($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub attachment_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $content = (!$attr->{INFO_ONLY}) ? ',content' : '';
 
@@ -327,14 +330,18 @@ sub attachment_info {
 
   my $table   = $attr->{TABLE};
 
-  $self->query("SELECT id AS attachment_id,
-    filename,
-    content_type,
-    content_size AS filesize
-    $content
-   FROM `$table`
-   WHERE id = ? ",
-    undef,
+  my $sql = <<"SQL";
+SELECT id AS attachment_id,
+       filename,
+       content_type,
+       content_size AS filesize
+  $content
+FROM `$table`
+WHERE id = ?
+SQL
+
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [
         $attr->{ID}

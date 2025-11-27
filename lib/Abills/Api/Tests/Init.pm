@@ -88,12 +88,14 @@ my $password = $conf{API_TEST_USER_PASSWORD} || '123456';
 sub test_runner {
   my ($attr, $tests) = @_;
 
+  my $debug = $attr->{debug} || $attr->{argv}->{DEBUG} || 0;
+
   # define here can be redefined ref of $admin object in test file
   $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
     html        => $html,
     lang        => \%lang,
     direct      => 1,
-    debug       => 1,
+    debug       => ($debug > 4) ? 1 : 0,
     return_type => 'json'
   });
 
@@ -114,8 +116,6 @@ sub test_runner {
   if ($attr->{argv} && $attr->{argv}->{URL}) {
     $url = $attr->{argv}->{URL};
   }
-
-  my $debug = $attr->{debug} || $attr->{argv}->{DEBUG} || 0;
 
   my ($uid, $sid) = _user_login($url, $debug);
 
@@ -175,14 +175,14 @@ sub run_tests {
   foreach my $test (@{$tests}) {
     $test_number++;
 
-    if ($test->{path} =~ /:uid/m) {
-      $test->{path} =~ s/:uid/$attr->{uid}/g;
+    if ($test->{path} =~ /:uid/xm) {
+      $test->{path} =~ s/:uid/$attr->{uid}/xg;
     }
 
-    my @vars = $test->{path} =~ /(?<=:)\w+/g;
+    my @vars = $test->{path} =~ /(?<=:)\w+/xg;
     foreach my $var (@vars) {
       next if (!$variables{$var});
-      $test->{path} =~ s/:$var/$variables{$var}/g;
+      $test->{path} =~ s/:$var/$variables{$var}/xg;
     }
 
     my $http_status = 0;
@@ -191,7 +191,7 @@ sub run_tests {
     my $req_body = '';
     my $query = '';
 
-    if ($test->{path} =~ /user\//m) {
+    if ($test->{path} =~ /user\//xm) {
       push @req_headers, "USERSID: $sid";
     }
     else {
@@ -215,12 +215,11 @@ sub run_tests {
     }
 
     my ($result, $info);
-
-    if ($debug < 5) {
-      ($result, $info) = _run_test_web_request($test, $url . "/api.cgi/$test->{path}" . $query, \@req_headers, ($debug > 2) ? 1 : 0);
+    if ($debug > 4 || $attr->{argv}->{DIRECT}) {
+      ($result, $info) = _run_test_directly($test, $test_number, ($debug > 4) ? 1 : 0);
     }
     else {
-      ($result, $info) = _run_test_directly($test, $test_number);
+      ($result, $info) = _run_test_web_request($test, $url . "/api.cgi/$test->{path}" . $query, \@req_headers, ($debug > 2) ? 1 : 0);
     }
 
     $http_status = $info->{status} || $info->{response_code} || $info->{http_code} || 0;
@@ -270,7 +269,7 @@ sub run_tests {
         print "RESPONSE $result \n";
         print "ERROR NUMBER: " .
           ($res->{error} || $res->{errno} || q{UNKNOWN}) . "\nERROR STRING: " .
-          ($res->{errstr} || q{UNKNOW}) . "\n", color($colors{INFO});
+          ($res->{errstr} || q{UNKNOWN}) . "\n", color($colors{INFO});
       }
     }
     else {
@@ -308,7 +307,7 @@ sub _process_request_body {
       }
     }
     else {
-      my ($var) = $body->{$key} =~ /\{\{(\w+)\}\}/g;
+      my ($var) = $body->{$key} =~ /\{\{(\w+)\}\}/xg;
       next if (!$var || !$variables->{$var});
       $body->{$key} = $variables->{$var};
     }
@@ -363,9 +362,9 @@ sub _run_test_web_request {
 =cut
 #**********************************************************
 sub _run_test_directly {
-  my ($test, $test_number) = @_;
+  my ($test, $test_number, $debug) = @_;
 
-  print color($colors{BLUE}), "[$test_number]\nSQL\n" if ($test_number);
+  print color($colors{BLUE}), "[$test_number]\nSQL\n" if ($test_number && $debug);
 
   my ($result, $status) = $Api->api_call({
     PATH   => "/$test->{path}",
@@ -374,6 +373,10 @@ sub _run_test_directly {
   });
 
   print color($colors{INFO}), '' if ($test_number);
+
+  if ($test->{json_return}) {
+    $result = decode_json($result);
+  }
 
   return $result, {
     status => $status,
@@ -413,7 +416,7 @@ sub _user_login {
   }
 
   if (!$result || ref $result ne 'HASH') {
-    print "FATAL ERROR. Received invalid response test process ending\n";
+    print "! FATAL ERROR. Received invalid response test process ending\n";
     print "\n----------------------\n". ( $result || q{}) ."\n";
     exit;
     #return 0, '';
@@ -600,15 +603,15 @@ sub test_preprocess {
 
     if ($test->{conf} && $conf && ! $conf->{$test->{conf}}) {
       if ($debug > 2) {
-        print "No config availeble\n";
+        print "No config available $test->{conf}\n";
       }
       next;
     }
 
-    if ($test->{path} =~ /:([a-zA-Z\_]+)/g) {
+    while ($test->{path} =~ /:([a-zA-Z\_]+)/mxg) {
       my $param = $1;
       if (defined($params->{$param})) {
-        $test->{path} =~ s/:$param/$params->{$param}/g;
+        $test->{path} =~ s/:$param/$params->{$param}/xg;
       }
     }
 

@@ -163,7 +163,7 @@ sub extreceipt_kkt {
     methods    => ''
   );
 
-  $FORM{METHODS} =~ s/\b(0)\b/\'0\'/ if (defined($FORM{METHODS}));
+  $FORM{METHODS} =~ s/\b(0)\b/\'0\'/x if (defined($FORM{METHODS}));
 
   if ($FORM{add}) {
     my $api_list = $Receipt->api_list({ API_ID => $FORM{API_ID}, COLS_NAME => 1 });
@@ -242,9 +242,9 @@ sub extreceipt_kkt {
       MULTIPLE => 1,
       SELECTED => $params{AID} || $FORM{AID}
     });
-    $params{CHECK_FOOTER} =~ s/\\\\/\\/g if ($params{CHECK_FOOTER});
-    $params{CHECK_HEADER} =~ s/\\\\/\\/g if ($params{CHECK_HEADER});
-    $params{CHECK_DESC}   =~ s/\\\\/\\/g if ($params{CHECK_DESC});
+    $params{CHECK_FOOTER} =~ s/\\\\/\\/gx if ($params{CHECK_FOOTER});
+    $params{CHECK_HEADER} =~ s/\\\\/\\/gx if ($params{CHECK_HEADER});
+    $params{CHECK_DESC}   =~ s/\\\\/\\/gx if ($params{CHECK_DESC});
 
     $html->tpl_show(_include('extreceipt_kkt', 'Extreceipt'), { %params });
   }
@@ -513,8 +513,8 @@ sub _extreceipt_info {
       });
     }
     elsif ($fda) {
-      $date =~ s/T/ /;
-      $date =~ s/\+.*//;
+      $date =~ s/T/ /x;
+      $date =~ s/\+.*//x;
       $Receipt->change({
         PAYMENTS_ID  => $payments_id || $info->[0]->{command_id},
         FDN          => $fdn,

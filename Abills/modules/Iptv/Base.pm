@@ -11,6 +11,9 @@ my Iptv $Iptv;
 use Abills::Base qw/days_in_month in_array next_month/;
 use Abills::Loader qw/load_plugin/;
 use Iptv::Init qw/init_iptv_service/;
+use Iptv::Services;
+
+my Iptv::Services $Iptv_services;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -32,6 +35,8 @@ sub new {
   require Iptv;
   Iptv->import();
   $Iptv = Iptv->new($db, $admin, $CONF);
+
+  $Iptv_services = Iptv::Services->new($db, $admin, $CONF, { lang => $lang, ENABLE_FEES_MESSAGES => 1 });
 
   bless($self, $class);
 
@@ -66,22 +71,13 @@ sub iptv_payments_maked {
 
   my $form = $attr->{FORM} || {};
 
-  ::load_module('Iptv', $html);
-
   my $users_disable = $main::users->{DISABLE};
   foreach my $service_user (@{$list}) {
     if ($form->{newpassword} && !in_array($service_user->{service_status}, [ 4, 5 ])) {
-      $Iptv->{SERVICE_ID} = $service_user->{service_id};
-      $main::Iptv->{SERVICE_ID} = $service_user->{service_id} if ($main::Iptv);
-
-      ::iptv_account_action({
-        ID         => $service_user->{id},
-        SERVICE_ID => $service_user->{service_id},
-        %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
-        PASSWORD   => $form->{newpassword},
-        change     => 1,
-        USER_INFO  => $user,
-        SILENT     => 1,
+      $Iptv_services->user_change({ %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
+        ID       => $service_user->{id},
+        UID      => $service_user->{uid},
+        PASSWORD => $form->{newpassword}
       });
 
       next;
@@ -94,23 +90,10 @@ sub iptv_payments_maked {
     next if !$Iptv->{TP_NUM};
 
     if ($form->{DISABLE} && !$users_disable) {
-      $Iptv->{STATUS} = 1;
-      ::iptv_account_action({
-        %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
-        change    => 1,
-        USER_INFO => $user,
-        STATUS    => 1,
-        SILENT    => 1
-      });
+      $Iptv_services->user_change({ UID => $Iptv->{UID}, ID => $Iptv->{ID}, STATUS => 1 });
     }
     elsif (!$form->{DISABLE}) {
-      #Fixme: call iptv_account_action when activate user
-      ::iptv_user_activate($Iptv, {
-        USER           => $user,
-        SILENT         => 1,
-        REACTIVATE     => $users_disable ? 1 : 0,
-        FULL_MONTH_FEE => $CONF->{IPTV_FULL_MONTH}
-      });
+      $Iptv_services->user_activate({ UID => $Iptv->{UID}, ID => $Iptv->{ID}, REACTIVATE => $users_disable ? 1 : 0 });
     }
   }
 
@@ -453,6 +436,11 @@ sub iptv_channels_fees {
 
   my $debug = $attr->{DEBUG};
   my $tp = $attr->{TP};
+  $tp->{tp_id} //= $tp->{TP_ID};
+  $tp->{abon_distribution} //= $tp->{ABON_DISTRIBUTION};
+  $tp->{fees_method} //= $tp->{FEES_METHOD};
+  $tp->{id} //= $tp->{ID};
+
   my $days_in_month = days_in_month();
   my $debug_output = '';
 
@@ -619,7 +607,7 @@ sub iptv_get_available_tariffs {
   my $tp_list = $Tariffs->list({
     TP_GID            => $service_info->{TP_GID} || '_SHOW',
     CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
-      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
+      '_SHOW' : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
     MODULE            => $attr->{MODULE},
     STATUS            => '<1',
     MONTH_FEE         => '_SHOW',
@@ -720,19 +708,10 @@ sub iptv_user_del {
 
   my $users_list = $Iptv->user_list({ UID => $uid, COLS_NAME => 1 });
 
-  ::load_module('Iptv', $html);
   foreach my $line (@$users_list) {
-    $Iptv->user_info($line->{id});
-    $main::Iptv->{SERVICE_ID} = $Iptv->{SERVICE_ID} if ($main::Iptv);
-    ::iptv_account_action({
-      %$Iptv,
-      del       => $line->{id},
-      USER_INFO => $attr->{USER_INFO}
-    });
+    $Iptv_services->user_del({ ID => $line->{id} });
   }
 
-  $Iptv->{UID} = $uid;
-  $Iptv->user_del({ UID => $uid, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
   return 1;
 }
 
@@ -788,6 +767,50 @@ sub iptv_user_services {
   });
 
   return $tariffs;
+}
+
+#**********************************************************
+=head2 iptv_contacts_changed($attr) - Handles user contact changes for IPTV services
+
+  Arguments:
+    $attr: hash
+      UID: int, optional                  - User ID.
+      USER_INFO: hash, optional           - Hash with user information containing the UID.
+      CHANGED_CONTACTS: array_ref         - An array of strings indicating which contact fields have been changed.
+
+=cut
+#**********************************************************
+sub iptv_contacts_changed {
+  my ($self, $attr) = @_;
+
+  $attr->{USER_INFO} //= {};
+  my $uid = $attr->{USER_INFO}{UID} || $attr->{UID};
+  if (!$uid || !$attr->{CHANGED_CONTACTS} || ref($attr->{CHANGED_CONTACTS}) ne 'ARRAY') {
+    return {};
+  }
+
+  my $users_list = $Iptv->user_list({
+    UID             => $uid,
+    SERVICE_STATUS  => '0',
+    SERVICE_ID      => '_SHOW',
+    TV_SERVICE_NAME => '_SHOW',
+    COLS_NAME       => 1
+  });
+  return {} if (!$Iptv->{TOTAL} || $Iptv->{TOTAL} < 1);
+
+  foreach my $user_service (@{$users_list}) {
+    my $result = $Iptv_services->user_change({
+      ID               => $user_service->{id},
+      UID              => $user_service->{uid},
+      CHANGED_CONTACTS => $attr->{CHANGED_CONTACTS}
+    });
+
+    if ($result && $result->{errno}) {
+      return $result;
+    }
+  }
+
+  return {};
 }
 
 1;

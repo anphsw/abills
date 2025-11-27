@@ -13,11 +13,11 @@ our (
   $admin,
   %conf,
   %lang,
-  $html
+  $html,
+  @priority_colors,
+  @priority
 );
 
-my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
-my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 my %panel_color = (1 => 'card-danger', 2 => 'card-success', 4 => 'card-warning');
 
 my $Msgs = Msgs->new($db, $admin, \%conf);

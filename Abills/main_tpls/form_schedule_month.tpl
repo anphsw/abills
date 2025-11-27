@@ -10,7 +10,7 @@
         </button>
       </a>
       <label class='control-label' style='margin: 0 20px'>%MONTH_NAME% %YEAR%</label>
-      <a href='/admin/index.cgi?index=$index&DATE=%NEXT_MONTH_DATE%'>
+      <a href='/admin/index.cgi?index=%index%&DATE=%NEXT_MONTH_DATE%'>
         <button type='submit' class='btn btn-default btn-sm'>
           <span class='fa fa-arrow-right' aria-hidden='true'></span>
         </button>

@@ -18,9 +18,9 @@ use warnings FATAL => 'all';
 use Abills::Api::Helpers qw(caesar_cipher);
 
 use Control::Errors;
-use Abills::Control::Auth::User;
+use Control::Auth::User;
 
-my Abills::Control::Auth::User $Auth_User;
+my Control::Auth::User $Auth_User;
 my Control::Errors $Errors;
 
 #**********************************************************
@@ -43,7 +43,7 @@ sub new {
 
   bless($self, $class);
 
-  $Auth_User = Abills::Control::Auth::User->new($self->{db}, $self->{admin}, $self->{conf}, {
+  $Auth_User = Control::Auth::User->new($self->{db}, $self->{admin}, $self->{conf}, {
     lang    => $self->{lang},
     html    => $self->{html},
     libpath => $self->{libpath}
@@ -93,18 +93,17 @@ sub post_user_login {
     $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
   }
 
-  my ($uid, $sid, $login) = $Auth_User->auth_user($query_params->{LOGIN} || '', $query_params->{PASSWORD} || '', $session_id, { FORM => \%params });
+  my ($uid, $sid, $login, $ext_info) = $Auth_User->auth_user($query_params->{LOGIN} || '', $query_params->{PASSWORD} || '', $session_id, { FORM => \%params });
 
-  if (ref $uid eq 'HASH') {
-    return $uid;
+  #if (ref $uid eq 'HASH') {
+  if ($ext_info) {
+    return $ext_info;
+  }
+  elsif (!$uid || $Auth_User->{errno}) {
+    return $Auth_User;
   }
 
-  if (!$uid) {
-    return {
-      errno  => 10001,
-      errstr => 'Wrong login or password or auth token'
-    };
-  }
+  $self->{USER_INFO}=$Auth_User->{USER_INFO};
 
   my %result = (
     uid   => $uid,

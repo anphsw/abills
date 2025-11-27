@@ -15,7 +15,7 @@
 use strict;
 use warnings;
 use Equipment;
-use Abills::Misc qw(snmp_get file_op);
+require Abills::Misc;
 require Equipment::Grabbers;
 use Equipment::Pon_mng;
 
@@ -43,7 +43,7 @@ equipment_errors();
 #**********************************************************
 sub equipment_errors {
   
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     NAS_ID           => $argv->{NAS_ID} || '_SHOW',
     NAS_IP           => '_SHOW',
     NAS_NAME         => '_SHOW',
@@ -97,3 +97,4 @@ sub equipment_errors {
   return;
 }
 
+1;

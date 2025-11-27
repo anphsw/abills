@@ -27,7 +27,7 @@ my Control::Errors $Errors;
 
 # Can not delete because is needed in Msgs::Notify. Probably need to create dynamic load of
 our %lang;
-require 'Abills/modules/Msgs/lng_english.pl';
+do 'Abills/modules/Msgs/lng_english.pl';
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -56,7 +56,6 @@ sub new {
   $Attachments = Msgs::Misc::Attachments->new($db, $admin, $conf);
   $self->{permissions} = $Msgs->permissions_list($admin->{AID});
 
-
   $Errors = $self->{attr}->{Errors};
 
   return $self;
@@ -70,8 +69,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_msgs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if (!$self->{permissions}{1}{0}) {
     return $Errors->throw_error(1071001);
@@ -92,8 +90,7 @@ sub post_msgs {
 =cut
 #**********************************************************
 sub get_msgs_statuses {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if (!$self->{permissions}{1}{0}) {
     return $Errors->throw_error(1071003);
@@ -115,11 +112,11 @@ sub get_msgs_statuses {
   });
 
   foreach my $status (@$list) {
-    if ($status->{name} && $status->{name} =~ /\$lang\{(\S+)\}/g) {
+    if ($status->{name} && $status->{name} =~ /\$lang\{(\S+)\}/xg) {
       my $marker = $1;
       if($self->{lang}{$marker}) {
         $status->{locale_name} = $status->{name};
-        $status->{locale_name} =~ s/\$lang\{$marker\}/$self->{lang}{$marker}/;
+        $status->{locale_name} =~ s/\$lang\{$marker\}/$self->{lang}{$marker}/x;
       }
       else {
         $status->{locale_name} = $marker;
@@ -141,8 +138,7 @@ sub get_msgs_statuses {
 =cut
 #**********************************************************
 sub get_msgs_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $message = $Msgs->message_info($path_params->{id});
 
@@ -165,8 +161,7 @@ sub get_msgs_id {
 =cut
 #**********************************************************
 sub put_msgs_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $message = $Msgs->message_info($path_params->{id});
 
@@ -195,36 +190,35 @@ sub put_msgs_id {
   return $Msgs;
 }
 
-#**********************************************************
-=head2 post_msgs_list($path_params, $query_params)
-
-  Endpoint POST /msgs/list/
-
-=cut
-#**********************************************************
-sub post_msgs_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
-
-  if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
-    my @available_chapters = keys %{$self->{permissions}{4}};
-
-    $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
-      : join(';', grep {in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
-  }
-  elsif ($self->{permissions}{4}) {
-    $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});
-  }
-
-  $Msgs->messages_list({
-    %$query_params,
-    COLS_NAME => 1,
-    DESC      => 'DESC',
-    SUBJECT   => '_SHOW',
-    STATE_ID  => '_SHOW',
-    DATE      => '_SHOW'
-  });
-}
+# #**********************************************************
+# =head2 post_msgs_list($path_params, $query_params)
+#
+#   Endpoint POST /msgs/list/
+#
+# =cut
+# #**********************************************************
+# sub post_msgs_list {
+#   my ($self, $path_params, $query_params) = @_;
+#
+#   if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
+#     my @available_chapters = keys %{$self->{permissions}{4}};
+#
+#     $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
+#       : join(';', grep {in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
+#   }
+#   elsif ($self->{permissions}{4}) {
+#     $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});
+#   }
+#
+#   $Msgs->messages_list({
+#     %$query_params,
+#     COLS_NAME => 1,
+#     DESC      => 'DESC',
+#     SUBJECT   => '_SHOW',
+#     STATE_ID  => '_SHOW',
+#     DATE      => '_SHOW'
+#   });
+# }
 
 #**********************************************************
 =head2 get_msgs_list($path_params, $query_params)
@@ -234,8 +228,7 @@ sub post_msgs_list {
 =cut
 #**********************************************************
 sub get_msgs_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
     my @available_chapters = keys %{$self->{permissions}{4}};
@@ -248,36 +241,38 @@ sub get_msgs_list {
   }
 
   foreach my $param (keys %{$query_params}) {
-    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+    $query_params->{$param} = ($query_params->{$param} || $query_params->{$param} eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
   my $msgs_list = $Msgs->messages_list({
-    %$query_params,
-    COLS_NAME => 1,
     SUBJECT   => '_SHOW',
     STATE_ID  => '_SHOW',
     DATE      => '_SHOW',
+    MESSAGE   => '_SHOW',
+    %$query_params,
+    COLS_NAME => 1,
     DESC      => 'DESC'
   });
 
-  my @extra_params = (
-    'OPEN',
-    'CLOSED',
-    'TOTAL',
-    'IN_WORK',
-    'UNMAKED',
+  my %return = (
+    list  => $msgs_list,
+    total => $Msgs->{TOTAL}
   );
 
-  foreach my $msg (@{$msgs_list}) {
+  if (!$query_params->{TOTAL_SHORT} ) {
+    my @extra_params = (
+      'OPEN',
+      'CLOSED',
+      'IN_WORK',
+      'UNMAKED',
+    );
+
     foreach my $param (@extra_params) {
-      $msg->{lc($param)} = $Msgs->{$param} if (defined($query_params->{$param}));
+      $return{summary}{$param} = $Msgs->{$param} || '';
     }
   }
 
-  return {
-    list => $msgs_list,
-    total => $Msgs->{TOTAL}
-  };
+  return \%return;
 }
 
 #**********************************************************
@@ -288,14 +283,13 @@ sub get_msgs_list {
 =cut
 #**********************************************************
 sub post_msgs_id_reply {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  # spend time for reply by admin
-  if ($query_params->{RUN_TIME}) {
-    my ($h, $min, $sec) = split(/:/, $query_params->{RUN_TIME}, 3);
-    $query_params->{RUN_TIME} = ($h || 0) * 60 * 60 + ($min || 0) * 60 + ($sec || 0);
-  }
+  my $default_run_time = ($self->{conf}->{MSGS_RUN_TIME}) ? "00:$self->{conf}->{MSGS_RUN_TIME}:00" : "00:02:00";
+  my $run_time = ($query_params->{RUN_TIME}) ? $query_params->{RUN_TIME} : $default_run_time;
+
+  my ($h, $min, $sec) = split(':', $run_time, 3);
+  $query_params->{RUN_TIME} = ($h || 0) * 60 * 60 + ($min || 0) * 60 + ($sec || 0);
 
   $Msgs->message_info($path_params->{id});
 
@@ -428,8 +422,7 @@ sub post_msgs_id_reply {
 =cut
 #**********************************************************
 sub get_msgs_id_reply {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Msgs->messages_reply_list({
     %$query_params,
@@ -448,8 +441,7 @@ sub get_msgs_id_reply {
 =cut
 #**********************************************************
 sub post_msgs_reply_reply_id_attachment {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Msgs->attachment_add({
     %$query_params,
@@ -466,8 +458,7 @@ sub post_msgs_reply_reply_id_attachment {
 =cut
 #**********************************************************
 sub get_msgs_chapters {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
     my @available_chapters = keys %{$self->{permissions}{4}};
@@ -498,8 +489,7 @@ sub get_msgs_chapters {
 =cut
 #**********************************************************
 sub get_msgs_survey {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
@@ -524,8 +514,7 @@ sub get_msgs_survey {
 =cut
 #**********************************************************
 sub get_msgs_search {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if (!$query_params->{SEARCH_TEXT}) {
     return { list => [], total => 0 };

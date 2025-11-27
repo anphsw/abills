@@ -18,8 +18,8 @@
 
 </style>
 
-<form action='$SELF_URL' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
 
   <div class='form-group'>
     <div class='card card-primary card-outline'>

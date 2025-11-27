@@ -1,7 +1,7 @@
 %UNREG_TABLE%
 
 <script>
-  let url = '$SELF_URL?header=2&get_index=equipment_unreg_report_date';
+  let url = '%SELF_URL%?header=2&get_index=equipment_unreg_report_date';
   let refresh_period = '%PERIOD%' + '000'; // ms
   let isFunctionCalled = false;
 

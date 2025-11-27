@@ -2,7 +2,7 @@
 	<div class='card card-primary card-outline'>
 		<div class='card-header with-border' style='text-align:center'>
 			<h4 style='margin:0'>
-			  <a href='$SELF_URL?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%'>_{CARDS}_ %TP_NAME%</a>
+			  <a href='%SELF_URL%?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%'>_{CARDS}_ %TP_NAME%</a>
 			</h4>
 		</div>
 
@@ -50,7 +50,7 @@
 		      </div>
 		  	</div> 
 			<div class='row' style='text-align: center'>
-				<a class='btn btn-primary' href='$SELF_URL?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%%HOTSPOT_PARAMS%'>_{BUY}_</a>
+				<a class='btn btn-primary' href='%SELF_URL%?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%%HOTSPOT_PARAMS%'>_{BUY}_</a>
 			</div>
 		  </div>
 		</div>

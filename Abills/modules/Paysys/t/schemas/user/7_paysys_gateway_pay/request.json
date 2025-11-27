@@ -1,0 +1,13 @@
+{
+  "name": "USER_PAYSYS_GATEWAY_PAY",
+  "method": "POST",
+  "path": "user/paysys/gateway/pay/",
+  "post-response": {
+    "variables": [
+      {
+        "name": "transactionId",
+        "value": "transactionId"
+      }
+    ]
+  }
+}

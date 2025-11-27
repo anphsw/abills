@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_ABON_TARIFF_INFO",
+  "method": "GET",
+  "path": "abon/tariffs/:id/",
+  "params": {}
+}

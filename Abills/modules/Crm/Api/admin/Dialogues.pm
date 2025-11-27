@@ -60,10 +60,14 @@ sub post_crm_dialogue_id_message {
   use Abills::Sender::Core;
   my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
 
-  my $ex_params = {};
   my $dialog = $Crm->crm_dialogue_info({ ID => $path_params->{id} });
   my $lead = $Crm->crm_lead_info({ ID => $dialog->{LEAD_ID} });
   my $lead_address = $lead->{"_crm_$dialog->{SOURCE}"};
+  my $ex_params = {
+    DIALOGUE_ID => $dialog->{ID},
+    LEAD_ID     => $dialog->{LEAD_ID},
+    RECIPIENT   => $dialog->{RECIPIENT}
+  };
 
   if ($dialog->{SOURCE} eq 'mail') {
     $ex_params->{MAIL_HEADER} = [ "References: <$lead_address>", "In-Reply-To: <$lead_address>" ];

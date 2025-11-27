@@ -1,5 +1,5 @@
 <form name='PATHES' id='form_PATHES' method='post' class='form form-horizontal'>
-  <input type='hidden' name='index'  value='$index' />
+  <input type='hidden' name='index'  value='%index%' />
   <input type='hidden' name='action' value='%ACTION%' />
 
   <div class='card card-primary card-outline card-form'>

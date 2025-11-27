@@ -3,7 +3,6 @@ post:
     - user
   summary: Принять правила использования
   description: Работает при включенной опции $conf{ACCEPT_RULES}
-  deprecated: true
   responses:
     200:
       description: Успешное выполнение

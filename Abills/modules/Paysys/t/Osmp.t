@@ -28,20 +28,19 @@ else {
   $Payment_plugin = Paysys::Plugins::Osmp->new($db, $admin, \%conf);
 }
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
-my $transaction_id = int(rand(10000));
 my $transaction_date = POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime());
-$transaction_date =~ s/[-: ]//g;
+$transaction_date =~ s/[-:\s]//xg;
 
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-our @requests = (
+my @requests = (
   {
     name    => 'CHECK',
     request => qq{
 command=check
-txn_id=$transaction_id
+txn_id=$payment_id
 sum=$payment_sum
 account=$user_id},
     get     => 1,
@@ -53,7 +52,7 @@ account=$user_id},
 command=pay
 account=$user_id
 txn_date=$transaction_date
-txn_id=$transaction_id
+txn_id=$payment_id
 sum=$payment_sum},
     get     => 1,
     result  => qq{}
@@ -70,7 +69,7 @@ prv_txn=},
     name    => 'CHECK_PAYMENTS',
     request => qq{
 command=status
-txn_id=$transaction_id},
+txn_id=$payment_id},
     get     => 1,
     result  => qq{}
   },

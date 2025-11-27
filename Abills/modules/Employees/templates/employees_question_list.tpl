@@ -1,4 +1,4 @@
-<form action=$SELF_URL METHOD=POST class='form-horizontal'>
+<form action=%SELF_URL% METHOD=POST class='form-horizontal'>
 <input type='hidden' name='module' value='Employees'>
 <input type='hidden' name='FIO' value=%FIO%>
 <input type='hidden' name='DATE' value=%DATE%>

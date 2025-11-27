@@ -139,4 +139,9 @@ $lang{THERE_IS_NO_GEO} = "Геолокацію не знайдено.\n\nСпр�
 $lang{TASK_DONE_OVERALL} = "Задача №%MSG_ID% выполнена.\n\nЗатраченное время: %RUN_TIME%\nГеолокация: %GEOLOCATION%";
 $lang{TICKET_END_CONFIRM} = 'Добавьте фотографию про окончание вашей задачи.';
 
+$lang{TELEGRAM_REPORT_ON_REQUESTS} = 'Отчёт по заявкам';
+$lang{TELEGRAM_OPEN} = 'Открытые';
+$lang{TELEGRAM_THIS_WEEK} = 'На этой неделе';
+$lang{TELEGRAM_LAST_WEEK} = 'На прошлой неделе';
+
 1;

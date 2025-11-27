@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='get' name='works' class='form-horizontal'>
-  <input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' method='get' name='works' class='form-horizontal'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='EXT_ID' value='%EXT_ID%'>
   <input type=hidden name='ID' value='%EXT_ID%'>
   <input type=hidden name='UID' value='%UID%'>

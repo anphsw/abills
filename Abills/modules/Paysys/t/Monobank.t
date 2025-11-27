@@ -28,7 +28,6 @@ else {
   $Payment_plugin = Paysys::Plugins::Monobank->new($db, $admin, \%conf);
 }
 my $Paysys = Paysys->new($db, $admin, \%conf);
-$payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;

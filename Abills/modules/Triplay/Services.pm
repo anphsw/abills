@@ -15,21 +15,23 @@ my Triplay $Triplay;
 my Triplay::Base $Triplay_base;
 
 #**********************************************************
-=head2 new($html, $lang)
+=head2 new($db, $admin, $CONF, $attr)
 
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db = shift;
-  my $admin = shift;
-  my $CONF = shift;
-  my $attr = shift;
+  my ($class, $db, $admin, $CONF, $attr) = @_;
 
   %lang = %{$attr->{LANG}} if $attr->{LANG};
   $html = $attr->{HTML} if $attr->{HTML};
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
+  bless($self, $class);
 
   $Triplay = Triplay->new($db, $admin, $CONF);
   $Triplay_base = Triplay::Base->new($db, $admin, $CONF, { HTML => $html, LANG => \%lang });
@@ -40,8 +42,6 @@ sub new {
   else {
     $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { module => 'Triplay' });
   }
-
-  bless($self, $class);
 
   return $self;
 }
@@ -58,8 +58,7 @@ sub new {
 =cut
 #**********************************************************
 sub user_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID};
   my $user_info = $Triplay->user_info({ UID => $uid });
@@ -97,8 +96,7 @@ sub user_info {
 =cut
 #**********************************************************
 sub user_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $users = $attr->{USER_INFO};
 
@@ -139,12 +137,12 @@ sub user_add {
       USER_INFO
 
   Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub user_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID} || q{};
   my $users = $attr->{USER_INFO};
@@ -199,8 +197,7 @@ sub user_change {
 =cut
 #**********************************************************
 sub user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete $INC{'Control/Services.pm'};
   eval {
@@ -228,13 +225,13 @@ sub user_del {
   # }
 
   if ($triplay_tp_info->{IPTV_TP}) {
-    ::load_module("Iptv") if (!exists($INC{"Iptv"}));
-    ::iptv_user_del({
-      %$attr,
-      USER_INFO => $user_info,
-      UID       => $uid,
-      TP_ID     => $triplay_tp_info->{IPTV_TP},
-      QUITE     => 1
+    require Iptv::Services;
+    Iptv::Services->import();
+    my $Iptv_services = Iptv::Services->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%lang });
+
+    $Iptv_services->user_del({
+      UID   => $uid,
+      TP_ID => $triplay_tp_info->{IPTV_TP}
     });
   }
 

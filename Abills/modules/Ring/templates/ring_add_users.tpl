@@ -3,7 +3,7 @@
     <div class='card-body'>
 
     <form name='ring_uid_form' id='form_ring_uid_form' method='post' class='form form-horizontal'>
-        <input type='hidden' name='index' value='$index' />
+        <input type='hidden' name='index' value='%index%' />
         <input type='hidden' name='rule' value='%RULE%' />
 
         %USER_TABLE%

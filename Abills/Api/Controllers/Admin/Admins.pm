@@ -111,10 +111,22 @@ sub post_admins_aid_contacts {
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{4}{4};
 
-  $Admins->admin_contacts_add({
-    %$query_params,
-    AID => $path_params->{aid},
+  use Control::Contacts;
+  my $Contacts = Control::Contacts->new($self->{db}, $self->{admin}, $self->{conf}, {
+    lang => $self->{lang},
+    role => 'admin'
   });
+
+  if ($query_params->{CONTACTS} && ref $query_params->{CONTACTS} eq 'ARRAY') {
+    return $Contacts->renew_contacts($path_params->{aid}, $query_params->{CONTACTS});
+  }
+
+  return $Contacts->add_contact($path_params->{aid}, $query_params);
+
+  # $Admins->admin_contacts_add({
+  #   %$query_params,
+  #   AID => $path_params->{aid},
+  # });
 }
 
 #**********************************************************
@@ -133,10 +145,18 @@ sub put_admin_aid_contacts {
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{4}{4};
 
-  $Admins->admin_contacts_change({
-    %$query_params,
-    AID => $path_params->{aid}
+  use Control::Contacts;
+  my $Contacts = Control::Contacts->new($self->{db}, $self->{admin}, $self->{conf}, {
+    lang => $self->{lang},
+    role => 'admin'
   });
+
+  return $Contacts->change_contact($path_params->{aid}, $query_params);
+
+  # $Admins->admin_contacts_change({
+  #   %$query_params,
+  #   AID => $path_params->{aid}
+  # });
 }
 
 #**********************************************************

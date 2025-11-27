@@ -12,8 +12,7 @@ my Equipment $Equipment;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
   my $self = {
     conf  => $CONF,
@@ -48,8 +47,7 @@ sub new {
 =cut
 #********************************************************
 sub cpe_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->{CPE_INFO} = [];
 
@@ -58,7 +56,7 @@ sub cpe_info {
   return $self if (!$attr->{NAS_ID} && !$Nas_info);
 
   if (!$attr->{NAS_INFO}) {
-    my $nas_list = $Equipment->_list({
+    my $nas_list = $Equipment->list({
       NAS_MNG_HOST_PORT=> '_SHOW',
       NAS_MNG_USER     => '_SHOW',
       NAS_NAME         => '_SHOW',
@@ -121,10 +119,10 @@ sub cpe_info {
     ::load_module('Equipment::Ports', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Equipment/Ports'}));
 
     #Stacking port
-    if ($attr->{PORT} && $attr->{PORT} =~ /^(\d{2})(\d{2})$/) {
+    if ($attr->{PORT} && $attr->{PORT} =~ /^(\d{2})(\d{2})$/xm) {
       my $stack = $1;
       my $port = $2;
-      my ($sw_port, $sw_extra_ports) = split(/\+/, $Nas_info->{ports_with_extra});
+      my ($sw_port, $sw_extra_ports) = split(/\+/x, $Nas_info->{ports_with_extra});
       my $all_ports = $sw_port + ($sw_extra_ports || 0);
       $attr->{PORT} = ($stack + 1) * $all_ports + $port;
     }
@@ -132,7 +130,7 @@ sub cpe_info {
     my $port_info_fields = $fields->{PORT}
       // $self->{conf}{EQUIPMENT_PORT_INFO_FIELDS}
       || 'PORT_STATUS,ADMIN_PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,PORT_IN_DISCARDS,PORT_OUT_DISCARDS,PORT_UPTIME,CABLE_TESTER';
-    $port_info_fields =~ s/ //g;
+    $port_info_fields =~ s/\s+//xg;
 
     $cpe_info = main::equipment_port_info({
       SNMP_COMMUNITY  => $SNMP_COMMUNITY,
@@ -149,7 +147,7 @@ sub cpe_info {
   }
 
   if (ref $cpe_info eq 'ARRAY' && $attr->{SIMPLE}) {
-    $cpe_info = {};
+    $cpe_info = [];
   }
 
   $self->{CPE_INFO} = $cpe_info;
@@ -172,8 +170,7 @@ sub cpe_info {
 =cut
 #********************************************************
 sub devices {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $devices = [];
   $self->{DEVICES} = $devices;
@@ -214,8 +211,7 @@ sub devices {
 =cut
 #********************************************************
 sub devices_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %result = ();
 

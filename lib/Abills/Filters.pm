@@ -126,16 +126,16 @@ sub _expr {
     return $value;
   }
 
-  my @num_expr = split(/;/, $expr_tpl);
+  my @num_expr = split(/;/x, $expr_tpl);
   
   for (my $i = 0 ; $i <= $#num_expr ; $i++) {
-    my ($left, $right) = split(/\//, $num_expr[$i]);
+    my ($left, $right) = split(/\//x, $num_expr[$i]);
     
-    my $r = ($right =~ /\$\d+/)
+    my $r = ($right =~ /\$\d+/xm)
       ? $right
       : eval "\"$right\"";
 
-    if ($value =~ s/$left/eval "\"$r\""/e) {
+    if ($value =~ s/$left/eval "\"$r\""/xe) {
       return '' . $value;
     }
   }
@@ -189,35 +189,35 @@ sub _mac_former {
   	$mac = join(':', unpack("H2H2H2H2H2H2", $mac));
   }
   # 111.222.33.444.55.66
-  elsif($mac =~ /\d+\.\d+\.\d+\.\d+\.\d+\.\d+/) {
+  elsif($mac =~ /\d+\.\d+\.\d+\.\d+\.\d+\.\d+/xm) {
   	my @mac_arr = ();
-    foreach my $val (split(/\./, $mac)) {
+    foreach my $val (split(/\./x, $mac)) {
       push @mac_arr, unpack("H2", pack('C', $val));
     }
 
     $mac = join(':', @mac_arr);
   }
   # xxxx.xxxx.xxxx
-  elsif ($mac =~ m/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/i) {
+  elsif ($mac =~ m/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/xi) {
     $mac = "$1:$2:$3:$4:$5:$6";
   }
   # xXXxxXXxxXX
-  elsif ($mac =~ m/^([0-9a-f]{1})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i) {
+  elsif ($mac =~ m/^([0-9a-f]{1})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/xi) {
     $mac = "0$1:$2:$3:$4:$5:$6";
   }
   # XXxxXXxxXX
-  elsif ($mac =~ m/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i) {
+  elsif ($mac =~ m/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/xi) {
     $mac = "00:$1:$2:$3:$4:$5";
   }
   # xxXXxxXXxxXX
-  elsif ($mac =~ m/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i) {
+  elsif ($mac =~ m/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/xi) {
     $mac = "$1:$2:$3:$4:$5:$6";
   }
-  elsif ($mac =~ s/:$//) {
+  elsif ($mac =~ s/:$//x) {
 
   }
   # xx-XX-xx-XX-xx-XX
-  elsif ($mac =~ s/[\.\-]/:/g) {
+  elsif ($mac =~ s/[\.\-]/:/xg) {
 
   }
 
@@ -262,7 +262,7 @@ sub mac2dec{
   my ($mac) = @_;
   my @mac_arr = ();
 
-  foreach my $val (split(/:/, $mac)) {
+  foreach my $val (split(/:/x, $mac)) {
     push @mac_arr, hex($val);
   }
 
@@ -286,7 +286,7 @@ sub dec2hex{
   my ($dec) = @_;
   my @hex_arr = ();
 
-  foreach my $val (split(/\./, $dec)) {
+  foreach my $val (split(/\./x, $dec)) {
     push @hex_arr, unpack("H2", pack("C", $val));
   }
 
@@ -330,7 +330,7 @@ sub human_exp {
   my $counter     = -1;
   my $mask_leng   = 0;
   my $isopen      = 0;
-  $exp =~ s/^\\//;
+  $exp =~ s/^\\//x;
   while ($counter++ < $exp_leng) {
     next if (( substr $exp, $counter, 1 ) eq '$');
   
@@ -358,7 +358,7 @@ sub human_exp {
       next;
     }
 
-    if ( (( substr $exp, $counter, 1 ) =~ /\d+/)  and $isopen == 2) {
+    if ( (( substr $exp, $counter, 1 ) =~ /\d+/xm)  and $isopen == 2) {
       $mask_leng = $mask_leng *10 + ( substr $exp, $counter, 1 );
       next;
     }
@@ -384,8 +384,8 @@ sub inn_check {
   my $inn = shift;
 
   my $control_num1 = '7 2 4 10 3 5 9 4 6 8';
-  my @inn_arr = split(//, $inn);
-  my @control_arr = split(/ /, $control_num1);
+  my @inn_arr = split(//x, $inn);
+  my @control_arr = split(/\s/x, $control_num1);
 
   if($#inn_arr < 9) {
     return 0
@@ -401,7 +401,7 @@ sub inn_check {
     return 0;
   }
 
-  @control_arr = split(/ /, '3 7 2 4 10 3 5 9 4 6 8');
+  @control_arr = split(/\s+/x, '3 7 2 4 10 3 5 9 4 6 8');
 
   $sum = 0;
   for(my $i=0; $i<$#inn_arr; $i++) {
@@ -452,7 +452,7 @@ sub serial2mac {
 sub url2parts {
   my ($url) = @_;
 
-  my @params = $url =~ /$URL_EXPR/gm;
+  my @params = $url =~ /$URL_EXPR/xgm;
 
   return (
     $params[0] || '',
@@ -475,7 +475,7 @@ sub value2readable {
 
   return '' if !$value;
 
-  if ($value =~ /^(?!0{1,10}$)(\d{10}|\d{13})$/) {
+  if ($value =~ /^(?!0{1,10}$)(\d{10}|\d{13})$/xm) {
     return strftime('%Y-%m-%d %H:%M:%S', localtime($value))
   }
 
@@ -505,27 +505,27 @@ sub _mac_format_mask {
   my $value_quantity = 0;
   my $delimiter = '';
   my $octet_quantity = 1;
-  $exp  =~ s/\^|\$//g;
+  $exp  =~ s/\^|\$//xg;
 
-  if ($exp =~ /\[([^]]+)\]/) {
+  if ($exp =~ /\[([^]]+)\]/xm) {
     my $value_content = $1;
-    $value = '*' if ($exp =~ /\[0-9A-/i);
-    $value = 'a' if ($exp =~ /\[A-/i);
-    $value = '9' if ($exp =~ /\[0-9]/i);
-    $exp  =~ s/\[$value_content\]//g;
+    $value = '*' if ($exp =~ /\[0-9A-/xmi);
+    $value = 'a' if ($exp =~ /\[A-/xmi);
+    $value = '9' if ($exp =~ /\[0-9]/xmi);
+    $exp  =~ s/\[$value_content\]//xg;
   }
-  if ($exp =~ /\{([^}]+)\}/) {
+  if ($exp =~ /\{([^}]+)\}/xm) {
     $value_quantity = $1;
-    $exp  =~ s/\{$value_quantity\}//g if $value_quantity;
+    $exp  =~ s/\{$value_quantity\}//xg if ($value_quantity);
   }
-  if ($exp =~ /\[(([^\[\]]|\[\])*)\]/) {
+  if ($exp =~ /\[(([^\[\]]|\[\])*)\]/xm) {
     $delimiter = $1;
-    $exp  =~ s/\[$delimiter\]//g if $delimiter;
+    $exp  =~ s/\[$delimiter\]//xg if ($delimiter);
   }
-  if ($exp =~ /\{([^}]+)\}/) {
+  if ($exp =~ /\{([^}]+)\}/xm) {
     $octet_quantity = $1;
     $octet_quantity += 1 if ($delimiter);
-    $exp  =~ s/\{$octet_quantity\}//g if $octet_quantity;
+    $exp  =~ s/\{$octet_quantity\}//xg if $octet_quantity;
   }
 
   $mask = join($delimiter, map { join("", map { sprintf($value, int(rand(16))) } 1..$value_quantity) } 1..$octet_quantity);
@@ -589,7 +589,7 @@ sub email_valid {
     return 0;
   }
 
-  if ($email !~ /^$EMAIL_EXPR$/) {
+  if ($email !~ /^$EMAIL_EXPR$/xm) {
     return 0;
   }
 
@@ -603,21 +603,21 @@ sub email_valid {
     return 0;
   }
 
-  if ($local_part =~ /^\./) {
+  if ($local_part =~ /^\./xm) {
     return 0;
   }
 
-  if ($local_part =~ /\.$/) {
+  if ($local_part =~ /\.$/xm) {
     return 0;
   }
 
-  my @domain_parts = split(/\./, $domain);
+  my @domain_parts = split(/\./x, $domain);
   foreach my $part (@domain_parts) {
     if (length($part) > 63) {
       return 0;
     }
 
-    if ($part =~ /^-/ || $part =~ /-$/) {
+    if ($part =~ /^-/xm || $part =~ /-$/xm) {
       return 0;
     }
   }

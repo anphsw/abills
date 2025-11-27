@@ -114,7 +114,7 @@ my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events->new($db, $Admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 
-my $names = $Equipment->_list(
+my $names = $Equipment->list(
   {
     PAGE_ROWS => 1000,
     NAS_IP    => '_SHOW',
@@ -279,7 +279,7 @@ sub mac_notif {
     print "VALUE:" . $attr->{VALUE} . "\n";
   }
 
-  my $equip = $Equipment->_list(
+  my $equip = $Equipment->list(
     { COLS_NAME => 1, NAS_ID => '_SHOW', NAS_IP => $attr->{NAS_IP} });
   if ($equip->[0]->{nas_id}) {
     my $mac;

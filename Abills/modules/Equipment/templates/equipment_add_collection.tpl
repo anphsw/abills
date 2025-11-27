@@ -1,6 +1,6 @@
-<form name='form_collection_add' id='form_collection_add' action='$SELF_URL' method='post' class='form form-horizontal'>  
+<form name='form_collection_add' id='form_collection_add' action='%SELF_URL%' method='post' class='form form-horizontal'>
 
-    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='index' value='%index%'>
 
     <div class='form-group' style="padding-top: 10px">
         <label class='control-label col-md-5' for='%COLLECTION%'>Name %COLLECTION%:</label>

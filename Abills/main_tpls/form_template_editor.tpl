@@ -14,9 +14,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
 <script src='/styles/codemirror/addon/merge/merge.js'></script>
 
-<form id='template_form' action='$SELF_URL' method='post'>
+<form id='template_form' action='%SELF_URL%' method='post'>
 
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='tpl_name' value='%TPL_NAME%'>
   <input type='hidden' name='change' value='1'>
   <input type='hidden' name='new_editor' value='1'>

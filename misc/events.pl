@@ -10,7 +10,7 @@
 
 =head1 VERSION
  
- 0.02
+  VERSION:  0.03
 
 =head2 CHANGELOG
 
@@ -21,7 +21,160 @@
 
 =cut
 
-my $USAGE = << "USAGE";
+use strict;
+use warnings FATAL => 'all';
+
+our (%conf, $DATE, $TIME);
+
+my $libpath = '';
+BEGIN {
+  use FindBin '$Bin';
+
+  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
+  do "/$libpath/libexec/config.pl";
+  $conf{dbtype} = 'mysql' if (!$conf{dbtype});
+
+}
+
+use lib $libpath;
+use lib "$libpath/lib";
+use lib "$libpath/Abills";
+use lib "$libpath/Abills/modules";
+use lib "$libpath/Abills/$conf{dbtype}";
+
+use Abills::Base qw(parse_arguments);
+use Abills::Misc;
+
+my $argv = parse_arguments(\@ARGV);
+my $OUTPUT_TYPE = $argv->{OUTPUT} ? $argv->{OUTPUT} : 'Dumper';
+delete $argv->{OUTPUT};
+
+my $xml_simple; # This have to be global;
+init_output_former($OUTPUT_TYPE);
+
+require Abills::SQL;
+my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+
+require Admins;
+my $admin = Admins->new($db, \%conf);
+$admin->info($conf{SYSTEM_ADMIN_ID} || 2, { IP => '127.0.0.1' });
+
+use Events;
+#passing undef for $admin
+#TODO: authorization
+my $Events = Events->new($db, $admin, \%conf);
+
+my $language = $argv->{LANGUAGE} || $conf{default_language} || 'english';
+do "language/$language.pl";
+
+event($argv);
+
+#**********************************************************
+=head2 event($attr) - main entry point
+
+  Argumnets:
+    $attr
+
+  Results:
+    TRUe or FALSE
+
+=cut
+#**********************************************************
+sub event {
+  my ($attr) = @_;
+
+  my $status_code = 1;
+  my $result = [];
+  my $list_name = "";
+
+  if ($attr->{SHOW}) {
+    $list_name = $attr->{SHOW};
+    delete $attr->{SHOW};
+
+    unless (is_valid_list($list_name)) {print_usage_and_exit()};
+
+    my $func = "$list_name\_list";
+
+    $attr->{SHOW_ALL_COLUMNS} = 1;
+    $result = $Events->$func($argv);
+    $status_code = $Events->{errno} || 0;
+  }
+  elsif ($attr->{ADD}) {
+    $list_name = $attr->{ADD};
+    delete $attr->{ADD};
+
+    unless (is_valid_list($list_name)) {print_usage_and_exit()};
+
+    my $func = "$list_name\_add";
+    if ($func eq 'events_add') {
+      $status_code = add_via_api($argv) || 0;
+      $result = [ { status => $status_code, NEW_ID => $Events->{INSERT_ID} } ];
+    }
+    else {
+      $Events->$func($argv);
+      $status_code = $Events->{errno} || 0;
+      $result = [ { status => $status_code, NEW_ID => $Events->{INSERT_ID} } ];
+    }
+
+  }
+  elsif ($attr->{CHANGE}) {
+    $list_name = $attr->{CHANGE};
+    delete $attr->{CHANGE};
+
+    unless (is_valid_list($list_name)) {print_usage_and_exit()};
+
+    my $func = "$list_name\_change";
+
+    $Events->$func($argv);
+    $status_code = $Events->{errno} || 0;
+    $result = [ { status => $status_code } ];
+  }
+  elsif ($attr->{DELETE}) {
+    $list_name = $attr->{DELETE};
+    delete $attr->{DELETE};
+
+    unless (is_valid_list($list_name)) {print_usage_and_exit()};
+
+    my $func = "$list_name\_del";
+
+    $Events->$func($argv);
+    $status_code = $Events->{errno} || 0;
+    $result = [ { status => $status_code } ];
+  }
+  else {
+    print_usage_and_exit();
+  }
+
+  _output($result, { ITEM_NAME => $list_name });
+  finish_execution($status_code);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 add_via_api($event)
+
+=cut
+#**********************************************************
+sub add_via_api {
+  my ($event) = @_;
+
+  require Events::API;
+  Events::API->import();
+
+  my $API = Events::API->new($db, $admin, \%conf);
+
+  return $API->add_event($event);
+}
+
+#**********************************************************
+=head2 printUsageAndExit()
+
+=cut
+#**********************************************************
+sub print_usage_and_exit {
+
+  my $USAGE = <<"USAGE";
   Arguments:
     SHOW   - list to show, one of (events, state, priority, privacy)
     OUTPUT - type of output, one of (Dumper, JSON, XML). Default to Dumper;
@@ -46,154 +199,11 @@ my $USAGE = << "USAGE";
       ./events.pl ADD=events MODULE="Dv" COMMENTS="Something happened"
 USAGE
 
-use strict;
-use warnings FATAL => 'all';
-
-our ( %conf, $DATE, $TIME );
-
-my $libpath = '';
-BEGIN {
-  use FindBin '$Bin';
-  
-  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
-  require "/$libpath/libexec/config.pl";
-  $conf{dbtype} = 'mysql' if ( !$conf{dbtype} );
-  
-}
-
-use lib $libpath;
-use lib "$libpath/lib";
-use lib "$libpath/Abills";
-use lib "$libpath/Abills/modules";
-use lib "$libpath/Abills/$conf{dbtype}";
-
-use Abills::Base;
-use Abills::Misc;
-
-my $ARGS = parse_arguments(\@ARGV);
-my $OUTPUT_TYPE = $ARGS->{OUTPUT} ? $ARGS->{OUTPUT} : 'Dumper';
-delete $ARGS->{OUTPUT};
-
-my $xml_simple; # This have to be global;
-init_output_former($OUTPUT_TYPE);
-
-#use Abills::Base;
-#use Abills::Server;
-
-require Abills::SQL;
-my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-
-require Admins;
-my $admin = Admins->new($db, \%conf);
-$admin->info($conf{SYSTEM_ADMIN_ID} || 2, { IP => '127.0.0.1' });
-
-use Events;
-#passing undef for $admin
-#TODO: authorization
-my $Events = Events->new($db, $admin, \%conf);
-
-my $language = $ARGS->{LANGUAGE} || $conf{default_language} || 'english';
-require "language/$language.pl";
-
-main();
-
-#**********************************************************
-=head2 main() - main entry point
-
-=cut
-#**********************************************************
-sub main {
-  
-  my $status_code = 1;
-  my $result = [];
-  my $list_name = "";
-  
-  if ( $ARGS->{SHOW} ) {
-    $list_name = $ARGS->{SHOW};
-    delete $ARGS->{SHOW};
-    
-    unless ( is_valid_list($list_name) ) {print_usage_and_exit()};
-    
-    my $func = "$list_name\_list";
-    
-    $ARGS->{SHOW_ALL_COLUMNS} = 1;
-    $result = $Events->$func($ARGS);
-    $status_code = $Events->{errno} || 0;
-  }
-  elsif ( $ARGS->{ADD} ) {
-    $list_name = $ARGS->{ADD};
-    delete $ARGS->{ADD};
-    
-    unless ( is_valid_list($list_name) ) {print_usage_and_exit()};
-    
-    my $func = "$list_name\_add";
-    if ( $func eq 'events_add' ) {
-      $status_code = add_via_api($ARGS) || 0;
-      $result = [ { status => $status_code, NEW_ID => $Events->{INSERT_ID} } ];
-    }
-    else {
-      $Events->$func($ARGS);
-      $status_code = $Events->{errno} || 0;
-      $result = [ { status => $status_code, NEW_ID => $Events->{INSERT_ID} } ];
-    }
-    
-  }
-  elsif ( $ARGS->{CHANGE} ) {
-    $list_name = $ARGS->{CHANGE};
-    delete $ARGS->{CHANGE};
-    
-    unless ( is_valid_list($list_name) ) {print_usage_and_exit()};
-    
-    my $func = "$list_name\_change";
-    
-    $Events->$func($ARGS);
-    $status_code = $Events->{errno} || 0;
-    $result = [ { status => $status_code } ];
-  }
-  elsif ( $ARGS->{DELETE} ) {
-    $list_name = $ARGS->{DELETE};
-    delete $ARGS->{DELETE};
-    
-    unless ( is_valid_list($list_name) ) {print_usage_and_exit()};
-    
-    my $func = "$list_name\_del";
-    
-    $Events->$func($ARGS);
-    $status_code = $Events->{errno} || 0;
-    $result = [ { status => $status_code } ];
-  }
-  else {
-    print_usage_and_exit();
-  }
-  
-  _output($result, { ITEM_NAME => $list_name });
-  finish_execution($status_code);
-}
-
-#**********************************************************
-=head2 add_via_api($event)
-
-=cut
-#**********************************************************
-sub add_via_api {
-  my ($event) = @_;
-  
-  require Events::API;
-  Events::API->import();
-  
-  my $API = Events::API->new($db, $admin, \%conf);
-  
-  return $API->add_event($event);
-}
-
-#**********************************************************
-=head2 printUsageAndExit()
-
-=cut
-#**********************************************************
-sub print_usage_and_exit {
   print $USAGE;
+
   finish_execution(1);
+
+  return 1;
 }
 
 
@@ -209,25 +219,27 @@ sub print_usage_and_exit {
 #**********************************************************
 sub init_output_former {
   my ($output_type) = @_;
-  
-  if ( $output_type eq 'Dumper' ) {
+
+  if ($output_type eq 'Dumper') {
     use Data::Dumper qw(Dumper);
   }
-  elsif ( $output_type eq 'JSON' ) {
+  elsif ($output_type eq 'JSON') {
     my $loaded_json_result = load_pmodule("JSON", { RETURN => 1 });
-    if ( $loaded_json_result ) {
+    if ($loaded_json_result) {
       print $loaded_json_result;
       finish_execution(0);
     }
   }
-  elsif ( $output_type eq 'XML' ) {
+  elsif ($output_type eq 'XML') {
     my $loaded_xml_result = load_pmodule("XML::Simple", { RETURN => 1, IMPORT => ':strict' });
-    if ( $loaded_xml_result ) {
+    if ($loaded_xml_result) {
       print $loaded_xml_result;
       finish_execution(0);
     }
     $xml_simple = XML::Simple->new(ForceArray => 1, NoAttr => 1);
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -239,31 +251,30 @@ sub init_output_former {
       ITEM_NAME - name for XML root element
 
   Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub _output {
   my ($value, $attr) = @_;
-  
-  if ( !defined $value ) {
+
+  if (!defined $value) {
     # Holding empty list
     $value = [];
   }
   my $result = "";
-  
-  if ( $OUTPUT_TYPE eq 'Dumper' ) {
+
+  if ($OUTPUT_TYPE eq 'Dumper') {
     my $dumped = Dumper $value;
-    $dumped =~ /(\$.* = )(.*)/ms;
-    my $declaration = $1;
-    my $struct = $2;
-    
+    my ($declaration, $struct) = $dumped =~ /(\$.* = )(.*)/xms;
+
     $struct = translate_text($struct);
     $result = "$declaration $struct";
   }
-  elsif ( $OUTPUT_TYPE eq 'JSON' ) {
+  elsif ($OUTPUT_TYPE eq 'JSON') {
     $result = _translate(JSON::to_json($value));
   }
-  elsif ( $OUTPUT_TYPE eq 'XML' ) {
+  elsif ($OUTPUT_TYPE eq 'XML') {
     $result = $xml_simple->XMLout({ $attr->{ITEM_NAME} => $value },
       RootName => 'result',
       KeyAttr  => [],
@@ -271,23 +282,34 @@ sub _output {
     );
     $result = translate_text($result);
   }
-  
+
   print $result;
   print "\n";
-  
+
   return 1;
 }
 
+#**********************************************************
+=head2 translate_text($4text)
+
+  Arguments:
+    $text
+
+  Returns:
+    $text - Translation
+
+=cut
+#**********************************************************
 sub translate_text() {
   my ($text) = @_;
-  
-  while ( $text =~ /(\$_.+)\b/ ) {
+
+  while ($text =~ /(\$_.+)\b/xm) {
     my $lang_var = $1;
     my $translation = _translate($lang_var);
-    
-    $text =~ s/\Q$lang_var\E/$translation/gm;
+
+    $text =~ s/\Q$lang_var\E/$translation/xgm;
   }
-  
+
   return $text;
 }
 
@@ -319,17 +341,18 @@ sub is_valid_list {
 #**********************************************************
 sub finish_execution {
   my ($status_code) = @_;
-  
-  if ( $status_code != 0 ) {
+
+  if ($status_code != 0) {
     print "\nExit with error: $status_code\n";
   }
-  
+
   exit($status_code);
 }
 
 print "\nExit 0\n";
 
 1;
-=head1 AUTHOR Anykey <dev@abills.net.ua>
+
+=head1 AUTHOR <dev@abills.net.ua>
 
 =cut

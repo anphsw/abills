@@ -25,6 +25,10 @@ our(
 
 my $Expert   = Expert->new($db, $admin, \%conf);
 
+if ($user && $user->{UID}) {
+  require Expert::User_portal;
+}
+
 #**********************************************************
 =head2 expert_registration
   for registration.cgi

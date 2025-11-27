@@ -7,10 +7,12 @@
 
 use strict;
 use warnings FATAL => 'all';
+
+use Abills::Base qw(ip2int in_array mk_unique_value cmd next_month);
+
 use Paysys::Init;
 use Users;
 use Paysys;
-use Abills::Base qw(ip2int in_array mk_unique_value cmd next_month);
 
 our (
   $base_dir,
@@ -47,11 +49,11 @@ sub paysys_payment {
   my %TEMPLATES_ARGS = ();
   $user->pi({ UID => $user->{UID} });
 
-  $FORM{OPERATION_ID} =~ s/[<>]//gm if ($FORM{OPERATION_ID});
-  $FORM{DESCRIBE} =~ s/[<>]//gm if ($FORM{DESCRIBE});
+  $FORM{OPERATION_ID} =~ s/[<>]//xgm if ($FORM{OPERATION_ID});
+  $FORM{DESCRIBE} =~ s/[<>]//xgm if ($FORM{DESCRIBE});
 
   if ($FORM{SUM}) {
-    $FORM{SUM} = 0 if ($FORM{SUM} !~ /^[\.\,0-9]+$/);
+    $FORM{SUM} = 0 if ($FORM{SUM} !~ /^[\.\,0-9]+$/x);
     $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
   }
   else {
@@ -144,10 +146,10 @@ sub paysys_payment {
       if (scalar keys %{$params}) {
         my ($payment_description) = grep {/PORTAL_DESCRIPTION/g} keys %{$params};
         if ($payment_description && $params->{$payment_description}) {
-          my @descriptions = split /;/, $params->{$payment_description};
+          my @descriptions = split(';', $params->{$payment_description});
 
           foreach my $description (@descriptions) {
-            my ($title, $desc) = split (/:/, ($description || ''));
+            my ($title, $desc) = split(':', ($description || ''));
             $attr->{EXTRA_DESCRIPTIONS} .= $html->tpl_show(_include('paysys_portal_payment_description', 'Paysys'),
               { DESCRIPTION => $desc, TITLE => $title }, { OUTPUT2RETURN => 1 });
           }
@@ -181,14 +183,17 @@ sub paysys_payment {
 
   foreach my $system (@$connected_systems) {
     foreach my $merchant (@$list) {
-      next unless ($merchant->{gid} && $merchant->{system_id} && $system->{id} && $user->{GID});
+      next if (!$merchant->{gid} || !$merchant->{system_id} || !$system->{id} || !$user->{GID});
       if ($merchant->{system_id} == $system->{id} && $merchant->{gid} == $user->{GID}) {
         $system->{merchant_name} = $merchant->{merchant_name};
       }
     }
   }
 
-  $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(10, { SYMBOLS => '0123456789' });
+  my $timestamp = time();
+  my $salt = mk_unique_value(4, { SYMBOLS => '0123456789' });
+
+  $TEMPLATES_ARGS{OPERATION_ID} = "$salt$timestamp";
   if ($conf{PAYSYS_USER_PORTAL_MAP} && in_array('Maps', \@MODULES) && !$FORM{json}) {
     require Paysys::Maps;
     $TEMPLATES_ARGS{MAP} = paysys_maps_new();
@@ -339,7 +344,7 @@ sub paysys_payment_show_result {
       $transaction_true = 0;
     }
 
-    if ($list->[0]->{info} && $list->[0]->{info} =~ /TP_ID,(\d+)/) {
+    if ($list->[0]->{info} && $list->[0]->{info} =~ /TP_ID\,(\d+)/x) {
       $attr->{TP_ID} = $1;
     }
   }
@@ -392,7 +397,7 @@ sub _paysys_fast_pay {
   my ($Paysys_plugin, $payment_system_info, $attr) = @_;
 
   my $recurrent_info = '';
-  my ($paysys_module) = $payment_system_info->{module} =~ /(.+)\.pm$/;
+  my ($paysys_module) = $payment_system_info->{module} =~ /(.+)\.pm$/x;
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
@@ -527,7 +532,7 @@ sub paysys_external_cmd {
       PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} },
     });
 
-    if ($result && $result =~ /(\d+):(.+)/) {
+    if ($result && $result =~ /(\d+):(.+)/x) {
       my $code = $1;
       my $text = $2;
 
@@ -548,7 +553,7 @@ sub paysys_external_cmd {
 }
 
 #**********************************************************
-=head2 _paysys_system_radio($attr) - Show availeble payment system
+=head2 _paysys_system_radio($attr) - Show available payment system
 
   Arguments:
     $attr
@@ -569,14 +574,14 @@ sub _paysys_system_radio {
   my $file_path = q{};
 
   my $paysys_name = $attr->{NAME};
-  my ($paysys_module) = $attr->{MODULE} =~ /(.+)\.pm$/;
+  my ($paysys_module) = $attr->{MODULE} =~ /(.+)\.pm$/x;
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
-  if ($attr->{SUBSYSTEM_NAME} && -e "$paysys_logo_path" . lc($attr->{SUBSYSTEM_NAME}) . '-logo.png') {
+  if ($attr->{SUBSYSTEM_NAME} && -e ("$paysys_logo_path" . lc($attr->{SUBSYSTEM_NAME}) . '-logo.png')) {
     $file_path = '/styles/default/img/paysys_logo/' . lc($attr->{SUBSYSTEM_NAME}) . '-logo.png';
   }
-  elsif (-e "$paysys_logo_path" . lc($paysys_module) . '-logo.png') {
+  elsif (-e ("$paysys_logo_path" . lc($paysys_module) . '-logo.png')) {
     $file_path = '/styles/default/img/paysys_logo/' . lc($paysys_module) . '-logo.png';
   }
 
@@ -634,11 +639,11 @@ sub paysys_user_log {
   if ($FORM{info}) {
     $Paysys->info({ ID => $FORM{info} });
 
-    my @info_arr = split(/\n/, $Paysys->{INFO});
+    my @info_arr = split('\n', $Paysys->{INFO});
     my $table = $html->table({ width => '100%' });
     foreach my $line (@info_arr) {
       if ($line) {
-        my ($k, $v) = split(/,/, $line, 2);
+        my ($k, $v) = split(',', $line, 2);
         $table->addrow($k, $v) if ($k =~ /STATUS/);
       }
     }
@@ -667,21 +672,8 @@ sub paysys_user_log {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  my $date_show = '';
   if ($conf{user_payment_journal_show}) {
-    $LIST_PARAMS{SHOW_PAYMENT} = 1;
-    use POSIX qw(strftime);
-
-    my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime();
-
-    $mday = 1;
-    $mon = $mon - $conf{user_payment_journal_show} + 1;
-    if ($mon == 13) {
-      $mon = 1;
-      $year++;
-    }
-    $date_show = POSIX::strftime('%Y-%m-%d', ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst));
-    $LIST_PARAMS{DATE} = ">$date_show";
+    $LIST_PARAMS{PAYMENTS_MONTHES} = $conf{user_payment_journal_show};
   }
 
   my $list = $Paysys->list({ %LIST_PARAMS, COLS_NAME => 1 });
@@ -749,9 +741,9 @@ sub paysys_subscribe {
       COLS_NAME        => 1
     });
 
-    my $Pasysy_plugin = _configure_load_payment_module($payment_system_info->{module}, 0, \%conf);
-    if ($Pasysy_plugin->can('recurrent_cancel')) {
-      my $paysys_object = $Pasysy_plugin->new($db, $admin, \%conf);
+    my $Paysys_plugin = _configure_load_payment_module($payment_system_info->{module}, 0, \%conf);
+    if ($Paysys_plugin->can('recurrent_cancel')) {
+      my $paysys_object = $Paysys_plugin->new($db, $admin, \%conf);
       my $result = $paysys_object->recurrent_cancel({ %FORM, UID => $user->{UID} });
 
       if (!$result->{errno}) {

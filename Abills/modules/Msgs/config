@@ -45,7 +45,8 @@ if ($conf{MSGS_CHAT}) {
 
 require Msgs::New;
 if (defined($user->{UID})) {
-  my $count = msgs_new({ UID => $user->{UID} });
+  my $count = msgs_user_new({ UID => $user->{UID} });
+
   if ( $count ne '' ) {
     $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES} $count:msgs_user:defaultindex"}     = 0;
   }
@@ -54,7 +55,8 @@ if (defined($user->{UID})) {
   }
 }
 elsif (defined($admin->{AID})) {
-  my $count = msgs_new({ AID => $admin->{AID} });
+  my $count = msgs_admin_new({ AID => $admin->{AID} });
+
   $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"}                      = 8;
   $FUNCTIONS_LIST{"37:10:$lang{SCHEDULE_BOARD}:msgs_task_board:"}                 = 8;
   $FUNCTIONS_LIST{"36:10:$lang{SCHEDULE_BOARD}:msgs_task_info:MSGS_ID"}           = 8;
@@ -62,8 +64,8 @@ elsif (defined($admin->{AID})) {
   $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"}                    = 8;
   $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"}                     = 8;
   $FUNCTIONS_LIST{"45:01::msgs_repeat_ticket:AJAX"}                               = 8;
-  # $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"}            = 8;
-  # $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"}            = 8;
+  $FUNCTIONS_LIST{"46:10:$lang{MSGS_EXTERNAL_CHATS}:msgs_external_chats:"}        = 8;
+  $FUNCTIONS_LIST{"37:-1:$lang{MSGS_EXTERNAL_CHATS}:msgs_external_chats:UID"}     = 15;
 
   if ($conf{MSGS_CHAT}) {
     $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;

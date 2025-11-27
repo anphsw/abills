@@ -4,7 +4,7 @@
   <input type='hidden' name='DATE' value='%DATE%' />
   <input type='hidden' name='create' value='1' />
   <input type='hidden' name='CUSTOMER' value='%CUSTOME%' />
-  <input type='hidden' name='step' value='$FORM{step}' />
+  <input type='hidden' name='step' value='%step%' />
 
   <div class='card card-warning collapsed-card'>
     <div class='card-header'>

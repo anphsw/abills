@@ -37,7 +37,7 @@
       <div class='card-header with-border'><h4 class='card-title'>_{WELL}_</h4></div>
       <div class='card-body'>
         <form name='CABLECAT_WELLS' id='form_CABLECAT_WELLS' method='post' class='form form-horizontal'>
-          <input type='hidden' name='index' value='$index'/>
+          <input type='hidden' name='index' value='%index%'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
           <input type='hidden' name='PICTURE' id='PICTURE' value='%PICTURE%'/>

@@ -17,7 +17,8 @@ BEGIN {
     $libpath . "Abills/$sql_type/",
     $libpath . "Abills/modules/",
     $libpath . "Abills/",
-    $libpath . '/lib/');
+    $libpath . '/lib/',
+    $libpath);
 
   our $begin_time = 0;
   eval {require Time::HiRes;};
@@ -35,6 +36,7 @@ use Abills::Base qw(decode_base64 check_ip in_array);
 use Users;
 use Paysys;
 use Paysys::Init;
+use Paysys::Core;
 use Finance;
 use Admins;
 use Conf;
@@ -51,9 +53,9 @@ $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} });
 $admin->{DATE} = $DATE;
 
 if (in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
-  if ($ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /(?<=\/)\d+/) {
-    my ($domain) = $ENV{PATH_INFO} =~ /(?<=\/)\d+/gm;
-    $ENV{PATH_INFO} =~ s/^\/\d+//;
+  if ($ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /(?<=\/)\d+/xm) {
+    my ($domain) = $ENV{PATH_INFO} =~ /(?<=\/)\d+/xgm;
+    $ENV{PATH_INFO} =~ s/^\/\d+//xm;
 
     eval {
       require Multidoms;
@@ -67,6 +69,7 @@ if (in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
         ID        => $domain
       });
 
+      #TODO remove and make as attr for Paysys::Core
       $ENV{DOMAIN_ID} = $domain if ($domains_list);
     }
   }
@@ -78,7 +81,7 @@ do "../language/$html->{language}.pl";
 
 delete $FORM{language};
 require Abills::Misc;
-require Abills::Templates;
+use Abills::Templates;
 load_module('Paysys', $html);
 require Paysys::Paysys_Base;
 
@@ -88,6 +91,10 @@ if ($conf{AUTH_X_FORWARDED} && $conf{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST},
   $REMOTE_ADDR = $ENV{$conf{AUTH_X_FORWARDED}} if ($ENV{$conf{AUTH_X_FORWARDED}});
 }
 
+my $Paysys_Core = Paysys::Core->new($db, $admin, \%conf, {
+  REMOTE_ADDR => $REMOTE_ADDR,
+});
+
 #@deprecated Check allow ips
 if ($conf{PAYSYS_IPS}) {
   if ($REMOTE_ADDR && !check_ip($REMOTE_ADDR, $conf{PAYSYS_IPS})) {
@@ -95,18 +102,18 @@ if ($conf{PAYSYS_IPS}) {
     my $error = "Error: IP '$REMOTE_ADDR' DENY by System";
     sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$REMOTE_ADDR' DENY by System",
       "$conf{MAIL_CHARSET}", "2 (High)");
-    mk_log($error, { REMOTE_ADDR => $REMOTE_ADDR });
+    $Paysys_Core->mk_log($error);
     exit;
   }
 }
 
 #@deprecated CGI Auth for modules
 if ($conf{PAYSYS_PASSWD}) {
-  my ($user, $password) = split(/:/, $conf{PAYSYS_PASSWD});
+  my ($user, $password) = split(/:/x, $conf{PAYSYS_PASSWD});
 
   if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
-    $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
-    my ($REMOTE_USER, $REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
+    $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//xi;
+    my ($REMOTE_USER, $REMOTE_PASSWD) = split(/:/x, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
 
     if ((!$REMOTE_PASSWD)
       || ($REMOTE_PASSWD && $REMOTE_PASSWD ne $password)
@@ -125,9 +132,20 @@ our Paysys $Paysys = Paysys->new($db, $admin, \%conf);
 our Finance $payments = Finance->payments($db, $admin, \%conf);
 our Users $users = Users->new($db, $admin, \%conf);
 
+Abills::Templates::template_init({
+  #BIN   => $Bin,
+  LIB   => $libpath,
+  ADMIN => $admin,
+  HTML  => $html,
+  FORM  => \%FORM,
+  LANG  => \%lang,
+  CONF  => \%conf
+});
+
+
 #debug =========================================
 if ($debug > 1) {
-  mk_log('', { DATA => \%FORM, REMOTE_ADDR => $REMOTE_ADDR });
+  $Paysys_Core->mk_log('', { DATA => \%FORM });
 }
 #NEW SCHEME ====================================
 paysys_new_scheme();
@@ -145,8 +163,6 @@ paysys_new_scheme();
 #**********************************************************
 sub paysys_new_scheme {
 
-  require Paysys::User_portal;
-
   my $connected_systems_list = $Paysys->paysys_connect_system_list({
     SORT             => 'pc.paysys_id',
     SHOW_ALL_COLUMNS => 1,
@@ -159,7 +175,7 @@ sub paysys_new_scheme {
   my $test_system = q{};
   #@deprecated use PAYSYS_TEST_SYSTEM_IPS as main option
   if ($conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}) {
-    my ($ips, $pay_system) = split(/:/, $conf{PAYSYS_TEST_SYSTEM});
+    my ($ips, $pay_system) = split(/:/x, $conf{PAYSYS_TEST_SYSTEM});
     if (check_ip($REMOTE_ADDR, $ips)) {
       $test_system = $FORM{PAYSYS_TEST_SYSTEM} || $pay_system;
     }
@@ -187,7 +203,7 @@ sub paysys_new_scheme {
 
     # Revenucat only header AUTH
     if ($conf{PAYSYS_BEARER_TOKEN_AUTH} && $ENV{HTTP_CGI_AUTHORIZATION} && $paysys_ip =~ /BEARER_TOKEN/) {
-      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/Bearer\s+//i;
+      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/Bearer\s+//xi;
 
       my $bearer = $conf{$paysys_ip} || '--';
 
@@ -195,7 +211,7 @@ sub paysys_new_scheme {
     }
 
     if ($conf{PAYSYS_ALLOW_DOMAIN} && $paysys_ip =~ /domain/) {
-      my ($domain) = $paysys_ip =~ /(?<=domain: ).*/g;
+      my ($domain) = $paysys_ip =~ /(?<=domain: ).*/mxg;
 
       require Socket;
       Socket->import();
@@ -208,13 +224,13 @@ sub paysys_new_scheme {
 
     if (check_ip($REMOTE_ADDR, $paysys_ip) || $allowed) {
       if ($debug > 0) {
-        mk_log('', { PAYSYS_ID => $id, DATA => \%FORM, REMOTE_ADDR => $REMOTE_ADDR });
+        $Paysys_Core->mk_log('', { PAYSYS_ID => $id, DATA => \%FORM });
       }
 
       my $Paysys_plugin = _configure_load_payment_module($module, 0, \%conf);
 
       if ($debug > 2) {
-        mk_log("$module loaded", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
+        $Paysys_Core->mk_log("$module loaded", { PAYSYS_ID => $id });
       }
 
       my $Payment_system = $Paysys_plugin->new($db, $admin, \%conf, {
@@ -225,19 +241,18 @@ sub paysys_new_scheme {
       });
 
       if ($debug > 2) {
-        mk_log("$module object created", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
+        $Paysys_Core->mk_log("$module object created", { PAYSYS_ID => $id });
       }
 
       if ($Payment_system->can('proccess')) {
         $Payment_system->proccess(\%FORM);
 
         if ($debug > 2) {
-          mk_log("$module process ended", { PAYSYS_ID => $id, REMOTE_ADDR => $REMOTE_ADDR });
+          $Paysys_Core->mk_log("$module process ended", { PAYSYS_ID => $id });
         }
       }
       else {
-        mk_log("$module don't have process statment", {
-          HEADER      => 1,
+        $Paysys_Core->mk_log("$module don't have process statement", {
           SHOW        => 1,
           PAYSYS_ID   => $module,
           REMOTE_ADDR => $REMOTE_ADDR
@@ -252,7 +267,7 @@ sub paysys_new_scheme {
   paysys_payment_gateway();
 
   if ($debug > 1) {
-    mk_log('', { REPLY => 1, REMOTE_ADDR => $REMOTE_ADDR });
+    $Paysys_Core->mk_log('', { REPLY => 1 });
   }
 
   return 1;
@@ -269,6 +284,9 @@ sub paysys_new_scheme {
 =cut
 #**********************************************************
 sub paysys_payment_gateway {
+
+  require Paysys::User_portal;
+
   # load header
   $html->{METATAGS} = templates('metatags_client');
   $html->{WEB_TITLE} = $lang{MAKE_PAYMENT};
@@ -276,12 +294,18 @@ sub paysys_payment_gateway {
   print $html->header();
 
   if ($html->{TYPE} && $html->{TYPE} eq 'xml') {
-    print qq{  <info>Welcome to xml payment gateway</info>
-  <error>403</error>};
+    my $res = << "XML";
+<response>
+<info>Welcome to xml payment gateway</info>
+<error>403</error>
+</response>
+XML
+
+    print $res;
     return 1;
   }
 
-  my ($result, $user_info) = paysys_check_user({
+  my ($result, $user_info) = $Paysys_Core->paysys_check_user({
     CHECK_FIELD => $conf{PAYSYS_GATEWAY_IDENTIFIER} || 'UID',
     USER_ID     => $FORM{IDENTIFIER},
   });

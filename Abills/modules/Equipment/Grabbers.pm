@@ -8,7 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Filters qw(dec2hex _mac_former bin2mac);
 use Abills::Base qw(in_array sec2time);
-use Abills::Misc qw(load_module);
+require Abills::Misc;
 require Equipment::Snmp_cmd;
 require Equipment::Defs;
 
@@ -53,7 +53,7 @@ sub equipment_test {
     %snmp_ports_info = %{ $attr->{SNMP_TPL} };
   }
   else {
-    my $perl_scalar = _get_snmp_oid( $attr->{SNMP_TPL} );
+    my $perl_scalar = get_vendors_oids( $attr->{SNMP_TPL} );
 
     if ($perl_scalar && $perl_scalar->{ports}) {
       %snmp_ports_info = %{ $perl_scalar->{ports} };
@@ -72,15 +72,15 @@ sub equipment_test {
 
   if ( $attr->{PORT_INFO} ){
     print "Debug" if ($debug);
-    
-    if ( $attr->{PORT_INFO} =~ /TRAFFIC/ ){
+
+    if ($attr->{PORT_INFO} =~ /TRAFFIC/xm) {
       $attr->{PORT_INFO} .= ",PORT_IN,PORT_OUT";
     }
-    if ( $attr->{PORT_INFO} =~ /PORT_SPEED/ ){
+    if ($attr->{PORT_INFO} =~ /PORT_SPEED/xm) {
       $attr->{PORT_INFO} .= ",PORT_HIGH_SPEED";
     }
 
-    my @port_info_list = split( /,\s?/, $attr->{PORT_INFO} );
+    my @port_info_list = split(/,\s?/x, $attr->{PORT_INFO} );
 
     my @requires_cable_test_fields = grep {$snmp_ports_info{$_}->{REQUIRES_CABLE_TEST}} (keys %snmp_ports_info);
 
@@ -221,261 +221,343 @@ sub equipment_test {
     }
 
     if ($snmp_ports_info{RUN_CABLE_TEST}{OIDS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
-      my $skip_ports = $snmp_ports_info{RUN_CABLE_TEST}{SKIP_PORTS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{SKIP_PORTS};
-      if (ref $skip_ports ne 'ARRAY') {
-        $skip_ports = undef;
-      }
-
-      my %cable_test_results = ();
-      foreach my $port (sort { $a <=> $b } keys %ports_info) {
-        if ($skip_ports && in_array($port, $skip_ports)) {
-          next;
-        }
-
-        if(! $ports_info{$port}{PORT_TYPE}) {
-          $ports_info{$port}{PORT_TYPE} = snmp_get({
-            %{$attr},
-            OID   => $snmp_ports_info{PORT_TYPE}{OIDS}.'.'.$port,
-          });
-        }
-
-        if( !defined($ports_info{$port}{PORT_TYPE}) || (($ports_info{$port}{PORT_TYPE} != 6) && ($ports_info{$port}{PORT_TYPE} != 117)) ) {
-          next;
-        }
-
-        if((defined($snmp_ports_info{RUN_CABLE_TEST}{PORT_NAME_REGEX})
-            && defined($ports_info{$port}{PORT_NAME})
-            && $ports_info{$port}{PORT_NAME} !~ $snmp_ports_info{RUN_CABLE_TEST}{PORT_NAME_REGEX})
-          || (defined($snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})
-            && defined($ports_info{$port}{PORT_NAME})
-            && $ports_info{$port}{PORT_NAME} !~ $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})) {
-          next;
-        }
-
-        if($attr->{RUN_CABLE_TEST}) {
-          my $result;
-          if ($snmp_ports_info{RUN_CABLE_TEST}{OIDS}) {
-            $result = snmp_set({
-              %{$attr},
-              IGNORE_ERRORS => 'commitFailed|genErr',
-              TIMEOUT => 10,
-              OID   => [ $snmp_ports_info{RUN_CABLE_TEST}{OIDS} . '.' . $port, 'integer', 1 ],
-              DEBUG => ($debug > 2) ? 1 : undef
-            });
-          }
-
-          if ($snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
-            $result = snmp_set({
-              %{$attr},
-              IGNORE_ERRORS => 'commitFailed|genErr',
-              OID   => [ $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}, 'integer', $port ],
-              DEBUG => ($debug > 2) ? 1 : undef
-            });
-          }
-
-          if ($result) {
-            $cable_test_results{$port} = 1;
-          }
-          else {
-            $ports_info{$port}{CABLE_TESTER}{ERROR} = 1;
-          }
-
-        }
-        else {
-          $ports_info{$port}{CABLE_TESTER} = 1; #indicates that port supports cable tester
-        }
-      }
-
-      if (%cable_test_results) {
-        my $sleep_time = $snmp_ports_info{RUN_CABLE_TEST}{SLEEP} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{SLEEP} || 0;
-        if ($sleep_time) {
-          sleep $sleep_time;
-        }
-
-        my $is_cable_test_in_progress;
-
-        my $cable_test_status_oid = $snmp_ports_info{RUN_CABLE_TEST}{CABLE_TEST_STATUS_OID} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_OID};
-        my $cable_test_status_in_progress = $snmp_ports_info{RUN_CABLE_TEST}{CABLE_TEST_STATUS_IN_PROGRESS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_IN_PROGRESS};
-        my $cable_test_status_ok = $snmp_ports_info{RUN_CABLE_TEST}{CABLE_TEST_STATUS_OK} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_OK};
-
-        if ($cable_test_status_oid && $cable_test_status_in_progress && $cable_test_status_ok) {
-          my $cable_test_status_info;
-          do {
-            $is_cable_test_in_progress = 0;
-
-            $cable_test_status_info = snmp_get({
-              %{$attr},
-              OID   => $cable_test_status_oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
-              WALK  => ($attr->{PORT_ID}) ? 0 : 1,
-              RETRIES => 10,
-              DEBUG => ($debug > 2) ? 1 : undef
-            });
-
-            if ($attr->{PORT_ID}) {
-              if ($cable_test_status_info && $cable_test_status_info == $cable_test_status_in_progress) {
-                $is_cable_test_in_progress = 1;
-              }
-            }
-            else {
-              foreach my $cable_test_status_port (@$cable_test_status_info) {
-                my ($port, $status) = split(/:/, $cable_test_status_port, 2);
-                if ($status == $cable_test_status_in_progress && $cable_test_results{$port}) {
-                  $is_cable_test_in_progress = 1;
-                }
-              }
-            }
-
-            if ($is_cable_test_in_progress) {
-              sleep 1;
-            }
-          } while ($is_cable_test_in_progress);
-
-          if ($attr->{PORT_ID}) {
-            if ($cable_test_status_info && $cable_test_status_info != $cable_test_status_ok) {
-              $cable_test_results{$attr->{PORT_ID}} = 0;
-              $ports_info{$attr->{PORT_ID}}{CABLE_TESTER}{ERROR} = 1;
-            }
-          }
-          else {
-            foreach my $cable_test_status_port (@$cable_test_status_info) {
-              my ($port, $status) = split(/:/, $cable_test_status_port, 2);
-              if ($status != $cable_test_status_ok && $cable_test_results{$port}) {
-                $cable_test_results{$port} = 0;
-                $ports_info{$port}{CABLE_TESTER}{ERROR} = 1;
-              }
-            }
-          }
-        }
-
-        my $pair_status_in_progress = $snmp_ports_info{RUN_CABLE_TEST}{PAIR_STATUS_IN_PROGRESS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{PAIR_STATUS_IN_PROGRESS};
-        do {
-          $is_cable_test_in_progress = 0;
-          foreach my $type (@requires_cable_test_fields) {
-            if (!$snmp_ports_info{$type} || !$snmp_ports_info{$type}{OIDS}) {
-              next;
-            }
-
-            my $oid = $snmp_ports_info{$type}{OIDS};
-            my $function = $snmp_ports_info{$type}{PARSER};
-            my $ports_info_ = snmp_get({
-                %{$attr},
-                OID     => $oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
-                WALK    => ($attr->{PORT_ID}) ? 0 : 1,
-                DEBUG   => ($debug > 2) ? 1 : undef
-              });
-
-            if ($attr->{PORT_ID}) {
-              if (defined($ports_info_)) {
-                if ($pair_status_in_progress && $type =~ /STATUS_PAIR/ && $ports_info_ == $pair_status_in_progress) {
-                  $is_cable_test_in_progress = 1;
-                  last;
-                }
-                if ($function && defined( &{$function} ) ) {
-                  ($ports_info_) = &{ \&$function }($ports_info_);
-                }
-              }
-
-              $ports_info{$attr->{PORT_ID}}{CABLE_TESTER}{$type} = $ports_info_;
-              next;
-            }
-
-            foreach my $port_info (@$ports_info_) {
-              my ($port, $value) = split(/:/, $port_info, 2);
-              if (!$cable_test_results{$port}) {
-                next;
-              }
-
-              if ( defined($value) ) {
-                if ($pair_status_in_progress && $type =~ /STATUS_PAIR/ && $value == $pair_status_in_progress) {
-                  $is_cable_test_in_progress = 1;
-                  last;
-                }
-                if ($function && defined( &{$function} ) ) {
-                  ($value) = &{ \&$function }($value);
-                }
-              }
-              $ports_info{$port}{CABLE_TESTER}{$type} = $value;
-            }
-          }
-          if ($pair_status_in_progress) {
-            sleep 1;
-          }
-        } while ($is_cable_test_in_progress);
-      }
+      equipment_cable_test({
+        SNMP_PORTS_INFO            => \%snmp_ports_info,
+        PORT_INFO                  => \%ports_info,
+        REQUIRES_CABLE_TEST_FIELDS => \@requires_cable_test_fields
+      });
     }
   }
 
   if ( $attr->{TEST_OID} ){
-    my %result_hash = ();
-
-    if ($attr->{TEST_OID} ne '1') {
-      my @test_oids = split(/,\s?/, $attr->{TEST_OID});
-      foreach my $k ( keys %snmp_info ) {
-        if (! in_array($k, \@test_oids)) {
-          delete $snmp_info{$k};
-        }
-      }
-    }
-
-    foreach my $key ( keys %snmp_info ){
-      my $snmp_oid = $snmp_info{$key}{OIDS};
-
-      if ($key eq 'PORTS' && $snmp_info{$key}{WALK}) {
-        next;
-      }
-      if ( $snmp_oid ){
-        my $res = snmp_get( {
-          %{$attr},
-          OID => $snmp_oid,
-        } );
-
-        if ( $res ){
-          my $name = $snmp_info{$key}{NAME} || $key;
-          my $function = $snmp_info{$key}->{PARSER};
-
-          if ($function && defined( &{$function} ) ) {
-            ($res) = &{ \&$function }($res);
-          }
-          $result_hash{$name} = $res;
-        }
-        else {
-          #Last if no response
-          if($key eq 'UPTIME') {
-            return {};
-          }
-        }
-      }
-    }
-
-    my %snmp_info_result = ();
-    foreach my $key ( keys %result_hash ){
-      my $value = $result_hash{$key};
-      $snmp_info_result{$key} = $value;
-    }
-
-    #Get ports
-    if ($snmp_info{'PORTS'}{WALK}) {
-      my $ports_arr = snmp_get({
-        %{$attr},
-        OID  => $snmp_info{'PORTS'}{OIDS},
-        WALK => 1
-      });
-
-      my $ports_list = ();
-      for (my $i = 0; $i <= $#{ $ports_arr }; $i++) {
-        next if (! $ports_arr->[$i]);
-        my (undef, $type) = split(/:/, $ports_arr->[$i]);
-        if (@skip_ports_types && !in_array($type, \@skip_ports_types)){
-          push @{$ports_list}, $ports_arr->[$i];
-        }
-      }
-
-      $snmp_info_result{'PORTS'} = $#{$ports_list} + 1;
-    }
-    return \%snmp_info_result;
+    return equipment_test_oids({
+      SNMP_INFO => \%snmp_info
+    });
   }
 
   return \%ports_info;
+}
+
+#********************************************************
+=head2 equipment_cable_test($attr) - change port status on switch/router (actually, admin port status on switch/router will be changed)
+
+  Arguments:
+    $attr
+      SNMP_INFO
+
+  Returns:
+
+=cut
+#********************************************************
+sub equipment_test_oids {
+  my ($attr) = @_;
+
+  my $snmp_info = $attr->{SNMP_INFO};
+
+  my %result_hash = ();
+
+  if ($attr->{TEST_OID} ne '1') {
+    my @test_oids = split(/,\s?/x, $attr->{TEST_OID});
+    foreach my $k (keys %$snmp_info) {
+      if (!in_array($k, \@test_oids)) {
+        delete $snmp_info->{$k};
+      }
+    }
+  }
+
+  foreach my $key (keys %$snmp_info) {
+    my $snmp_oid = $snmp_info->{$key}{OIDS};
+
+    if ($key eq 'PORTS' && $snmp_info->{$key}{WALK}) {
+      next;
+    }
+    if ($snmp_oid) {
+      my $res = snmp_get({
+        %{$attr},
+        OID => $snmp_oid,
+      });
+
+      if ($res) {
+        my $name = $snmp_info->{$key}{NAME} || $key;
+        my $function = $snmp_info->{$key}->{PARSER};
+
+        if ($function && defined(&{$function})) {
+          ($res) = &{\&$function}($res);
+        }
+        $result_hash{$name} = $res;
+      }
+      else {
+        #Last if no response
+        if ($key eq 'UPTIME') {
+          return {};
+        }
+      }
+    }
+  }
+
+  my %snmp_info_result = ();
+  foreach my $key (keys %result_hash) {
+    my $value = $result_hash{$key};
+    $snmp_info_result{$key} = $value;
+  }
+
+  #Get ports
+  if ($snmp_info->{'PORTS'}{WALK}) {
+    my $ports_arr = snmp_get({
+      %{$attr},
+      OID  => $snmp_info->{'PORTS'}{OIDS},
+      WALK => 1
+    });
+
+    my $ports_list = ();
+    for (my $i = 0; $i <= $#{$ports_arr}; $i++) {
+      next if (!$ports_arr->[$i]);
+      my (undef, $type) = split(/:/x, $ports_arr->[$i]);
+      if (@skip_ports_types && !in_array($type, \@skip_ports_types)) {
+        push @{$ports_list}, $ports_arr->[$i];
+      }
+    }
+
+    $snmp_info_result{'PORTS'} = $#{$ports_list} + 1;
+  }
+
+  return \%snmp_info_result;
+}
+
+#********************************************************
+=head2 equipment_cable_test($attr) - change port status on switch/router (actually, admin port status on switch/router will be changed)
+
+  Arguments:
+    $attr
+      SNMP_PORTS_INFO
+      CABLE_TEST_RESULTS
+      PORT_INFO
+
+  Returns:
+
+=cut
+#********************************************************
+sub equipment_cable_test {
+  my ($attr) = @_;
+
+  my $snmp_ports_info = $attr->{SNMP_PORTS_INFO};
+  my $ports_info = $attr->{PORT_INFO};
+
+  my $skip_ports = $snmp_ports_info->{RUN_CABLE_TEST}{SKIP_PORTS} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{SKIP_PORTS};
+  if (ref $skip_ports ne 'ARRAY') {
+    $skip_ports = undef;
+  }
+
+  my %cable_test_results = ();
+  foreach my $port (sort { $a <=> $b } keys %$ports_info) {
+    if ($skip_ports && in_array($port, $skip_ports)) {
+      next;
+    }
+
+    if(! $ports_info->{$port}{PORT_TYPE}) {
+      $ports_info->{$port}{PORT_TYPE} = snmp_get({
+        %{$attr},
+        OID   => $snmp_ports_info->{PORT_TYPE}{OIDS}.'.'.$port,
+      });
+    }
+
+    if( !defined($ports_info->{$port}{PORT_TYPE}) || (($ports_info->{$port}{PORT_TYPE} != 6) && ($ports_info->{$port}{PORT_TYPE} != 117)) ) {
+      next;
+    }
+
+    if((defined($snmp_ports_info->{RUN_CABLE_TEST}{PORT_NAME_REGEX})
+      && defined($ports_info->{$port}{PORT_NAME})
+      && $ports_info->{$port}{PORT_NAME} !~ $snmp_ports_info->{RUN_CABLE_TEST}{PORT_NAME_REGEX})
+      || (defined($snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})
+      && defined($ports_info->{$port}{PORT_NAME})
+      && $ports_info->{$port}{PORT_NAME} !~ $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})) {
+      next;
+    }
+
+    if($attr->{RUN_CABLE_TEST}) {
+      my $result;
+      if ($snmp_ports_info->{RUN_CABLE_TEST}{OIDS}) {
+        $result = snmp_set({
+          %{$attr},
+          IGNORE_ERRORS => 'commitFailed|genErr',
+          TIMEOUT => 10,
+          OID   => [ $snmp_ports_info->{RUN_CABLE_TEST}{OIDS} . '.' . $port, 'integer', 1 ],
+          DEBUG => ($debug > 2) ? 1 : undef
+        });
+      }
+
+      if ($snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
+        $result = snmp_set({
+          %{$attr},
+          IGNORE_ERRORS => 'commitFailed|genErr',
+          OID   => [ $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{OIDS}, 'integer', $port ],
+          DEBUG => ($debug > 2) ? 1 : undef
+        });
+      }
+
+      if ($result) {
+        $cable_test_results{$port} = 1;
+      }
+      else {
+        $ports_info->{$port}{CABLE_TESTER}{ERROR} = 1;
+      }
+
+    }
+    else {
+      $ports_info->{$port}{CABLE_TESTER} = 1; #indicates that port supports cable tester
+    }
+  }
+
+  if (%cable_test_results) {
+    equipment_cable_test_result({
+      SNMP_PORTS_INFO            => $snmp_ports_info,
+      CABLE_TEST_RESULTS         => \%cable_test_results,
+      PORT_INFO                  => $ports_info,
+      REQUIRES_CABLE_TEST_FIELDS => $attr->{REQUIRES_CABLE_TEST_FIELDS}
+    });
+  }
+
+  return 1;
+}
+
+#********************************************************
+=head2 equipment_cable_test_result($attr) - change port status on switch/router (actually, admin port status on switch/router will be changed)
+
+  Arguments:
+    $attr
+      SNMP_PORTS_INFO
+      CABLE_TEST_RESULTS
+      PORT_INFO
+
+  Returns:
+
+=cut
+#********************************************************
+sub equipment_cable_test_result {
+  my($attr)=@_;
+
+  my $snmp_ports_info = $attr->{SNMP_PORTS_INFO};
+  my $cable_test_results = $attr->{CABLE_TEST_RESULTS};
+  my $ports_info = $attr->{PORT_INFO};
+  my $requires_cable_test_fields = $attr->{REQUIRES_CABLE_TEST_FIELDS};
+
+  my $sleep_time = $snmp_ports_info->{RUN_CABLE_TEST}{SLEEP} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{SLEEP} || 0;
+  if ($sleep_time > 0) {
+    sleep $sleep_time;
+  }
+
+  my $is_cable_test_in_progress;
+
+  my $cable_test_status_oid = $snmp_ports_info->{RUN_CABLE_TEST}{CABLE_TEST_STATUS_OID} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_OID};
+  my $cable_test_status_in_progress = $snmp_ports_info->{RUN_CABLE_TEST}{CABLE_TEST_STATUS_IN_PROGRESS} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_IN_PROGRESS};
+  my $cable_test_status_ok = $snmp_ports_info->{RUN_CABLE_TEST}{CABLE_TEST_STATUS_OK} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{CABLE_TEST_STATUS_OK};
+
+  if ($cable_test_status_oid && $cable_test_status_in_progress && $cable_test_status_ok) {
+    my $cable_test_status_info;
+    do {
+      $is_cable_test_in_progress = 0;
+
+      $cable_test_status_info = snmp_get({
+        %{$attr},
+        OID   => $cable_test_status_oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
+        WALK  => ($attr->{PORT_ID}) ? 0 : 1,
+        RETRIES => 10,
+        DEBUG => ($debug > 2) ? 1 : undef
+      });
+
+      if ($attr->{PORT_ID}) {
+        if ($cable_test_status_info && $cable_test_status_info == $cable_test_status_in_progress) {
+          $is_cable_test_in_progress = 1;
+        }
+      }
+      else {
+        foreach my $cable_test_status_port (@$cable_test_status_info) {
+          my ($port, $status) = split(/:/x, $cable_test_status_port, 2);
+          if ($status == $cable_test_status_in_progress && $cable_test_results->{$port}) {
+            $is_cable_test_in_progress = 1;
+          }
+        }
+      }
+
+      if ($is_cable_test_in_progress) {
+        sleep 1;
+      }
+    } while ($is_cable_test_in_progress);
+
+    if ($attr->{PORT_ID}) {
+      if ($cable_test_status_info && $cable_test_status_info != $cable_test_status_ok) {
+        $cable_test_results->{$attr->{PORT_ID}} = 0;
+        $ports_info->{$attr->{PORT_ID}}{CABLE_TESTER}{ERROR} = 1;
+      }
+    }
+    else {
+      foreach my $cable_test_status_port (@$cable_test_status_info) {
+        my ($port, $status) = split(/:/x, $cable_test_status_port, 2);
+        if ($status != $cable_test_status_ok && $cable_test_results->{$port}) {
+          $cable_test_results->{$port} = 0;
+          $ports_info->{$port}{CABLE_TESTER}{ERROR} = 1;
+        }
+      }
+    }
+  }
+
+  my $pair_status_in_progress = $snmp_ports_info->{RUN_CABLE_TEST}{PAIR_STATUS_IN_PROGRESS} || $snmp_ports_info->{RUN_CABLE_TEST_SET_PORT}{PAIR_STATUS_IN_PROGRESS};
+  do {
+    $is_cable_test_in_progress = 0;
+    foreach my $type (@$requires_cable_test_fields) {
+      if (!$snmp_ports_info->{$type} || !$snmp_ports_info->{$type}{OIDS}) {
+        next;
+      }
+
+      my $oid = $snmp_ports_info->{$type}{OIDS};
+      my $function = $snmp_ports_info->{$type}{PARSER};
+      my $ports_info_ = snmp_get({
+        %{$attr},
+        OID     => $oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
+        WALK    => ($attr->{PORT_ID}) ? 0 : 1,
+        DEBUG   => ($debug > 2) ? 1 : undef
+      });
+
+      if ($attr->{PORT_ID}) {
+        if (defined($ports_info_)) {
+          if ($pair_status_in_progress && $type =~ /STATUS_PAIR/xm && $ports_info_ == $pair_status_in_progress) {
+            $is_cable_test_in_progress = 1;
+            last;
+          }
+          if ($function && defined( &{$function} ) ) {
+            ($ports_info_) = &{ \&$function }($ports_info_);
+          }
+        }
+
+        $ports_info->{$attr->{PORT_ID}}{CABLE_TESTER}{$type} = $ports_info_;
+        next;
+      }
+
+      foreach my $port_info (@$ports_info_) {
+        my ($port, $value) = split(/:/x, $port_info, 2);
+        if (!$cable_test_results->{$port}) {
+          next;
+        }
+
+        if ( defined($value) ) {
+          if ($pair_status_in_progress && $type =~ /STATUS_PAIR/xm && $value == $pair_status_in_progress) {
+            $is_cable_test_in_progress = 1;
+            last;
+          }
+          if ($function && defined( &{$function} ) ) {
+            ($value) = &{ \&$function }($value);
+          }
+        }
+        $ports_info->{$port}{CABLE_TESTER}{$type} = $value;
+      }
+    }
+    if ($pair_status_in_progress) {
+      sleep 1;
+    }
+  } while ($is_cable_test_in_progress);
+
+
+  return 1;
 }
 
 #********************************************************
@@ -514,7 +596,7 @@ sub equipment_change_port_status {
 
   my %snmp_ports_template = ();
 
-  my $snmp_template = _get_snmp_oid( $attr->{SNMP_TPL} );
+  my $snmp_template = get_vendors_oids( $attr->{SNMP_TPL} );
 
   if ($snmp_template && $snmp_template->{ports}) {
     %snmp_ports_template = %{ $snmp_template->{ports} };
@@ -587,13 +669,13 @@ sub get_vlans{
 
   my $oid = '.1.3.6.1.2.1.17.7.1.4.3.1.1'; #Vlan Name
 
-  if($attr->{NAS_INFO}) {
+  if ($attr->{NAS_INFO}) {
     $attr->{VERSION} //= $attr->{NAS_INFO}->{SNMP_VERSION};
-    $attr->{SNMP_TPL} //=$attr->{NAS_INFO}->{SNMP_TPL};
+    $attr->{SNMP_TPL} //= $attr->{NAS_INFO}->{SNMP_TPL};
   }
 
-  my $perl_scalar = _get_snmp_oid( $attr->{SNMP_TPL} );
-  if($perl_scalar && $perl_scalar->{VLANS}) {
+  my $perl_scalar = get_vendors_oids($attr->{SNMP_TPL});
+  if ($perl_scalar && $perl_scalar->{VLANS}) {
     $oid = $perl_scalar->{VLANS};
   }
 
@@ -606,42 +688,42 @@ sub get_vlans{
 
   my %vlan_hash = ();
 
-  foreach my $line ( @{$value} ){
+  foreach my $line (@{$value}) {
     next if (!$line);
 
-    if ( $line =~ /^(\d+):(.*)/ ){
+    if ($line =~ /^(\d+):(.*)/xm) {
       my $vlan_id = $1;
-      my $name    = $2;
+      my $name = $2;
       $vlan_hash{$vlan_id}{NAME} = $name;
     }
-    elsif ( $line =~ /^\d+.(\d+)\.(\d+):(.+)/ ){
+    elsif ($line =~ /^\d+.(\d+)\.(\d+):(.+)/xm) {
       my $type = $1;
       my $vlan_id = $2;
       my $value2 = $3;
-print "$oid $type  / $vlan_id / $value2 <br>";
-      if ( $type == 1 ){
+      print "$oid $type  / $vlan_id / $value2 <br>";
+      if ($type == 1) {
         $vlan_hash{$vlan_id}{NAME} = $value2;
       }
       #ports
-      elsif ( $type == 2 ){
-        my $p = unpack( "B64", $value2 );
+      elsif ($type == 2) {
+        my $p = unpack("B64", $value2);
         my $ports = '';
-        for ( my $i = 0; $i < length( $p ); $i++ ){
-          my $port_val = substr( $p, $i, 1 );
-          if ( $port_val == 1 ){
+        for (my $i = 0; $i < length($p); $i++) {
+          my $port_val = substr($p, $i, 1);
+          if ($port_val == 1) {
             $ports .= ($i + 1) . ", ";
           }
         }
 
         $vlan_hash{$vlan_id}{PORTS} = $ports;
       }
-      elsif ( $type == 6 ){
+      elsif ($type == 6) {
         $vlan_hash{$vlan_id}{STATUS} = $value2;
       }
     }
   }
 
-  if($perl_scalar && $perl_scalar->{ports}->{NATIVE_VLAN}->{OIDS}) {
+  if ($perl_scalar && $perl_scalar->{ports}->{NATIVE_VLAN}->{OIDS}) {
     $oid = $perl_scalar->{ports}->{NATIVE_VLAN}->{OIDS};
 
     $value = snmp_get({
@@ -650,13 +732,13 @@ print "$oid $type  / $vlan_id / $value2 <br>";
       WALK => 1
     });
 
-    foreach my $line ( @{$value} ){
+    foreach my $line (@{$value}) {
       next if (!$line);
-      if ( $line =~ /^(\d+):(\d+)/ ){
+      if ($line =~ /^(\d+):(\d+)/xm) {
         my $port_id = $1;
         my $vlan_id = $2;
         if (!$vlan_hash{$vlan_id}{STATUS}) {
-          if (!$vlan_hash{$vlan_id}{PORTS} ) {
+          if (!$vlan_hash{$vlan_id}{PORTS}) {
             $vlan_hash{$vlan_id}{PORTS} .= "$port_id";
           }
           else {
@@ -676,7 +758,7 @@ print "$oid $type  / $vlan_id / $value2 <br>";
 =cut
 #********************************************************
 sub get_port_vlans {
-  my($attr) = @_;
+  my ($attr) = @_;
 
   my %ports_vlans = ();
 
@@ -691,8 +773,8 @@ sub get_port_vlans {
   });
 
   foreach my $line (@$port_vlan_list) {
-    my ($port, $vlan)=split(/:/, $line);
-    $ports_vlans{$port}=$vlan;
+    my ($port, $vlan) = split(/:/x, $line);
+    $ports_vlans{$port} = $vlan;
   }
 
   return \%ports_vlans;
@@ -778,7 +860,7 @@ sub default_get_fdb {
   my $port_vlans;
 
   my $oid = '.1.3.6.1.2.1.17.7.1.2.2.1.2';
-  my $snmp_oids = _get_snmp_oid($attr->{NAS_INFO}{SNMP_TPL}, $attr);
+  my $snmp_oids = get_vendors_oids($attr->{NAS_INFO}{SNMP_TPL}, $attr);
 
   if ($snmp_oids) {
     if ($snmp_oids->{PORT_VLAN_UNTAGGED}) {
@@ -806,9 +888,9 @@ sub default_get_fdb {
   my @EXPR_IDS = ();
 
   if ($snmp_oids && $snmp_oids->{FDB_EXPR}) {
-    $snmp_oids->{FDB_EXPR} =~ s/\%\%/\\/g;
-    ($expr_, $values, $attribute) = split( /\|/, $snmp_oids->{FDB_EXPR} || '' );
-    @EXPR_IDS = split( /,/, $values );
+    $snmp_oids->{FDB_EXPR} =~ s/\%\%/\\/xg;
+    ($expr_, $values, $attribute) = split(/\|/x, $snmp_oids->{FDB_EXPR} || '' );
+    @EXPR_IDS = split(/,/x, $values );
   }
 
   my %port_index_to_num = ();
@@ -823,7 +905,7 @@ sub default_get_fdb {
         WALK    => 1
       });
       foreach my $line (@{ $ports_indexes }) {
-        my ($num, $index) = split( /:/, $line, 2 );
+        my ($num, $index) = split(/:/x, $line, 2 );
         $port_index_to_num{ $index } = $num;
       }
     }
@@ -841,7 +923,7 @@ sub default_get_fdb {
       });
     foreach my $line (@{ $value_ }) {
       next if (!$line);
-      my ($index, $name) = split( /:/, $line, 2 );
+      my ($index, $name) = split(/:/x, $line, 2 );
 
       if ($attr->{NAS_INFO}->{FDB_USES_PORT_NUMBER_INDEX}) {
         if ($attr->{NAS_INFO}->{AUTO_PORT_SHIFT}) {
@@ -866,7 +948,7 @@ sub default_get_fdb {
 
     if ($snmp_oids && $snmp_oids->{FDB_EXPR}) {
       my %result = ();
-      if (my @res = ($line =~ /$expr_/g)) {
+      if (my @res = ($line =~ /$expr_/xg)) {
         for (my $i = 0; $i <= $#res; $i++) {
           $result{$EXPR_IDS[$i]} = $res[$i];
         }
@@ -888,7 +970,7 @@ sub default_get_fdb {
     else { #XXX probably never gets here, as default.snmp have FDB_EXPR
       ($oid, $mac_port_list) = split( /:/, $line, 2 );
 
-      $oid =~ /(\d+)\.(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})$/;
+      $oid =~ /(\d+)\.(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})$/xm;
       my $record_type = $1;
       $mac_dec = $2 || q{};
       if( $record_type == 1) {
@@ -962,7 +1044,7 @@ sub cisco_get_fdb {
 
   my @vlans = ();
   foreach my $vlan_info (@$value) {
-     if($vlan_info && $vlan_info =~ /(\d+):/) {
+     if($vlan_info && $vlan_info =~ /(\d+):/xm) {
        push @vlans, $1;
      }
   }
@@ -971,7 +1053,7 @@ sub cisco_get_fdb {
 
   foreach my $vlan ( @vlans ) {
     my $vlan_snmp = $attr->{SNMP_COMMUNITY};
-    $vlan_snmp =~ s|\@|\@$vlan\@|;
+    $vlan_snmp =~ s|\@|\@$vlan\@|x;
 
     my $if_indexes = snmp_get({
       TIMEOUT        => 10,
@@ -983,7 +1065,7 @@ sub cisco_get_fdb {
     });
 
     foreach my $if_index_info ( @$if_indexes  ) {
-      if($if_index_info && $if_index_info =~ /(\d+):(\d+)/) {
+      if($if_index_info && $if_index_info =~ /(\d+):(\d+)/xm) {
         $port_index{$1}=$2;
       }
     }
@@ -992,7 +1074,7 @@ sub cisco_get_fdb {
   #Get fdb per VLAN
   foreach my $vlan ( @vlans ) {
     my $vlan_snmp = $attr->{SNMP_COMMUNITY};
-    $vlan_snmp =~ s|\@|\@$vlan\@|;
+    $vlan_snmp =~ s|\@|\@$vlan\@|x;
 
     my $fdb_list = snmp_get({
       TIMEOUT        => 10,
@@ -1004,7 +1086,7 @@ sub cisco_get_fdb {
     });
 
     foreach my $fdb_info ( @$fdb_list  ) {
-      if($fdb_info && $fdb_info =~ /(\d+)\.([\d\.]+):(.+)/) {
+      if($fdb_info && $fdb_info =~ /(\d+)\.([\d\.]+):(.+)/xm) {
         my $id      = $1;
         my $mac_dec = $2;
         my $result  = $3;
@@ -1036,7 +1118,7 @@ sub cisco_get_fdb {
 }
 
 #********************************************************
-=head2 _edge_core_convert_pair_status($status)
+=head2 edge_core_convert_pair_status($status)
 
   Arguments:
     $status
@@ -1046,7 +1128,7 @@ sub cisco_get_fdb {
 
 =cut
 #********************************************************
-sub _edge_core_convert_pair_status {
+sub edge_core_convert_pair_status {
   my ($status) = @_;
 
   my %status_hash = (
@@ -1068,7 +1150,7 @@ sub _edge_core_convert_pair_status {
 }
 
 #********************************************************
-=head2 _dlink_convert_pair_status($status)
+=head2 dlink_convert_pair_status($status)
 
   Arguments:
     $status
@@ -1078,7 +1160,7 @@ sub _edge_core_convert_pair_status {
 
 =cut
 #********************************************************
-sub _dlink_convert_pair_status {
+sub dlink_convert_pair_status {
   my ($status) = @_;
 
   my %status_hash = (
@@ -1097,7 +1179,7 @@ sub _dlink_convert_pair_status {
 }
 
 #********************************************************
-=head2 _dlink_convert_link_status($status)
+=head2 dlink_convert_link_status($status)
 
   Arguments:
     $status
@@ -1107,7 +1189,7 @@ sub _dlink_convert_pair_status {
 
 =cut
 #********************************************************
-sub _dlink_convert_link_status {
+sub dlink_convert_link_status {
   my ($status) = @_;
 
   my %status_hash = (
@@ -1120,7 +1202,7 @@ sub _dlink_convert_link_status {
 }
 
 #********************************************************
-=head2 _dlink_convert_port_type($port_type)
+=head2 dlink_convert_port_type($port_type)
 
   Arguments:
     $port_type
@@ -1130,7 +1212,7 @@ sub _dlink_convert_link_status {
 
 =cut
 #********************************************************
-sub _dlink_convert_port_type {
+sub dlink_convert_port_type {
   my ($port_type) = @_;
 
   my %port_type_hash = (
@@ -1143,7 +1225,7 @@ sub _dlink_convert_port_type {
 }
 
 #********************************************************
-=head2 _huawei_convert_pair_status($status)
+=head2 huawei_convert_pair_status($status)
 
   Arguments:
     $status
@@ -1153,7 +1235,7 @@ sub _dlink_convert_port_type {
 
 =cut
 #********************************************************
-sub _huawei_convert_pair_status {
+sub huawei_convert_pair_status {
   my ($status) = @_;
 
   my %status_hash = (
@@ -1180,7 +1262,7 @@ sub _huawei_convert_pair_status {
 
 =cut
 #********************************************************
-sub _huawei_convert_last_cable_test_time {
+sub huawei_convert_last_cable_test_time {
   my ($seconds_ago) = @_;
 
   return strftime("%F %T", localtime(time() - $seconds_ago));
@@ -1201,7 +1283,7 @@ sub _huawei_convert_last_cable_test_time {
 #**********************************************************
 sub equipment_model_detect {
   my ($equipment_info, $attr) = @_;
-  my $model_id = 0;
+  #my $model_id = 0;
 
   our Equipment $Equipment;
   if ($attr->{_EQUIPMENT}) {

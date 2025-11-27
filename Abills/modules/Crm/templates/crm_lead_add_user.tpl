@@ -5,7 +5,7 @@
       let uid = jQuery('#UID_HIDDEN').val();
 
       if (uid) {
-        jQuery.get('?qindex=%index%&header=2&LEAD_ID=$FORM{LEAD_ID}&add_uid=' + uid, function (data) {
+        jQuery.get('?qindex=%index%&header=2&LEAD_ID=%LEAD_ID%&add_uid=' + uid, function (data) {
           document.location.href = `?get_index=form_users&full=1&UID=${uid}`;
         });
       } else {

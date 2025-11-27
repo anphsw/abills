@@ -15,7 +15,7 @@ our (
   $admin,
   %conf,
   %lang,
-  @bool_vals,
+  #@bool_vals,
   $users
 );
 
@@ -96,18 +96,41 @@ sub form_districts {
     push @header_arr, "$type->{name}:index=$index&TYPE_ID=$type->{id}:class=dropdown-item";
   }
 
+  $Address->{ADDRESS_AVARAGE_SIZE_HOUSEHOLD} = $conf{ADDRESS_AVARAGE_SIZE_HOUSEHOLD} || '';
+
   if ($FORM{add_form}) {
     $Address->{DISTRICT_SEL} ||= sel_districts_full_path({ DISTRICT_IDENTIFIER => 'PARENT_ID' });
+    $Address->{TERRITORIAL_UNITS_SEL} = sel_territorial_units_full_path({
+      TERRITORIAL_UNIT_ID => $Address->{TERRITORIAL_UNITS_ID},
+      SELECTED            => $Address->{TERRITORIAL_UNITS_ID}
+    });
     $html->tpl_show(templates('form_district'), $Address);
   }
 
   $LIST_PARAMS{TYPE_ID} = $FORM{TYPE_ID} if $FORM{TYPE_ID};
+  my $hidden_fields = 'DISTRICT_ID,TYPE_ID,DISTRICT_POPULATION,POPULATION,HOUSEHOLDS';
+  my $ext_titles = {
+    id                     => '#',
+    district_name          => $lang{NAME},
+    type_name              => $lang{TYPE},
+    zip                    => $lang{ZIP},
+    street_count           => $lang{STREETS},
+    district_population    => $lang{PENETRATION_RATE},
+    population             => $lang{POPULATION},
+    households             => $lang{HOUSEHOLDS},
+  };
+
+  if ($conf{TERRITORIAL_UNITS}) {
+    $hidden_fields .= ',TERRITORIAL_UNITS_CODE';
+    $ext_titles->{territorial_units_code} = $lang{TERRITORIAL_UNITS_CODE};
+  }
+
   result_former({
     INPUT_DATA      => $Address,
     FUNCTION        => 'district_list',
     BASE_FIELDS     => 1,
     DEFAULT_FIELDS  => 'ID,DISTRICT_NAME,TYPE_NAME,ZIP,STREET_COUNT',
-    HIDDEN_FIELDS   => 'DISTRICT_ID,TYPE_ID,DISTRICT_POPULATION,POPULATION,HOUSEHOLDS',
+    HIDDEN_FIELDS   => $hidden_fields,
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => {
@@ -145,16 +168,7 @@ sub form_districts {
         return $progress . $progress_text;
       }
     },
-    EXT_TITLES      => {
-      id                  => '#',
-      district_name       => $lang{NAME},
-      type_name           => $lang{TYPE},
-      zip                 => $lang{ZIP},
-      street_count        => $lang{STREETS},
-      district_population => $lang{PENETRATION_RATE},
-      population          => $lang{POPULATION},
-      households          => $lang{HOUSEHOLDS},
-    },
+    EXT_TITLES      => $ext_titles,
     TABLE           => {
       caption        => $lang{DISTRICTS},
       qs             => $pages_qs,
@@ -234,6 +248,7 @@ sub form_streets{
     return 0;
   }
   elsif ($FORM{add}) {
+    $FORM{DISTRICT_ID} ||= $FORM{STREET_DISTRICT_ID};
     $Address->street_add({ %FORM });
     $html->message('info', $lang{ADDRESS_STREET}, $lang{ADDED}) if !$Address->{errno};
   }
@@ -565,6 +580,8 @@ sub form_address_tree {
       HREF_TO_ADDRESS => 1
     })
   });
+
+  return 1;
 }
 
 #**********************************************************
@@ -636,7 +653,8 @@ sub form_location_media{
         MESSAGE => "$lang{DEL} [$line->{id}] $line->{comments}?", class => 'del' } );
 
     #Fixme mktpl
-    print "<div class='row'>
+    print << "HTML";
+<div class='row'>
     <div class='col-md-4'>
     ID: $line->{id} <br>
     $lang{COMMENTS}: $line->{comments} <br>
@@ -646,7 +664,8 @@ sub form_location_media{
     <div class='col-md-8 bg-success'>
       <img src='$SELF_URL?qindex=$index&media=1&chg=$FORM{chg}&BUILDS=$FORM{BUILDS}&show=$line->{id}'>
     </div>
-    </div>\n";
+    </div>
+HTML
   }
 
   return 1;
@@ -749,7 +768,7 @@ sub sel_districts {
   $attr ||= {};
   $attr->{SELECT_ID} ||= 'DISTRICT_ID';
   $attr->{SELECT_NAME} ||= 'DISTRICT_ID';
-  $attr->{DISTRICT_ID} =~ s/,/;/g if $attr->{DISTRICT_ID};
+  $attr->{DISTRICT_ID} =~ s/,/;/xg if $attr->{DISTRICT_ID};
 
   my $districts = $Address->district_list({
     PARENT_ID   => $attr->{PARENT_ID},
@@ -796,7 +815,7 @@ sub sel_districts {
     ID        => "DISTRICT_MULTIPLE_$attr->{SELECT_ID}",
   }) if $attr->{MULTIPLE} && !$attr->{SKIP_MULTIPLE_BUTTON};
 
-  $attr->{DISTRICT_ID} =~ s/;/,/g if $attr->{DISTRICT_ID};
+  $attr->{DISTRICT_ID} =~ s/;/,/xg if $attr->{DISTRICT_ID};
 
   my $ext_params = $attr->{STREET_ID} ? "data-street-id=$attr->{STREET_ID}" : '';
   return $html->form_select($attr->{SELECT_NAME}, { %{$attr},
@@ -811,7 +830,8 @@ sub sel_districts {
     SORT_VALUE     => $attr->{FULL_NAME} ? 'full_name' : 'name',
     EXT_BUTTON     => \@district_buttons,
     EX_PARAMS      => $attr->{EX_PARAMS} ? join(' ', ($attr->{EX_PARAMS}, $ext_params)) : $ext_params,
-    SELECT_ID      => $attr->{SELECT_ID}
+    SELECT_ID      => $attr->{SELECT_ID},
+    class          => 'nested-selector-' . $attr->{SELECT_NAME}
   });
 }
 
@@ -848,18 +868,18 @@ sub sel_districts_full_path {
       PARENT_ID         => $parent_id,
       DISTRICT_ID       => $parent_info->{ID},
       SELECT_ID         => "$select_id$parent_id",
-      DISTRICT_MULTIPLE => $parent_info->{ID} && $parent_info->{ID} =~ /,/ ? '1' : undef,
+      DISTRICT_MULTIPLE => $parent_info->{ID} && $parent_info->{ID} =~ /,/xm ? '1' : undef,
       SELECT_NAME       => 'DISTRICT_SEL'
     });
     my $total_districts = $Address->{TOTAL};
 
-    if ($parent_id =~ /;/) {
+    if ($parent_id =~ /;/xm) {
       my $parents = $Address->district_list({ ID => $parent_id, PARENT_ID => '_SHOW', COLS_NAME => 1 });
       my @parent_ids = ();
       my @ids = ();
 
       foreach my $parent (@{$parents}) {
-        push @parent_ids, $parent->{parent_id} if !in_array($parent->{parent_id}, \@parent_ids);
+        push @parent_ids, $parent->{parent_id} if (!in_array($parent->{parent_id}, \@parent_ids));
         push @ids, $parent->{id};
       }
       $parent_info->{ID} = join(',', @ids);
@@ -889,15 +909,6 @@ sub sel_districts_full_path {
     push @selects, $row;
   }
 
-  my $districts = $Address->district_list({
-    ID        => $attr->{ID} || '_SHOW',
-    PARENT_ID => 0,
-    NAME      => '_SHOW',
-    PAGE_ROWS => 999999,
-    SORT      => 'd.name',
-    COLS_NAME => 1
-  });
-
   $parent_id //= '';
   my $root_sel = sel_districts({
     %{$attr || {}},
@@ -911,7 +922,7 @@ sub sel_districts_full_path {
   my $root_district_label = $Address->{DISTRICT_LABEL} || $lang{DISTRICTS};
   # push @selects, $html->element('div', $root_sel, { OUTPUT2RETURN => 1 });
 
-  %$Address = %Address_old if $district_id;
+  %$Address = %Address_old if ($district_id);
 
   my $district_types = $Address->address_type_list({ NAME => '_SHOW', COLS_NAME => 1 });
   my $district_types_hash = {};
@@ -924,6 +935,7 @@ sub sel_districts_full_path {
     DISTRICT_EVENT_ID          => $select_id,
     ADDRESS_DISTRICT_SUBSELECT => join('', reverse @selects),
     DISTRICT_LABEL             => $root_district_label,
+    DISTRICT_INFO_BTN          => $admin->{permissions}{0} && $admin->{permissions}{0}{40},
     DISTRICT_TYPES_LANG        => json_former($district_types_hash),
   }, { OUTPUT2RETURN => 1 });
 }
@@ -950,7 +962,7 @@ sub sel_streets {
   $attr->{SELECT_NAME} ||= 'STREET_ID';
   $attr->{HIDE_ADD_STREET_BUTTON} = 1 if (!$admin->{permissions}{0} || !$admin->{permissions}{0}{34});
 
-  $attr->{DISTRICT_ID} =~ s/,/;/g if $attr->{DISTRICT_ID};
+  $attr->{DISTRICT_ID} =~ s/,/;/xg if ($attr->{DISTRICT_ID});
   my $streets = $Address->street_list({
     DISTRICT_NAME => '_SHOW',
     DISTRICT_ID   => $attr->{DISTRICT_ID} || '_SHOW',
@@ -994,7 +1006,7 @@ sub sel_streets {
     STATE     => $attr->{STREET_MULTIPLE} ? '1' : undef
   }) if $attr->{MULTIPLE};
 
-  $attr->{STREET_ID} =~ s/;/,/g if $attr->{STREET_ID};
+  $attr->{STREET_ID} =~ s/;/,/xg if $attr->{STREET_ID};
   my $ext_params = $attr->{BUILD_ID} ? "data-build-id=$attr->{BUILD_ID}" : '';
   return $html->form_select($attr->{SELECT_NAME}, { %{$attr},
     SELECTED       => $attr->{STREET_ID} || $FORM{STREET_ID} || $FORM{BUILDS},
@@ -1035,7 +1047,7 @@ sub sel_builds {
   $attr->{SELECT_NAME} ||= 'BUILD_ID';
   $attr->{HIDE_ADD_BUILD_BUTTON} = 1 if (!$admin->{permissions}{0} || !$admin->{permissions}{0}{35});
 
-  $attr->{STREET_ID} =~ s/,/;/g if ($attr->{STREET_ID});
+  $attr->{STREET_ID} =~ s/,/;/xg if ($attr->{STREET_ID});
   my $builds = $Address->build_list({
     STREET_ID   => $attr->{STREET_ID} || '_SHOW',
     STREET_NAME => '_SHOW',
@@ -1070,6 +1082,25 @@ sub sel_builds {
     STATE     => $attr->{BUILD_MULTIPLE} ? '1' : undef
   }) if $attr->{MULTIPLE};
 
+  foreach my $street (keys %builds_hash) {
+    $builds_hash{$street} = [
+      sort {
+        my $val_a = (defined $a->[1]) ? $a->[1] : '';
+        my $val_b = (defined $b->[1]) ? $b->[1] : '';
+
+        my ($num_a) = $val_a =~ /^(\d+)/;
+        my ($num_b) = $val_b =~ /^(\d+)/;
+
+        $num_a //= 0;
+        $num_b //= 0;
+
+        my $num_cmp = $num_a <=> $num_b;
+
+        $num_cmp != 0 ? $num_cmp : $a->[1] cmp $b->[1]
+      } @{$builds_hash{$street}}
+    ];
+  }
+
   return $html->form_select($attr->{SELECT_NAME}, { %{$attr},
     SELECTED    => $attr->{BUILD_ID} || $FORM{BUILDS},
     SEL_HASH    => $attr->{CHECK_STREET_ID} && !$attr->{STREET_ID} ? {} : \%builds_hash,
@@ -1077,7 +1108,7 @@ sub sel_builds {
     NO_ID       => 1,
     SEL_OPTIONS => $attr->{SEL_OPTIONS},
     EXT_BUTTON  => \@build_buttons,
-    SORT_VALUE  => 'number',
+    # SORT_VALUE  => 'number',
     ID          => $attr->{SELECT_ID}
   });
 }
@@ -1214,7 +1245,7 @@ sub form_address {
   if ($_address_full->{address_name}){
     $params{ADD_NAME} = $_address_full->{address_name};
     $params{ADD_TO_BUFFER} = $_address_full->{address_name};
-    $params{ADD_TO_BUFFER} =~ s/\'/\\\'/g;
+    $params{ADD_TO_BUFFER} =~ s/\'/\\\'/xg;
   }
 
   $attr->{ADDRESS_FULL} = $_address_full->{address_full} if ($_address_full->{address_full});
@@ -1288,10 +1319,10 @@ sub _address_full {
 
       if ($conf{ADDRESS_FORMAT}) {
         my $address = $conf{ADDRESS_FORMAT};
-        while ($address =~ /\%([A-Z\_0-9]+)\%/g) {
+        while ($address =~ /\%([A-Z\_0-9]+)\%/xmg) {
           my $patern = $1;
           if ($Address->{$patern}) {
-            $address =~ s/\%$patern\%/$Address->{$patern}/g;
+            $address =~ s/\%$patern\%/$Address->{$patern}/xg;
           }
         }
         $resuts{address_name} = $address;
@@ -1367,7 +1398,7 @@ sub form_address_select {
     $build_select_name = q{REG_BUILD_ID};
   }
 
-  if ($attr->{LOCATION_ID} && ($attr->{LOCATION_ID} !~ /;|,/ && $attr->{LOCATION_ID} != 0)) {
+  if ($attr->{LOCATION_ID} && ($attr->{LOCATION_ID} !~ /;|,/xm && $attr->{LOCATION_ID} != 0)) {
     my $full_address = $Address->build_list({
       LOCATION_ID => $attr->{LOCATION_ID},
       DISTRICT_ID => '_SHOW',
@@ -1396,13 +1427,13 @@ sub form_address_select {
         STREET_ID         => $street_id,
         EX_PARAMS         => ($attr->{DISTRICT_REQ} || '') . ' ' . 'onChange="GetStreets(this)"',
         FULL_NAME         => 1,
-        ONLY_WITH_STREETS => 1
+        # ONLY_WITH_STREETS => 1
       })
     }, { OUTPUT2RETURN => 1 });
   }
   else {
     $district_select = sel_districts_full_path({ %FORM, %{$attr},
-      DISTRICT_ID => $attr->{DISTRICT_ID},
+      DISTRICT_ID => $attr->{DISTRICT_ID} || $FORM{DISTRICT_ID},
       SELECT_ID   => $district_id,
       SELECT_NAME => $district_select_name,
       STREET_ID   => $street_id
@@ -1411,7 +1442,7 @@ sub form_address_select {
 
   my $street_select = sel_streets({ %FORM, %{$attr},
     MAIN_MENU   => undef,
-    EX_PARAMS   => 'onChange="GetBuilds(this)" ' . ($attr->{STREET_REQ} || ''),
+    EX_PARAMS   => $attr->{STREET_EX_PARAMS} || 'onChange="GetBuilds(this)" ' . ($attr->{STREET_REQ} || ''),
     SELECT_NAME => $street_select_name,
     SELECT_ID   => $street_id,
     SEL_OPTIONS => { '' => '--' },
@@ -2001,7 +2032,6 @@ sub form_building_statuses {
 
   $html->tpl_show(templates('form_building_status'), $Address) if ($FORM{add_form});
 
-  my $admins_list;
   result_former({
     INPUT_DATA      => $Address,
     FUNCTION        => 'building_status_list',
@@ -2035,6 +2065,174 @@ sub form_building_statuses {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 form_address_territorial_units($attr)
+
+=cut
+#**********************************************************
+sub form_address_territorial_units {
+
+  $Address->{ACTION} = 'add';
+  $Address->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{change}) {
+    $Address->territorial_units_change(\%FORM);
+
+    if (!$Address->{errno}) {
+      $html->message('info', $lang{TERRITORIAL_UNITS}, $lang{CHANGED});
+    }
+  }
+  elsif ($FORM{chg}) {
+    $Address->territorial_units_info({ ID => $FORM{chg} });
+
+    if (!$Address->{errno}) {
+      $Address->{ACTION} = 'change';
+      $Address->{LNG_ACTION} = $lang{CHANGE};
+      $FORM{add_form} = 1;
+    }
+  }
+
+  if ($FORM{add_form}) {
+    $Address->{TERRITORIAL_UNITS_SEL} = sel_territorial_units_full_path({
+      TERRITORIAL_UNIT_ID          => $Address->{PARENT_ID},
+      SELECTED                     => $Address->{PARENT_ID},
+      TERRITORIAL_UNITS_IDENTIFIER => 'PARENT_ID'
+    });
+    $html->tpl_show(templates('form_territorial_units'), $Address);
+  }
+
+  result_former({
+    INPUT_DATA      => $Address,
+    FUNCTION        => 'territorial_units_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,CODE,TYPE_CODE,LEVEL',
+    FUNCTION_FIELDS => 'change',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id         => '#',
+      name       => $lang{NAME},
+      code       => $lang{CODE},
+      type_code  => $lang{TYPE},
+      level      => $lang{LEVEL},
+    },
+    TABLE           => {
+      caption => $lang{TERRITORIAL_UNITS},
+      qs      => $pages_qs,
+      ID      => 'BUILDING_STATUSES_LIST',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 sel_territorial_units_full_path($attr)
+
+=cut
+#**********************************************************
+sub sel_territorial_units_full_path {
+  my ($attr) = @_;
+
+  my $territorial_unit_id = $attr->{TERRITORIAL_UNIT_ID} || 0;
+  my $parent_id = $territorial_unit_id;
+  my $parent_info = {};
+  my %Address_old = %$Address;
+  my @selects = ();
+  my $select_id = $attr->{SELECT_ID} || 'TERRITORIAL_UNITS_SEL';
+
+  while ($parent_id) {
+    my $address_sel = sel_territorial_units({
+      %{$attr || {}},
+      PARENT_ID           => $parent_id,
+      TERRITORIAL_UNIT_ID => $parent_info->{ID},
+      SELECT_ID           => "$select_id$parent_id",
+      SELECT_NAME         => 'TERRITORIAL_UNITS_SEL'
+    });
+
+    my $total_districts = $Address->{TOTAL};
+
+    $parent_info = $Address->territorial_units_info({ ID => $parent_id });
+
+    last if !defined $parent_info->{PARENT_ID} || $parent_id eq $parent_info->{PARENT_ID};
+    $parent_id = $parent_info->{PARENT_ID};
+
+    next if $total_districts < 1;
+
+    my $col_body = $html->element('div', $address_sel, { OUTPUT2RETURN => 1 });
+    my $col8 = $html->element('div', $col_body, { class => 'col-md-8', OUTPUT2RETURN => 1 });
+    my $label = $html->element('label', '', { class => 'col-sm-3 col-md-4 col-form-label text-md-right', OUTPUT2RETURN => 1 });
+    my $row = $html->element('div', join('', ($label, $col8)), { class => 'form-group row territorial-units-subselect', OUTPUT2RETURN => 1 });
+
+    push @selects, $row;
+  }
+
+  $parent_id //= '';
+  my $root_sel = sel_territorial_units({
+    %{$attr || {}},
+    PARENT_ID           => 0,
+    TERRITORIAL_UNIT_ID => $parent_info->{ID} || $attr->{SELECTED},
+    SELECT_ID           => "$select_id$parent_id",
+    SELECT_NAME         => 'TERRITORIAL_UNITS_SEL'
+  });
+
+  %$Address = %Address_old;
+
+  return $html->tpl_show(templates('form_territorial_units_sel'), {
+    TERRITORIAL_UNITS_SEL               => $html->element('div', $root_sel, { OUTPUT2RETURN => 1 }),
+    TERRITORIAL_UNITS_IDENTIFIER        => $attr->{TERRITORIAL_UNITS_IDENTIFIER} || 'TERRITORIAL_UNITS_ID',
+    TERRITORIAL_UNITS_SELECTED          => $territorial_unit_id || '',
+    DISTRICT_EVENT_ID                   => $select_id,
+    ADDRESS_TERRITORIAL_UNITS_SUBSELECT => join('', reverse @selects),
+    TERRITORIAL_UNITS_LABEL             => $lang{TERRITORIAL_UNITS},
+  }, { OUTPUT2RETURN => 1 });
+}
+
+
+#**********************************************************
+=head2 sel_territorial_units($attr)
+
+=cut
+#**********************************************************
+sub sel_territorial_units {
+  my ($attr) = @_;
+
+  $attr ||= {};
+  $attr->{SELECT_ID} ||= 'TERRITORIAL_UNIT_ID';
+  $attr->{SELECT_NAME} ||= 'TERRITORIAL_UNIT_ID';
+  $attr->{TERRITORIAL_UNIT_ID} =~ s/,/;/xg if ($attr->{TERRITORIAL_UNIT_ID});
+
+  my $territorial_units = $Address->territorial_units_list({
+    PARENT_ID   => $attr->{PARENT_ID},
+    NAME        => '_SHOW',
+    CODE        => '_SHOW',
+    ID          => $attr->{ID} || '_SHOW',
+    PAGE_ROWS   => 10000,
+    COLS_NAME   => 1
+  });
+
+
+  my %territorial_units_hash = ();
+  foreach my $unit (@{$territorial_units}) {
+    $territorial_units_hash{$unit->{id}} = $unit->{name} . ($unit->{code} ? " [$unit->{code}]" : '');
+  }
+
+  return $html->form_select($attr->{SELECT_NAME}, { %{$attr},
+    SELECTED    => $attr->{TERRITORIAL_UNIT_ID},
+    SEL_HASH    => \%territorial_units_hash,
+    SEL_VALUE   => 'name',
+    SEL_OPTIONS => { '' => '--' },
+    NO_ID       => 1,
+    ID          => $attr->{SELECT_ID},
+    EX_PARAMS   => $attr->{EX_PARAMS} || '',
+    SELECT_ID   => $attr->{SELECT_ID},
+    class       => 'nested-selector-TERRITORIAL_UNITS_SEL'
+  });
 }
 
 1;

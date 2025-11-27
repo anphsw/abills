@@ -3,8 +3,8 @@
         document.storage_logs.submit();
 	}	
 </script>
-<form action=$SELF_URL?index=$index\&add_order=1  name='storage_logs' method=POST >
-<input type=hidden name=index value=$index>
+<form action=%SELF_URL%?index=%index%\&add_order=1  name='storage_logs' method=POST >
+<input type=hidden name=index value=%index%>
 <input type=hidden name=ID value=%ID%>
 <input type=hidden name=INCOMING_ID value=%INCOMING_ID%>
 <input type=hidden name='type' value='prihod2'>

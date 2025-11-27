@@ -2,7 +2,7 @@
   <form action='%SELF_URL%' name=user class='form form-horizontal'>
     <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=index value='%index%'>
-    <input type=hidden name=subf value='$FORM{subf}'>
+    <input type=hidden name=subf value='%FORM{subf}%'>
     <div class='card card-primary card-outline card-form'>
       <div class='card-header with-border'>
         <h4 class='card-title'>_{FEES}_ _{TYPES}_</h4>
@@ -64,9 +64,7 @@
         <div class='form-group row'>
           <label class='col-md-3 control-label' for='SUBCONTO'>_{SUBCONTO}_ 1:</label>
           <div class='col-md-9'>
-            <div class='input-group'>
-              <input type='text' class='form-control' ID='SUBCONTO' name='SUBCONTO' value='%SUBCONTO%'>
-            </div>
+            %CODE_SUBCONTO_SEL%
           </div>
         </div>
 

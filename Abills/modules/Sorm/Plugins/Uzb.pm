@@ -7,9 +7,11 @@ package Sorm::Plugins::Uzb;
 =head1 DOCS
 
   Arg:
-    START - full uploading from the begining (START=1)
-    DATE - date uploading (previous date is by default). Format DATE=YYYY-MM-DD
-    DEBUG
+    START - full uploading from the begining. Example: START=1
+    DATE - date uploading (previous date is by default). Format: DATE=YYYY-MM-DD
+    TIME - time uploading. Using with DATE argument from time to time. Format: TIME=HH:MM-HH:MM
+    DEBUG - 2..8
+    FILES - uploading files. Example: FILES='ABONENT,PAYMENT'
 
   Execute:
   /usr/abills/libexec/billd sorm TYPE=Uzb
@@ -18,8 +20,8 @@ package Sorm::Plugins::Uzb;
 
 =head1 VERSION
 
-  VERSION: 1.13
-  UPDATED: 20240902
+  VERSION: 1.17
+  UPDATED: 20251028
 
 =cut
 
@@ -34,24 +36,28 @@ use Abills::Base qw(in_array ip2int int2ip);
 my ($User, $Company, $Internet, $Sessions, $Nas, $Traffic, $debug);
 my Payments $Payments;
 
-my $begin_date = '2015-01-01';
-my $end_date = '2049-12-31';
+my $begin_date = '2020-01-01';
 my $t = localtime;
 my $upload_t = $t - 86400;
+my $today = localtime->strftime('%Y-%m-%d');
 
 my $year  = sprintf("%04d", $t->year());
 my $month = sprintf("%02d", $t->mon());
 my $day   = sprintf("%02d", $t->mday());
-my $hour  = 23;
-my $min   = 59;
+my $time_start  = '00:00:00';
+my $time_end  = '23:59:00';
 
 my $upload_year = sprintf("%04d", $upload_t->year());
 my $upload_month = sprintf("%02d", $upload_t->mon());
 my $upload_day = sprintf("%02d", $upload_t->mday());
 my $upload_date = "$upload_year-$upload_month-$upload_day";
 
-my $sufix = $upload_year . $upload_month . $upload_day . "_" . $hour . $min . ".txt";
+my $upload_date_int = $upload_year . $upload_month . $upload_day;
+my $time_end_int = $time_end;
+$time_end_int =~ s/^(\d{2}):(\d{2}):\d{2}$/$1$2/xm;
+
 my $sorm_id = '';
+my $local_path = '';
 my %reports = ();
 
 #**********************************************************
@@ -72,6 +78,10 @@ sub new {
 
   bless($self, $class);
 
+  $User = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
+  $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
+
   $debug = $self->{debug} || 0;
 
   $self->init();
@@ -87,92 +97,126 @@ sub new {
 sub init {
   my $self = shift;
 
-  $User = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Company = Companies->new($self->{db}, $self->{admin}, $self->{conf});
-  $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-  $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
-  $Payments = Finance->payments($self->{db}, $self->{admin}, $self->{conf});
-  $Nas = Nas->new($self->{db}, $self->{admin}, $self->{conf});
-  $Traffic = Internet::Collector->new($self->{db}, $self->{conf});
-
   my $argv = $self->{argv};
   $sorm_id = $self->{conf}->{SORM_ISP_ID};
+  $local_path = ($self->{conf}->{SORM_SERVER_DIR_LOCAL}) ? $self->{conf}->{SORM_SERVER_DIR_LOCAL} : $main::var_dir;
 
   if (!$sorm_id){
-    print "Please add REGION_ID to \$conf{SORM_ISP_ID} in config.pl \n";
+    print "\e[31m Please add REGION_ID to \$conf{SORM_ISP_ID} in config.pl \e[0m\n";
     return 1;
   }
 
   if ($argv->{START}) {
-    mkdir($main::var_dir . '/sorm/');
-    mkdir($main::var_dir . '/sorm/UZB/');
-    mkdir($main::var_dir . '/sorm/UZB/' . $sorm_id);
+    mkdir($local_path . 'sorm/');
+    mkdir($local_path . 'sorm/' . $sorm_id);
   }
 
   if ($argv->{DATE}){
-    if ($argv->{DATE} =~ /(\d{4})\-(\d{2})\-(\d{2})/) {
+    if ($argv->{DATE} =~ /(\d{4})\-(\d{2})\-(\d{2})/xm) {
       $upload_date = $argv->{DATE};
       my $sufix_date = $argv->{DATE};
       $sufix_date =~ s/\-//g;
-      $sufix = $sufix_date . "_" . $hour . $min . ".txt";
+      $upload_date_int = $sufix_date;
     }
     else {
-      print "Please specify argument DATE in correct format: DATE=YYYY-MM-DD \n";
+      print "\e[31m Please specify argument DATE in correct format: DATE=YYYY-MM-DD \e[0m\n";
       return 1;
     }
+  }
+
+
+  if ($argv->{TIME} && $argv->{DATE}){
+    # check time format HH:MM-HH:MM
+    if ($argv->{TIME} =~ /\A((?:[01]\d|2[0-3]):[0-5]\d)-((?:[01]\d|2[0-3]):[0-5]\d)\z/xm) {
+      $time_start = $1.':00';
+      $time_end = $2.':00';
+      $time_end_int = $2;
+      $time_end_int =~ s/://xm;
+    }
+    else {
+      print "\e[31m Please specify argument TIME in correct format: TIME=HH:MM-HH:MM \e[0m\n";
+      return 1;
+    }
+  }
+  elsif ($argv->{TIME} && !$argv->{DATE}){
+    print "\e[31m Please specify argument DATE\e[0m\n";
+    return 1;
   }
 
   if (!$argv->{START}){
     $begin_date = $upload_date;
   }
 
-  print "Upload period: $begin_date/$upload_date\n" if ($debug);
-
-  # ABONENT
-  my $users_list = $User->list({
-    REGISTRATION_FROM_REGISTRATION_TO => "$begin_date/$upload_date",
-    DELETED       => 0,
-    REGISTRATION  => '_SHOW',
-    DISABLE       => 0,
-    COLS_NAME     => 1,
-    PAGE_ROWS     => 99999,
-  });
-
-  print "Users: $User->{TOTAL}\n" if ($debug > 1);
-
-  _add_header('ABONENT');
-
-  foreach my $u (@$users_list) {
-    $self->ABONENT_report($u->{uid});
+  if (!$argv->{FILES}){
+    $argv->{FILES} = 'ABONENT,PAYMENT,CONNECTION,BASE_STATION,NAT';
   }
 
-  # PAYMENT
-  my $payments = $Payments->list({
-    ID        => '_SHOW',
-    FROM_DATE => $begin_date,
-    TO_DATE   => $upload_date,
-    SORT      => 'id',
-    DESC      => 'DESC',
-    COLS_NAME => 1,
-    PAGE_ROWS => 99999,
-});
+  my $users_exception_by_tags = ($self->{conf}->{SORM_USERS_EXCEPTION_TAGS}) ? $self->{conf}->{SORM_USERS_EXCEPTION_TAGS} : '';
 
-  print "Payments: $Payments->{TOTAL}\n" if ($debug > 1);
+  print "Uploading period: $begin_date $time_start/$upload_date $time_end\n" if ($debug);
 
-  _add_header("PAYMENT");
+  if ($argv->{FILES} =~ /ABONENT/xm){
+    _add_header('ABONENT');
+    $Company = Companies->new($self->{db}, $self->{admin}, $self->{conf});
 
-  foreach my $p (@$payments) {
-    $self->PAYMENT_report($p->{id});
+    my $users_list = $User->list({
+      REGISTRATION_FROM_REGISTRATION_TO => "$begin_date/$upload_date",
+      DELETED       => 0,
+      REGISTRATION  => '_SHOW',
+      DISABLE       => 0,
+      TAGS          => $users_exception_by_tags,
+      TAG_SEARCH_VAL=> 2,
+      COLS_NAME     => 1,
+      PAGE_ROWS     => 99999,
+    });
+
+    print "Users: $User->{TOTAL}\n" if ($debug > 1);
+
+    foreach my $u (@$users_list) {
+      $self->ABONENT_report($u->{uid});
+    }
   }
 
-  _add_header('CONNECTION');
-  $self->CONNECTION_report();
+  if ($argv->{FILES} =~ /PAYMENT/xm) {
+    _add_header("PAYMENT");
+    $Payments = Finance->payments($self->{db}, $self->{admin}, $self->{conf});
 
-  _add_header('BASE_STATION');
-  $self->BASE_STATION_report();
+    my $payments = $Payments->list({
+      ID             => '_SHOW',
+      LOGIN          => '_SHOW',
+      FROM_DATE_TIME => $begin_date.' '.$time_start,
+      TO_DATE_TIME   => $upload_date.' '.$time_end,
+      TAGS           => $users_exception_by_tags,
+      TAG_SEARCH_VAL => 2,
+      SORT           => 'id',
+      DESC           => 'DESC',
+      COLS_NAME      => 1,
+      PAGE_ROWS      => 99999,
+    });
 
-  _add_header('NAT');
-  $self->NAT_report();
+    print "Payments: $Payments->{TOTAL}\n" if ($debug > 1);
+
+    foreach my $p (@$payments) {
+      $self->PAYMENT_report($p->{id});
+    }
+  }
+
+  if ($argv->{FILES} =~ /CONNECTION/xm) {
+    _add_header('CONNECTION');
+    $self->CONNECTION_report();
+  }
+
+  if ($argv->{FILES} =~ /BASE_STATION/xm) {
+    _add_header('BASE_STATION');
+    $Nas = Nas->new($self->{db}, $self->{admin}, $self->{conf});
+    $self->BASE_STATION_report();
+  }
+
+  if ($argv->{FILES} =~ /NAT/xm) {
+    _add_header('NAT');
+    $Traffic = Internet::Collector->new($self->{db}, $self->{conf});
+    $self->NAT_report();
+  }
 
   $self->send();
 
@@ -185,8 +229,7 @@ sub init {
 =cut
 #**********************************************************
 sub ABONENT_report {
-  my $self = shift;
-  my ($uid) = @_;
+  my ($self, $uid) = @_;
 
   $User->info($uid);
   if ($User->{errno}) {
@@ -198,7 +241,7 @@ sub ABONENT_report {
   $Company->info($User->{COMPANY_ID});
 
   my ($family, $name, $surname) = ($User->{FIO}, $User->{FIO2}, $User->{FIO3});
-  ($family, $name, $surname) = split(' ', $User->{FIO}) if (!$name || !$surname);
+  ($family, $name, $surname) = split(' ', $User->{FIO}) if ($User->{FIO} && !$name || $User->{FIO} && !$surname);
 
   my @arr = ();
 
@@ -211,7 +254,7 @@ sub ABONENT_report {
   $arr[6] = ($User->{COMPANY_ID} > 0) ? $Company->{BANK_NAME}    : '';         # BANK
   $arr[7] = ($User->{COMPANY_ID} > 0) ? $Company->{BANK_ACCOUNT} : '';         # BANK_ACCOUNT
   $arr[8] = $User->{FIO} || q{};                     # UNSTRUCT_NAME
-   $arr[8] =~ s/[\"\'<>]+//g;
+  $arr[8] =~ s/[\"\'<>]+//g;
   $arr[9] = ($User->{BIRTH_DATE} && $User->{BIRTH_DATE} ne '0000-00-00') ? $User->{BIRTH_DATE} : q{};  # BIRTH_DAY
   $arr[10] = 'паспорт';                              # IDENT_CARD_TYPE_ID
 
@@ -220,7 +263,7 @@ sub ABONENT_report {
   my $passport_grant = $User->{PASPORT_GRANT} || q{};
   $passport_grant =~ s/\n//g if ($passport_grant);
   $passport_grant =~ s/\r//g if ($passport_grant);
-  my $passport_date = ($User->{PASPORT_DATE} ne '0000-00-00') ? $User->{PASPORT_DATE} : '';
+  my $passport_date = ($User->{PASPORT_DATE} && $User->{PASPORT_DATE} ne '0000-00-00') ? $User->{PASPORT_DATE} : '';
 
   $arr[11] = "$passport $passport_grant $passport_date";                # IDENT_CARD_UNSTRUCT
 
@@ -269,8 +312,7 @@ sub ABONENT_report {
 =cut
 #**********************************************************
 sub PAYMENT_report {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   my $payment = $Payments->list({
     COLS_NAME => 1,
@@ -278,6 +320,7 @@ sub PAYMENT_report {
     METHOD    => '_SHOW',
     SUM       => '_SHOW',
     UID       => '_SHOW',
+    LOGIN     => '_SHOW',
     DSC       => '_SHOW',
     CURRENCY  => '_SHOW',
     ID        => $id,
@@ -335,8 +378,8 @@ sub CONNECTION_report {
     COLS_NAME       => 1,
     UID             => '_SHOW',
     LOGIN           => '_SHOW',
-    FROM_DATE       => $begin_date,
-    TO_DATE         => $upload_date,
+    FROM_DATE_TIME  => $begin_date.' '.$time_start,
+    TO_DATE_TIME    => $upload_date.' '.$time_end,
     START           => '_SHOW',
     END             => '_SHOW',
     SENT            => '_SHOW',
@@ -449,10 +492,17 @@ sub BASE_STATION_report {
 #**********************************************************
 sub NAT_report {
   my $self = shift;
+  my $table_date = '';
+
+  if ($upload_date ne $today){
+    $table_date = $upload_date;
+    $table_date =~ s/(\d{4})\-(\d{2})\-(\d{2})/_$1_$2_$3/xm;
+  }
 
   my $traffic_list = $Traffic->traffic_user_list({
-    FROM_DATE_START => $begin_date,
-    TO_DATE_START   => $upload_date,
+    FROM_DATE_TIME => $begin_date.' '.$time_start,
+    TO_DATE_TIME   => $upload_date.' '.$time_end,
+    TABLE_DATE     => $table_date,
     SRC_IP       => '_SHOW',
     SRC_PORT     => '_SHOW',
     DST_IP       => '_SHOW',
@@ -472,7 +522,7 @@ sub NAT_report {
     my $ip_in_internal_range = _check_internal_network($traffic->{src_addr});
 
     if ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP}){
-      next if ($ip_in_internal_range == 0);
+      # next if ($ip_in_internal_range == 0);
       my $user_internal_ip_int = $traffic->{src_addr};
       $user_internal_ip = int2ip($traffic->{src_addr});
       my $ip_pool = ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP});
@@ -494,20 +544,20 @@ sub NAT_report {
       }
     }
     else {
-    # PPTP (CID = internal IP)
+      # PPTP (CID = internal IP)
       my $cur_date = "$year-$month-$day";
       $user_external_ip = int2ip($traffic->{src_addr});
 
-      next if ($ip_in_internal_range == 1);
+      # next if ($ip_in_internal_range == 1);
 
       my $session_list = $Sessions->list({
-        COLS_NAME     => 1,
-        FROM_DATE     => $cur_date,
-        TO_DATE       => $cur_date,
-        CID           => '_SHOW',
-        IP            => $user_external_ip,
-        PAGE_ROWS     =>  1000,
-        DESC          => 'DESC',
+        FROM_DATE_TIME => $begin_date.' '.$time_start,
+        TO_DATE_TIME   => $upload_date.' '.$time_end,
+        CID            => '_SHOW',
+        IP             => $user_external_ip,
+        PAGE_ROWS      =>  1000,
+        DESC           => 'DESC',
+        COLS_NAME      => 1,
       });
 
       next if (!$session_list->[0]->{'cid'});
@@ -582,16 +632,16 @@ sub _add_report {
 =cut
 #**********************************************************
 sub _save_report {
-  my($type, $content)=@_;
+  my ($type, $content)=@_;
 
   print "$content\n" if ($debug > 5);
 
   %reports = (
-    ABONENT        => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
-    PAYMENT        => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
-    CONNECTION     => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
-    BASE_STATION   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    NAT            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    ABONENT        => $local_path."sorm/$sorm_id/$sorm_id"."_ABONENT_$upload_date_int"."_$time_end_int.txt",
+    PAYMENT        => $local_path."sorm/$sorm_id/$sorm_id"."_PAYMENT_$upload_date_int"."_$time_end_int.txt",
+    CONNECTION     => $local_path."sorm/$sorm_id/$sorm_id"."_CONNECTION_AAA_$upload_date_int"."_$time_end_int.txt",
+    BASE_STATION   => $local_path."sorm/$sorm_id/$sorm_id"."_BASE-STATION_$upload_date_int"."_$time_end_int.txt",
+    NAT            => $local_path."sorm/$sorm_id/$sorm_id"."_NAT_$upload_date_int"."_$time_end_int.txt",
   );
 
   my $filename = $reports{$type};
@@ -786,11 +836,11 @@ sub time2UTC {
 sub send {
   my $self = shift;
   %reports = (
-    ABONENT       => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
-    PAYMENT       => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
-    CONNECTION    => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
-    BASE_STATION  => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    NAT           => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    ABONENT       => $local_path."sorm/$sorm_id/$sorm_id"."_ABONENT_$upload_date_int"."_$time_end_int.txt",
+    PAYMENT       => $local_path."sorm/$sorm_id/$sorm_id"."_PAYMENT_$upload_date_int"."_$time_end_int.txt",
+    CONNECTION    => $local_path."sorm/$sorm_id/$sorm_id"."_CONNECTION_AAA_$upload_date_int"."_$time_end_int.txt",
+    BASE_STATION  => $local_path."sorm/$sorm_id/$sorm_id"."_BASE-STATION_$upload_date_int"."_$time_end_int.txt",
+    NAT           => $local_path."sorm/$sorm_id/$sorm_id"."_NAT_$upload_date_int"."_$time_end_int.txt",
   );
 
   for my $report (values %reports) {

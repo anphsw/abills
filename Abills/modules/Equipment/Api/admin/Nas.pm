@@ -126,7 +126,7 @@ sub get_equipment_nas_list_extra {
     delete $PARAMS{DOMAIN_NAME};
   }
 
-  my $result = $Equipment->_list({
+  my $result = $Equipment->list({
     %PARAMS
   });
 
@@ -518,7 +518,7 @@ sub post_equipment_nas_details {
     return $Errors->throw_error(1040001);
   }
 
-  my $result = $Equipment->_add({ %{$query_params}, NAS_ID => $nas_id });
+  my $result = $Equipment->add({ %{$query_params}, NAS_ID => $nas_id });
   return $result;
 }
 

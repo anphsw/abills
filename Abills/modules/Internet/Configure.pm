@@ -10,6 +10,7 @@ use Abills::Base qw(cmd in_array vars2lang);
 use Abills::Radius_Pairs;
 use Admins;
 require Control::System;
+require Control::Selects;
 
 our(
   $db,
@@ -32,7 +33,7 @@ my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 =cut
 #**********************************************************
 sub internet_tp {
-  internet_tp_clone() if $FORM{ADD_CLONE_TP};
+  internet_tp_clone() if ($FORM{ADD_CLONE_TP});
 
   $admin->{MODULE} = 'Internet';
 
@@ -53,18 +54,6 @@ sub internet_tp {
     2 => $lang{GUEST}
   );
 
-  my %bool_hash = (
-    0 => $lang{NO},
-    1 => $lang{YES}
-  );
-
-  my %tp_groups = ();
-
-  my $tp_groups_list = $Tariffs->tp_group_list({ COLS_NAME => 1 });
-  foreach my $line (@$tp_groups_list) {
-    $tp_groups{$line->{id}}=$line->{name};
-  }
-
   $tarif_info               = $Tariffs->defaults();
   $tarif_info->{LNG_ACTION} = $lang{ADD};
   $tarif_info->{ACTION}     = 'ADD_TP';
@@ -75,11 +64,6 @@ sub internet_tp {
 
   if ($FORM{ADD_TP}) {
     $FORM{TP_ID} = $FORM{CHG_TP_ID};
-    if ($FORM{create_fees_type}) {
-      my $Fees = Finance->fees($db, $admin, \%conf);
-      $Fees->fees_type_add({ NAME => $FORM{NAME}});
-      $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
-    }
 
     $Tariffs->add({ %FORM, MODULE => 'Internet' });
     if (!$Tariffs->{errno}) {
@@ -100,7 +84,7 @@ sub internet_tp {
 
     $pages_qs  .= "&TP_ID=$tarif_info->{TP_ID}";
 
-    if(!$pages_qs =~ /subf/) {
+    if(!$pages_qs =~ /subf/xm) {
       $pages_qs .= (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
     }
 
@@ -153,12 +137,6 @@ sub internet_tp {
       return 0;
     }
     elsif ($FORM{change}) {
-      if ($FORM{create_fees_type}) {
-        my $Fees = Finance->fees($db, $admin, \%conf);
-        $Fees->fees_type_add({ NAME => $FORM{NAME}});
-        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
-      }
-
       $Tariffs->change($FORM{TP_ID}, \%FORM);
       if (!$Tariffs->{errno}) {
         _internet_tariff_plan_gradients_action($FORM{TP_ID}, \%FORM);
@@ -218,12 +196,54 @@ sub internet_tp {
     $FORM{add_form}=1;
   }
 
+  my $tp_groups_list = $Tariffs->tp_group_list({ COLS_NAME => 1 });
+
   if ($FORM{add_form} || $FORM{chg}) {
     internet_tp_form($tarif_info, {
       OCTETS_DIRECTION => \%octets_direction,
-      PAYMENT_TYPES => \%payment_types,
-      TP_GROUPS_LIST => $tp_groups_list,
+      PAYMENT_TYPES    => \%payment_types,
+      TP_GROUPS_LIST   => $tp_groups_list,
     });
+  }
+
+  internet_tp_list({
+    OCTETS_DIRECTION => \%octets_direction,
+    PAYMENT_TYPES => \%payment_types,
+    TP_GROUPS_LIST => $tp_groups_list,
+  });
+
+  system_info();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_tp_list($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub internet_tp_list {
+  my ($attr) = @_;
+
+  my %bool_hash = (
+    0 => $lang{NO},
+    1 => $lang{YES}
+  );
+
+  my $octets_direction = $attr->{OCTETS_DIRECTION};
+  my $payment_types    = $attr->{PAYMENT_TYPES};
+  my $tp_groups_list   = $attr->{TP_GROUPS_LIST};
+
+  my %tp_groups = ();
+
+  foreach my $line (@$tp_groups_list) {
+    $tp_groups{$line->{id}}=$line->{name};
   }
 
   $LIST_PARAMS{NEW_MODEL_TP}=1;
@@ -248,13 +268,13 @@ sub internet_tp {
     active_month_fee        => $lang{ACTIVE_MONTH_FEE},
     postpaid_day_fee        => "$lang{DAY_FEE} $lang{POSTPAID}",
     month_fee               => $lang{MONTH_FEE},
-    postpaid_month_fee      => "$lang{MONTH_FEE} $lang{POSTPAID}",
+    postpaid_monthly_fee    => "$lang{MONTH_FEE} $lang{POSTPAID}",
     period_alignment        => $lang{MONTH_ALIGNMENT},
     abon_distribution       => $lang{ABON_DISTRIBUTION},
     fixed_fees_day          => $lang{FIXED_FEES_DAY},
     small_deposit_action    => $lang{SMALL_DEPOSIT_ACTION},
     reduction_fee           => $lang{REDUCTION},
-    fees_method             => "$lang{FEES} $lang{TYPE}",
+    # fees_method             => "$lang{FEES} $lang{TYPE}",
     ext_bill_fees_method    => "EXT_BILL $lang{FEES} $lang{TYPE}",
     day_time_limit          => "$lang{TIME_LIMIT} $lang{DAY}",
     week_time_limit         => "$lang{TIME_LIMIT} $lang{WEEK}",
@@ -297,7 +317,8 @@ sub internet_tp {
 
     describe_aid            => "$lang{DESCRIBE} ($lang{ADMIN})",
     status                  => $lang{STATUS},
-    module                  => $lang{MODULE}
+    module                  => $lang{MODULE},
+    fees_method_name        => "$lang{FEES} $lang{TYPE}"
   );
 
   $ext_titles{domain_id}='Domain ID' if($permissions{10});
@@ -320,8 +341,8 @@ sub internet_tp {
     SELECT_VALUE    => {
       time_tarifs      => \%bool_hash,
       traf_tarifs      => \%bool_hash,
-      payment_type     => \%payment_types,
-      octets_direction => \%octets_direction
+      payment_type     => $payment_types,
+      octets_direction => $octets_direction
     },
     TABLE           => {
       width        => '100%',
@@ -338,6 +359,7 @@ sub internet_tp {
     MODULE          => 'Internet',
   });
 
+  # TODO: Replace manual filtering with FILTER_VALUES
   foreach my $line (@$list) {
     my @function_fileds = (
       $html->button('', "index=". get_function_index('form_intervals') ."&TP_ID=$line->{tp_id}", { class => 'interval', TITLE => $lang{INTERVALS}, ADD_ICON =>' fa fa-align-left' }),
@@ -357,30 +379,34 @@ sub internet_tp {
     my @fields_array = ();
     for (my $i = 0; $i < 2+$Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
       my $col_name =  $Tariffs->{COL_NAMES_ARR}->[$i];
-      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day|popular|active_day_fee|active_month_fee/) {
-        $line->{$col_name} = $bool_hash{$line->{$col_name}};
+      my $val = $line->{$col_name};
+      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day|popular|active_day_fee|active_month_fee|postpaid_monthly_fee/xm) {
+        $val = $bool_hash{$val};
       }
-      elsif ($col_name =~ /small_deposit_action/) {
-        $line->{$col_name} = ($line->{$col_name} == -1) ? $lang{HOLD_UP} : ($tp_list->{$line->{$col_name}} || q{});
+      elsif ($col_name =~ /small_deposit_action/xm) {
+        $val = ($val == -1) ? $lang{HOLD_UP} : ($tp_list->{$val} || q{});
+      }
+      elsif ($col_name =~ /fees_method_name/xm) {
+        $val = _translate($val);
       }
       # elsif($col_name =~ /fees_method/) {
-      #   $line->{$col_name} = $fees_methods{$line->{$col_name}};
+      #   $val = $fees_methods{$val};
       # }
-      elsif($col_name =~ /name/) {
+      elsif($col_name =~ /name/xm) {
         $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}");
       }
-      elsif ($col_name =~ /payment_type/) {
-        $line->{$col_name} = $payment_types{$line->{$col_name}};
+      elsif ($col_name =~ /payment_type/xm) {
+        $val = $payment_types->{$val};
       }
       elsif ($col_name eq 'octets_direction') {
-        $line->{$col_name} = $octets_direction{$line->{$col_name}};
+        $val = $octets_direction->{$val};
       }
       elsif ($col_name eq 'tp_gid') {
-        $line->{$col_name} = $line->{$col_name} . ' : '
-          . (($tp_groups{$line->{$col_name}}) ? $tp_groups{$line->{$col_name}} : q{});
+        $val = $val . ' : '
+          . (($tp_groups{$val}) ? $tp_groups{$val} : q{});
       }
 
-      push @fields_array, $line->{$col_name};
+      push @fields_array, $val;
     }
     $table->addrow(
       @fields_array,
@@ -396,7 +422,7 @@ sub internet_tp {
   });
 
   print $table->show();
-  system_info();
+
   return 1;
 }
 
@@ -416,8 +442,8 @@ sub internet_tp_form {
   my ($tarif_info, $attr) = @_;
 
   my $octets_direction = $attr->{OCTETS_DIRECTION};
-  my $payment_types = $attr->{PAYMENT_TYPES};
-  my $tp_groups_list = $attr->{TP_GROUPS_LIST};
+  my $payment_types    = $attr->{PAYMENT_TYPES};
+  my $tp_groups_list   = $attr->{TP_GROUPS_LIST};
 
   $tarif_info->{SEL_OCTETS_DIRECTION} = $html->form_select('OCTETS_DIRECTION', {
     SELECTED => $tarif_info->{OCTETS_DIRECTION},
@@ -535,7 +561,7 @@ sub internet_tp_form {
     $tarif_info->{EXT_BILL_ACCOUNT} = '';
   }
 
-  $tarif_info->{NAME}=~ s/\\+/\\/g if $tarif_info->{NAME};
+  $tarif_info->{NAME}=~ s/\\+/\\/xg if $tarif_info->{NAME};
 
   if (in_array('Multidoms', \@MODULES) && $permissions{10}) {
     $tarif_info->{FORM_DOMAINS} = $html->tpl_show(templates('form_row'), {
@@ -633,21 +659,19 @@ sub internet_traffic_classes {
   $html->tpl_show(_include('internet_traffic_class', 'Internet'), $Tariffs);
 
   my $list  = $Tariffs->traffic_class_list({%LIST_PARAMS});
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{TRAFFIC_CLASS},
-      title      => [ '#', $lang{NAME}, 'NETS', $lang{COMMENTS}, $lang{CHANGED}, '-' ],
-      qs         => $pages_qs,
-      pages      => $Internet->{TOTAL},
-      ID         => 'INTERNET_TRAFFIC_CLASSES'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{TRAFFIC_CLASS},
+    title   => [ '#', $lang{NAME}, 'NETS', $lang{COMMENTS}, $lang{CHANGED}, '-' ],
+    qs      => $pages_qs,
+    pages   => $Internet->{TOTAL},
+    ID      => 'INTERNET_TRAFFIC_CLASSES'
+  });
 
   my $br = $html->br();
   foreach my $line (@$list) {
     if($line->[2]) {
-      $line->[2] =~ s/\n/$br/g;
+      $line->[2] =~ s/\n/$br/xg;
     }
 
     $table->addrow($line->[0],
@@ -883,9 +907,9 @@ sub geolocation_group_tp {
     my @builds = ();
     my @districts = ();
 
-    @streets = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
-    @builds = split(', ', $FORM{BUILD_ID}) if (defined $FORM{BUILD_ID});
-    @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
+    @streets = split(/,\s+/x, $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
+    @builds = split(/,\s+/x, $FORM{BUILD_ID}) if (defined $FORM{BUILD_ID});
+    @districts = split(/,\s+/x, $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
 
     $Tariffs->del_tp_geo({ TP_GID => $FORM{TP_GID} });
 
@@ -946,7 +970,7 @@ sub group_tp_user_groups {
   
   if ($FORM{change}) {
     $Tariffs->del_tp_group_users_groups({ TP_GID => $FORM{ID} });
-    for my $group (split(',\s?', $FORM{GID} ? $FORM{GID} : '')) {
+    for my $group (split(/,\s+/x, $FORM{GID} ? $FORM{GID} : '')) {
       $Tariffs->add_tp_group_users_groups({ TP_GID => $FORM{ID}, GID => $group });
     }
     $html->message('info', $lang{CHANGED}, "$lang{CHANGED} $lang{GROUPS}: $tp_name");
@@ -1007,15 +1031,10 @@ sub tp_radius_pairs_save {
 sub internet_tp_clone {
 
   if ($FORM{ADD_CLONE_TP}) {
-    my $clone_tp = $Tariffs->list({
-      TP_ID            => $FORM{INTERNET_TP_SELECT},
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME        => 1,
-      COLS_UPPER       => 1
-    });
-    return if !$Tariffs->{TOTAL};
+    my $clone_tp = $Tariffs->info($FORM{INTERNET_TP_SELECT});
+    return if (!$Tariffs->{TOTAL} || $Tariffs->{TOTAL} < 1);
 
-    _internet_tp_clone_add_tp($clone_tp->[0], \%FORM);
+    _internet_tp_clone_add_tp($clone_tp, \%FORM);
     return;
   }
 
@@ -1027,6 +1046,8 @@ sub internet_tp_clone {
       NEW_MODEL_TP => 1,
       COLS_NAME    => 1
     }),
+    SEL_VALUE    => 'name',
+    SEL_KEY      => 'tp_id',
     SELECTED => $FORM{TP_ID} || '',
   });
 
@@ -1099,7 +1120,7 @@ sub _internet_tp_clone_add_tp {
     $FORM{TP_ID} = $attr->{TP_ID};
 
     $html->message('info', "$lang{TARIF_PLAN} $lang{SUCCESSFULLY_CLONED}");
-    return;
+    return 1;
   }
 
   delete $clone_tp->{TP_ID};
@@ -1137,7 +1158,7 @@ sub _internet_tp_clone_add_tp {
   $FORM{TP_ID} = $new_tp->{TP_ID};
 
   $html->message('info', "$lang{TARIF_PLAN} $lang{SUCCESSFULLY_CLONED}");
-  return;
+  return q{};
 }
 
 #**********************************************************
@@ -1156,8 +1177,7 @@ sub _internet_tp_clone_add_tp {
 =cut
 #**********************************************************
 sub _internet_tariff_plan_gradients_action {
-  my $tp_id = shift;
-  my ($attr) = @_;
+  my ($tp_id, $attr) = @_;
 
   return if !$tp_id;
 

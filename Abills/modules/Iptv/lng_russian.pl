@@ -119,6 +119,35 @@ $lang{IPTV_ERROR_DEVICES_COUNT} = 'Превышено разрешенное к�
 $lang{IPTV_MONTHLY_REPORT} = 'Месячный отчет';
 $lang{IPTV_DAYS_OF_USE} = 'Дней использования';
 
-$lang{ERR_IPTV_DEL_ACTIVATED} = 'Прежде чем удалять службу, необходимо отключить ее';
+$lang{ERR_IPTV_DELETE_ACTIVATED_SERVICE} = 'Прежде чем удалять службу, необходимо отключить ее';
+$lang{ERR_IPTV_MISSING_TARIFF_PLAN_ID} = 'Не указан ID тарифного плана';
+$lang{ERR_IPTV_SERVICE_NOT_FOUND_OR_INACTIVE} = 'Служба не найдена или неактивна';
+$lang{ERR_IPTV_MISSING_UID} = 'Не указан ID пользователя (UID)';
+$lang{ERR_IPTV_SUBSCRIPTION_LIMIT_EXCEEDED} = 'Превышен лимит подписок';
+$lang{ERR_IPTV_USER_ALREADY_HAS_TARIFF_PLAN} = 'Пользователь уже имеет этот тарифный план';
+$lang{ERR_IPTV_USER_SERVICE_NOT_FOUND} = 'Сервис пользователя не найден';
+$lang{ERR_IPTV_ACCESS_DENIED} = 'Доступ запрещен';
+$lang{ERR_IPTV_TARIFF_PLAN_NOT_FOUND} = 'Тарифный план не найден';
+$lang{ERR_IPTV_TARIFF_PLAN_ALREADY_ACTIVATED} = 'Тарифный план уже активирован';
+$lang{ERR_IPTV_GETTING_USER_CHANNELS} = 'Ошибка при получении каналов пользователя';
+$lang{ERR_IPTV_GETTING_USER_SCREENS} = 'Ошибка при получении экранов пользователя';
+$lang{ERR_IPTV_INSUFFICIENT_FUNDS_TO_ACTIVATE_SERVICE} = 'Недостаточно средств для активации услуги';
+$lang{ERR_IPTV_NO_FIELD} = 'Отсутствует поле %FIELD%';
+$lang{ERR_IPTV_USER_PASSWORD_LENGTH_INCORRECT} = 'Длина пароль не совпадает с требуемой длиной';
+$lang{ERR_IPTV_MISSING_USER_SUBSCRIBE_ID} = 'Не указан ID подписки пользователя';
+$lang{ERR_IPTV_MISSING_MAC} = 'Не указан MAC-адрес устройства';
+$lang{ERR_IPTV_DEVICE_NOT_FOUND} = 'Устройство не найдено';
+$lang{ERR_IPTV_DEVICE_ALREADY_USES} = 'Устройство уже используется другим пользователем';
+$lang{ERR_IPTV_DEVICE_CID_DIFFERENT_TO_DEVICE_ID} = 'CID устройства не совпадает с ID устройства';
+
+$lang{IPTV_LAST_IP} = 'Последний IP-адрес';
+$lang{IPTV_LAST_AUTHORIZATION} = 'Последняя авторизация в сети';
+$lang{IPTV_FIRMWARE} = 'Прошивка';
+$lang{IPTV_DEVICE_TEMPERATURE} = 'Температура приставки';
+$lang{IPTV_ANDROID_VERSION} = 'Версия Android';
+$lang{IPTV_INSTALLED_APPS} = 'Установленные приложения';
+$lang{IPTV_NETWORK_TYPE} = 'Тип подключения к сети';
+$lang{IPTV_DISABLE_AUTO_UPDATE} = 'Отключение автоматического обновления';
+$lang{IPTV_REQUEST_SCREENSHOT} = 'Запрос скриншота';
 
 1;

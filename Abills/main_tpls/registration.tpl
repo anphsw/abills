@@ -74,7 +74,7 @@
   <script src='/styles/%HTML_STYLE%/js/select2.min.js'></script>
 
   <script>
-    var SELF_URL  = '$SELF_URL';
+    var SELF_URL  = '%SELF_URL%';
 
     var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
     var CURRENCY_ICON = '%CURRENCY_ICON%';

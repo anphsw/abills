@@ -1,4 +1,4 @@
-<form method='GET' action='$SELF_URL' class='form-horizontal'>
+<form method='GET' action='%SELF_URL%' class='form-horizontal'>
     <input type='hidden' name='index' value='%INDEX%'>
     <!--<input type='hidden' name='chg_device' value='1'>-->
     <input type='hidden' name='chg' value='%CHG%'>
@@ -17,7 +17,7 @@
     </div>
 </form>
 
-<form method='GET' action='$SELF_URL' class='form-horizontal'>
+<form method='GET' action='%SELF_URL%' class='form-horizontal'>
     <input type='hidden' name='index' value='%INDEX%'>
     <!--<input type='hidden' name='chg_device' value='1'>-->
     <input type='hidden' name='chg' value='%CHG%'>

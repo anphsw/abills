@@ -1,10 +1,10 @@
-<form class='form-horizontal' action='$SELF_URL' method='post' role='form' id='form_admin_access'>
+<form class='form-horizontal' action='%SELF_URL%' method='post' role='form' id='form_admin_access'>
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{ACCESS}_</h3>
     </div>
     <div class='card-body'>
-      <input type=hidden name='index' value='$index'>
+      <input type=hidden name='index' value='%index%'>
       <input type=hidden name='AID' value='%AID%'>
       <input type=hidden name='ID' value='$FORM{chg}'>
       <input type=hidden name='subf' value='$FORM{subf}'>

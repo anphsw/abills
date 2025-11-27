@@ -57,19 +57,19 @@ else {
 
 =cut
 #**********************************************************
-sub get_doc  {
+sub get_doc {
   my ($attr) = @_;
 
   my $doc_url = q{};
 
   if ($attr->{CONF}) {
-    $attr->{WORD}=$attr->{CONF};
-    $attr->{WORD} =~ s/$attr->{WORD}/\$conf{$attr->{WORD}}/g;
+    $attr->{WORD} = $attr->{CONF};
+    $attr->{WORD} =~ s/$attr->{WORD}/\$conf{$attr->{WORD}}/xg;
   }
 
-  if ($attr->{WORD} =~ /on\s+page|\$/) {
-    $attr->{WORD} .= ' ' if ($attr->{WORD} !~ /\$/);
-    $attr->{WORD} =~ s/\s+on\s+page\s+//g;
+  if ($attr->{WORD} =~ /on\s+page|\$/xm) {
+    $attr->{WORD} .= ' ' if ($attr->{WORD} !~ /\$/xm);
+    $attr->{WORD} =~ s/\s+on\s+page\s+//xg;
     $doc_url = "$main_url/rest/api/content/search?limit=500&cql=text~'$attr->{WORD}'";
   }
   else {
@@ -99,7 +99,7 @@ sub get_doc  {
     $count++;
     my $link = $result->{_links}->{webui};
     $text .= "$result->{title} URL: $main_url$link\n";
-    if($attr->{WORD} =~ /\$/ ) {
+    if ($attr->{WORD} =~ /\$/xm) {
       if (parse_page($main_url . $link, $attr->{WORD})) {
         return 1;
       }
@@ -123,8 +123,8 @@ sub get_doc  {
 
 =cut
 #**********************************************************
-sub parse_page  {
-  my ($page, $word)=@_;
+sub parse_page {
+  my ($page, $word) = @_;
   my $result = q{};
 
   my $Ua = LWP::UserAgent->new(
@@ -145,13 +145,18 @@ sub parse_page  {
   my $context = $response->{_content};
 
   #$word = '\$conf{dbhost}';
-  $word =~ s/\$/\\\$/g;
+  $word =~ s/\$/\\\$/xg;
   #print "- $word -";
-  $context =~ s/<br\/>/ /ig;
-  if ($context =~ />$word\s?=\s?([a-z0-9'"\_@\,]+);<\/th><td class=\"confluenceTd\">([\W\_\-\.\,0-9\(\)\s]+)<\/td><\/tr>/ig
-    || $context =~ />$word\s?=\s?([a-z0-9'"\_@\,]+);<\/th><td class=\"confluenceTd\">(.+)<\/td><\/tr><tr/ig
-    || $context =~ />$word\s?=\s?([a-z0-9'"\_@\,]+);<\/th><td class=\"confluenceTd\">(.+)<\/td><\/tr>/ig ) {
-    $result   = $2;
+  $context =~ s/<br\/>/ /xig;
+
+  my $get_varieble_dsc_expr = << 'EXPR';
+>$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">([\W\_\-\.\,0-9\(\)\s]+)<\/td><\/tr>
+ | >$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">(.+)<\/td><\/tr><tr
+ | >$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">(.+)<\/td><\/tr>
+EXPR
+
+  if ($context =~ /$get_varieble_dsc_expr/mxig) {
+    $result = $2;
     my $value = $1;
 
     print " Value: $value \n Describe: $result\n URL: $page\n";

@@ -12,7 +12,7 @@ use warnings FATAL => 'all';
 BEGIN {
   use FindBin '$Bin';
   our $libpath = $Bin . '/../';
-  our %conf;
+  #our %conf;
   do $Bin . '/config.pl';
 
   unshift(@INC,
@@ -31,7 +31,7 @@ BEGIN {
   # }
 }
 
-my $version = 0.82;
+my $version = 0.84;
 my $debug = 0;
 our (
   $db,
@@ -47,7 +47,7 @@ our (
 use Abills::Defs;
 use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff gen_time next_month date_format);
 use Abills::Templates;
-use Abills::Misc;
+require Abills::Misc;
 use Abills::Loader qw(load_plugin);
 use Admins;
 use Shedule;
@@ -95,19 +95,15 @@ if ($html->{language} ne 'english') {
 do $Bin . "/../language/$html->{language}.pl";
 do $Bin . "/../Abills/modules/Ureports/lng_$html->{language}.pl";
 
-#my %FORM_BASE      = ();
-#my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}");
-#my @service_type   = ("E-mail", "SMS", "Fax");
+template_init({
+  LIBPATH => $libpath,
+  ADMIN   => $admin,
+  HTML    => $html,
+  LANG    => \%lang,
+  CONF    => $Conf
+});
 
-#my %REPORTS        = (
-#  1 => "$lang{DEPOSIT_BELOW}",
-#  2 => "$lang{PREPAID_TRAFFIC_BELOW}",
-#  3 => "$lang{TRAFFIC_BELOW}",
-#  4 => "$lang{MONTH_REPORT}",
-#);
 my %SERVICE_LIST_PARAMS = ();
-
-#Arguments
 my $argv = parse_arguments(\@ARGV);
 
 if (defined($argv->{help})) {
@@ -148,6 +144,17 @@ sub ureports_periodic_reports {
   }
 
   $SERVICE_LIST_PARAMS{LOGIN} = $argv->{LOGIN} if ($argv->{LOGIN});
+  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
+  $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
+  my ($Y, $M, $D) = split('-', $ADMIN_REPORT{DATE}, 3);
+
+  if ($conf{UREPORTS_DAYS_TO_PERIOD}) {
+    my $days_In_month = days_in_month({ DATE => "$Y-$M-01" });
+    if ($days_In_month - $D  != $conf{UREPORTS_DAYS_TO_PERIOD}) {
+      print "Wrong day: $D - $days_In_month != $conf{UREPORTS_DAYS_TO_PERIOD}" if ($debug > 1);
+      return 1;
+    }
+  }
 
   $Tariffs->{debug} = 1 if ($debug > 6);
   my $list = $Tariffs->list({
@@ -161,9 +168,6 @@ sub ureports_periodic_reports {
     COLS_NAME        => 1
   });
 
-  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
-  my ($Y, $M, $D) = split('-', $ADMIN_REPORT{DATE}, 3);
   #my $reports_type = 0;
   my $sended_messages = 0;
 
@@ -205,7 +209,9 @@ sub ureports_periodic_reports {
       $user->{TP_ID} = $tp->{tp_id};
       my $internet_status = $user->{INTERNET_STATUS} || 0;
       #Skip disabled user
-      next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
+      if (! in_array('Triplay', \@MODULES)) {
+        next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
+      }
       $user->{VALUE} =~ s/,/\./xs;
 
       if (!$user->{DESTINATION_ID}) {
@@ -231,42 +237,10 @@ sub ureports_periodic_reports {
 
       # Recomended payments
       my $total_daily_fee = 0;
-      $user->{RECOMMENDED_PAYMENT} = 0;
-
-      my $service_info = get_services({
-        UID           => $user->{UID},
-        REDUCTION     => $user->{REDUCTION},
-        SKIP_DISABLED => 1,
-        PAYMENT_TYPE  => 0
-      },
-        { SKIP_MODULES => 'Ureports,Sqlcmd' }
-      );
-
-      $user->{TP_MONTH_FEE}=0;
-      foreach my $service (@{$service_info->{list}}) {
-        $user->{RECOMMENDED_PAYMENT} += $service->{SUM};
-        $user->{TP_MONTH_FEE} += $service->{MONTH};
-      }
-
-      if ($service_info->{distribution_fee}) {
-        $total_daily_fee = $service_info->{distribution_fee};
-      }
+      $user->{RECOMMENDED_PAYMENT} = recomended_pay($user);
+      $user->{TP_MONTH_FEE} = 0;
 
       $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
-
-      if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
-        $user->{RECOMMENDED_PAYMENT} = sprintf("%.2f",
-          ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} > 0) ? ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} + 0.01) : 0);
-      }
-      else {
-        $user->{RECOMMENDED_PAYMENT} += sprintf("%.2f", abs($user->{DEPOSIT} + $user->{CREDIT}));
-      }
-
-      if ($conf{UREPORTS_ROUNDING} && $user->{RECOMMENDED_PAYMENT} > 0) {
-        if (int($user->{RECOMMENDED_PAYMENT}) < $user->{RECOMMENDED_PAYMENT}) {
-          $user->{RECOMMENDED_PAYMENT} = int($user->{RECOMMENDED_PAYMENT} + 1);
-        }
-      }
 
       $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
       $user->{EXPIRE_DAYS} = 0;
@@ -346,7 +320,9 @@ sub ureports_periodic_reports {
             $PARAMS{'REST_DIMENSION_' . ($line->{traffic_class} || 0)} = int2byte($rest);
             $PARAMS{'PREPAID_' . ($line->{traffic_class} || 0)} = $line->{prepaid} || 0;
 
-            if ($rest < $user->{VALUE}) {
+            my $user_value = $user->{VALUE} || 0;
+
+            if ($rest < $user_value ) {
               $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n"
                 . "$lang{END}: $line->{interval_end}\n"
                 . "$lang{TOTAL}: $line->{prepaid}\n"

@@ -23,8 +23,8 @@
   }
 </style>
 
-<form method='POST' action='$SELF_URL'>
-  <input type='hidden' name='index' value='$index'>
+<form method='POST' action='%SELF_URL%'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='sid' value='$FORM{sid}'>
   <input type='hidden' name='recharge' value='$FORM{recharge}'>
   <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>

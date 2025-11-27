@@ -2,7 +2,7 @@
   <div class='card-header with-border'><h4 class='card-title'>_{SERVICE}_</h4></div>
   <div class='card-body'>
     <form name='sysinfo_services' id='form_sysinfo_services' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
       <input type='hidden' name='ID' value='%ID%'/>
       <input type='hidden' name='SERVER_ID' value='%SERVER_ID%'/>

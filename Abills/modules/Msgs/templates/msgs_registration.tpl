@@ -1,5 +1,5 @@
 <FORM action='%SELF_URL%' METHOD='POST' ID='REGISTRATION'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
   <input type='hidden' name='module' value='Msgs'>
 

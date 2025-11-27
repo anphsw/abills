@@ -1,0 +1,22 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: integer
+      example: 10
+    streetId:
+      type: integer
+      example: 10
+    streetName:
+      type: string
+      example: ул.Цэемовская
+    secondName:
+      type: string
+      example: ул.Потужна
+    districtId:
+      type: integer
+      example: 2
+    type:
+      type: integer
+      example: 0

@@ -29,7 +29,6 @@ else {
   require Paysys::Plugins::Portmone;
   $Payment_plugin = Paysys::Plugins::Portmone->new($db, $admin, \%conf);
 }
-$payment_id = int(rand(10000));
 my $payee_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_PORTMONE_PAYEE_ID} || '';
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $user_id_2 = is_number($user_id) ? $user_id + 1 : $user_id;

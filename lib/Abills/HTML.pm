@@ -103,16 +103,21 @@ sub new {
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if ($attr->{CONF});
 
-  my $self = {};
+  my $self = {
+    NO_PRINT   => ($attr->{NO_PRINT}) ? 1 : undef,
+    admin      => $attr->{ADMIN},
+    CHARSET    => (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8',
+    HTML_STYLE => $attr->{HTML_STYLE} || $CONF->{HTML_STYLE} || 'default',
+    OUTPUT     => '',
+    METATAGS   => $attr->{METATAGS},
+    TYPE       => 'html',
+    SESSION_IP => $ENV{REMOTE_ADDR} || '0.0.0.0',
+    domain     => $ENV{SERVER_NAME},
+    secure     => ($attr->{HTML_SECURE}) ? $attr->{HTML_SECURE} : '',
+    EXPORT_LIST => $attr->{EXPORT_LIST}
+  };
+
   bless($self, $class);
-
-  if ($attr->{NO_PRINT}) {
-    $self->{NO_PRINT} = 1;
-  }
-
-  if ($attr->{ADMIN}) {
-    $self->{admin} = $attr->{ADMIN};
-  }
 
   if ($attr->{LANG}) {
     $lang = $attr->{LANG};
@@ -122,7 +127,6 @@ sub new {
     $CONF->{CURRENCY_ICON} = 'fas fa-euro-sign';
   }
 
-  $self->{OUTPUT} = '';
   %FORM = form_parse();
   #@experimental
   if ($attr->{USER_PORTAL} && !$FORM{PARSE_QUERY_PARAMS} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ m/PARSE_QUERY_PARAMS=1/xg) {
@@ -138,15 +142,6 @@ sub new {
   }
   $DESC = ($FORM{desc}) ? 'DESC' : '';
   $PG   = int($FORM{pg} || 0);
-  $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
-
-  $self->{HTML_STYLE} = 'default';
-  if ($attr->{HTML_STYLE}) {
-    $self->{HTML_STYLE} = $attr->{HTML_STYLE};
-  }
-  elsif ($CONF->{HTML_STYLE}) {
-    $self->{HTML_STYLE} = $CONF->{HTML_STYLE};
-  }
 
   $CONF->{base_dir} = '/usr/abills' if (!$CONF->{base_dir});
 
@@ -160,26 +155,14 @@ sub new {
     $PAGE_ROWS = $CONF->{list_max_recs} || 25;
   }
 
-  if ($attr->{METATAGS}) {
-    $self->{METATAGS} = $attr->{METATAGS};
-  }
-
   if ($attr->{PATH}) {
     $self->{PATH} = $attr->{PATH};
     $IMG_PATH = $self->{PATH} . 'img';
   }
 
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/xmi) ? 'https' : 'http';
   $ENV{PROT} = $prot;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
-
-  if ($attr->{EXPORT_LIST}) {
-    $self->{EXPORT_LIST} = 1;
-  }
-
-  $self->{SESSION_IP} = $ENV{REMOTE_ADDR} || '0.0.0.0';
-  $self->{domain} = $ENV{SERVER_NAME};
-  $self->{secure} = ($attr->{HTML_SECURE}) ? $attr->{HTML_SECURE} : '';
 
   @_COLORS = (
     '#FDE302', # 0 TH
@@ -193,7 +176,7 @@ sub new {
     '#0000A0', # 8 Link
     '#000000', # 9 Text
     '#FFFFFF', #10 background
-  );           #border
+  );
 
   %LIST_PARAMS = (
     SORT      => $SORT,
@@ -214,27 +197,7 @@ sub new {
     $self->{web_path} .= '/' if ($self->{web_path} !~ m/\/$/x);
   }
 
-  if ($attr->{language}) {
-    $self->{language} = $attr->{language};
-  }
-  elsif ($FORM{language} && $FORM{language} =~ m/^[a-z\_]+$/x) {
-    $self->{language} = $FORM{language};
-    $self->set_cookies($FORM{login_page} ? 'user_language' : 'language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", '/');
-  }
-  elsif ($attr->{USER_PORTAL} && $COOKIES{user_language} && $COOKIES{user_language} =~ m/^[a-z\_]+$/x) {
-    $self->{language} = $COOKIES{user_language};
-    $FORM{language} = $self->{language};
-  }
-  elsif ($COOKIES{language} && $COOKIES{language} =~ m/^[a-z\_]+$/x) {
-    $self->{language} = $COOKIES{language};
-    $FORM{language} = $self->{language};
-  }
-  else {
-    $self->{language} = $CONF->{default_language} || 'english';
-  }
-
-  $self->{content_language} = $ISO_LANGUAGE_CODE{$self->{language}} || 'ru';
-  $self->{TYPE} = 'html';
+  $self->set_language($attr, \%FORM);
 
   #Make  PDF output
   if ($FORM{pdf} || $attr->{pdf}) {
@@ -256,28 +219,24 @@ sub new {
   }
   elsif (defined($FORM{xml})) {
     require Abills::XML;
-    $self = Abills::XML->new(
-      {
-        IMG_PATH        => $IMG_PATH,
-        NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-        CONF            => $CONF,
-        CHARSET         => $attr->{CHARSET},
-        CONFIG_TPL_SHOW => \&tpl_show,
-        TYPE            => 'xml'
-      }
-    );
+    $self = Abills::XML->new({
+      IMG_PATH        => $IMG_PATH,
+      NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF            => $CONF,
+      CHARSET         => $attr->{CHARSET},
+      CONFIG_TPL_SHOW => \&tpl_show,
+      TYPE            => 'xml'
+    });
   }
   elsif ($FORM{csv} || $attr->{csv}) {
     require Abills::CONSOLE;
-    $self = Abills::CONSOLE->new(
-      {
-        IMG_PATH => $IMG_PATH,
-        NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-        CONF     => $CONF,
-        CHARSET  => $attr->{CHARSET},
-        TYPE     => 'csv'
-      }
-    );
+    $self = Abills::CONSOLE->new({
+      IMG_PATH => $IMG_PATH,
+      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF     => $CONF,
+      CHARSET  => $attr->{CHARSET},
+      TYPE     => 'csv'
+    });
   }
   elsif ($FORM{xls} || $attr->{xls}) {
     $FORM{xls} = 1;
@@ -298,17 +257,15 @@ sub new {
   }
   elsif ($FORM{json}) {
     require Abills::JSON;
-    $self = Abills::JSON->new(
-      {
-        IMG_PATH        => $IMG_PATH,
-        NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-        CONF            => $CONF,
-        FORM            => \%FORM,
-        CHARSET         => $attr->{CHARSET},
-        CONFIG_TPL_SHOW => \&tpl_show,
-        TYPE            => 'json'
-      }
-    );
+    $self = Abills::JSON->new({
+      IMG_PATH        => $IMG_PATH,
+      NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF            => $CONF,
+      FORM            => \%FORM,
+      CHARSET         => $attr->{CHARSET},
+      CONFIG_TPL_SHOW => \&tpl_show,
+      TYPE            => 'json'
+    });
   }
   elsif ($CONF->{EXPORT_GOOGLE} && $FORM{google}) {
     require Abills::Google_web;
@@ -322,6 +279,45 @@ sub new {
       LANG     => $lang
     });
   }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 form_parse($attr, $FORM) Parse html query input
+
+  Arguments:
+    $attr
+    $FORM
+
+  Return:
+    $self
+
+=cut
+#**********************************************************
+sub set_language {
+  my ($self, $attr, $form)=@_;
+
+  if ($attr->{language}) {
+    $self->{language} = $attr->{language};
+  }
+  elsif ($form->{language} && $form->{language} =~ m/^[a-z\_]+$/x) {
+    $self->{language} = $form->{language};
+    $self->set_cookies($FORM{login_page} ? 'user_language' : 'language', "$form->{language}", "Fri, 1-Jan-2038 00:00:01", '/');
+  }
+  elsif ($attr->{USER_PORTAL} && $COOKIES{user_language} && $COOKIES{user_language} =~ m/^[a-z\_]+$/x) {
+    $self->{language} = $COOKIES{user_language};
+    $form->{language} = $self->{language};
+  }
+  elsif ($COOKIES{language} && $COOKIES{language} =~ m/^[a-z\_]+$/x) {
+    $self->{language} = $COOKIES{language};
+    $form->{language} = $self->{language};
+  }
+  else {
+    $self->{language} = $CONF->{default_language} || 'english';
+  }
+
+  $self->{content_language} = $ISO_LANGUAGE_CODE{$self->{language}} || 'ru';
 
   return $self;
 }
@@ -412,7 +408,7 @@ sub form_parse {
       if ($#columns > 0) {
         if ($datas =~ m/^Content-Type:/xi) {
           ($_FORM{"$name"}->{'Content-Type'}, $blankline, $datas) = split(/[\r]\n/x, $datas, 3);
-          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/xgi;
+          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type:\s+([^\s]+)$/$1/xgi;
         }
         else {
           ($blankline, $datas) = split(/[\r]\n/x, $datas, 2);
@@ -452,6 +448,7 @@ sub form_parse {
         }
         next;
       }
+
       for my $currentColumn (@columns) {
         my ($currentHeader, $currentValue) = $currentColumn =~ m/^([^=]+)="([^\"]+)"$/x;
         next if (! defined $currentHeader);
@@ -492,8 +489,7 @@ sub form_parse {
 =cut
 #**********************************************************
 sub form_input {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $type = $attr->{TYPE} || 'text';
   my $ex_params = '';
@@ -556,8 +552,7 @@ sub form_input {
 =cut
 #**********************************************************
 sub form_textarea {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   my $cols = $attr->{COLS} || 45;
   my $rows = $attr->{ROWS} || 4;
@@ -567,7 +562,8 @@ sub form_textarea {
     ($value || '') . "</textarea>";
 
   if ($attr->{HIDE}) {
-    $self->{FORM_INPUT} = "<div class=\"card card-primary card-outline\">
+    $self->{FORM_INPUT} =<< "HTML";
+<div class=\"card card-primary card-outline\">
   <div class='card-header with-border'>
     <a data-toggle='collapse' data-parent='#accordion' href='#collapseOne'>$name</a>
   </div>
@@ -576,8 +572,9 @@ sub form_textarea {
        $self->{FORM_INPUT}
     </div>
   </div>
-</div>";
-  }
+</div>
+HTML
+}
 
   if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -667,10 +664,14 @@ sub short_form {
   $self->{FORM} .= "</form>\n";
 
   if(defined $attr->{IN_BOX}){
+    my $in_box = << "HTML";
+<div class="card-tools float-right">
+  <button type="button" class="btn btn-default btn-xs" data-card-widget="collapse">
+    <i class="fa fa-minus"></i></button></div>
+HTML
+
     my $box_header = $attr->{NO_BOX_HEADER} ? '' : $self->element( 'div', $self->element('h4', $attr->{IN_BOX}, {class => 'card-title table-caption'})
-      . '<div class="card-tools float-right">
-      <button type="button" class="btn btn-default btn-xs" data-card-widget="collapse">
-      <i class="fa fa-minus"></i></button></div>',
+      . $in_box,
       { class => 'card-header with-border'} );
 
     my $box_body = $self->element( 'div', $self->{FORM}, {
@@ -1031,7 +1032,7 @@ sub form_select {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$val];' " if ($attr->{STYLE} && $attr->{STYLE}->[$val]);
 
           if ($attr->{STYLE} && $attr->{STYLE}->[$val]) {
-            if ($attr->{STYLE}->[$val] =~ m/^#/x) {
+            if ($attr->{STYLE}->[$val] =~ m/^\#/x) {
               $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$val];' ";
             }
             else {
@@ -1065,7 +1066,7 @@ sub form_select {
         elsif ($attr->{USE_COLORS}) {
           my @arr = split(':', $value);
           $value = $arr[0] || q{};
-          my $num = $#arr+1;
+          my $num = $#arr;
           my $color = $arr[$num] || q{};
           if ($color =~ m/^\#?([A-F0-9]{6})$/xi) {
             $color = '#' . $1;
@@ -1161,7 +1162,7 @@ sub _form_select_single_ext_button {
   my $button = shift;
 
   if ($button !~ 'input-group-button') {
-    $button = "<div class='input-group-text p-0 px-1 rounded-left-0'>$button</div>"
+    $button = qq{<div class='input-group-text p-0 px-1 rounded-left-0'>$button</div>};
   }
 
   my $result = << "[END]";
@@ -1215,8 +1216,7 @@ sub _form_select_ext_buttons {
 =cut
 #**********************************************************
 sub form_window {
-  my $self = shift;
-  my ($name, $attr) = @_;
+  my ($self, $name, $attr) = @_;
 
   my $action = $attr->{ACTION} || $SELF_URL;
   my $window_type = $attr->{POPUP_WINDOW_TYPE} || 'search';
@@ -1230,14 +1230,13 @@ sub form_window {
   $self->{button_num}++;
   my $buttonNum = $self->{button_num} - 1;
 
-  $self->{WINDOW} = "
-   <div class='input-group'> ";
+  $self->{WINDOW} = "<div class='input-group'> ";
 
   my $tooltip = $attr->{TOOLTIP} ? " data-tooltip='$attr->{TOOLTIP}' data-tooltip-position='left'" : '';
 
   if ($attr->{HAS_NAME}) {
-    $self->{WINDOW} .= "<input type='hidden' value='%" . $name . "%' name='$name' id='$name'/>
-      <input type='text' $tooltip value='" . (($attr->{VALUE}) ? $attr->{VALUE} : '%' . $name . '%') . "' name='" . $name . "1' id='$name\_1' class='form-control'/>";
+    $self->{WINDOW} .= "<input type='hidden' value='%" . $name . "%' name='$name' id='$name'/>"
+      . "<input type='text' $tooltip value='" . (($attr->{VALUE}) ? $attr->{VALUE} : '%' . $name . '%') . "' name='" . $name . "1' id='$name\_1' class='form-control'/>";
   }
   else {
     $self->{WINDOW} .= "<input type='text' value='" . ($attr->{VALUE} || '') . "' name='$name' class='form-control'/>";
@@ -1248,30 +1247,31 @@ sub form_window {
   #
   if ($attr->{MAIN_MENU}) {
     # FIXME : NAS_ID?
-    $self->{WINDOW} .= "
-      <a class='btn input-group-button' onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
+    my $input_value = 'NAS_ID';
+    $self->{WINDOW} .= << "HTML";
+    <a class='btn input-group-button' onclick='replace(hrefValue("$SELF_URL",  "$main_menu", "$input_value"))'>
         <i class='fa fa-list-alt'></i>
-      </a>\n";
+      </a>
+HTML
   }
 
   my $modal_size = $attr->{POPUP_SIZE} || '';
-  $self->{WINDOW} .= "
-    <a class='btn input-group-button' id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
+  $self->{WINDOW} .= << "HTML";
+ <a class='btn input-group-button' id='btnPopupOpen' type='button' onclick='openModal($buttonNum, "TemplateBased", "$modal_size");'>
       <i class='fa fa-search'></i>
     </a>
     <a class='btn input-group-button clear_results'>
       <i class='fa fa-times'></i>
-    </a>\n";
-
-  $self->{WINDOW} .= "
+    </a>
     </div>
   </div>
 
     <script>
-    modalsArray[modalsArray.length] = new Array(\'$action\',\'$name\',\'$parent_input_name\',\'$searchString\',\'$window_type\');
+    modalsArray[modalsArray.length] = new Array('$action','$name','$parent_input_name','$searchString','$window_type');
      //console.log(searchString);
   </script>
-  <script type='text/javascript' src='/styles/default/js/$js_script.js'></script>\n";
+  <script type='text/javascript' src='/styles/default/js/$js_script.js'></script>
+HTML
 
   return $self->{WINDOW};
 }
@@ -1374,8 +1374,8 @@ sub get_cookies {
 =cut
 #**********************************************************
 sub menu {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  my ($self, $menu_items, $menu_args, $permissions, $attr) = @_;
+
   my $root_index = 0;
   my %menu = ();
   my $sub_menu_array;
@@ -1421,9 +1421,10 @@ sub menu {
   }
 
   my @last_array = ();
-  my $menu_text = "
-  <nav class='mt-2'>
-    <ul class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-widget='treeview' role='menu' data-accordion='false'>";
+  my $menu_text = << "HTML";
+<nav class='mt-2'>
+  <ul class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-widget='treeview' role='menu' data-accordion='false'>
+HTML
 
   my $level = 0;
   my $parent = 0;
@@ -1577,8 +1578,7 @@ sub menu {
 =cut
 #**********************************************************
 sub breadcrumb {
-  my $self = shift;
-  my ($root_index, $menu_items, $menu_args) = @_;
+  my ($self, $root_index, $menu_items, $menu_args) = @_;
 
   my $menu_navigator = '';
   my %tree = ();
@@ -1649,9 +1649,11 @@ sub menu_right {
     { class => 'nav-item' });
 
   if (!$attr->{HTML}) {
-    $right_menu_html = "<aside class='control-sidebar control-sidebar-dark h-100 elevation-4' style='bottom: 0px !important;'>\n";
-    $right_menu_html .= "<div class='control-sidebar-content'>";
-    $right_menu_html .= "<ul class='nav nav-tabs nav-justified control-sidebar-tabs'>\n</ul>\n<div class='tab-content'>\n</div>\n";
+    $right_menu_html = << "HTML";
+<aside class='control-sidebar control-sidebar-dark h-100 elevation-4' style='bottom: 0px !important;'>
+  <div class='control-sidebar-content'>
+    <ul class='nav nav-tabs nav-justified control-sidebar-tabs'>\n</ul>\n<div class='tab-content'>\n</div>
+HTML
   }
 
   if (!defined($menu_content)) {
@@ -1665,8 +1667,8 @@ sub menu_right {
   $right_menu_html =~ s/(<div\s+class='tab-content'>)/$1<div class='tab-pane active' id='$menu_item_id'>$menu_content<\/div>/xg;
 
   if (!$attr->{HTML}) {
-    $right_menu_html .= "</div>";
-    $right_menu_html .= "</aside>";
+    $right_menu_html .= "</div>"
+    ."</aside>";
   }
 
   return $right_menu_html;
@@ -1836,23 +1838,27 @@ sub header {
 #**********************************************************
 #@returns Abills::HTML
 sub table {
-  my $proto = shift;
+  my ($proto, $attr) = @_;
   my $class = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
 
-  my $self = {};
+  my $self = {
+    MAX_ROWS                 => $parent->{MAX_ROWS},
+    HTML                     => $parent,
+    prototype                => $proto,
+    NO_PRINT                 => $proto->{NO_PRINT},
+    ID                       => $attr->{ID} || '',
+    rowcolor                 => $attr->{rowcolor},
+    MULTISELECT_ACTIONS      => $attr->{MULTISELECT_ACTIONS},
+    SHOW_MULTISELECT_ACTIONS => $attr->{SHOW_MULTISELECT_ACTIONS},
+    table_caption            => '',
+    rows                     => '',
+    footer                   => '',
+    summary                  => '',
+    SELECT_ALL               => (!$FORM{EXPORT_CONTENT}) ? $attr->{SELECT_ALL} : q{}
+  };
+
   bless($self, $class);
-
-  $self->{MAX_ROWS} = $parent->{MAX_ROWS};
-  $self->{HTML} = $parent;
-  $self->{prototype} = $proto;
-  $self->{NO_PRINT} = $proto->{NO_PRINT};
-
-  my ($attr) = @_;
-  $self->{table_caption} = '';
-  $self->{rows} = '';
-  $self->{footer} = '';
-  $self->{summary} = '';
 
   my $table_responsive = (($attr->{NOT_RESPONSIVE}) ? '' : ' card-body table-responsive p-0');
   my $border = ($attr->{border}) ? ' panel-body' : '';
@@ -1861,18 +1867,7 @@ sub table {
   $table_class .= $attr->{HAS_FUNCTION_FIELDS} ? ' with-function-fields' : '';
   $table_class = " class=\"$table_class\" ";
 
-  if (defined($attr->{rowcolor})) {
-    $self->{rowcolor} = $attr->{rowcolor};
-  }
-  else {
-    $self->{rowcolor} = undef;
-  }
-
-  $self->{ID} = $attr->{ID} || '';
   $attr->{qs} = '' if (!$attr->{qs});
-  $self->{SELECT_ALL} = $attr->{SELECT_ALL} if (!$FORM{EXPORT_CONTENT});
-  $self->{MULTISELECT_ACTIONS} = $attr->{MULTISELECT_ACTIONS};
-  $self->{SHOW_MULTISELECT_ACTIONS} = $attr->{SHOW_MULTISELECT_ACTIONS};
 
   if (defined($attr->{rows})) {
     my $rows = $attr->{rows};
@@ -1881,24 +1876,14 @@ sub table {
     }
   }
 
-  # Table Caption
   my $show_cols = '';
   my $show_cols_button = '';
 
   my $pagination = '';
   if ($attr->{pages} && !$FORM{EXPORT_CONTENT}) {
     $self->{SHOW_FULL_LIST} = $attr->{SHOW_FULL_LIST};
-    my $op = '';
-    if ($FORM{index}) {
-      $op = "index=$FORM{index}";
-    }
-    elsif ($FORM{qindex}) {
-      $op = "index=$FORM{qindex}";
-    }
-    elsif ($index) {
-      $op = "index=$index";
-    }
-
+    my $index_value = $FORM{index} || $FORM{qindex} || $index;
+    my $op = (defined $index_value) ? "index=$index_value" : '';
     $pagination = $self->pages($attr->{pages}, "$op$attr->{qs}", { SKIP_NAVBAR => 1, %{$attr ? $attr : {}} });
   }
 
@@ -1906,7 +1891,7 @@ sub table {
     if ($attr->{SHOW_COLS} && scalar %{$attr->{SHOW_COLS}}) {
       $show_cols = $self->_form_table_ext_cols($attr);
 
-      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-tool' data-toggle='modal' data-target='#"
+      $show_cols_button = "<button type='button' title='$lang->{EXTRA_FIELDS}' class='btn btn-tool' data-toggle='modal' data-target='#"
         . ($attr->{ID} || 'no_id_element')
         . "_cols_modal'><span class='fa fa-align-left p-1'></span></button>";
     }
@@ -1951,59 +1936,18 @@ sub table {
 
   #Export object
   if ($attr->{EXPORT} && $parent->{EXPORT_LIST} && !$FORM{EXPORT_CONTENT}) {
-    my @export_formats = ('xml', 'csv', 'json');
-    my $export_obj = '';
-
-    my $idx = $FORM{index} || $FORM{qindex} || $index || '';
-    my $op = $idx ? "qindex=$idx" : '';
-
-    eval { require Spreadsheet::WriteExcel; };
-    if (!$@) {
-      push @export_formats, 'xls';
-    }
-    if ($CONF->{EXPORT_GOOGLE}) {
-      push @export_formats, 'google';
-    }
-
-    #instantiate new dropdown menu
-    $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-tool' data-toggle='dropdown'" .
-      " aria-haspopup='true' aria-expanded='false'>" .
-      "<span class='fa fa-share'></span>" .
-      "</button>" .
-      "<ul class='dropdown-menu dropdown-menu-right' style='min-width: 0;'>";
-
-    #Fill dropdown list with items
-    foreach my $export_name (@export_formats) {
-      my $params = "&$export_name=1";
-      if ($attr->{qs} !~ m/PAGE_ROWS\=/x) {
-        $params .= "&PAGE_ROWS=1000000";
-      }
-      else {
-        $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/x;
-      }
-
-      $export_obj .= $self->button($export_name, "$op$attr->{qs}"
-        . (($PG) ? "&pg=$PG" : q{})
-        . (($SORT) ? "&sort=$SORT" : q{})
-        . (($DESC) ? "&desc=$DESC" : q{})
-        . "&EXPORT_CONTENT=$attr->{ID}&header=1$params", {
-          ex_params => 'target=export',
-          class     => 'dropdown-item'
-      }) . "\n";
-    }
-    #close list and dropdown block
-    $export_obj .= "</ul>";
-
-    $self->{table_caption} = $export_obj . ($self->{table_caption} || '');
+    $self->{table_caption} = $self->table_export($attr);
   }
 
   push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if ($attr->{IMPORT}) {
-    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-tool' onclick='loadToModal("$attr->{IMPORT}", "", "xl")'>
-      <span class='fa fa-reply'></span>
-    </a>
-    } . $self->{table_caption};
+    $self->{table_caption} =<< "HTML";
+<a role='button' title='Import' class='btn btn-tool' onclick='loadToModal("$attr->{IMPORT}", "", "xl")'>
+   <span class='fa fa-reply'></span>
+</a>
+    $self->{table_caption}
+HTML
   }
 
   if ($#header_obj > -1) {
@@ -2018,28 +1962,230 @@ sub table {
   my $collapse = ($attr->{HIDE_TABLE}) ? ' collapsed-card' : '';
 
   if ($attr->{DATA_TABLE}) {
-    if (ref($attr->{DATA_TABLE}) ne 'HASH') {
-      $attr->{DATA_TABLE} = {};
+    $attr->{_SHOW_COLS}=$show_cols;
+    $show_cols = $self->_data_table($attr);
+  }
+
+  my $box_theme = '';
+  if(($attr->{caption} ne '') or (defined($attr->{DATA_TABLE}))) {
+    $box_theme = 'card-primary card-outline';
+  }
+  elsif(defined($attr->{LITE_HEADER})) {
+    $box_theme = 'card-secondary';
+  }
+  else {
+    $box_theme = 'card-default';
+  }
+
+  $self->{table} = $show_cols . '<div class="card ' . $box_theme . ' ' . $collapse . '">';
+
+  $self->{table_status_bar} ||= $attr->{caption1} || '';
+  $self->{table_export} ||= '';
+
+  # Form fist row
+  my $table_caption_size = 10;
+  my $table_filters = '';
+  my $table_ext_but_size = 2;
+  if ($self->{table_status_bar}) {
+    $table_caption_size = 2;
+    $table_filters = << "HTML";
+      <div class='abills-table-bar'>
+        <div id='abillsBtnGroup' class='btn-group btn-group-sm'>
+          $self->{table_status_bar}
+        </div>
+      </div>
+HTML
+  }
+
+  my $table_export = '';
+  if ($self->{table_export}) {$table_export = "<div class='btn-group'>" . $self->{table_export} . "</div>"}
+
+  my $table_management_buttons = '';
+  if ($self->{table_caption}) {
+    $table_management_buttons = "<div class='btn-group'>" . $self->{table_caption} . "</div>";
+  }
+
+  my $extra_btn = '';
+  if ($attr->{EXTRA_BTN}) {
+    $extra_btn = "<div class='btn-group'>" . $attr->{EXTRA_BTN} . "</div>";
+    $table_ext_but_size += 1;
+    $table_caption_size -= 1;
+  }
+
+  my $caption_icon = '';
+  if ($attr->{caption_icon}) {
+    $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 6px; float:left;'></i>";
+  }
+  if ($attr->{caption} || $self->{table_caption}) {
+    $self->{table} .= << "HTML";
+    <div class="card-header d-flex flex-nowrap justify-content-between">
+      <div class="card-title">
+        $caption_icon
+        <h4 class="card-title table-caption">$attr->{caption}</h4>
+      </div>
+      $table_filters
+      <div class="card-tools">
+        $extra_btn
+        $table_management_buttons
+      </div>
+     </div>
+HTML
+  }
+
+  my $card_tools = '';
+  if ((($attr->{caption} ne '') and (($table_export ne '') or ($pagination ne ''))) or (defined($attr->{DATA_TABLE}))) {
+    $card_tools =<< "HTML";
+      <div class='row float-left p-1'>
+        <div class='card-tools'>
+          <div class='col-md-6 float-left text-left'>
+            $table_export
+          </div>
+        </div>
+      </div>
+      <div class='row float-right p-1 mr-0'>
+        <div class='card-tools'>
+          <div class='col-md-6 float-right text-right'>
+            <div class='d-print-none'>
+              $pagination
+            </div>
+          </div>
+        </div>
+      </div>
+HTML
+  }
+
+  $self->{table} .= << "HTML";
+  <div class="$border $table_responsive" id="p_$self->{ID}">
+    $card_tools
+    <TABLE $table_class ID="$self->{ID}_">
+HTML
+
+  $self->{pagination} = $pagination;
+
+  # NOTICE: May be changed in DATA_TABLE if block ($attr->{title} -> $attr->{title_plain})
+  if (defined($attr->{title})) {
+    $SORT = $LIST_PARAMS{SORT};
+    $self->{table} .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
+    $self->{title_arr} = $attr->{title} || q{};
+  }
+  elsif (defined($attr->{title_plain})) {
+    $self->{table} .= $self->table_title_plain($attr->{title_plain});
+  }
+  if ($attr->{summary}) {
+    $self->{summary} = $self->table_summary($attr->{summary})
+  }
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 table_export($attr) - Export functions
+
+  Arguments:
+    $attr
+
+  Returns:
+    $data_table
+
+=cut
+#**********************************************************
+sub table_export {
+  my ($self, $attr)=@_;
+
+  my @export_formats = ('xml', 'csv', 'json');
+  my $export_obj = '';
+
+  my $idx = $FORM{index} || $FORM{qindex} || $index || '';
+  my $op = $idx ? "qindex=$idx" : '';
+
+  eval { require Spreadsheet::WriteExcel; };
+  if (!$@) {
+    push @export_formats, 'xls';
+  }
+
+  if ($CONF->{EXPORT_GOOGLE}) {
+    push @export_formats, 'google';
+  }
+
+  #instantiate new dropdown menu
+  $export_obj .= << "END";
+  <button title='Export' role='button' class='dropdown-toggle btn btn-tool' data-toggle='dropdown'
+    aria-haspopup='true' aria-expanded='false'>
+  <span class='fa fa-share'></span>
+  </button>
+  <ul class='dropdown-menu dropdown-menu-right' style='min-width: 0;'>
+END
+
+  #Fill dropdown list with items
+  foreach my $export_name (@export_formats) {
+    my $params = "&$export_name=1";
+    if ($attr->{qs} !~ m/PAGE_ROWS\=/x) {
+      $params .= "&PAGE_ROWS=1000000";
+    }
+    else {
+      $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/x;
     }
 
-    $attr->{DATA_TABLE}->{dom} //= qq"<'row dataTable-dom'
+    $export_obj .= $self->button($export_name, "$op$attr->{qs}"
+      . (($PG) ? "&pg=$PG" : q{})
+      . (($SORT) ? "&sort=$SORT" : q{})
+      . (($DESC) ? "&desc=$DESC" : q{})
+      . "&EXPORT_CONTENT=$attr->{ID}&header=1$params", {
+      ex_params => 'target=export',
+      class     => 'dropdown-item'
+    }) . "\n";
+  }
+  #close list and dropdown block
+  $export_obj .= "</ul>";
+
+  return $export_obj . ($self->{table_caption} || '');
+}
+
+#**********************************************************
+=head2 _data_table($attr) - Form extra table columns
+
+  Arguments:
+    $attr
+      DATA_TABLE
+
+
+  Returns:
+    $data_table
+
+=cut
+#**********************************************************
+sub _data_table {
+  my ($self, $attr)=@_;
+
+  my $show_cols = $attr->{_SHOW_COLS};
+
+  if (ref($attr->{DATA_TABLE}) ne 'HASH') {
+    $attr->{DATA_TABLE} = {};
+  }
+
+  if (! $attr->{DATA_TABLE}->{dom}) {
+    $attr->{DATA_TABLE}->{dom} = <<"DOM";
+<'row dataTable-dom'
       <'col-sm-12 col-md-6'l>
       <'col-sm-12 col-md-6'f>>
       <'row dataTable-top-pagination'<'col-sm-12'p>>
       <'row'<'col-sm-12'tr>>
       <'row dataTable-dom'<'col-sm-12 col-md-5'i>
-      <'col-sm-12 col-md-7'p>>";
+      <'col-sm-12 col-md-7'p>>
+DOM
+  }
 
-    $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
-    my $ATTR = '';
+  $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
+  my $data_table_attr = '';
 
-    if ($attr) {
-      require JSON;
-      $ATTR = JSON->new->indent->encode({ %{$attr->{DATA_TABLE}}, colReorder => 'true' });
-    };
+  if ($attr) {
+    require JSON;
+    $data_table_attr = JSON->new->indent->encode({ %{$attr->{DATA_TABLE}}, colReorder => 'true' });
+  };
 
-    if ($attr->{DT_CLICK}) {
-      $show_cols = qq(
+  if ($attr->{DT_CLICK}) {
+    $show_cols = << "HTML";
       <script>
       jQuery(function(){
         jQuery("td").hover(function() {
@@ -2054,17 +2200,18 @@ sub table {
         });
       })
       </script>
-      ) . $show_cols;
-    }
+      $show_cols
+HTML
+  }
 
-    $show_cols = qq(
+  $show_cols = << "HTML";
     <link href="/styles/default/css/colReorder.dataTables.css" rel="stylesheet" type="text/css" />
     <script src="/styles/default/js/dataTables.colReorder.min.js"></script>
 		<script>
 		  jQuery(document).ready(function() {
 		    let pageLength = localStorage.getItem('$self->{ID}_TABLE_LENGTH') || undefined;
 		    pageLength = (pageLength && pageLength == -1) ? -1 : pageLength;
-		    let dataTableAttr = { ...$ATTR, "pageLength": pageLength };
+		    let dataTableAttr = { ...$data_table_attr, "pageLength": pageLength };
 		  	var table = jQuery("#$self->{ID}_").DataTable(dataTableAttr);
 
 		  	jQuery("#$self->{ID}_").find('th').each(function(index) {
@@ -2119,120 +2266,18 @@ sub table {
 		  });
 
 		</script>
-	  ) . $show_cols;
-    # Data table has its own sort
-    if ($attr->{title} && !$attr->{title_plain} && !$attr->{SORT}) {
-      $attr->{title_plain} = $attr->{title};
-      delete $attr->{title};
-    }
+	  $show_cols
+HTML
+
+  # Data table has its own sort
+  if ($attr->{title} && !$attr->{title_plain} && !$attr->{SORT}) {
+    $attr->{title_plain} = $attr->{title};
+    delete $attr->{title};
   }
 
-  my $box_theme = '';
-  if(($attr->{caption} ne '') or (defined($attr->{DATA_TABLE}))) {
-    $box_theme = 'card-primary card-outline';
-  }
-  elsif(defined($attr->{LITE_HEADER})) {
-    $box_theme = 'card-secondary';
-  }
-  else {
-    $box_theme = 'card-default';
-  }
-
-  $self->{table} = $show_cols . '<div class="card ' . $box_theme . ' ' . $collapse . '">';
-
-  $self->{table_status_bar} ||= $attr->{caption1} || '';
-  $self->{table_export} ||= '';
-
-  # Form fist row
-  my $table_caption_size = 10;
-  my $table_filters = '';
-  my $table_ext_but_size = 2;
-  if ($self->{table_status_bar}) {
-    $table_caption_size = 2;
-    $table_filters = qq{
-      <div class='abills-table-bar'>
-        <div id='abillsBtnGroup' class='btn-group btn-group-sm'>
-          $self->{table_status_bar}
-        </div>
-      </div>
-    }
-  }
-
-  my $table_export = '';
-  if ($self->{table_export}) {$table_export = "<div class='btn-group'>" . $self->{table_export} . "</div>"}
-
-  my $table_management_buttons = '';
-  if ($self->{table_caption}) {
-    $table_management_buttons = "<div class='btn-group'>" . $self->{table_caption} . "</div>";
-  }
-
-  my $extra_btn = '';
-  if ($attr->{EXTRA_BTN}) {
-    $extra_btn = "<div class='btn-group'>" . $attr->{EXTRA_BTN} . "</div>";
-    $table_ext_but_size += 1;
-    $table_caption_size -= 1;
-  }
-
-  my $caption_icon = '';
-  if ($attr->{caption_icon}) {
-    $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 6px; float:left;'></i>";
-  }
-  if ($attr->{caption} || $self->{table_caption}) {
-    $self->{table} .= qq{<div class="card-header d-flex flex-nowrap justify-content-between">
-      <div class="card-title">
-        $caption_icon
-        <h4 class="card-title table-caption">$attr->{caption}</h4>
-      </div>
-      $table_filters
-      <div class="card-tools">
-        $extra_btn
-        $table_management_buttons
-      </div>
-     </div>};
-  }
-  my $card_tools = '';
-  if ((($attr->{caption} ne '') and (($table_export ne '') or ($pagination ne ''))) or (defined($attr->{DATA_TABLE}))) {
-    $card_tools = qq{
-      <div class='row float-left p-1'>
-        <div class='card-tools'>
-          <div class='col-md-6 float-left text-left'>
-            $table_export
-          </div>
-        </div>
-      </div>
-      <div class='row float-right p-1 mr-0'>
-        <div class='card-tools'>
-          <div class='col-md-6 float-right text-right'>
-            <div class='d-print-none'>
-              $pagination
-            </div>
-          </div>
-        </div>
-      </div>
-    }
-  };
-
-  $self->{table} .= qq{
-  <div class="$border $table_responsive" id="p_$self->{ID}">
-    $card_tools
-    <TABLE $table_class ID="$self->{ID}_">\n};
-
-  $self->{pagination} = $pagination;
-
-  # NOTICE: May be changed in DATA_TABLE if block ($attr->{title} -> $attr->{title_plain})
-  if (defined($attr->{title})) {
-    $SORT = $LIST_PARAMS{SORT};
-    $self->{table} .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
-    $self->{title_arr} = $attr->{title} || q{};
-  }
-  elsif (defined($attr->{title_plain})) {
-    $self->{table} .= $self->table_title_plain($attr->{title_plain});
-  }
-  if ($attr->{summary}) {
-    $self->{summary} = $self->table_summary($attr->{summary})
-  }
-  return $self;
+  return $show_cols;
 }
+
 
 #**********************************************************
 =head2 _form_table_ext_cols($attr) - Form extra table columns
@@ -2252,8 +2297,7 @@ sub table {
 =cut
 #**********************************************************
 sub _form_table_ext_cols {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $col_count = 0;
   for my $key (keys %{$attr->{SHOW_COLS}}) {
@@ -2277,7 +2321,7 @@ sub _form_table_ext_cols {
 
   my $hidden_inputs = '';
   foreach my $param_name (@global_params) {
-    next if !$FORM{$param_name};
+    next if (!$FORM{$param_name});
 
     $hidden_inputs .= $self->form_input($param_name, $FORM{$param_name}, {
       TYPE    => 'hidden',
@@ -2361,7 +2405,7 @@ sub _form_table_ext_cols {
 
     my @cols = ();
     my $count_checkboxes = @checkboxes;
-    next if !$count_checkboxes;
+    next if (!$count_checkboxes);
 
     my $fields_in_col = POSIX::ceil($count_checkboxes / int(12 / $col_size));
     my $rows = (POSIX::ceil($count_checkboxes / $fields_in_col) - 1);
@@ -2491,7 +2535,7 @@ sub addrow {
   my $css_class = '';
 
   if ($self->{rowcolor}) {
-    if ($self->{rowcolor} =~ /^#/) {
+    if ($self->{rowcolor} =~ /^\#/xm) {
       $css_class = " bgcolor='$self->{rowcolor}'";
     }
     else {
@@ -2562,7 +2606,7 @@ sub addfooter{
   }
   else {
     foreach my $element (@row) {
-      $self->{footer} .= "<th>$element</th>";
+      $self->{footer} .= "<th>". ($element || q{}) ."</th>";
     }
   }
 
@@ -2715,8 +2759,7 @@ sub td {
 =cut
 #**********************************************************
 sub table_header {
-  my $self = shift;
-  my ($header_arr, $attr) = @_;
+  my ($self, $header_arr, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
@@ -2778,9 +2821,9 @@ sub table_header {
       if ($attr->{SHOW_ONLY} && $attr->{SHOW_ONLY} <= $i) {
         if ($attr->{SHOW_ONLY} == $i) {
           $url_params{class} = "nav-link $active";
-          $header .= $self->li($self->button($name, $url, \%url_params), { class => 'nav-item' });
-          $header .= qq{<li role="presentation" class="nav-item dropdown">};
-          $header .= qq{<a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false" ><span class="caret"></span></a>};
+          $header .= $self->li($self->button($name, $url, \%url_params), { class => 'nav-item' })
+            . qq{<li role="presentation" class="nav-item dropdown">}
+            . qq{<a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false" ><span class="caret"></span></a>};
         }
         elsif ($attr->{SHOW_ONLY} < $i) {
           $drop_down .= $self->button($name, $url, \%url_params)
@@ -2794,8 +2837,8 @@ sub table_header {
     elsif ($i == $elements_before_dropdown && $#{$header_arr} > $elements_before_dropdown) {
       $header .= $self->button($name, $url, { class => "btn btn-default btn-xs $active" });
       # 1. Opening dropdown tag
-      $header .= "<div class='btn-group'>";
-      $header .= "<button class='btn btn-default btn-xs dropdown-toggle' aria-expanded='false' data-toggle='dropdown'><span class='caret'></span></button>";
+      $header .= "<div class='btn-group'>"
+        . "<button class='btn btn-default btn-xs dropdown-toggle' aria-expanded='false' data-toggle='dropdown'><span class='caret'></span></button>";
     }
     elsif ($i > $elements_before_dropdown) {
       $drop_down .= $self->button($name, $url, { class => "dropdown-item $active" })
@@ -2827,11 +2870,13 @@ sub table_header {
 
     my $class = $attr->{class} // '';
 
-    $header = "<nav class='abills-navbar navbar $navbar_expand navbar-light $class'>  <a class='navbar-brand $brand_display pl-3'>$caption</a>
+    $header =<< "HTML";
+<nav class='abills-navbar navbar $navbar_expand navbar-light $class'>  <a class='navbar-brand $brand_display pl-3'>$caption</a>
       <button class='navbar-toggler' type='button' data-toggle='collapse' data-target='#navbarContent' aria-controls='navbarContent' aria-expanded='false' aria-label='Toggle navigation'>
       <span class='navbar-toggler-icon'></span>
   </button>
-<div class='collapse navbar-collapse' id='navbarContent'><ul class='nav-tabs navbar-nav'>$header</ul></div></nav>";
+<div class='collapse navbar-collapse' id='navbarContent'><ul class='nav-tabs navbar-nav'>$header</ul></div></nav>
+HTML
   }
   elsif ($attr->{NAV}) {
     $header = "<ul class='nav nav-pills'>$header</ul>";
@@ -2859,8 +2904,7 @@ sub table_header {
 =cut
 #**********************************************************
 sub table_title {
-  my $self = shift;
-  my ($sort, $desc, $pg, $caption, $qs, $attr) = @_;
+  my ($self, $sort, $desc, $pg, $caption, $qs, $attr) = @_;
   my $op = '';
 
   if (!$qs) {
@@ -2937,8 +2981,7 @@ sub table_title {
 =cut
 #**********************************************************
 sub table_title_plain {
-  my $self = shift;
-  my ($caption, $attr) = @_;
+  my ($self, $caption, $attr) = @_;
   $self->{table_title} = "<thead><TR>";
 
   if ($self->{SELECT_ALL}) {
@@ -2973,7 +3016,7 @@ sub table_select_all_checkbox {
 
   my (undef, $element_name, undef) = split(':', $options_string);
   $element_name ||= 'IDS';
-  return qq{
+  return << "HTML"
     <script>
       jQuery(function() {
         var checkboxes = jQuery('input:checkbox[id=\"$element_name\"]');
@@ -2988,7 +3031,7 @@ sub table_select_all_checkbox {
       });
     </script>
     <input type='checkbox' id='$self->{ID}_checkAll' data-tooltip='$lang->{CHECK_ALL}'/>
-  };
+HTML
 }
 
 #**********************************************************
@@ -3096,7 +3139,7 @@ sub table_actions_panel {
 =cut
 #**********************************************************
 sub show {
-  my ($self, $attr) = shift;
+  my ($self, $attr) = @_;
 
   return '' if $FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID};
 
@@ -3174,8 +3217,7 @@ sub link_former {
 =cut
 #**********************************************************
 sub img {
-  my $self = shift;
-  my ($img, $name, $attr) = @_;
+  my ($self, $img, $name, $attr) = @_;
 
   my $img_path = ($img =~ s/^://x) ? "$IMG_PATH/" : '';
 
@@ -3626,7 +3668,7 @@ sub pages {
     );
   }
 
-  return qq{
+  my $pages = << "HTML";
   <div class='d-print-none'>
     <ul class='pagination pagination-sm float-right'>
       <li class='page-item'>
@@ -3658,8 +3700,9 @@ sub pages {
           </div>
         </div>
       </div>
-};
+HTML
 
+  return $pages;
 }
 
 #**********************************************************
@@ -3818,9 +3861,8 @@ sub tpl_show {
     }
   }
 
-
   if (!$attr->{SOURCE} && $tpl) {
-    $variables_ref = {} if !$variables_ref;
+    $variables_ref = {} if (!$variables_ref);
     $variables_ref->{SELF_URL} //= $SELF_URL;
     $variables_ref->{index} ||= $index;
 
@@ -4108,8 +4150,7 @@ sub test {
 =cut
 #**********************************************************
 sub letters_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
@@ -4153,10 +4194,11 @@ sub letters_list {
     return '';
   }
   else {
-    return "
-      <div class='w-100 text-center'><div class='btn btn-group'>
+    return << "HTML";
+<div class='w-100 text-center'><div class='btn btn-group'>
         <ul class='pagination pagination-sm'>$letters</ul>
-      </div></div>\n";
+      </div></div>
+HTML
   }
 }
 
@@ -4185,8 +4227,7 @@ sub letters_list {
 =cut
 #**********************************************************
 sub make_charts {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $result = '';
 
@@ -4195,19 +4236,19 @@ sub make_charts {
   }
 
   my %CHART_OPTIONS = ();
-  my $DATA = $attr->{DATA} || {};
+  my $CHART_DATA = $attr->{DATA} || {};
   my @result_arr = ();
   my $debug = $attr->{DEBUG} || 0;
 
   my $single_compare_key = $attr->{SINGLE_COMPARE} || $FORM{SINGLE_COMPARE} || 0;
 
-  my @series_names = keys(%{$DATA});
+  my @series_names = keys(%{$CHART_DATA});
 
   if ($single_compare_key) {
-    $DATA = { $single_compare_key => $DATA->{$single_compare_key} };
+    $CHART_DATA = { $single_compare_key => $CHART_DATA->{$single_compare_key} };
   }
 
-  my $series_count = scalar keys(%{$DATA});
+  my $series_count = scalar keys(%{$CHART_DATA});
 
   my $categories = $attr->{X_TEXT};
   my $chart_types = $attr->{TYPES};
@@ -4226,7 +4267,7 @@ sub make_charts {
   }
 
   my %compare = ();
-  while (my ($series_name, $series_values) = each %{$DATA}) {
+  while (my ($series_name, $series_values) = each %{$CHART_DATA}) {
     %compare = ();
 
     # Remove first array value (to start it from 1 not 0 index)
@@ -4236,7 +4277,7 @@ sub make_charts {
       $series_values->[$i] ||= '0';
 
       # if text YYYY-MM make compare hash
-      if (!$attr->{SKIP_COMPARE} && $categories && $categories->[$i] && $categories->[$i] =~ /^(\d{4})\-(\d{2})$/) {
+      if (!$attr->{SKIP_COMPARE} && $categories && $categories->[$i] && $categories->[$i] =~ /^(\d{4})\-(\d{2})$/xm) {
         my $year = $1;
         my $month = $2;
         $compare{$month}->{$year} = $series_values->[$i];
@@ -4351,9 +4392,7 @@ sub make_charts {
 
   my @chars_arr = ('a' ... 'z');
   $CHART_OPTIONS{chart_id} = 'chart_' . join('', map {$chars_arr[int(rand($#chars_arr))]} (0 ... 10));
-  $result .= qq{
-    <div id='$CHART_OPTIONS{chart_id}' style='width: 100%; height: 100%; margin-bottom: 10px'></div>
-  };
+  $result .= qq{<div id='$CHART_OPTIONS{chart_id}' style='width: 100%; height: 100%; margin-bottom: 10px'></div>};
 
   my $chart_vars = join(",\n", @result_arr);
 
@@ -4397,8 +4436,7 @@ sub make_charts {
 =cut
 #**********************************************************
 sub make_charts_simple {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
   my $result = '';
 
   my $DATA = $attr->{DATA};
@@ -4429,17 +4467,15 @@ sub make_charts_simple {
     push @series_arr, "{ name: \"$series_name\", type: \"$chart_type\", data: [$values_text] }";
   }
   my $series_vars = join(",\n", @series_arr);
-  $result .= qq{
-    <div id='$graph_id' style='width: 100%; height: 100%; margin-bottom: 10px'></div>
-  };
+  $result .= qq{<div id='$graph_id' style='width: 100%; height: 100%; margin-bottom: 10px'></div>};
 
   if (!$self->{CHARTS_HIGHCHARTS_LOADED}) {
     $result .= "<script type='text/javascript' src='/styles/default/js/charts/highcharts.js'></script>";
     $self->{CHARTS_HIGHCHARTS_LOADED} = 1;
   }
 
-  $result .= qq{
-    <script>
+  $result .= << "HTML";
+  <script>
       \$(function () {
         Highcharts.theme = { colors: ["#f45b5b", "#8085e9", "#8d4654", "#7798BF", "#aaeeee", "#ff0066", "#eeaaee", "#55BF3B", "#DF5353", "#7798BF", "#aaeeee"]};
         Highcharts.setOptions(Highcharts.theme);
@@ -4465,55 +4501,15 @@ sub make_charts_simple {
         });
       });
     </script>
-  };
+HTML
 
-  unless ($attr->{OUTPUT2RETURN}) {
+  if (! $attr->{OUTPUT2RETURN}) {
     print $result;
   }
 
   return $result;
 }
-#**********************************************************
-=head2 make_charts3($attr) - Make different charts
 
-   If given only one series and X_TEXT as YYYY-MM, will build columned compare chart
-
-   Arguments:
-     $name - header of charts
-     $type - type of chart: Line, Area, Bar, Donut
-     $attr
-       element - chart id
-       data    - Data array of hashes
-         [:value]
-            value - Array_ref of values
-       xkeys   - Keys for X
-       labels  - Name of data sourse
-       postUnits   - Name of units (Mb/s etc)
-   Result:
-     string
-
-=cut
-#**********************************************************
-# sub make_charts3 {
-#   my $self = shift;
-#   my ($name, $type, $attr) = @_;
-#
-#   $attr->{element} = "graph_" . $attr->{element};
-#   my $ATTR = JSON->new->indent->encode($attr);
-#
-#   my $chart = $self->element('div', undef, { id => $attr->{element}, class => 'graph', style => 'height: 250px' });
-#   my $result = $self->element('div', $self->element('h5', $name, { class => 'text-center' }) . $chart, { class => 'span6' });
-#
-#   $result .= qq(
-#   	<link rel='stylesheet' type='text/css' href='/styles/$self->{HTML_STYLE}/plugins/morris/morris.css'>
-#     <script type='text/javascript' src='/styles/default/js/raphael.min.js'></script>
-# 	  <script type='text/javascript' src='/styles/$self->{HTML_STYLE}/plugins/morris/morris.min.js'></script>
-#     <script>
-# 	    Morris.$type($ATTR);
-# 	  </script> );
-#
-#   return $result;
-# }
 #**********************************************************
 =head2 br($attr) - Make HTML <br> element (Break line)
 
@@ -4524,8 +4520,6 @@ sub make_charts_simple {
 =cut
 #**********************************************************
 sub br {
-  #my $self = shift;
-
   return '<br/>';
 }
 
@@ -4604,8 +4598,7 @@ sub pre {
 =cut
 #**********************************************************
 sub b {
-  shift;
-  my ($text) = @_;
+  my (undef, $text) = @_;
 
   my $output = (defined($text)) ? "<b>$text</b>" : '';
 
@@ -4670,8 +4663,7 @@ sub element {
 =cut
 #***********************************************************
 sub badge {
-  shift;
-  my ($text, $attr) = @_;
+  my (undef, $text, $attr) = @_;
 
   my $type = ($attr->{TYPE}) ? "$attr->{TYPE}" : 'badge-info';
   my $style = ($attr->{STYLE}) ? " $attr->{STYLE}" : "";
@@ -4711,8 +4703,7 @@ sub badge {
 =cut
 #***********************************************************
 sub progress_bar {
-  my $self = shift;
-  my ($attr) = @_;
+  my (undef, $attr) = @_;
 
   my $complete = 0;
   my $one_percent = 0;
@@ -4796,7 +4787,7 @@ sub progress_bar {
 
     my $progress_height = $attr->{PROGRESS_HEIGHT} ? $attr->{PROGRESS_HEIGHT} : 'progress-sm';
 
-    $ret = qq{
+    $ret = << "HTML";
       <div class='row'>
         <div class='col-md-8'>
           <div class='progress $progress_height $active'>
@@ -4806,33 +4797,34 @@ sub progress_bar {
       <div class='col-md-3'>
         <span class='badge bg-$bage_color'>$bage_text</span>
       </div>
-    };
+HTML
   }
   else {
     $bar_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
-    $ret = qq{
+    $ret =<< "HTML";
     <div class='progress-bar bg-success' style='width: $first_step%'>
       <span style='color: $text_color'> $text </span> <span class='sr-only'>$first_step% Complete (success)</span>
-    </div> };
-
+    </div>
+HTML
     if ($second_step) {
-      $ret .= qq{<div class='progress-bar bg-warning' style='width: $second_step%'>
+      $ret .=<< "HTML";
+<div class='progress-bar bg-warning' style='width: $second_step%'>
       <span class='sr-only'>$second_step% Complete (warning) </span>
-    </div>};
+    </div>
+HTML
     }
 
     if ($third_step) {
-      $ret .= qq{ <div class='progress-bar bg-danger' style='width: $third_step%'>
+      $ret .=<< "HTML";
+<div class='progress-bar bg-danger' style='width: $third_step%'>
       <span class='sr-only'>$third_step% Complete (danger)</span>
-    </div> };
+    </div>
+HTML
     }
 
     if($attr->{TOP_TEXT}) {
-      $relative_text =
-        qq{<div class='progress-bar-text'>
-             $attr->{TOP_TEXT}
-           </div>}
+      $relative_text = qq{<div class='progress-bar-text'> $attr->{TOP_TEXT} </div>}
     }
 
     $ret = qq{<div class='progress'> $ret </div> $relative_text};
@@ -4944,7 +4936,7 @@ sub short_info_panels_row {
 
     if ($color eq '' || $system_colors !~ uc $color) {
       if ($color ne '') { #define CSS rules for given color
-        $color_definition = qq{
+        $color_definition =<< "HTML";
           <style>
             #$id {
               border-color : $color;
@@ -4960,10 +4952,10 @@ sub short_info_panels_row {
               background-color: $color;
             }
           </style>
-        };
+HTML
       }
       else { #define JavaScript that will aply color
-        $color_definition = qq{
+        $color_definition = << "HTML";
           <script>
             jQuery(function(){
               var id = '$id';
@@ -4981,23 +4973,19 @@ sub short_info_panels_row {
               jQuery('#' + id).prepend(color_definition);
             });
           </script>
-        };
+HTML
       }
     }
 
     my $footer = '';
     if ($panel->{LINK}) {
-      $footer = qq{
-        <div class='card-footer row'>
-          <div class='float-left'>$link</div>
-        </div>
-      };
+      $footer = qq{<div class='card-footer row'> <div class='float-left'>$link</div> </div> };
     }
 
     my $columns = '';
     if ($icon) {
-      $columns = qq{
-        <div class='info-box bg-$color'>
+      $columns = << "HTML";
+      <div class='info-box bg-$color'>
           <span class='info-box-icon'>
             <i class='fa fa-$icon'></i>
           </span>
@@ -5007,25 +4995,25 @@ sub short_info_panels_row {
           </div>
         </div>
       </div>
-      };
+HTML
     }
     else {
-      $columns = qq{
-        <div class='col-xs-12 text-center'>
+      $columns = << "HTML";
+      <div class='col-xs-12 text-center'>
           <div style='font-size: $number_size'>$number</div>
           <div class='summary'>$text</div>
         </div>
-      };
+HTML
     }
 
-    my $panel_html = qq{
-      $color_definition
+    my $panel_html = << "HTML";
+    $color_definition
       <div class='small-box bg-$color' id='$id'>
         <div class='card'>
           $columns
         </div>
         $footer
-    };
+HTML
 
     if (defined($attr->{MENU_BUTTONS})) {
       $result .= '</div>';
@@ -5042,7 +5030,6 @@ sub short_info_panels_row {
   if (!defined($attr->{MENU_BUTTONS})) {
     $result .= '</div>';
   }
-
 
   if ($self->{NO_PRINT}) {
     $self->{OUTPUT} .= $result;
@@ -5115,14 +5102,14 @@ sub short_info_panels_row {
 =cut
 #**********************************************************
 sub tree_menu {
-  shift;
+  my (undef, @attr) = @_;
 
   require Abills::HTML_Tree;
   Abills::HTML_Tree->import();
 
   my $tree_builder = Abills::HTML_Tree->new();
 
-  return $tree_builder->tree_menu(@_);
+  return $tree_builder->tree_menu(@attr);
 }
 
 #**********************************************************
@@ -5163,14 +5150,14 @@ sub tree_menu {
 =cut
 #**********************************************************
 sub build_parentness_tree {
-  shift;
+  my (undef, @attr) = @_;
 
   require Abills::HTML_Tree;
   Abills::HTML_Tree->import();
 
   my $tree_builder = Abills::HTML_Tree->new();
 
-  return $tree_builder->build_parentness_tree(@_);
+  return $tree_builder->build_parentness_tree(@attr);
 }
 
 #**********************************************************
@@ -5358,7 +5345,7 @@ sub form_datetimepicker {
   my $input = $self->form_input($name, $value, { class => 'form-control', %{$attr // {}} });
 
   if ($attr->{ICON}) {
-    $input = qq(
+    $input = << "HTML";
     <div class='input-group' id='$name'>
       $input
       <div class='input-group-append'>
@@ -5367,46 +5354,47 @@ sub form_datetimepicker {
         </div>
       </div>
     </div>
-    );
+HTML
   }
 
   my $event_scripts = '';
   if ($attr->{TIME_HIDDEN_ID}) {
-    $event_scripts .= qq{
-      jQuery('#$name').on('dp.change', function(e){
+    $event_scripts .= << "HTML";
+    jQuery('#$name').on('dp.change', function(e){
         if (e.date){
           jQuery('#$attr->{TIME_HIDDEN_ID}').val(e.date.format('HH:mm'));
         }
       });
-    };
-  };
+HTML
+  }
+
   if ($attr->{DATE_HIDDEN_ID}) {
-    $event_scripts .= qq{
-      jQuery('#$name').on('dp.change', function(e){
+    $event_scripts .= << "HTML";
+    jQuery('#$name').on('dp.change', function(e){
         if (e.date){
           jQuery('#$attr->{DATE_HIDDEN_ID}').val(e.date.format('Y-M-D'));
         }
       });
-    };
-  };
+HTML
+  }
 
   require JSON;
   my $options_json = JSON->new->encode(\%datetimepicker_options);
-  $result .= qq(
-    $input
+  $result .= << "HTML";
+  $input
     <script type="text/javascript">
       \$(function () {
         \$('#$name').datetimepicker($options_json);
           $event_scripts
         });
     </script>
-  );
+HTML
 
   return $result;
 }
 
 #**********************************************************
-=head2 redirect($url) - redirects user to given URL
+=head2 redirect($url, $attr) - redirects user to given URL
 
   Arguments :
     $url  - where user should be redirected
@@ -5426,7 +5414,6 @@ sub redirect {
   my $wait = $attr->{WAIT} || 0;
   my $message = '';
   if ($attr->{MESSAGE} || $attr->{MESSAGE_HTML}) {
-
     $message = $attr->{MESSAGE_HTML} || $self->message('info', '',
       $attr->{MESSAGE} . $self->button(' Redirect ', '', { GLOBAL_URL => $url }),
       { OUTPUT2RETURN => 1 }
@@ -5435,7 +5422,6 @@ sub redirect {
   }
 
   if (!$self->{HEADERS_SENT} && !$attr->{NO_PRINT}) {
-
     # Instant redirect via Location
     if (!$wait && !$message) {
       print "Refresh: 0;url=$url\n\n";
@@ -5448,29 +5434,29 @@ sub redirect {
     print "Content-Type: text/html\n\n";
 
     # Load bootstrap
-    print "<link rel='stylesheet' type='text/css' href='/styles/default/css/adminlte.min.css'>\n";
-
-    # Show message
-    print "<body>
+    my $redirect = << "HTML";
+<link rel='stylesheet' type='text/css' href='/styles/default/css/adminlte.min.css'>
+<body>
     <div class='container'>
       <div class='page-header'>
         $message
       </div>
     </div>
-    </body>";
+    </body>
+HTML
 
+    print $redirect;
     return 1;
   }
 
-  my $redirect = "
-    $message
-
+  my $redirect = << "HTML";
+$message
     <!-- Emulate header -->
     <meta http-equiv='refresh' content='$wait;URL=$url'/>
 
     <!-- JavaScript fallback -->
     <script>setTimeout($wait, function(){ location.replace('$url') })</script>
-  ";
+HTML
 
   if ($attr->{NO_PRINT}) {
     $self->{OUTPUT} .= $redirect;
@@ -5509,8 +5495,8 @@ sub form_blocks_togglable {
   my $id1 = $rnd_str->(8, 'a' .. 'z');
   my $id2 = $rnd_str->(8, 'a' .. 'z');
 
-  return qq{
-    <div id='$id1'>
+  return << "HTML";
+  <div id='$id1'>
       <div class='input-group'>
         $first_block
         <div class='input-group-append'>
@@ -5536,8 +5522,7 @@ sub form_blocks_togglable {
         new BlockToggler('$id1', '$id2');
       })
     </script>
-  };
-
+HTML
 }
 
 #**********************************************************
@@ -5670,8 +5655,8 @@ sub chart {
     require JSON;
     my $chart_data1 = JSON->new->encode($attr->{DATA_CHART});
     my $chart_options1 = JSON->new->encode($attr->{OPTIONS});
-    $result .= qq{
-    <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px; max-height: 45vh;"></canvas>
+    $result .= << "HTML";
+<canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px; max-height: 45vh;"></canvas>
     <script>
       var c = document.getElementById("$canvas_id");
       var ctx = c.getContext("2d");
@@ -5681,7 +5666,8 @@ sub chart {
         options: $chart_options1
       });
     </script>
-  };
+HTML
+
     $result = $self->element('div', $result, { class => 'card p-1 card-chart' }) if $attr->{IN_CONTAINER};
     return $result;
   }
@@ -5707,7 +5693,7 @@ sub chart {
   my $hide_legend_option = ($attr->{HIDE_LEGEND}) ? 'legend : { display : false },' : '';
   my $scales = $attr->{SCALES} || '';
 
-  $result .= qq{
+  $result .= << "HTML";
     <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px; max-height: 45vh;"></canvas>
     <script>
       var c = document.getElementById("$canvas_id");
@@ -5728,7 +5714,7 @@ sub chart {
         }
       });
     </script>
-  };
+HTML
 
   $result = $self->element('div', $result, { class => 'card p-1' }) if $attr->{IN_CONTAINER};
 
@@ -5763,7 +5749,7 @@ sub html_tree {
   my $DATA = Abills::Base::json_former($list);
   $attr = Abills::Base::json_former($attr);
 
-  my $result = qq(
+  my $result = << "HTML";
     <div id="show_tree" style="text-align: left;" class="form-group container"> </div>
     <link rel='stylesheet' href='/styles/default/css/new_tree.css'>
     <script type='text/javascript' src='/styles/default/js/tree/tree.js'></script>
@@ -5777,7 +5763,8 @@ sub html_tree {
         var list = $DATA;
         make_tree(list, keys, attr);
       });
-    </script> );
+    </script>
+HTML
 
   if ($FORM{DEBUG}) {
     $result .= "<textarea cols=160 rows=6> '$keys' \n\n $DATA</textarea>";
@@ -5854,8 +5841,7 @@ sub _make_perm_clases {
 =cut
 #**********************************************************
 sub button_quick_link {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $lg_to_sm_limit = 5;
   my $block_button_info = '';
@@ -5873,8 +5859,8 @@ sub button_quick_link {
     $brand_display = 'd-sm-none';
   }
 
-  my $result = qq{
-    <section class='content-header'>
+  my $result = << "HTML";
+  <section class='content-header'>
       <nav class='navbar $navbar_expand navbar-light abills-navbar' role='navigation'>
         <a class='navbar-brand $brand_display pl-3'>$lang->{QUICK_MENU}</a>
         <button class='navbar-toggler' type='button' data-toggle='collapse' data-target='#quickLinksNavbarContent' aria-controls='quickLinksNavbarContent' aria-expanded='false' aria-label='Toggle navigation'>
@@ -5887,7 +5873,7 @@ sub button_quick_link {
         </div>
       </nav>
     </section>
-  };
+HTML
 
   return $result;
 }

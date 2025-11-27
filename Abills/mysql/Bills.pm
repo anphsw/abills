@@ -7,18 +7,16 @@ package Bills;
 =cut
 
 use strict;
+use warnings;
 use parent qw(dbcore);
 
 our $VERSION = 2.00;
-my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db    = shift;
-  ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
   my $self = {
     db    => $db,
@@ -37,12 +35,12 @@ sub new {
 =cut
 #**********************************************************
 sub create {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_add('bills', { %$attr, 
-  	                          REGISTRATION => 'NOW()' 
-  	                        });
+  $self->query_add('bills', {
+    %$attr,
+    REGISTRATION => 'NOW()'
+  });
 
   $self->{BILL_ID} = $self->{INSERT_ID} if (!$self->{errno});
 
@@ -67,8 +65,7 @@ sub create {
 =cut
 #**********************************************************
 sub action {
-  my $self = shift;
-  my ($type, $BILL_ID, $SUM) = @_;
+  my ($self, $type, $BILL_ID, $SUM) = @_;
   my $value = '';
 
   if ($SUM == 0) {
@@ -86,7 +83,11 @@ sub action {
     return $self;
   }
 
-  $self->query("UPDATE bills SET deposit=deposit$value ? WHERE id= ? ;", 'do', { Bind => [ $SUM, $BILL_ID ] });
+  my $sql = <<"SQL";
+UPDATE bills SET deposit=deposit$value ? WHERE id= ? ;
+SQL
+
+  $self->query($sql, 'do', { Bind => [ $SUM, $BILL_ID ] });
 
   return $self;
 }
@@ -97,8 +98,7 @@ sub action {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %FIELDS = (
     BILL_ID    => 'id',
@@ -109,7 +109,7 @@ sub change {
 
   my $bills_old_info = $self->info({ BILL_ID => $attr->{BILL_ID} });
 
-  delete $admin->{MODULE};
+  delete $self->{admin}->{MODULE};
   $self->changes({
     CHANGE_PARAM    => 'BILL_ID',
     TABLE           => 'bills',
@@ -129,8 +129,7 @@ sub change {
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = '';
   if (defined($attr->{COMPANY_ONLY})) {
@@ -155,21 +154,22 @@ sub list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $self->query("SELECT b.id,
-     b.deposit,
-     u.id AS login,
-     c.name AS company_name,
-     b.uid,
-     b.company_id
-     FROM bills b
-     LEFT JOIN users u ON  (b.uid=u.uid) 
-     LEFT JOIN companies c ON (b.company_id=c.id) 
-     $WHERE 
-     GROUP BY 1
-     ORDER BY $SORT $DESC;",
-     undef,
-     $attr
-  );
+  my $sql = <<"SQL";
+SELECT b.id,
+       b.deposit,
+       u.id AS login,
+       c.name AS company_name,
+       b.uid,
+       b.company_id
+FROM bills b
+       LEFT JOIN users u ON  (b.uid=u.uid)
+       LEFT JOIN companies c ON (b.company_id=c.id)
+  $WHERE
+GROUP BY 1
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -180,8 +180,7 @@ sub list {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("DELETE FROM bills WHERE id= ? ;", 'do', { Bind => [ $attr->{BILL_ID} ] });
 
@@ -201,18 +200,21 @@ sub del {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT b.id AS bill_id, 
-     b.deposit AS deposit, 
-     u.id AS login, 
-     b.uid, 
-     b.company_id
-    FROM bills b
-    LEFT JOIN users u ON (u.uid = b.uid)
-    WHERE b.id= ? ;",
-    undef,
+  my $sql = <<'SQL';
+SELECT b.id AS bill_id,
+       b.deposit AS deposit,
+       u.id AS login,
+       b.uid,
+       b.company_id
+FROM bills b
+       LEFT JOIN users u ON (u.uid = b.uid)
+WHERE b.id= ? ;
+SQL
+
+
+  $self->query($sql, undef,
     { INFO => 1,
     	Bind => [ $attr->{BILL_ID} ] }
   );

@@ -26,11 +26,12 @@ my $Gps = GPS->new($db, $admin, \%conf);
 my $debug = $FORM{DEBUG} || 0;
 my $img_dir = $conf{IMG_DIR} || '/images/';
 
-my $close_outer_modal_script = qq\
-  <script>
+my $close_outer_modal_script = <<"[SCRIPT]";
+<script>
     setTimeout(function(){aModal.hide()}, 3000);
   </script>
-  \;
+
+[SCRIPT]
 
 #**********************************************************
 =head2 - gps_unregistered_trackers()
@@ -56,6 +57,9 @@ sub gps_unregistered_trackers {
       ADMINS_SEL => sel_admins()
     });
   }
+  elsif ($FORM{del}) {
+    $Gps->unregistered_trackers_del({ GPS_IMEI => $FORM{del} });
+  }
 
   my $unregistered_trackers_list = $Gps->unregistered_trackers_list({ COLS_NAME => 1 });
 
@@ -70,7 +74,7 @@ sub gps_unregistered_trackers {
 
   require GPS::Maps_info;
   my $car_icon = GPS::Maps_info::_gps_car_icon();
-  $car_icon =~ s/"/\\\"/g;
+  $car_icon =~ s/"/\\\"/xg;
 
   my $i = 1;
   foreach my $tracker (@{$unregistered_trackers_list}) {
@@ -79,7 +83,7 @@ sub gps_unregistered_trackers {
       $tracker->{gps_imei},
       $tracker->{gps_time},
       $tracker->{ip},
-      ($tracker->{coord_x} || 0). '/' . ($tracker->{coord_y} || 0),
+      ($tracker->{coord_x} || 0) . '/' . ($tracker->{coord_y} || 0),
       $html->button('', '', {
         NO_LINK_FORMER => 1,
         JAVASCRIPT     => 1,
@@ -88,7 +92,8 @@ sub gps_unregistered_trackers {
         class          => 'btn btn-info btn-xs',
         ICON           => 'fa fa-globe',
       }),
-      $html->button('', "index=$index&chg=$tracker->{gps_imei}", { class => 'change' })
+      $html->button('', "index=$index&chg=$tracker->{gps_imei}", { class => 'change' }),
+      $html->button($lang{DEL}, "index=$index&del=$tracker->{gps_imei}", { MESSAGE => "$lang{DEL} GPS IMEI $tracker->{gps_imei}?", class => 'del' }),
     );
 
     my $tb = "<div class='panel panel-info'>" .
@@ -155,7 +160,7 @@ sub gps_tracked_admins {
     my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
     if (!$Gps->{TOTAL}) {
       $Gps->admins_color_add({
-        AID => $FORM{AID},
+        AID   => $FORM{AID},
         COLOR => $FORM{COLOR}
       });
     }
@@ -164,6 +169,12 @@ sub gps_tracked_admins {
     }
 
     $html->message('info', $lang{CHANGED}) if !_error_show($Gps);
+  }
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
+    $Gps->admins_color_del({ AID => $FORM{del} });
+    $Gps->location_del({ AID => $FORM{del} });
+    $html->message('info', $lang{DELETED}) if !_error_show($Gps);
   }
 
   if ($FORM{COLOR_FORM}) {
@@ -211,14 +222,18 @@ sub gps_tracked_admins {
       ex_params      => "data-coords='$last_location->{coord_y};$last_location->{coord_x}'",
     });
 
+    my $del_btn = $html->button($lang{DEL}, "index=$index&del=$admin_->{aid}",
+      { MESSAGE => "$lang{DEL} GPS $admin_->{login}?", class => 'del' });
+
     $table->addrow(
       $admin_->{aid},
       $admin_->{name} || $admin_->{login},
       $admin_->{gps_imei},
       $colorBtn,
       $last_location->{gps_time},
-      $admin_->{status},
-      $map_btn
+      $last_location->{status},
+      $map_btn,
+      $del_btn
     );
   }
 
@@ -302,7 +317,6 @@ sub gps_route_button {
       class          => 'btn btn-xs btn-info',
       NO_LINK_FORMER => 1
     });
-
 }
 
 #**********************************************************
@@ -353,7 +367,7 @@ sub gps_add_thumbnail {
       $html->message('err', $lang{ERROR}, "Corrupted file");
     }
 
-    my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/;
+    my ($file_type) = $FORM{UPLOAD_FILE}->{filename} =~ /(\.[^.]+)$/xm;
 
     my $file_name = "thumbnail_aid_$FORM{AID}$file_type";
 
@@ -363,7 +377,6 @@ sub gps_add_thumbnail {
     });
 
     if ($is_uploaded) {
-
       $Gps->thumbnail_add({
         AID            => $aid,
         THUMBNAIL_PATH => "$file_name"
@@ -432,8 +445,11 @@ sub gps_delete_thumbnail {
 }
 
 #**********************************************************
-=head2 gps_report
+=head2 gps_report()
 
+  Arguments:
+
+  Results:
 
 =cut
 #**********************************************************
@@ -631,9 +647,9 @@ sub get_work_time {
   my ($list) = @_;
 
   my $first = extract_date($list->[0]->{gps_time}, 1);
-  my $last = extract_date($list->[scalar @{$list} - 1]->{gps_time}, 1);
+  my $last_time = extract_date($list->[scalar @{$list} - 1]->{gps_time}, 1);
 
-  return (time2sec($last) - time2sec($first));
+  return (time2sec($last_time) - time2sec($first));
 }
 
 #**********************************************************
@@ -687,12 +703,13 @@ sub get_route_length {
 #**********************************************************
 sub extract_date {
   my ($date_time, $get_time) = @_;
-  my ($date, $time) = split /\s/, $date_time;
+  my ($date, $time) = split(/\s/x, $date_time);
+
   unless ($get_time) {
     return $date;
   }
+
   return $time;
 }
 
-
-1
+1;

@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <div class='row justify-content-center'>
     <section id='left-column' class='col-md-12 col-lg-6' style="min-height: 500px">
       <div class='card card-primary card-outline container-md'>

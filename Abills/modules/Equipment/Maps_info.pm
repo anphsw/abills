@@ -89,7 +89,7 @@ sub location_info {
 
   my $location_id = $attr->{LOCATION_ID};
 
-  my $equipment_info_list = $Equipment->_list({
+  my $equipment_info_list = $Equipment->list({
     LOCATION_ID => $location_id,
     COLS_NAME   => 1,
     NAS_NAME    => '_SHOW',
@@ -363,7 +363,7 @@ sub pon_maps {
   }
 
   my %showed_equipment = ();
-  $equipment_list = $Equipment->_list({
+  $equipment_list = $Equipment->list({
     NAS_ID      => ($attr->{NAS_ID}) ? $attr->{NAS_ID} : '_SHOW',
     MODEL_NAME  => '_SHOW',
     NAS_NAME    => '_SHOW',

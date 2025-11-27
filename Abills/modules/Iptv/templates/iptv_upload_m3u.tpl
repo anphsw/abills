@@ -1,6 +1,6 @@
 <form name='UPLOAD_M3U' id='form_UPLOAD_M3U' method='post' class='form form-horizontal' enctype=multipart/form-data>
 
-    <input type='hidden' name='index' value='$index' />
+    <input type='hidden' name='index' value='%index%' />
     <input type=hidden name='import' value='1'>
     <input type=hidden name='import_message' value='1'>
 

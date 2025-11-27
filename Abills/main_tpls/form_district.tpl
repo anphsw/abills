@@ -20,6 +20,8 @@
         </div>
       </div>
 
+      %TERRITORIAL_UNITS_SEL%
+
       <hr>
       <div class='form-group row'>
         <label class='col-md-12 col-form-label text-center' for='NAME'>_{ADDRESS_PARENT}_</label>
@@ -65,8 +67,11 @@
 <script>
   jQuery('#POPULATION').on('input', function () {
     let population = jQuery(this).val();
+
+    // $conf{ADDRESS_AVARAGE_SIZE_HOUSEHOLD}
+    let avarage_size = '%ADDRESS_AVARAGE_SIZE_HOUSEHOLD%' || 3.3;
     if (population < 1) return;
 
-    jQuery('#HOUSEHOLDS').val(Math.round(parseInt(population) / 3.3));
+    jQuery('#HOUSEHOLDS').val(Math.round(parseInt(population) / avarage_size));
   });
 </script>

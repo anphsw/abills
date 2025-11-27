@@ -1,5 +1,5 @@
-<form action=$SELF_URL name='storage_form_subreport' method=POST>
-  <input type=hidden name=index value=$index>
+<form action=%SELF_URL% name='storage_form_subreport' method=POST>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name=ID value=%ID%>
   <input type=hidden name=STORAGE_INCOMING_ARTICLES_ID value=$FORM{reserve}/>
 

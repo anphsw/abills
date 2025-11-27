@@ -1,5 +1,5 @@
 <form class='form form-horizontal hidden-print form-main' action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
 
   <div class='card card-primary card-outline col-md-6 container'>
     <div class='card-header with-border'>

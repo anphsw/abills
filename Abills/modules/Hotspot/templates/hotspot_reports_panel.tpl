@@ -1,6 +1,6 @@
 <div class='well well-sm'>
   <form method='get' name='HOTSPOT_REPORTS_FORM' class='form form-inline'>
-    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='index' value='%index%'/>
 
     <div class="form-group float-left" data-visible="%FILTER_VISIBLE%">
       <label for='FILTER'>_{FILTER}_</label>

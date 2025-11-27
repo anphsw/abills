@@ -53,8 +53,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_user_id_holdup {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my %params = (
     UID          => $path_params->{uid},
@@ -78,11 +77,14 @@ sub get_user_id_holdup {
 
   Endpoint POST /user/:id/holdup/
 
+  Arguments:
+    $path_params
+    $query_params
+
 =cut
 #**********************************************************
 sub post_user_id_holdup {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %params = (
     UID          => $path_params->{uid},
@@ -90,6 +92,7 @@ sub post_user_id_holdup {
     ACCEPT_RULES => 1,
     FROM_DATE    => $query_params->{FROM_DATE},
     TO_DATE      => $query_params->{TO_DATE},
+    USER_INFO    => $path_params->{user_object}
   );
 
   $params{ID} = $path_params->{id} if ($self->{conf}->{INTERNET_USER_SERVICE_HOLDUP});
@@ -112,12 +115,12 @@ sub post_user_id_holdup {
 =cut
 #**********************************************************
 sub delete_user_id_holdup {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my %params = (
-    UID => $path_params->{uid},
-    del => 1,
+    UID       => $path_params->{uid},
+    USER_INFO => $path_params->{user_object},
+    del       => 1,
   );
 
   $params{ID} = $path_params->{id} if ($self->{conf}->{INTERNET_USER_SERVICE_HOLDUP});

@@ -8,8 +8,8 @@
 
 =head1 VERSION
 
-  VERSION: 0.36
-  UPDATE: 20190607
+  VERSION: 0.37
+  UPDATE: 20250721
 
 =cut
 #**********************************************************
@@ -23,7 +23,6 @@ our (
   %log_levels,
   $DATE,
   $var_dir,
-  @MODULES
 );
 
 BEGIN {
@@ -51,17 +50,16 @@ my $fw_guest_table = 32;
 my $argv = parse_arguments(\@ARGV);
 
 my $prog_name = $0;
-if ($prog_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
+if ($prog_name =~ /\/?([a-zA-Z\.\_\-]+)$/xm) {
   $prog_name = $1;
 }
 
 my $prog_name_short = $prog_name;
-$prog_name_short =~ s/\.[a-zA-Z0-9]+$//;
+$prog_name_short =~ s/\.[a-zA-Z0-9]+$//x;
 
 my $log_dir = $var_dir . '/log';
 
 my $UPDATE_TIME = $argv->{UPDATE_TIME} || 10; # In Seconds
-#my $AUTO_VERIFY = 0;
 my $debug = $argv->{DEBUG} || 3;
 my $logfile = $argv->{LOG_FILE} || $log_dir . '/' . $prog_name_short . '.log';
 
@@ -73,7 +71,7 @@ my $check_time = ($argv->{RECONFIG_PERIOD}) ? time - $argv->{RECONFIG_PERIOD} : 
 my @START_FW = (5000, 3000, 1000);
 
 if ($conf{FW_START_RULES}) {
-  @START_FW = split(/,\s?/, $conf{FW_START_RULES});
+  @START_FW = split(/,\s?/x, $conf{FW_START_RULES});
 }
 
 my $BIT_MASK = '32';
@@ -132,13 +130,16 @@ sub get_tp_classes {
   my %TP_TRAFFIC_CLASSES = ();
 
   my $Internet = Internet->new($db, undef, \%conf);
-  # Get tp traffic classe
-  $Internet->query("SELECT tp.tp_id, COUNT(DISTINCT tt.id) AS classes_count
-     FROM  tarif_plans tp
-     INNER JOIN intervals i ON (i.tp_id=tp.tp_id)
-     INNER JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
-     WHERE tp.module IN ('Dv', 'Internet')
-     GROUP BY tp.tp_id", undef, { COLS_NAME => 1 });
+  my $sql = <<'SQL';
+SELECT tp.tp_id, COUNT(DISTINCT tt.id) AS classes_count
+FROM  tarif_plans tp
+        INNER JOIN intervals i ON (i.tp_id=tp.tp_id)
+        INNER JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
+WHERE tp.module IN ('Dv', 'Internet')
+GROUP BY tp.tp_id
+SQL
+
+  $Internet->query($sql, undef, { COLS_NAME => 1 });
 
   foreach my $tp (@{$Internet->{list}}) {
     $TP_TRAFFIC_CLASSES{$tp->{tp_id}} = $tp->{classes_count};
@@ -184,19 +185,8 @@ sub check_activity {
     $WHERE .= " AND UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) <= $period";
   }
 
-  my $internet_tables = q{ FROM internet_online online
-    LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
-    LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
-  };
-
-  # if (in_array('Internet', \@MODULES)) {
-  #   $internet_tables = q{  FROM internet_online online
-  #     LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
-  #     LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
-  #   };
-  # }
-
-  my $sql = "SELECT online.user_name,
+  my $sql = << "SQL";
+SELECT online.user_name,
     UNIX_TIMESTAMP() - UNIX_TIMESTAMP(online.started) AS duration,
     online.tp_id,
     INET_NTOA(online.framed_ip_address) AS ip,
@@ -214,18 +204,19 @@ sub check_activity {
     IF(internet.filter_id<>'', internet.filter_id, tp.filter_id) AS filter_id,
     INET_NTOA(internet.netmask) AS netmask,
     online.guest
-    $internet_tables
+    FROM internet_online online
+    LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
+    LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
     INNER JOIN nas n ON (n.id=online.nas_id)
-    WHERE (online.status=1 OR online.status=3 OR online.status=10) $WHERE; ";
+    WHERE (online.status=1 OR online.status=3 OR online.status=10)
+    $WHERE;
+SQL
 
   if ($debug > 7) {
     $Log->log_print('LOG_SQL', '', $sql);
   }
 
-  $Internet->query($sql,
-    undef,
-    { COLS_NAME => 1 }
-  );
+  $Internet->query($sql, undef, { COLS_NAME => 1 });
 
   my $fw_step = 1000;
 
@@ -250,29 +241,29 @@ sub check_activity {
 
     if (defined($argv->{IPN_SHAPPER})) {
       $cmd = $conf{IPN_FW_START_RULE} || $conf{INTERNET_IPOE_START};
-      $cmd =~ s/\%IP/$ip/g;
-      $cmd =~ s/\%MASK/$user_info->{netmask}/g;
+      $cmd =~ s/\%IP/$ip/xg;
+      $cmd =~ s/\%MASK/$user_info->{netmask}/xg;
       #$cmd =~ s/\%NUM/$rule_num/g;
       #$cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
       #$cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
-      $cmd =~ s/\%LOGIN/$user_info->{user_name}/g;
-      $cmd =~ s/\%PORT/$user_info->{nas_port_id}/g;
-      $cmd =~ s/\%DEBUG/$user_info->{filter_id}/g;
-      $cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
-      $cmd =~ s/\%SERVICE_ID/$user_info->{service_id}/g;
+      $cmd =~ s/\%LOGIN/$user_info->{user_name}/xg;
+      $cmd =~ s/\%PORT/$user_info->{nas_port_id}/xg;
+      $cmd =~ s/\%DEBUG/$user_info->{filter_id}/xg;
+      $cmd =~ s/\%STATUS/ONLINE_ENABLE/xg;
+      $cmd =~ s/\%SERVICE_ID/$user_info->{service_id}/xg;
 
       if ($user_info->{filter_id} && $conf{IPN_FILTER}) {
         my $f_cmd = $conf{IPN_FILTER};
-        $f_cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
-        $f_cmd =~ s/\%IP/$user_info->{ip}/g;
-        $f_cmd =~ s/\%MASK/$user_info->{netmask}/g;
+        $f_cmd =~ s/\%STATUS/ONLINE_ENABLE/xg;
+        $f_cmd =~ s/\%IP/$user_info->{ip}/xg;
+        $f_cmd =~ s/\%MASK/$user_info->{netmask}/xg;
         #$cmd =~ s/\%NUM/$rule_num/g;
         #$cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
         #$cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
-        $f_cmd =~ s/\%LOGIN/$user_info->{user_name}/g;
-        $f_cmd =~ s/\%PORT/$user_info->{nas_port_id}/g;
-        $f_cmd =~ s/\%FILTER_ID/$user_info->{filter_id}/g;
-        $f_cmd =~ s/\%DEBUG//g;
+        $f_cmd =~ s/\%LOGIN/$user_info->{user_name}/xg;
+        $f_cmd =~ s/\%PORT/$user_info->{nas_port_id}/xg;
+        $f_cmd =~ s/\%FILTER_ID/$user_info->{filter_id}/xg;
+        $f_cmd =~ s/\%DEBUG//xg;
         $cmd .= "; $f_cmd";
       }
 
@@ -284,15 +275,12 @@ sub check_activity {
       $ENV{NAS_TYPE} = $user_info->{nas_type} || '';
     }
     else {
-
       if ($conf{INTERNET_TURBO_MODE}) {
         $Turbo = Turbo->new($db, undef, \%conf);
-        $Turbo->list(
-          {
-            UID    => $user_info->{UID},
-            ACTIVE => 1,
-          }
-        );
+        $Turbo->list({
+          UID    => $user_info->{UID},
+          ACTIVE => 1,
+        });
       }
 
       if ($Turbo && $Turbo->{TOTAL} > 0) {
@@ -347,7 +335,7 @@ sub check_activity {
 =cut
 #**********************************************************
 sub usage {
-  print <<EOF;
+  print << "EOF";
  ipoe_shapper v$VERSION: Dynamic shapper update for IPoE modules
 
 Usage:
@@ -370,4 +358,4 @@ EOF
 }
 
 
-1
+1;

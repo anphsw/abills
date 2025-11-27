@@ -18,12 +18,14 @@ sub new {
   my $class = shift;
   my $db    = shift;
   ($admin, $CONF) = @_;
-  my $self = {};
-  bless($self, $class);
 
-  $self->{db}   = $db;
-  $self->{admin}= $admin;
-  $self->{conf} = $CONF;
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
+  bless($self, $class);
 
   return $self;
 }
@@ -34,8 +36,7 @@ sub new {
 =cut
 #**********************************************************
 sub groups_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = '';
 
@@ -47,7 +48,9 @@ sub groups_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @list = ();
-  $self->query("SELECT
+
+  my $sql = <<"SQL";
+    SELECT
     ng.name,
     ng.comments,
     count(ni.ip) AS count,
@@ -59,10 +62,10 @@ sub groups_list {
     LEFT JOIN netlist_ips ni ON (ng.id=ni.gid)
     $WHERE
     GROUP BY ng.id
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   if ($self->{errno}) {
     return \@list;
@@ -72,11 +75,15 @@ sub groups_list {
 }
 
 #**********************************************************
-# Add
+=head2 group_add($attr) -
+
+  Arguments:
+    $attr
+
+=cut
 #**********************************************************
 sub group_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('netlist_groups', $attr);
   $self->{GID} = $self->{INSERT_ID};
@@ -85,11 +92,15 @@ sub group_add {
 }
 
 #**********************************************************
-# change
+=head2 group_change($attr) -
+
+  Arguments:
+    $attr
+
+=cut
 #**********************************************************
 sub group_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -101,11 +112,15 @@ sub group_change {
 }
 
 #**********************************************************
-# del
+=head2 group_del($id) -
+
+  Arguments:
+    $id
+
+=cut
 #**********************************************************
 sub group_del {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query_del('netlist_groups', {ID => $id });
 
@@ -113,16 +128,21 @@ sub group_del {
 }
 
 #**********************************************************
-# Info
+=head2 group_info($id) -
+
+  Arguments:
+    $id
+
+=cut
 #**********************************************************
 sub group_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT *
-    FROM netlist_groups
-    WHERE id= ? ;",
-    undef,
+  my $sql = <<'SQL';
+    SELECT * FROM netlist_groups WHERE id= ?;
+SQL
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [ $id ] }
   );
@@ -136,8 +156,7 @@ sub group_info {
 =cut
 #**********************************************************
 sub ip_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -158,28 +177,30 @@ sub ip_list {
 
   my $ipv6_field = ($self->db_version() < 5.6) ? 'ipv6' : "INET6_NTOA(ipv6)";
 
-  $self->query("SELECT ni.ip_id as ip_id, ni.ip AS ip_num,
-      IF(ip <> 0 and
-    INET_NTOA(ip) REGEXP '(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})',
-    INET_NTOA(ni.netmask), ni.ipv6_prefix) AS netmask,
-      ni.hostname,
-      ni.descr,
-      ng.name, 
-      ni.status, DATE_FORMAT(ni.date, '%Y-%m-%d') AS date,
-      IF(ip <> 0 and
-    INET_NTOA(ip) REGEXP '(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})'
-    , INET_NTOA(ip), 
-    $ipv6_field) AS ip
+  my $sql = <<"SQL";
+    SELECT ni.ip_id as ip_id, ni.ip AS ip_num,
+       IF(ip <> 0 and
+          INET_NTOA(ip) REGEXP '(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})',
+          INET_NTOA(ni.netmask), ni.ipv6_prefix) AS netmask,
+       ni.hostname,
+       ni.descr,
+       ng.name,
+       ni.status, DATE_FORMAT(ni.date, '%Y-%m-%d') AS date,
+       IF(ip <> 0 and
+          INET_NTOA(ip) REGEXP '(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})'
+         , INET_NTOA(ip),
+          $ipv6_field) AS ip
 
     FROM netlist_ips ni
-    LEFT JOIN netlist_groups ng ON (ng.id=ni.gid)
+       LEFT JOIN netlist_groups ng ON (ng.id=ni.gid)
     $WHERE
     GROUP BY ni.ip
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -196,31 +217,40 @@ sub ip_list {
 }
 
 #**********************************************************
-# ip_add
+=head2 ip_add($attr) -
+
+  Arguments:
+    $attr
+
+=cut
 #**********************************************************
 sub ip_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_add('netlist_ips', { %$attr,
-  	                                AID  => $admin->{AID},
-  	                                DATE => 'now()'
-  	                              });
+  $self->query_add('netlist_ips', {
+    %$attr,
+    AID  => $admin->{AID},
+  	DATE => 'now()'
+  });
 
   return $self;
 }
 
 #**********************************************************
-# ip_change
+=head2 ip_change($attr) -
+
+  Arguments:
+    $attr
+
+=cut
 #**********************************************************
 sub ip_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{MAC_AUTO_DETECT} = (defined($attr->{MAC_AUTO_DETECT})) ? 1 : 0;
 
   if ($attr->{IDS}) {
-    my @ids_array = split(/, /, $attr->{IDS});
+    my @ids_array = split(/, /x, $attr->{IDS});
     foreach my $id (@ids_array) {
       $attr->{IP_ID} = $id;
       $attr->{HOSTNAME} = gethostbyaddr(inet_aton($id), AF_INET) if ($attr->{RESOLV});
@@ -246,30 +276,42 @@ sub ip_change {
 }
 
 #**********************************************************
-# del
+=head2 ip_del($ip_id) -
+
+  Arguments:
+    $ip_id
+
+=cut
 #**********************************************************
 sub ip_del {
-  my $self = shift;
-  my ($ip_id) = @_;
+  my ($self, $ip_id) = @_;
+
   $self->query_del('netlist_ips', undef, { ip_id => $ip_id });
 
   return $self;
 }
 
 #**********************************************************
-# Info
+=head2 ip_info($ip_id) -
+
+  Arguments:
+    $ip_id
+
+=cut
 #**********************************************************
 sub ip_info {
-  my $self = shift;
-  my ($ip_id) = @_;
+  my ($self, $ip_id) = @_;
 
-  $self->query("SELECT *,
-      IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(ip), INET6_NTOA(ipv6)) as ip,
-      IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(netmask), ipv6_prefix) AS netmask,
+  my $sql = <<'SQL';
+    SELECT *,
+       IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(ip), INET6_NTOA(ipv6)) as ip,
+       IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(netmask), ipv6_prefix) AS netmask,
        ip AS ip_num
     FROM netlist_ips
-    WHERE ip_id= ? ;",
-    undef,
+    WHERE ip_id= ? ;
+SQL
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [ $ip_id ] }
   );

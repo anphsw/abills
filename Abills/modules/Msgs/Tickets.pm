@@ -22,7 +22,9 @@ our (
   @WEEKDAYS,
   @MONTHES,
   @MONTHES_LIT,
-  %msgs_permissions
+  %msgs_permissions,
+  @priority,
+  @priority_colors
 );
 
 our Abills::HTML $html;
@@ -33,12 +35,6 @@ my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
 my @send_methods = ($lang{MESSAGE}, 'E-MAIL');
-my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
-my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-
-$_COLORS[6] //= 'red';
-$_COLORS[8] //= '#FFFFFF';
-$_COLORS[9] //= '#FFFFFF';
 
 if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
   $send_methods[3] = 'Web redirect';
@@ -82,6 +78,58 @@ sub msgs_admin_privileges {
   Attributes:
     $attr
 
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub msgs_admin_storage {
+
+  load_module('Storage', $html);
+  if ($FORM{add}) {
+    storage_hardware({ ADD_ONLY => 1 });
+
+    if ($FORM{INSTALLATION_ID}) {
+      my @installations = split(',\s?', $FORM{INSTALLATION_ID});
+      foreach my $installation (@installations) {
+        next if (!$installation);
+
+        $Msgs->msgs_storage_add({
+          MSGS_ID         => $FORM{STORAGE_MSGS_ID},
+          INSTALLATION_ID => $installation,
+        });
+      }
+    }
+
+    $FORM{chg} ||= $FORM{STORAGE_MSGS_ID};
+    $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
+      WAIT         => '0'
+    });
+    return 0;
+  }
+  elsif ($FORM{del}) {
+    storage_hardware();
+    $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
+      WAIT         => '0'
+    });
+    return 0;
+  }
+  else {
+    storage_hardware();
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_admin($attr) - Admin messages
+
+  Attributes:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub msgs_admin {
@@ -98,7 +146,7 @@ sub msgs_admin {
   $FORM{chg} ||= $FORM{STORAGE_MSGS_ID} if $FORM{STORAGE_MSGS_ID} && $FORM{add};
 
   if ($FORM{chg} || $FORM{ID}) {
-    $FORM{chg} =~ s/#// if ($FORM{chg});
+    $FORM{chg} =~ s/\#//x if ($FORM{chg});
     $FORM{chg} //= $FORM{ID} if !$FORM{change};
     $Msgs->message_info($FORM{chg} || $FORM{ID});
     
@@ -123,9 +171,6 @@ sub msgs_admin {
   $FORM{index} = get_function_index($FORM{get_index}) if (!$FORM{index} && $FORM{get_index});
 
   my $uid = $FORM{UID};
-  #Get admin privileges
-  # my ($A_CHAPTER, $A_PRIVILEGES, $CHAPTERS_DELIGATION) = msgs_admin_privileges($admin->{AID});
-
   if ($FORM{ajax} && $FORM{SURVEY_ID}) {
     $Msgs->survey_subject_info($FORM{SURVEY_ID});
     print "$Msgs->{TPL}";
@@ -186,40 +231,7 @@ sub msgs_admin {
     }
   }
   elsif ($FORM{STORAGE_MSGS_ID}) {
-    load_module('Storage', $html);
-    if ($FORM{add}) {
-      storage_hardware({ ADD_ONLY => 1 });
-
-      if ($FORM{INSTALLATION_ID}) {
-        my @installations = split(',\s?', $FORM{INSTALLATION_ID});
-        foreach my $installation (@installations) {
-          next if !$installation;
-
-          $Msgs->msgs_storage_add({
-            MSGS_ID         => $FORM{STORAGE_MSGS_ID},
-            INSTALLATION_ID => $installation,
-          });
-        }
-      }
-
-      $FORM{chg} ||= $FORM{STORAGE_MSGS_ID};
-      $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
-        WAIT         => '0'
-      });
-      return;
-    }
-    elsif ($FORM{del}) {
-      storage_hardware();
-      $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
-        WAIT         => '0'
-      });
-      return;
-    }
-    else {
-      storage_hardware();
-
-      return 1;
-    }
+    return msgs_admin_storage(\%FORM);
   }
   elsif ($FORM{reply} && $FORM{ID}) {
     my $plugin_result = _msgs_call_action_plugin('BEFORE_REPLY', { %{($attr) ? $attr : {}} });
@@ -309,8 +321,8 @@ sub msgs_admin {
     return ($return == 2) ? 2 : 1;
   }
 
-  $LIST_PARAMS{STATE} = undef if ($FORM{STATE} && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == 3);
-  $LIST_PARAMS{PRIORITY} = undef if ($FORM{PRIORITY} && $FORM{PRIORITY} =~ /^\d+$/ && $FORM{PRIORITY} == 5);
+  $LIST_PARAMS{STATE} = undef if ($FORM{STATE} && $FORM{STATE} =~ /^\d+$/xm && $FORM{STATE} == 3);
+  $LIST_PARAMS{PRIORITY} = undef if ($FORM{PRIORITY} && $FORM{PRIORITY} =~ /^\d+$/xm && $FORM{PRIORITY} == 5);
   $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER} if ($FORM{CHAPTER});
   $LIST_PARAMS{DESC} = 'DESC' if (!$FORM{sort});
   $LIST_PARAMS{RESPOSIBLE} = $attr->{ADMIN}->{AID} if ($attr->{ADMIN}->{AID});
@@ -324,6 +336,11 @@ sub msgs_admin {
 
 #**********************************************************
 =head2 msgs_ticket_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -387,6 +404,7 @@ sub msgs_admin_add {
 =head2 _msgs_admin_send_message($attr)
 
   Arguments:
+    $attr
 
   Return:
 
@@ -403,15 +421,15 @@ sub _msgs_admin_send_message {
   my %NUMBERS = ();
   my @ATTACHMENTS = ();
 
-  $FORM{LOCATION_ID} =~ s/,\s?//g if $FORM{LOCATION_ID};
-  $FORM{STREET_ID} =~ s/,\s?//g if $FORM{STREET_ID};
-  $FORM{DISTRICT_ID} =~ s/,\s?//g if $FORM{DISTRICT_ID};
-  $FORM{ADDRESS_FLAT} =~ s/,\s?//g if $FORM{ADDRESS_FLAT};
+  $FORM{LOCATION_ID} =~ s/,\s?//xg if $FORM{LOCATION_ID};
+  $FORM{STREET_ID} =~ s/,\s?//xg if $FORM{STREET_ID};
+  $FORM{DISTRICT_ID} =~ s/,\s?//xg if $FORM{DISTRICT_ID};
+  $FORM{ADDRESS_FLAT} =~ s/,\s?//xg if $FORM{ADDRESS_FLAT};
 
   for (my $i = 0; $i <= 2; $i++) {
     my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
 
-    next if !$FORM{ $input_name }->{filename};
+    next if (!$FORM{ $input_name }->{filename});
 
     push @ATTACHMENTS, {
       FILENAME     => $FORM{ $input_name }->{filename},
@@ -422,7 +440,7 @@ sub _msgs_admin_send_message {
   }
 
   $FORM{STATE} = 2 if ($FORM{SEND_TYPE} && ($FORM{SEND_TYPE} == 1));
-  $FORM{UID} =~ s/,/;/g if ($FORM{UID});
+  $FORM{UID} =~ s/,/;/xg if ($FORM{UID});
 
   my %query_data = ();
   my @skip_keys = ('LOCATION_ID', 'STREET_ID');
@@ -437,7 +455,7 @@ sub _msgs_admin_send_message {
     PHONE     => '_SHOW',
     EMAIL     => '_SHOW',
     %query_data,
-    UID       => ($FORM{UID} && $FORM{UID} =~ /\d+/) ? $FORM{UID} : undef,
+    UID       => ($FORM{UID} && $FORM{UID} =~ /\d+/xm) ? $FORM{UID} : undef,
     GID       => $FORM{GID},
     PAGE_ROWS => 1000000,
     DISABLE   => ($FORM{GID}) ? 0 : undef,
@@ -525,7 +543,13 @@ sub _msgs_admin_send_message {
   }
   return $att_result if $att_result;
 
-  $Notify->notify_admins({ MSG_ID => $msg_id, %FORM })  if $FORM{RESPOSIBLE} && $FORM{INNER_MSG};
+  if ($FORM{RESPOSIBLE} && $FORM{INNER_MSG}) {
+    $Notify->notify_admins({
+      MSG_ID   => $msg_id,
+      REPLY_ID => $FORM{REPLY_ID},
+      %FORM
+    })
+  }
 
   return 0 if ($attr->{SEND_ONLY} || $attr->{REGISTRATION});
 
@@ -543,6 +567,12 @@ sub _msgs_admin_send_message {
 =head2 _msgs_make_delivery($attr)
 
   Arguments:
+    $uids,
+    $NUMBERS,
+    $msgs_ids,
+    $msg_for_uid,
+    $users_list,
+    $attr
 
   Return:
 
@@ -556,7 +586,7 @@ sub _msgs_make_delivery {
   foreach my $user_info (@{$users_list}) {
     $FORM{UID} = $user_info->{uid};
     if ($user_info->{phone}) {
-      $user_info->{phone} =~ s/(.*);.*/$1/;
+      $user_info->{phone} =~ s/(.*);.*/$1/x;
       $NUMBERS->{ $user_info->{phone} } = $user_info->{uid};
     }
     push @{$uids}, $user_info->{uid};
@@ -989,8 +1019,8 @@ sub msgs_ticket_show {
   if ($FORM{make_new} && $msgs_permissions{1} && $msgs_permissions{1}{25}) {
     my $old_reply = $Msgs->messages_reply_list({ ID => $FORM{make_new}, COLS_NAME => 1, COLS_UPPER => 1 });
     my $reply_text = $old_reply->[0]->{TEXT};
-    $old_reply->[0]->{TEXT} =~ s/^/>  /g;
-    $old_reply->[0]->{TEXT} =~ s/\n/\n> /g;
+    $old_reply->[0]->{TEXT} =~ s/^/>  /xg;
+    $old_reply->[0]->{TEXT} =~ s/\n/\n> /xg;
     $old_reply->[0]->{TEXT} .= "\n $lang{CREATE_TOPIC_MESSAGE}";
 
     $Msgs->message_add({
@@ -1028,9 +1058,9 @@ sub msgs_ticket_show {
   });
 
   $Msgs->message_info($message_id);
-  return 1 if _error_show($Msgs);
+  return 1 if (_error_show($Msgs));
 
-  if ($FORM{chg} && !($Msgs->{ID})) {
+  if ($FORM{chg} && ! $Msgs->{ID}) {
     $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA});
     return 1;
   }
@@ -1208,7 +1238,7 @@ sub msgs_ticket_show {
 
   if ($msgs_permissions{1}{4}) {
     my $change_subject_index = get_function_index('_msgs_show_change_subject_template');
-    $subject_before_convert =~ s/\'/\\\'/g;
+    $subject_before_convert =~ s/\'/\\\'/xg;
     $params{CHANGE_SUBJECT_BUTTON} = $html->button(
       "$lang{CHANGE} $lang{SUBJECT}", "qindex=$change_subject_index&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}",
       {
@@ -1253,6 +1283,7 @@ sub msgs_ticket_show {
 
   return 1;
 }
+
 #**********************************************************
 =head2 msgs_ticket_reply
 
@@ -1276,7 +1307,7 @@ sub msgs_ticket_reply {
     }
   }
 
-  my $list = $Msgs->messages_reply_list({ MSG_ID => $Msgs->{ID}, COLS_NAME => 1 });
+  my $list = $Msgs->messages_reply_list({ MSG_ID => $Msgs->{ID}, CONTACT_COMMENTS => '_SHOW', COLS_NAME => 1 });
   my $total_reply = $Msgs->{TOTAL};
 
   if (!$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1) {
@@ -1336,19 +1367,20 @@ sub msgs_ticket_reply {
     }
 
     push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
-      ADMIN_MSG  => $line->{aid},
-      LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
-      REPLY_ID   => $line->{id},
-      DATE       => $line->{datetime},
-      PERSON     => ($line->{creator_id} || q{}) . ' ' . ($line->{aid} ? " ($lang{ADMIN})" : ''),
-      MESSAGE    => msgs_text_formatting($line->{text}, 1),
-      QUOTING    => $quote_button,
-      NEW_TOPIC  => _msgs_new_topic_button($uid, $message_id, $line->{id}, $Msgs->{CHAPTER}),
-      EDIT       => _msgs_edit_reply_button($line->{id}),
-      DELETE     => $del_reply_button,
-      ATTACHMENT => $attachment_html,
-      COLOR      => $reply_color,
-      RUN_TIME   => $run_time,
+      ADMIN_MSG   => $line->{aid},
+      LAST_MSG    => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
+      REPLY_ID    => $line->{id},
+      DATE        => $line->{datetime},
+      PERSON      => ($line->{creator_id} || q{}) . ' ' . ($line->{aid} ? " ($lang{ADMIN})" : ''),
+      MESSAGE     => msgs_text_formatting($line->{text}, 1),
+      QUOTING     => $quote_button,
+      NEW_TOPIC   => _msgs_new_topic_button($uid, $message_id, $line->{id}, $Msgs->{CHAPTER}),
+      EDIT        => _msgs_edit_reply_button($line->{id}),
+      DELETE      => $del_reply_button,
+      ATTACHMENT  => $attachment_html,
+      COLOR       => $reply_color,
+      RUN_TIME    => $run_time,
+      SENDER_INFO => $line->{contact_comments} ? "$lang{SENDER}: $line->{contact_comments}" : ''
     }, { OUTPUT2RETURN => 1, ID => $line->{id} });
   }
 
@@ -1357,7 +1389,7 @@ sub msgs_ticket_reply {
       $Msgs->{REPLY_QUOTE} = '';
     }
     else {
-      $Msgs->{REPLY_QUOTE} =~ s/\n/> /g;
+      $Msgs->{REPLY_QUOTE} =~ s/\n/> /xg;
     }
   }
 
@@ -1570,7 +1602,7 @@ sub _msgs_reply_admin {
     delete $FORM{REPLY_INNER_MSG} if !$msgs_permissions{1} || !$msgs_permissions{1}{7};
 
     $Msgs->message_reply_add({ %FORM, AID => $admin->{AID}, IP => $admin->{SESSION_IP} });
-    $reply_id = $Msgs->{INSERT_ID};
+    $reply_id = $Msgs->{REPLY_ID};
     $FORM{REPLY_ID} = $reply_id;
 
     if (!_error_show($Msgs)) {
@@ -1578,7 +1610,7 @@ sub _msgs_reply_admin {
       if ($FORM{FILE_UPLOAD} && $FORM{FILE_UPLOAD}->{'Content-Type'} && !$FORM{FILE_UPLOAD}->{filename}) {
         my $extension = 'dat';
         for my $ext ('jpg', 'jpeg', 'png', 'gif', 'txt', 'pdf') {
-          if ($FORM{FILE_UPLOAD}->{'Content-Type'} =~ /$ext/i) {
+          if ($FORM{FILE_UPLOAD}->{'Content-Type'} =~ /$ext/xmi) {
             $extension = $ext;
             last;
           }
@@ -1588,7 +1620,6 @@ sub _msgs_reply_admin {
 
       #Add attachment
       if ($FORM{FILE_UPLOAD}->{filename} && $FORM{ID}) {
-
         my $attachment_saved = msgs_receive_attachments($FORM{ID}, {
           REPLY_ID => $Msgs->{REPLY_ID},
           UID      => $FORM{UID},
@@ -1600,7 +1631,6 @@ sub _msgs_reply_admin {
           $html->message('err', $lang{ERROR}, "Can't save attachment");
         }
       }
-
     }
   }
 
@@ -1698,6 +1728,7 @@ sub _msgs_reply_admin {
     STATE       => $msgs_status->{$Msgs->{STATE}},
     SENDER_AID  => $admin->{AID},
     MSG_ID      => $FORM{ID},
+    REPLY_ID    => $FORM{REPLY_ID},
     MSGS        => $Msgs,
     ATTACHMENTS => $attachments_list
   });

@@ -38,7 +38,7 @@
 
         // Send request to bind login
         jQuery.post('index.cgi', {
-          qindex: '$index',
+          qindex: '%index%',
           header: '2',
           set : 1,
           REFERRAL_UID: '$FORM{UID}',

@@ -70,36 +70,34 @@ sub get_user_services {
 }
 
 #**********************************************************
-=head2 get_user_recommendedPay($path_params, $query_params)
+=head2 get_user_services($path_params, $query_params)
 
-  Endpoint GET /user/recommendedPay/
+  Endpoint GET /user/services/statuses
 
 =cut
 #**********************************************************
-sub get_user_recommendedPay {
+sub get_user_services_statuses {
   my $self = shift;
   my ($path_params, $query_params) = @_;
 
-  require Users;
-  Users->import();
-  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  require Service;
+  Service->import();
+  my $Services = Service->new($self->{db}, $self->{admin}, $self->{conf});
 
-  $Users->info($path_params->{uid});
+  my $list = $Services->status_list({
+    ID        => '_SHOW',
+    NAME      => '_SHOW',
+    COLOR     => '_SHOW',
+    COLS_NAME => 1,
+  });
 
-  my $sum = ::recomended_pay($Users);
-  my $min_sum = $self->{conf}->{PAYSYS_MIN_SUM} || 0;
-
-  if ($self->{conf}->{PAYSYS_MIN_SUM_RECOMMENDED_PAY} && $sum > $min_sum) {
-    $min_sum = $sum;
+  foreach my $status (@{$list}) {
+    $status->{locale_name} = ::_translate($status->{name}) || $status->{name};
   }
 
-  my $all_services_fee = ::recomended_pay($Users, { SKIP_DEPOSIT_CHECK => 1 });
-
   return {
-    sum              => $sum,
-    all_services_sum => $all_services_fee,
-    max_sum          => $self->{conf}->{PAYSYS_MAX_SUM} || 0,
-    min_sum          => $min_sum,
+    total => $Services->{TOTAL},
+    list  => $list
   };
 }
 

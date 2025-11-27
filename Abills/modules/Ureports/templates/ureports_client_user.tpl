@@ -16,8 +16,8 @@
 
 %MENU%
 
-<form action='$SELF_URL' method='post' class='form-horizontal'>
-  <input type=hidden name='index' value='$index'>
+<form action='%SELF_URL%' method='post' class='form-horizontal'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='UID' value='$FORM{UID}'>
 
   <div class='card card-primary card-outline'>

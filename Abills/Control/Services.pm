@@ -41,6 +41,7 @@ our (
          SERVICE_NAME
          SERVICE_DESC
          SUM
+         MODULE
        total_sum
 
 =cut
@@ -51,12 +52,12 @@ sub get_services {
   my %result = ();
 
   my $cross_modules_return = ::cross_modules('docs', {
-    %{($attr) ? $attr : {} },
+    %{($attr) ? $attr : {}},
     UID          => $user_info->{UID},
     REDUCTION    => $user_info->{REDUCTION},
     FULL_INFO    => 1,
     SKIP_MODULES => $attr->{SKIP_MODULES},
-    FORM         => \%FORM
+    FORM         => \%FORM,
     #PAYMENT_TYPE => 0
   }) || {};
 
@@ -66,7 +67,6 @@ sub get_services {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
       next if ($#{$cross_modules_return->{$module}} == -1);
       foreach my $service_info (@{$cross_modules_return->{$module}}) {
-
         if (ref $service_info eq 'HASH') {
           $service_info->{month} //= 0;
           $service_info->{day} //= 0;
@@ -198,14 +198,16 @@ sub tp_gids_by_geolocation {
 }
 
 #**********************************************************
-=head2 service_status_change($uid, $status)
+=head2 service_status_change($user_info, $status, $attr)
 
   Arguments:
     $user_info
-    $status
+    $status - ([SERVICE_ID]:STATUS_ID)
     $attr
       DATE
       DEBUG
+      MODULE
+      USER_INFO
 
   Results:
 
@@ -215,10 +217,13 @@ sub service_status_change {
   my ($user_info, $status, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
-  $status =~ /:?(\d+)/;
-  $status = $1;
+  ($status) = ($status =~ m/:?(\d+)/x);
 
   my @modules = @MODULES;
+
+  if($attr->{MODULES}) {
+    @modules = @{ $attr->{MODULES} };
+  }
 
   if (in_array('Triplay', \@modules)) {
     @modules = ('Triplay');
@@ -226,6 +231,7 @@ sub service_status_change {
 
   foreach my $module (@modules) {
     require "$module/webinterface";
+
     my $fn = lc($module) . (($status == 3) ? '_service_deactivate' : '_service_activate');
     if (defined(&$fn)) {
       if ($debug > 3) {
@@ -252,6 +258,7 @@ sub service_status_change {
   }
 
   my $users = $attr->{USER_INFO};
+
   $users->change($user_info->{UID}, { DISABLE => $status });
 
   return 1;

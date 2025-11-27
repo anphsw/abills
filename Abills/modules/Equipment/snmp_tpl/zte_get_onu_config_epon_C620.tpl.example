@@ -1,0 +1,6 @@
+show epon onu detail-info epon_onu-%BRANCH%:%ONU_ID%
+show mac interface epon_onu-%BRANCH%:%ONU_ID%
+show epon onu mpcpinfo epon_onu-%BRANCH%:%ONU_ID%
+show epon remote-onu port info eth epon_onu-%BRANCH%:%ONU_ID%
+show running-config-interface epon_onu-%BRANCH%:%ONU_ID%
+show running-config-interface vport-%BRANCH%.%ONU_ID%:1

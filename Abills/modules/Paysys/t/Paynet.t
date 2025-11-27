@@ -32,7 +32,6 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 my $username = $argv->{LOGIN} || $conf{PAYSYS_PAYNET_USERNAME} || 'username';
 my $password = $argv->{PASSWORD} || $conf{PAYSYS_PAYNET_PASSWORD} || 'password';

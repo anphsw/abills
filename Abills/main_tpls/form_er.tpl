@@ -1,5 +1,5 @@
-<form class='form-horizontal' action='$SELF_URL' METHOD='POST' role='form'>
-  <input type=hidden name='index' value='$index'>
+<form class='form-horizontal' action='%SELF_URL%' METHOD='POST' role='form'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='chg' value='$FORM{chg}'>
 
   <div class='card card-primary card-outline card-form'>
@@ -39,7 +39,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{CHANGED}_:</label>
         <div class='col-md-8'>
-          <label class='col-sm-3 control-label'>%CHANGED%</label>
+          <label class='col-sm-4 control-label'>%CHANGED%</label>
         </div>
       </div>
     </div>

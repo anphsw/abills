@@ -51,8 +51,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/streets/',
-      controller  => 'Api::Controllers::Admin::Streets',
-      endpoint    => \&Api::Controllers::Admin::Streets::get_streets,
+      controller  => 'Api::Controllers::Common::Addresses',
+      endpoint    => \&Api::Controllers::Common::Addresses::get_streets,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]

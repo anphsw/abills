@@ -1,6 +1,6 @@
 
-<form action='$SELF_URL' METHOD='POST'>
-<input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='reg_process' value='1'>
 <table>
 <tr><th colspan=2 bgcolor=$_COLORS[0] akugn=right>_{REGISTRATION}_</th></tr>

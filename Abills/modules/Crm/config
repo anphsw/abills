@@ -72,6 +72,10 @@ my $info = $html->badge($Crm->{TOTAL}, { TYPE => 'bg-primary' });
   "33:-1:$lang{LEAD}:crm_leads:UID"                               => 15,
 );
 
+if ($conf{CRM_ECHAT}) {
+  $FUNCTIONS_LIST{"45:1:E-chat:crm_echat_numbers:"} = 5;
+}
+
 if ($permissions{7} && $permissions{7}{2}) {
   $FUNCTIONS_LIST{"80:1:$lang{PROGRESS_BAR}:null:"} = 5;
   $FUNCTIONS_LIST{"81:80:$lang{LEADS}:crm_progressbar_steps:"} = 5;

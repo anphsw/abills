@@ -1,4 +1,5 @@
 package Equipment::Misc;
+
 use strict;
 use warnings FATAL => 'all';
 
@@ -15,7 +16,10 @@ use warnings FATAL => 'all';
 use Exporter;
 use base 'Exporter';
 
-our @EXPORT = qw/equipment_get_telnet_tpl/;
+our @EXPORT = qw/
+  equipment_get_telnet_tpl
+  equipment_add_color
+/;
 our @EXPORT_OK = @EXPORT;
 
 #**********************************************************
@@ -53,16 +57,16 @@ sub equipment_get_telnet_tpl {
 
     while(<$fh>) {
       my $line = $_;
-      if ($line && $line !~ /#/) {
-        while($line =~ /\%([A-Z0-9\_]+)\%/ig) {
+      if ($line && $line !~ /\#/xm) {
+        while($line =~ /\%([A-Z0-9\_]+)\%/xig) {
           my $param = $1;
           if(defined($attr->{$param})) {
             print "$param -> $attr->{$param}\n" if($debug > 4);
-            $line =~ s/\%$param\%/$attr->{$param}/g;
+            $line =~ s/\%$param\%/$attr->{$param}/xg;
           }
           else {
             if($debug < 6) {
-              $line =~ s/\%$param\%//g;
+              $line =~ s/\%$param\%//xg;
             }
             print "NO input params '$param'\n";
           }
@@ -75,10 +79,49 @@ sub equipment_get_telnet_tpl {
     close($fh);
     print $content if($debug > 3);
 
-    @reg_tpl = split(/\n/, $content);
+    @reg_tpl = split(/\n/x, $content);
   }
 
   return \@reg_tpl;
+}
+
+#**********************************************************
+=head2 equipment_add_color($data)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub equipment_add_color {
+  my ($data) = @_;
+
+  $data = 0 if ($data !~ /\d+/xm);
+
+  our %html_color = (
+    'red'       => '#f56954',
+    'green'     => '#00a65a',
+    'orange'    => '#f39c12',
+    'blue'      => '#00c0ef',
+    'dark_blue' => '#3c8dbc'
+  );
+
+  if ($data < 30) {
+    $data .= ':' . $html_color{dark_blue};
+  }
+  elsif ($data < 50) {
+    $data .= ':' . $html_color{green};
+  }
+  elsif ($data < 80) {
+    $data .= ':' . $html_color{orange};
+  }
+  else {
+    $data .= ':' . $html_color{red};
+  }
+
+  return $data;
 }
 
 1;

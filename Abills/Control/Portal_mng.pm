@@ -30,8 +30,7 @@ my Abills::HTML $html;
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db    => $db,
@@ -65,8 +64,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_info_fields_read_only_view {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my Users $users = $attr->{USERS};
 
@@ -112,10 +110,10 @@ sub get_info_fields_read_only_view {
   if ($list) {
     foreach my $line (@{$list}) {
       my $field_id = '';
-      if ($line->[0] =~ /$prefix(\S+)/) {
+      if ($line->[0] =~ /$prefix(\S+)/xm) {
         $field_id = $1;
       }
-      my (undef, $type, $name, $user_portal) = split(/:/, $line->[1]);
+      my (undef, $type, $name, $user_portal) = split(/:/x, $line->[1]);
       next if ($attr->{CALLED_FROM_CLIENT_UI} && !$user_portal);
 
       $type //= 0;
@@ -216,8 +214,8 @@ sub get_info_fields_read_only_view {
 
         if ($html && $html->{TYPE} eq 'html') {
           # Modal for preview
-          $value_view = qq{
-            <div class="modal fade" id="$name\_preview" tabindex="-1" role="dialog">
+          $value_view = << "HTML";
+<div class="modal fade" id="$name\_preview" tabindex="-1" role="dialog">
               <div class="modal-dialog" role="document">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -236,7 +234,7 @@ sub get_info_fields_read_only_view {
             <button type="button" class="btn btn-xs btn-secondary" data-toggle="modal" data-target="#$name\_preview">
               <span class="fa fa-picture-o"></span>$self->{lang}->{PREVIEW}
             </button>
-          };
+HTML
         }
         else {
           $value_view = $html->button('', "index=$self->{index}&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
@@ -303,8 +301,7 @@ sub get_info_fields_read_only_view {
 =cut
 #**********************************************************
 sub new_info_fields {
-  my $self = shift;
-  my ($list, $attr) = @_;
+  my ($self, $list, $attr) = @_;
 
   my Users $users = $attr->{USERS};
 

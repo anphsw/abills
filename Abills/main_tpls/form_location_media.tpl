@@ -1,5 +1,5 @@
-<form action='$SELF_URL' class='form-horizontal' METHOD='post' enctype='multipart/form-data' name=add_district>
-<input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' class='form-horizontal' METHOD='post' enctype='multipart/form-data' name=add_district>
+<input type='hidden' name='index' value='%index%'/>
 <input type='hidden' name='chg' value='$FORM{chg}'/>
 <input type='hidden' name='BUILDS' value='$FORM{BUILDS}'/>
 <input type='hidden' name='media' value='1'/>

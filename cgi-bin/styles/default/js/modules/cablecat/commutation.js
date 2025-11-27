@@ -391,14 +391,15 @@ Commutation.prototype = {
     }
 
     var fiber_offset = new_element.origin.fiber_attr.fiber_start || 0;
-    $.each(new_element.fibers, function(i, e){
-      var fiber_num = fiber_offset + i;
-      var fiber_id  = new_element.id + '_' + fiber_num;
 
-      self.fiber_by_id[fiber_id]       = new_element.origin.fibers[i];
+    $.each(new_element.fibers, function(i, fiber){
+      var actual_fiber_num = fiber_offset + i;
+      var fiber_id = new_element.id + '_' + actual_fiber_num;
+
+      self.fiber_by_id[fiber_id] = fiber;
       self.element_for_fiber[fiber_id] = new_element;
 
-      self.modifyFiberMeta(new_element, new_element.origin.fibers[i], fiber_num);
+      self.modifyFiberMeta(new_element, fiber, actual_fiber_num);
     });
 
     // Saving origin
@@ -831,7 +832,7 @@ Link.prototype = {
       'id'             : this.id
     };
 
-    if (!skip_unnormalize && isDefined(this.geometry) && this.geometry !== null) {
+    if (!skip_unnormalize && isDefined(this.geometry) && this.geometry !== null && typeof this.geometry === 'object') {
       this.geometry = this.geometry.map(function (p) {
         return {
           x: p.x * SCHEME_OPTIONS.CONTAINER_WIDTH,
@@ -1234,16 +1235,18 @@ Drawable.prototype = {
           fiber.x = fiber.x + 4;
           drawLine(fiber.edge, fiber, fiber.color.substring(0, 7));
       }
+      $(fiber_rect.node)
+        .data('fiber-id', this.type + '_' + this.id + '_' + index)
     }
-
-    $(fiber_rect.node)
-      .data('fiber-id', this.type + '_' + this.id + '_' + index);
+    else {
+      $(fiber_rect.node).data('fiber-id', fiber.meta.id);
+    }
 
     if (this.type === 'EQUIPMENT' || this.type === 'CROSS' || this.type === 'ONU') {
       let fiber_num = paper.text(
         fiber.x + 4,
-        fiber.y + 15,
-        fiber.num + 1
+        fiber.extra_fiber ? fiber.y - 6 : fiber.y + 15,
+        fiber.num
       );
 
       fiber_num.toFront();
@@ -1281,7 +1284,7 @@ Drawable.prototype = {
     this.rendered = paper.set();
     this.text     = paper.text(
       this.x + (this.width / 2),
-      this.y + ((this.height + SCHEME_OPTIONS.FIBER_HEIGHT / 4) / 1.7),
+      this.title_center ? this.y + (this.height / 2) : this.y + ((this.height + SCHEME_OPTIONS.FIBER_HEIGHT / 4) / 1.7),
       this.raw.model_name || this.raw.name || ''
     );
 
@@ -1338,7 +1341,6 @@ Drawable.prototype = {
     this.width  = this.raw.ports * SCHEME_OPTIONS.FIBER_FULL_WIDTH + SCHEME_OPTIONS.FIBER_MARGIN / 2;
     this.height = SCHEME_OPTIONS.CABLE_SHELL_HEIGHT / 2;
 
-
     // +( forces values to numeric
     if (this.raw.commutation_x && this.raw.commutation_y) {
       this.x = +this.raw.commutation_x;
@@ -1366,8 +1368,10 @@ Drawable.prototype = {
       var fiber_x    = this.x + this.fibers_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * i;
       var fiber_y    = this.y - this.fibers_edge_y;
       let vertical = this.rotation_angle === 0 || this.rotation_angle === 180;
+      var actual_fiber_num = fiber_offset + i;
+
       this.fibers[i] = $.extend(this.fibers[i] || {}, {
-        num     : fiber_offset + i,
+        num     : actual_fiber_num + 1,
         x       : fiber_x,
         y       : fiber_y,
         vertical: vertical,
@@ -1375,7 +1379,12 @@ Drawable.prototype = {
           x: fiber_x + SCHEME_OPTIONS.FIBER_WIDTH / 2,
           y: fiber_y
         },
-        color   : 'silver'
+        color   : 'silver',
+        meta: {
+          id: this.type + '_' + this.id + '_' + actual_fiber_num,
+          name: this.type + '_' + this.id + ': №' + (actual_fiber_num + 1),
+          num: actual_fiber_num
+        }
       });
     }
   },
@@ -1960,7 +1969,7 @@ $.extend(Cable.prototype, {
       colors_array = colors_array.slice(0, desired_length);
     }
     else if (colors_array.length < desired_length) {
-      alert('Check color scheme. Color scheme is not enough to show cable : ' + cable.meta.name);
+      alert('Check color scheme. Color scheme is not enough to show cable');
       return false;
     }
 
@@ -2171,7 +2180,7 @@ $.extend(Splitter.prototype, {
       var fiber_y = this.y - this.inputs_edge_y;
       let vertical = this.rotation_angle === 0 || this.rotation_angle === 180;
       this.fibers[i] = $.extend(this.fibers[i] || {}, {
-        num: i,
+        num: i + 1,
         x: fiber_x,
         y: fiber_y,
         vertical: vertical,
@@ -2326,14 +2335,24 @@ function Cross(cross_raw, options) {
     throw new Error("Got cross without id")
   }
 
+  this.fiber_start_value = cross_raw.port_start - 1 || 0;
+
   this.fiber_attr = $.extend(this.fiber_attr, {
-    fiber_start: cross_raw.port_start - 1
+    fiber_start: this.fiber_start_value
   });
+
+  // this.fiber_attr = $.extend(this.fiber_attr, {
+  //   fiber_start: cross_raw.port_start - 1
+  // });
 
   if (this.raw.fibers_colors)
     this.fibers_colors = new AColorPalette(this.raw.fibers_colors.split(','));
 
   this.calculateSizes();
+  if (this.raw?.allow_parallel_ports > 0) {
+    this.height *= 2.5;
+    this.title_center = 1;
+  }
   this.calculateFiberPositions();
 
   this['node-data'] = {
@@ -2372,6 +2391,88 @@ Cross.prototype = $.extend(Cross.prototype, {
         };
       }
     };
+  },
+  calculateFiberPositions: function () {
+    if (!this.raw.allow_parallel_ports || this.raw.allow_parallel_ports < 1) {
+      Drawable.prototype.calculateFiberPositions.call(this);
+      return;
+    }
+
+    if (this.extra_fibers_added !== true) {
+      this.fibers.length *= 2;
+      this.extra_fibers_added = true;
+    }
+
+    var fiber_offset = this.fiber_start_value || 0;
+    let half_length = this.fibers.length / 2;
+
+    for (var i = 0; i < this.fibers.length; i++) {
+      var fiber_x, fiber_y, num;
+      let vertical = this.rotation_angle === 0 || this.rotation_angle === 180;
+
+      if (i >= half_length) {
+        fiber_x = this.x + this.fibers_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * (i - half_length);
+        fiber_y = this.y - this.fibers_edge_y + this.height - (SCHEME_OPTIONS.FIBER_HEIGHT * (this['height-fiber'] || 1 / 2));
+        // num = fiber_offset + i - half_length + 1;
+        let display_num = fiber_offset + i - half_length + 1;
+        let actual_fiber_num = fiber_offset + i;
+
+        this.fibers[i] = $.extend(this.fibers[i] || {}, {
+          num: display_num + '*',
+          extra_fiber: true,
+          x: fiber_x,
+          y: fiber_y,
+          vertical: vertical,
+          edge: {
+            x: fiber_x + SCHEME_OPTIONS.FIBER_WIDTH / 2,
+            y: fiber_y
+          },
+          color: 'silver',
+          meta: {
+            id: this.type + '_' + this.id + '_' + actual_fiber_num,
+            name: this.type + '_' + this.id + ': №' + display_num + '*',
+            num: actual_fiber_num
+          }
+        });
+      } else {
+        fiber_x = this.x + this.fibers_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * i;
+        fiber_y = this.y - this.fibers_edge_y;
+        // num = fiber_offset + i + 1;
+        let display_num = fiber_offset + i + 1;
+        let actual_fiber_num = fiber_offset + i;
+
+        console.log(this.type + '_' + this.id + '_' + actual_fiber_num)
+        this.fibers[i] = $.extend(this.fibers[i] || {}, {
+          num: display_num,
+          x: fiber_x,
+          y: fiber_y,
+          vertical: vertical,
+          edge: {
+            x: fiber_x + SCHEME_OPTIONS.FIBER_WIDTH / 2,
+            y: fiber_y
+          },
+          color: 'silver',
+          meta: {
+            id: this.type + '_' + this.id + '_' + actual_fiber_num,
+            name: this.type + '_' + this.id + ': №' + display_num,
+            num: actual_fiber_num
+          }
+        });
+      }
+    }
+
+    if (this.fibers_colors) {
+      for (let i = 0; i < this.fibers.length; i++) {
+        if (!this.fibers[i] || !this.fibers[i].num) {
+          continue;
+        }
+        let num = this.fibers[i].num;
+        if (typeof num === "string") {
+          num = parseInt(num);
+        }
+        this.fibers[i].color = "#".concat(this.fibers_colors.array[(num >= 0 ? num - 1 : num) % this.fibers_colors.array.length]);
+      }
+    }
   },
 });
 

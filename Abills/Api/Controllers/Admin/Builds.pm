@@ -44,34 +44,6 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_builds($path_params, $query_params)
-
-  Endpoint GET /builds/
-
-=cut
-#**********************************************************
-sub get_builds {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
-
-  # return {
-  #   errno  => 10,
-  #   errstr => 'Access denied'
-  # } if !$self->{admin}->{permissions}{0}{35};
-
-  foreach my $param (keys %{$query_params}) {
-    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
-  }
-
-  $Address->build_list({
-    DISTRICT_NAME => '_SHOW',
-    STREET_NAME   => '_SHOW',
-    %$query_params,
-    COLS_NAME     => 1,
-  });
-}
-
-#**********************************************************
 =head2 get_builds_id($path_params, $query_params)
 
   Endpoint GET /builds/:id/

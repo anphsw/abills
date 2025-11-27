@@ -339,6 +339,7 @@ sub voip_user {
   $Voip->user_info($FORM{UID});
 
   if ($Voip->{TOTAL} < 1) {
+    #XXX: do we need by default message not active Voip service looks like not good
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 30105 });
     #$Voip = $Voip->defaults();
     $Voip->{ACTION} = 'add';

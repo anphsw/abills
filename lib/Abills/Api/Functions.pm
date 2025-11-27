@@ -63,7 +63,7 @@ sub user_functions {
 #**********************************************************
 sub _user_functions_list {
   my $self = shift;
-  my ($attr);
+  my ($attr) = @_;
 
   my %modules = (
     Abon       => sub {
@@ -140,7 +140,24 @@ sub _user_functions_list {
 
       my %functions = ();
       if ((exists $group_info->{DISABLE_PAYSYS} && $group_info->{DISABLE_PAYSYS} == 0) || !$Users->{TOTAL}) {
-        %functions = (paysys_payment => 1, paysys_user_log => 1, paysys_subscribe => 1);
+        %functions = (paysys_payment => 1, paysys_user_log => 1);
+
+        require Paysys;
+        Paysys->import();
+        my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+
+        $Paysys->user_info({
+          UID => $attr->{uid},
+        });
+
+        if ($Paysys->{TOTAL}) {
+          $functions{paysys_subscribe} = {
+            recurrent_module => $Paysys->{RECURRENT_MODULE},
+            date             => $Paysys->{DATE},
+            paysys_id        => $Paysys->{PAYSYS_ID},
+            order_id         => $Paysys->{ORDER_ID},
+          };
+        }
       }
       else {
         %functions = (paysys_user_log => 1);

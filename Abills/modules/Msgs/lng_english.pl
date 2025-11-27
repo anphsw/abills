@@ -321,5 +321,10 @@ $lang{MSGS_FILTER_BY_ADMIN} = 'Filter by administrator';
 $lang{MSGS_ALL_ADMINS} = 'All administrators';
 $lang{MSGS_UNPLANNED_MESSAGES} = 'Unplanned messages';
 $lang{MSGS_LOAD_MORE} = 'Load more';
+$lang{MSGS_EXTERNAL_CHATS} = 'External chats';
+$lang{MSGS_EXTERNAL_CHAT} = 'External chat';
+$lang{MSGS_USER_LINKED} = 'User linked';
+$lang{MSGS_MESSAGE_ADDED} = 'Message added';
+$lang{MSGS_CHAT_ID} = 'Chat ID';
 
 1;

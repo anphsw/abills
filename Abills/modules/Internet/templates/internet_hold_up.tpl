@@ -14,9 +14,9 @@
         </div>
 
         <div class='modal-body'>
-          <form action='$SELF_URL' METHOD='GET' id='holdup_%ID%'>
+          <form action='%SELF_URL%' METHOD='GET' id='holdup_%ID%'>
             <fieldset>
-              <input type='hidden' name='index' value='$index'>
+              <input type='hidden' name='index' value='%index%'>
               <input type='hidden' name='sid' value='$sid'>
               <input type='hidden' name='UID' value='$FORM{UID}'>
               <input type='hidden' name='ID' value='%ID%'>

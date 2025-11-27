@@ -1,5 +1,5 @@
 <form name='PAYSYS_CONNECT_SYSTEM' id='FORM_PAYSYS_CONNECT_SYSTEM' method='post'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='OLD_NAME' value='%NAME%'>
 
@@ -108,15 +108,27 @@
 
       if (arr[module]['SUBSYSTEMS'] && typeof arr[module]['SUBSYSTEMS'] === 'object') {
         jQuery('#SUBSYSTEM_CONTAINER').removeAttr('hidden');
-        arr[module]['SUBSYSTEMS']['0'] = '_{DEFAULT_SUBSYSTEM}_';
+        arr[module]['SUBSYSTEMS']['0'] = {
+          NAME: '_{DEFAULT_SUBSYSTEM}_',
+        };
+
+        selectElement = jQuery('#SUBSYSTEM_ID');
+        selectElement.change(() => {
+          var subsystemId = selectElement.val();
+
+          jQuery('#paysys_id').val(arr[module]['SUBSYSTEMS'][subsystemId]['ID']);
+          jQuery('#NAME').val(arr[module]['SUBSYSTEMS'][subsystemId]['NAME']);
+          jQuery('#IP').val(arr[module]['SUBSYSTEMS'][subsystemId]['IP']);
+        });
 
         var selectElement = jQuery('#SUBSYSTEM_ID');
         selectElement.empty();
 
-        jQuery.each(arr[module]['SUBSYSTEMS'], function(value, text) {
+        jQuery.each(arr[module]['SUBSYSTEMS'], function(idx, subsystem) {
+          console.log(idx, subsystem);
           selectElement.append(jQuery('<option>', {
-            value: value,
-            text: text
+            value: idx,
+            text: subsystem?.FULL_NAME ?? subsystem?.NAME
           }));
         });
       }

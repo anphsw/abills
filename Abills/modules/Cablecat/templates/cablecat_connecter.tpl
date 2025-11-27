@@ -5,7 +5,7 @@
       <div class='card-body'>
         
         <form name='CABLECAT_CONNECTERS' id='form_CABLECAT_CONNECTERS' method='post' class='form form-horizontal'>
-          <input type='hidden' name='index' value='$index'/>
+          <input type='hidden' name='index' value='%index%'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='TYPE_ID' value='2'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>

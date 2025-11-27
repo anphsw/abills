@@ -68,7 +68,7 @@
               </div>
             </div>
             <div class='input-group-append'>
-              <a href='%SELF_URL%?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
+              <a href='%SELF_URL%?UID=%UID%&index=%index%&PHOTO=%chg%&webcam=1'
                  class='btn input-group-button'>
                 <i class='fa fa-camera'></i>
               </a>
@@ -185,7 +185,7 @@
     var select_value = this.value;
     if (select_value) {
       jQuery.ajax({
-        url: '$SELF_URL?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' + select_value + '',
+        url: '%SELF_URL%?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' + select_value + '',
         success: function (result) {
           if (result) {
             jQuery("[name='REPLY_TEXT']").val(result);

@@ -1,5 +1,5 @@
-<form action='$SELF_URL'>
-<input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%'>
+<input type='hidden' name='index' value='%index%'>
 <div class='card card-primary card-outline box-form form-horizontal'>
     <div class='card-header'>
       <h4>SNMP Информация</h4>

@@ -107,7 +107,7 @@ if ($Service_control->{error}) {
 $Shedule->info({ UID => $uid, TYPE => 'tp', MODULE => 'Internet' });
 
 my $hold_up_min_period = 1;
-($hold_up_min_period) = split(/:/, $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
+($hold_up_min_period) = split(':', $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
 
 my %params = (
   id        => $service_list->[0]->{id},
@@ -120,7 +120,7 @@ my %params = (
 
 
 if (! $available_tariffs || ref $available_tariffs ne 'ARRAY') {
-  _log("No available tarifs");
+  _log("No available tarifs for change UID: $uid");
   $params{tpId} = $service_list->[0]->{tp_id};
 }
 else {
@@ -130,7 +130,6 @@ else {
 
 my @available_tests = folder_list($ARGS, $RealBin);
 my $run_tests = test_preprocess(\@available_tests, \%params, \%conf, { DEBUG => 2 });
-
 
 test_runner({
   apiKey => $apiKey,

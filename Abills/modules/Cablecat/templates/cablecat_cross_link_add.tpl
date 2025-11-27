@@ -3,7 +3,7 @@
   <div class='card card-primary card-outline box-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{CROSS}_ _{LINK}_ %SUBMIT_BTN_NAME%</h4></div>
     <div class='card-body'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='cross_link_operation' value='1'/>
 
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>

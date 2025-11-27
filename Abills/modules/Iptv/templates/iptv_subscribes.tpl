@@ -5,8 +5,8 @@
   }
 </script>
 
-<form method='POST' action='$SELF_URL' class='form form-horizontal' id='iptv_user_info' name='iptv_user_info'>
-  <input type='hidden' name='index' value='$index'>
+<form method='POST' action='%SELF_URL%' class='form form-horizontal' id='iptv_user_info' name='iptv_user_info'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='sid' value='$sid'>
   <input type='hidden' name='add_form' value=1>
 

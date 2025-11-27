@@ -1,8 +1,8 @@
 <link rel='stylesheet' href='/styles/default/css/modules/msgs/msgs.reply.css'>
 <link rel='stylesheet' href='/styles/default/css/modules/msgs/highlight.min.css'>
 
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message_form' id='add_message_form'>
-  <input type='hidden' name='index' value='$index'/>
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message_form' id='add_message_form'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='UID' value='$FORM{UID}'/>
   <input type='hidden' name='ID' value='%ID%'/>
   <input type='hidden' name='PARENT' value='%PARENT%'/>

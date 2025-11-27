@@ -1,6 +1,6 @@
 <form method='POST'>
 
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='ID' value='%ID%'>
 
 <div class='card card-primary card-outline card-form'>

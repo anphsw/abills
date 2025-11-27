@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_MSGS_SEARCH_LIST",
+  "method": "POST",
+  "path": "msgs/search/",
+  "params": {}
+}

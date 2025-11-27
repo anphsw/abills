@@ -30,6 +30,7 @@ use Abills::Api::Tests::Init qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Paysys;
+use Users;
 
 our (
   %conf
@@ -43,7 +44,6 @@ my $db = Abills::SQL->connect(
   }
 );
 my $admin = Admins->new($db, \%conf);
-my $Paysys = Paysys->new($db, $admin, \%conf);
 
 my $ARGS = parse_arguments(\@ARGV);
 
@@ -57,6 +57,28 @@ my @test_list = folder_list($ARGS, $RealBin);
 my $debug = $ARGS->{DEBUG} || 0;
 my @tests = ();
 
+my $Paysys = Paysys->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
+
+if ($debug > 6)  {
+  $Users->{debug}=1;
+  $Paysys->{debug}=1;
+}
+
+my $CHECK_FIELD = $conf{PAYSYS_GATEWAY_IDENTIFIER} || 'UID';
+my $test_user = $conf{API_TEST_USER_LOGIN} || 'test';
+
+my $user = $Users->list({
+  $CHECK_FIELD => '_SHOW',
+  LOGIN        => $test_user,
+  COLS_NAME    => 1,
+  COLS_UPPER   => 1,
+});
+
+if ($Users->{TOTAL} < 1) {
+  _log("test user not exists '$test_user'");
+}
+
 foreach my $test (@test_list) {
   if ($test->{path} =~ /\/transaction\/status\/:id/g) {
     my $list = $Paysys->list({
@@ -67,7 +89,10 @@ foreach my $test (@test_list) {
 
     $test->{path} =~ s/:id/$list->[0]->{transaction_id}/g;
   }
-  elsif ($test->{path} =~ /\/pay\//g && $test->{name} eq 'USER_PAYSYS_PAY') {
+  elsif ($test->{path} =~ /\/user\/paysys\/gateway\/search\//g) {
+    $test->{body}{userIdentifier} = $user->[0]->{$CHECK_FIELD};
+  }
+  elsif ($test->{path} =~ /\/pay\//g && ($test->{name} eq 'USER_PAYSYS_PAY' || $test->{name} eq 'PAYSYS_GATEWAY_PAY')) {
     my $list = $Paysys->paysys_connect_system_list({
       MODULE    => '_SHOW',
       STATUS    => 1,
@@ -81,6 +106,8 @@ foreach my $test (@test_list) {
       my $module_path = $module . '.pm';
       $module_path =~ s{::}{/}g;
       eval { require $module_path };
+
+      $test->{body}{userIdentifier} = $user->[0]->{$CHECK_FIELD} if ($test->{name} eq 'PAYSYS_GATEWAY_PAY');
 
       if ($module->can('fast_pay_link')) {
         $_test{name} = "USER_PAYSYS_PAY_$paysys_name";

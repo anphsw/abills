@@ -1034,6 +1034,8 @@ sub maps_layers_list {
 
   map $_->{lang_name} //= ::_translate($_->{name}), @{$layers};
 
+  @{$layers} = sort { $a->{lang_name} cmp $b->{lang_name} } @{$layers};
+
   return {
     LAYERS        => $layers,
     EXTRA_SCRIPTS => $extra_scripts

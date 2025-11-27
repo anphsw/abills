@@ -1,5 +1,5 @@
 <form>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='DATE' value='%DATE%'>
 
   <div class='card card-primary card-outline card-form form-horizontal'>

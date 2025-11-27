@@ -22,6 +22,25 @@ require Control::Services;
 
 my $Abon = Abon->new($db, $admin, \%conf);
 
+my %USER_PORTAL_TYPES = (
+  0 => $lang{USER_PORTAL_NO},
+  1 => $lang{USER_PORTAL_READ},
+  2 => $lang{USER_PORTAL_EDIT}
+);
+
+my @tariff_checkbox_fields = qw(
+  FEES_TYPE
+  NOTIFICATION_ACCOUNT
+  ALERT
+  ALERT_ACCOUNT
+  CREATE_ACCOUNT
+  ACTIVATE_NOTIFICATION
+  VAT
+  DISCOUNT
+  MANUAL_ACTIVATE
+  HOT_DEAL
+);
+
 #*******************************************************************
 =head2 abon_tariffs() - Change user tp form
 
@@ -47,6 +66,7 @@ sub abon_tariffs {
         $Abon->tariff_gid_add({ GID => $gid, TP_ID => $insert_id });
       }
     }
+    _abon_assign_parent_tp({ %FORM, TP_ID => $insert_id });
 
     $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
   }
@@ -111,8 +131,12 @@ sub abon_tariffs {
           $Abon->tariff_gid_add({ GID => $gid, TP_ID => $FORM{ABON_ID} });
         }
       }
+      _abon_assign_parent_tp({ %FORM, TP_ID => $FORM{ABON_ID} });
 
-      $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Abon->{errno};
+      $html->redirect("?index=$index", {
+        MESSAGE_HTML => $html->message('info', $lang{INFO}, $lang{CHANGED}, { OUTPUT2RETURN => 1 }),
+        WAIT         => 1
+      }) if !$Abon->{errno};
     }
 
     $Abon->{PROMOTIONAL} = $Abon->{PROMOTIONAL} ? 'checked' : '';
@@ -204,13 +228,6 @@ sub abon_tariffs {
     $Abon->{EXT_BILL_ACCOUNT} = '';
   }
 
-  # $Abon->{FEES_TYPES_SEL} = $html->form_select('FEES_TYPE', {
-  #   SELECTED => $Abon->{FEES_TYPE},
-  #   SEL_HASH => { '' => '', %$FEES_METHODS },
-  #   NO_ID    => 1,
-  #   SORT_KEY => 1
-  # });
-
   $Abon->{FEES_TYPES_SEL} = sel_fees_methods('FEES_TYPE', $Abon->{FEES_TYPE});
 
   $Abon->{DEBUG_SEL} = $html->form_select('DEBUG', {
@@ -230,12 +247,6 @@ sub abon_tariffs {
     ARRAY_NUM_ID => 1
   });
 
-  my %USER_PORTAL_TYPES = (
-    0 => $lang{USER_PORTAL_NO},
-    1 => $lang{USER_PORTAL_READ},
-    2 => $lang{USER_PORTAL_EDIT}
-  );
-
   $Abon->{USER_PORTAL} = $html->form_select('USER_PORTAL', {
     SELECTED => $Abon->{USER_PORTAL} || $FORM{USER_PORTAL},
     SEL_HASH => \%USER_PORTAL_TYPES,
@@ -252,17 +263,21 @@ sub abon_tariffs {
     SORT_KEY => 1
   });
 
-  $Abon->{FEES_TYPE} = ($Abon->{FEES_TYPE}) ? 'checked' : '';
-  $Abon->{NOTIFICATION_ACCOUNT} = ($Abon->{NOTIFICATION_ACCOUNT}) ? 'checked' : '';
-  $Abon->{ALERT} = ($Abon->{ALERT}) ? 'checked' : '';
-  $Abon->{ALERT_ACCOUNT} = ($Abon->{ALERT_ACCOUNT}) ? 'checked' : '';
-  $Abon->{CREATE_ACCOUNT} = ($Abon->{CREATE_ACCOUNT}) ? 'checked' : '';
-  $Abon->{ACTIVATE_NOTIFICATION} = ($Abon->{ACTIVATE_NOTIFICATION}) ? 'checked' : '';
-  $Abon->{VAT} = ($Abon->{VAT}) ? 'checked' : '';
-  $Abon->{DISCOUNT} = ($Abon->{DISCOUNT}) ? 'checked' : '';
-  $Abon->{MANUAL_ACTIVATE} = ($Abon->{MANUAL_ACTIVATE}) ? 'checked' : '';
-  $Abon->{HOT_DEAL} = ($Abon->{HOT_DEAL}) ? 'checked' : '';
+  for my $field (@tariff_checkbox_fields) {
+    $Abon->{$field} = $Abon->{$field} ? 'checked' : '';
+  }
   $Abon->{PLUGINS_SEL} = sel_plugins('Abon', { SELECT => 'PLUGIN', SELECTED => $Abon->{PLUGIN} });
+
+  $Abon->{SEL_MAIN_TP} = $html->form_select('MAIN_TP_ID', {
+    SELECTED   => $Abon->{MAIN_TP_IDS},
+    SEL_LIST    => $Abon->tariff_list({ ABON_ID => $FORM{ABON_ID} ? "!$FORM{ABON_ID}" : '_SHOW', TP_NAME => '_SHOW', SUB_TP_ID => 'IS NULL', COLS_NAME => 1 }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'tp_name',
+    NO_ID       => 1,
+    MULTIPLE    => 1,
+    TEST => 1,
+    SEL_OPTIONS => { '' => '' }
+  });
 
   if ($FORM{add} || $FORM{chg} || $FORM{change} || $FORM{ABON_ID} || $FORM{add_form}) {
     $Abon->{GROUP_SEL} = sel_groups({ GID => $FORM{GID} || $Abon->{GID}, MULTISELECT => 1 });
@@ -312,11 +327,12 @@ sub abon_tariffs {
   my $FEES_METHODS = get_fees_types();
 
   my ($table, $list) = result_former({
-    INPUT_DATA     => $Abon,
-    FUNCTION       => 'tariff_list',
-    DEFAULT_FIELDS => 'TP_NAME,DESCRIPTION,USER_DESCRIPTION,PERIOD,PRICE,COMMENTS,PAYMENT_TYPE,USER_COUNT',
-    EXT_TITLES     => \%EXT_TITLES,
-    TABLE          => {
+    INPUT_DATA      => $Abon,
+    FUNCTION        => 'tariff_list',
+    DEFAULT_FIELDS  => 'TP_NAME,DESCRIPTION,USER_DESCRIPTION,PERIOD,PRICE,COMMENTS,PAYMENT_TYPE,USER_COUNT',
+    HIDDEN_FIELDS   => 'SERVICE_ID',
+    EXT_TITLES      => \%EXT_TITLES,
+    TABLE           => {
       width      => '100%',
       caption    => "$lang{ABON} - $lang{TARIF_PLANS}",
       qs         => $pages_qs,
@@ -326,7 +342,7 @@ sub abon_tariffs {
       EXPORT     => 1
     },
     SKIP_USER_TITLE => 1,
-    MODULE         => 'Abon',
+    MODULE          => 'Abon',
   });
 
   my @bool_values = ('manual_activate', 'nonfix_period', 'discount', 'vat', 'create_account', 'activate_notification', 'period_alignment', 'ext_bill_account');
@@ -722,6 +738,33 @@ sub abon_plugin_reports {
   return 1;
 }
 
+#*******************************************************************
+=head2 _abon_assign_parent_tp($attr)
+
+=cut
+#*******************************************************************
+sub _abon_assign_parent_tp {
+  my ($attr) = @_;
+
+  if (!$attr->{TP_ID}) {
+    return '';
+  }
+
+  $Abon->tariffs_subtariffs_del({ SUB_TP_ID => $attr->{TP_ID} });
+
+  my @main_tp_ids = split(/,\s?/, $attr->{MAIN_TP_ID} || '');
+  
+  foreach my $tp_id (@main_tp_ids) {
+    $Abon->tariff_info($tp_id);
+
+    if ($Abon->{MAIN_TP_IDS}) {
+      next;
+    }
+
+    $Abon->tariffs_subtariffs_add({ TP_ID => $tp_id, SUB_TP_ID => $attr->{TP_ID} });
+    _error_show($Abon)
+  }
+}
 
 #*******************************************************************
 =head2 abon_categories() - Managing categories of abon tariffs

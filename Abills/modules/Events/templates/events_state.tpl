@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <form name='EVENTS_STATE_FORM' id='form_EVENTS_STATE_FORM' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='%CHANGE_ID%' value='%ID%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 

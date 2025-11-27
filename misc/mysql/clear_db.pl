@@ -81,13 +81,13 @@ my $drop_exist_table = 1;
 
 $Admin->{debug} = 1 if ($debug > 6);
 
-$argv->{ACTIONS} =~ s/ //g;
-my @actions = split(/,/, $argv->{ACTIONS});
+$argv->{ACTIONS} =~ s/\s+//xg;
+my @actions = split(/,/x, $argv->{ACTIONS});
 my $CUR_DATE = $argv->{DATE};
-$CUR_DATE =~ s/\-/\_/g;
+$CUR_DATE =~ s/\-/\_/xg;
 
 # MAYBE should delete arg in else branch?
-if ($argv->{DATE} =~ /^\d{4}\-\d{2}\-\d{2}$/) {
+if ($argv->{DATE} =~ /^\d{4}\-\d{2}\-\d{2}$/xm) {
   $argv->{DATE} = "$argv->{DATE}";
 }
 
@@ -104,7 +104,6 @@ if ($begin_time > 0 && $debug > 0) {
 =cut
 #**********************************************************
 sub db_action {
-  #my ($attr) = @_;
 
   my DBI $db_ = $db->{db};
 
@@ -116,7 +115,7 @@ sub db_action {
     my $fn = $log . '_rotate';
 
     my $sql_arr = &{\&$fn}({ %$argv,
-      DATE => ($argv->{DATE} !~ m/[<>]/) ? "<$argv->{DATE}" : "$argv->{DATE}"
+      DATE => ($argv->{DATE} !~ m/[<>]/xm) ? "<$argv->{DATE}" : "$argv->{DATE}"
     });
 
     if (defined($argv->{'ROTATE'})) {
@@ -154,7 +153,7 @@ sub db_action {
           print "SQL Error: [$Admin->{errno}] $Admin->{errstr} / $Admin->{sql_errno} $Admin->{sql_errstr}\n";
 
           if ($Admin->{sql_errno} == 1050 && $drop_exist_table) {
-            if ($Admin->{sql_errstr} =~ /\'(\S+)\'/) {
+            if ($Admin->{sql_errstr} =~ /\'(\S+)\'/xm) {
               my $table = $1;
               print "Drop table: $table\n";
               $Admin->query("DROP TABLE $1", 'do');
@@ -195,15 +194,19 @@ sub payments_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  my $sql_expr = "(SELECT payments.id FROM payments 
+  my $sql_expr = <<"SQL";
+(SELECT payments.id FROM payments
     LEFT JOIN users u ON (u.uid=payments.uid)
     LEFT JOIN `groups` ON (u.gid=groups.gid)
   $WHERE
-  GROUP BY payments.id)";
+  GROUP BY payments.id)
+SQL
 
-  my $sql_expr2 = " LEFT JOIN users u ON (u.uid=payments.uid)
-    LEFT JOIN `groups` ON (u.gid=groups.gid)
-  $WHERE";
+  my $sql_expr2 = <<"SQL";
+ LEFT JOIN users u ON (u.uid=payments.uid)
+ LEFT JOIN `groups` ON (u.gid=groups.gid)
+ $WHERE
+SQL
 
   return ($sql_expr, $sql_expr2);
 }
@@ -223,7 +226,7 @@ sub payments_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE docs_invoice2payments_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/docs_invoice2payments\.\*/g;
+    $action_ =~ s/\*/docs_invoice2payments\.\*/xg;
   }
 
   my @SQL_array = (
@@ -231,7 +234,7 @@ sub payments_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE docs_invoices_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/docs_invoices\.\*/g;
+    $action_ =~ s/\*/docs_invoices\.\*/xg;
   }
 
   push @SQL_array,
@@ -239,22 +242,22 @@ sub payments_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE docs_receipt_orders_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/docs_receipt_orders\.\*/g;
+    $action_ =~ s/\*/docs_receipt_orders\.\*/xg;
   }
   push @SQL_array,
     "$action_ FROM docs_receipt_orders WHERE receipt_id IN (SELECT id FROM docs_receipts WHERE payment_id IN $payments_list);";
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE docs_receipts_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/docs_receipts\.\*/g;
+    $action_ =~ s/\*/docs_receipts\.\*/xg;
   }
   push @SQL_array, "$action_ FROM docs_receipts WHERE payment_id IN $payments_list;";
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE payments_' . $CUR_DATE . "  DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/payments\.\*/g;
+    $action_ =~ s/\*/payments\.\*/xg;
   }
-  elsif ($action =~ /DELETE/) {
+  elsif ($action =~ /DELETE/xm) {
     $action_ .= ' payments ';
   }
 
@@ -266,6 +269,11 @@ sub payments_rotate {
 
 #**********************************************************
 =head2 fees2_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -284,18 +292,22 @@ sub fees2_rotate {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
-  my @SQL_array = ('DROP TABLE IF EXISTS fees_new;',
+  my @SQL_array = (
+    'DROP TABLE IF EXISTS fees_new;',
     'CREATE TABLE fees_new LIKE fees;',
     'DROP TABLE IF EXISTS fees_backup;',
     'RENAME TABLE fees TO fees_backup, fees_new TO fees;',
-    'CREATE TABLE IF NOT EXISTS fees_' . $CUR_DATE . ' LIKE fees;');
+    'CREATE TABLE IF NOT EXISTS fees_' . $CUR_DATE . ' LIKE fees;'
+  );
 
-  push @SQL_array, 'INSERT INTO fees_' . $CUR_DATE . "
-  SELECT DISTINCT f.* FROM fees_backup f 
+  push @SQL_array, <<"SQL";
+INSERT INTO fees_$CUR_DATE
+  SELECT DISTINCT f.* FROM fees_backup f
     LEFT JOIN users ON (users.uid=f.uid)
     LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
-   GROUP BY f.id";
+   GROUP BY f.id
+SQL
 
   if ($attr->{DATE}) {
     @WHERE_RULES = @{$Admin->search_expr(">=$argv->{DATE}", 'DATE', 'f.date')};
@@ -303,12 +315,14 @@ sub fees2_rotate {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
-  push @SQL_array, "INSERT INTO fees
-    SELECT DISTINCT f.* FROM fees_backup f 
+  push @SQL_array, <<"SQL";
+INSERT INTO fees
+    SELECT DISTINCT f.* FROM fees_backup f
     LEFT JOIN users ON (users.uid=f.uid)
     LEFT JOIN `groups` ON (users.gid=groups.gid)
    $WHERE
-   GROUP BY f.id";
+   GROUP BY f.id
+SQL
 
   push @SQL_array, 'DROP TABLE fees_backup;';
 
@@ -317,6 +331,10 @@ sub fees2_rotate {
 
 #**********************************************************
 =head2 fees_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
 
 =cut
 #**********************************************************
@@ -335,7 +353,7 @@ sub fees_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = 'CREATE TABLE fees_' . $CUR_DATE . " DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/f\.\*/g;
+    $action_ =~ s/\*/f\.\*/xg;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' f ';
@@ -347,11 +365,14 @@ sub fees_rotate {
   $Admin->query("SET character_set_results=$conf{dbcharset};", 'do');
   $Admin->query("SET character_set_server=$conf{dbcharset};", 'do');
 
-  my @SQL_array = ("$action_ FROM fees f
+  my $sql = <<"SQL";
+$action_ FROM fees f
     LEFT JOIN users ON (users.uid=f.uid)
     LEFT JOIN `groups` ON (users.gid=groups.gid)
-   $WHERE
-     ");
+$WHERE
+SQL
+
+  my @SQL_array = ($sql);
 
   return \@SQL_array;
 }
@@ -359,6 +380,10 @@ sub fees_rotate {
 
 #**********************************************************
 =head2 internet_log_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
 
 =cut
 #**********************************************************
@@ -372,6 +397,10 @@ sub internet_log_rotate {
 
 #**********************************************************
 =head2 internet_log_group_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
 
 =cut
 #**********************************************************
@@ -408,23 +437,32 @@ sub _log_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/l\.\*/g;
+    $action_ =~ s/\*/l\.\*/xg;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' l ';
   }
 
-  my @SQL_array = ("$action_ FROM $table_name l
-    LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN `groups` ON (users.gid=groups.gid)
-   $WHERE");
+  my $sql = <<"SQL";
+$action_ FROM $table_name l
+LEFT JOIN users ON (users.uid=l.uid)
+LEFT JOIN `groups` ON (users.gid=groups.gid)
+$WHERE
+SQL
+
+  my @SQL_array = ($sql);
 
   return \@SQL_array;
 }
 
 
 #**********************************************************
-=head2 _log_group_rotate()
+=head2 _log_group_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
+
 
 =cut
 #**********************************************************
@@ -450,7 +488,10 @@ sub _log_group_rotate {
     'CREATE TABLE IF NOT EXISTS ' . $table_name . '_' . $CUR_DATE . ' LIKE ' . $table_name . ';'
   );
 
-  push @SQL_array, 'INSERT INTO ' . $table_name . "
+  my $backup_table_name = $table_name;
+
+  my $sql = <<"SQL";
+INSERT INTO $table_name
     (
    start,
    tp_id,
@@ -484,11 +525,14 @@ sub _log_group_rotate {
    SUM(l.acct_output_gigawords),
    SUM(l.ex_input_octets_gigawords),
    SUM(l.ex_output_octets_gigawords)
-    FROM " . $table_name . "_backup l
-    LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN `groups` ON (users.gid=groups.gid)
-   $WHERE
-   GROUP BY uid, 1";
+    FROM $backup_table_name l
+LEFT JOIN users ON (users.uid=l.uid)
+LEFT JOIN `groups` ON (users.gid=groups.gid)
+$WHERE
+GROUP BY uid, 1
+SQL
+
+  push @SQL_array, $sql;
 
   if ($attr->{DATE}) {
     @WHERE_RULES = @{$Admin->search_expr(">=$argv->{DATE}", 'DATE', 'l.start')};
@@ -496,11 +540,13 @@ sub _log_group_rotate {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
-  push @SQL_array, "INSERT INTO " . $table_name . "
-    SELECT l.* FROM " . $table_name . "_backup l
-    LEFT JOIN users ON (users.uid=l.uid)
-    LEFT JOIN `groups` ON (users.gid=groups.gid)
-   $WHERE";
+  push @SQL_array, <<"SQL";
+INSERT INTO $table_name
+SELECT l.* FROM $backup_table_name l
+LEFT JOIN users ON (users.uid=l.uid)
+LEFT JOIN `groups` ON (users.gid=groups.gid)
+$WHERE";
+SQL
 
   push @SQL_array, 'DROP TABLE ' . $table_name . '_backup;';
   return \@SQL_array;
@@ -508,6 +554,10 @@ sub _log_group_rotate {
 
 #**********************************************************
 =head2 admin_actions_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
 
 =cut
 #**********************************************************
@@ -527,20 +577,23 @@ sub admin_actions_rotate {
 
   if (defined($attr->{ROTATE})) {
     $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} " . $action;
-    $action_ =~ s/\*/aa\.\*/g;
+    $action_ =~ s/\*/aa\.\*/xg;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' aa ';
   }
 
-  my @SQL_array = ("$action_ FROM $table_name aa
-   $WHERE");
+  my @SQL_array = ("$action_ FROM $table_name aa $WHERE");
 
   return \@SQL_array;
 }
 
 #**********************************************************
 =head2 paysys_log_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
 
 =cut
 #**********************************************************
@@ -556,6 +609,10 @@ sub paysys_log_rotate {
 #**********************************************************
 =head2 api_log_rotate($attr)
 
+  Arguments:
+    $attr
+  Results:
+
 =cut
 #**********************************************************
 sub api_log_rotate {
@@ -568,6 +625,25 @@ sub api_log_rotate {
 }
 
 #**********************************************************
+=head2 users_development_log_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
+
+=cut
+#**********************************************************
+sub users_development_rotate {
+  my ($attr) = @_;
+
+  $attr->{TABLE_NAME} = 'users_development';
+  $attr->{SUBSTITUTE_FIELDS} = { DATE => 'date' };
+
+  return _log_rotate($attr);
+}
+
+
+#**********************************************************
 #
 #**********************************************************
 sub help {
@@ -575,7 +651,7 @@ sub help {
   print <<"[END]";
   Clear db utilite VERSION: $version
   Clear payments, fees, internet_log
-  ACTIONS=[payments, fees, internet_log, admin_actions, paysys_log] - default all tables
+  ACTIONS=[payments, fees, internet_log, admin_actions, paysys_log users_development api_log] - default all tables
   GID           - Groups
   DATE          - Date time DATE="<YYYY-MM-DD"
   SHOW          - Show clear date (default)
@@ -587,6 +663,7 @@ sub help {
   help          - Help
 [END]
 
+  return 1;
 }
 
 1;

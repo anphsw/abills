@@ -11,8 +11,8 @@
         </div>
     </div>
     <div class='card-footer'>
-        <th><a class='btn btn-secondary' href='$SELF_URL'>Close</a>
-            <a class='btn btn-primary' href='$SELF_URL'>User Portal</a>
+        <th><a class='btn btn-secondary' href='%SELF_URL%'>Close</a>
+            <a class='btn btn-primary' href='%SELF_URL%'>User Portal</a>
         </th>
     </div>
 </div>

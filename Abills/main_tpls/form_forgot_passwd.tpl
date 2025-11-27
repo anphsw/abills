@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='post' name='reg_request_form' class='form form-horizontal'>
+<form action='%SELF_URL%' method='post' name='reg_request_form' class='form form-horizontal'>
   <input type='hidden' name='FORGOT_PASSWD' value='1'>
 
   <div class='card center-block container-md'>

@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='POST'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' method='POST'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ARTICLE_ID' value='%ARTICLE_ID%'>
   <input type='hidden' name='MAIN_ARTICLE_ID' value='%SIA_ID%'>
   <input type='hidden' name='INCOMING_ARTICLE_ID' value='%STORAGE_INCOMING_ID%'>
@@ -42,7 +42,7 @@
       return 1;
     }
 
-    jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
+    jQuery.post('%SELF_URL%', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
       changeInputStatus(element, data === 'success');
     });
   }

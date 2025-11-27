@@ -42,7 +42,7 @@
                   %TAKE_DIALOGUE_BTN%
                   <div class='balance-buttons mt-2 mb-2 btn-group-vertical %HIDE_CONTROL_BTN%' id='control-btn'
                        style='width: 100%'>
-                    <a class='btn btn-default btn-lg' id='send-btn'>_{SEND}_</a>
+                    <a class='btn btn-default btn-lg' id='send-btn' title='Ctrl+Enter'>_{SEND}_</a>
                     <a class='btn btn-warning btn-lg' id='forward-dialogue'>_{REDIRECT_DIALOGUE}_</a>
                     <a class='btn btn-primary btn-lg' id='close-dialogue'>_{CLOSE_DIALOGUE}_</a>
                   </div>
@@ -89,3 +89,21 @@
   var SIZE = '_{SIZE}_' || 'Size';
 </script>
 <script src='/styles/default/js/modules/crm/crm.dialogue.js'></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const textarea = document.getElementById('message-textarea');
+    const sendBtn = document.getElementById('send-btn');
+
+    function sendMessage() {
+      sendBtn.click();
+    }
+
+    textarea.addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  });
+</script>

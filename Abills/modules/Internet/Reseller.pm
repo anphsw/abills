@@ -18,7 +18,7 @@ use Tariffs;
 use parent qw(Exporter);
 use Abills::Base qw/mk_unique_value _bp/;
 
-use Abills::Misc qw/_error_show/;
+require Abills::Misc;
 require Abills::Result_former;
 
 our $VERSION = 1.01;

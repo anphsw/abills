@@ -63,7 +63,7 @@
   <div class='card-body'>
 
     <form name='DOCS_REGISTRATION' id='form_DOCS_REGISTRATION' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' id='INDEX' value='$index'/>
+      <input type='hidden' name='index' id='INDEX' value='%index%'/>
 
       <div class='form-group row'>
         <label class='col-sm-12 col-md-12' for='NAME_id'>_{NAME}_ _{COMPANY}_</label>

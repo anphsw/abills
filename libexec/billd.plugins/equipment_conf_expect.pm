@@ -47,7 +47,7 @@ sub equipment_conf_expect {
   my @expect_files = grep(/\.backup$/, readdir($dir));
   closedir $dir;
 
-  my $equipment_list = $Equipment->_list({
+  my $equipment_list = $Equipment->list({
     NAS_IP           => '_SHOW',
     NAS_NAME         => '_SHOW',
     NAS_MNG_USER     => '_SHOW',
