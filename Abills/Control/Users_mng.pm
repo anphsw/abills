@@ -247,11 +247,12 @@ sub form_user_banner {
     }
   }
 
-  $pre_info .= ' ' . $lang{RECOMMENDED_PAYMENT} . ': ' . recomended_pay($user_info,
-    {
-      SERVICE_INFO => $service_info,
-      DEBUG        => $FORM{DEBUG}
-    });
+  my $recommended_payment = recomended_pay($user_info, {
+    SERVICE_INFO => $service_info,
+    DEBUG        => $FORM{DEBUG}
+  });
+
+  $pre_info .= " $lang{RECOMMENDED_PAYMENT}: $recommended_payment";
 
   return (defined $service_info->{total_sum}) ? $html->message('info', '', $pre_info, { OUTPUT2RETURN => 1 }) : q{};
 }

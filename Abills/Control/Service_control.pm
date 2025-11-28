@@ -8,6 +8,7 @@ package Control::Service_control;
 
 use strict;
 use warnings FATAL => 'all';
+#TODO: remove it
 no warnings 'numeric';
 
 my (

@@ -25,6 +25,7 @@ use Admins;
 use Users;
 use Abills::Base qw(parse_arguments days_in_month);
 use Abills::Init;
+
 require Control::Services;
 
 our (
@@ -88,13 +89,22 @@ sub recomended_sum {
     $debug_info = "// Triplay: status: $triplay_status";
   }
 
-  #Not active
+  # Not active
   if ($triplay_status == 2) {
-    #Nake alignment for Triplay
+    require Triplay;
+    Triplay->import();
+
+    my $Triplay = Triplay->new($db, $admin, \%conf);
     my $sum = $service_info->{list}->[0]->{SUM} || 0;
-    my $days_in_month = days_in_month({ DATE => $DATE });
-    my $calculation_days = ($cur_d < 1) ? 1 - $cur_d : $days_in_month - $cur_d + 1;
-    $sum = sprintf("%.2f", ($sum / $days_in_month) * $calculation_days);
+
+    # Make alignment for Triplay
+    $Triplay->user_info({ UID => $user_info->{UID} });
+    if ($Triplay->{TP_PERIOD_ALIGNMENT}) {
+      my $days_in_month = days_in_month({ DATE => $DATE });
+      my $calculation_days = ($cur_d < 1) ? 1 - $cur_d : $days_in_month - $cur_d + 1;
+      $sum = sprintf("%.2f", ($sum / $days_in_month) * $calculation_days);
+    }
+
     if ($cur_d > 25) {
       $recomended_sum = $sum + recomended_sum_default($user_info, $attr);
     }
@@ -137,13 +147,19 @@ sub recomended_sum {
     }
   }
 
-  if ($recomended_sum > int($recomended_sum)) {
+  if ($recomended_sum < 0) {
+    $recomended_sum = 0;
+  }
+  elsif ($recomended_sum > int($recomended_sum)) {
     $recomended_sum = sprintf('%.2f', int($recomended_sum));
     $recomended_sum += (($conf{PAYSYS_DEBET_RECOMMENDED_SUM} || $attr->{SKIP_ADD_SUM}) && !$recomended_sum) ? 0 : 1;
   }
 
   $recomended_sum = sprintf('%.2f', $recomended_sum);
-  return $recomended_sum . "$debug_info";
+
+  ($debug_info)
+    ? return $recomended_sum . "\n$debug_info\n"
+    : return $recomended_sum;
 }
 
 #**********************************************************
@@ -192,7 +208,8 @@ sub recomended_sum_default {
 
   $recomended_sum += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);
   $recomended_sum = sprintf('%.2f', $recomended_sum);
-  return $recomended_sum ;
+
+  return $recomended_sum;
 }
 
 #**********************************************************
@@ -237,7 +254,7 @@ sub recomended_sum2 {
 
   $recomended_sum += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);
   $recomended_sum = sprintf('%.2f', $recomended_sum);
-  return $recomended_sum ;
+  return $recomended_sum;
 }
 
 1;

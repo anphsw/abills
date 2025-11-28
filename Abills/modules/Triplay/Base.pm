@@ -337,13 +337,13 @@ sub triplay_service_activate {
 
     if ($services && $services->{list}) {
       foreach my $service (sort @{$services->{list}}) {
-        next if !$service->{ID};
+        next if (!$service->{ID});
 
         my $name = uc($service->{MODULE}) . '_SERVICE_ID';
         my $tp_name = uc($service->{MODULE}) . '_TP_ID';
 
         if ($attr->{TP_INFO_OLD}) {
-          next if !$attr->{$tp_name} && $attr->{TP_INFO_OLD}{uc($service->{MODULE}) . '_TP'};
+          next if (!$attr->{$tp_name} && $attr->{TP_INFO_OLD}{uc($service->{MODULE}) . '_TP'});
         }
 
         $attr->{$name} = $service->{ID};

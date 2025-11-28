@@ -1,11 +1,13 @@
 #!perl
 =head1 NAME
-  3play - module for connecting Internet, IPTV and VOIP tarifs in one
+
+  3play - module for connecting Internet, IPTV and VOIP tariffs in one
   Error ID: 13xx
 =cut
 
 =head1 Synopsis
-  This module give you opportunity to connect Internet, IPTV and VOIP tarif plans in one package.
+
+  This module give you opportunity to connect Internet, IPTV and VOIP tariff plans in one package.
 
 	Capabilities:
 		- Grouping of services
@@ -30,9 +32,7 @@ our (
   %ADMIN_REPORT
 );
 
-
-
-if(%ADMIN_REPORT) {
+if (%ADMIN_REPORT) {
   require Triplay::Periodic;
 }
 
@@ -40,7 +40,7 @@ if ($user && $user->{UID}) {
   require Triplay::User_portal;
 }
 
-if($permissions{4}) {
+if ($permissions{4}) {
   require Triplay::Configure;
 }
 

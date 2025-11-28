@@ -41,7 +41,7 @@ sub triplay_tp {
   $FORM{SMALL_DEPOSIT_ACTION} = -1;
 
   if ($FORM{add}) {
-    if (! $FORM{NAME}) {
+    if (!$FORM{NAME}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_NAME});
     }
     else {
@@ -50,7 +50,7 @@ sub triplay_tp {
         $Triplay->tp_add({ %FORM, TP_ID => $Tariffs->{TP_ID} });
       }
 
-      if (!$Triplay->{errno}) {
+      if (!$Triplay->{errno} && !$Tariffs->{errno}) {
         $html->message('info', $lang{INFO}, "$lang{TARIF_PLAN} $lang{ADDED}");
       }
     }
@@ -81,6 +81,7 @@ sub triplay_tp {
   }
 
   _error_show($Triplay);
+  _error_show($Tariffs);
 
   my $iptv_select = sel_tp({
     MODULE  => 'Iptv',
@@ -92,6 +93,7 @@ sub triplay_tp {
       MAIN_MENU_ARGV => ($Triplay->{IPTV_TP}) ? "TP_ID=$Triplay->{IPTV_TP}" : ''
     }
   });
+
   my $internet_select = sel_tp({
     MODULE      => 'Internet',
     USER_INFO   => $users,
@@ -102,6 +104,7 @@ sub triplay_tp {
       MAIN_MENU_ARGV => ($Triplay->{INTERNET_TP}) ? "TP_ID=$Triplay->{INTERNET_TP}" : ''
     }
   });
+
   my $voip_select = sel_tp({
     MODULE    => 'Voip',
     USER_INFO => $users,

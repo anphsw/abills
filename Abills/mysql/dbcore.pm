@@ -71,7 +71,7 @@ sub query_add{
       if ($column eq 'IP' || $column eq 'NETMASK') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON( ? )";
       }
-      elsif ($column eq 'IPV6' || $column eq 'IPV6_PD') {
+      elsif ($column eq 'IPV6_PREFIX' || $column eq 'IPV6' || $column eq 'IPV6_PD') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
       elsif ($values->{$column} =~ m/^INET_ATON\(['"]+([0-9a-f\.]+)['"]+\)/xi) {
@@ -127,7 +127,7 @@ sub query_add{
 
   if ($#inserts_arr < 0) {
     $self->{errno}=201;
-    $self->{errstr}="query_add: No input data";
+    $self->{errstr}="query_add: NO_INPUT_DATA";
     return $self
   }
 
