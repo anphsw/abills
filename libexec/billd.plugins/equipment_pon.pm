@@ -64,6 +64,7 @@ require Equipment::Grabbers;
 require Equipment::Pon_mng;
 require Equipment::Graph;
 
+our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
 our @ONU_ONLINE_STATUSES;
 
 if ($argv->{SERIAL_SCAN}) {
@@ -88,7 +89,7 @@ elsif ($argv->{PON_FILL_SWITCH_PORT_FROM_CID}) {
   _pon_fill_switch_port_from_cid();
 }
 else {
-  _equipment_pon();
+  _equipment_pon($argv);
 }
 
 
@@ -103,12 +104,14 @@ else {
 =cut
 #**********************************************************
 sub _equipment_pon {
+  my($attr)=@_;
 
   if ($debug > 6) {
     $Equipment->{debug} = 1;
   }
+
   my $equipment_list = $Equipment->list({
-    NAS_ID           => $argv->{NAS_IDS},
+    NAS_ID           => $attr->{NAS_IDS},
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
     REVISION         => '_SHOW',
@@ -126,8 +129,8 @@ sub _equipment_pon {
     LOCATION_ID      => '_SHOW',
     VENDOR_NAME      => '_SHOW',
     SNMP_VERSION     => '_SHOW',
-    TYPE_NAME        => $argv->{NAS_IDS} ? '' : '4',
-    STATUS           => $argv->{NAS_IDS} ? '_SHOW' : '0',
+    TYPE_NAME        => $attr->{NAS_IDS} ? '' : '4',
+    STATUS           => $attr->{NAS_IDS} ? '_SHOW' : '0',
     PAGE_ROWS        => 100000,
     COLS_NAME        => 1
   });
@@ -137,16 +140,16 @@ sub _equipment_pon {
     return 1;
   }
 
-  if ($argv->{RELOAD} && !$argv->{NAS_IDS}) {
+  if ($attr->{RELOAD} && !$attr->{NAS_IDS}) {
     $Equipment->onu_del(0, { ALL => 1 });
     $Equipment->pon_port_del(0, { ALL => 1});
-    delete $argv->{RELOAD};
+    delete $attr->{RELOAD};
   }
 
-  if ($argv->{multi}) {
+  if ($attr->{multi}) {
     my @threads = ();
-    foreach my $line (@$equipment_list) {
-      my threads $t = threads->create(\&_equipment_pon_load, $line);
+    foreach my $nas (@$equipment_list) {
+      my threads $t = threads->create(\&_equipment_pon_load, $nas);
       push @threads, $t;
       $t->detach();
 
@@ -160,8 +163,8 @@ sub _equipment_pon {
     }
   }
   else {
-    foreach my $line (@$equipment_list) {
-      _equipment_pon_load($line);
+    foreach my $nas (@$equipment_list) {
+      _equipment_pon_load($nas);
     }
   }
 
@@ -169,7 +172,90 @@ sub _equipment_pon {
 }
 
 #**********************************************************
-=head2 _equipment_pon_load($nas_id)
+=head2 _equipment_pon_load($nas_info)
+
+  Arguments:
+    $attr
+  Results:
+    $port_list
+
+=cut
+#**********************************************************
+sub get_port_list {
+  my ($attr)=@_;
+
+  my $nas_id = $attr->{nas_id};
+  my %olt_ports = ();
+
+  my $port_list = $Equipment->pon_port_list({
+    PAGE_ROWS  => 10000,
+    COLS_UPPER => 1,
+    NAS_ID     => $nas_id
+  });
+
+  if ($argv->{RELOAD}) {
+    if ($debug > 2) {
+      print "Reload ports: $Equipment->{TOTAL}\n";
+    }
+
+    my @del_ports = map {$_->{ID}} @$port_list;
+    if (@del_ports) {
+      my $del_ports_str = join(',', @del_ports);
+
+      if ($debug > 1) {
+        print "Delete onu ports: $del_ports_str\n";
+      }
+
+      $Equipment->onu_del(0, { PORT_ID => \@del_ports });
+      $Equipment->pon_port_del($del_ports_str);
+    }
+
+    $Equipment->{TOTAL} = 0;
+
+    if ($nas_id > 0) {
+      $Admin->{MODULE} = 'Equipment';
+      $Admin->system_action_add("RELOAD NAS_ID: $nas_id", { TYPE => 11 });
+    }
+  }
+
+  if (!$Equipment->{TOTAL}) {
+    equipment_pon_get_ports({
+      VERSION        => $attr->{snmp_version} || 1,
+      SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+      NAS_ID         => $nas_id,
+      NAS_TYPE       => $attr->{nas_type},
+      MODEL_NAME     => $attr->{model_name},
+      SNMP_TPL       => $attr->{snmp_tpl},
+      TIMEOUT        => $argv->{TIMEOUT},
+      DEBUG          => $debug
+    });
+
+    $port_list = $Equipment->pon_port_list({
+      PAGE_ROWS  => 10000,
+      COLS_UPPER => 1,
+      NAS_ID     => $nas_id
+    });
+
+    if ($Equipment->{TOTAL} < 1) {
+      _generate_new_event("NAS_ID: $nas_id CANT_GET_PORTS");
+      return \%olt_ports;
+    }
+  }
+
+  foreach my $port (@$port_list) {
+    $olt_ports{$port->{snmp_id}} = $port;
+  }
+
+  return \%olt_ports;
+}
+
+#**********************************************************
+=head2 _equipment_pon_load($nas_info)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -178,8 +264,6 @@ sub _equipment_pon_load {
   my $nas_id = $nas_info->{nas_id};
 
   my $pon_begin_time = check_time();
-  our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
-  #"/usr/abills/Abills/modules/Equipment/snmp_tpl/";
 
   if ($argv->{multi}) {
     #needed for multi, each thread must have its own connection
@@ -195,288 +279,269 @@ sub _equipment_pon_load {
   }
 
   if (!$nas_info->{nas_ip}) {
-    print "NAS_ID: $nas_info->{nas_id} deleted\n";
+    print "NAS_ID: $nas_id deleted\n";
     return 1;
   }
   elsif (!$nas_info->{nas_mng_password}) {
-    print "NAS_ID: $nas_info->{nas_id} COMMUNITY not defined\n";
+    print "NAS_ID: $nas_id COMMUNITY not defined\n";
     $nas_info->{nas_mng_password} = 'public';
+  }
+
+  if ($nas_info->{status} != 0) {
+    print "NAS_ID: $nas_id DISABLES\n";
+    return 0;
   }
 
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
   my $onu_counts = 0;
 
-  if ($nas_info->{status} eq 0) {
-    $nas_info->{NAME} = $nas_info->{vendor_name};
-    my $nas_type = equipment_pon_init({ NAS_INFO => $nas_info });
-    if (!$nas_type) {
-      return 0;
+  $nas_info->{NAME} = $nas_info->{vendor_name};
+  $nas_info->{SNMP_COMMUNITY} = $SNMP_COMMUNITY;
+  my $nas_type = equipment_pon_init({ NAS_INFO => $nas_info });
+
+  if (!$nas_type) {
+    return 0;
+  }
+
+  $nas_info->{nas_type} = $nas_type;
+  my $db_ = $Equipment->{db}->{db};
+
+  if ($argv->{TRANSACTION}) {
+    $db_->begin_work();
+  }
+
+  my $onu_list_fn = $nas_type . '_onu_list';
+
+  if (defined(&{$onu_list_fn})) {
+    my $olt_ports = get_port_list($nas_info);
+
+    my @query_oids = ();
+    if (defined $argv->{QUERY_OIDS}) {
+      if ($argv->{QUERY_OIDS} eq 'only_required') {
+        @query_oids = ();
+      }
+      else {
+        @query_oids = split(';', $argv->{QUERY_OIDS});
+      }
+      push @query_oids, 'ONU_MAC_SERIAL', 'ONU_STATUS';
     }
 
-    if ($argv->{TRANSACTION}) {
-      $Equipment->{db}->{db}->begin_work();
+    my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
+      VERSION          => $nas_info->{snmp_version} || 1,
+      SNMP_COMMUNITY   => $SNMP_COMMUNITY,
+      TIMEOUT          => $argv->{TIMEOUT} || 5,
+      SKIP_TIMEOUT     => 1,
+      DEBUG            => $debug,
+      MODEL_NAME       => $nas_info->{model_name},
+      QUERY_OIDS       => \@query_oids,
+      TYPE             => 'dhcp',
+      DONT_USE_GETBULK => $argv->{DONT_USE_GETBULK} ? 1 : 0,
+    });
+
+    if (!$onu_snmp_list || $#{$onu_snmp_list} < 0) {
+      _generate_new_event("NAS_ID: $nas_id NOT_RESPONSE_SNMP ($onu_list_fn)");
+      return 1;
     }
 
-    my $onu_list_fn = $nas_type . '_onu_list';
+    $onu_counts = $#{$onu_snmp_list} + 1;
+    $db_->ping(); #For long snmp requests
+    my $onu_database_list = $Equipment->onu_list({
+      NAS_ID      => $nas_id,
+      COLS_NAME   => 1,
+      SKIP_DOMAIN => 1,
+      PAGE_ROWS   => 1000000,
+      ONU_GRAPH   => '_SHOW',
+      STATUS      => '_SHOW',
+      DELETED     => '_SHOW'
+    });
 
-    if (defined(&{$onu_list_fn})) {
-      my $olt_ports = ();
-      my $port_list = $Equipment->pon_port_list({
-        PAGE_ROWS  => 10000,
-        COLS_UPPER => 1,
-        NAS_ID     => $nas_id
-      });
+    my $exists_onu = ();
+    foreach my $onu (@$onu_database_list) {
+      $exists_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
+      $exists_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
+      #$exists_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{status};
+      $exists_onu->{ $onu->{onu_snmp_id} }->{DELETED} = $onu->{deleted};
+    }
 
-      if ($argv->{RELOAD}) {
-        if ($debug > 2) {
-          print "Reload ports: $Equipment->{TOTAL}\n";
+    my $onu_status_fn = $nas_type . '_onu_status';
+
+    my @MULTI_QUERY = ();
+    my @ONU_ADD = ();
+    my %pon_types_oids = ();
+    foreach my $onu (@$onu_snmp_list) {
+      if (!$onu->{PORT_ID}) {
+        $onu_counts--;
+        next;
+      }
+      my $onu_status_converter = &{\&$onu_status_fn}($onu->{PON_TYPE});
+      if ($onu_status_converter) {
+        if (defined $onu->{ONU_STATUS}) {
+          $onu->{ONU_STATUS} = $onu_status_converter->{$onu->{ONU_STATUS}};
         }
-
-        my @del_ports = map { $_->{ID} } @$port_list;
-        if (@del_ports) {
-          my $del_ports_str = join (',', @del_ports);
-
-          if ($debug > 1) {
-            print "Delete onu ports: $del_ports_str\n";
-          }
-
-          $Equipment->onu_del(0, { PORT_ID => \@del_ports });
-          $Equipment->pon_port_del($del_ports_str);
+        if (!defined $onu->{ONU_STATUS}) {
+          $onu->{ONU_STATUS} = 1000; #NOT_EXPECTED_STATUS
         }
-
-        $Equipment->{TOTAL} = 0;
-
-        if ($nas_info->{nas_id}){
-          $Admin->{MODULE}='Equipment';
-          $Admin->system_action_add("RELOAD NAS_ID: $nas_info->{nas_id}", { TYPE => 11 });
-        }
-
       }
 
-      if (!$Equipment->{TOTAL}) {
-        equipment_pon_get_ports({
-          VERSION        => $nas_info->{snmp_version} || 1,
-          SNMP_COMMUNITY => $SNMP_COMMUNITY,
-          NAS_ID         => $nas_id,
-          NAS_TYPE       => $nas_type,
-          MODEL_NAME     => $nas_info->{model_name},
-          SNMP_TPL       => $nas_info->{snmp_tpl},
-          TIMEOUT        => $argv->{TIMEOUT},
-          DEBUG          => $debug
+      if ($exists_onu->{ $onu->{ONU_SNMP_ID} }) {
+        if (!$pon_types_oids{$onu->{PON_TYPE}}) {
+          $pon_types_oids{$onu->{PON_TYPE}} = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE}, MODEL => ($nas_info->{model_name} || '') });
+        }
+        my $snmp = $pon_types_oids{$onu->{PON_TYPE}};
+
+        mk_graph({
+          ONU         => $onu,
+          SNMP        => $snmp,
+          NAS_ID      => $nas_id,
+          GRAPH_TYPES => [ split(',', $exists_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_GRAPH}) ]
         });
 
-        $port_list = $Equipment->pon_port_list({
-          PAGE_ROWS  => 10000,
-          COLS_UPPER => 1,
-          NAS_ID     => $nas_id
-        });
+        push @MULTI_QUERY, [
+          $onu->{OLT_RX_POWER} || '',
+          $onu->{ONU_RX_POWER} || '',
+          $onu->{ONU_TX_POWER} || '',
+          $onu->{ONU_STATUS},
+          $onu->{ONU_IN_BYTE} || 0,
+          $onu->{ONU_OUT_BYTE} || 0,
+          $onu->{ONU_DHCP_PORT},
+          $onu->{PORT_ID},
+          $onu->{ONU_MAC_SERIAL},
+          $onu->{VLAN} || 0,
+          $onu->{ONU_DESC} || '',
+          $onu->{ONU_ID},
+          $onu->{LINE_PROFILE} || 'ONU',
+          $onu->{SRV_PROFILE} || 'ALL',
+          '0',
+          $exists_onu->{ $onu->{ONU_SNMP_ID} }->{ID}
+        ];
 
-        if ($Equipment->{TOTAL} < 1) {
-          _generate_new_event("NAS_ID: $nas_id CANT_GET_PORTS");
-          return 1;
-        }
+        delete $exists_onu->{ $onu->{ONU_SNMP_ID} };
+      }
+      else {
+        push @ONU_ADD, [
+          $onu->{OLT_RX_POWER} || '',
+          $onu->{ONU_RX_POWER} || '',
+          $onu->{ONU_TX_POWER} || '',
+          $onu->{ONU_STATUS} || 0,
+          $onu->{ONU_IN_BYTE} || 0,
+          $onu->{ONU_OUT_BYTE} || 0,
+          $onu->{ONU_DHCP_PORT} || '',
+          $onu->{PORT_ID} || '',
+          $onu->{ONU_MAC_SERIAL} || '',
+          $onu->{VLAN} || 0,
+          $onu->{ONU_DESC} || '',
+          $onu->{ONU_ID},
+          $onu->{ONU_SNMP_ID},
+          $onu->{LINE_PROFILE} || 'ONU',
+          $onu->{SRV_PROFILE} || 'ALL',
+          $onu->{EQUIPMENT_ID} || ''
+        ];
       }
 
-      foreach my $port (@$port_list) {
-        $olt_ports->{$port->{snmp_id}} = $port;
-      }
+      pon_alert($onu);
+    }
 
-      my $query_oids;
-      if (defined $argv->{QUERY_OIDS}) {
-        if ($argv->{QUERY_OIDS} eq 'only_required') {
-          @$query_oids = ();
-        }
-        else {
-          @$query_oids = split(';', $argv->{QUERY_OIDS});
-        }
-        push @$query_oids, 'ONU_MAC_SERIAL', 'ONU_STATUS';
-      }
+    my $time = 0;
 
-      my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
-        VERSION        => $nas_info->{snmp_version} || 1,
-        SNMP_COMMUNITY => $SNMP_COMMUNITY,
-        TIMEOUT        => $argv->{TIMEOUT} || 5,
-        SKIP_TIMEOUT   => 1,
-        DEBUG          => $debug,
-        MODEL_NAME     => $nas_info->{model_name},
-        QUERY_OIDS     => $query_oids,
-        TYPE           => 'dhcp',
-        DONT_USE_GETBULK => $argv->{DONT_USE_GETBULK} ? 1 : 0,
-      });
-
-      if (! $onu_snmp_list || $#{$onu_snmp_list} < 0) {
-        _generate_new_event("NAS_ID: $nas_id NOT_RESPONSE_SNMP ($onu_list_fn)");
-        return 1;
-      }
-
-      $onu_counts = $#{$onu_snmp_list} + 1;
-      $Equipment->{db}->{db}->ping(); #For long snmp requests
-      my $onu_database_list = $Equipment->onu_list({
-        NAS_ID     => $nas_id,
-        COLS_NAME  => 1,
-        SKIP_DOMAIN=> 1,
-        PAGE_ROWS  => 1000000,
-        ONU_GRAPH  => '_SHOW',
-        STATUS     => '_SHOW',
-        DELETED    => '_SHOW'
-      });
-
-      my $created_onu = ();
-      foreach my $onu (@$onu_database_list) {
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{status};
-        $created_onu->{ $onu->{onu_snmp_id} }->{DELETED} = $onu->{deleted};
-      }
-
-      my $onu_status_fn = $nas_type . '_onu_status';
-
-      my @MULTI_QUERY = ();
-      my @ONU_ADD = ();
-      my %pon_types_oids = ();
-      foreach my $onu (@$onu_snmp_list) {
-        if (!$onu->{PORT_ID}) {
-          $onu_counts--;
-          next;
-        }
-        my $onu_status_converter = &{\&$onu_status_fn}($onu->{PON_TYPE});
-        if ($onu_status_converter) {
-          if (defined $onu->{ONU_STATUS}) {
-            $onu->{ONU_STATUS} = $onu_status_converter->{$onu->{ONU_STATUS}};
-          }
-          if (!defined $onu->{ONU_STATUS}) {
-            $onu->{ONU_STATUS} = 1000; #NOT_EXPECTED_STATUS
-          }
-        }
-
-        if ($created_onu->{ $onu->{ONU_SNMP_ID} }) {
-          if (! $pon_types_oids{$onu->{PON_TYPE}}) {
-            $pon_types_oids{$onu->{PON_TYPE}} = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE}, MODEL => ($nas_info->{model_name} || '') });
-          }
-          my $snmp = $pon_types_oids{$onu->{PON_TYPE}};
-          my @onu_graph_types = split(',', $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_GRAPH});
-          foreach my $graph_type (@onu_graph_types) {
-            my @onu_graph_data = ();
-            if ($graph_type eq 'SIGNAL' && ($snmp->{ONU_RX_POWER}->{OIDS} || $snmp->{OLT_RX_POWER}->{OIDS})) {
-              push @onu_graph_data, { DATA => $onu->{ONU_RX_POWER} || 0, SOURCE => $snmp->{ONU_RX_POWER}->{NAME} || q{}, TYPE => 'GAUGE' };
-              push @onu_graph_data, { DATA => $onu->{OLT_RX_POWER} || 0, SOURCE => $snmp->{OLT_RX_POWER}->{NAME} || q{OLT_RX_POWER}, TYPE => 'GAUGE' };
-            }
-            elsif ($graph_type eq 'TEMPERATURE' && $snmp->{TEMPERATURE}->{OIDS}) {
-              push @onu_graph_data, { DATA => $onu->{TEMPERATURE} || 0, SOURCE => $snmp->{TEMPERATURE}->{NAME}, TYPE => 'GAUGE' };
-            }
-            elsif ($graph_type eq 'SPEED' && ($snmp->{ONU_IN_BYTE}->{OIDS} || $snmp->{ONU_OUT_BYTE}->{OIDS})) {
-              push @onu_graph_data, { DATA => $onu->{ONU_IN_BYTE} || 0, SOURCE => $snmp->{ONU_IN_BYTE}->{NAME}, TYPE => 'COUNTER' };
-              push @onu_graph_data, { DATA => $onu->{ONU_OUT_BYTE} || 0, SOURCE => $snmp->{ONU_OUT_BYTE}->{NAME}, TYPE => 'COUNTER' };
-            }
-
-            if ($#onu_graph_data > -1 && !$argv->{SKIP_RRD}) {
-              if ($debug > 3) {
-                print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => ". ($argv->{STEP} || '300'). "\n";
-              }
-              eval {
-                add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
-              };
-              if ( $@ ){
-                print "Failed to update RRD database:\n";
-                print $@;
-              }
-            }
-          }
-
-          push @MULTI_QUERY, [
-            $onu->{OLT_RX_POWER} || '',
-            $onu->{ONU_RX_POWER} || '',
-            $onu->{ONU_TX_POWER} || '',
-            $onu->{ONU_STATUS},
-            $onu->{ONU_IN_BYTE} || 0,
-            $onu->{ONU_OUT_BYTE} || 0,
-            $onu->{ONU_DHCP_PORT},
-            $onu->{PORT_ID},
-            $onu->{ONU_MAC_SERIAL},
-            $onu->{VLAN} || 0,
-            $onu->{ONU_DESC} || '',
-            $onu->{ONU_ID},
-            $onu->{LINE_PROFILE} || 'ONU',
-            $onu->{SRV_PROFILE} || 'ALL',
-            '0',
-            $created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}
-          ];
-
-          delete $created_onu->{ $onu->{ONU_SNMP_ID} };
-        }
-        else {
-          push @ONU_ADD, [
-            $onu->{OLT_RX_POWER} || '',
-            $onu->{ONU_RX_POWER} || '',
-            $onu->{ONU_TX_POWER} || '',
-            $onu->{ONU_STATUS} || 0,
-            $onu->{ONU_IN_BYTE} || 0,
-            $onu->{ONU_OUT_BYTE} || 0,
-            $onu->{ONU_DHCP_PORT} || '',
-            $onu->{PORT_ID} || '',
-            $onu->{ONU_MAC_SERIAL} || '',
-            $onu->{VLAN} || 0,
-            $onu->{ONU_DESC} || '',
-            $onu->{ONU_ID},
-            $onu->{ONU_SNMP_ID},
-            $onu->{LINE_PROFILE} || 'ONU',
-            $onu->{SRV_PROFILE} || 'ALL',
-            $onu->{EQUIPMENT_ID} || ''
-          ];
-        }
-        if( in_array( 'Events', \@MODULES ) && $argv->{ALERT} ){
-          pon_alert($onu->{ONU_RX_POWER});
-        }
-      }
-
-      my $time=0;
-
-      foreach my $snmp_id (keys %{$created_onu}) {
-        if (!$created_onu->{ $snmp_id }->{DELETED}) {
-          $time = check_time() if ($debug > 2);
-          $Equipment->onu_change({
-            ID         => $created_onu->{ $snmp_id }->{ID},
-            DELETED    => 1
-          });
-          print "UPDATE EXPIRED ONU." if ($debug > 2);
-          print " " . gen_time($time) . "\n" if ($debug > 2);
-        }
-      }
-
-      if ($#ONU_ADD > -1) {
+    foreach my $snmp_id (keys %{$exists_onu}) {
+      if (!$exists_onu->{ $snmp_id }->{DELETED}) {
         $time = check_time() if ($debug > 2);
-        print "ADD ONU." if ($debug > 2);
-        $Equipment->onu_add({ MULTI_QUERY => \@ONU_ADD });
-        print " " . gen_time($time) . "\n" if ($debug > 2);
-        my $serials_with_descriptions = join(', ', map { $_->[8] . " ($_->[10])" } @ONU_ADD);
-
-        if ($argv->{multi}) {
-          $Events = Events::API->new($db, $Admin, \%conf);
-        }
-        $Events->add_event({
-          MODULE      => 'Equipment',
-          TITLE       => "Add new ONU",
-          COMMENTS    => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials (descriptions): $serials_with_descriptions",
-          PRIORITY_ID => 3
+        $Equipment->onu_change({
+          ID      => $exists_onu->{ $snmp_id }->{ID},
+          DELETED => 1
         });
-
-      }
-      if ($#MULTI_QUERY > -1) {
-        $time = check_time() if ($debug > 2);
-        print "UPDATE ONU info." if ($debug > 2);
-        $Equipment->onu_change({ MULTI_QUERY => \@MULTI_QUERY });
+        print "UPDATE EXPIRED ONU." if ($debug > 2);
         print " " . gen_time($time) . "\n" if ($debug > 2);
       }
     }
 
-    if ($argv->{TRANSACTION}) {
-      $Equipment->{db}->{db}->commit();
+    if ($#ONU_ADD > -1) {
+      $time = check_time() if ($debug > 2);
+      print "ADD ONU." if ($debug > 2);
+      $Equipment->onu_add({ MULTI_QUERY => \@ONU_ADD });
+      print " " . gen_time($time) . "\n" if ($debug > 2);
+      my $serials_with_descriptions = join(', ', map {$_->[8] . " ($_->[10])"} @ONU_ADD);
+
+      if ($argv->{multi}) {
+        $Events = Events::API->new($db, $Admin, \%conf);
+      }
+      $Events->add_event({
+        MODULE      => 'Equipment',
+        TITLE       => "Add new ONU",
+        COMMENTS    => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials (descriptions): $serials_with_descriptions",
+        PRIORITY_ID => 3
+      });
     }
+    if ($#MULTI_QUERY > -1) {
+      $time = check_time() if ($debug > 2);
+      print "UPDATE ONU info." if ($debug > 2);
+      $Equipment->onu_change({ MULTI_QUERY => \@MULTI_QUERY });
+      print " " . gen_time($time) . "\n" if ($debug > 2);
+    }
+  }
+
+  if ($argv->{TRANSACTION}) {
+    $db_->commit();
   }
 
   if ($debug) {
     print "NAS_TYPE : " . ($nas_info->{NAME} || q{}) . " MODEL_NAME: " . ($nas_info->{model_name} || q{}) . ", NAS_IP: $nas_info->{nas_ip}"
       . " NAS_ID: $nas_id, ONU: $onu_counts " . gen_time($pon_begin_time) . "\n";
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 mk_graph($attr) - make graph
+
+  Arguments:
+    $attr
+
+  Return:
+     TRUE or FALSE
+
+=cut
+#**********************************************************
+sub mk_graph {
+  my($attr)=@_;
+
+  if ($argv->{SKIP_RRD}) {
+    return 0;
+  }
+
+  my $onu = $attr->{ONU};
+  my $snmp = $attr->{SNMP};
+  my $nas_id = $attr->{NAS_ID};
+  my $graph_types = $attr->{GRAPH_TYPES};
+
+  foreach my $graph_type (@$graph_types) {
+    my @onu_graph_data = ();
+    if ($graph_type eq 'SIGNAL' && ($snmp->{ONU_RX_POWER}->{OIDS} || $snmp->{OLT_RX_POWER}->{OIDS})) {
+      push @onu_graph_data, { DATA => $onu->{ONU_RX_POWER} || 0, SOURCE => $snmp->{ONU_RX_POWER}->{NAME} || q{}, TYPE => 'GAUGE' };
+      push @onu_graph_data, { DATA => $onu->{OLT_RX_POWER} || 0, SOURCE => $snmp->{OLT_RX_POWER}->{NAME} || q{OLT_RX_POWER}, TYPE => 'GAUGE' };
+    }
+    elsif ($graph_type eq 'TEMPERATURE' && $snmp->{TEMPERATURE}->{OIDS}) {
+      push @onu_graph_data, { DATA => $onu->{TEMPERATURE} || 0, SOURCE => $snmp->{TEMPERATURE}->{NAME}, TYPE => 'GAUGE' };
+    }
+    elsif ($graph_type eq 'SPEED' && ($snmp->{ONU_IN_BYTE}->{OIDS} || $snmp->{ONU_OUT_BYTE}->{OIDS})) {
+      push @onu_graph_data, { DATA => $onu->{ONU_IN_BYTE} || 0, SOURCE => $snmp->{ONU_IN_BYTE}->{NAME}, TYPE => 'COUNTER' };
+      push @onu_graph_data, { DATA => $onu->{ONU_OUT_BYTE} || 0, SOURCE => $snmp->{ONU_OUT_BYTE}->{NAME}, TYPE => 'COUNTER' };
+    }
+
+    if ($#onu_graph_data > -1) {
+      if ($debug > 3) {
+        print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => ". ($argv->{STEP} || '300'). "\n";
+      }
+      eval {
+        add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300', DEBUG => $debug });
+      };
+
+      if ( $@ ){
+        print "Failed to update RRD database:\n";
+        print $@;
+      }
+    }
   }
 
   return 1;
@@ -506,29 +571,35 @@ sub wait_ps {
     if ($running) {
       $running_ps++
     }
-    #else {
-    #  $running_ps--;
-    #}
   }
 
   if ($running_ps > $max_threads) {
     print "Sleep: Running: $running_ps Total: $#{$threads}\n" if ($debug > 3);
     sleep 1;
-    #run
     return 1;
   }
 
-  #Finish
-  return 0;
+  return 0;  #Finish
 }
 
 #**********************************************************
 =head2 pon_alert($attr)
 
+  Arguments:
+    $onu_info
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pon_alert {
-  my ($parameter) = @_;
+  my ($onu) = @_;
+
+  if(! in_array( 'Events', \@MODULES ) || ! $argv->{ALERT}) {
+    return 0;
+  }
+
+  my $parameter = $onu->{ONU_RX_POWER};
 
   if (!$parameter) {
     return 0;
@@ -538,7 +609,7 @@ sub pon_alert {
     # Name for module
     MODULE      => 'Equipment',
     # Text
-    COMMENTS    => 'PON ALERT: ' . $parameter,
+    COMMENTS    => 'PON ALERT: ' . $parameter .' ONU: ' . ($onu->{ONU_MAC_SERIAL} || q{}),
     # Link to see external info
     EXTRA       => '',
     # 1..5 Bigger is more important

@@ -576,7 +576,7 @@ sub check_lines {
             { COA_ACTION => 'NEG_DEPOSIT' });
         }
       }
-      elsif ($online->{guest} && $deposit + $credit > 0 && $state == 0) {
+      elsif ($online->{guest} && ($deposit + $credit > 0 || $Billing->{PAYMENT_TYPE} == 1) && $state == 0) {
         if ($online->{guest} != 2) {
           session_hangup($nas, $online, "RECHARGE DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM} STATE: $state",
             { COA_ACTION => 'RECHARGE' });

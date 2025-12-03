@@ -216,6 +216,8 @@ sub iptv_tp{
   $LIST_PARAMS{NEW_MODEL_TP} = 1;
   $LIST_PARAMS{MODULE} = 'Iptv';
   $LIST_PARAMS{TP_ID} = $FORM{TP_IDS} if ($FORM{TP_IDS});
+  $LIST_PARAMS{SERVICE_ID} = $FORM{SERVICE_ID} if ($FORM{SERVICE_ID});
+
   my Abills::HTML $table;
   my $list;
 
@@ -246,7 +248,7 @@ sub iptv_tp{
       priority             => $lang{PRIORITY},
       next_tarif_plan      => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
       comments             => $lang{DESCRIBE},
-      service_id           => "SERVICE_ID",
+      service_id           => "$lang{SERVICE} ID",
       service_name         => $lang{SERVICE},
       module               => $lang{MODULE},
       inner_tp_id          => 'ID',

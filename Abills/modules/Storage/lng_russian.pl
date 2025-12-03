@@ -231,4 +231,13 @@ $lang{STORAGE_RESERVE_NOTIFY_PRICE} = 'Цена';
 $lang{STORAGE_RESERVE_NOTIFY_STORAGE} = 'Склад';
 $lang{STORAGE_RESERVE_NOTIFY_ACTION} = 'Необходимо обработать заявку на резервирование';
 
+$lang{PUBLIC_SALE} = 'Публичная продажа';
+$lang{IN_INSTALLMENTS_PRICE} = 'Цена в рассрочку';
+$lang{STORAGE_INCOMING_ARTICLE_DATA_CHANGE} = 'Изменение данных товара';
+$lang{STORAGE_ACCOUNTABILITY_DATA_CHANGE} = 'Изменение данных подотчетности';
+$lang{STORAGE_INCOMING_ARTICLE_SPLIT} = 'Разделение товара';
+$lang{STORAGE_INCOMING_ARTICLE_MERGE} = 'Объединение товара';
+$lang{STORAGE_RESERVED_BY_USER} = 'Зарезервировано пользователем';
+$lang{STORAGE_OPERATION_DETAILS} = 'Детали операции';
+
 1;

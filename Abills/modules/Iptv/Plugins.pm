@@ -98,13 +98,14 @@ sub tv_services {
   result_former({
     INPUT_DATA      => $Iptv,
     FUNCTION        => 'services_list',
-    DEFAULT_FIELDS  => 'NAME,MODULE,STATUS,COMMENT',
+    DEFAULT_FIELDS  => 'NAME,MODULE,STATUS,COMMENT,TARIFF_PLANS',
     FUNCTION_FIELDS => join(',', @service_functions),
     EXT_TITLES      => {
       comment => $lang{COMMENTS},
       name    => $lang{NAME},
       module  => $lang{MODULE},
       status  => $lang{STATUS},
+      tariff_plans => $lang{TARIF_PLANS},
       url     => 'URL'
     },
     SKIP_USER_TITLE => 1,
@@ -114,6 +115,12 @@ sub tv_services {
       qs      => $pages_qs,
       ID      => 'TV_SERVICES',
       MENU    => "$lang{ADD}:index=" . get_function_index('tv_services') . "&add_form=1:add"
+    },
+    FILTER_VALUES => {
+      tariff_plans => sub {
+        my ($count_tp, $line) = @_;
+        return $html->button($count_tp, "get_index=iptv_tp&full=1&SERVICE_ID=$line->{id}");
+      }
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1,

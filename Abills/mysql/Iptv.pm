@@ -1843,40 +1843,46 @@ sub users_active_screens_list {
 =cut
 #**********************************************************
 sub services_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $EXT_TABLES = '';
 
-  my $WHERE = $self->search_former(
-    $attr,
+  my $WHERE = $self->search_former($attr,
     [
-      [ 'ID',                  'INT', 'id',                        ],
-      [ 'NAME',                'STR', 'name',                    1 ],
-      [ 'MODULE',              'STR', 'module',                  1 ],
-      [ 'STATUS',              'INT', 'status',                  1 ],
-      [ 'URL',                 'STR', 'url',                     1 ],
-      [ 'COMMENT',             'STR', 'comment',                 1 ],
-      [ 'PROVIDER_PORTAL_URL', 'STR', 'provider_portal_url',     1 ],
-      [ 'USER_PORTAL',         'INT', 'user_portal',             1 ],
-      [ 'SUBSCRIBE_COUNT',     'INT', 'subscribe_count',         1 ],
-      [ 'LOGIN',               'INT', 'login',                   1 ],
+      [ 'ID',                  'INT', 's.id',                        ],
+      [ 'NAME',                'STR', 's.name',                    1 ],
+      [ 'MODULE',              'STR', 's.module',                  1 ],
+      [ 'STATUS',              'INT', 's.status',                  1 ],
+      [ 'URL',                 'STR', 's.url',                     1 ],
+      [ 'COMMENT',             'STR', 's.comment',                 1 ],
+      [ 'PROVIDER_PORTAL_URL', 'STR', 's.provider_portal_url',     1 ],
+      [ 'USER_PORTAL',         'INT', 's.user_portal',             1 ],
+      [ 'SUBSCRIBE_COUNT',     'INT', 's.subscribe_count',         1 ],
+      [ 'LOGIN',               'INT', 's.login',                   1 ],
       [ 'PASSWORD',            'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
+      [ 'TARIFF_PLANS',        'INT', '', "COUNT(tp.service_id) AS tariff_plans" ],
     ],
     {
       WHERE => 1,
     }
   );
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} s.id
+  if ($attr->{TARIFF_PLANS}){
+    $EXT_TABLES .= "LEFT JOIN tarif_plans tp ON (tp.service_id = s.id)"
+  }
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} s.id
    FROM iptv_services s
     $WHERE
+    $EXT_TABLES
     GROUP BY s.id
-    ORDER BY $SORT $DESC",
-    undef,
-    $attr
-  );
+    ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 

@@ -138,27 +138,37 @@ CREATE TABLE IF NOT EXISTS `storage_installation`
 
 CREATE TABLE IF NOT EXISTS `storage_log`
 (
-    `id`                      INT(11)              NOT NULL AUTO_INCREMENT,
-    `date`                    DATETIME             NOT NULL,
-    `aid`                     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `storage_main_id`         INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `storage_id`              SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
-    `comments`                TEXT,
-    `action`                  TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
-    `ip`                      INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `count`                   INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `uid`                     INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `storage_installation_id` INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    `nas_id`                  INT(10) UNSIGNED     NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`),
-    KEY `uid` (`uid`),
-    KEY `aid` (`aid`),
-    KEY `storage_main_id` (`storage_main_id`),
-    KEY `storage_id` (`storage_id`),
-    KEY `nas_id` (`nas_id`),
-    KEY `storage_installation_id` (`storage_installation_id`)
+  `id`                      INT(11)              NOT NULL AUTO_INCREMENT,
+  `date`                    DATETIME             NOT NULL,
+  `aid`                     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_main_id`         INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+  `storage_id`              SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `comments`                TEXT,
+  `action`                  TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
+  `ip`                      INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+  `count`                   INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+  `uid`                     INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+  `storage_installation_id` INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+  `nas_id`                  INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+
+  `article_id`              SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `storage_incoming_id`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+  `serial_number`           VARCHAR(60) DEFAULT '',
+  `extra_data`              TEXT,
+  `operation_data`          TEXT,
+
+  PRIMARY KEY (`id`),
+  KEY `uid` (`uid`),
+  KEY `aid` (`aid`),
+  KEY `storage_main_id` (`storage_main_id`),
+  KEY `storage_id` (`storage_id`),
+  KEY `nas_id` (`nas_id`),
+  KEY `storage_installation_id` (`storage_installation_id`),
+  INDEX `idx_article_id` (`article_id`),
+  INDEX `idx_storage_incoming_id` (`storage_incoming_id`),
+  INDEX `idx_serial_number` (`serial_number`)
 )
-    DEFAULT CHARSET = utf8 COMMENT = 'Storage operation log';
+  DEFAULT CHARSET = utf8 COMMENT = 'Storage operation log';
 
 CREATE TABLE IF NOT EXISTS `storage_reserve`
 (

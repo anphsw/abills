@@ -230,4 +230,13 @@ $lang{STORAGE_RESERVE_NOTIFY_PRICE} = 'Price';
 $lang{STORAGE_RESERVE_NOTIFY_STORAGE} = 'Storage';
 $lang{STORAGE_RESERVE_NOTIFY_ACTION} = 'Please process the reservation request';
 
+$lang{PUBLIC_SALE} = 'Public Sale';
+$lang{IN_INSTALLMENTS_PRICE} = 'Installments Price';
+$lang{STORAGE_INCOMING_ARTICLE_DATA_CHANGE} = 'Product data change';
+$lang{STORAGE_ACCOUNTABILITY_DATA_CHANGE} = 'Accountability data change';
+$lang{STORAGE_INCOMING_ARTICLE_SPLIT} = 'Product split';
+$lang{STORAGE_INCOMING_ARTICLE_MERGE} = 'Product merge';
+$lang{STORAGE_RESERVED_BY_USER} = 'Reserved by user';
+$lang{STORAGE_OPERATION_DETAILS} = 'Operation details';
+
 1;

@@ -19,9 +19,9 @@ use strict;
 use warnings 'FATAL' => 'all';
 use v5.16;
 
-our $VERSION = 1.14;
+our $VERSION = 1.15;
 
-our $begin_time;
+my $begin_time = 0;
 BEGIN {
   eval {
     require Time::HiRes;
@@ -42,30 +42,17 @@ use Time::Local qw/timelocal/;
 use lib '../lib';
 
 use Abills::Init qw/$admin $db %conf $DATE $base_dir @MODULES $var_dir/;
-use Abills::Base qw(in_array days_in_month convert gen_time _bp load_pmodule);
+use Abills::Base qw(gen_time _bp load_pmodule);
 use Abills::HTML;
+require Abills::Misc;
 
 our Admins $admin;
-our (%lang, $var_dir);
-
-# To avoid loading Abills::Templates, redefining _error_show
-{
-  # Disable for this block only
-  no warnings 'redefine';
-  #sub _error_show;
-
-  require Abills::Misc;
-
-  *_error_show = sub {
-    my ($module) = @_;
-    return unless ($module->{errno});
-
-    $module->{sql_errstr} //= $module->{errstr};
-    $module->{sql_errno} //= $module->{errno};
-
-    print "<div class='alert alert-danger'>[$module->{sql_errno}] $module->{sql_errstr}</div><br>"
-  };
-}
+our (
+  %lang,
+  $var_dir,
+  $SELF_URL,
+  %FORM
+);
 
 my $DEBUG = 0;
 
@@ -77,7 +64,6 @@ my $MULTI_SEL = 0;
 
 my $html = Abills::HTML->new({
   CONF       => \%conf,
-  NO_PRINT   => 0,
   PATH       => $conf{WEB_IMG_SCRIPT_PATH} || '../',
   CHARSET    => $conf{default_charset},
   #HTML_STYLE => 'default_adm'
@@ -86,8 +72,9 @@ my $html = Abills::HTML->new({
 if ($html->{language} ne 'english') {
   do $base_dir . "/language/english.pl";
 }
-if (-f $base_dir . "/language/$html->{language}.pl") {
-  do $base_dir . "/language/$html->{language}.pl";
+my $lang_file = $base_dir . "/language/$html->{language}.pl";
+if (-f $lang_file) {
+  do $lang_file;
 }
 
 my $DAILY_PERIOD = 86400;
@@ -127,46 +114,42 @@ my $RECV_TRAFF_NAME_LOCAL = "$lang{RECV} $lang{LOCAL}";
 my $SENT_TRAFF_NAME_LOCAL = "$lang{SENT} $lang{LOCAL}";
 
 load_pmodule('JSON');
-load_pmodule('Time::Local');
 
-if (scalar(keys %FORM) > 0) {
+mk_chart();
 
-  #Read debug from $FORM
-  $DEBUG = $FORM{DEBUG} || $DEBUG;
+sub mk_chart {
+  if (scalar(keys %FORM) > 0) {
+    $DEBUG = $FORM{DEBUG} || $DEBUG;
+    $admin->{debug} = $DEBUG >= 2;
+    #Default chart type is bits
+    $FORM{type} = 'bits' if (!$FORM{type});
+    #Transform from old period type
+    if ($FORM{period} && $FORM{period} ne 'all') {
+      $FORM{$FORM{period}} = 1;
+    }
 
-  #Enable DB debug if debug level is higher or equal 2
-  $admin->{debug} = $DEBUG >= 2;
+    my $EXPLICIT_DATE = 0;
+    if ($FORM{DATE} && $FORM{DATE} ne '' && $FORM{DATE} =~ /\d{4}-\d{2}-\d{2}/xm) {
+      my ($year, $mon, $mday) = split(/\-/x, $FORM{DATE});
+      $EXPLICIT_DATE = timelocal(1, 0, 0, 0 + $mday, 0 + $mon - 1, 0 + $year);
+    }
+    else {
+      $EXPLICIT_DATE = timelocal(localtime());
+    }
 
-  #Default chart type is bits
-  $FORM{type} = 'bits' if (!$FORM{type});
+    print_head();
 
-  #Transform from old period type
-  if ($FORM{period} && $FORM{period} ne 'all') {
-    $FORM{$FORM{period}} = 1;
-  }
-
-  my $EXPLICIT_DATE = 0;
-  if ($FORM{DATE} && $FORM{DATE} ne '' && $FORM{DATE} =~ /\d{4}-\d{2}-\d{2}/) {
-    my ($year, $mon, $mday) = split(/-/, $FORM{DATE});
-    $EXPLICIT_DATE = timelocal(1, 0, 0, 0 + $mday, 0 + $mon - 1, 0 + $year);
+    my @charts_config = form_charts_configuration(\%FORM);
+    build_graphics(@charts_config, $EXPLICIT_DATE);
+    print_footer();
   }
   else {
-    $EXPLICIT_DATE = timelocal(localtime());
+    print_head();
+    $html->message('err', 'Incorrect parameters');
   }
 
-  print_head();
-
-  my @charts_config = form_charts_configuration(\%FORM);
-
-  build_graphics(@charts_config, $EXPLICIT_DATE);
-
-  print_footer();
+  return 1;
 }
-else {
-  print_head();
-  $html->message('err', 'Incorrect parameters');
-}
-
 
 #**********************************************************
 =head2 form_charts_configuration($attr)
@@ -206,9 +189,7 @@ sub form_charts_configuration {
     @ids = map {$_->[0]} @{$admin->{list}};
 
     $WHERE = "l.uid=?";
-    $EXT_TABLE = "
-      INNER JOIN users u ON (u.uid=l.uid)
-      ";
+    $EXT_TABLE = " INNER JOIN users u ON (u.uid=l.uid) ";
   }
   elsif ($attr->{'UID'}) {
     $type = 'USER';
@@ -258,8 +239,10 @@ sub form_charts_configuration {
 
     my $internet_table = 'internet_main';
 
-    $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid)
-      INNER JOIN $internet_table internet ON (internet.uid=u.uid) ";
+    $EXT_TABLE = << "EXT_TABLES";
+    INNER JOIN users u ON (u.uid=l.uid)
+    INNER JOIN $internet_table internet ON (internet.uid=u.uid)
+EXT_TABLES
   }
   elsif ($attr->{'GID'}) {
     $type = 'GROUP';
@@ -318,17 +301,16 @@ sub form_charts_configuration {
 sub build_graphics {
   my ($EXT_TABLE, $WHERE, $bind_values, $type, $ids, $current_time) = @_;
 
-  if (scalar(@$ids) > 1) {
+  if ($#{ $ids } > -1) {
     $MULTI_SEL = 1;
   }
-
   my $i = 0;
   foreach my $key (@$ids) {
     $i++;
 
     if ($MULTI_SEL) {
       my $search_key = $WHERE;
-      $search_key =~ s/=.*$//g;
+      $search_key =~ s/=.*$//xg;
       $WHERE = "$search_key=?";
       $bind_values = [ $key ];
     }
@@ -342,12 +324,9 @@ sub build_graphics {
 
     # Period we need to get from DB
     my $start_time = $current_time - $TIME_PERIODS{$max_period}{PERIOD};
-
     my $speed_list = get_speed_cached($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key);
-
     my $name = get_name_for($type, $key) || '';
     my %charts_for_period = ();
-
     $charts_for_period{1} = make_chart(
       $speed_list, "$type: '$name' ($key) ", $start_time, $current_time
     );
@@ -375,17 +354,13 @@ sub build_graphics {
 sub get_traffic {
   my ($EXT_TABLE, $WHERE, $bind_values, $start, $end_time) = @_;
 
-  my $multiply_for_bytes = ($FORM{type} ne 'bytes')
-    ? ' * 8 '
-    : '';
-
+  my $multiply_for_bytes = ($FORM{type} ne 'bytes') ? ' * 8 ' : '';
   my $list;
 
   my $ipn_traffic = (!$conf{CHARTS_SKIP_IPN}
     ? get_ipn_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start, $end_time)
     : 0
   );
-
   if (!$admin->{errno} && $ipn_traffic && ref $ipn_traffic eq 'ARRAY' && scalar(@$ipn_traffic) > 0) {
     $is_ipn = 1;
     $list = $ipn_traffic;
@@ -422,12 +397,14 @@ sub get_ipn_traffic {
 
   $select_query_traffic_classes = join(', ', @query_fields);
 
-  my $sql = "SELECT $select_query_traffic_classes
+  my $sql = << "SQL";
+SELECT $select_query_traffic_classes
       FRoM ipn_log l
       $EXT_TABLE
       WHERE $WHERE AND UNIX_TIMESTAMP(l.start) > $start_time AND UNIX_TIMESTAMP(l.start) < ($end_time)
       GROUP BY 1
-      ORDER BY l.start;";
+      ORDER BY l.start;
+SQL
 
   $admin->query($sql, undef, { Bind => $bind_values });
 
@@ -453,7 +430,8 @@ sub get_ipn_traffic {
 sub get_pppoe_traffic {
   my ($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start_time, $end_time) = @_;
 
-  $admin->query("SELECT l.last_update,
+  my $sql = <<"SQL";
+  SELECT l.last_update,
       SUM(l.recv1) $multiply_for_bytes,
       SUM(l.sent1) $multiply_for_bytes,
       SUM(l.recv2) $multiply_for_bytes,
@@ -462,9 +440,11 @@ sub get_pppoe_traffic {
       $EXT_TABLE
       WHERE $WHERE AND l.last_update > $start_time AND l.last_update < $end_time
       GROUP BY 1
-      ORDER BY l.last_update;", undef
-    , { Bind => $bind_values }
-  );
+      ORDER BY l.last_update;
+SQL
+
+
+  $admin->query($sql, undef, { Bind => $bind_values });
   _error_show($admin);
 
   return $admin->{list} || [];
@@ -491,7 +471,7 @@ sub get_speed_for_traffic {
   my ($attr) = @_;
 
   if (!defined $attr->{LIST} || ref $attr->{LIST} ne 'ARRAY' || !defined $attr->{LIST}->[0]) {
-    return "No data";
+    return "NO_DATA";
   }
 
   my @traffic_list = @{$attr->{LIST}};
@@ -500,7 +480,7 @@ sub get_speed_for_traffic {
   my $list_length = scalar @{$traffic_list[0]} || 0;
   my $series_count = $list_length - 1;
   unless ($list_length) {
-    return "No data";
+    return "NO_DATA";
   };
 
   #init
@@ -548,6 +528,110 @@ sub get_speed_for_traffic {
 }
 
 
+sub get_speed_cached_rrd {
+  my ($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key) = @_;
+
+  my @speed_list = ();
+  my $traffic_classes = get_traffic_classes();
+  my $get_traffic_start_time = $start_time;
+
+  load_pmodule("RRDTool::OO");
+  my $rrd_file_name = "$var_dir\_$type\_$key.rrd";
+  my $rrd = RRDTool::OO->new(file => $rrd_file_name);
+
+  # Check if RRD file exists
+  if (-f $rrd_file_name) {
+    # If RRD file exists, get last date
+    my $last_time = $rrd->last();
+
+    # Max period will be 3 monthes # TODO: OPTIMIZE to max period
+    if ($last_time < ($current_time - $THREE_MONTHES_PERIOD)) {
+      $last_time = $current_time - $THREE_MONTHES_PERIOD;
+      $get_traffic_start_time = $last_time;
+    }
+    # Skip fetching DB if less than 5 min gap
+    elsif ($current_time < ($last_time - 300)) {
+      $get_traffic_start_time = 0;
+    }
+    else {
+      $get_traffic_start_time = $last_time;
+    }
+  }
+  else {
+    my @ds_array = ();
+    my @ar_array = ();
+    foreach my $traffic_class_id (sort keys %$traffic_classes) {
+      push(@ds_array,
+        'data_source',
+        {
+          name => "$traffic_class_id\_in",
+          type => "GAUGE"
+        },
+        'data_source',
+        {
+          name => "$traffic_class_id\_out",
+          type => "GAUGE"
+        }
+      );
+
+      push(@ar_array,
+        'archive',
+        { rows => 105120 },
+        'archive',
+        { rows => 105120 }
+      );
+    }
+
+    $rrd->create(
+      step  => 300,
+      start => $current_time - $THREE_MONTHES_PERIOD,
+      @ds_array, @ar_array
+    );
+
+    $get_traffic_start_time = $current_time - $THREE_MONTHES_PERIOD;
+  }
+
+  if ($get_traffic_start_time) {
+    # Get traffic from DB till $current_time
+    my $traffic_list = get_traffic($EXT_TABLE, $WHERE, $bind_values, $get_traffic_start_time, $current_time);
+
+    # If have new traffic, get last timestamp from traffic list and check if need to update RRD file
+    if ($rrd && $traffic_list && ref $traffic_list eq 'ARRAY' && scalar(@$traffic_list) > 0) {
+
+      my $speeds = get_speed_for_traffic({
+        LIST         => $traffic_list,
+        NAMES        => get_traffic_classes_names(),
+        PERIOD_START => $get_traffic_start_time,
+        PERIOD_END   => $current_time
+      });
+
+      # Here we think that all series contain same count of points as first
+      my $points_count = scalar(@$speeds);
+
+      for (my $j = 0; $j < $points_count; $j += 1) {
+        my ($timestamp, @data) = @{$speeds->[$j]};
+        next unless @data;
+        $rrd->update(time => $timestamp, values => \@data);
+      }
+    }
+  }
+
+  $rrd->fetch_start(start => $start_time, resolution => 300);
+
+  # Jump to first defined value
+  $rrd->fetch_skip_undef();
+
+  my $time = 0;
+  while ($time < $current_time) {
+    my @values = ();
+    ($time, @values) = $rrd->fetch_next;
+    push(@speed_list, [ $time, @values ]);
+  }
+
+  return \@speed_list;
+}
+
+
 #**********************************************************
 =head2 get_speed_cached($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key)
 
@@ -557,105 +641,12 @@ sub get_speed_cached {
   my ($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key) = @_;
 
   my $get_traffic_start_time = $start_time;
-  my $traffic_classes = get_traffic_classes();
-
-  my @speed_list = ();
+  my $speed_list;
   # Optimized to return ref from get_speed_traffic if any
   my $speed_list_ref = undef;
 
   if ($conf{CHARTS_RRD}) {
-    load_pmodule("RRDTool::OO");
-    my $rrd_file_name = "$var_dir\_$type\_$key.rrd";
-    my $rrd = RRDTool::OO->new(file => $rrd_file_name);
-
-    # Check if RRD file exists
-    if (-f $rrd_file_name) {
-      # If RRD file exists, get last date
-      my $last_time = $rrd->last();
-
-      # Max period will be 3 monthes # TODO: OPTIMIZE to max period
-      if ($last_time < ($current_time - $THREE_MONTHES_PERIOD)) {
-        $last_time = $current_time - $THREE_MONTHES_PERIOD;
-        $get_traffic_start_time = $last_time;
-      }
-      # Skip fetching DB if less than 5 min gap
-      elsif ($current_time < ($last_time - 300)) {
-        $get_traffic_start_time = 0;
-      }
-      else {
-        $get_traffic_start_time = $last_time;
-      }
-    }
-    else {
-      my @ds_array = ();
-      my @ar_array = ();
-      foreach my $traffic_class_id (sort keys %$traffic_classes) {
-        push(@ds_array,
-          'data_source',
-          {
-            name => "$traffic_class_id\_in",
-            type => "GAUGE"
-          },
-          'data_source',
-          {
-            name => "$traffic_class_id\_out",
-            type => "GAUGE"
-          }
-        );
-
-        push(@ar_array,
-          'archive',
-          { rows => 105120 },
-          'archive',
-          { rows => 105120 }
-        );
-      }
-
-      $rrd->create(
-        step  => 300,
-        start => $current_time - $THREE_MONTHES_PERIOD,
-        @ds_array, @ar_array
-      );
-
-      $get_traffic_start_time = $current_time - $THREE_MONTHES_PERIOD;
-    }
-
-    if ($get_traffic_start_time) {
-      # Get traffic from DB till $current_time
-      my $traffic_list = get_traffic($EXT_TABLE, $WHERE, $bind_values, $get_traffic_start_time, $current_time);
-
-      # If have new traffic, get last timestamp from traffic list and check if need to update RRD file
-      if ($rrd && $traffic_list && ref $traffic_list eq 'ARRAY' && scalar(@$traffic_list) > 0) {
-
-        my $speeds = get_speed_for_traffic({
-          LIST         => $traffic_list,
-          NAMES        => get_traffic_classes_names(),
-          PERIOD_START => $get_traffic_start_time,
-          PERIOD_END   => $current_time
-        });
-
-        # Here we think that all series contain same count of points as first
-        my $points_count = scalar(@$speeds);
-
-        for (my $j = 0; $j < $points_count; $j += 1) {
-          my ($timestamp, @data) = @{$speeds->[$j]};
-          next unless @data;
-          $rrd->update(time => $timestamp, values => \@data);
-        }
-      }
-    }
-
-    $rrd->fetch_start(start => $start_time, resolution => 300);
-
-    # Jump to first defined value
-    $rrd->fetch_skip_undef();
-
-    my $time = 0;
-    while ($time < $current_time) {
-      my @values = ();
-      ($time, @values) = $rrd->fetch_next;
-      push(@speed_list, [ $time, @values ]);
-    }
+    $speed_list = get_speed_cached_rrd($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key);
   }
   else {
     my $traffic_list = get_traffic($EXT_TABLE, $WHERE, $bind_values, $get_traffic_start_time, $current_time);
@@ -667,7 +658,7 @@ sub get_speed_cached {
     });
   }
 
-  return $speed_list_ref || \@speed_list;
+  return $speed_list_ref || $speed_list;
 }
 
 
@@ -769,12 +760,12 @@ sub get_highchart {
 
   my $months_button = '';
   if (exists $conf{IPN_DETAIL_CLEAN_PERIOD} && $conf{IPN_DETAIL_CLEAN_PERIOD} >= 90) {
-    $months_button = qq'<button type="button" class="btn btn-secondary" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>';
+    $months_button = qq#<button type="button" class="btn btn-secondary" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>#;
   }
 
   my $default_range = $conf{CHARTS_DEFAULT_USER_STATISTIC} || '';
-  my $result = qq{
-    <div class="btn-group">
+  my $result = << "HTML";
+  <div class="btn-group">
       <button type="button" class="btn btn-secondary" id='zoom_day_$buttonCounter'>$lang{DAY}</button>
       <button type="button" class="btn btn-secondary" id='zoom_week_$buttonCounter'>$lang{WEEK}</button>
       <button type="button" class="btn btn-secondary" id='zoom_month_$buttonCounter'>$lang{MONTH}</button>
@@ -835,7 +826,7 @@ sub get_highchart {
       });
     });
     </script>
-};
+HTML
 
   return $result;
 }
@@ -872,7 +863,6 @@ sub get_charts_series {
 
   my @speed_list = @{$attr->{LIST}};
   my @names = @{$attr->{NAMES}};
-
   my $start = $attr->{PERIOD_START};
   my $end = $attr->{PERIOD_END};
 
@@ -919,13 +909,10 @@ sub get_charts_series {
       }
     }
     else {
-
       for (my $i = 1; $i <= $series_count; $i++) {
         push(@{$result_data_array[$i]}, { x => $timestamp * 1000, y => +($line->[$i] || 0) });
       }
-
     }
-
     @previous_row = @{$line};
   }
 
@@ -989,7 +976,13 @@ sub get_traffic_classes_names {
 }
 
 #**********************************************************
-=head2 get_name_for($key)
+=head2 get_name_for($type, $key)
+
+  Arguments:
+    $type
+    $key
+  Results:
+    $TYPE_NAMES_FOR{$key}
 
 =cut
 #**********************************************************
@@ -1039,14 +1032,15 @@ sub get_name_for {
 sub show_tabbed {
   my ($charts_period) = @_;
 
-  my $tabs = qq{
-   <!-- Tab panes -->
+  my $tabs = << "HTML";
       <div>
         $charts_period->{1}
       </div>
-    };
+HTML
 
   print $tabs;
+
+  return $tabs;
 }
 
 #**********************************************************
@@ -1073,6 +1067,12 @@ sub _get_tp_list {
 #**********************************************************
 =head2 _get_nas_list($id)
 
+  Arguments:
+    $id
+
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub _get_nas_list {
@@ -1092,6 +1092,12 @@ sub _get_nas_list {
 
 #**********************************************************
 =head2 _get_group_list($id)
+
+  Arguments:
+    $id
+
+  Results:
+    $list
 
 =cut
 #**********************************************************
@@ -1113,6 +1119,12 @@ sub _get_group_list {
 #**********************************************************
 =head _get_login_list($id)
 
+  Arguments:
+    $id
+
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub _get_login_list {
@@ -1133,6 +1145,12 @@ sub _get_login_list {
 #**********************************************************
 =head _get_uid_list($uid)
 
+  Arguments:
+    $id
+
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub _get_uid_list {
@@ -1151,10 +1169,19 @@ sub _get_uid_list {
 }
 
 #**********************************************************
-#
+=head _get_tags_list($id)
+
+  Arguments:
+    $id
+
+  Results:
+    $list
+
+=cut
 #**********************************************************
 sub _get_tags_list {
   my ($id) = @_;
+
   my $WHERE = '';
   my @BIND_VALUES = ();
   if ($id && $id ne '') {
@@ -1232,7 +1259,7 @@ sub print_footer {
         $traffic_type_html .= $html->b($name) . ' ';
       }
       else {
-        $ENV{QUERY_STRING} =~ s/\&type=\S+//g;
+        $ENV{QUERY_STRING} =~ s/\&type=\S+//xg;
         $traffic_type_html .= "<a href='$SELF_URL?$ENV{QUERY_STRING}&type=$name' class='btn btn-secondary'>$name</a> \n";
       }
     }

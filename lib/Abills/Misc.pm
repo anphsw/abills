@@ -757,6 +757,11 @@ sub cross_modules {
     print $@;
   }
 
+  # Maybe rework logic of defining this, but it was fast fix of problem
+  if ($attr->{USER_INFO} && $attr->{USER_INFO}{_COMPANY_ADMIN}) {
+    $attr->{USER_INFO}{_COMPANY_ADMIN} = '';
+  }
+
   return \%full_return;
 }
 
@@ -1620,7 +1625,7 @@ sub get_payment_methods {
 sub _translate {
   my ($text) = @_;
 
-  return '' unless $text;
+  return '' if (!$text);
 
   if ( $text =~ m/\"/x ){
     return $text;

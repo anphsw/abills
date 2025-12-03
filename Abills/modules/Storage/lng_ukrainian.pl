@@ -230,4 +230,13 @@ $lang{STORAGE_RESERVE_NOTIFY_PRICE} = 'Ціна';
 $lang{STORAGE_RESERVE_NOTIFY_STORAGE} = 'Склад';
 $lang{STORAGE_RESERVE_NOTIFY_ACTION} = 'Необхідно опрацювати заявку на резервування';
 
+$lang{PUBLIC_SALE} = 'Публічний продаж';
+$lang{IN_INSTALLMENTS_PRICE} = 'Ціна в розстрочку';
+$lang{STORAGE_INCOMING_ARTICLE_DATA_CHANGE} = 'Зміна даних товару';
+$lang{STORAGE_ACCOUNTABILITY_DATA_CHANGE} = 'Зміна даних підзвітності';
+$lang{STORAGE_INCOMING_ARTICLE_SPLIT} = 'Розділення товару';
+$lang{STORAGE_INCOMING_ARTICLE_MERGE} = 'Об’єднання товару';
+$lang{STORAGE_RESERVED_BY_USER} = 'Зарезервовано користувачем';
+$lang{STORAGE_OPERATION_DETAILS} = 'Деталі операції';
+
 1;

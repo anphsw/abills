@@ -70,7 +70,7 @@ sub equipment_test {
 
   my %ports_info = ();
 
-  if ( $attr->{PORT_INFO} ){
+  if ($attr->{PORT_INFO}) {
     print "Debug" if ($debug);
 
     if ($attr->{PORT_INFO} =~ /TRAFFIC/xm) {
@@ -80,22 +80,22 @@ sub equipment_test {
       $attr->{PORT_INFO} .= ",PORT_HIGH_SPEED";
     }
 
-    my @port_info_list = split(/,\s?/x, $attr->{PORT_INFO} );
+    my @port_info_list = split(/,\s?/x, $attr->{PORT_INFO});
 
     my @requires_cable_test_fields = grep {$snmp_ports_info{$_}->{REQUIRES_CABLE_TEST}} (keys %snmp_ports_info);
 
     if ($attr->{AUTO_PORT_SHIFT} && $attr->{PORT_ID} && in_array('PORT_INDEX', \@port_info_list) && $snmp_ports_info{PORT_INDEX}{OIDS}) {
       my $oid = $snmp_ports_info{PORT_INDEX}{OIDS};
       my $function = $snmp_ports_info{PORT_INDEX}{PARSER};
-      
+
       my $new_port_id = snmp_get({
         %{$attr},
-        OID     => $oid . ".$attr->{PORT_ID}",
-        DEBUG   => ($debug > 2) ? 1 : undef
+        OID   => $oid . ".$attr->{PORT_ID}",
+        DEBUG => ($debug > 2) ? 1 : undef
       });
 
-      if ($function && defined( &{$function} ) ) {
-        ($new_port_id) = &{ \&$function }($new_port_id);
+      if ($function && defined(&{$function})) {
+        ($new_port_id) = &{\&$function}($new_port_id);
       }
 
       $attr->{PORT_ID} = $new_port_id;
@@ -111,7 +111,7 @@ sub equipment_test {
       });
     }
 
-    foreach my $type ( @port_info_list ){
+    foreach my $type (@port_info_list) {
       my $oid = '';
       my $function;
 
@@ -119,16 +119,16 @@ sub equipment_test {
         next;
       }
 
-      if(in_array($type, \@requires_cable_test_fields)) {
+      if (in_array($type, \@requires_cable_test_fields)) {
         next;
       }
 
-      if ( $snmp_ports_info{$type}{OIDS} ){
+      if ($snmp_ports_info{$type}{OIDS}) {
         $oid = $snmp_ports_info{$type}{OIDS};
         $function = $snmp_ports_info{$type}{PARSER};
       }
       else {
-        $ports_info{$attr->{PORT_ID}}{$type} = 1 if ($attr->{PORT_ID} && $type eq 'CABLE_TESTER' && ! $attr->{RUN_CABLE_TEST});
+        $ports_info{$attr->{PORT_ID}}{$type} = 1 if ($attr->{PORT_ID} && $type eq 'CABLE_TESTER' && !$attr->{RUN_CABLE_TEST});
         next;
       }
 
@@ -140,12 +140,12 @@ sub equipment_test {
         DEBUG                     => ($debug > 2) ? 1 : undef
       });
 
-      if ( !defined($ports_info) ){
+      if (!defined($ports_info)) {
         next;
       }
 
-      if ($function && defined( &{$function} ) ) {
-        ($ports_info) = &{ \&$function }($ports_info); #XXX will it work if $ports_info is array?
+      if ($function && defined(&{$function})) {
+        ($ports_info) = &{\&$function}($ports_info); #XXX will it work if $ports_info is array?
       }
 
       if ($attr->{PORT_ID}) {
@@ -177,17 +177,17 @@ sub equipment_test {
           next;
         }
         if ($type eq 'PORT_UPTIME') {
-          $ports_info = (defined $equipment_uptime && defined $ports_info) ? sec2time(($equipment_uptime - $ports_info)/100, {str => 1} ) : '?';
+          $ports_info = (defined $equipment_uptime && defined $ports_info) ? sec2time(($equipment_uptime - $ports_info) / 100, { str => 1 }) : '?';
         }
         if ($type eq 'PORT_STATUS') {
           if (in_array('Accident', \@main::MODULES) && $ports_info && $ports_info > 0) {
             load_module('Accident', $html);
 
             # snmp port status: 1-up, 2-down
-            my $port_status = ($ports_info && $ports_info == 1 ) ? 2 : 0;
+            my $port_status = ($ports_info && $ports_info == 1) ? 2 : 0;
             accident_equipment_error({
               NAS_ID   => $attr->{NAS_INFO}->{NAS_ID},
-              NAS_NAME => ($attr->{NAS_INFO}->{NAME} || '') . ' '. ($attr->{NAS_INFO}->{MODEL_NAME} || '') ,
+              NAS_NAME => ($attr->{NAS_INFO}->{NAME} || '') . ' ' . ($attr->{NAS_INFO}->{MODEL_NAME} || ''),
               STATUS   => $port_status,
               PORT_ID  => $attr->{PORT_ID} || $attr->{NAS_INFO}->{PORT},
             });
@@ -199,21 +199,21 @@ sub equipment_test {
       }
 
       if ($attr->{AUTO_PORT_SHIFT} && $type eq 'PORT_INDEX') {
-        foreach my $port ( @{$ports_info} ) {
+        foreach my $port (@{$ports_info}) {
           next if (!defined($port));
-          my ($port_index, $port_id) = split( /:/, $port, 2 );
+          my ($port_index, $port_id) = split(/:/, $port, 2);
 
           $ports_info{$port_id}{$type} = $port_index;
         }
         next;
       }
 
-      foreach my $port ( @{$ports_info} ) {
+      foreach my $port (@{$ports_info}) {
         next if (!defined($port));
-        my ($port_id, $data) = split( /:/, $port, 2 );
+        my ($port_id, $data) = split(/:/x, $port, 2);
 
         if ($type eq 'PORT_UPTIME') {
-          $data = (defined $equipment_uptime && defined $data) ? sec2time(($equipment_uptime - $data)/100, {str => 1} ) : '?';
+          $data = (defined $equipment_uptime && defined $data) ? sec2time(($equipment_uptime - $data) / 100, { str => 1 }) : '?';
         }
 
         $ports_info{$port_id}{$type} = $data;
@@ -222,6 +222,7 @@ sub equipment_test {
 
     if ($snmp_ports_info{RUN_CABLE_TEST}{OIDS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
       equipment_cable_test({
+        %$attr,
         SNMP_PORTS_INFO            => \%snmp_ports_info,
         PORT_INFO                  => \%ports_info,
         REQUIRES_CABLE_TEST_FIELDS => \@requires_cable_test_fields
@@ -229,8 +230,9 @@ sub equipment_test {
     }
   }
 
-  if ( $attr->{TEST_OID} ){
+  if ($attr->{TEST_OID}) {
     return equipment_test_oids({
+      %$attr,
       SNMP_INFO => \%snmp_info
     });
   }
@@ -244,6 +246,7 @@ sub equipment_test {
   Arguments:
     $attr
       SNMP_INFO
+      TEST_OID
 
   Returns:
 
@@ -256,7 +259,7 @@ sub equipment_test_oids {
 
   my %result_hash = ();
 
-  if ($attr->{TEST_OID} ne '1') {
+  if ($attr->{TEST_OID} && $attr->{TEST_OID} ne '1') {
     my @test_oids = split(/,\s?/x, $attr->{TEST_OID});
     foreach my $k (keys %$snmp_info) {
       if (!in_array($k, \@test_oids)) {
@@ -410,6 +413,7 @@ sub equipment_cable_test {
 
   if (%cable_test_results) {
     equipment_cable_test_result({
+      %$attr,
       SNMP_PORTS_INFO            => $snmp_ports_info,
       CABLE_TEST_RESULTS         => \%cable_test_results,
       PORT_INFO                  => $ports_info,

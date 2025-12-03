@@ -1310,7 +1310,7 @@ sub extra_port_update {
 sub extra_ports_list {
   my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM equipment_extra_ports WHERE model_id= ?", undef, { COLS_NAME => 1, Bind => [ $id ] });
+  $self->query_list("SELECT * FROM equipment_extra_ports WHERE model_id= ?", { Bind => [ $id ] });
 
   return $self->{list} || [];
 }
@@ -1515,10 +1515,7 @@ sub trap_list {
     [ 'DOMAIN_ID', 'STR', 'nas.domain_id', ]
   );
 
-  my $WHERE = $self->search_former($attr, \@search_params,
-    { WHERE => 1,
-    }
-  );
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
   my $sql = <<"SQL";
 SELECT $self->{SEARCH_FIELDS} e.id AS trap_id
@@ -2574,15 +2571,13 @@ sub pon_port_list {
     [ 'VLAN_ID',     'INT', 'p.vlan_id',                   1 ]
   );
 
-  my $WHERE = $self->search_former($attr, \@search_params,
-    { WHERE => 1 }
-  );
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
 
   my $EXT_TABLE = q{};
-  my $GROUP_BY = '';
+  $attr->{GROUP_BY} = q{};
   if ($attr->{ONU_COUNT}) {
     $EXT_TABLE = "LEFT JOIN equipment_pon_onu onu ON (onu.port_id=p.id AND onu.deleted = 0)";
-    $GROUP_BY = " GROUP BY p.id";
+    $attr->{GROUP_BY} = 'p.id';
   }
 
   if (defined $attr->{STATUS}) {
@@ -2602,7 +2597,6 @@ sub pon_port_list {
     FROM equipment_pon_ports p
     $EXT_TABLE
     $WHERE
-    $GROUP_BY
 SQL
 
   $self->query_list($sql, $attr);
@@ -2944,13 +2938,15 @@ sub tr_069_settings_del {
 sub tr_069_settings_change {
   my ($self, $id, $attr) = @_;
 
-  $self->query("SELECT id FROM equipment_tr_069_settings  WHERE onu_id='$id'");
+  $self->query("SELECT id FROM equipment_tr_069_settings WHERE onu_id= ? ", undef, { Bind => [ $id ] });
   if ($self->{TOTAL}) {
     my $time = ($attr->{UPDATE}) ? 'updatetime' : 'changetime';
     my $settings = ($attr->{SETTINGS}) ? ", settings='$attr->{SETTINGS}'" : '';
-    $self->query("UPDATE equipment_tr_069_settings SET $time=NOW() $settings WHERE onu_id='$id'",
-      'do'
-    );
+    my $sql = <<"SQL";
+UPDATE equipment_tr_069_settings SET $time=NOW() $settings WHERE onu_id='$id'
+SQL
+
+    $self->query($sql, 'do');
   }
   else {
     $self->query("INSERT INTO equipment_tr_069_settings (onu_id, changetime, settings) VALUES ('$id', NOW(), '$attr->{SETTINGS}');",
@@ -2976,8 +2972,8 @@ sub tr_069_settings_change {
 sub onu_and_internet_cpe_list {
   my ($self, $attr) = @_;
 
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  $attr->{PG} //= 0;
+  $attr->{PAGE_ROWS} //= 10000;
 
   my $WHERE = '';
 
@@ -3021,10 +3017,9 @@ FROM equipment_pon_onu onu
   LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
   $EXT_TABLE
   $WHERE
-LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef,{ COLS_NAME => 1 });
+  $self->query_list($sql, $attr);
 
   return $self->{list} || [ ];
 }
@@ -3062,11 +3057,9 @@ WHERE el.mac IN (
 ORDER BY el.mac;
 SQL
 
-  $self->query($sql, undef,
-    { Bind => [ $attr->{NAS_ID} ], COLS_NAME => 1, COLS_UPPER => 1 }
-  );
+  $self->query_list($sql, { Bind => [ $attr->{NAS_ID} ], COLS_UPPER => 1 });
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************

@@ -18,9 +18,11 @@ $(function () {
       e.preventDefault();
       jQuery('.addInvoiceMenu').hide();
       jQuery('.changeInvoiceMenu').show();
+      jQuery('#INVOICE_ID').attr('disabled', 'disabled');
     });
     jQuery('a.BUTTON-ENABLE-SEL').click(function (e) {
       e.preventDefault();
+      jQuery('#INVOICE_ID').removeAttr('disabled');
       jQuery('.addInvoiceMenu').show();
       jQuery('.changeInvoiceMenu').hide();
     });

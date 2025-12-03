@@ -53,14 +53,21 @@
       </div>
     </div>
 
-    <div class='form-group  row'>
+    <div class='form-group row'>
       <label class='col-md-4 col-form-label text-md-right' for='COUNT'>_{COUNT}_:</label>
       <div class='col-md-8 '>
         <input type='text' name='COUNT' class='form-control' id='COUNT' value='%COUNT%'>
       </div>
     </div>
 
-    <div class='form-group  row'>
+    <div class='form-group row'>
+      <label class='col-md-4 col-form-label text-md-right' for='SERIAL'>SN:</label>
+      <div class='col-md-8 '>
+        <input type='text' name='SERIAL' class='form-control' id='SERIAL' value='%SERIAL%'>
+      </div>
+    </div>
+
+    <div class='form-group row'>
       <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
       <div class='col-md-8 '>
         <input type='text' name='COMMENTS' class='form-control' id='COMMENTS' value='%COMMENTS%'>

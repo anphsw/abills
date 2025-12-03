@@ -1683,7 +1683,7 @@ sub changes {
   if ( $DATA->{UID} && $DATA->{UID} =~ m/^\d+$/x && $DATA->{UID} > 0 && defined( $admin ) ){
     if ( $attr->{ACTION_ID} ){
       my $action_comments = ($attr->{ACTION_COMMENTS}) ? ' '.$attr->{ACTION_COMMENTS}: q{};
-      $admin->action_add( $DATA->{UID}, $attr->{EXT_CHANGE_INFO}.$action_comments, { TYPE => $attr->{'ACTION_ID'} } );
+      $admin->action_add( $DATA->{UID}, "UID:$DATA->{UID} ".$attr->{EXT_CHANGE_INFO}.$action_comments, { TYPE => $attr->{'ACTION_ID'} } );
       return $self->{result};
     }
 

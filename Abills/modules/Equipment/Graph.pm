@@ -9,11 +9,11 @@
 
 use strict;
 use warnings;
-use Abills::Base qw(load_pmodule);
+use Abills::Base qw(load_pmodule show_hash);
 
 our (
   $html,
-  %lang,
+  #%lang,
   $var_dir
 );
 
@@ -21,6 +21,7 @@ my $load_data = load_pmodule('RRDTool::OO', { SHOW_RETURN => 1 });
 
 #**********************************************************
 =head2 add_graph($attr)
+
    Arguments:
      $attr
        NAS_ID  - Nas id
@@ -28,24 +29,34 @@ my $load_data = load_pmodule('RRDTool::OO', { SHOW_RETURN => 1 });
        TYPE    - Graph type: SPEED, SIGNAL, TEMPERATURE
        STEP    - Step: 60, 300, 600 (default 300)
        DATA    - Data hash
+
+   Results:
+     TRUE or FALSE
+
+   Examples:
+     add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
+
 =cut
 #**********************************************************
 sub add_graph {
   my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || $FORM{DEBUG} || 0;
 
   if ($load_data) {
     return 0;
   }
 
   my $rrd_dir = $var_dir . "db/rrd";
+  my $db_dir = $var_dir . "db/";
 
-  if (!-d $var_dir . "db") {
-    mkdir $var_dir . "db", 777;
-    print "mkdir " . $var_dir . "db \n";
+  if (!-d $db_dir) {
+    mkdir $db_dir, 777;
+    print "mkdir:  $db_dir\n";
   }
-  if (!-d $var_dir . "db/rrd") {
-    mkdir $var_dir . "db/rrd", 777;
-    print "mkdir " . $var_dir . "db/rrd \n";
+  if (!-d $rrd_dir) {
+    mkdir $rrd_dir, 777;
+    print "mkdir: $rrd_dir \n";
   }
 
   my $archive = {
@@ -92,7 +103,7 @@ sub add_graph {
   };
 
   # my $step = (defined($attr->{STEP}) && ($attr->{STEP} eq 60 || $attr->{STEP} eq 300 || $attr->{STEP} eq 600) ) ? $attr->{STEP} : '300';
-  my $step = defined($attr->{STEP}) ? $attr->{STEP} : '300';
+  my $step = ($attr->{STEP}) ? $attr->{STEP} : 300;
 
   my @datasource = ();
   my %values = ();
@@ -100,18 +111,29 @@ sub add_graph {
   my $rrd = RRDTool::OO->new(file => $rrdfile);
 
   foreach my $line (@{$attr->{DATA}}) {
-    push @datasource, (data_source => { name => $line->{SOURCE}, type => $line->{TYPE} });
+    push @datasource, (
+      data_source => {
+        name => $line->{SOURCE},
+        type => $line->{TYPE}
+      }
+    );
     $values{$line->{SOURCE}} = $line->{DATA};
   }
 
-  unless (!-f $rrdfile) {
-    my $info = $rrd->info();
-    if ($info->{step} != $step) {
+  if (-f $rrdfile) {
+    my $rrd_info = $rrd->info();
+    if ($rrd_info->{step} != $step) {
+      #if ($debug > 0) {
+      print "wrong step del_graph_data: $rrdfile\n";
+        if ($debug > 3) {
+          show_hash($rrd_info, { DELIMITER => "\n" });
+        }
+      #}
       del_graph_data($attr);
     }
   }
 
-  unless (-f $rrdfile) {
+  if (! -f $rrdfile) {
     $rrd->create(
       step => $step,
       @datasource,
@@ -162,17 +184,18 @@ sub get_graph_data {
   my @xport = ();
 
   if ($FORM{DEBUG}) {
-    foreach my $ds (keys %$ds_info) {
-      print "<b>$ds</b><br>";
-      foreach my $key (keys %{$ds_info->{$ds}}) {
-        print "$key - $ds_info->{$ds}->{$key} <br>";
+    print "FILE: $rrdfile<br>";
+    foreach my $ds (sort keys %$ds_info) {
+      print "<br><b>$ds</b><br>";
+      foreach my $key (sort keys %{$ds_info->{$ds}}) {
+        print "$key: $ds_info->{$ds}->{$key} <br>";
       }
     }
 
     my $start_rrd_time = $rrd->first();
     my $stop_rrd_time = $rrd->last();
 
-    print "START_RRD: $start_rrd_time STOP_RRD: $stop_rrd_time";
+    print "START_RRD: $start_rrd_time STOP_RRD: $stop_rrd_time<br>";
   }
 
   foreach my $ds_name (@{$attr->{DS_NAMES}}) {
@@ -218,6 +241,9 @@ sub get_graph_data {
        PORT     - Port id
        TYPE     - Graph type: SPEED, SIGNAL, TEMPERATURE
 
+   Return:
+     TRUE or FALSE
+
 =cut
 #**********************************************************
 sub del_graph_data {
@@ -229,8 +255,8 @@ sub del_graph_data {
     unlink($rrdfile) or print "Can't delete file '$rrdfile' $!";
   }
 
-  return 0;
+  return 1;
 }
 
 
-1
+1;

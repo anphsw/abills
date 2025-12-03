@@ -393,7 +393,7 @@ CREATE TABLE IF NOT EXISTS `docs_acts` (
   `domain_id`    SMALLINT(6) UNSIGNED   NOT NULL  DEFAULT 0,
   `sum`          DOUBLE(10, 2) UNSIGNED NOT NULL  DEFAULT '0.00',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `date` (`date`, `company_id`, `uid`),
+  UNIQUE KEY `date_company_uid` (`date`, `company_id`, `uid`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
   KEY `date` (`date`),
@@ -442,7 +442,7 @@ CREATE TABLE IF NOT EXISTS `docs_tax_invoices` (
   `domain_id`      SMALLINT(6) UNSIGNED  NOT NULL  DEFAULT 0,
   `account_id`     INT(11) UNSIGNED      NOT NULL  DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `date` (`date`, `company_id`),
+  UNIQUE KEY `date_company` (`date`, `company_id`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
   KEY `date` (`date`),
@@ -1982,7 +1982,7 @@ CREATE TABLE IF NOT EXISTS `districts` (
   KEY `type_id` (`type_id`),
   KEY `territorial_units_id` (`territorial_units_id`),
   KEY `name` (`name`),
-  UNIQUE KEY `name` (`name`, `domain_id`)
+  UNIQUE KEY `name_domain` (`name`, `domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Locations districts';

@@ -6,10 +6,14 @@ use warnings FATAL => 'all';
 my $Storage;
 my $Errors;
 use Abills::Base qw/in_array days_in_month/;
+
 my $INSTALLATION_ACTIONS = {
   1 => 12,
   2 => 13,
-  3 => 15
+  3 => 15,
+  5 => 22,
+  6 => 23,
+  7 => 24
 };
 
 #**********************************************************
@@ -94,8 +98,7 @@ sub _start_transaction {
 =cut
 #**********************************************************
 sub storage_change_installation {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $installation_id = $attr->{ID};
   $Storage->storage_installation_info({ ID => $installation_id });
@@ -213,8 +216,7 @@ sub storage_change_installation {
 =cut
 #**********************************************************
 sub storage_add_installation {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!$attr->{ARTICLE_ID}) {
     return $Errors->throw_error(1180004);
@@ -367,8 +369,7 @@ sub storage_add_installation {
 =cut
 #**********************************************************
 sub storage_del_installation {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!$attr->{INSTALLATION_ID}) {
     return $Errors->throw_error(1180007);
@@ -425,13 +426,13 @@ sub storage_del_installation {
   my $transaction = $self->_start_transaction();
 
   $Storage->storage_installation_return({
+    ID              => $attr->{INSTALLATION_ID},
     COUNT_INCOMING  => $incoming_article_info->{sia_count},
     SUM_TOTAL       => $incoming_article_info->{total_sum},
     MAIN_ARTICLE_ID => $incoming_article_info->{sia_id},
     COUNT           => $installation_info->{count},
-    ID_INSTALLATION => $attr->{INSTALLATION_ID},
     SUM             => $installation_info->{sum},
-    UID             => $attr->{UID},
+    UID             => $installation_info->{uid},
     COMMENTS        => $attr->{COMMENTS},
     RETURN_STATUS   => 1
   });
@@ -602,8 +603,7 @@ sub _storage_make_installation_fee {
 =cut
 #**********************************************************
 sub _storage_assign_internet_parameters {
-  my $self = shift;
-  my ($installation_id, $uid) = @_;
+  my ($self, $installation_id, $uid) = @_;
 
   $Storage->storage_installation_info({
     ID     => $installation_id,
@@ -678,8 +678,7 @@ sub _storage_assign_internet_parameters {
 =cut
 #***********************************************************
 sub _storage_clear_internet_parameters {
-  my $self = shift;
-  my ($installation, $uid) = @_;
+  my ($self, $installation, $uid) = @_;
 
   if (!grep { $installation->{$_} } qw(SERIAL IDENT1 IDENT2 IDENT3 IDENT4)) {
     return;

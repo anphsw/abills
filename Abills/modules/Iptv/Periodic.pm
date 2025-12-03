@@ -256,7 +256,7 @@ sub iptv_monthly_next_tp {
     $tp_ages{$tp_info->{tp_id}} = $tp_info->{age};
   }
 
-  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my ($y, $m, $d) = split(/\-/x, $ADMIN_REPORT{DATE}, 3);
   my $date_unixtime = POSIX::mktime(0, 0, 0, $d, ($m - 1), $y - 1900, 0, 0, 0);
   my %CHANGED_TPS = ();
 
@@ -318,7 +318,7 @@ sub iptv_monthly_next_tp {
         }
       }
       elsif ($user{ACTIVATE} ne '0000-00-00') {
-        my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+        my ($activate_y, $activate_m, $activate_d) = split(/\-/x, $user{ACTIVATE}, 3);
         my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
 
         next if ($date_unixtime - $active_unixtime < 31 * 86400);
@@ -499,7 +499,7 @@ sub iptv_monthly_fees {
   });
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my ($y, $m, $d) = split(/\-/x, $ADMIN_REPORT{DATE}, 3);
   my $days_in_month = days_in_month({ DATE => $ADMIN_REPORT{DATE} });
   $m--;
   my $date_unixtime = POSIX::mktime(0, 0, 0, $d, $m, $y - 1900, 0, 0, 0);
@@ -649,15 +649,18 @@ sub iptv_monthly_fees {
         }
 
         #Month Fee ====
+        my $fees_period = " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')' if (!$tp->{abon_distribution});
         push @{$users_services{ $u->{uid} }}, {
-          SUM      => $user_month_fee,
-          DESCRIBE => fees_dsc_former(\%FEES_DSC),
-          ID       => $user{ID},
-          EXT_BILL_METHOD   => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+          SUM             => $user_month_fee,
+          DESCRIBE        => fees_dsc_former(\%FEES_DSC) . $fees_period,
+          ID              => $user{ID},
+          EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+          PERIOD_START    => $attr->{DATE},
+          PERIOD_STOP     => POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))
         };
 
         if ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
-          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+          my ($activate_y, $activate_m, $activate_d) = split(/\-/x, $user{ACTIVATE}, 3);
           my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
           next if 31 * 86400 > ($date_unixtime - $active_unixtime);
         }
@@ -673,7 +676,7 @@ sub iptv_monthly_fees {
           }
           # If activation set to monthly Fees taken through 30 days
           elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
-            my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+            my ($activate_y, $activate_m, $activate_d) = split(/\-/x, $user{ACTIVATE}, 3);
             my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
 
             #Block small deposit
@@ -965,7 +968,7 @@ sub iptv_monthly_next_tp_take_fees {
 sub _date2timestamp {
   my $date = shift;
 
-  my ($year, $month, $day) = split(/[\-]+/, $date);
+  my ($year, $month, $day) = split(/[\-]+/x, $date);
 
   use Time::Local qw (timelocal);
   return timelocal(0,0,0,$day,$month-1,$year);

@@ -1073,6 +1073,9 @@ sub internet_monthly_fees {
 
                   $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
                   $FEES_PARAMS{DESCRIBE} .= " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')' if (!$TP_INFO->{ABON_DISTRIBUTION});
+                  $FEES_PARAMS{PERIOD_START} = $attr->{DATE};
+                  $FEES_PARAMS{PERIOD_STOP}  = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
+
 
                   if($ext_deposit_sum > 0) {
                     $Fees->take(\%user, $ext_deposit_sum, {
@@ -1173,7 +1176,12 @@ sub internet_monthly_fees {
                 }
 
                 if ($debug < 8) {
-                  $FEES_PARAMS{DESCRIBE} .= " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')' if (!$TP_INFO->{ABON_DISTRIBUTION});
+                  if (!$TP_INFO->{ABON_DISTRIBUTION}) {
+                    $FEES_PARAMS{DESCRIBE} .= " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')';
+                    $FEES_PARAMS{PERIOD_START} = $attr->{DATE};
+                    $FEES_PARAMS{PERIOD_STOP} = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
+                  }
+
 
                   if( $sum > 0 ) {
                     $Fees->take(\%user, $sum, \%FEES_PARAMS);
