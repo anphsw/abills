@@ -284,7 +284,7 @@ sub internet_online {
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'online',
-    DEFAULT_FIELDS  => 'LOGIN,FIO,DURATION_SEC2,CLIENT_IP_NUM,ACCT_INPUT_OCTETS,ACCT_OUTPUT_OCTETS',
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DURATION_SEC2,CLIENT_IP_NUM,ACCT_INPUT_OCTETS,ACCT_OUTPUT_OCTETS,NAS_PORT_ID',
     HIDDEN_FIELDS   => 'SWITCH_MAC',
     BASE_FIELDS     => 0,
     FUNCTION_FIELDS => 'ping, zap, hangup, graphics',
@@ -512,16 +512,18 @@ sub internet_online {
         })
       );
 
+      if (!defined($line->{nas_port_id})) { $line->{nas_port_id} = '' };
+
       if ($permissions{5}{1}) {
         push @function_fields, $html->button('Z', "index=$index&zap=$line->{uid}+$nas_id+"
-          . ($line->{nas_port_id} || q{}) . "+$line->{acct_session_id}$pages_qs",
+          . $line->{nas_port_id} . "+$line->{acct_session_id}$pages_qs",
           { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 });
       }
 
       if ($permissions{5}{2}) {
         push @function_fields, ($FORM{ZAPED}) ? '' : $html->button('H', "index=$index&FRAMED_IP_ADDRESS="
           . ($line->{client_ip} || q{0.0.0.0})
-          . "&hangup=$nas_id+" . ($line->{nas_port_id} || q{})
+          . "&hangup=$nas_id+" . $line->{nas_port_id}
           . "+$line->{acct_session_id}+$line->{user_name}&UID=$line->{uid}$pages_qs",
           { TITLE => 'Hangup', class => 'power-off' });
       }
