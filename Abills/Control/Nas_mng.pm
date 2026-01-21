@@ -1865,7 +1865,7 @@ sub form_ip_pools {
     INPUT_DATA      => $Nas,
     FUNCTION        => 'nas_ip_pools_list',
     DEFAULT_FIELDS  => 'ID,NAS_NAME,POOL_NAME,FIRST_IP,LAST_IP,IP_COUNT,' . (in_array('Internet', \@MODULES) ? 'INTERNET_IP_FREE,INTERNET_DYNAMIC_IP_FREE,' : 'IP_FREE'),
-    HIDDEN_FIELDS   => 'STATIC,ACTIVE_NAS_ID,NAS',
+    HIDDEN_FIELDS   => 'STATIC,ACTIVE_NAS_ID,NAS,IP_SKIP',
     FUNCTION_FIELDS => 'change, del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
@@ -1959,6 +1959,13 @@ sub form_ip_pools {
         foreach my $pool_value (@$list_next_pool) {
           return $pool_value->{pool_name} if ($next_pool && $pool_value->{id} && $pool_value->{id} == $next_pool);
         }
+      },
+      internet_ip_free	=> sub {
+	my ($internet_ip_free, $line) = @_;
+	if (defined $line->{ip_skip}) {
+	  $internet_ip_free -= (scalar grep { $_ ne '' } split /[,;]/, $line->{ip_skip});
+	}
+	return $internet_ip_free;
       },
       gateway   => sub {
         my ($gateway) = @_;

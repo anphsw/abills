@@ -77,6 +77,18 @@ sub internet_user_exist {
 	}
         return 1;
     }
+    my $all_ip_pools = $Nas->nas_ip_pools_list({ IP_SKIP => '_SHOW', NAME => '_SHOW', COLS_NAME => 1 });
+    foreach my $ip_pool (@$all_ip_pools) {
+	my @arr_ip_skip = $ip_pool->{ip_skip} ? split(/,\s?|;\s?/, $ip_pool->{ip_skip}) : ();
+	if(in_array($attr->{IP}, \@arr_ip_skip) || in_array($attr->{IPV6}, \@arr_ip_skip)) {
+	    if ($attr->{MSG_TYPE}) {
+		print $attr->{MSG_TEXT} . " SKIP POOL: $ip_pool->{id}";
+	    } else {
+		$html->message('err', $lang{INTERNET}, $attr->{MSG_TEXT} . " SKIP POOL: " . $html->button($ip_pool->{id}, "index=63&chg=$ip_pool->{id}"));
+	    }
+	    return 1;
+	}
+    }
     return 0;
 }
 
