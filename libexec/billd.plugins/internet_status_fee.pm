@@ -182,7 +182,7 @@ sub internet_status_fee {
 
       #take fees in first day of month
       $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
-      $FEES_PARAMS{DESCRIBE} .= " - $lang{ABON_DISTRIBUTION}" if ($TP_INFO->{ABON_DISTRIBUTION});
+      $FEES_PARAMS{DESCRIBE} .= " - AD" if ($TP_INFO->{ABON_DISTRIBUTION});
 
       # get fees
       if ($debug > 4) {

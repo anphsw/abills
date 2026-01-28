@@ -1232,7 +1232,7 @@ sub service_get_month_fee {
 
     if ($tp->{ABON_DISTRIBUTION}) {
       $sum = $sum / $days_in_month; # (($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28)));
-      $FEES_DSC{EXTRA} = " - $lang{ABON_DISTRIBUTION}";
+      $FEES_DSC{EXTRA} = " - AD";
     }
 
     if ($attr->{TEST}) {

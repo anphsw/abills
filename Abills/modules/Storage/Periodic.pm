@@ -87,7 +87,7 @@ sub _storage_get_fees {
 
   if ($attr->{ABON_DISTRIBUTION}) {
     $attr->{SUM} = sprintf("%.6f", $attr->{SUM} / days_in_month({ DATE => $ADMIN_REPORT{DATE} }));
-    $attr->{DESCRIBE} .= " - $lang{ABON_DISTRIBUTION}";
+    $attr->{DESCRIBE} .= " - AD";
   }
 
   $fees->take($users, $attr->{SUM}, {
