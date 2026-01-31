@@ -162,6 +162,15 @@ sub employees_cashbox_balance {
     return 1;
   }
 
+  my $cashboxes_allowed = $Employees->employees_list_cashbox({ COLS_NAME => 1, AID => $Employees->{admin}->{AID} || '' });
+  if (!($FORM{ID} || $FORM{CASHBOX_ID})) {
+    $FORM{ID} = $FORM{CASHBOX_ID} = $cashboxes_allowed->[0]->{id};
+  }
+  elsif (!grep { $_->{id} == ($FORM{ID} || $FORM{CASHBOX_ID}) } @$cashboxes_allowed) {
+    $html->message('warn', $lang{WARNING}, "$lang{ERR_ACCESS_DENY} $lang{CASHBOX_NOT_ADDED}");
+    return 1;
+  }
+
   my $action = 'choose';
   my $action_lang = "$lang{CHOOSE}";
   my %CASHBOX;
