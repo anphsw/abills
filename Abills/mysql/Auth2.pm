@@ -308,8 +308,8 @@ sub auth {
     WHERE user_name= ? AND (status <> 2) AND guest=0;", undef, { Bind => [ $RAD->{'User-Name'} ] });
 
     my ($active_logins)  = $self->{TOTAL};
-    if (length($cid) > 20) {
-      $cid = substr($cid, 0, 20);
+    if (length($cid) > 60) {
+      $cid = substr($cid, 0, 60);
     }
 
     if (! $CONF->{hard_simultaneously_control}) {

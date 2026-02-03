@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS `domains` (
 
 
 CREATE TABLE IF NOT EXISTS `errors_log` (
-  `date`     TIMESTAMP            NOT NULL,
+  `date`     TIMESTAMP            NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `log_type` TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
   `action`   VARCHAR(10)          NOT NULL DEFAULT '',
   `user`     VARCHAR(20)          NOT NULL DEFAULT '',
@@ -656,7 +656,7 @@ CREATE TABLE IF NOT EXISTS `internet_online` (
   `framed_interface_id`        VARBINARY(16)        NOT NULL DEFAULT '',
   `lupdated`                   INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `sum`                        DOUBLE(14, 6)        NOT NULL DEFAULT '0.000000',
-  `cid`                        VARCHAR(20)          NOT NULL DEFAULT '',
+  `cid`                        VARCHAR(60)          NOT NULL DEFAULT '',
   `connect_info`               VARCHAR(35)          NOT NULL DEFAULT '',
   `tp_id`                      SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `nas_id`                     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',

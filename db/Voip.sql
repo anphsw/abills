@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `voip_main`
     `number`           VARCHAR(16)          NOT NULL DEFAULT '',
     `registration`     DATE                 NOT NULL,
     `ip`               INT(11) UNSIGNED     NOT NULL DEFAULT '0',
-    `cid`              VARCHAR(35)          NOT NULL DEFAULT '',
+    `cid`              VARCHAR(60)          NOT NULL DEFAULT '',
     `filter_id`        VARCHAR(150)         NOT NULL DEFAULT '',
     `allow_answer`     TINYINT(1) UNSIGNED  NOT NULL DEFAULT '1',
     `allow_calls`      TINYINT(1) UNSIGNED  NOT NULL DEFAULT '1',
