@@ -1797,7 +1797,7 @@ sub form_money_transfer {
   if ($conf{MONEY_TRANSFER} =~ m/:/x) {
     ($deposit_limit, $transfer_price, $no_companies) = split(':', $conf{MONEY_TRANSFER});
 
-    if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
+    if ($no_companies =~ /NO_USER/ || ($no_companies =~ /NO_COMPANIES/ && $user->{COMPANY_ID})) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
     }
@@ -2086,7 +2086,7 @@ sub fl {
     # cgi-bin/index.cgi
     # Have same name with sub in Control/Fees
     push @m, "42:40:$lang{FEES}:form_fees:::";
-    if ($conf{MONEY_TRANSFER}) {
+    if ($conf{MONEY_TRANSFER} && $conf{MONEY_TRANSFER} !~ /NO_USER/) {
       # cgi-bin/index.cgi
       push @m, "43:40:$lang{MONEY_TRANSFER}:form_money_transfer:::";
     }
