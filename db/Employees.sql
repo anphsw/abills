@@ -344,11 +344,12 @@ CREATE TABLE IF NOT EXISTS `employees_cashboxes_admins`
 (
   `cashbox_id`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `department`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `add_date`    DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY cashbox_id (aid,cashbox_id)
+  UNIQUE KEY cashbox_id (cashbox_id)
 )
   DEFAULT CHARSET = utf8
-  COMMENT = 'Admins permissions for cashboxes';
+  COMMENT = 'Admins/department permissions for cashboxes';
 
 CREATE TABLE IF NOT EXISTS `employees_spending_types_admins`
 (

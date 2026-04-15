@@ -40,7 +40,6 @@ sub form_payments {
   my ($attr) = @_;
 
   return 0 if (!$permissions{1});
-
   my $allowed_payments = $Payments->admin_payment_type_list({
     COLS_NAME => 1,
     AID => $admin->{AID},
@@ -387,6 +386,8 @@ sub _docs_invoice_receipt {
 
   $Payments->{DOCS_INVOICE_RECEIPT_ELEMENT} = $html->tpl_show(_include('docs_create_invoice_receipt', 'Docs'),
     { %$Payments }, { OUTPUT2RETURN => 1 });
+
+  return 1;
 }
 
 #**********************************************************
@@ -594,6 +595,105 @@ sub form_payments_list {
     $Docs = Docs->new($db, $admin, \%conf);
   }
 
+  my %ext_titles = (
+    id              => $lang{NUM},
+    datetime        => $lang{DATE},
+    dsc             => $lang{DESCRIBE},
+    dsc2            => "$lang{DESCRIBE} 2",
+    inner_describe2 => "$lang{INNER}",
+    sum             => $lang{SUM},
+    last_deposit    => $lang{OPERATION_DEPOSIT},
+    deposit         => $lang{CURRENT_DEPOSIT},
+    method          => $lang{PAYMENT_METHOD},
+    ext_id          => 'EXT ID',
+    reg_date        => "$lang{PAYMENTS} $lang{REGISTRATION}",
+    ip              => 'IP',
+    admin_name      => $lang{ADMIN},
+    a_login         => "$lang{ADMIN} $lang{LOGIN}",
+    invoice_num     => $lang{INVOICE},
+    amount          => "$lang{ALT} $lang{SUM}",
+    currency        => $lang{CURRENCY},
+    after_deposit   => $lang{AFTER_OPERATION_DEPOSIT},
+    FEES_ID         => $lang{FEES}
+  );
+
+  my %filter_values = (
+    ext_id           => sub {
+      my $ext_id = shift;
+
+      return convert($ext_id, { text2html => 1 });
+    },
+    deleted          => sub {
+      my $deleted = shift;
+      $deleted //= 0;
+      return $html->color_mark($bool_vals[ $deleted ], ($deleted == 1) ? $state_colors[ $deleted ] : '')
+    },
+    dsc              => sub {
+      my ($dsc, $line) = @_;
+
+      $dsc = convert($dsc, { text2html => 1 }) if ($dsc);
+      return ($dsc || q{}) . ($line->{inner_describe} ? $html->b("($line->{inner_describe})") : '');
+    },
+    method           => sub {
+      my $method = shift;
+      $method //= 0;
+      $method = ($FORM{METHOD_NUM}) ? $method : ($PAYMENTS_METHODS->{ $method } || $method);
+    },
+    login_status     => sub {
+      my $login_status = shift;
+      $login_status //= 0;
+
+      return ($login_status > 0) ?
+        $html->color_mark($service_status[ $login_status ], $service_status_colors[ $login_status ]) :
+        $service_status[$login_status];
+    },
+    bill_id          => sub {
+      my $bill_id = shift;
+
+      return ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS{ $bill_id } || q{--}) : $bill_id;
+    },
+    admin_name       => sub {
+      my ($admin_name, $line) = @_;
+
+      $admin_name = _status_color_state($admin_name, $line->{admin_disable});
+      delete $line->{admin_disable};
+
+      return $admin_name;
+    },
+    fees_id           => sub {
+      my ($fees_id, $line) = @_;
+      $fees_id = ($fees_id) ? $html->button($fees_id, "index=3&UID=$line->{uid}&ID=$fees_id&search=1", { BUTTON => 1 }) : q{};
+
+      return $fees_id;
+    },
+    invoice_num       => sub {
+      my ($invoice_num, $line) = @_;
+
+      my $payment_sum = $line->{sum} || 0;
+      my $i2p = '';
+
+      if ($Docs) {
+        my $i2p_list = $Docs->invoices2payments_list({ PAYMENT_ID => $line->{id}, COLS_NAME => 1 });
+
+        if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0) {
+          foreach my $invoice (@{$i2p_list}) {
+            my $invoiced_sum = $invoice->{invoiced_sum} || 0;
+            $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button($invoice_num,
+              "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice->{invoice_id}&search=1" ) . $html->br();
+            $payment_sum -= $invoiced_sum;
+          }
+        }
+      }
+
+      if ($payment_sum > 0) {
+        $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark($lang{UNAPPLIED}, $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
+          "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
+      }
+
+      return $i2p;
+    }
+  );
+
   $index = 2;
   ($table, $payments_list) = result_former({
     INPUT_DATA      => $Payments,
@@ -604,96 +704,8 @@ sub form_payments_list {
     FUNCTION_FIELDS => $permissions{1}{2} ? 'del' : '',
     FUNCTION_INDEX  => $index,
     MULTISELECT     => $FORM{UID} && $permissions{0}{41} ? 'del:id:PAYMENTS' : '',
-    FILTER_VALUES   => {
-      ext_id           => sub {
-        my $ext_id = shift;
-
-        return convert($ext_id, { text2html => 1 });
-      },
-      deleted          => sub {
-        my $deleted = shift;
-        $deleted //= 0;
-        return $html->color_mark($bool_vals[ $deleted ], ($deleted == 1) ? $state_colors[ $deleted ] : '')
-      },
-      dsc              => sub {
-        my ($dsc, $line) = @_;
-
-        $dsc = convert($dsc, { text2html => 1 }) if $dsc;
-        return ($dsc || q{}) . ($line->{inner_describe} ? $html->b("($line->{inner_describe})") : '');
-      },
-      method           => sub {
-        my $method = shift;
-        $method //= 0;
-        $method = ($FORM{METHOD_NUM}) ? $method : ($PAYMENTS_METHODS->{ $method } || $method);
-      },
-      login_status     => sub {
-        my $login_status = shift;
-        $login_status //= 0;
-
-        return ($login_status > 0) ?
-          $html->color_mark($service_status[ $login_status ], $service_status_colors[ $login_status ]) :
-          $service_status[$login_status];
-      },
-      bill_id          => sub {
-        my $bill_id = shift;
-
-        return ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS{ $bill_id } || q{--}) : $bill_id;
-      },
-      admin_name       => sub {
-        my ($admin_name, $line) = @_;
-
-        $admin_name = _status_color_state($admin_name, $line->{admin_disable});
-        delete $line->{admin_disable};
-
-        return $admin_name;
-      },
-      invoice_num       => sub {
-        my ($invoice_num, $line) = @_;
-
-        my $payment_sum = $line->{sum} || 0;
-        my $i2p = '';
-
-        if ($Docs) {
-          my $i2p_list = $Docs->invoices2payments_list({ PAYMENT_ID => $line->{id}, COLS_NAME => 1 });
-          
-          if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0) {
-            foreach my $invoice (@{$i2p_list}) {
-              my $invoiced_sum = $invoice->{invoiced_sum} || 0;
-              $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button($invoice_num,
-                "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice->{invoice_id}&search=1" ) . $html->br();
-              $payment_sum -= $invoiced_sum;
-            }
-          }
-        }
-
-        if ($payment_sum > 0) {
-          $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark($lang{UNAPPLIED}, $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
-            "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
-        }
-
-        return $i2p;
-      }
-    },
-    EXT_TITLES      => {
-      id              => $lang{NUM},
-      datetime        => $lang{DATE},
-      dsc             => $lang{DESCRIBE},
-      dsc2            => "$lang{DESCRIBE} 2",
-      inner_describe2 => "$lang{INNER}",
-      sum             => $lang{SUM},
-      last_deposit    => $lang{OPERATION_DEPOSIT},
-      deposit         => $lang{CURRENT_DEPOSIT},
-      method          => $lang{PAYMENT_METHOD},
-      ext_id          => 'EXT ID',
-      reg_date        => "$lang{PAYMENTS} $lang{REGISTRATION}",
-      ip              => 'IP',
-      admin_name      => $lang{ADMIN},
-      a_login         => "$lang{ADMIN} $lang{LOGIN}",
-      invoice_num     => $lang{INVOICE},
-      amount          => "$lang{ALT} $lang{SUM}",
-      currency        => $lang{CURRENCY},
-      after_deposit   => $lang{AFTER_OPERATION_DEPOSIT}
-    },
+    FILTER_VALUES   => \%filter_values,
+    EXT_TITLES      => \%ext_titles,
     TABLE           => {
       width            => '100%',
       SHOW_FULL_LIST   => ($FORM{UID}) ? 1 : undef,

@@ -7,10 +7,7 @@ use strict;
 use warnings;
 
 use Test::More;
-
 use FindBin '$Bin';
-use FindBin qw($RealBin);
-use JSON;
 
 BEGIN {
   our $libpath = $Bin . '/../../../../';
@@ -26,33 +23,26 @@ BEGIN {
 
 use Abills::Defs;
 use Abills::Api::Tests::Init qw(test_runner folder_list help);
-use Abills::Base qw(parse_arguments);
 use Storage;
 
 our (
   %conf,
 );
 
-my $db = Abills::SQL->connect(
-  $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  {
-    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
-    dbdebug => $conf{dbdebug}
-  }
-);
+my ($db, $admin) = db_connect();
 
-my $ARGS = parse_arguments(\@ARGV);
 
-if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
+my $argv = parse_arguments(\@ARGV);
+
+if ($argv->{help}) {
   help();
   exit 0;
 }
 
-my $admin = Admins->new($db, \%conf);
 my $Storage = Storage->new($db, $admin, \%conf);
 
-my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
-my $debug = $ARGS->{DEBUG} || 0;
+my $apiKey = $argv->{KEY} || q{};
+my $debug = $argv->{DEBUG} || 0;
 
 if ($debug > 6) {
   $Storage->{debug} = 1;
@@ -60,12 +50,13 @@ if ($debug > 6) {
 
 my %params = ();
 
-my @available_tests = folder_list($ARGS, $RealBin);
+my @available_tests = folder_list($argv, $Bin);
 my $run_tests = test_preprocess(\@available_tests, \%params, \%conf, { DEBUG => 2 });
 
 test_runner({
   apiKey => $apiKey,
-  debug  => $debug
+  debug  => $debug,
+  argv   => $argv
 }, $run_tests);
 
 done_testing();

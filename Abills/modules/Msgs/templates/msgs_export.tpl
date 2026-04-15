@@ -13,7 +13,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
         <div class='col-md-9'>
-          <input type='text' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control'>
+          <input type='text' id='SUBJECT' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control'>
         </div>
       </div>
 

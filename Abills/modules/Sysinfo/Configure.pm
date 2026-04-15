@@ -409,7 +409,7 @@ sub sysinfo_nas_info {
   });
   _error_show($Sysinfo);
 
-  if (!$nas_list || !ref $nas_list eq 'ARRAY' || !scalar @{$nas_list}) {
+  if (!$nas_list || ref $nas_list ne 'ARRAY' || !scalar @{$nas_list}) {
     return '';
   }
 
@@ -463,7 +463,7 @@ sub sysinfo_server_restart {
     SERVER_ID    => $FORM{SERVER_ID}
   });
 
-  if (!$res || !ref $res eq 'HASH') {
+  if (!$res || ref $res ne 'HASH') {
     require Data::Dumper;
     Data::Dumper->import();
 

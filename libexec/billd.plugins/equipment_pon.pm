@@ -28,6 +28,7 @@
    ALERT - send event if RX signal is worth or bad
    CLEAN_DELETED - clean all deleted ONU
    DEBUG - debug level
+   ACCIDENT - Make accident events
 
 =cut
 
@@ -42,7 +43,6 @@ use Events::API;
 use Data::Dumper;
 use Abills::Base qw(load_pmodule in_array check_time gen_time);
 use FindBin '$Bin';
-
 use threads;
 our (
   $argv,
@@ -77,7 +77,7 @@ elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL} || $argv->{CPE_CHECK}) {
   _save_port_and_nas_to_internet_main($argv);
 }
 elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
-  _fill_cpe_from_nas_and_port();
+  _fill_cpe_from_nas_and_port($argv);
 }
 elsif ($argv->{FILL_SWITCH_PORT_FROM_CID}) {
   _fill_switch_port_from_cid();
@@ -86,7 +86,7 @@ elsif ($argv->{CLEAN_DELETED}) {
   _clean_deleted_onu();
 }
 elsif ($argv->{PON_FILL_SWITCH_PORT_FROM_CID}) {
-  _pon_fill_switch_port_from_cid();
+  _pon_fill_switch_port_from_cid($argv);
 }
 else {
   _equipment_pon($argv);
@@ -105,6 +105,16 @@ else {
 #**********************************************************
 sub _equipment_pon {
   my($attr)=@_;
+
+  if($attr->{ACCIDENT}) {
+    if (in_array('Accident', \@MODULES)) {
+      require Accident::Errors_gen;
+    }
+    else {
+      _log('LOG_ERR', "Accident not installed");
+      exit;
+    }
+  }
 
   if ($debug > 6) {
     $Equipment->{debug} = 1;
@@ -149,6 +159,8 @@ sub _equipment_pon {
   if ($attr->{multi}) {
     my @threads = ();
     foreach my $nas (@$equipment_list) {
+      `echo "NAS_ID: $nas->{nas_id}" >> /tmp/po.log`;
+      $nas->{ACCIDENT}=1 if ($attr->{ACCIDENT});
       my threads $t = threads->create(\&_equipment_pon_load, $nas);
       push @threads, $t;
       $t->detach();
@@ -164,6 +176,7 @@ sub _equipment_pon {
   }
   else {
     foreach my $nas (@$equipment_list) {
+      $nas->{ACCIDENT}=1 if ($attr->{ACCIDENT});
       _equipment_pon_load($nas);
     }
   }
@@ -218,8 +231,8 @@ sub get_port_list {
     }
   }
 
-  if (!$Equipment->{TOTAL}) {
-    equipment_pon_get_ports({
+  if (!$Equipment->{TOTAL} || $attr->{ACCIDENT}) {
+    my $ports = equipment_pon_get_ports({
       VERSION        => $attr->{snmp_version} || 1,
       SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
       NAS_ID         => $nas_id,
@@ -229,6 +242,13 @@ sub get_port_list {
       TIMEOUT        => $argv->{TIMEOUT},
       DEBUG          => $debug
     });
+
+    if($attr->{ACCIDENT}) {
+      _pon_accident({
+        NAS_ID => $nas_id,
+        PORTS  => $ports
+      });
+    }
 
     $port_list = $Equipment->pon_port_list({
       PAGE_ROWS  => 10000,
@@ -347,7 +367,6 @@ sub _equipment_pon_load {
     $db_->ping(); #For long snmp requests
     my $onu_database_list = $Equipment->onu_list({
       NAS_ID      => $nas_id,
-      COLS_NAME   => 1,
       SKIP_DOMAIN => 1,
       PAGE_ROWS   => 1000000,
       ONU_GRAPH   => '_SHOW',
@@ -497,6 +516,10 @@ sub _equipment_pon_load {
 
   Arguments:
     $attr
+      ONU
+      SNMP
+      NAS_ID
+      GRAPH_TYPES - array_ref
 
   Return:
      TRUE or FALSE
@@ -517,14 +540,21 @@ sub mk_graph {
 
   foreach my $graph_type (@$graph_types) {
     my @onu_graph_data = ();
-    if ($graph_type eq 'SIGNAL' && ($snmp->{ONU_RX_POWER}->{OIDS} || $snmp->{OLT_RX_POWER}->{OIDS})) {
+    #if ($graph_type eq 'SIGNAL' && ($snmp->{ONU_RX_POWER} || $snmp->{OLT_RX_POWER})) {
+    if ($graph_type eq 'SIGNAL' && ($onu->{ONU_RX_POWER} || $onu->{OLT_RX_POWER})) {
       push @onu_graph_data, { DATA => $onu->{ONU_RX_POWER} || 0, SOURCE => $snmp->{ONU_RX_POWER}->{NAME} || q{}, TYPE => 'GAUGE' };
-      push @onu_graph_data, { DATA => $onu->{OLT_RX_POWER} || 0, SOURCE => $snmp->{OLT_RX_POWER}->{NAME} || q{OLT_RX_POWER}, TYPE => 'GAUGE' };
+      if($onu->{OLT_RX_POWER}) {
+        push @onu_graph_data, { DATA => $onu->{OLT_RX_POWER} || 0, SOURCE => $snmp->{OLT_RX_POWER}->{NAME} || q{OLT_RX_POWER}, TYPE => 'GAUGE' };
+      }
+      elsif($onu->{ONU_TX_POWER}) {
+        push @onu_graph_data, { DATA => $onu->{ONU_TX_POWER} || 0, SOURCE => $snmp->{ONU_TX_POWER}->{NAME} || q{ONU_TX_POWER}, TYPE => 'GAUGE' };
+      }
     }
-    elsif ($graph_type eq 'TEMPERATURE' && $snmp->{TEMPERATURE}->{OIDS}) {
+    #elsif ($graph_type eq 'TEMPERATURE' && $snmp->{TEMPERATURE}->{OIDS}) {
+    elsif ($onu->{$graph_type}) {
       push @onu_graph_data, { DATA => $onu->{TEMPERATURE} || 0, SOURCE => $snmp->{TEMPERATURE}->{NAME}, TYPE => 'GAUGE' };
     }
-    elsif ($graph_type eq 'SPEED' && ($snmp->{ONU_IN_BYTE}->{OIDS} || $snmp->{ONU_OUT_BYTE}->{OIDS})) {
+    elsif ($graph_type eq 'SPEED' && ($snmp->{ONU_IN_BYTE} || $snmp->{ONU_OUT_BYTE})) {
       push @onu_graph_data, { DATA => $onu->{ONU_IN_BYTE} || 0, SOURCE => $snmp->{ONU_IN_BYTE}->{NAME}, TYPE => 'COUNTER' };
       push @onu_graph_data, { DATA => $onu->{ONU_OUT_BYTE} || 0, SOURCE => $snmp->{ONU_OUT_BYTE}->{NAME}, TYPE => 'COUNTER' };
     }
@@ -533,6 +563,19 @@ sub mk_graph {
       if ($debug > 3) {
         print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => ". ($argv->{STEP} || '300'). "\n";
       }
+
+      if ($argv->{EQUIPMENT_GRAPH_TEST_NAS} && $nas_id == $argv->{EQUIPMENT_GRAPH_TEST_NAS}) {
+        my $value = q{};
+
+        foreach my $o (@onu_graph_data) {
+          $value .= show_hash($o, { DELIMITER => ' / ', OUTPUT2RETURN => 1 }) . ' || ';
+        }
+
+        my $text = "$DATE $TIME $nas_id" . '_' . "$onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => "
+          . $value . " STEP => " . ($argv->{STEP} || '300') . "\n";
+        `echo "$text" >> /tmp/equipment_pon_graph.log`;
+      }
+
       eval {
         add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300', DEBUG => $debug });
       };
@@ -656,7 +699,6 @@ sub _scan_mac_serial {
   my %mac_nas_ids = ();
   foreach my $pon (@$equipment_list) {
     my $onu_list = $Equipment->onu_list({
-      COLS_NAME  => 1,
       PAGE_ROWS  => 100000,
       GROUP_BY   => 'onu.id',
       # STATUS     => '0',
@@ -956,26 +998,30 @@ sub _save_port_and_nas_to_internet_main {
 }
 
 #**********************************************************
-=head2 _fill_cpe_from_nas_and_port() - Find ONU MAC from customer's NAS and port and fill CPE MAC with it if empty
+=head2 _fill_cpe_from_nas_and_port($attr) - Find ONU MAC from customer's NAS and port and fill CPE MAC with it if empty
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub _fill_cpe_from_nas_and_port {
+  my ($attr)=@_;
+
   require Internet;
   my $Internet = Internet->new($db, $Admin, \%conf);
 
-  my $internet_list = $Internet->user_list({
-    NAS_ID    => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
-    PORT      => '_SHOW',
-    CPE_MAC   => '_SHOW',
-    PAGE_ROWS => 1000000000,
-    COLS_NAME => 1
-  });
+  if ($debug > 5) {
+    $Internet->{debug}=1;
+    $Equipment->{debug}=1;
+  }
 
   my $onu_list = $Equipment->onu_list({
-    NAS_ID     => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    NAS_ID     => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : '_SHOW',
     MAC_SERIAL => '_SHOW',
-    COLS_NAME  => 1
+    PAGE_ROWS  => 100000
   });
 
   my %macs_by_nas_port = ();
@@ -984,18 +1030,29 @@ sub _fill_cpe_from_nas_and_port {
     $macs_by_nas_port{$line->{nas_id}}{$line->{dhcp_port}} = $line->{mac_serial};
   }
 
-  foreach my $line (@$internet_list) {
-    if ($line->{cpe_mac} || !$line->{nas_id} || !$line->{port}) {
+  my $internet_list = $Internet->user_list({
+    NAS_ID    => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : '_SHOW',
+    PORT      => '_SHOW',
+    CPE_MAC   => '_SHOW',
+    PAGE_ROWS => 1000000000,
+    UID       => $attr->{UID},
+    LOGIN     => $attr->{LOGIN}
+  });
+
+  foreach my $internet_user (@$internet_list) {
+    if ($internet_user->{cpe_mac} || !$internet_user->{nas_id} || !$internet_user->{port}) {
       next;
     }
 
-    if ($macs_by_nas_port{$line->{nas_id}} && $macs_by_nas_port{$line->{nas_id}}{$line->{port}}) {
+    _log('LOG_INFO', "UID $internet_user->{uid}: NAS_ID: $internet_user->{nas_id} PORT: $internet_user->{port}");
+
+    if ($macs_by_nas_port{$internet_user->{nas_id}} && $macs_by_nas_port{$internet_user->{nas_id}}{$internet_user->{port}}) {
       $Internet->user_change({
-        UID     => $line->{uid},
-        ID      => $line->{id},
-        CPE_MAC => $macs_by_nas_port{$line->{nas_id}}{$line->{port}}
+        UID     => $internet_user->{uid},
+        ID      => $internet_user->{id},
+        CPE_MAC => $macs_by_nas_port{$internet_user->{nas_id}}{$internet_user->{port}}
       });
-      print "UID $line->{uid}: filled CPE MAC $macs_by_nas_port{$line->{nas_id}}{$line->{port}}\n";
+      print "UID $internet_user->{uid}: filled CPE MAC $macs_by_nas_port{$internet_user->{nas_id}}{$internet_user->{port}}\n";
     }
   }
 
@@ -1059,8 +1116,7 @@ sub _clean_deleted_onu {
 
   my $equipment_list = $Equipment->onu_list({
     DELETED         => 1,
-    PAGE_ROWS       => 10000,
-    COLS_NAME       => 1
+    PAGE_ROWS       => 30000
   });
 
   if ($Equipment->{TOTAL} < 1) {
@@ -1089,9 +1145,16 @@ sub _clean_deleted_onu {
 #**********************************************************
 =head2 _pon_fill_switch_port_from_cid()
 
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub _pon_fill_switch_port_from_cid {
+  my ($attr)=@_;
+
   require Internet;
   Internet->import();
   my $Internet = Internet->new($db, $Admin, \%conf);
@@ -1101,12 +1164,11 @@ sub _pon_fill_switch_port_from_cid {
   }
 
   my $onu_list = $Equipment->onu_list({
-    NAS_ID        => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    NAS_ID        => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : '_SHOW',
     BRANCH        => '_SHOW',
     ONU_ID        => '_SHOW',
     ONU_DHCP_PORT => '_SHOW',
-    PAGE_ROWS     => 10000,
-    COLS_NAME     => 1,
+    PAGE_ROWS     => 10000
   });
 
   print "ONU total: $Equipment->{TOTAL}\n" if ($debug > 0);
@@ -1118,7 +1180,7 @@ sub _pon_fill_switch_port_from_cid {
   }
 
   my $mac_log_list = $Equipment->mac_log_list({
-    NAS_ID       => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    NAS_ID       => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : '_SHOW',
     PORT         => '_SHOW',
     PORT_NAME    => '_SHOW',
     MAC          => '_SHOW',
@@ -1141,7 +1203,7 @@ sub _pon_fill_switch_port_from_cid {
 
   my $internet_list = $Internet->user_list({
     COLS_NAME => 1,
-    NAS_ID    => ($argv->{PON_FORCE_FILL}) ? '_SHOW' : '0',
+    NAS_ID    => ($attr->{PON_FORCE_FILL}) ? '_SHOW' : '0',
     PORT      => '_SHOW',
     LOGIN     => '_SHOW',
     CID       => '!',
@@ -1166,6 +1228,34 @@ sub _pon_fill_switch_port_from_cid {
       print "UID:$user->{uid}, CID $user->{cid}, port did not found \n" if ($debug > 0);
     }
   }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _pon_accident($attr)
+
+  Arguments:
+    $attr
+      NAS_ID
+      PORTS
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _pon_accident {
+  my ($attr)=@_;
+
+  my $ports = $attr->{PORTS};
+
+  #Port Status 2 Down 1 UP
+  accident_equipment_error({
+    NAS_ID => $attr->{NAS_ID},
+    PORT_ID=> $ports->{ID},
+    STATUS => $ports->{PORT_STATUS}
+  });
 
   return 1;
 }

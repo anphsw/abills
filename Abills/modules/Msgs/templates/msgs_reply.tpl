@@ -1,7 +1,6 @@
 <link rel='stylesheet' href='/styles/default/css/modules/msgs/msgs.reply.css'>
 
 <input type='hidden' name='MAIN_INNER_MESSAGE' value='%MAIN_INNER_MSG%'/>
-<input type='hidden' name='SUBJECT' value='%SUBJECT%' size=50/>
 <input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
 <input type='hidden' id='RUN_TIME_START' value='%RUN_TIME_START%'/>
 <a name='reply' class='anchor'></a>

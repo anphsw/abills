@@ -1,33 +1,22 @@
 our %FUNCTIONS_LIST = ();
 our %USER_FUNCTION_LIST = ();
+
 our Abills::HTML $html;
-our ($db, $admin, %conf);
+our ($db, $admin, %conf, @MODULES);
 use Accident;
 my $Accident = Accident->new($db, $admin, \%conf);
-
 $Accident->list({ STATUS => 0 });
+my $info = ($Accident->{TOTAL}) ? $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' }) : q{};
 
-my $info = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
+$FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG} $info:accident_log:"} = 8;
 
-if ($Accident->{TOTAL} > 0) {
-  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG} $info:accident_log:"} = 8;
-}
-else {
-  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG}:accident_log:"} = 8;
-}
-
-if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
+if ($conf{EQUIPMENT_LOG} && in_array('Equipment', \@MODULES)) {
   $Accident->accident_equipment_list({
     STATUS => 0
   });
-  $info = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
 
-  if ($Accident->{TOTAL} > 0) {
-    $FUNCTIONS_LIST{"03:1:$lang{ACCIDENT_FOR_EQUIPMENT} $info:accident_equipment_log:"} = 8;
-  }
-  else {
-    $FUNCTIONS_LIST{"03:1:$lang{ACCIDENT_FOR_EQUIPMENT}:accident_equipment_log:"} = 8;
-  }
+  $info = ($Accident->{TOTAL}) ? $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' }) : q{};
+  $FUNCTIONS_LIST{"03:1:$lang{ACCIDENT_FOR_EQUIPMENT} $info:accident_equipment_log:"} = 8;
 }
 
 $FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"}  = 8;

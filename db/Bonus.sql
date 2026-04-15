@@ -36,8 +36,11 @@ CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `ext_account` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `pay_method` VARCHAR(100) NOT NULL DEFAULT '0',
   `comments` TEXT NOT NULL,
-  `tp_id` VARCHAR(200) NOT NULL DEFAULT '',
+  `tp_id` VARCHAR(250) NOT NULL DEFAULT '',
   `onetime_payment_sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `gid` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `start_date` DATE              not null default '0000-00-00',
+  `end_date`   DATE              not null default '0000-00-00',
   PRIMARY KEY (`id`)
 )
   CHARSET = 'utf8'

@@ -10,6 +10,7 @@
 use strict;
 use warnings;
 use Abills::Base qw(load_pmodule show_hash);
+use POSIX qw( strftime );
 
 our (
   $html,
@@ -141,7 +142,9 @@ sub add_graph {
     );
   }
 
-  $rrd->update(values => \%values);
+  if (! $rrd->update(values => \%values)) {
+    print $rrd->error_message();
+  }
 
   return 1;
 }
@@ -158,6 +161,9 @@ sub add_graph {
        START_TIME - Start unixtime
        END_TIME - End unixtime
 
+   Returns:
+     TRUE or FALSE
+
 =cut
 #**********************************************************
 sub get_graph_data {
@@ -169,11 +175,8 @@ sub get_graph_data {
   }
 
   my $rrdfile = $var_dir . "db/rrd/" . $attr->{NAS_ID} . "_" . $attr->{PORT} . "_" . lc($attr->{TYPE}) . ".rrd";
-  #$rrdfile = '/home/asm/tmp/101_4194304000.11_signal.rrd';
-  #$rrdfile = '/home/asm/tmp/101_4194304000.14_speed.rrd';
 
-  unless (-f $rrdfile) {
-    #$html->message( 'err', $lang{ERROR}, "Can't open file '$rrdfile' $!" );
+  if (! -f $rrdfile) {
     print "Can't open file '$rrdfile' $!";
     return 0;
   }
@@ -184,18 +187,11 @@ sub get_graph_data {
   my @xport = ();
 
   if ($FORM{DEBUG}) {
-    print "FILE: $rrdfile<br>";
-    foreach my $ds (sort keys %$ds_info) {
-      print "<br><b>$ds</b><br>";
-      foreach my $key (sort keys %{$ds_info->{$ds}}) {
-        print "$key: $ds_info->{$ds}->{$key} <br>";
-      }
-    }
-
-    my $start_rrd_time = $rrd->first();
-    my $stop_rrd_time = $rrd->last();
-
-    print "START_RRD: $start_rrd_time STOP_RRD: $stop_rrd_time<br>";
+    graph_full_info({
+      RRD      => $rrd,
+      RRD_FILE => $rrdfile,
+      DEBUG    => $FORM{DEBUG}
+    });
   }
 
   foreach my $ds_name (@{$attr->{DS_NAMES}}) {
@@ -218,6 +214,12 @@ sub get_graph_data {
   my $end_time = $attr->{END_TIME} || time();
 
   if (@def) {
+    if ($FORM{DEBUG}) {
+      my $start_rrd_time = strftime("%Y-%m-%d %H:%M:%S", localtime($start_time));
+      my $stop_rrd_time = strftime("%Y-%m-%d %H:%M:%S", localtime($end_time));
+      print  " start => $start_rrd_time,   end   => $stop_rrd_time \n";
+    }
+
     my $results = $rrd->xport(
       start => $start_time,
       end   => $end_time,
@@ -231,6 +233,56 @@ sub get_graph_data {
   return 0;
 }
 
+
+#**********************************************************
+=head2 graph_full_info($attr)
+
+   Arguments:
+     $attr
+       RRD
+       FILE
+     $rrd
+
+   Return:
+     TRUE or FALSE
+
+=cut
+#**********************************************************
+sub graph_full_info {
+  my ($attr)=@_;
+
+  my $rrdfile = $attr->{RRD_FILE};
+  my $rrd = $attr->{RRD};
+
+  my $ds_info = $rrd->info()->{ds};
+
+  print "FILE: $rrdfile<br>";
+  foreach my $ds (sort keys %$ds_info) {
+    print "<br><b>$ds</b><br>";
+    foreach my $key (sort keys %{$ds_info->{$ds}}) {
+      print "$key: $ds_info->{$ds}->{$key} <br>";
+    }
+  }
+
+  if ($attr->{DEBUG} > 1) {
+    $rrd->fetch_start();
+    # Fetch stored values
+    while (my ($time, $value) = $rrd->fetch_next()) {
+      print "<br>" . strftime("%Y-%m-%d %H:%M:%S", localtime($time)) . ":",
+        defined $value ? $value : "[undef]", "\n";
+    }
+  }
+
+  my $start_rrd_time = $rrd->first();
+  my $stop_rrd_time = $rrd->last();
+
+  $start_rrd_time = strftime("%Y-%m-%d %H:%M:%S", localtime($start_rrd_time));
+  $stop_rrd_time = strftime("%Y-%m-%d %H:%M:%S", localtime($stop_rrd_time));
+
+  print "START_RRD: $start_rrd_time STOP_RRD: $stop_rrd_time<br>";
+
+  return 1;
+}
 
 #**********************************************************
 =head2 del_graph_data($attr)

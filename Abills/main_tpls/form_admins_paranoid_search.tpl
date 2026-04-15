@@ -23,15 +23,15 @@
             <div class='form-group row'>
               <label for='FROM_DATE' class='control-label col-sm-3'>_{PERIOD}_ _{FROM}_:</label>
               <div class='col-md-9'>
-                %FROM_DATE%
+                <input type=text id='FROM_DATE' name='FROM_DATE' value='%FROM_DATE%' class='form-control datepicker'>
               </div>
             </div>
 
 
             <div class='form-group row'>
-              <label for='FROM_DATE' class='control-label col-sm-3'>_{PERIOD}_ _{TO}_:</label>
+              <label for='TO_DATE' class='control-label col-sm-3'>_{PERIOD}_ _{TO}_:</label>
               <div class='col-md-9'>
-                %TO_DATE%
+                <input type=text id='TO_DATE' name='TO_DATE' value='%TO_DATE%' class='form-control datepicker'>
               </div>
             </div>
 
@@ -57,11 +57,19 @@
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3' for='PARAMS'>Function index:</label>
+              <label class='control-label col-md-3' for='FUNCTION_INDEX'>Function index:</label>
               <div class='col-md-9'>
                 <input id='FUNCTION_INDEX' name='FUNCTION_INDEX' value='%FUNCTION_INDEX%' class='form-control' type='text'>
               </div>
             </div>
+
+            <div class='form-group row'>
+              <label class='control-label col-md-3' for='ACTIONS'>_{ACTION}_:</label>
+              <div class='col-md-9'>
+                %ACTION_SEL%
+              </div>
+            </div>
+
 
           </div>
         </div>

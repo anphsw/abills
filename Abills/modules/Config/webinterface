@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 use Conf;
 use Abills::Base qw(vars2lang is_number json_former);
 use Abills::Fetcher qw/web_request/;
+use Config::Confluence qw(get_doc);
 
 our ($db, $admin, %conf, %lang, @bool_vals);
 our Abills::HTML $html;
@@ -32,20 +33,39 @@ my @denied_variables = (
 );
 
 #**********************************************************
-=head2 config_main() - main config parameters
+=head2 config_vars() - main config parameters
 
   Arguments:
     $attr
   Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
-sub config_main {
+sub config_vars {
 
   my @header_arr = ("$lang{MAIN}:index=$index");
   foreach my $module (@MODULES) {
     next if ($module eq 'Config');
     push @header_arr, "$module:index=$index&MODULE=$module";
+  }
+
+  if ($FORM{param}){
+    print $html->header();
+    my $docs = get_doc({ WORD => '$conf{'.$FORM{param}.'}' });
+
+    if (scalar @$docs) {
+      print $html->message('info', $lang{GUIDE_WIKI_LINK}, $FORM{param});
+      foreach my $doc (@$docs) {
+        print $html->button($doc->{TITLE}, '', { GLOBAL_URL => $doc->{URL}, NEW_WINDOW => $doc->{URL}, NEW_WINDOW_SIZE => "800:800" })
+          .$html->br();
+      }
+    }
+    else {
+      print $html->message('err', $lang{GUIDE_WIKI_LINK}, "$FORM{param} \n$lang{NO_RESULTS_FOUND}");
+    }
+
+    return 1;
   }
 
   my $module = $FORM{MODULE} || 'main';
@@ -58,7 +78,6 @@ sub config_main {
     $pages_qs .= "&MODULE=$module";
   }
 
-  my $to_change_list = '';
   my $showable_value = '';
   my $probably_name = $FORM{PARAM} || $FORM{chg} || $FORM{del} || '';
 
@@ -68,111 +87,7 @@ sub config_main {
   }
 
   if ($FORM{change}) {
-    my %pre_conf = ();
-    my %post_conf = ();
-    $to_change_list = $Config->list({ PARAM => $FORM{PARAM}, COLS_NAME => 1 });
-
-    if (_error_show($Config)) {return 0}
-
-    foreach my $line (@{$to_change_list}) {
-      $pre_conf{ $line->{param} } = $line->{type};
-    }
-
-    foreach my $p (sort keys %FORM) {
-      if (defined($pre_conf{$p})) {
-        if (defined($FORM{$p}) && $FORM{$p} eq 'subparams') {
-          my @params_val = ();
-          my $i = 0;
-          while (defined($FORM{ $p . '_' . $i })) {
-            push @params_val, $FORM{ $p . '_' . $i };
-            $i++;
-          }
-
-          $post_conf{$p} = join(':', @params_val);
-        }
-        elsif (defined($FORM{$p}) && $FORM{$p} eq 'subsubparams') {
-          my @params_val = ();
-          my $i = 0;
-          my $in = 0;
-
-          while (defined($FORM{ $p . '_' . $in . '_' . $i })) {
-            my @param_inside = ();
-            $i = 0;
-            while (defined($FORM{ $p . '_' . $in . '_' . $i })) {
-              push @param_inside, $FORM{ $p . '_' . $in . '_' . $i };
-              $i++;
-            }
-            $i--;
-            push @params_val, [ @param_inside ];
-            $in++;
-          }
-
-          $post_conf{$p} = join(';', map {join(':', @$_)} @params_val);
-        }
-        else {
-          $post_conf{$p} = $FORM{$p};
-        }
-      }
-    }
-
-    my $message_desc = '';
-    my $can_change = 0;
-    my @banned_for_regex = (1, 3, 4);
-
-    my $probably_item = $to_change_list->[0] // {};
-    foreach my $p (sort keys %post_conf) {
-      my $value = $post_conf{$p};
-
-      my $is_banned = grep {($_ || 0) == $probably_item->{type}} @banned_for_regex;
-
-      if ($is_banned) {
-        $can_change = 1;
-      }
-      elsif (!$probably_item->{regex}) {
-        $can_change = 1;
-      }
-      elsif ($value =~ /$probably_item->{regex}/) {
-        $can_change = 1;
-      }
-      $showable_value = is_number($value)
-        ? defined($bool_vals[$value])
-        ? $bool_vals[$value]
-        : $value
-        : $value || q{};
-
-      if ($can_change == 1) {
-        $message_desc .= vars2lang($lang{VARIABLE_CHANGED_TO}, {
-          VARIABLE => $html->b($p),
-          VALUE    => $html->b($showable_value)
-        });
-
-        $Config->config_add({
-          PARAM   => $p,
-          VALUE   => $value,
-          REPLACE => 1
-        });
-      }
-      else {
-        $message_desc = vars2lang($lang{INVALID_CONFIG}, {
-          PARAM         => $html->b($probably_item->{param}),
-          INVALID_VALUE => $html->b($value),
-          TRUE_VALUE    => $html->b($probably_item->{value}),
-          REGEXP        => $html->b($probably_item->{regex} || "$lang{NOT_EXIST}")
-        });
-      }
-    }
-
-    if ($can_change == 1) {
-      if (!_error_show($Config)) {
-        $html->message('info', $lang{CHANGED}, $message_desc);
-      }
-    }
-    else {
-      $html->message('err',
-        $lang{ERROR},
-        $message_desc
-      );
-    }
+    config_vars_change();
   }
   elsif ($FORM{change} && $conf{PUBLIC_MODE}) {
     $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
@@ -187,7 +102,7 @@ sub config_main {
   if ($FORM{chg} || $FORM{change}) {
     # Replace config after change
     Conf->new($db, $admin, \%conf);
-    $to_change_list = $Config->list({ PARAM => $FORM{chg} || $FORM{PARAM}, PG => 0, PAGE_ROWS => 999999, SORT => 1, COLS_NAME => 1 });
+    my $to_change_list = $Config->list({ PARAM => $FORM{chg} || $FORM{PARAM}, PG => 0, PAGE_ROWS => 999999, SORT => 1, COLS_NAME => 1 });
 
     my $item = $to_change_list->[0];
     if (!$item) {
@@ -217,10 +132,155 @@ sub config_main {
     }
   }
 
+  config_vars_list({
+    MODULE_TITLE => $module_title,
+    MODULE       => $module
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 config_vars_list() Main config parameters
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub config_vars_change {
+
+  my %pre_conf = ();
+  my %post_conf = ();
+  my $to_change_list = $Config->list({ PARAM => $FORM{PARAM}, COLS_NAME => 1 });
+
+  if (_error_show($Config)) {return 0}
+
+  foreach my $line (@{$to_change_list}) {
+    $pre_conf{ $line->{param} } = $line->{type};
+  }
+
+  foreach my $p (sort keys %FORM) {
+    if (defined($pre_conf{$p})) {
+      if (defined($FORM{$p}) && $FORM{$p} eq 'subparams') {
+        my @params_val = ();
+        my $i = 0;
+        while (defined($FORM{ $p . '_' . $i })) {
+          push @params_val, $FORM{ $p . '_' . $i };
+          $i++;
+        }
+
+        $post_conf{$p} = join(':', @params_val);
+      }
+      elsif (defined($FORM{$p}) && $FORM{$p} eq 'subsubparams') {
+        my @params_val = ();
+        my $i = 0;
+        my $in = 0;
+
+        while (defined($FORM{ $p . '_' . $in . '_' . $i })) {
+          my @param_inside = ();
+          $i = 0;
+          while (defined($FORM{ $p . '_' . $in . '_' . $i })) {
+            push @param_inside, $FORM{ $p . '_' . $in . '_' . $i };
+            $i++;
+          }
+          $i--;
+          push @params_val, [ @param_inside ];
+          $in++;
+        }
+
+        $post_conf{$p} = join(';', map {join(':', @$_)} @params_val);
+      }
+      else {
+        $post_conf{$p} = $FORM{$p};
+      }
+    }
+  }
+
+  my $message_desc = '';
+  my $can_change = 0;
+  my @banned_for_regex = (1, 3, 4);
+
+  my $probably_item = $to_change_list->[0] // {};
+  foreach my $p (sort keys %post_conf) {
+    my $value = $post_conf{$p};
+
+    my $is_banned = grep {($_ || 0) == $probably_item->{type}} @banned_for_regex;
+
+    if ($is_banned) {
+      $can_change = 1;
+    }
+    elsif (!$probably_item->{regex}) {
+      $can_change = 1;
+    }
+    elsif ($value =~ /$probably_item->{regex}/xm) {
+      $can_change = 1;
+    }
+    my $showable_value = is_number($value)
+      ? defined($bool_vals[$value])
+      ? $bool_vals[$value]
+      : $value
+      : $value || q{};
+
+    if ($can_change == 1) {
+      $message_desc .= vars2lang($lang{VARIABLE_CHANGED_TO}, {
+        VARIABLE => $html->b($p),
+        VALUE    => $html->b($showable_value)
+      });
+
+      $Config->config_add({
+        PARAM   => $p,
+        VALUE   => $value,
+        REPLACE => 1
+      });
+    }
+    else {
+      $message_desc = vars2lang($lang{INVALID_CONFIG}, {
+        PARAM         => $html->b($probably_item->{param}),
+        INVALID_VALUE => $html->b($value),
+        TRUE_VALUE    => $html->b($probably_item->{value}),
+        REGEXP        => $html->b($probably_item->{regex} || "$lang{NOT_EXIST}")
+      });
+    }
+  }
+
+  if ($can_change == 1) {
+    if (!_error_show($Config)) {
+      $html->message('info', $lang{CHANGED}, $message_desc);
+    }
+  }
+  else {
+    $html->message('err',
+      $lang{ERROR},
+      $message_desc
+    );
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 config_vars_list() Main config parameters
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub config_vars_list {
+  my ($attr)=@_;
+
+  my $module_title = $attr->{MODULE_TITLE} || q{};
+  my $module = $attr->{MODULE};
+
   my %local_conf = _config_variables_from_config_pl();
   my %db_conf = _config_variables_from_db();
 
-  my $list = $Config->list({
+  my $config_list = $Config->list({
     PARAM     => $LIST_PARAMS{PARAM},
     PG        => 0,
     PAGE_ROWS => 999999,
@@ -232,7 +292,7 @@ sub config_main {
   my $table = $html->table({
     width      => '100%',
     caption    => "$lang{CONFIGURATION} $module_title",
-    title      => [ $lang{PARAM}, $lang{VALUE}, '', '' ],
+    title      => [ $lang{PARAM}, $lang{VALUE}, '', '', '' ],
     qs         => $pages_qs,
     DATA_TABLE => { lengthMenu => [ [ 50, 100, -1 ], [ 50, 100, $lang{ALL} ] ] },
     ID         => 'CONFIG'
@@ -240,7 +300,7 @@ sub config_main {
 
   my $not_exist = $html->color_mark($lang{NOT_EXIST}, 'text-gray');
 
-  foreach my $line (@{$list}) {
+  foreach my $line (@{$config_list}) {
     my ($value, $is_error, $is_empty) = _config_parse_variable($line);
 
     if ($is_empty == 0 && $is_error == 1) {
@@ -269,12 +329,36 @@ sub config_main {
 
     my $param = _config_change_param_display($line->{param}, \%local_conf, \%db_conf);
 
+    delete $local_conf{$line->{param}};
+
     $table->addrow(
       $param . ($line->{comments} || q{}),
       $is_empty ? $not_exist : $value,
+      $html->button($lang{DESCRIBE}, undef, {
+        class          => 'p-3',
+        ICON           => 'fa fa-info-circle',
+        title          => "$lang{GUIDE_WIKI_LINK} Confluence",
+        ex_params      => qq/onclick=loadToModal('?qindex=$index&param=$line->{param}')/,
+        NO_LINK_FORMER => 1,
+        SKIP_HREF      => 1,
+      }),
       $html->button($lang{CHANGE}, "index=$index&MODULE=$module&chg=$line->{param}", { class => 'change' }),
       $html->button($lang{DEL}, "index=$index&MODULE=$module&del=$line->{param}",
         { MESSAGE => "$lang{DEL} '$line->{param}' ?", class => 'del' }
+      )
+    );
+  }
+
+  foreach my $param  ( keys %local_conf ) {
+    my $value = $local_conf{$param};
+    my $param_descr = _config_change_param_display($param, \%local_conf, \%db_conf);
+    $table->addrow(
+      $param_descr,
+      $value,
+      '',
+      $html->button($lang{CHANGE}, "index=$index&MODULE=$module&chg=$param", { class => 'change' }),
+      $html->button($lang{DEL}, "index=$index&MODULE=$module&del=$param",
+        { MESSAGE => "$lang{DEL} '$param' ?", class => 'del' }
       )
     );
   }

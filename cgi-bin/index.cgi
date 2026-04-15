@@ -72,7 +72,8 @@ our $html = Abills::HTML->new({
 });
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+  { %conf,
+    CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
     dbdebug   => $conf{dbdebug},
     db_engine => 'dbcore'
   });
@@ -166,7 +167,13 @@ sub _start {
 
   # if after auth user $uid not exist - show message about wrong password
   if (!$uid && exists $FORM{logined}) {
-    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
+    my $errstr = $Auth->{errstr} || 'ERR_WRONG_PASSWD';
+    if ($Auth->{errno} && $Auth->{errno} == 1001006) {
+      $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
+      $errstr = 'YOU_TRY_BRUTE_1';
+    }
+
+    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{$errstr} || $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
   }
 
   if (!$uid && $FORM{external_auth}) {
@@ -210,7 +217,13 @@ sub _start {
       || $FORM{article}
       || $FORM{menu_category}
   ) {
-    print $html->header();
+    print $html->header({
+      SETTINGS => {
+        HOTJAR_SCRIPT_CLIENT        => $conf{HOTJAR_SCRIPT_CLIENT},
+        NO_DESIGN                   => $FORM{NO_DESIGN},
+        USER_PORTAL_EVENTS_DISABLED => $conf{USER_PORTAL_EVENTS_DISABLED} || 0
+      }
+    });
     load_module('Portal', $html);
     portal_s_page();
 
@@ -1274,6 +1287,11 @@ sub form_login_clients {
 
   if (!$conf{REGISTRATION_PORTAL_SKIP}) {
     $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION || $conf{NEW_REGISTRATION_FORM};
+  }
+
+  if ($conf{user_portal_offer}) {
+    my ($title, $url) = split /\|/, $conf{user_portal_offer};
+    $first_page{USER_PORTAL_OFFER} = $html->button($title, '', { GLOBAL_URL => $url, ex_params => 'target=new'});
   }
 
   if ($conf{tech_works}) {
@@ -2720,6 +2738,10 @@ sub language_select {
 sub form_company_list {
 
   require Control::Services;
+  Control::Services->import();
+
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
   my $sum_total = 0;
   my $total     = 0;
 
@@ -2741,10 +2763,11 @@ sub form_company_list {
   my $sum_for_pay = 0;
 
   foreach my $line (@$users_list) {
-    my $service_info = get_services({
+    my $service_info = $Services->get_services({
       UID          => $line->{UID},
       REDUCTION    => $line->{REDUCTION},
-      PAYMENT_TYPE => 0
+      PAYMENT_TYPE => 0,
+      FORM         => \%FORM
     });
 
     foreach my $service ( @{ $service_info->{list} } ) {
@@ -2906,10 +2929,15 @@ sub form_credit {
 
     for (my $i = 0; $i <= $#{$credit_info->{CREDIT_RULES}}; $i++) {
       my (undef, $days, $price, undef, undef) = split(':', $credit_info->{CREDIT_RULES}[$i]);
+      $price = sprintf("%.2f", $price || 0);
+      my $ext_params = << "HTML";
+name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
+              onClick="document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='$price'""
+HTML
+
       $table->addrow($days, sprintf("%.2f", $price),
         $html->button("$lang{SET} $lang{CREDIT}", '#', {
-          ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
-              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='" . sprintf("%.2f", $price || 0) . "'\"",
+          ex_params => $ext_params,
           class     => 'btn btn-xs btn-success',
           SKIP_HREF => 1
         })

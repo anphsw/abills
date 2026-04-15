@@ -17,8 +17,6 @@ our (
   $admin,
   %conf,
   %lang,
-  #@WEEKDAYS,
-  #@MONTHES,
   $DATE,
   $TIME,
   $sid,
@@ -1235,8 +1233,9 @@ sub internet_dhcp_get_mac_add {
 
     if (ip2int($ip) >= ip2int($start_ip) && ip2int($ip) <= ip2int($start_ip) + $address_count) {
       require Internet::User_ips;
+      Internet::User_ips->import();
       if($net_id) {
-        $PARAMS_HASH{IP} = get_static_ip($net_id);
+        $PARAMS_HASH{IP} = $Internet->Internet::User_ips::get_static_ip($net_id);
 
         if ($PARAMS_HASH{IP} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/xm) {
           if ($PARAMS_HASH{IP} == -1) {
@@ -1274,7 +1273,7 @@ sub internet_dhcp_get_mac_add {
         PAGE_ROWS => 1
       });
 
-      my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } sort keys %PARAMS_HASH);
+      #my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } sort keys %PARAMS_HASH);
 
       if ($Internet->{TOTAL} > 0) {
         $Internet->user_change({
@@ -1547,21 +1546,23 @@ sub internet_hangup {
   #TODO: move to package
   my ($attr) = @_;
 
-  if($attr->{CID}) {
+  if ($attr->{CID}) {
     $attr->{CID} = mk_cid_list($attr->{CID});
   }
 
-  $Sessions->online_info( $attr );
-  $Nas->info({ NAS_ID => $Sessions->{NAS_ID} });
+  $Sessions->online_info($attr);
+  if (!$Sessions->{errno}) {
+    $Nas->info({ NAS_ID => $Sessions->{NAS_ID} });
 
-  require Abills::Nas::Control;
-  Abills::Nas::Control->import();
+    require Abills::Nas::Control;
+    Abills::Nas::Control->import();
 
-  my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
-  sleep 1;
-  $Nas_cmd->hangup($Nas, 0, '', $Sessions);
-  my $cid = $attr->{CID} || q{};
-  `echo "$DATE $TIME hangup NAS_ID: $Sessions->{NAS_ID}  $attr->{UID} TYPE: $Nas->{NAS_TYPE} CID: $cid SESSION_ID: $Sessions->{ACCT_SESSION_ID}  " >> /tmp/hagup`;
+    my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
+    sleep 1;
+    $Nas_cmd->hangup($Nas, 0, '', $Sessions);
+    my $cid = $attr->{CID} || q{};
+    `echo "$DATE $TIME hangup NAS_ID: $Sessions->{NAS_ID}  $attr->{UID} TYPE: $Nas->{NAS_TYPE} CID: $cid SESSION_ID: $Sessions->{ACCT_SESSION_ID}  " >> /tmp/hagup`;
+  }
 
   return 1;
 }

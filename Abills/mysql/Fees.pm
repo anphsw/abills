@@ -95,26 +95,27 @@ sub take {
   my DBI $db = $self->{db}{db};
   $db->{AutoCommit} = 0;
 
-  if ($CONF->{FEES_PRIORITY}) {
-    $self->_fees_priority($user, $sum, $attr);
-    return $self if ($self->{finish});
-  }
+  $self->{SUM} = $sum;
 
   if ($attr->{BILL_ID} && ! $user->{BILL_ID}) {
     $user->{BILL_ID} = $attr->{BILL_ID};
   }
 
+  if ($CONF->{FEES_PRIORITY} && ! $attr->{BILL_ID}) {
+    $self->_fees_priority($user, $sum, $attr);
+    return $self if ($self->{finish});
+  }
+
   if ($user->{BILL_ID} && $user->{BILL_ID} > 0) {
     $Bill->info({ BILL_ID => $user->{BILL_ID} });
 
-    $Bill->action('take', $user->{BILL_ID}, $sum);
+    $Bill->action('take', $user->{BILL_ID}, $self->{SUM});
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
       $self->{errstr} = $Bill->{errstr};
       return $self;
     }
 
-    $self->{SUM} = $sum;
     $self->query_add('fees', {
       %$attr,
       BILL_ID      => $user->{BILL_ID},
@@ -132,6 +133,12 @@ sub take {
     }
 
     $self->{FEES_ID} = $self->{INSERT_ID};
+
+    if(grep { $attr->{$_} } (qw/ START_DATE END_DATE MODULE TP_ID COUNT DISCOUNT /)) {
+      #print @{ $attr }{ qw(START_DATE END_DATE MODULE TP_ID UNITS COUNT DISCOUNT ) };
+      $attr->{FEES_ID}=$self->{INSERT_ID};
+      $self->query_add('fees_extra', $attr);
+    }
   }
   else {
     $self->{errno}  = 14;
@@ -168,8 +175,8 @@ sub _fees_priority {
   my $fees_priority = $CONF->{FEES_PRIORITY} || q{};
 
   if ($fees_priority =~ /^bonus/xm && $user->{EXT_BILL_ID}) {
-    if ($user->{EXT_BILL_ID} && !defined($self->{EXT_BILL_DEPOSIT})) {
-      if (! $user->{EXT_BILL_ID} || ! defined($self->{EXT_BILL_DEPOSIT})) {
+    if ($user->{EXT_BILL_ID} && !defined($user->{EXT_BILL_DEPOSIT})) {
+      if (! $user->{EXT_BILL_ID} || ! defined($user->{EXT_BILL_DEPOSIT})) {
         my $uid = $user->{UID};
         my $fn  = 'user::info';
         if (! defined( &$fn )) {
@@ -190,12 +197,12 @@ sub _fees_priority {
           return $self;
         }
 
-        $self->{SUM} = $self->{EXT_BILL_DEPOSIT};
-
+        $self->{SUM} = $user->{EXT_BILL_DEPOSIT};
         $self->query_add('fees', {
           %$attr,
           SUM          => $self->{SUM},
-          LAST_DEPOSIT => $Bill->{DEPOSIT},
+          BILL_ID      => $user->{EXT_BILL_ID},
+          LAST_DEPOSIT => $user->{EXT_BILL_DEPOSIT},
           METHOD       => $attr->{EXT_BILL_METHOD} || $attr->{METHOD}
         });
 
@@ -258,6 +265,8 @@ sub _fees_priority {
     }
     $self->{finish}=1;
   }
+
+  $self->{SUM}=$sum;
 
   return $self;
 }
@@ -386,10 +395,19 @@ WHERE
     ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
     ['TAX',            'INT',  'ft.tax',                         1 ],
     ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'],
-    ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
-    ['INVOICE_NUM',    'INT', 'invoice.invoice_num',                                   1 ],
-    ['INVOICE_ID',     'INT', 'invoice.id',  'd.id AS invoice_id'                        ],
-    ['SUBCONTO',       'STR', 'ft.subconto',                                           1 ]
+    ['ADMIN_DISABLE',  'INT',  'a.disable', 'a.disable AS admin_disable',               1 ],
+    ['INVOICE_NUM',    'INT',  'invoice.invoice_num',                                   1 ],
+    ['INVOICE_ID',     'INT',  'invoice.id',  'invoice.id AS invoice_id'                  ],
+    ['SUBCONTO',       'STR',  'ft.subconto',                                           1 ],
+    ['START_DATE',     'DATE', 'fe.start_date',         1 ],
+    ['END_DATE',       'DATE', 'fe.end_date',           1 ],
+    ['MODULE',         'STR',  'fe.module',             1 ],
+    ['TP_ID',          'INT',  'fe.tp_id',              1 ],
+    ['COUNT',          'INT',  'fe.count',              1 ],
+    ['UNITS',          'INT',  'fe.units',              1 ],
+    ['DISCOUNT',       'INT',  'fe.discount',           1 ],
+    ['PAYMENT_ID',     'INT',  'p2f.payment_id',        1 ],
+    ['COMPENSATION',   'INT',  'p.sum',   'p.sum AS compensation' ]
   );
 
   my $WHERE =  $self->search_former($attr, \@search_params,
@@ -401,6 +419,12 @@ WHERE
     });
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
+
+  if(grep { $attr->{$_} } (qw/ START_DATE END_DATE MODULE TP_ID COUNT UNITS DISCOUNT /)) {
+    $EXT_TABLES  .= << "EXT_TABLES";
+  LEFT JOIN fees_extra fe ON (f.id=fe.fees_id)
+EXT_TABLES
+  }
 
   if ($self->{SEARCH_FIELDS} =~ /invoice\./xm) {
     $EXT_TABLES  .= << "EXT_TABLES";
@@ -425,6 +449,13 @@ EXT_TABLES
     $EXT_TABLES  .= " LEFT JOIN companies c ON (c.id=u.company_id)";
   }
 
+  if ($attr->{PAYMENT_ID} || $attr->{COMPENSATION}) {
+    $EXT_TABLES .= " LEFT JOIN fees2payments p2f ON (p2f.fees_id=f.id) ";
+    if($attr->{COMPENSATION}) {
+      $EXT_TABLES .= " LEFT JOIN payments p ON (p2f.payment_id=p.id) ";
+    }
+  }
+
   my $sql = <<"SQL";
 SELECT f.id,
        $self->{SEARCH_FIELDS}
@@ -446,7 +477,7 @@ SQL
   return [] if ($self->{TOTAL} < 1);
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0) {
+  if (! $attr->{_SKIP_TOTAL} && $self->{TOTAL} > 0) {
     $sql = <<"SQL";
 SELECT COUNT(*) AS total, SUM(f.sum) AS sum, COUNT(DISTINCT f.uid) AS total_users
   FROM `$table_name` f
@@ -641,6 +672,7 @@ SQL
 sub fees_type_list {
   my ($self, $attr) = @_;
 
+  delete $attr->{GROUP_BY};
   my @search_params = (
     [ 'ID',        'INT', 'id'           ],
     [ 'NAME',      'STR', 'name'         ],

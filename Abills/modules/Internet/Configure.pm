@@ -84,7 +84,7 @@ sub internet_tp {
 
     $pages_qs  .= "&TP_ID=$tarif_info->{TP_ID}";
 
-    if(!$pages_qs =~ /subf/xm) {
+    if($pages_qs !~ /subf/xm) {
       $pages_qs .= (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
     }
 

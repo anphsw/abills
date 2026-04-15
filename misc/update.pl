@@ -10,8 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.17
-  UPDATED: 20251009
+  VERSION: 0.19
+  UPDATED: 20260403
 
 =head1 SYNOPSIS
 
@@ -36,7 +36,8 @@ use feature 'say';
      --skip_self_update    - skip self update.pl
      --ex_self_update      - EXPERIMENTAL self update
      --ex_ssh_registration - EXPERIMENTAL ssh key registration
-     --log [fix]           - show git log
+     --log [fix]           - show git log,
+     --ext_commands        - add additional commands after updating ($base_dir/misc/updates)
 =head1 PURPOSES
 
   + Check perl version
@@ -79,7 +80,8 @@ BEGIN {
     PASSWORD       => '',
     update_sql     => '',
     log            => '',
-    fix            => ''
+    fix            => '',
+    ext_commands   => '',
   );
 
   GetOptions(
@@ -105,7 +107,8 @@ BEGIN {
     'ex_self_update'                          => \$OPTIONS{EXPERIMENTAL_SELF_UPDATE},
     'ex_ssh_registration'                     => \$OPTIONS{EXPERIMENTAL_SSH_REGISTRATION},
     'log'                                     => \$OPTIONS{LOG},
-    'fix'                                     => \$OPTIONS{FIX}
+    'fix'                                     => \$OPTIONS{FIX},
+    'ext_commands'                            => \$OPTIONS{ext_commands}
   ) or die pod2usage();
 
   if (!-d $OPTIONS{PREFIX} && !-d "$OPTIONS{PREFIX}/lib") {
@@ -202,19 +205,19 @@ sub update {
   }
   elsif ($OPTIONS{renew_license}) {
     if (renew_license()) {
-      say 'License have been successfully saved';
+      say "\e[32m".'License has been successfully updated'."\e[0m";
     }
     else {
-      say 'Failed to save new license. Please check errors above';
+      say "\e[31m".'Failed to save new license. Please check errors above'."\e[0m";
     }
     return 0;
   }
   elsif ($OPTIONS{update_sql}) {
     if (update_sql()) {
-      say 'SQL have been successfully updated';
+      say "\e[32m".'SQL has been successfully updated'."\e[0m";
     }
     else {
-      say 'Failed to update SQL. Please check errors above';
+      say "\e[31m".'Failed to update SQL. Please check errors above'."\e[0m";
     }
     return 0;
   }
@@ -256,16 +259,21 @@ sub full_update {
   sources_update($SOURCE) or return 0;
 
   if (update_sql()) {
-    say 'SQL have been successfully updated';
+    say "\e[32m".'SQL has been successfully updated'."\e[0m";
   }
   else {
-    say 'Failed to update SQL. Please check errors above';
+    say "\e[31m".'Failed to update SQL. Please check errors above'."\e[0m";
   }
 
   print "Checking for updated modules \n";
   update_modules();
   renew_license();
   _check_conf();
+  system("$base_dir/libexec/periodic rotate");
+
+  if ($OPTIONS{ext_commands}) {
+    _ext_commands();
+  }
 
   #add update date
   if (-f "$OPTIONS{PREFIX}/VERSION") {
@@ -275,7 +283,7 @@ sub full_update {
     `echo "$version $date" > "$OPTIONS{PREFIX}/VERSION"`;
   }
 
-  print "\n\e[32mSuccessfully updated\e[0m\n";
+  print "\n\e[32m".'Updated successfully'."\e[0m\n";
 
   return 1;
 }
@@ -491,8 +499,8 @@ sub get_hardware_info {
       $interfaces
     )
   );
-  $system_info_string =~ s/\"//gm;
-  $system_info_string =~ s/\n/ /gm;
+  $system_info_string =~ s/\"//xgm;
+  $system_info_string =~ s/\n/ /xgm;
 
   my $hardware_id_digest = Digest::MD5->new();
   $hardware_id_digest->add($system_info_string);
@@ -560,7 +568,7 @@ sub authenticate {
     );
 
     if (!$request_result || $request_result !~ 'Registration complete') {
-      say 'Authorization failed SIGN: ' . $HARDWARE_INFO{id};
+      say "\e[31m".'Authorization failed SIGN: ' . $HARDWARE_INFO{id}."\e[0m";
       return 0;
     }
 
@@ -644,7 +652,7 @@ sub sources_update {
   $copy_prep_success = system("find ${work_copy} | grep .git | xargs rm -Rf") == 0 if ($copy_prep_success);
 
   if (!$copy_prep_success) {
-    print "  Error while copying work directory \n";
+    print "\e[31m"."  Error while copying work directory \n"."\e[0m";
     return 0;
   }
 
@@ -664,7 +672,7 @@ sub sources_update {
 sub sources_backup {
 
   if (-e $backup_dir && -d $backup_dir) {
-    print "Skipping sources backup. Already have today backup \n";
+    print "Skipping sources backup. Today's backup already exists \n";
     return 1;
   }
 
@@ -718,7 +726,7 @@ sub sources_backup {
 #**********************************************************
 sub update_sql {
   if (!(-e '/tmp/abills/db/update/') || !(-d '/tmp/abills/db/update')) {
-    say "ERROR: No updated abills";
+    say "\e[31m"."ERROR: No updated abills"."\e[0m";
     return 0;
   }
 
@@ -726,83 +734,84 @@ sub update_sql {
   #if ($debug > 3) {
   print "$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1\n";
   #}
-  `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1`;
+  cmd("$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1");
 
   return 1;
-  my $last_updated = '';
 
-  # Read from `config` table las tupdate
-  say "Read from config param UPDATE_SQL";
-  $admin->query("SELECT value FROM config WHERE param='UPDATE_SQL';", undef, { COLS_NAME => 1 });
-
-  if ($admin->{errno}) {
-    say "Fatal error while getting UPDATE_SQL. " . ($admin->{errstr} || '');
-    return 0;
-  }
-
-  my $list = $admin->{list};
-  if ($list && ref $list eq 'ARRAY' && scalar @{$list}) {
-    $last_updated = $list->[0]->{value};
-  }
-
-  if ($last_updated eq '') {
-    say "Old mode updating";
-    my $update_url = '';
-    my $update_date = 0;
-
-    # TODO: remove outdated
-    # if ($conf{version}) {
-    #   (undef, $update_date) = split('\/', $conf{version});
-    #   $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw";
-    #   say "Update date: $update_date";
-    # }
-
-    if (-e "$base_dir/VERSION") {
-      my $version_content = _read_file("$base_dir/VERSION");
-      (undef, $update_date) = split(' ', $version_content);
-      $update_date ||= 0;
-      #$update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw";
-    }
-
-    if ($update_date < 99999999) {
-      _download_and_parse_sql_updates($update_url, $update_date);
-    }
-
-    # Update last updated version
-    my $version = _read_file("$TEMP_DIR/abills/VERSION") or return 0;
-    chomp $version;
-    my ($year, $day, $mon) = split('-', POSIX::strftime "%Y-%m-%d", localtime(time));
-    _write_to_file("$TEMP_DIR/abills", "$version $year$mon$day");
-
-    return 1;
-  }
-
-  say "Last updated file - $last_updated";
-  require Abills::Misc;
-
-  my $update_files = _get_files_in($TEMP_DIR . '/abills/db/update');
-
-  my @sorted_updated_files = sort {$a cmp $b} @$update_files;
-
-  my $dev_update = pop @sorted_updated_files;
-
-  my @to_execute = grep {$_ gt $last_updated} @sorted_updated_files;
-
-  # execute sql
-  foreach my $file_to_execute (@to_execute) {
-    # read each line and execute
-    _db_execute_from_file($file_to_execute);
-    $last_updated = $file_to_execute;
-  }
-
-  # Write new last update to `config`
-  $admin->query(q{REPLACE INTO config(`param`, `value`) VALUES ('UPDATE_SQL', ?)}, 'do', { Bind => [ $last_updated ] });
-
-  if ($admin->{errno}) {
-    say "Couldn't save UPDATE_SQL. " . ($admin->{errstr} || '');
-  }
-
-  return 1;
+  # my $last_updated = '';
+  #
+  # # Read from `config` table las tupdate
+  # say "Read from config param UPDATE_SQL";
+  # $admin->query("SELECT value FROM config WHERE param='UPDATE_SQL';", undef, { COLS_NAME => 1 });
+  #
+  # if ($admin->{errno}) {
+  #   say "Fatal error while getting UPDATE_SQL. " . ($admin->{errstr} || '');
+  #   return 0;
+  # }
+  #
+  # my $list = $admin->{list};
+  # if ($list && ref $list eq 'ARRAY' && scalar @{$list}) {
+  #   $last_updated = $list->[0]->{value};
+  # }
+  #
+  # if ($last_updated eq '') {
+  #   say "Old mode updating";
+  #   my $update_url = '';
+  #   my $update_date = 0;
+  #
+  #   # TODO: remove outdated
+  #   # if ($conf{version}) {
+  #   #   (undef, $update_date) = split('\/', $conf{version});
+  #   #   $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw";
+  #   #   say "Update date: $update_date";
+  #   # }
+  #
+  #   if (-e "$base_dir/VERSION") {
+  #     my $version_content = _read_file("$base_dir/VERSION");
+  #     (undef, $update_date) = split(' ', $version_content);
+  #     $update_date ||= 0;
+  #     #$update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw";
+  #   }
+  #
+  #   if ($update_date < 99999999) {
+  #     _download_and_parse_sql_updates($update_url, $update_date);
+  #   }
+  #
+  #   # Update last updated version
+  #   my $version = _read_file("$TEMP_DIR/abills/VERSION") or return 0;
+  #   chomp $version;
+  #   my ($year, $day, $mon) = split('-', POSIX::strftime "%Y-%m-%d", localtime(time));
+  #   _write_to_file("$TEMP_DIR/abills", "$version $year$mon$day");
+  #
+  #   return 1;
+  # }
+  #
+  # say "Last updated file - $last_updated";
+  # require Abills::Misc;
+  #
+  # my $update_files = _get_files_in($TEMP_DIR . '/abills/db/update');
+  #
+  # my @sorted_updated_files = sort {$a cmp $b} @$update_files;
+  #
+  # my $dev_update = pop @sorted_updated_files;
+  #
+  # my @to_execute = grep {$_ gt $last_updated} @sorted_updated_files;
+  #
+  # # execute sql
+  # foreach my $file_to_execute (@to_execute) {
+  #   # read each line and execute
+  #   _db_execute_from_file($file_to_execute);
+  #   $last_updated = $file_to_execute;
+  # }
+  #
+  # # Write new last update to `config`
+  # $admin->query(q{REPLACE INTO config(`param`, `value`) VALUES ('UPDATE_SQL', ?)}, 'do', { Bind => [ $last_updated ] });
+  #
+  # if ($admin->{errno}) {
+  #   say "Couldn't save UPDATE_SQL. " . ($admin->{errstr} || '');
+  # }
+  #
+  # return 1;
 }
 
 #**********************************************************
@@ -842,7 +851,7 @@ sub renew_license {
   });
 
   if (!$request_result || $request_result !~ /^\d+$/xm) {
-    say "  !! Failed to receive new license\n";
+    say "\e[31m"." !! Failed to receive new license\n"."\e[0m";
     print $request_result;
     if (_read_input('PROCCEED_WITH_WRONG_LICENSE', "Do you want to proceed without license?", 'n') eq 'n') {
 
@@ -987,10 +996,10 @@ sub update_modules {
     my $downloaded_module = download_module($module_name, "$base_dir/$relative_file_path");
     if ($downloaded_module) {
       my $new_version = _read_file("$base_dir/$relative_file_path", { GET_VERSION => 1 });
-      print "Successfuly uppdated $module_name to $new_version\n";
+      print "\e[32m"."Updated successfully $module_name to $new_version\n"."\e[0m";
     }
     else {
-      say " !!! There were problems while downloading $module_name";
+      say "\e[31m"."! There were problems while downloading $module_name"."\e[0m";
     }
   };
 
@@ -1039,7 +1048,7 @@ sub download_module {
     );
 
     if ($agree_to_buy =~ /n/xmi) {
-      print "Can't update without $module_name.\nPlease disable it and repeat again \n";
+      print "\e[31m"."Can't update without $module_name.\nPlease disable it and repeat again \n"."\e[0m";
       exit 1;
     }
     else {
@@ -1535,7 +1544,7 @@ sub _get_directory_size {
     $size_cmd = qq{du -s -k $dir | awk -F' ' '{print \$1}'};
   }
 
-  my $size = `$size_cmd`;
+  my $size = cmd($size_cmd);
 
   chomp $size;
 
@@ -1662,13 +1671,13 @@ sub apache_check {
   my $filter_expr = $Bin . '/.apache_check_filter';
 
   if (-f $filter_expr) {
-    $filters = `cat $filter_expr`;
+    $filters = cmd("cat $filter_expr");
     my @filter_rows = split(/\n/x, $filters);
     if (-d $apache_log_dir) {
       foreach my $filter (@filter_rows) {
         my $cmd = qq{grep "$filter" $apache_log_dir/*};
         print $cmd if ($DEBUG);
-        my $result = `$cmd`;
+        my $result = cmd($cmd);
         print $result;
       }
     }
@@ -1750,11 +1759,11 @@ sub modules_list {
       my $res = download_module($downloaded_module, $local_file);
       if ($res) {
         my $new_version = _read_file($local_file, { GET_VERSION => 1 });
-        print "Successfuly updated $module_name to $new_version ($local_file)\n";
+        print "\e[32m"."File successfully updated $module_name to $new_version ($local_file)"."\e[0m\n";
         check_or_install_module($module);
       }
       else {
-        say " !!! There were problems while downloading $module_name";
+        say "\e[31m"."!!! There were problems while downloading $module_name"."\e[0m\n";
       }
     }
   }
@@ -1980,14 +1989,14 @@ sub check_or_install_module {
   my $err = qx(perl -c $libexec/config.pl 2>&1 | grep 'error');
 
   if ($err) {
-    say "Error! Script cannot modify your config.pl due to syntax error: $err";
+    say "\e[31m"."Error! Script cannot modify your config.pl due to syntax error: $err"."\e[0m";
     say "Try to add $current_module_name TO \@MODULES by yourself.";
     my $latest_backup_content = _read_file("$libexec/config.pl.bak$show_index");
     _write_to_file($latest_backup_content, "$libexec/config.pl");
     return 0;
   }
 
-  say "Module $current_module_name installed successfully!";
+  say "\e[32m"."Module $current_module_name installed successfully!"."\e[0m";
 
   return 1;
 }
@@ -2161,7 +2170,7 @@ sub _check_paysys {
 };
 
 #**********************************************************
-=head2 _check_paysys($program)
+=head2 _get_program($program)
 
   Arguments:
     $program
@@ -2177,6 +2186,35 @@ sub _get_program {
   chomp($program);
 
   return $program;
+}
+
+#**********************************************************
+=head2 _ext_commands()
+
+  Arguments:
+
+=cut
+#**********************************************************
+sub _ext_commands {
+
+  if (-d "$base_dir/misc/updates") {
+    my $update_dir = "$base_dir/misc/updates";
+
+    opendir(my $dh, $update_dir) or die "Cannot open $update_dir: $!";
+    my @ext_commands_update = grep { -f "$update_dir/$_" } readdir($dh);
+    closedir($dh);
+
+    foreach my $ext_file (@ext_commands_update) {
+      next unless $ext_file =~ /\.sh$/;
+
+      my $full_path = "$update_dir/$ext_file";
+
+      system("chmod +x $full_path");
+      system($full_path);
+    }
+  }
+
+  return 1;
 }
 
 1;

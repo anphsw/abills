@@ -23,8 +23,7 @@ use Log qw(log_print);
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($attr) = @_;
+  my ($class, $attr) = @_;
 
   my $auth_type = $attr->{AUTH_TYPE} || '';
   my $conf      = $attr->{CONF};

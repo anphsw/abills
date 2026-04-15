@@ -27,9 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
-
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
 
@@ -51,7 +48,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/streets/',
-      controller  => 'Api::Controllers::Common::Addresses',
       endpoint    => \&Api::Controllers::Common::Addresses::get_streets,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -60,7 +56,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/streets/:id/',
-      controller  => 'Api::Controllers::Admin::Streets',
       endpoint    => \&Api::Controllers::Admin::Streets::get_streets_id,
       credentials => [
         'ADMIN'
@@ -69,7 +64,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/streets/',
-      controller  => 'Api::Controllers::Admin::Streets',
       endpoint    => \&Api::Controllers::Admin::Streets::post_streets,
       credentials => [
         'ADMIN'
@@ -78,7 +72,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/streets/:id/',
-      controller  => 'Api::Controllers::Admin::Streets',
       endpoint    => \&Api::Controllers::Admin::Streets::put_streets_id,
       credentials => [
         'ADMIN'

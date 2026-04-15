@@ -7,7 +7,6 @@ use Abills::HTML;
 use Abills::SQL;
 use Conf;
 
-#our Abills::HTML $html;
 our Abills::SQL $db;
 our %FORM         = ();
 our %LIST_PARAMS  = ();
@@ -18,7 +17,6 @@ our @state_colors = ('success', 'danger', 'warning');
 our @state_icon_colors = ('1', 'text-red', 'text-yellow');
 our @status       = ('ENABLE', 'DISABLE');
 our $SELF_URL;
-#our Admins $admin;
 
 use vars qw(
   %conf
@@ -90,4 +88,4 @@ our $IPFW      = '/sbin/ipfw';
 #our $PING      = '/sbin/ping';
 our $SUDO      = '/usr/local/sbin/sudo';
 
-1
+1;

@@ -10,6 +10,7 @@ use warnings FATAL => 'all';
 
 use Api::Validations::Contracts qw(POST_USERS_CONTRACTS PUT_USERS_CONTRACTS);
 use Api::Validations::Statuses qw(POST_USERS_STATUSES PUT_USERS_STATUSES);
+use Api::Validations::Documents qw(POST_USERS_DOCUMENTS PUT_USERS_DOCUMENTS);
 
 #**********************************************************
 =head2 admin_routes() - Returns available API paths
@@ -30,8 +31,6 @@ use Api::Validations::Statuses qw(POST_USERS_STATUSES PUT_USERS_STATUSES);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +54,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/users/login/',
-      controller  => 'Api::Controllers::User::User_core::Login',
       endpoint    => \&Api::Controllers::User::User_core::Login::post_user_login,
       credentials => [
         'PUBLIC'
@@ -64,7 +62,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/all/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_all,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -73,7 +70,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
       credentials => [
         'ADMIN', 'ADMINBOT', 'ADMINSID'
@@ -82,7 +78,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/users/:uid/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::put_users_uid,
       credentials => [
         'ADMIN'
@@ -91,27 +86,26 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/users/:uid/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::delete_users_uid,
       credentials => [
         'ADMIN'
       ]
     },
+    #@deprecated delete in future
     {
       method      => 'GET',
       path        => '/users/:uid/pi/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid_pi,
       credentials => [
         'ADMIN', 'ADMINBOT'
       ]
     },
     {
-      method      => 'POST',
-      path        => '/users/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
-      endpoint    => \&Api::Controllers::Admin::Users::Info::post_users,
-      credentials => [
+      method          => 'POST',
+      path            => '/users/',
+      idempotency_key => 1,
+      endpoint        => \&Api::Controllers::Admin::Users::Info::post_users,
+      credentials     => [
         'ADMIN'
       ]
     },
@@ -119,7 +113,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/users/:uid/pi/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::post_users_uid_pi,
       credentials => [
         'ADMIN'
@@ -129,7 +122,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/users/:uid/pi/',
-      controller  => 'Api::Controllers::Admin::Users::Info',
       endpoint    => \&Api::Controllers::Admin::Users::Info::put_users_uid_pi,
       credentials => [
         'ADMIN'
@@ -138,7 +130,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/recommendedPay/',
-      controller  => 'Api::Controllers::Common::Users',
       endpoint    => \&Api::Controllers::Common::Users::get_user_recommendedPay,
       credentials => [
         'ADMIN'
@@ -147,7 +138,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/abon/',
-      controller  => 'Api::Controllers::Admin::Users::Abon',
       endpoint    => \&Api::Controllers::Admin::Users::Abon::get_users_uid_abon,
       credentials => [
         'ADMIN'
@@ -156,7 +146,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/internet/all/',
-      controller  => 'Api::Controllers::Admin::Users::Internet',
       endpoint    => \&Api::Controllers::Admin::Users::Internet::get_users_internet_all,
       credentials => [
         'ADMIN'
@@ -165,7 +154,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/internet/',
-      controller  => 'Api::Controllers::Admin::Users::Internet',
       endpoint    => \&Api::Controllers::Admin::Users::Internet::get_users_uid_internet,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -174,7 +162,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/internet/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Internet',
       endpoint    => \&Api::Controllers::Admin::Users::Internet::get_users_uid_internet_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -183,7 +170,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/users/contacts/',
-      controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::post_users_contacts,
       credentials => [
         'ADMIN'
@@ -192,7 +178,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/contacts/',
-      controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::get_users_uid_contacts,
       credentials => [
         'ADMIN'
@@ -201,7 +186,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/users/:uid/contacts/',
-      controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::post_users_uid_contacts,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -210,7 +194,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/users/:uid/contacts/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::delete_users_uid_contacts_id,
       credentials => [
         'ADMIN'
@@ -219,7 +202,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/users/:uid/contacts/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Contacts',
       endpoint    => \&Api::Controllers::Admin::Users::Contacts::put_users_uid_contacts_id,
       credentials => [
         'ADMIN'
@@ -228,7 +210,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/iptv/',
-      controller  => 'Api::Controllers::Admin::Users::Iptv',
       endpoint    => \&Api::Controllers::Admin::Users::Iptv::get_users_uid_iptv,
       credentials => [
         'ADMIN'
@@ -238,7 +219,6 @@ sub admin_routes {
       #TODO: :uid is not used
       method      => 'GET',
       path        => '/users/:uid/iptv/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Iptv',
       endpoint    => \&Api::Controllers::Admin::Users::Iptv::get_users_uid_iptv_id,
       credentials => [
         'ADMIN'
@@ -247,7 +227,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/contracts/types/',
-      controller  => 'Api::Controllers::Admin::Users::Contracts',
       endpoint    => \&Api::Controllers::Admin::Users::Contracts::get_users_contracts_types,
       credentials => [
         'ADMIN'
@@ -256,7 +235,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/contracts/',
-      controller  => 'Api::Controllers::Admin::Users::Contracts',
       endpoint    => \&Api::Controllers::Admin::Users::Contracts::get_users_contracts,
       credentials => [
         'ADMIN'
@@ -266,7 +244,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/users/contracts/',
       params      => POST_USERS_CONTRACTS,
-      controller  => 'Api::Controllers::Admin::Users::Contracts',
       endpoint    => \&Api::Controllers::Admin::Users::Contracts::post_users_contracts,
       credentials => [
         'ADMIN'
@@ -276,7 +253,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/users/contracts/:id/',
       params      => PUT_USERS_CONTRACTS,
-      controller  => 'Api::Controllers::Admin::Users::Contracts',
       endpoint    => \&Api::Controllers::Admin::Users::Contracts::put_users_contracts_id,
       credentials => [
         'ADMIN'
@@ -285,7 +261,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/users/contracts/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Contracts',
       endpoint    => \&Api::Controllers::Admin::Users::Contracts::delete_users_contracts_id,
       credentials => [
         'ADMIN'
@@ -294,7 +269,6 @@ sub admin_routes {
     {
       method       => 'GET',
       path         => '/users/contracts/:id/',
-      controller   => 'Api::Controllers::Admin::Users::Contracts',
       endpoint     => \&Api::Controllers::Admin::Users::Contracts::get_users_contracts_id,
       content_type => 'Content-type: application/pdf',
       credentials  => [
@@ -304,7 +278,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/:uid/history/',
-      controller   => 'Api::Controllers::Admin::Users::Root',
       endpoint     => \&Api::Controllers::Admin::Users::Root::get_users_uid_history,
       credentials => [
         'ADMIN'
@@ -313,7 +286,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/users/statuses/',
-      controller  => 'Api::Controllers::Admin::Users::Statuses',
       endpoint    => \&Api::Controllers::Admin::Users::Statuses::get_users_statuses,
       credentials => [ 'ADMIN' ]
     },
@@ -321,7 +293,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/users/statuses/:id/',
       params      => POST_USERS_STATUSES,
-      controller  => 'Api::Controllers::Admin::Users::Statuses',
       endpoint    => \&Api::Controllers::Admin::Users::Statuses::post_users_statuses,
       credentials => [ 'ADMIN' ]
     },
@@ -329,23 +300,63 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/users/statuses/:id/',
       params      => PUT_USERS_STATUSES,
-      controller  => 'Api::Controllers::Admin::Users::Statuses',
       endpoint    => \&Api::Controllers::Admin::Users::Statuses::put_users_statuses_id,
       credentials => [ 'ADMIN' ]
     },
     {
       method      => 'DELETE',
       path        => '/users/statuses/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Statuses',
       endpoint    => \&Api::Controllers::Admin::Users::Statuses::delete_users_statuses_id,
       credentials => [ 'ADMIN' ]
     },
     {
       method      => 'GET',
       path        => '/users/statuses/:id/',
-      controller  => 'Api::Controllers::Admin::Users::Statuses',
       endpoint    => \&Api::Controllers::Admin::Users::Statuses::get_users_statuses_id,
       credentials => [ 'ADMIN' ]
+    },
+
+    {
+      method      => 'GET',
+      path        => '/users/documents/',
+      endpoint    => \&Api::Controllers::Admin::Users::Documents::get_users_documents,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/users/documents/',
+      params      => POST_USERS_DOCUMENTS,
+      endpoint    => \&Api::Controllers::Admin::Users::Documents::post_users_documents,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/users/documents/:id/',
+      params      => PUT_USERS_DOCUMENTS,
+      endpoint    => \&Api::Controllers::Admin::Users::Documents::put_users_documents_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/users/documents/:id/',
+      endpoint    => \&Api::Controllers::Admin::Users::Documents::delete_users_documents_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method       => 'GET',
+      path         => '/users/documents/:id/',
+      endpoint     => \&Api::Controllers::Admin::Users::Documents::get_users_documents_id,
+      credentials  => [
+        'ADMIN', 'ADMINSID'
+      ]
     },
   ];
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "The Root Schema",
+  "title": "NAS list",
   "type": "array",
   "items": {
     "type": "object",
@@ -17,22 +17,19 @@
       "id": {
         "type": "number"
       },
-      "nasAlive": {
+      "alive": {
         "type": "number"
       },
-      "nasDisable": {
+      "disable": {
         "type": "number"
       },
       "nasGroupName": {
         "type": "string"
       },
-      "nasId": {
-        "type": "number"
-      },
       "nasIdentifier": {
         "type": "string"
       },
-      "nasIp": {
+      "ip": {
         "type": "string"
       },
       "nasMngIpPort": {
@@ -52,22 +49,17 @@
       }
     },
     "required": [
-      "authType",
       "descr",
-      "extAcct",
       "id",
       "mac",
-      "nasAlive",
-      "nasDisable",
+      "alive",
+      "disable",
       "nasGroupName",
-      "nasId",
-      "nasIdentifier",
-      "nasIp",
+      "ip",
       "nasMngIpPort",
       "nasMngPassword",
       "nasMngUser",
       "nasName",
-      "nasRadPairs",
       "nasType"
     ]
   }

@@ -100,6 +100,7 @@ $lang{NO_CARDS} = 'There are no cards (either blocked or missing)';
 $lang{INTERNAL_URL} = 'Internal url';
 $lang{EXTERNAL_URL} = 'External url';
 $lang{CHANGE_OF_TP} = 'Change of tariff plan to';
+$lang{WITHOUT_SERVICE} = 'Without service';
 
 $lang{ERROR_SHOW_CHANNELS} = 'Error show channels';
 

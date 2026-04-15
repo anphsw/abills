@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/abon/',
-      controller  => 'Abon::Api::user::Root',
       endpoint    => \&Abon::Api::user::Root::get_user_abon,
       credentials => [
         'USER', 'USERBOT'
@@ -64,7 +61,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/abon/:id/',
-      controller  => 'Abon::Api::user::Root',
       endpoint    => \&Abon::Api::user::Root::post_user_abon,
       credentials => [
         'USER', 'USERBOT'
@@ -92,8 +88,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -114,7 +108,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/tariffs/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -123,7 +116,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/abon/tariffs/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::post_abon_tariffs,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -132,7 +124,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/tariffs/:id/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -141,7 +132,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/abon/tariffs/:id/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::put_abon_tariffs_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -150,7 +140,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/abon/tariffs/:id/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::delete_abon_tariffs_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -159,7 +148,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/abon/tariffs/:id/users/:uid/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs_id_users_uid,,
       credentials => [
         'ADMIN'
@@ -168,7 +156,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/abon/tariffs/:id/users/:uid/',
-      controller  => 'Abon::Api::admin::Tariffs',
       endpoint    => \&Abon::Api::admin::Tariffs::delete_abon_tariffs_id_users_uid,
       credentials => [
         'ADMIN'
@@ -177,7 +164,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/users/',
-      controller  => 'Abon::Api::admin::Users',
       endpoint    => \&Abon::Api::admin::Users::get_abon_users,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -186,7 +172,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/plugin/:plugin_id/info/',
-      controller  => 'Abon::Api::admin::Plugin',
       endpoint    => \&Abon::Api::admin::Plugin::get_abon_plugin_plugin_id_info,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -195,7 +180,6 @@ sub admin_routes {
     {
       method       => 'GET',
       path         => '/abon/plugin/:plugin_id/print/',
-      controller  => 'Abon::Api::admin::Plugin',
       endpoint    => \&Abon::Api::admin::Plugin::get_abon_plugin_plugin_id_print,
       credentials  => [
         'ADMIN', 'ADMINSID'

@@ -73,6 +73,10 @@ sub new {
   Returns:
     result_hash_ref
 
+success
+  {"response_code":801,"response_status":"SUCCESS_MESSAGE_SENT","response_result":[{"phone":"380932331412","message_id":"ecfacfcb-9624-4372-9339-e5b085876929","response_code":0,"response_status":"OK"}]} //
+error
+
 =cut
 #**********************************************************
 sub send_message {
@@ -84,7 +88,7 @@ sub send_message {
   };
 
   my $number_pattern = $self->{conf}{SMS_NUMBER} || "[0-9]{12}";
-  if ($attr->{TO_ADDRESS} !~ /$number_pattern/x) {
+  if ($attr->{TO_ADDRESS} !~ /$number_pattern/mx) {
     return 0;
   }
 
@@ -104,13 +108,13 @@ sub send_message {
     MESSAGE     => $attr->{MESSAGE} || q{},
     PHONE       => $attr->{TO_ADDRESS},
     DATETIME    => "$DATE $TIME",
-    STATUS      => $sms_result || 0,
+    STATUS      => ($sms_result) ? 0 : 1,
     EXT_ID      => $Sms_service->{id} || '',
     STATUS_DATE => "$DATE $TIME",
-    EXT_STATUS  => $Sms_service->{status} || '',
+    EXT_STATUS  => $Sms_service->{errstr} || $Sms_service->{status} || '',
   });
 
-  return 1;
+  return ($Sms_service->{status}) ? 0 : 1;
 }
 
 #**********************************************************

@@ -2,10 +2,10 @@ package Expert::Api::user::Faqs;
 
 =head1 NAME
 
-  Equipment Onu
+  Expert API
 
   Endpoints:
-    /user/equipment/
+    /user/expert/*
 
 =cut
 
@@ -45,17 +45,16 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_user_equipment($path_params, $query_params)
+=head2 get_user_expert_faqs($path_params, $query_params)
 
-  Endpoint GET /user/equipment/
+  Endpoint GET /user/expert/faqs/
 
 =cut
 #**********************************************************
 sub get_user_expert_faqs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  $Expert->faq_list({
+  return $Expert->faq_list({
     TITLE     => '_SHOW',
     BODY      => '_SHOW',
     TYPE      => '_SHOW',

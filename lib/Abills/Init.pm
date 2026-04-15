@@ -33,10 +33,9 @@ use warnings FATAL => 'all';
 
 our $libpath;
 BEGIN {
-  our $Bin;
   use FindBin '$Bin';
 
-  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/whatever
+  $libpath = $Bin . '/../';
   if ($Bin =~ m/\/abills(\/)/x) {
     $libpath = substr($Bin, 0, $-[1]);
   }

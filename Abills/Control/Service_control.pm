@@ -103,7 +103,7 @@ sub user_set_credit {
   }
 
   my $uid = $attr->{UID};
-  my $credit_info = { REDUCTION => $attr->{REDUCTION}, UID => $uid };
+  my $credit_info = { REDUCTION => $attr->{REDUCTION}, UID => $uid, CREDIT_CHG_PRICE => 0 };
   my $credit_rule = $attr->{CREDIT_RULE};
   my @credit_rules = split(/;/x, $self->{conf}{user_credit_change});
 
@@ -200,7 +200,7 @@ sub user_set_credit {
     return $credit_info;
   }
 
-  $credit_info->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
+  $credit_info->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price || 0);
   $credit_info->{CREDIT_SUM} = sprintf("%.2f", $sum);
   $credit_info->{OPEN_CREDIT_MODAL} = $attr->{OPEN_CREDIT_MODAL} || '';
 
@@ -543,7 +543,7 @@ sub user_holdup {
     return {
       DEL           => 1,
       DEL_IDS       => (($Shedule->{TOTAL} > 1 && $user_del_shedule) ? $del_ids : ''),
-      DATE_FROM     => $shedule_date->{3} || '-',
+      DATE_FROM     => $shedule_date->{3} || '0000-00-00', #'-',
       DATE_TO       => $shedule_date->{0} || '-',
       CAN_CANCEL    => $user_del_shedule ? 'true' : 'false'
     };
@@ -902,11 +902,13 @@ sub user_chg_tp_allow {
   my ($self, $attr) = @_;
 
   my $service_info = $attr->{SERVICE_INFO} || $self->_service_info($attr);
-  return $service_info if $service_info->{error};
-
+  return $service_info if ($service_info->{error});
   my $user_info = $Users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
   $Users->group_info($user_info->{GID}) if ($user_info->{GID});
   $Tariffs->tp_group_info($service_info->{TP_GID});
+
+  # print "UID: $attr->{UID} | ". ($service_info->{UID} ? $service_info->{UID} : 'NO_SERVICEEEEEEEEEEEEEEEEEEEEEE');
+  # print "\n";
 
   if (!$service_info->{UID} || $attr->{UID} ne $service_info->{UID}) {
     return {
@@ -914,7 +916,7 @@ sub user_chg_tp_allow {
       message_type  => 'err',
       message_title => '$lang{ERROR}',
       error         => 4526,
-      errstr        => 'Unknown service id for change',
+      errstr        => 'Unknown service id for change'
     };
   }
 
@@ -1054,6 +1056,7 @@ sub user_chg_tp {
       message_title => '$lang{ERROR}',
       error         => 4523,
       errstr        => 'Schedule for change already set',
+      shedule_id    => $Shedule->{SHEDULE_ID}
     };
   }
 
@@ -1133,10 +1136,14 @@ sub user_chg_tp {
   }
 
   my $chg_tp_result = $self->_chg_tp_nperiod({ %{$attr}, SERVICE => $service_info });
-  return $chg_tp_result if $chg_tp_result && ref($chg_tp_result) eq 'HASH';
+  if ($chg_tp_result && ref($chg_tp_result) eq 'HASH') {
+    return $chg_tp_result;
+  }
 
   $chg_tp_result = $self->_chg_tp_shedule({ %{$attr}, SERVICE => $service_info });
-  return $chg_tp_result if $chg_tp_result && ref($chg_tp_result) eq 'HASH';
+  if ($chg_tp_result && ref($chg_tp_result) eq 'HASH') {
+    return $chg_tp_result;
+  }
 
   delete $service_info->{ABON_DATE};
 
@@ -1201,7 +1208,7 @@ sub user_chg_tp {
       message_title => '$lang{ERROR}',
       error         => $Shedule->{errno},
       errstr        => 'Error occurred during operation'
-    } : { success => 1, UID => $attr->{UID}, ID => $attr->{ID} };
+    } : { success => 1, UID => $attr->{UID}, ID => $attr->{ID}, SHEDULE_ID => $Shedule->{SHEDULE_ID} };
   }
 
   return $self->_chg_tp_immediately({ %{$attr}, SERVICE => $service_info });
@@ -1278,7 +1285,6 @@ sub del_user_chg_shedule {
 
   $attr->{ID} = $id;
   $attr->{MODULE} = $Shedule->{MODULE};
-
   my $can_change_tp = $self->user_chg_tp_allow($attr);
   return $can_change_tp if ($can_change_tp->{error} || $can_change_tp->{errno});
 
@@ -1301,7 +1307,7 @@ sub del_user_chg_shedule {
       message_title => '$lang{ERROR}',
       error         => 4306,
       errstr        => 'Wrong password'
-    } if !$attr->{PASSWORD} || $attr->{PASSWORD} ne $Users->{PASSWORD};
+    } if (!$attr->{PASSWORD} || $attr->{PASSWORD} ne $Users->{PASSWORD});
   }
 
   $Shedule->del({ UID => $attr->{UID} || '-', ID => $Shedule->{SHEDULE_ID} });
@@ -1313,12 +1319,12 @@ sub del_user_chg_shedule {
       ### XXX need to find way determine credit is enabled by user
       if ($Users->{CREDIT}) {
         my $credit_info = $self->user_set_credit({ UID => $Users->{UID}, REDUCTION => $Users->{REDUCTION} });
+        $Users->{CREDIT} //= 0;
         if ($credit_info->{CREDIT_SUM} && $Users->{CREDIT} < $credit_info->{CREDIT_SUM}) {
           $Users->change($Users->{UID}, { UID => $Users->{UID}, CREDIT => $credit_info->{CREDIT_SUM} });
         }
       }
     }
-
     return { success => 1, UID => $attr->{UID} };
   }
 
@@ -1510,7 +1516,9 @@ sub _chg_tp_nperiod {
       error         => $Shedule->{errno},
       errstr        => 'Error occurred during operation'
     } if $Shedule->{errno};
-    return { success => 1, UID => $attr->{UID}, TP_ID => $attr->{TP_ID}, ID => $attr->{ID} };
+
+    return { success => 1, UID => $attr->{UID}, TP_ID => $attr->{TP_ID},
+      ID => $attr->{ID}, SHEDULE_ID => $Shedule->{SHEDULE_ID} };
   }
 
   return $self->_chg_tp_immediately($attr);
@@ -1658,7 +1666,8 @@ sub _chg_tp_shedule {
     error         => $Service->{errno},
     errstr        => 'Error occurred during operation'
   } if $Shedule->{errno};
-  return { success => 1, UID => $attr->{UID} };
+
+  return { success => 1, UID => $attr->{UID}, SHEDULE_ID => $Shedule->{SHEDULE_ID} };
 }
 
 #***************************************************************
@@ -1744,10 +1753,11 @@ sub _get_credit_limit {
   my $credit_limit = 0;
 
   if ($self->{conf}{user_credit_all_services}) {
-    # require Control::Services;
-    do 'Control/Services.pm';
+    require Control::Services;
+    Control::Services->import();
+    my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
-    my $service_info = get_services({
+    my $service_info = $Services->get_services({
       UID          => $attr->{UID},
       REDUCTION    => $attr->{REDUCTION},
       PAYMENT_TYPE => 0
@@ -1974,10 +1984,12 @@ sub _add_holdup {
   return { errno => $Shedule->{errno}, errstr => $Shedule->{errstr}, MODULE => 'Shedule' } if ($Shedule->{errno});
   # $self->internet_add_compensation({ HOLD_UP => 1, UP => 1, %{$attr} }) if ($CONF->{INTERNET_HOLDUP_COMPENSATE});
 
-  $self->_show_message('info', '$lang{INFO}', '$lang{HOLD_UP}' . "\n" . '$lang{DATE}: ' . "$attr->{FROM_DATE} -> $attr->{TO_DATE}\n  " .
-    '$lang{DAYS}: ' . sprintf("%d", $block_days));
+  #$self->_show_message('info', '$lang{INFO}', );
+
   $self->{success} = 1;
   $self->{msg} = 'HOLDUP_ADDED';
+  $self->{info_message} = '$lang{HOLD_UP}' . "\n" . '$lang{DATE}: ' . "$attr->{FROM_DATE} -> $attr->{TO_DATE}\n  " .
+    '$lang{DAYS}: ' . sprintf("%d", $block_days);
   return $self;
 }
 
@@ -2025,7 +2037,10 @@ sub _del_holdup {
 
   if($user_info->{DISABLE} == 3) {
     require Control::Services;
-    service_status_change({ UID => $attr->{UID}, BILL_ID => $user_info->{BILL_ID} },
+    Control::Services->import();
+    my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
+
+    $Services->service_status_change({ UID => $attr->{UID}, BILL_ID => $user_info->{BILL_ID} },
       ':0',
       { DEBUG     => $attr->{DEBUG},
         DATE      => $main::DATE,
@@ -2269,6 +2284,10 @@ sub services_info {
     $tariff->{activate_price} //= 0;
     $tariff->{original_day_fee} //= 0;
     $tariff->{original_month_fee} //= 0;
+
+    $tariff->{extra_numbers_day_fee}//=0;
+    $tariff->{number}//=0;
+    $tariff->{extra_numbers_month_fee}//=0;
 
     if ($tariff->{tp_reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
       $tariff->{original_day_fee} = $tariff->{day_fee};

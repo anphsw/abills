@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_user_internet_registration {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10091,
@@ -162,12 +161,12 @@ sub post_user_internet_registration {
     return {
       errno  => 10023,
       errstr => 'Invalid login of user',
-    } if ($Users->{errno} eq 10);
+    } if ($Users->{errno} == 10);
 
     return {
       errno  => 10024,
       errstr => 'User already exist',
-    } if ($Users->{errno} eq 7);
+    } if ($Users->{errno} == 7);
 
     return {
       errno  => 10018,

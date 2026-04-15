@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -49,7 +47,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/paysys/systems/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::get_user_paysys_systems,
       credentials => [
         'USER', 'USERBOT'
@@ -58,7 +55,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/paysys/transaction/status/:string_id/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::get_user_paysys_transaction_status_string_id,
       credentials => [
         'USER', 'USERBOT'
@@ -67,7 +63,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/paysys/pay/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::post_user_paysys_pay,
       credentials => [
         'USER', 'USERBOT'
@@ -76,7 +71,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/paysys/applePay/session/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::post_user_paysys_applepay_session,
       credentials => [
         'USER'
@@ -85,7 +79,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/paysys/recurrent/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::get_user_paysys_recurrent,
       credentials => [
         'USER', 'USERBOT'
@@ -94,7 +87,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/paysys/recurrent/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::delete_user_paysys_recurrent,
       credentials => [
         'USER', 'USERBOT'
@@ -103,7 +95,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/paysys/gateway/search/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::post_user_paysys_gateway_search,
       credentials => [
         'PUBLIC'
@@ -112,7 +103,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/paysys/gateway/pay/',
-      controller  => 'Paysys::Api::user::Root',
       endpoint    => \&Paysys::Api::user::Root::post_user_paysys_gateway_pay,
       credentials => [
         'PUBLIC'
@@ -143,8 +133,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -165,7 +153,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/paysys/merchants/',
-      controller  => 'Paysys::Api::admin::Merchants',
       endpoint    => \&Paysys::Api::admin::Merchants::get_paysys_merchants,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -174,7 +161,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/paysys/systems/:id/merchants/tooltips/',
-      controller  => 'Paysys::Api::admin::Merchants',
       endpoint    => \&Paysys::Api::admin::Merchants::get_paysys_merchants_tooltips,
       credentials => [
         'ADMIN', 'ADMINSID'

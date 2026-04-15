@@ -1,18 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
+  "title": "recommendedPay",
   "properties": {
     "allServicesSum": {
-      "type": "integer"
+      "type": "number"
     },
     "maxSum": {
-      "type": "integer"
+      "type": "number"
     },
     "minSum": {
-      "type": "integer"
+      "type": "number"
     },
     "sum": {
-      "type": "integer"
+      "type": "number"
     }
   },
   "required": ["allServicesSum", "maxSum", "minSum", "sum"]

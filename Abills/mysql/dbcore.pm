@@ -282,6 +282,7 @@ sub get_data{
       USERS_FIELDS_PRE  - Use main users params before main result
       USE_USER_PI       - Use users pi iformation params
       SKIP_USERS_FIELDS - Skip users fields
+      _SKIP_EXTRA_FIELDS - Skip get extra fields
       WHERE             - add WHERE before search params
 
 =cut
@@ -542,6 +543,10 @@ sub search_expr{
       elsif ( $v eq '*' ){
         $v = ">=0000-00-00";
       }
+      elsif ( $v =~ s/^!$//x ){
+        $v = "";
+        $expr = q{ IS NOT NULL};
+      }
     }
 
     if ( $type eq 'INT' && $v =~ s/\*/\%/xg ){
@@ -609,21 +614,24 @@ sub search_expr{
     elsif($expr eq ' LIKE ' && $v eq '%') {
       next;
     }
+    elsif($type eq 'DATE' && ! $v) {
+
+    }
     else{
       $v = "'$v'";
     }
 
-    if($attr->{NOFILLED} ) {
-      $expr = '<>';
-      if($type eq 'INT') {
-        $expr = '=';
-        $v = 0;
-      }
-      else {
-        $expr = '<>';
-        $v = '';
-      }
-    }
+    # if($attr->{NOFILLED} ) {
+    #   $expr = '<>';
+    #   if($type eq 'INT') {
+    #     $expr = '=';
+    #     $v = 0;
+    #   }
+    #   else {
+    #     $expr = '<>';
+    #     $v = '';
+    #   }
+    # }
 
     $value = $expr . $v;
     if ($field) {
@@ -659,6 +667,7 @@ sub search_expr{
       CONTRACT_SUFIX
       SKIP_DEL_CHECK      - Skip check del users
       SKIP_USERS_FIELDS   - SKip user field search
+
 
       SORT
       SORT_SHIFT
@@ -720,7 +729,6 @@ sub search_expr_users{
 
     PHONE          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2) AND value <> "") AS phone/,
     EMAIL          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/,
-
     CELL_PHONE     => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/,
     TELEGRAM       => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/,
     VIBER          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/,
@@ -758,6 +766,16 @@ sub search_expr_users{
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
+  #New universal search mode
+  if($CONF->{USERS_UNIVERSAL_SEARCH}) {
+    $users_fields_hash{PHONE} = q/STR:uc.phone:user_contacts/;
+    $users_fields_hash{EMAIL} = q/STR:uc.email:user_contacts/;
+    $users_fields_hash{CELL_PHONE} = q/STR:uc.cell_phone:user_contacts/;
+    $users_fields_hash{TELEGRAM} = q/STR:uc.telegram:user_contacts/;
+    $users_fields_hash{VIBER} = q/STR:uc.viber:user_contacts/;
+    $users_fields_hash{VIBER_BOT} = q/STR:uc.viber_bot:user_contacts/;
+  }
+
   if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
     #$users_fields_hash{DEPOSIT} = 'INT:b.deposit'
     $users_fields_hash{DEPOSIT} = 'INT:IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit';
@@ -778,7 +796,7 @@ sub search_expr_users{
         next;
       }
 
-      my ($type, $field) = split(':', $users_fields_hash{$key});
+      my ($type, $field, $table) = split(':', $users_fields_hash{$key});
       if ($type eq 'STR') {
         if (!$attr->{$key}) {
           next;
@@ -787,9 +805,7 @@ sub search_expr_users{
           $attr->{$key} = '';
         }
       }
-      #      elsif ($type eq 'STR' && $attr->{$key} eq '') {
-      #      	next;
-      #      }
+
 
       push @fields, @{ $self->search_expr( $attr->{$key}, $type, $field,
           { EXT_FIELD  => in_array($key, $attr->{EXT_FIELDS}),
@@ -797,6 +813,9 @@ sub search_expr_users{
             _MULTI_HIT => $attr->{_MULTI_HIT}
           } ) };
       $filled{$key} = 1;
+      if($table) {
+        $EXT_TABLE_JOINS_HASH{$table} = 1;
+      }
     }
     elsif ( !$info_field && $key =~ m/^_/x ){
       $info_field = 1;
@@ -809,7 +828,7 @@ sub search_expr_users{
     }
   }
 
-  if (!$info_fields_list) {
+  if (!$info_fields_list && ! $attr->{_SKIP_EXTRA_FIELDS}) {
     my $sql = <<"SQL";
     SELECT
     name,
@@ -964,6 +983,15 @@ SQL
     push @fields, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) };
   }
 
+  if ($attr->{DISTRICT_NAME}) {
+    push @fields, @{$self->search_expr($attr->{DISTRICT_NAME}, 'INT', 'streets.district_id',
+      { EXT_FIELD => 'districts.name AS district_name' })};
+    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+    $EXT_TABLE_JOINS_HASH{builds} = 1;
+    $EXT_TABLE_JOINS_HASH{streets} = 1;
+    $EXT_TABLE_JOINS_HASH{districts} = 1;
+  }
+
   if ( $attr->{NOT_FILLED} ){
     push @fields, "builds.id IS NULL";
     $EXT_TABLE_JOINS_HASH{builds} = 1;
@@ -1021,15 +1049,6 @@ FIELDS
         "$street_statement, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
 
       push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, 'STR', $full_address_view, { EXT_FIELD => $full_address_statement })};
-      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-      $EXT_TABLE_JOINS_HASH{builds} = 1;
-      $EXT_TABLE_JOINS_HASH{streets} = 1;
-      $EXT_TABLE_JOINS_HASH{districts} = 1;
-    }
-
-    if ($attr->{DISTRICT_NAME}) {
-      push @fields, @{$self->search_expr($attr->{DISTRICT_NAME}, 'INT', 'streets.district_id',
-        { EXT_FIELD => 'districts.name AS district_name' })};
       $EXT_TABLE_JOINS_HASH{users_pi} = 1;
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
@@ -1161,7 +1180,7 @@ FIELDS
 
     $self->{EXT_TABLES} .= << "EXT_TABLES";
     LEFT JOIN tags_users ON (u.uid=tags_users.uid)
-                             LEFT JOIN tags ON (tags_users.tag_id=tags.id)
+    LEFT JOIN tags ON (tags_users.tag_id=tags.id)
 EXT_TABLES
   }
 
@@ -1267,6 +1286,22 @@ sub mk_ext_tables{
     return '';
   }
 
+  my $contacts_join =<< "[CONTACTS]";
+LEFT JOIN (
+  SELECT
+    uid,
+    GROUP_CONCAT(CASE WHEN type_id IN (1,2) AND value<>'' THEN value END SEPARATOR ';') AS phone,
+    GROUP_CONCAT(CASE WHEN type_id = 1 THEN value END SEPARATOR ';') AS cell_phone,
+    GROUP_CONCAT(CASE WHEN type_id = 6 THEN value END SEPARATOR ';') AS telegram,
+    GROUP_CONCAT(CASE WHEN type_id = 5 THEN value END SEPARATOR ';') AS viber_bot,
+    GROUP_CONCAT(CASE WHEN type_id = 5 THEN value END SEPARATOR ';') AS viber,
+    GROUP_CONCAT(CASE WHEN type_id = 9 THEN value END SEPARATOR ';') AS email
+  FROM users_contacts
+  GROUP BY uid
+) uc ON (uc.uid = u.uid)
+[CONTACTS]
+
+
   my @EXT_TABLES_JOINS = (
     'groups:LEFT JOIN `groups` g ON (g.gid=u.gid)',
     (($attr->{_COMPANY_LIST}) ? undef : 'companies:LEFT JOIN `companies` company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)'),
@@ -1280,7 +1315,8 @@ sub mk_ext_tables{
     'districts:LEFT JOIN `districts` ON (districts.id=streets.district_id)',
     'territorial_units:LEFT JOIN `territorial_units` tu ON (districts.territorial_units_id = tu.id)',
     'admin_actions:LEFT JOIN `admin_actions` aa ON (u.uid=aa.uid)',
-    'domain_name:LEFT JOIN `domains` ON (u.domain_id=domains.id)'
+    'domain_name:LEFT JOIN `domains` ON (u.domain_id=domains.id)',
+    "user_contacts:$contacts_join"
   );
 
   if ( $attr->{EXTRA_PRE_JOIN} ){
@@ -1410,6 +1446,7 @@ our $DEFAULT = sub {
       SKIP_LOG     - Skip Admin log
       ACTION_ID    - Action ID
       ACTION_COMMENTS - Action comments
+      GET_OLD_INFO - Get old information to $self->{OLD_INFO}
 
   Returns:
     $self Object
@@ -1452,13 +1489,14 @@ sub changes {
     $DATA->{DISABLE} = (defined($DATA->{'DISABLE'}) && $DATA->{DISABLE} ne '') ? $DATA->{DISABLE} : undef;
   }
 
-  if ($DATA->{EMAIL}) {
-    if ($DATA->{EMAIL} !~ m/(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/x) {
-      $self->{errno} = 11;
-      $self->{errstr} = 'ERROR_WRONG_EMAIL';
-      return $self;
-    }
-  }
+  #rm it from low level function
+  # if ($DATA->{EMAIL}) {
+  #   if ($DATA->{EMAIL} !~ m/(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/x) {
+  #     $self->{errno} = 11;
+  #     $self->{errstr} = 'ERROR_WRONG_EMAIL';
+  #     return $self;
+  #   }
+  # }
 
   my %changes_info = ();
 
@@ -1528,6 +1566,10 @@ sub changes {
         $FIELDS->{ $field_name } = $k;
       }
     }
+  }
+
+  if($attr->{GET_OLD_INFO}) {
+    $self->{OLD_INFO} = $OLD_DATA;
   }
 
   while (my ($k, $value) = each(%{$DATA})) {
@@ -1621,6 +1663,10 @@ sub changes {
         }
         else {
           push @change_log, "$k: $OLD_DATA->{$k}->$value";
+        }
+
+        if ($OLD_DATA->{'FIO2'} && !$DATA->{'FIO2'} && $OLD_DATA->{'FIO'} && !$DATA->{'FIO1'}){
+          push @change_fields, "$FIELDS->{FIO}=''";
         }
 
         if ($value eq 'NULL') {

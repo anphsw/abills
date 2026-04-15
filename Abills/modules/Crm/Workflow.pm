@@ -175,32 +175,32 @@ sub crm_triggers {
         }
       ],
     },
-    {
-      type => 'newTask',
-      lang => $lang{CRM_TASK_ADDED},
-      fields => [
-        {
-          type        => 'select',
-          placeholder => $lang{TASKS},
-          options     => $tasks_hash,
-          name        => 'new_value',
-          multiple    => 1
-        }
-      ],
-    },
-    {
-      type => 'closedTask',
-      lang => $lang{CRM_TASK_CLOSED},
-      fields => [
-        {
-          type        => 'select',
-          placeholder => $lang{TASKS},
-          options     => $tasks_hash,
-          name        => 'new_value',
-          multiple    => 1
-        }
-      ],
-    },
+    # {
+    #   type => 'newTask',
+    #   lang => $lang{CRM_TASK_ADDED},
+    #   fields => [
+    #     {
+    #       type        => 'select',
+    #       placeholder => $lang{TASKS},
+    #       options     => $tasks_hash,
+    #       name        => 'new_value',
+    #       multiple    => 1
+    #     }
+    #   ],
+    # },
+    # {
+    #   type => 'closedTask',
+    #   lang => $lang{CRM_TASK_CLOSED},
+    #   fields => [
+    #     {
+    #       type        => 'select',
+    #       placeholder => $lang{TASKS},
+    #       options     => $tasks_hash,
+    #       name        => 'new_value',
+    #       multiple    => 1
+    #     }
+    #   ],
+    # },
     {
       type   => 'responsible',
       lang   => $lang{RESPOSIBLE},

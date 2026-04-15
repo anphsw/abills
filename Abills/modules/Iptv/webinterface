@@ -28,9 +28,9 @@ our ($db,
   %lang,
   %permissions,
   $ui,
-  @MONTHES_LIT,
-  @bool_vals,
-  @state_colors,
+  # @MONTHES_LIT,
+  # @bool_vals,
+  # @state_colors,
   %FEES_METHODS
 );
 
@@ -41,7 +41,7 @@ our Users $users;
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 our $Iptv = Iptv->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
-my $Users = Users->new($db, $admin, \%conf);
+#my $Users = Users->new($db, $admin, \%conf);
 
 #my $debug = 0;
 my @status = ($lang{ENABLE}, $lang{DISABLED});
@@ -98,6 +98,7 @@ sub iptv_users_search {
   $info{SERVICE_SEL} = tv_services_sel({ %$Iptv, ALL => 1 });
 
   $info{TP_SEL} = iptv_get_service_tps({ EX_PARAMS => 'multiple="multiple"', RETURN_SELECT => 1 });
+  $FORM{WITHOUT_SERVICE} = 'checked' if ($FORM{WITHOUT_SERVICE});
 
   my $search_form = $html->tpl_show(_include('iptv_users_search', 'Iptv'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
@@ -597,7 +598,9 @@ sub iptv_user_channels {
 
         my %PARAMS = (
           DESCRIBE => "$lang{TV}: $lang{DAY_FEE}",
-          METHOD   => 1
+          METHOD   => 1,
+          MODULE   => 'Iptv',
+          TP_ID    => $Iptv->{TP_ID}
         );
 
         if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
@@ -845,6 +848,8 @@ sub iptv_channels_day_fees {
       DESCRIBE  => fees_dsc_former(\%FEES_DSC),
       FILTER_ID => $u->{channel_filter},
       ID        => $channel_num,
+      MODULE    => 'Iptv',
+      TP_ID     => $u->{tp_id}
     };
   }
 
@@ -981,12 +986,15 @@ sub get_service_fee {
 
   my $debug = $attr->{DEBUG} || 0;
   my $total_sum = 0;
+  my $start_date = $attr->{DATE};
   my $debug_output = '';
   my $d = (split(/-/, $DATE))[2];
 
   my %FEES_PARAMS = (
-    DATE   => $attr->{DATE} || $DATE,
-    METHOD => $attr->{METHOD} || 1
+    DATE       => $attr->{DATE} || $DATE,
+    METHOD     => $attr->{METHOD} || 1,
+    MODULE     => 'Iptv',
+    START_DATE => $start_date
   );
 
   my @uids = ();
@@ -1016,7 +1024,7 @@ sub get_service_fee {
         $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
       }
 
-      print "  $i. SUM: $sum DECRRIBE: $service->{DESCRIBE} ID: " . ($service->{ID} || 0) . "\n" if ($debug > 0);
+      print "  $i. SUM: $sum DECRRIBE: $service->{DESCRIBE} ID: " . ($service->{ID} || 0) . "\n" if ($debug > 1);
       $total_sum += $sum;
 
       if ($attr->{GET_SUM}) {
@@ -1031,7 +1039,12 @@ sub get_service_fee {
         $service->{METHOD} ||= $FEES_PARAMS{METHOD};
 
         if ($sum && $sum > 0) {
-          $Fees->take($user, $sum, { %FEES_PARAMS, METHOD => $service->{METHOD} });
+          $Fees->take($user, $sum, {
+            %FEES_PARAMS,
+            METHOD   => $service->{METHOD},
+            TP_ID    => $service->{TP_ID},
+            END_DATE => $service->{END_DATE}
+          });
         }
 
         if ($Fees->{errno}) {

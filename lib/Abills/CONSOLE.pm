@@ -11,7 +11,6 @@ use strict;
 our (
   @_COLORS,
   %FORM,
-  %LIST_PARAMS,
   %COOKIES,
   $index,
   $pages_qs,
@@ -19,8 +18,6 @@ our (
   $DESC,
   $PG,
   $PAGE_ROWS,
-  $SELF_URL,
-  @MONTHES,
   $COLS_SEPARATOR,
 );
 
@@ -40,12 +37,10 @@ sub new {
   require Abills::HTML;
   Abills::HTML->import();
 
-  my $self = {};
+  my $self = {
+    NO_PRINT => $attr->{NO_PRINT}
+  };
   bless($self, $class);
-
-  if ($attr->{NO_PRINT}) {
-    $self->{NO_PRINT} = 1;
-  }
 
   $CONF = $attr->{CONF};
   $FORM{_export} = 'csv';
@@ -259,28 +254,6 @@ sub form_select {
 
 =cut
 #**********************************************************
-sub menu2 {
-  my ($self, $menu_items, $menu_args, $permissions, $attr) = @_;
-
-  $self->menu($menu_items, $menu_args, $permissions, $attr);
-
-  return q{};
-}
-
-#**********************************************************
-=head menu($menu_items, $menu_args, $permissions, $attr)
-
-  Arguments:
-    $menu_items
-    $menu_args
-    $permissions
-    $attr
-
-  Results:
-    $self
-
-=cut
-#**********************************************************
 sub menu {
   my ($self, $menu_items, undef, $permissions, $attr) = @_;
 
@@ -355,7 +328,6 @@ sub menu {
 =cut
 #**********************************************************
 sub make_charts {
-
   return q{};
 }
 
@@ -435,18 +407,14 @@ sub table {
   my $parent = ref($proto) && $proto;
 
   my $self = {
-    HTML => $parent
+    HTML      => $parent,
+    prototype => $proto,
+    NO_PRINT  => $proto->{NO_PRINT},
+    rows      => '',
+    rowcolor  => $attr->{rowcolor},
+    ID        => $attr->{ID}
   };
   bless($self, $class);
-
-  $self->{prototype} = $proto;
-  $self->{NO_PRINT} = $proto->{NO_PRINT};
-
-  $self->{rows} = '';
-
-  if (defined($attr->{rowcolor})) {
-    $self->{rowcolor} = $attr->{rowcolor};
-  }
 
   if ($attr->{SELECT_ALL}) {
     $self->{SELECT_ALL} = $attr->{SELECT_ALL};
@@ -458,7 +426,7 @@ sub table {
       $self->addrow(@$line);
     }
   }
-  $self->{ID} = $attr->{ID};
+
   if ($attr->{title}) {
     $self->{title} = $attr->{title};
     $self->{table} .= $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
@@ -657,7 +625,6 @@ sub table_header {
 =cut
 #**********************************************************
 sub img {
-
   return "";
 }
 
@@ -739,6 +706,16 @@ sub message {
 
   my $id = $attr->{ID} || q{};
   my $output = "$type: $id $caption $message\n";
+
+  if($type eq 'err') {
+    $output = "\e[31m"." ERROR: $id $caption $message"."\e[0m\n";
+  }
+  elsif($type eq 'info') {
+    $output = "\e[32m"." INFO:  $id $caption $message"."\e[0m\n";
+  }
+  elsif($type eq 'warn') {
+    $output = "\e[33m"." INFO:  $id $caption $message"."\e[0m\n";
+  }
 
   if ($self->{NO_PRINT}) {
     $self->{OUTPUT} .= $output;

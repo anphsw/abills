@@ -10,6 +10,7 @@
   "7:6:$lang{OBJECT_TYPES}:maps_point_types_main:" => 5,
   "8:7::_maps_icon_ajax_upload:IN_MODAL"           => 5,
   "9:7::_maps_icon_filename_select:AJAX"           => 5,
+  "14:1:$lang{IMPORT}:maps_import:"                => 5,
 
   "10:0:$lang{MAP}:maps_objects_reports"           => 4,
   "11:0:$lang{MAP}:maps_without_edits:"            => 8,

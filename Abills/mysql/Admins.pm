@@ -390,9 +390,9 @@ sub list {
     $EXT_TABLES = 'LEFT JOIN domains d ON (d.id=a.domain_id) ';
   }
 
-  if($attr->{WITH_SIP_NUMBER}){
-    push @WHERE_RULES, "a.sip_number!=''";
-  }
+  # if($attr->{WITH_SIP_NUMBER}){
+  #   push @WHERE_RULES, "a.sip_number!=''";
+  # }
 
   if ($attr->{WITH_POSITION}) {
     push @WHERE_RULES, "a.position != 0";
@@ -1660,7 +1660,7 @@ SELECT a.id, a.aid,
       DATE_FORMAT(MAX(aa.datetime), '%Y-%m-%d') AS last_date,
       a.disable
    FROM admins a
-   LEFT JOIN admin_system_actions aa ON (a.aid = aa.aid)
+   LEFT JOIN admins_full_log aa ON (a.aid = aa.aid)
    WHERE a.disable = 0 AND a.aid > 4
    GROUP BY a.aid
    HAVING DATEDIFF(NOW(), MAX(aa.datetime)) > $attr->{ADMIN_NOT_ACTIVE_DAYS};

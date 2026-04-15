@@ -719,7 +719,7 @@ sub msgs_user_list {
       },
       priority_id            => sub {
         my ($priority_id) = @_;
-        $priority_id ||= 3;
+        $priority_id //= 3;
         $priority_id = 3 if (!defined($priority[$priority_id]));
         return $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
       },

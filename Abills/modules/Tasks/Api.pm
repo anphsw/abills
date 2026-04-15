@@ -35,8 +35,6 @@ use Tasks::Validations qw/POST_TASKS/;
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -57,36 +55,31 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tasks/:id/',
-      controller  => 'Tasks::Api::admin::Tasks',
       endpoint    => \&Tasks::Api::admin::Tasks::get_task_id,
-      credentials => [ 'ADMIN', 'ADMINSID' ]
+      credentials => [ 'ADMIN', 'ADMINSID', 'ADMINBOT' ]
     },
     {
       method      => 'GET',
       path        => '/tasks/',
-      controller  => 'Tasks::Api::admin::Tasks',
       endpoint    => \&Tasks::Api::admin::Tasks::get_tasks,
-      credentials => [ 'ADMIN', 'ADMINSID' ]
+      credentials => [ 'ADMIN', 'ADMINSID', 'ADMINBOT' ]
     },
     {
       method      => 'POST',
       path        => '/tasks/',
       params      => POST_TASKS,
-      controller  => 'Tasks::Api::admin::Tasks',
       endpoint    => \&Tasks::Api::admin::Tasks::post_tasks,
-      credentials => [ 'ADMIN', 'ADMINSID' ]
+      credentials => [ 'ADMIN', 'ADMINSID', 'ADMINBOT' ]
     },
     {
       method      => 'PUT',
       path        => '/tasks/:id/',
-      controller  => 'Tasks::Api::admin::Tasks',
       endpoint    => \&Tasks::Api::admin::Tasks::put_tasks,
-      credentials => [ 'ADMIN', 'ADMINSID' ]
+      credentials => [ 'ADMIN', 'ADMINSID', 'ADMINBOT' ]
     },
     {
       method      => 'DELETE',
       path        => '/tasks/:id/',
-      controller  => 'Tasks::Api::admin::Tasks',
       endpoint    => \&Tasks::Api::admin::Tasks::delete_task_id,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -95,35 +88,30 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tasks/types/:id/',
-      controller  => 'Tasks::Api::admin::Types',
       endpoint    => \&Tasks::Api::admin::Types::get_tasks_type_by_id,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
       method      => 'GET',
       path        => '/tasks/types/',
-      controller  => 'Tasks::Api::admin::Types',
       endpoint    => \&Tasks::Api::admin::Types::get_tasks_types,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
       method      => 'POST',
       path        => '/tasks/types/',
-      controller  => 'Tasks::Api::admin::Types',
       endpoint    => \&Tasks::Api::admin::Types::post_tasks_type,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
       method      => 'PUT',
       path        => '/tasks/types/:id/',
-      controller  => 'Tasks::Api::admin::Types',
       endpoint    => \&Tasks::Api::admin::Types::put_tasks_type_by_id,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
       method      => 'DELETE',
       path        => '/tasks/types/:id/',
-      controller  => 'Tasks::Api::admin::Types',
       endpoint    => \&Tasks::Api::admin::Types::delete_tasks_type_by_id,
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },

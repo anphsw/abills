@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/callback/subscribe/',
-      controller  => 'Api::Controllers::Admin::Callback',
       endpoint    => \&Api::Controllers::Admin::Callback::post_callback_subscribe,
       credentials => [
         'ADMIN'
@@ -60,7 +57,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/callback/unsubscribe/',
-      controller  => 'Api::Controllers::Admin::Callback',
       endpoint    => \&Api::Controllers::Admin::Callback::delete_callback_unsubscribe,
       credentials => [
         'ADMIN'

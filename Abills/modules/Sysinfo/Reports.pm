@@ -456,16 +456,16 @@ sub sysinfo_network {
 #*******************************************************************
 sub sysinfo_processes {
 
-  #watch section
-  my %watch_proccess = ('httpd'        => '#E8E800:',
+  my %watch_proccess = (
+    'httpd'        => '#E8E800:',
     'apache'       => '#E8E800:',
     'mysqld'       => '#B0A36A:',
+    'mariadbd'     => '#A0A36A:',
     'radiusd'      => '#8888FF:',
-    'mpd'          => '#FF9866:',
-    'flow-capture' => '#CFCFCF:',
     'named'        => '#CFCFCF:',
-    'ipcad'        => '#CFCFCF:',
-    'accel-ppp'    => '#000080:',
+    'nfcapd'        => '#CFCFCF:',
+    'accel-ppp'    => '#000080:'
+    #'mpd'          => '#FF9866:',
   );
 
   foreach my $ps_name ( split(/,\s?/x, $conf{SYSINFO_WATCH} || q{}) ) {
@@ -474,9 +474,8 @@ sub sysinfo_processes {
 
   my $restart_defined_processes = sysinfo_get_process_pathes();
 
-  #all
   my $table = $html->table({
-    caption => "$lang{PROCESSES}",
+    caption => $lang{PROCESSES},
     width   => '100%',
     title   => [ 'USER', 'PID', '%CPU', '%MEM', 'VSZ', 'RSS', 'TT', 'STAT', 'STARTED', 'TIME', 'COMMAND', '-' ],
     ID      => 'SYSINFO_PROCESSES'
@@ -508,7 +507,6 @@ sub sysinfo_processes {
             }
           );
         }
-        #$line->{COMMAND};
         last;
       }
     }
@@ -1453,6 +1451,8 @@ sub module_desc {
 #**********************************************************
 =head2 sysinfo_sp_info()
 
+  Filesystem FreeBSD: /zroot/ROOT/default => /
+
 =cut
 #**********************************************************
 sub sysinfo_sp_info {
@@ -1534,7 +1534,7 @@ sub sysinfo_sp_info {
   }
 
   foreach my $line (@{ $info->{Filesystem} }) {
-    if ($line =~ m/^\//x) {
+    if ($line =~ m/^\//x || $line =~ m/zroot\/ROOT\/default/x) {
       if (in_array($info->{Mounted}->[$i], ['/', '/var', '/usr', @user_defined_mount_points ] )) {
         $hdd .= $html->progress_bar({
           TOTAL    => $info->{Size}->[$i],
@@ -1559,12 +1559,20 @@ sub sysinfo_sp_info {
 
   if ($uptime_out =~ m/$rex/x) {
     $load   = $1;
-    $load_2 = $2;
-    $load_2 = ($load_2 * 100) . ' %';
-    $load_3 = $3;
-    $load_3 = ($load_3 * 100) . ' %';
     $load   =~ s/\,/\./xg;
     $load   = ($load / $cpu * 100) . ' %';
+
+    $load_2 = $2;
+    if($load_2) {
+      $load_2 =~ s/\,/\./xg;
+      $load_2 = ($load_2 * 100) . ' %';
+    }
+
+    $load_3 = $3;
+    if($load_3) {
+      $load_3 =~ s/\,/\./xg;
+      $load_3 = ($load_3 * 100) . ' %';
+    }
   }
 
   my $uptime = '';
@@ -1614,7 +1622,7 @@ sub sysinfo_get_process_pathes {
   $services_init_scripts{apache} = $conf{SYSINFO_APACHE_NAME} || $services_cmd->{apache2} || $services_cmd->{apache} || $services_cmd->{apache24} || $services_cmd->{httpd} || '';
   $services_init_scripts{radiusd} = $conf{SYSINFO_FREERADIUS_NAME} || $services_cmd->{radiusd} || $services_cmd->{freeradius} || '';
   $services_init_scripts{mysqld} = $conf{SYSINFO_MYSQL_NAME} || $services_cmd->{mysql} || $services_cmd->{'mysql-server'} || $services_cmd->{mysqd} || '';
-  $services_init_scripts{'flow-capture'} = $conf{SYSINFO_FLOW_CAPTURE_NAME} || '';
+  $services_init_scripts{nfdump} = $conf{SYSINFO_NFDUMP_NAME} || '';
   $services_init_scripts{named} = $conf{SYSINFO_NAMED_NAME} || '';
   $services_init_scripts{ipcad} = $conf{SYSINFO_IPCAD_NAME} || '';
   $services_init_scripts{'accel-ppp'} = $conf{SYSINFO_ACCEL_PPP_NAME} || '';
@@ -1634,44 +1642,49 @@ sub sysinfo_get_process_pathes {
 #**********************************************************
 sub sysinfo_sp_ps {
   my %watch_proccess = (
-    'mysqld'       => '-',
-    'radiusd'      => '-',
-    'flow-capture' => '-',
-    'named'        => '-',
-    'ipcad'        => '-',
+    'mysqld'   => '-',
+    'mariadbd' => '-',
+    'radiusd'  => '-',
+    'nfcapd'   => '-',
+    'named'    => '-',
+    #'ipcad'        => '-',
   );
 
-  if ( $os eq 'Linux' ) {
+  if ($os eq 'Linux') {
     $watch_proccess{'apache'} = '-';
     $watch_proccess{'accel-ppp'} = '-';
   }
   else {
     $watch_proccess{'httpd'} = '-';
-    if ( -f '/usr/local/etc/rc.d/mpd5' ) {
+    if (-f '/usr/local/etc/rc.d/mpd5') {
       $watch_proccess{mpd} = '';
     }
   }
 
-  if ( $conf{SYSINFO_WATCH} ) {
+  if ($conf{SYSINFO_WATCH}) {
     %watch_proccess = ();
-    foreach my $ps_name ( split(/,\s?/x, $conf{SYSINFO_WATCH}) ) {
+    foreach my $ps_name (split(/,\s?/x, $conf{SYSINFO_WATCH})) {
       $watch_proccess{$ps_name} = '-';
     }
   }
 
-  my $info = $sysinfo_hash{$os}->{'processes'}->( { SHORT => 1 } );
+  my $info = $sysinfo_hash{$os}->{'processes'}->({ SHORT => 1 });
 
-  foreach my $line ( @{$info} ) {
-    foreach my $proc_name ( keys %watch_proccess ) {
-      if ( $line->{COMMAND} =~ m/$proc_name/x ) {
+  foreach my $line (@{$info}) {
+    foreach my $proc_name (sort keys %watch_proccess) {
+      if ($line->{COMMAND} =~ m/$proc_name/x) {
         my $ps_count = 1;
-        if ( $watch_proccess{$proc_name} ) {
+        if ($watch_proccess{$proc_name}) {
           $watch_proccess{$proc_name} =~ s/,/\./xg;
           my (undef, $cpu, $mem, $vsz, $count) = split(/:/x, $watch_proccess{$proc_name});
           $line->{CPU} += $cpu if ($cpu);
           $line->{MEM} += $mem if ($mem);
           $line->{VSZ} += $vsz if ($vsz);
           $ps_count = ($count || 0) + 1;
+        }
+
+        if($proc_name =~ /maria/xm ) {
+          delete $watch_proccess{mysqld};
         }
 
         $watch_proccess{$proc_name} = "+:$line->{CPU}:$line->{MEM}:$line->{VSZ}:$ps_count";
@@ -1683,16 +1696,16 @@ sub sysinfo_sp_ps {
   my %services_init_scripts = ();
 
   my $admin_has_restart_permission = $permissions{4} && $permissions{4}->{8};
-  if ( $admin_has_restart_permission ) {
-    %services_init_scripts = %{ sysinfo_get_process_pathes() };
+  if ($admin_has_restart_permission) {
+    %services_init_scripts = %{sysinfo_get_process_pathes()};
   }
 
   my $table = $html->table({
     width       => '100%',
     title_plain => [ $lang{COMMAND}, '', 'CPU %', 'MEM %', 'MEM Mb', '-' ],
-    caption     => $html->button( "$lang{PROCCESS_LIST}", 'index=' . get_function_index('sysinfo_processes') ),
+    caption     => $html->button($lang{PROCCESS_LIST}, 'index=' . get_function_index('sysinfo_processes')),
     ID          => 'PROCCESS_LIST',
-    EXTRA_BTN   =>  $html->button('', 'index=' . get_function_index('sysinfo_processes'),
+    EXTRA_BTN   => $html->button('', 'index=' . get_function_index('sysinfo_processes'),
       {
         ADD_ICON => 'fa fa-fw fa-info',
         class    => 'btn btn-tool ',
@@ -1702,24 +1715,24 @@ sub sysinfo_sp_ps {
   });
 
   my $restart_index = get_function_index('sysinfo_services');
-  foreach my $ps_name ( keys %watch_proccess ) {
+  foreach my $ps_name (sort keys %watch_proccess) {
     $watch_proccess{$ps_name} =~ s/,/\./xg;
     my ($status, $cpu, $mem, $vsz, $count) = split(/:/x, $watch_proccess{$ps_name});
-    if ( ($cpu && $cpu > 40) || ($mem && $mem > 40) ) {
+    if (($cpu && $cpu > 40) || ($mem && $mem > 40)) {
       $table->{rowcolor} = 'danger';
     }
-    elsif ( ( $cpu && $cpu > 20) || ($mem && $mem > 20) ) {
+    elsif (($cpu && $cpu > 20) || ($mem && $mem > 20)) {
       $table->{rowcolor} = 'warning';
     }
     else {
-      $table->{rowcolor} = undef;
+      delete $table->{rowcolor};
     }
 
     my @extra_btns = ();
-    if ( $admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
+    if ($admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name}) {
 
       my $disabled = ($ps_name =~ m/apache|httpd/x && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
-      my $restart_btn = $html->button( 'R', "index=$restart_index&SERVICE=$ps_name&RESTART=1&action=1",
+      my $restart_btn = $html->button('R', "index=$restart_index&SERVICE=$ps_name&RESTART=1&action=1",
         {
           title   => 'restart',
           class   => "btn btn-xs btn-danger $disabled",
@@ -1734,15 +1747,16 @@ sub sysinfo_sp_ps {
       push @extra_btns, '';
     }
 
-    $ps_name = ($ps_name =~ m/mysql/x)
-      ? $html->button( $ps_name,"index=" . get_function_index('sqlcmd_procs') )
-      : $ps_name;
+    if ($ps_name =~ m/mysql|maria/x) {
+      $ps_name = $html->button($ps_name, "index=" . get_function_index('sqlcmd_procs'));
+    }
 
-    if ( $count && $count > 1 ) {
+    if ($count && $count > 1) {
       $ps_name .= "($count)";
     }
 
-    $table->addrow( $ps_name,
+    $table->addrow(
+      $ps_name,
       $status,
       sprintf("%.2f", $cpu || 0),
       sprintf("%.2f", $mem || 0),

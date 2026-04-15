@@ -16,6 +16,7 @@ use warnings FATAL => 'all';
 use Abills::Sender::Core;
 use Abills::Base qw(sendmail in_array datetime_diff);
 use Accident;
+use Equipment;
 use Users;
 
 our (
@@ -31,6 +32,7 @@ do "$base_dir/Abills/modules/Accident/lng_$conf{default_language}.pl";
 
 my $Accident = Accident->new($db, $Admin, \%conf);
 my $Internet = Internet->new($db, $Admin, \%conf);
+my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 my $Log = Log->new($db, $Admin);
@@ -144,10 +146,21 @@ sub accident_notify_open {
     }
     else {
       if ($accident->{nas_id}){
-        $users = $Internet->user_list({
-          NAS_ID    => $accident->{nas_id},
-          PORT      => $accident->{port} || '_SHOW',
-          COLS_NAME => 1 });
+
+        my $equipment_info = $Equipment->list({ NAS_ID => $accident->{nas_id}, TYPE_ID   => '_SHOW', COLS_NAME => 1 });
+        my $type_id = $equipment_info->[0]->{type_id} || '';
+
+        # PON
+        if ($type_id && $type_id eq '4') {
+
+
+        }
+        else {
+          $users = $Internet->user_list({
+            NAS_ID    => $accident->{nas_id},
+            PORT      => $accident->{port} || '_SHOW',
+            COLS_NAME => 1 });
+        }
       }
       elsif ($accident->{gid}){
         $users = $Users->list({ GID => $accident->{gid}, COLS_NAME => 1 });
@@ -270,6 +283,7 @@ sub accident_equipment_notify_open {
   my $accident_equipment = $Accident->accident_equipment_list({
     ID_EQUIPMENT => '_SHOW',
     INTERNET_PORT=> '_SHOW',
+    EXT_TABLE    => 1,
     DATE         => $DATE,
     STATUS       => 0,
     SENT_OPEN    => 0,
@@ -320,6 +334,7 @@ sub accident_equipment_notify_close {
   my $accident_equipment = $Accident->accident_equipment_list({
     ID_EQUIPMENT => '_SHOW',
     INTERNET_PORT=> '_SHOW',
+    EXT_TABLE    => 1,
     STATUS       => 2,
     SENT_CLOSE   => 0,
     END_DATE     => $DATE,

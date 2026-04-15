@@ -8,11 +8,9 @@ package Companies;
 
 use strict;
 use parent qw(dbcore);
-use Users;
 use Conf;
 use Bills;
 
-my $users;
 my $admin;
 my $CONF;
 my $MODULE = 'Companies';
@@ -33,13 +31,16 @@ sub new {
 
   bless($self, $class);
 
-  $users = Users->new($db, $admin, $CONF);
-
   return $self;
 }
 
 #**********************************************************
 =head2 add($attr) - Add companies
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -83,16 +84,13 @@ sub add {
   }
 
   $admin->{MODULE} = $MODULE;
+  $attr->{ID}=$self->{COMPANY_ID} || 0;
 
-  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU');
-  my %actions_history = (ID => $self->{COMPANY_ID});
-
-  foreach my $param (@info) {
-    next if !$attr->{$param};
-    $actions_history{$param} = $attr->{$param};
-  }
-
-  $admin->action_add(0, join(", ", map {"$_: $actions_history{$_}"} keys %actions_history), { TYPE => 1 });
+  $admin->action_add(0, "ID: $attr->{ID} ", {
+    TYPE => 1,
+    INFO    => ['CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU'],
+    REQUEST => $attr
+  });
 
   return $self;
 }
@@ -172,15 +170,11 @@ sub change {
 
   $admin->{MODULE} = $MODULE;
 
-  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU');
-  my %actions_history = (ID => $self->{ID} || $attr->{ID});
-
-  foreach my $param (@info) {
-    next if !$attr->{$param};
-    $actions_history{$param} = $attr->{$param};
-  }
-
-  $admin->action_add(0, join(", ", map {"$_: $actions_history{$_}"} keys %actions_history), { TYPE => 2 });
+  $admin->action_add(0, "ID: $attr->{ID} ", {
+    TYPE => 2,
+    INFO    => ['CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE', 'EDRPOU'],
+    REQUEST => $attr
+  });
 
   $self->info($attr->{ID});
 
@@ -204,7 +198,7 @@ sub del {
 
   $admin->{MODULE} = $MODULE;
 
-  $admin->action_add(0, "DELETED COMPANY: $company_id", { TYPE => 10 });
+  $admin->action_add(0, "ID: $company_id", { TYPE => 10 });
 
   return $self;
 }
@@ -214,6 +208,9 @@ sub del {
 
   Arguments:
     $company_info
+
+  Returns:
+    $self
 
 =cut
 #**********************************************************
@@ -284,7 +281,7 @@ SQL
   Arguments:
     $attr
   Results:
-    $self
+    $list
 
 =cut
 #**********************************************************
@@ -295,6 +292,7 @@ sub list {
   $attr->{_COMPANY_LIST}  = 1;
 
   my @search_fields = (
+    [ 'ID',                'INT',  'company.id',                      1 ],
     [ 'COMPANY_NAME',      'STR',  'company.name',                      ],
     [ 'DEPOSIT',           'INT',  'cb.deposit',                      1 ],
     [ 'CREDIT',            'INT',  'company.credit',                  1 ],

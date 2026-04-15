@@ -422,6 +422,7 @@ sub internet_log_group_rotate {
 #**********************************************************
 sub _log_rotate {
   my ($attr) = @_;
+  my $EXT_TABLES = '';
 
   my @WHERE_RULES = ();
 
@@ -443,10 +444,16 @@ sub _log_rotate {
     $action_ .= ' l ';
   }
 
-  my $sql = <<"SQL";
-$action_ FROM $table_name l
+  if ($table_name !~ /^admin/){
+    $EXT_TABLES = << "EXT_TABLES";
 LEFT JOIN users ON (users.uid=l.uid)
 LEFT JOIN `groups` ON (users.gid=groups.gid)
+EXT_TABLES
+  }
+
+  my $sql = <<"SQL";
+$action_ FROM $table_name l
+$EXT_TABLES
 $WHERE
 SQL
 
@@ -642,6 +649,42 @@ sub users_development_rotate {
   return _log_rotate($attr);
 }
 
+#**********************************************************
+=head2 admins_full_log_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
+
+=cut
+#**********************************************************
+sub admins_full_log_rotate {
+  my ($attr) = @_;
+
+  $attr->{TABLE_NAME} = 'admins_full_log';
+  $attr->{SUBSTITUTE_FIELDS} = { DATE => 'datetime' };
+
+  return _log_rotate($attr);
+}
+
+#**********************************************************
+=head2 admin_system_actions_rotate($attr)
+
+  Arguments:
+    $attr
+  Results:
+
+=cut
+#**********************************************************
+sub admin_system_actions_rotate {
+  my ($attr) = @_;
+
+  $attr->{TABLE_NAME} = 'admin_system_actions';
+  $attr->{SUBSTITUTE_FIELDS} = { DATE => 'datetime' };
+
+  return _log_rotate($attr);
+}
+
 
 #**********************************************************
 #
@@ -651,7 +694,7 @@ sub help {
   print <<"[END]";
   Clear db utilite VERSION: $version
   Clear payments, fees, internet_log
-  ACTIONS=[payments, fees, internet_log, admin_actions, paysys_log users_development api_log] - default all tables
+  ACTIONS=[payments, fees, internet_log, admin_actions, paysys_log users_development api_log admins_full_log admin_system_actions] - default all tables
   GID           - Groups
   DATE          - Date time DATE="<YYYY-MM-DD"
   SHOW          - Show clear date (default)

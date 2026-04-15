@@ -111,7 +111,6 @@ sub document_print {
 
   return $doc_info if ($doc_info->{errno});
 
-  # if ($self->{conf}->{DOCS_PDF_PRINT}) {
   if ($attr->{PDF}) {
     require Abills::PDF;
     my $pdf = Abills::PDF->new({

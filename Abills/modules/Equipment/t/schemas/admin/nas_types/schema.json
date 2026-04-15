@@ -1,11 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "The Root Schema",
+  "title": "nasType",
   "type": "array",
   "items": {
     "properties": {
       "id": {
-        "type": "number"
+        "type": "string"
       },
       "name": {
         "type": "string"

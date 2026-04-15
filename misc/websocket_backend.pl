@@ -37,11 +37,10 @@ $debug ||= 3;
 
 our $libpath;
 BEGIN {
-  our $Bin;
   use FindBin '$Bin';
 
   $libpath = $Bin . '/../'; # (default) assuming we are in /usr/abills/libexec/
-  if ($Bin =~ m/\/abills(\/)/) {
+  if ($Bin =~ m/\/abills(\/)/x) {
     $libpath = substr($Bin, 0, $-[1]);
   }
 
@@ -173,7 +172,7 @@ else {
 $Log->info('Waiting for events');
 
 AnyEvent::Impl::Perl::loop;
-exit 0;
+#exit 0;
 
 #**********************************************************
 =head2 start_plugin($plugin_name, $attr)
@@ -247,6 +246,7 @@ Arguments:
 
 [END]
 
+  return 1;
 }
 
 1;

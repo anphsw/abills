@@ -18,7 +18,6 @@ our(
 
 our Abills::HTML $html;
 use Abills::Loader;
-require Control::Services;
 
 my $Abon = Abon->new($db, $admin, \%conf);
 
@@ -351,6 +350,7 @@ sub abon_tariffs {
       $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->{id}", { class => 'change' })
     );
     if ($permissions{4}{1}) {
+      $line->{tp_name} //= '';
       push (@function_fields,
         $html->button($lang{DEL}, "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{tp_name}?", class => 'del' })
       );
@@ -358,7 +358,10 @@ sub abon_tariffs {
     my @fields = ();
 
     for (my $i = 0; $i < $Abon->{SEARCH_FIELDS_COUNT}; $i++) {
-      my $col_name =  $Abon->{COL_NAMES_ARR}->[$i];
+      my $col_name =  $Abon->{COL_NAMES_ARR}->[$i] || q{};
+      if(! $col_name) {
+        next;
+      }
       my $value = $line->{$col_name};
       if ($col_name eq 'tp_name') {
         $value = $html->button($value, "index=$index&ABON_ID=$line->{id}");
@@ -388,7 +391,7 @@ sub abon_tariffs {
         my $group_name = '';
 
         if ($line->{gid}) {
-          my @ids = split(/,\s?/, $line->{gid});
+          my @ids = split(/,\s?/x, $line->{gid});
           for my $id (@ids) {
             my ($matched_group) = grep { "$_->{gid}" eq $id } @$groups_info;
             if ($matched_group) {

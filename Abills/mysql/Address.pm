@@ -13,7 +13,7 @@ use Conf;
 our $VERSION = 2.05;
 my ($admin, $CONF);
 
-use Abills::Base qw(in_array);
+use Abills::Base qw(in_array _caller);
 
 #**********************************************************
 # Init
@@ -35,10 +35,7 @@ sub new {
   $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   if(ref $admin eq 'HASH') {
-    my ($package, $filename, $line) = caller;
-    print "file: $filename\nline: $line Package: $package\n";
-    print ref $admin;
-    print "Address ADMIN_NOT_FOUND//// $admin ///";
+    _caller();
     exit;
   }
 
@@ -326,7 +323,7 @@ SQL
 
   my $list = $self->{list} || [];
 
-  if ($self->{TOTAL} > 0) {
+  if (! $attr->{_SKIP_TOTAL} && $self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(DISTINCT d.id) AS total FROM districts d $EXT_TABLES $WHERE", undef, { INFO => 1 });
   }
 

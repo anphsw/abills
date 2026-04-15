@@ -691,6 +691,7 @@ sub internet_sessions {
           { OUTPUT2RETURN => 1 }),
         ADDRESS_FORM            => 1,
         SHOW_PERIOD             => 1,
+        ARCHIVE_TABLE           => 'internet_log'
       });
     }
     else {

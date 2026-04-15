@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/equipment/',
-      controller  => 'Equipment::Api::user::Root',
       endpoint    => \&Equipment::Api::user::Root::get_user_equipment,
       credentials => [
         'USER', 'USERBOT'
@@ -83,8 +80,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -105,7 +100,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/onu/list/',
-      controller  => 'Equipment::Api::admin::Onu',
       endpoint    => \&Equipment::Api::admin::Onu::get_equipment_onu_list,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -114,7 +108,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/onu/:id/',
-      controller  => 'Equipment::Api::admin::Onu',
       endpoint    => \&Equipment::Api::admin::Onu::get_equipment_onu_id,
       credentials => [
         'ADMIN'
@@ -123,7 +116,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/box/list/',
-      controller  => 'Equipment::Api::admin::Box',
       endpoint    => \&Equipment::Api::admin::Box::get_equipment_box_list,
       credentials => [
         'ADMIN'
@@ -132,7 +124,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/pon/ports/',
-      controller  => 'Equipment::Api::admin::Pon',
       endpoint    => \&Equipment::Api::admin::Pon::get_equipment_pon_ports,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -141,7 +132,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/used/ports/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_used_ports,
       credentials => [
         'ADMIN'
@@ -150,7 +140,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/types/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_nas_types,
       credentials => [
         'ADMIN'
@@ -159,7 +148,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/list/extra/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_nas_list_extra,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -168,7 +156,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/list/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_nas_list,
       credentials => [
         'ADMIN'
@@ -177,7 +164,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/equipment/nas/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::post_equipment_nas,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -186,7 +172,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/equipment/nas/:id/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::delete_equipment_nas,
       credentials => [
         'ADMIN'
@@ -195,7 +180,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/equipment/nas/:id/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::put_equipment_nas,
       credentials => [
         'ADMIN'
@@ -204,7 +188,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/groups/list/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_nas_groups_list,
       credentials => [
         'ADMIN'
@@ -213,7 +196,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/equipment/nas/groups/add/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::post_equipment_nas_groups_add,
       credentials => [
         'ADMIN'
@@ -222,7 +204,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/equipment/nas/groups/:id/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::put_equipment_nas_groups_id,
       credentials => [
         'ADMIN'
@@ -231,7 +212,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/equipment/nas/groups/:id/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::delete_equipment_nas_groups_id,
       credentials => [
         'ADMIN'
@@ -240,7 +220,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/ip/pools/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::get_equipment_nas_ip_pools,
       credentials => [
         'ADMIN'
@@ -249,7 +228,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/equipment/nas/ip/pools/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::post_equipment_nas_ip_pools,
       credentials => [
         'ADMIN'
@@ -258,7 +236,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/equipment/nas/ip/pools/:nasId/:poolId/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::delete_equipment_nas_ip_pools_nasId_poolId,
       credentials => [
         'ADMIN'
@@ -267,7 +244,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/:uid/',
-      controller  => 'Equipment::Api::admin::Users',
       endpoint    => \&Equipment::Api::admin::Users::get_equipment_uid,
       credentials => [
         'ADMIN'
@@ -276,7 +252,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/:nas_id/:port_id/details/',
-      controller  => 'Equipment::Api::admin::Users',
       endpoint    => \&Equipment::Api::admin::Users::get_equipment_nas_id_port_id_details,
       credentials => [
         'ADMIN'
@@ -285,7 +260,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/equipment/nas/:id/details/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::post_equipment_nas_details,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -294,7 +268,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/equipment/nas/netmap/positions/',
-      controller  => 'Equipment::Api::admin::Nas',
       endpoint    => \&Equipment::Api::admin::Nas::post_equipment_nas_netmap_positions,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -304,7 +277,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/equipment/nas/:nas_id/ports/',
-      controller  => 'Equipment::Api::admin::Ports',
       endpoint    => \&Equipment::Api::admin::Ports::get_equipment_nas_ports,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -313,7 +285,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/equipment/nas/:nas_id/ports/:port_id/',
-      controller  => 'Equipment::Api::admin::Ports',
       endpoint    => \&Equipment::Api::admin::Ports::put_equipment_nas_ports_id,
       credentials => [
         'ADMIN', 'ADMINSID'

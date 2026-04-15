@@ -1,4 +1,4 @@
-package Huawei_unc v1.20.00;
+package Huawei_unc v1.30.00;
 #*********************** ABillS ***********************************
 # Copyright (с) 2003-2025 Andy Gulay (ABillS DevTeam) Ukraine
 #
@@ -16,8 +16,8 @@ package Huawei_unc v1.20.00;
 
 =head1 VERSION
 
-  VERSION: 1.21
-  REVISION: 20251107
+  VERSION: 1.30
+  REVISION: 20260313
 
 =cut
 
@@ -362,7 +362,7 @@ sub guest_mode {
         #FRAMED_IPV6_PREFIX=> ($self->{IPV6}) ? "INET6_ATON('". $self->{IPV6} ."')" : undef,
         #FRAMED_INTERFACE_ID=>$RAD_REQUEST->{'Framed-Interface-Id'},
         #DELEGATED_IPV6_PREFIX => ($self->{IPV6_PREFIX}) ? "INET6_ATON('". $self->{IPV6_PREFIX} ."')" : undef,
-        NAS_IP_ADDRESS  => $RAD_REQUEST->{'NAS-IP-Address'},
+        NAS_IP_ADDRESS  => $NAS->{IP},
         CONNECT_INFO    => $RAD_REQUEST->{'3GPP-User-Location-Info'} || '',
         REMOTE_ID       => $RAD_REQUEST->{'3GPP-Charging-ID'},
         CID             => $RAD_REQUEST->{'Calling-Station-Id'},
@@ -389,7 +389,7 @@ sub guest_mode {
         FRAMED_IPV6_PREFIX    => ($self->{IPV6}) ? "INET6_ATON('" . $self->{IPV6} . "')" : undef,
         FRAMED_INTERFACE_ID   => $RAD_REQUEST->{'Framed-Interface-Id'},
         DELEGATED_IPV6_PREFIX => ($self->{IPV6_PREFIX}) ? "INET6_ATON('" . $self->{IPV6_PREFIX} . "')" : undef,
-        NAS_IP_ADDRESS        => $RAD_REQUEST->{'NAS-IP-Address'},
+        NAS_IP_ADDRESS        => $NAS->{IP},
         CONNECT_INFO          => $RAD_REQUEST->{'3GPP-User-Location-Info'} || '',
         REMOTE_ID             => $RAD_REQUEST->{'3GPP-Charging-ID'},
         CID                   => $RAD_REQUEST->{'Calling-Station-Id'},
@@ -556,7 +556,7 @@ sub auth {
         DELEGATED_IPV6_PREFIX => ($self->{IPV6_PREFIX}) ? "INET6_ATON('" . $self->{IPV6_PREFIX} . "')" : undef,
         FRAMED_INTERFACE_ID   => $RAD_REQUEST->{'Framed-Interface-Id'},
         FRAMED_IP_ADDRESS     => "INET_ATON('$self->{IP}')",
-        NAS_IP_ADDRESS        => $RAD_REQUEST->{'NAS-IP-Address'},
+        NAS_IP_ADDRESS        => $NAS->{IP},
         CONNECT_INFO          => $RAD_REQUEST->{'3GPP-User-Location-Info'} || '',
         REMOTE_ID             => $RAD_REQUEST->{'3GPP-Charging-ID'} || '',
         CID                   => $cid,
@@ -949,7 +949,7 @@ SQL
     user_name= ? ,
     started=NOW() - INTERVAL ? SECOND,
     lupdated=UNIX_TIMESTAMP(),
-    nas_ip_address=INET_ATON( ? ),
+    nas_ip_address= ? ,
     nas_port_id= ? ,
     acct_session_id= ? ,
     framed_ip_address=INET_ATON( ? ),
@@ -974,7 +974,7 @@ SQL
         '9',
         $RAD->{'User-Name'} || '',
         $RAD->{'Acct-Session-Time'} || 0,
-        $RAD->{'NAS-IP-Address'},
+        $NAS->{IP},
         $RAD->{'NAS-Port'} || 0,
         $acct_session_id,
         $RAD->{'Framed-IP-Address'} || '0.0.0.0',
@@ -1094,7 +1094,7 @@ sub _add_unknown_session {
     user_name= ? ,
     started=NOW() - INTERVAL ? SECOND,
     lupdated=UNIX_TIMESTAMP(),
-    nas_ip_address=INET_ATON( ? ),
+    nas_ip_address= ? ,
     nas_port_id= ? ,
     acct_session_id= ? ,
     framed_ip_address=INET_ATON( ? ),
@@ -1113,7 +1113,7 @@ SQL
     $attr->{ACCT_STATUS_TYPE},
     $RAD->{'User-Name'} || '',
     $RAD->{'Acct-Session-Time'} || 0,
-    $RAD->{'NAS-IP-Address'},
+    $NAS->{IP},
     $RAD->{'NAS-Port'} || 0,
     $RAD->{'Acct-Session-Id'} || 'undef',
     $RAD->{'Framed-IP-Address'},

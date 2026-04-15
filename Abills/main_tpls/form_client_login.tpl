@@ -76,7 +76,6 @@
   <div class='mb-0 login-logo card-header text-center'>
     <a href='/?login_page=1' class='h1'>
       <!-- Your logo <img src='' alt='ABillS'> -->
-      <b><span style='color: red;'>A</span>BillS</b>
     </a>
   </div>
   <div class='card-body'>
@@ -141,6 +140,7 @@
         </div>
       </form>
 
+      %USER_PORTAL_OFFER%
       <a data-visible='%PASSWORD_RECOVERY%' style='display: none; float: right' href='/registration.cgi?FORGOT_PASSWD=1'>_{FORGOT_PASSWORD}_</a>
       <a data-visible='%REGISTRATION_ENABLED%' style='display: none;' href='/registration.cgi'>_{REGISTRATION}_</a>
       <br/>

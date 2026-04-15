@@ -613,7 +613,7 @@ sub docs_receipt_list {
   }
 
   foreach my $line (@{$list}) {
-    my $delete = ($permissions{1}{2}) ? ' ' . $html->button($lang{DEL},
+    my $delete = ($permissions{1} && $permissions{1}{2}) ? ' ' . $html->button($lang{DEL},
       "index=$index&del=$line->{id}&UID=$line->{uid}",
       { MESSAGE => "$lang{DEL} ?", class => 'del' }) : '';
 

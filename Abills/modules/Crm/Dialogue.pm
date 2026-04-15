@@ -19,7 +19,11 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   require Crm::db::Crm;
   Crm->import();
@@ -193,8 +197,7 @@ sub crm_send_message {
 =cut
 #**********************************************************
 sub crm_lead_by_source {
-  my $self = shift;
-  my ($sender) = @_;
+  my ($self, $sender) = @_;
 
   return 0 if !$sender->{USER_ID} || !$self->{SOURCE};
 
@@ -255,8 +258,10 @@ sub crm_lead_by_source {
   if ($sender->{PHONE}) {
     $sender->{PHONE} = _crm_lead_number_expr($sender->{PHONE});
   }
+  use Crm::Leads_service;
+  my $Leads_service = Crm::Leads_service->new($self->{db}, $self->{admin}, $self->{conf});
 
-  $Crm->crm_lead_add({
+  my $lead = $Leads_service->crm_lead_add({
     FIO          => $sender->{FIO},
     PHONE        => $sender->{PHONE} || '',
     EMAIL        => $sender->{EMAIL} || '',
@@ -268,7 +273,7 @@ sub crm_lead_by_source {
     CURRENT_STEP => 1
   });
 
-  return $Crm->{INSERT_ID} || 0;
+  return $lead->{LEAD_ID} || 0;
 }
 
 #**********************************************************

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS `info_info`
 (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `obj_type` VARCHAR(30) DEFAULT ''         NOT NULL,
-  `obj_id` INT DEFAULT 0                    NOT NULL,
+  `obj_id` INT UNSIGNED DEFAULT 0           NOT NULL,
   `comment_id` INT UNSIGNED DEFAULT 0       NOT NULL,
   `media_id` SMALLINT(6) DEFAULT 0          NOT NULL,
   `location_id` INT(11) NOT NULL DEFAULT '0',
@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS `info_info`
   `document_id` SMALLINT(6) UNSIGNED DEFAULT 0 NOT NULL,
   KEY `location_id` (`location_id`),
   KEY `comment_id` (`comment_id`),
+  KEY `obj_type` (`obj_type`),
+  KEY `obj_id` (`obj_id`),
   KEY `aid` (`aid`),
   PRIMARY KEY `id` (`id`)
 )

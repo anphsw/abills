@@ -59,6 +59,7 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   15 => 'Facebook',
   16 => 'Instagram',
   17 => 'Echat',
+  18 => 'Whatsapp'
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -203,8 +204,7 @@ sub sender_load {
 =cut
 #**********************************************************
 sub send_message {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (!$attr->{SOURCE} && $self->{conf}{SENDER_LOG}) {
     my ($package) = caller(1);
@@ -217,7 +217,7 @@ sub send_message {
   delete $self->{errstr};
   $self->{errno} = 0;
 
-  if ( $send_type =~ /\d+/ ) {
+  if ( $send_type =~ /\d+/xm ) {
     $send_type = $PLUGIN_NAME_FOR_TYPE_ID{$send_type};
   }
 
@@ -375,7 +375,7 @@ sub send_message_auto {
 
   my $send_messages_types = ();
   if (defined $attr->{SEND_TYPES}) {
-    map push(@{$send_messages_types}, $PLUGIN_NAME_FOR_TYPE_ID{$_}), split(/,\s?/, $attr->{SEND_TYPES});
+    map push(@{$send_messages_types}, $PLUGIN_NAME_FOR_TYPE_ID{$_}), split(/,\s?/x, $attr->{SEND_TYPES});
   }
   else {
     @{$send_messages_types} = $self->{conf}{MSGS_SEND_MESSAGES_TYPES} ?

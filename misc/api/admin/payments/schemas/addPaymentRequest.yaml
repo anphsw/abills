@@ -46,3 +46,7 @@ properties:
     type: string
     example: "Liqpay:12345"
     description: id транзакции
+  skipBillIdCheck:
+    type: integer
+    example: 1
+    description: Если в абонента только 1 денежный счет и он не в компании взять автоматически который есть

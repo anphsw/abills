@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -49,7 +47,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/cards/payment/',
-      controller  => 'Cards::Api::common::Payment',
       endpoint    => \&Cards::Api::common::Payment::_cards_payment,
       credentials => [
         'USER', 'USERBOT'
@@ -77,8 +74,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -99,7 +94,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/cards/:uid/payments/',
-      controller  => 'Cards::Api::common::Payment',
       endpoint    => \&Cards::Api::common::Payment::_cards_payment,
       credentials => [
         'ADMIN', 'ADMINSID'

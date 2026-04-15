@@ -3,8 +3,8 @@ package Internet::Nas::Huawei_unc;
 =head1 Huawei UNC  managment system
 
 
-  VERSION: 0.14
-  DATE: 20251119
+  VERSION: 0.16
+  DATE: 20260205
 
 =cut
 #**********************************************************
@@ -516,6 +516,10 @@ sub addSubscriber {
                <attribute>
                   <key>usrStation</key>
                   <value>1</value>
+               </attribute>
+               <attribute>
+                  <key>usrSubNetType</key>
+                  <value>3</value>
                </attribute>
                <attribute>
                   <key>usrContactMethod</key>
@@ -1201,5 +1205,57 @@ sub online_filter {
 
   return $filtered_value;
 }
+
+
+
+#**********************************************************
+=head2 setIp($attr)
+
+  Arguments:
+    $attr
+      CPE_MAC || CID
+
+  Results:
+
+=cut
+#**********************************************************
+sub ip_add {
+  my ($self, $attr) = @_;
+
+  my $subscriber_id = $attr->{$ident_field} || q{};
+  my $ip = $attr->{IP} || q{};
+
+  my $request =<< "REQ";
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:hss="http://www.huawei.com/HSS">
+  <soapenv:Header>
+      <hss:Username>user</hss:Username>
+      <hss:Password>password</hss:Password>
+  </soapenv:Header>
+  <soapenv:Body>
+     <hss:MOD_SMDATA>
+     <!--Description: variable CID-->
+       <hss:IMSI>$subscriber_id</hss:IMSI>
+         <!--Description: fixed for FWA -->
+         <hss:SNSSAI>1-000201</hss:SNSSAI>
+         <!--Description: obtained from LST_SMDATA -->
+         <hss:DNN>fwa</hss:DNN>
+         <!--Description: IPv4 provisioning flag -->
+         <hss:IPV4IND>TRUE</hss:IPV4IND>
+         <!--Description: IPv4 value-->
+         <hss:IPV4ADDR>$ip</hss:IPV4ADDR>
+         <!--Description: new DNN for static IP service-->
+         <hss:NEWDNN>fwa-static</hss:NEWDNN>
+  </hss:MOD_SMDATA>
+  </soapenv:Body>
+</soapenv:Envelope>
+REQ
+
+  $self->_request($request);
+
+  return $self;
+}
+
+
+
 
 1;

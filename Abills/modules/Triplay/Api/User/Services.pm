@@ -49,11 +49,13 @@ sub new {
 =cut
 #**********************************************************
 sub get_user_triplay {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
-  return ::get_user_services({
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
+
+  return $Services->get_user_services({
     uid     => $path_params->{uid},
     service => 'Triplay',
   });

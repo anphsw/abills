@@ -69,18 +69,17 @@ sub contacts_list {
 
   return [] if ( !$attr->{UID} );
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'priority';
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $GROUP_BY = $attr->{GROUP_BY} || 'uc.id';
+  $attr->{GROUP_BY} //= 'uc.id';
+  $attr->{PAGE_ROWS} //= 100;
 
   my @search_columns = (
-    [ 'UID',       'INT',     'uc.uid'        ,1 ],
-    [ 'VALUE',     'STR',     'uc.value'      ,1 ],
-    [ 'PRIORITY',  'INT',     'uc.priority'   ,1 ],
-    [ 'COMMENTS',  'STR',     'uc.comments'   ,1 ],
-    [ 'TYPE',      'INT',     'uc.type_id'    ,1 ],
-    [ 'DEFAULT',   'INT',     'uct.is_default',1 ],
-    [ 'TYPE_NAME', 'STR',     'uct.name'      ,1 ],
+    [ 'UID',         'INT',     'uc.uid'        ,1 ],
+    [ 'VALUE',       'STR',     'uc.value'      ,1 ],
+    [ 'PRIORITY',    'INT',     'uc.priority'   ,1 ],
+    [ 'COMMENTS',    'STR',     'uc.comments'   ,1 ],
+    [ 'TYPE',        'INT',     'uc.type_id'    ,1 ],
+    [ 'DEFAULT',     'INT',     'uct.is_default',1 ],
+    [ 'TYPE_NAME',   'STR',     'uct.name'      ,1 ],
     [ 'HIDDEN',      'INT',     'uct.hidden'       ],
     [ 'FIO',         'STR',     'up.fio',       ,1 ],
     [ 'GROUP',       'INT',     'u.gid',        ,1 ],
@@ -115,13 +114,9 @@ FROM users_contacts uc
   LEFT JOIN users_pi up ON (up.uid=uc.uid)
   $EXT_TABLES
   $WHERE
-GROUP BY $GROUP_BY
-ORDER BY $SORT $DESC;
 SQL
 
-  $self->query($sql, undef,
-    { COLS_NAME => 1, %{ $attr ? $attr : {} } }
-  );
+  $self->query_list($sql, $attr);
 
   return $self->{list} || [];
 }
@@ -307,7 +302,7 @@ sub contact_types_list{
   delete $self->{COL_NAMES_ARR};
 
   my @search_params = (
-    [ 'ID',         'INT', 'id',           ],
+    [ 'ID',         'INT', 'id',         1 ],
     [ 'NAME',       'STR', 'name',       1 ],
     [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
     [ 'HIDDEN',     'INT', 'hidden',     1 ]
@@ -586,11 +581,6 @@ sub contact_name_for_type_id {
 sub push_contacts_list {
   my ($self, $attr) = @_;
 
-  my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = $attr->{PG} || '0';
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-
   my @search_params = (
     [ 'AID',            'INT',  'pc.aid',                     1],
     [ 'UID',            'INT',  'pc.uid',                     1],
@@ -607,14 +597,9 @@ sub push_contacts_list {
 SELECT $self->{SEARCH_FIELDS} id
 FROM push_contacts pc
   $WHERE
-ORDER BY $SORT $DESC
-LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef, {
-    COLS_NAME => 1,
-    %{ $attr // {}}}
-  );
+  $self->query_list($sql, $attr);
 
   return [] if $self->{errno};
 
@@ -717,12 +702,7 @@ sub push_contacts_change {
 sub push_messages_list {
   my ($self, $attr) = @_;
 
-  my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = $attr->{PG} || '0';
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-
-  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'id';
+  $attr->{GROUP_BY} //= 'id';
 
   my @search_params = (
     [ 'ID',         'INT', 'id',        1],
@@ -744,15 +724,9 @@ sub push_messages_list {
 SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
    $WHERE
-   GROUP BY $GROUP_BY
-   ORDER BY $SORT $DESC
-   LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef, {
-    COLS_NAME => 1,
-    %{$attr || {}} }
-  );
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno} || $self->{TOTAL} < 1);
 
@@ -863,16 +837,17 @@ sub push_messages_change {
 #**********************************************************
 =head2 sender_log_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub sender_log_list {
   my ($self, $attr) = @_;
 
-  my $SORT = $attr->{SORT} || 'id';
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = $attr->{PG} || '0';
-  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-  my $GROUP_BY = $attr->{GROUP_BY} || 'sl.id';
+  $attr->{GROUP_BY} //= 'sl.id';
 
   my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
   my $address_full = "IF(pi.location_id, CONCAT(d.name, '$build_delimiter', s.name, '$build_delimiter', b.number, '$build_delimiter', pi.address_flat), '') AS address_full";
@@ -911,15 +886,9 @@ FROM sender_log sl
 LEFT JOIN users u ON (u.uid=sl.uid)
   $EXT_TABLES
   $WHERE
-GROUP BY $GROUP_BY
-ORDER BY $SORT $DESC
-LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef, {
-    COLS_NAME => 1,
-    %{$attr || {}} }
-  );
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno} || $self->{TOTAL} < 1);
 

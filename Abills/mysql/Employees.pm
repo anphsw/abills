@@ -1767,6 +1767,7 @@ sub employees_info_cashbox {
        ec.name,
        ec.aid,
        a.name AS name_admin,
+       GROUP_CONCAT(eca.department) AS department,
        GROUP_CONCAT(eca.aid) AS admins
     FROM employees_cashboxes ec
     LEFT JOIN admins a ON (a.aid = ec.aid)
@@ -1856,6 +1857,15 @@ sub employees_list_cashbox {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+  my @WHERE_RULES = ();
+
+  if ($attr->{AID}){
+    $admin->info($admin->{AID});
+    if ($admin->{DEPARTMENT}) {
+      push @WHERE_RULES, "eca.department = $admin->{DEPARTMENT}";
+    }
+  }
+
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',             'INT',  'emc.id',                          1 ],
@@ -1864,8 +1874,10 @@ sub employees_list_cashbox {
     [ 'COMMENTS',       'STR',  'emc.comments',                    1 ],
     [ 'ADMINS',         'STR',  'admins',                          1 ],
     [ 'AID',            'INT',  'eca.aid',                         1 ],
+    [ 'DEPARTMENT',     'STR',  'eca.department',                  1 ],
   ],
-    { WHERE => 1, }
+    { WHERE_RULES => \@WHERE_RULES,
+      WHERE => 1 }
   );
 
   my $sql = <<"SQL";
@@ -1873,10 +1885,12 @@ sub employees_list_cashbox {
     emc.name,
     a.name as admin_default,
     GROUP_CONCAT(DISTINCT ac.name SEPARATOR ', ') as admins,
+    GROUP_CONCAT(DISTINCT ed.name SEPARATOR ', ') as department,
     emc.comments
     FROM employees_cashboxes emc
     LEFT JOIN admins a ON (a.aid = emc.aid)
-    LEFT JOIN employees_cashboxes_admins eca ON emc.id = eca.cashbox_id
+    LEFT JOIN employees_cashboxes_admins eca ON (emc.id = eca.cashbox_id)
+    LEFT JOIN employees_department ed ON (ed.id = eca.department)
     LEFT JOIN admins ac ON (ac.aid = eca.aid)
     $WHERE
     GROUP BY emc.id
@@ -1918,20 +1932,26 @@ sub employees_payments_cashbox {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+  my @WHERE_RULES = ();
+
+  $admin->info($self->{admin}->{AID});
+  if ($admin->{DEPARTMENT}) {
+    push @WHERE_RULES, "eca.department = $admin->{DEPARTMENT}";
+  }
 
   my $EXT_TABLES = '';
 
   if ($attr->{AID}){
-    $EXT_TABLES .= 'LEFT JOIN employees_cashboxes_admins eca ON emc.id = eca.cashbox_id';
+    $EXT_TABLES .= 'LEFT JOIN employees_cashboxes_admins eca ON (emc.id = eca.cashbox_id)';
   }
 
   my $WHERE = $self->search_former($attr, [
     [ 'NAME',     'STR',  'emc.name',       1 ],
     [ 'ADMIN',    'STR',  'a.name as admin',1 ] ,
-    [ 'AID',      'STR',  'eca.aid',        1 ] ,
+    [ 'AID',      'INT',  'eca.aid',        1 ] ,
     [ 'COMMENTS', 'STR',  'emc.comments',   1 ],
   ],
-    { WHERE       => 1,}
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
 
   my $sql = <<"SQL";
@@ -1944,7 +1964,8 @@ sub employees_payments_cashbox {
     LEFT JOIN admins a ON (a.aid = emc.aid)
     $EXT_TABLES
     $WHERE
-  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+    GROUP BY emc.id
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
 SQL
 
   $self->query($sql, undef, $attr);
@@ -2377,7 +2398,14 @@ sub employees_list_spending {
   }
 
   push @WHERE_RULES, "(esta.aid='$self->{admin}->{AID}' OR esta.aid IS NULL)";
-  push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+
+  $admin->info($self->{admin}->{AID});
+  if ($admin->{DEPARTMENT}) {
+    push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}' OR eca.department = $admin->{DEPARTMENT})";
+  }
+  else {
+    push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+  }
 
   my @search_fields = (
     [ 'ID',                 'INT',    'cs.id',                          1 ],
@@ -2571,7 +2599,13 @@ sub employees_list_coming {
     push @WHERE_RULES, "cac.payment_id = '$attr->{PAYMENT_ID}'";
   }
 
-  push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+  $admin->info($self->{admin}->{AID});
+  if ($admin->{DEPARTMENT}) {
+    push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}' OR eca.department = $admin->{DEPARTMENT})";
+  }
+  else {
+    push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
+  }
 
   my @search_fields = (
     [ 'ID',               'INT',    'cs.id',                        1 ],
@@ -3862,6 +3896,10 @@ sub employees_list_moving {
 
   push @WHERE_RULES, "(eca.aid='$self->{admin}->{AID}')";
 
+  if ($self->{admin}->{DEPARTMENT}) {
+    push @WHERE_RULES, " eca.department = $self->{admin}->{DEPARTMENT}";
+  }
+
   my $WHERE = $self->search_former($attr,[
       [ 'AMOUNT',           'DOUBLE', 'cs.amount',                    1 ],
       [ 'MOVING_TYPE_NAME', 'STR',    'emt.name as moving_type_name', 1 ],
@@ -3874,9 +3912,9 @@ sub employees_list_moving {
     {
       WHERE       => 1,
       USE_USER_PI => 1,
+      WHERE_RULES => \@WHERE_RULES,
     }
   );
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   my $sql = <<"SQL";
     SELECT
@@ -4028,6 +4066,8 @@ SQL
   Arguments:
     IDS
     CASHBOX_ID
+    ADMINS - add admins
+    DEPARTMENT - add department
   Returns:
     $self
 =cut
@@ -4037,14 +4077,22 @@ sub employees_cashbox_admins_add {
 
   my @ids = split(/,\s+/x, $attr->{IDS});
   my @MULTI_QUERY = ();
+  my $sql = '';
 
   foreach my $id (@ids) {
     push @MULTI_QUERY, [ $attr->{CASHBOX_ID}, $id];
   }
 
-  my $sql = <<'SQL';
+  if ($attr->{ADMINS}) {
+    $sql = <<'SQL';
     INSERT INTO employees_cashboxes_admins (cashbox_id, aid) VALUES (?, ?);
 SQL
+  }
+  if ($attr->{DEPARTMENT}) {
+    $sql = <<'SQL';
+    INSERT INTO employees_cashboxes_admins (cashbox_id, department) VALUES (?, ?);
+SQL
+  }
 
   $self->query($sql, undef, { MULTI_QUERY => \@MULTI_QUERY });
 

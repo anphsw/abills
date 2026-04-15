@@ -213,7 +213,9 @@ sub paysys_log {
     $line->{transaction_id} = convert($line->{transaction_id} || q{}, { text2html => 1 });
     my $status = $line->{status} || 0;
     my $system_id = $line->{system_id} || 0;
-    my @fields_array = ($line->{id},
+    my $id = $line->{id} || 0;
+    my @fields_array = (
+      $id,
       $html->button($line->{login}, "index=15&UID=". ($line->{uid} || q{})),
       $line->{datetime},
       $line->{sum},
@@ -231,9 +233,9 @@ sub paysys_log {
 
     $table->addrow(
       @fields_array,
-      $html->button($lang{INFO}, "index=$index&info=$line->{id}", { class => 'show' })
-        . ' ' . ($user->{UID} ? '-' : $html->button($lang{DEL}, "index=$index&del=$line->{id}",
-        { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }))
+      $html->button($lang{INFO}, "index=$index&info=$id", { class => 'show' })
+        . ' ' . ($user->{UID} ? '-' : $html->button($lang{DEL}, "index=$index&del=$id",
+        { MESSAGE => "$lang{DEL} $id?", class => 'del' }))
     );
   }
 
@@ -259,8 +261,11 @@ sub paysys_log {
 #**********************************************************
 sub paysys_reports {
 
+  my $Pay_plugin = _paysys_init_paysys_plugin($FORM{SYSTEM_ID}) if ($FORM{SYSTEM_ID});
+
   if ($FORM{import_file}) {
-    return if (_paysys_import_file());
+    my $extension = $Pay_plugin->{FILE_EXT} || 'csv';
+    return if (_paysys_import_file($extension));
   }
 
   my $select = _paysys_select_connected_systems();
@@ -293,8 +298,6 @@ sub paysys_reports {
   func_menu({ $lang{NAME} => $systems });
 
   if ($FORM{SYSTEM_ID}) {
-    my $Pay_plugin = _paysys_init_paysys_plugin($FORM{SYSTEM_ID});
-
     if ($Pay_plugin->can('report')) {
       if ($Pay_plugin->can('report_import') && ($FORM{IMPORT} || $FORM{FORCE_IMPORT}) && $FORM{IDS}) {
         _paysys_import_payments($Pay_plugin, \%FORM)
@@ -381,6 +384,10 @@ sub _paysys_init_paysys_plugin {
 =cut
 #**********************************************************
 sub _paysys_import_file {
+  my ($file_ext) = @_;
+
+  my $uc_extension = uc($file_ext);
+  my $lc_extension = lc($file_ext);
 
   if ($FORM{UPLOAD_FILE}) {
     return 0 if (!$FORM{SAVE_FILE});
@@ -396,12 +403,12 @@ sub _paysys_import_file {
     my $Pay_plugin = _paysys_init_paysys_plugin($FORM{SYSTEM_ID});
     my $save_path = $Pay_plugin->{STATEMENTS_DIR} || ($base_dir || '/usr/abills') . "var/db/Paysys/$FORM{SYSTEM_ID}";
 
-    my $file_name = $FORM{FILE_DATE} . '.csv';
+    my $file_name = $FORM{FILE_DATE} . ".$file_ext";
 
     upload_file($FORM{UPLOAD_FILE}, {
       FILE_PATH  => $save_path,
       FILE_NAME  => $file_name,
-      EXTENTIONS => 'csv, CSV',
+      EXTENTIONS => "$uc_extension,$lc_extension",
       REWRITE    => $FORM{REWRITE} || 0,
     });
 
@@ -416,6 +423,7 @@ sub _paysys_import_file {
     CALLBACK_FUNC => 'paysys_reports',
     SYSTEM_ID     => $FORM{SYSTEM_ID},
     DATE          => $date_field,
+    EXTENSIONS    => ".$uc_extension,.$lc_extension"
   });
 
   return 1;
@@ -472,6 +480,8 @@ sub _paysys_import_payments {
   if ($result_err) {
     $html->message('err', $lang{INFO}, $result_err);
   }
+
+  return 0;
 }
 
 #**********************************************************
@@ -954,12 +964,9 @@ sub paysys_uah_exchange_rates {
 #**********************************************************
 sub paysys_kgs_exchange_rates {
 
-  my $kgs_xml_data = web_request(
-    "http://www.nbkr.kg/XML/daily.xml",
-    {
-      CURL        => 1,
-    }
-  );
+  my $kgs_xml_data = web_request("http://www.nbkr.kg/XML/daily.xml", {
+    CURL => 1,
+  });
 
   load_pmodule('XML::Simple');
 

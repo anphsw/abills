@@ -3,8 +3,16 @@
   "method": "PUT",
   "path": "user/internet/:id/",
   "body": {
-    "tpId": "4",
-    "date": "2024-12-12",
+    "tpId": "{{NextTpId}}",
+    "date": "2026-09-12",
     "period": 1
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "sheduleId",
+        "value": "sheduleId"
+      }
+    ]
   }
 }

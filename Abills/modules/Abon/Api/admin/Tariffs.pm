@@ -64,18 +64,19 @@ sub new {
 =cut
 #**********************************************************
 sub get_abon_tariffs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
-  $Abon->tariff_list({
+  my $tariffs = $Abon->tariff_list({
     _SHOW_ALL_COLUMNS => 1,
     %$query_params,
     COLS_NAME         => 1
   });
+
+  return $tariffs;
 }
 
 #**********************************************************
@@ -86,22 +87,18 @@ sub get_abon_tariffs {
 =cut
 #**********************************************************
 sub post_abon_tariffs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  my $picture_name = $Attachments->save_picture($query_params->{SERVICE_IMG});
-  $Abon->tariff_add({ %$query_params, SERVICE_IMG => $picture_name });
+  my $picture_name = '';
+  $picture_name = $Attachments->save_picture($query_params->{SERVICE_IMG}) if ($query_params->{SERVICE_IMG});
+  $Abon->tariff_add({ %$query_params, SERVICE_IMG => $picture_name || '' });
 
   if ($query_params->{GID}) {
-    my @gids = split(/,\s?/, $query_params->{GID});
+    my @gids = split(',\s?', $query_params->{GID});
     for my $gid (@gids) {
       $Abon->tariff_gid_add({ GID => $gid, TP_ID => $query_params->{ABON_ID} });
     }
   }
-
-  $Abon->tariff_add({
-    %$query_params
-  });
 
   return $Abon;
 }
@@ -114,8 +111,7 @@ sub post_abon_tariffs {
 =cut
 #**********************************************************
 sub get_abon_tariffs_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Abon->tariff_info($path_params->{id});
   return $Abon;
@@ -129,8 +125,7 @@ sub get_abon_tariffs_id {
 =cut
 #**********************************************************
 sub put_abon_tariffs_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Abon->tariff_info($path_params->{id});
   my $local_gid = $Abon->{GID};
@@ -147,7 +142,7 @@ sub put_abon_tariffs_id {
   }
 
   if ($query_params->{GID}) {
-    my @gids = split(/,\s?/, $query_params->{GID});
+    my @gids = split(/,\s?/x, $query_params->{GID});
     for my $gid (@gids) {
       $Abon->tariff_gid_add({ GID => $gid, TP_ID => $path_params->{id} });
     }
@@ -165,11 +160,12 @@ sub put_abon_tariffs_id {
 =cut
 #**********************************************************
 sub delete_abon_tariffs_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   $Abon->tariff_del($path_params->{id});
   $Abon->tariff_gid_del({ TP_ID => $path_params->{id}});
+
+  return $Abon;
 }
 
 #**********************************************************
@@ -180,15 +176,16 @@ sub delete_abon_tariffs_id {
 =cut
 #**********************************************************
 sub get_abon_tariffs_id_users_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  $Abon_services->abon_user_tariff_activate({
+  my $result = $Abon_services->abon_user_tariff_activate({
     DEBUG => 0,
     % { $query_params },
     UID   => $path_params->{uid},
     ID    => $path_params->{id},
   });
+
+  return $result;
 }
 
 #**********************************************************
@@ -199,8 +196,7 @@ sub get_abon_tariffs_id_users_uid {
 =cut
 #**********************************************************
 sub delete_abon_tariffs_id_users_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $result = $Abon_services->abon_user_tariff_deactivate({
     %{$query_params},
@@ -208,7 +204,7 @@ sub delete_abon_tariffs_id_users_uid {
     ID  => $path_params->{id},
   });
 
-  if (!$result->{errno} && $result->{AFFECTED} && $result->{AFFECTED} =~ /^[0-9]$/) {
+  if (!$result->{errno} && $result->{AFFECTED} && $result->{AFFECTED} =~ /^[0-9]$/xm) {
     return { result => 'Successfully deleted', };
   }
 

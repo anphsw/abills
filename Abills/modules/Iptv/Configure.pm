@@ -31,8 +31,6 @@ require Control::System;
 sub iptv_tp{
   my $tarif_info;
 
-  require Control::Services;
-
   my %payment_types = (
     0 => $lang{PREPAID},
     1 => $lang{POSTPAID}

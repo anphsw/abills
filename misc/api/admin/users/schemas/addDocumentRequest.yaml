@@ -1,0 +1,26 @@
+type: object
+properties:
+  uid:
+    type: integer
+    example: 456
+  doc_type:
+    type: integer
+    example: 1
+  num:
+    type: string
+    example: "AB123456"
+  date:
+    type: string
+    format: date
+    example: "2024-01-15"
+  expire:
+    type: string
+    format: date
+    example: "2034-01-15"
+  issued_by:
+    type: string
+    example: "Ministry of Internal Affairs"
+  created_at:
+    type: string
+    format: date-time
+    example: "2024-01-15"

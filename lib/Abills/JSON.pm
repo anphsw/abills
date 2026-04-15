@@ -19,7 +19,7 @@ our (
 
 my $debug;
 my %log_levels;
-my $IMG_PATH='';
+my $IMG_PATH = '';
 my $CONF;
 my @table_rows = ();
 
@@ -33,15 +33,15 @@ sub new {
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
-  my $self = { };
+  my $self = {};
   bless($self, $class);
 
   if ($attr->{NO_PRINT}) {
     $self->{NO_PRINT} = 1;
   }
 
-  if($attr->{FORM}) {
-    %FORM = %{ $attr->{FORM} };
+  if ($attr->{FORM}) {
+    %FORM = %{$attr->{FORM}};
   }
 
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
@@ -75,28 +75,31 @@ sub new {
 =cut
 #**********************************************************
 sub form_input {
-  my $self = shift;
-  my ($name, $value) = @_;
+  my ($self, $name, $value) = @_;
 
   $value //= q{};
-  $value =~ s/\\/\\\\/g;
-  $value =~ s/\"/\\\\\\\"/g;
+  $value =~ s/\\/\\\\/xg;
+  $value =~ s/\"/\\\\\\\"/xg;
 
-  $self->{FORM_INPUT} =  "{ \"$name\" : \"$value\" }";
+  $self->{FORM_INPUT} = "{ \"$name\" : \"$value\" }";
 
   return $self->{FORM_INPUT};
 }
 
 #**********************************************************
-=head2 form()
+=head2 form($form)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub form {
-  my $self == shift;
-  my $form = shift;
+  my ($self, $form) = @_;
 
-  %FORM = %{ $form };
+  %FORM = %{$form};
 
   return $self;
 }
@@ -104,17 +107,21 @@ sub form {
 #**********************************************************
 =head2 form_main($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_main {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT}) {
-    if($FORM{EXPORT_CONTENT} eq $attr->{EXPORT_CONTENT}) {
+    if ($FORM{EXPORT_CONTENT} eq $attr->{EXPORT_CONTENT}) {
       return $attr->{CONTENT};
     }
-    elsif( $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
+    elsif ($FORM{EXPORT_CONTENT} ne $attr->{ID}) {
       return '';
     }
   }
@@ -128,8 +135,8 @@ sub form_main {
   }
 
   if ($attr->{CONTENT}) {
-    if ($attr->{CONTENT} !~ /^{/) {
-      $attr->{CONTENT} = '{'.$attr->{CONTENT}.'}';
+    if ($attr->{CONTENT} !~ /^{/xm) {
+      $attr->{CONTENT} = '{' . $attr->{CONTENT} . '}';
     }
     push @arr, $attr->{CONTENT};
   }
@@ -144,12 +151,12 @@ sub form_main {
   my $tpl_id = $attr->{ID} || 'main_form';
   my $json_body = "[\n" . join(", \n", @arr) . "]";
 
-  if($FORM{EXPORT_CONTENT}){
-    push @{ $self->{JSON_OUTPUT} }, $attr->{CONTENT};
+  if ($FORM{EXPORT_CONTENT}) {
+    push @{$self->{JSON_OUTPUT}}, $attr->{CONTENT};
     return q{};
   }
-  elsif (! $attr->{OUTPUT2RETURN}) {
-    push @{ $self->{JSON_OUTPUT} }, {
+  elsif (!$attr->{OUTPUT2RETURN}) {
+    push @{$self->{JSON_OUTPUT}}, {
       $tpl_id => $json_body
     };
     return q{};
@@ -161,11 +168,15 @@ sub form_main {
 #**********************************************************
 =head2 form_textarea($name, $value, $attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self->{FORM_INPUT}
+
 =cut
 #**********************************************************
 sub form_textarea {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   $self->form_input($name, $value);
 
@@ -180,11 +191,16 @@ sub form_textarea {
 #**********************************************************
 =head2 form_select($name, $attr)
 
+  Arguments:
+    $name
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_select {
-  my $self = shift;
-  my ($name, $attr) = @_;
+  my ($self, $name, $attr) = @_;
 
   $self->{SELECT} = "\"$name\" : {\n";
   my @sel_arr = ();
@@ -202,7 +218,7 @@ sub form_select {
 
     foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
-      $v =~ s/\n//g;
+      $v =~ s/\n//xg;
       push @sel_arr, "\"$id\" : \"$v\"";
       $i++;
     }
@@ -222,17 +238,17 @@ sub form_select {
     my @H = ();
 
     if ($attr->{SORT_KEY}) {
-      @H = sort keys %{ $attr->{SEL_HASH} };
+      @H = sort keys %{$attr->{SEL_HASH}};
     }
     else {
-      @H = keys %{ $attr->{SEL_HASH} };
+      @H = keys %{$attr->{SEL_HASH}};
     }
 
     foreach my $k (@H) {
       my $val = "\"$k\" : \"";
 
       if ($attr->{EXT_PARAMS}) {
-        while (my ($ext_k, undef) = each %{ $attr->{EXT_PARAMS} }) {
+        while (my ($ext_k, undef) = each %{$attr->{EXT_PARAMS}}) {
           $val .= " $ext_k=";
           $val .= $attr->{EXT_PARAMS}->{$ext_k}->{$k} if ($attr->{EXT_PARAMS}->{$ext_k}->{$k});
         }
@@ -254,37 +270,33 @@ sub form_select {
   return '';
 }
 
-
 #**********************************************************
-=head2 menu2($menu_items, $menu_args, $permissions, $attr)
+=head2 menu($menu_items, $menu_args, $permissions, $attr)
 
-=cut
-#**********************************************************
-sub menu2 {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
-  $self->menu($menu_items, $menu_args, $permissions, $attr);
-}
-
-#**********************************************************
-=head2 menu2($menu_items, $menu_args, $permissions, $attr)
+  Arguments:
+    $menu_items
+    $menu_args
+    $permissions
+    $attr
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub menu {
-  my $self = shift;
-  my ($menu_items, undef, $permissions, $attr) = @_;
+  my ($self, $menu_items, undef, $permissions, $attr) = @_;
 
   return 0 if ($FORM{index} > 0);
 
-  my @menu_arr       = ();
+  my @menu_arr = ();
   my $menu_navigator = '';
-  my $menu_text      = '';
+  my $menu_text = '';
 
   return $menu_navigator, $menu_text if ($FORM{NO_MENU});
 
   my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
-  $EX_ARGS =~ s/&sid=\w+//g;
+  $EX_ARGS =~ s/&sid=\w+//xg;
   my $fl = $attr->{FUNCTION_LIST};
 
   my %new_hash = ();
@@ -294,25 +306,29 @@ sub menu {
     }
   }
 
-  my $h          = $new_hash{0};
+  my $h = $new_hash{0};
   my @last_array = ();
-  my @menu_sorted = sort { $h->{$a} cmp $h->{$b} } keys %$h;
+  my @menu_sorted = sort {$h->{$a} cmp $h->{$b}} keys %$h;
 
-  for (my $parent = 0 ; $parent < $#menu_sorted + 1 ; $parent++) {
+  for (my $parent = 0; $parent < $#menu_sorted + 1; $parent++) {
     my $val = $h->{ $menu_sorted[$parent] };
 
-    my $level  = 0;
+    my $level = 0;
     my $prefix = '';
-    my $ID     = $menu_sorted[$parent];
+    my $ID = $menu_sorted[$parent];
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $parent - 1 }) && $parent == 0);
-    push @menu_arr,   " \"$fl->{$ID}\": {
-      \"ID\"       : \"$ID\", "
 
-      . (($EX_ARGS) ? "\"EX_ARGS-$EX_ARGS-\"  : \"" . $self->link_former($EX_ARGS) . "\"," : '')
+    my $ext_params = ($EX_ARGS) ? "\"EX_ARGS-$EX_ARGS-\"  : \"" . $self->link_former($EX_ARGS) . "\"," : '';
+    push @menu_arr, << "[MENU]";
+       "$fl->{$ID}": {
+         "ID"       : "$ID",
+         $ext_params
+         "DESCRIBE" : "$val",
+         "TYPE"     : "MAIN"
+       }
 
-      . "\"DESCRIBE\" : \"$val\",
-      \"TYPE\"     : \"MAIN\"\n }";
+[MENU]
 
     if (defined($new_hash{$ID})) {
       $level++;
@@ -321,14 +337,19 @@ sub menu {
       my $mi = $new_hash{$ID};
 
       while (my ($k, $val2) = each %$mi) {
-        push @menu_arr, "$prefix \"sub_" . $fl->{$k} . "\": {
-          \"ID\"       : \"$k\","
+        $ext_params = ($EX_ARGS) ? "\"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\"," : q{};
+        push @menu_arr, << "[MENU]";
+        $prefix "sub_$fl->{$k}": {
+          "ID"       : "$k",
+          $ext_params
+          "DESCRIBE" : "$val2",
+          "TYPE"     : "SUB",
+          "PARENT"   : "$ID"
+        }
 
-          . (($EX_ARGS) ? "\"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\"," : q{})
+[MENU]
 
-          . "\"DESCRIBE\" : \"$val2\",
-          \"TYPE\"     : \"SUB\",
-          \"PARENT\"   : \"$ID\"\n  }";
+
 
         if (defined($new_hash{$k})) {
           $mi = $new_hash{$k};
@@ -352,9 +373,9 @@ sub menu {
   }
 
   $menu_text .= qq{"SID" : { "sid" : "$self->{SID}" }, \n} if ($self->{SID});
-  $menu_text .= "\"MENU\" : {" . join(",\n  ", @menu_arr) ."\n}";
+  $menu_text .= "\"MENU\" : {" . join(",\n  ", @menu_arr) . "\n}";
 
-  push @{ $self->{JSON_OUTPUT} }, $menu_text;
+  push @{$self->{JSON_OUTPUT}}, $menu_text;
 
   return ('', '');
 }
@@ -363,20 +384,24 @@ sub menu {
 #**********************************************************
 =head2 header($attr) - heder off main page
 
+  Arguments:
+    $attr
+  Results:
+    $self->{header}
+
 =cut
 #**********************************************************
 sub header {
-  my $self       = shift;
-  my ($attr)     = @_;
+  my ($self, $attr) = @_;
 
   my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'utf8';
-  $CHARSET =~ s/\s//g;
+  $CHARSET =~ s/\s//xg;
 
   if ($FORM{DEBUG}) {
     print "Content-Type: text/plain\n\n";
   }
 
-  $self->{header}  = "Content-Type: application/json; charset=$CHARSET\n";
+  $self->{header} = "Content-Type: application/json; charset=$CHARSET\n";
   $self->{header} .= "Access-Control-Allow-Origin: *" . "\n";
   $self->{header} .= "Access-Control-Allow-Headers: *\n";
   $self->{header} .= "Status: $attr->{STATUS}\n" if $attr->{STATUS};
@@ -391,29 +416,29 @@ sub header {
 =cut
 #**********************************************************
 sub table {
-  my $proto  = shift;
-  my ($attr)    = @_;
+  my $proto = shift;
+  my ($attr) = @_;
 
-  my $class  = ref($proto) || $proto;
+  my $class = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
 
   my $self = {};
 
   bless($self, $class);
   $self->{prototype} = $proto;
-  $self->{HTML}      = $parent;
-  $self->{NO_PRINT}  = $proto->{NO_PRINT};
+  $self->{HTML} = $parent;
+  $self->{NO_PRINT} = $proto->{NO_PRINT};
 
   $self->{rows} = '';
   $self->{table} = '';
 
-  if ($#table_rows > -1 ) {
+  if ($#table_rows > -1) {
     $self->{table} = '';
-    @table_rows   = ();
+    @table_rows = ();
   }
 
   if ($attr->{FIELDS_IDS}) {
-    $self->{FIELDS_IDS}  = $attr->{FIELDS_IDS};
+    $self->{FIELDS_IDS} = $attr->{FIELDS_IDS};
     $self->{TABLE_TITLE} = $attr->{title} || $attr->{title_plain};
   }
 
@@ -426,7 +451,7 @@ sub table {
   $self->{ID} = $attr->{ID} || q{};
 
   if ($attr->{SELECT_ALL}) {
-    $self->{SELECT_ALL}=$attr->{SELECT_ALL};
+    $self->{SELECT_ALL} = $attr->{SELECT_ALL};
   }
 
   unless ($self->{ID} && $FORM{EXPORT_CONTENT} eq $self->{ID}) {
@@ -456,7 +481,7 @@ sub table {
   if (ref($self->{FIELDS_IDS}) eq 'HASH') {
     $self->{table} .= "\"EXT_DATA\" : [";
 
-    foreach (keys %{ $self->{FIELDS_IDS} }) {
+    foreach (keys %{$self->{FIELDS_IDS}}) {
       $self->{table} .= "\"$self->{FIELDS_IDS}{$_}\",\n";
     }
 
@@ -473,7 +498,7 @@ sub table {
     if (defined($attr->{recs_on_page})) {
       $ATTR{recs_on_page} = $attr->{recs_on_page};
     }
-    $self->{pages} = $self->pages($attr->{pages}, "$op$attr->{qs}", {%ATTR});
+    $self->{pages} = $self->pages($attr->{pages}, "$op$attr->{qs}", { %ATTR });
   }
 
   return $self;
@@ -482,54 +507,58 @@ sub table {
 #**********************************************************
 =head2 addrow(@row)
 
+  Arguments:
+    @row
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub addrow {
-  my $self = shift;
-  my (@row) = @_;
+  my ($self,@row) = @_;
 
   if ($self->{SKIP_EXPORT_CONTENT}) {
-    delete ($self->{SKIP_EXPORT_CONTENT});
+    delete($self->{SKIP_EXPORT_CONTENT});
     return '';
   }
 
-  my @formed_rows   = ();
+  my @formed_rows = ();
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
-  for (my $i=0; $i<=$#row; $i++) {
-    my $val = $row[$i+$select_present];
+  for (my $i = 0; $i <= $#row; $i++) {
+    my $val = $row[$i + $select_present];
     if ($self->{FIELDS_IDS}) {
       if ($self->{TABLE_TITLE}->[$i]) {
-        if(! $self->{FIELDS_IDS}->[$i]) {
+        if (!$self->{FIELDS_IDS}->[$i]) {
           next;
         }
 
-        $val =~ s/[\n\r]/ /g;
-        $val =~ s/\t/ /g;
+        $val =~ s/[\n\r]/ /xg;
+        $val =~ s/\t/ /gx;
 
-        if ($val =~ /^{(.+) : (.+)}$/) {
+        if ($val =~ /^{(.+)\s+:\s+(.+)}$/xm) {
           push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : $val";
         }
-        elsif ($val =~ /^{(.+)}$/) {
+        elsif ($val =~ /^{(.+)}$/xm) {
           push @formed_rows, $1;
         }
         else {
-          $val =~ s/\"/\\\"/g;
+          $val =~ s/\"/\\\"/xg;
           push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
         }
       }
     }
     else {
-      if ($self->{caption}[$i] && $self->{caption}[$i] !~ /\-/) {
-        $val = "\"$val\"" if $val !~ /^{(.+) : (.+)}$/;
-        push @formed_rows, '"' . $self->{caption}[$i] ."\" : $val";
+      if ($self->{caption}[$i] && $self->{caption}[$i] !~ /\-/xm) {
+        $val = "\"$val\"" if ($val !~ /^{.+\s+:\s+.+}$/xm);
+        push @formed_rows, '"' . $self->{caption}[$i] . "\" : $val";
       }
     }
   }
 
-  push @table_rows, '{'. join(', ', @formed_rows) .'}' if($#formed_rows > -1);
-  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) .'}' if($#formed_rows > -1);
+  push @table_rows, '{' . join(', ', @formed_rows) . '}' if ($#formed_rows > -1);
+  push @{$self->{table_rows}}, '{' . join(', ', @formed_rows) . '}' if ($#formed_rows > -1);
 
   return $self->{rows};
 }
@@ -537,27 +566,31 @@ sub addrow {
 #**********************************************************
 =head2 addtd(@rows)
 
+  Arguments:
+    @row
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub addtd {
-  my $self  = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
-  my @formed_rows   = ();
+  my @formed_rows = ();
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
-  for (my $i=0; $i<=$#row+$select_present+1; $i++) {
-    my $val = $row[$i+$select_present];
+  for (my $i = 0; $i <= $#row + $select_present + 1; $i++) {
+    my $val = $row[$i + $select_present];
     if ($self->{FIELDS_IDS}) {
-      if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i] && $self->{TABLE_TITLE}->[$i] ne '-' ) {
-        $val =~ s/[\n\r]/ /g;
-        $val =~ s/\t/ /g;
+      if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i] && $self->{TABLE_TITLE}->[$i] ne '-') {
+        $val =~ s/[\n\r]/ /xg;
+        $val =~ s/\t/ /xg;
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
       }
     }
   }
 
-  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) .'}';
+  push @{$self->{table_rows}}, '{' . join(', ', @formed_rows) . '}';
 
   return \@formed_rows;
 }
@@ -565,11 +598,15 @@ sub addtd {
 #**********************************************************
 =head2 th($value, $attr) Extendet add rows
 
+  Arguments:
+    $value
+  Results:
+    $self->{th}
+
 =cut
 #**********************************************************
 sub th {
-  my $self = shift;
-  my ($value) = @_;
+  my ($self, $value) = @_;
 
   return $self->td($value, { TH => 1 });
 }
@@ -577,18 +614,22 @@ sub th {
 #**********************************************************
 =head2 td($value, $attr) - Extendet add rows
 
+  Arguments:
+    $value
+  Results:
+    $td
+
 =cut
 #**********************************************************
-sub td{
-  shift;
-  my ($value) = @_;
+sub td {
+  my (undef, $value) = @_;
 
   my $td = '';
-  if ( defined( $value ) ){
+  if (defined($value)) {
     $td .= $value;
-    $td =~ s/\\/\\\\/g;
-    $td =~ s/\"/\\\"/g;
-    $td =~ s/\t/ /g;
+    $td =~ s/\\/\\\\/xg;
+    $td =~ s/\"/\\\"/xg;
+    $td =~ s/\t/ /xg;
   }
 
   return $td;
@@ -606,8 +647,7 @@ sub td{
 =cut
 #**********************************************************
 sub table_title_plain {
-  my $self = shift;
-  my ($caption) = @_;
+  my ($self, $caption) = @_;
 
   $self->{table_title} = "\"TITLE\" : [\n";
 
@@ -616,7 +656,7 @@ sub table_title_plain {
     push @table_arr, "\"$line\"";
   }
 
-  $self->{table_title} .= join(",", @table_arr) ." ],\n";
+  $self->{table_title} .= join(",", @table_arr) . " ],\n";
 
   return $self->{table_title};
 }
@@ -630,11 +670,13 @@ sub table_title_plain {
     $pg - page id
     $caption - array off caption
 
+  Returns:
+    $table_title
+
 =cut
 #**********************************************************
 sub table_title {
-  my $self = shift;
-  my (undef, undef, undef, $caption) = @_;
+  my ($self, undef, undef, undef, $caption) = @_;
 
   $self->{table_title} = "\"TITLE\" : [\n";
 
@@ -642,11 +684,11 @@ sub table_title {
 
   foreach my $line (@$caption) {
     if ($line) {
-      push @table_arr, "\"$line\"" unless ($line =~ /\-/);
+      push @table_arr, "\"$line\"" unless ($line =~ /\-/xm);
     }
   }
 
-  $self->{table_title} .= join(",", @table_arr) ." ],\n";
+  $self->{table_title} .= join(",", @table_arr) . " ],\n";
   $self->{caption} = $caption;
 
   return $self->{table_title};
@@ -655,21 +697,25 @@ sub table_title {
 #**********************************************************
 =head2 show($attr) - Show table content
 
+  Arguments:
+    $attr
+  Results:
+    $table->{show}
+
 =cut
 #**********************************************************
 sub show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if (($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) || ($attr->{DUBLICATE_DATA})) {
     return '';
   }
 
-  if($self->{table_rows}) {
-    @table_rows = @{ $self->{table_rows} };
+  if ($self->{table_rows}) {
+    @table_rows = @{$self->{table_rows}};
   }
 
-  my $json_body ='';
+  my $json_body = '';
 
   if (ref($self->{FIELDS_IDS}) eq 'HASH') {
     $json_body = $self->{table};
@@ -683,8 +729,8 @@ sub show {
 
   $json_body .= '}' if (!$FORM{EXPORT_CONTENT});
 
-  if (! $attr->{OUTPUT2RETURN})  {
-    push @{ $self->{HTML}{JSON_OUTPUT} }, $json_body;
+  if (!$attr->{OUTPUT2RETURN}) {
+    push @{$self->{HTML}{JSON_OUTPUT}}, $json_body;
     return '';
   }
 
@@ -739,8 +785,8 @@ sub b {
 =cut
 #**********************************************************
 sub button {
-  my $self = shift;
-  my ($name, $params, $attr) = @_;
+  my ($self, $name, $params, $attr) = @_;
+
   my $ex_attr = '';
 
   if ($attr->{ONLY_IN_HTML}) {
@@ -751,10 +797,13 @@ sub button {
   $params = $self->link_former($params);
 
   $ex_attr = " TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
-  my $button = "\"$name\" : {
-                    \"url\" : \"$params\",
-                    \"title\" : \"$attr->{TITLE}\"
-                    }\n";
+  my $button = << "[BUTTON]";
+  "$name" : {
+    "url" : "$params",
+    "title" : "$attr->{TITLE}"
+  }
+
+[BUTTON]
 
   $button = "$name";
 
@@ -764,16 +813,20 @@ sub button {
 #**********************************************************
 =head2 message($self, $type, $caption, $message) Show message box
 
-  $type - info, err
+  Arguments:
+    $type - info, err
+    $caption,
+    $message
+  Results:
+    $self->{message}
 
 =cut
 #**********************************************************
 sub message {
-  my $self = shift;
-  my ($type, $caption, $message, $attr) = @_;
+  my ($self, $type, $caption, $message, $attr) = @_;
 
   if ($type eq 'warning') {
-    $type='info';
+    $type = 'info';
   }
 
   if ($FORM{EXPORT_CONTENT}) {
@@ -782,23 +835,25 @@ sub message {
 
   my $id = ($attr->{ID}) ? qq{,"ID" : "$attr->{ID}" } : '';
 
-  if ($attr->{RESPONCE_PARAMS} && ref $attr->{RESPONCE_PARAMS} eq 'HASH'){
-    $id .= ',' . join (',', map { qq{ "$_" : "$attr->{RESPONCE_PARAMS}->{$_}" } } (keys %{$attr->{RESPONCE_PARAMS}})  );
+  if ($attr->{RESPONCE_PARAMS} && ref $attr->{RESPONCE_PARAMS} eq 'HASH') {
+    $id .= ',' . join(',', map {qq{ "$_" : "$attr->{RESPONCE_PARAMS}->{$_}" }} (keys %{$attr->{RESPONCE_PARAMS}}));
   }
 
-  my $tpl_id = 'MESSAGE' . (($attr->{ID}) ? '_'.$attr->{ID} : q{});
-  my $json_body =  qq/{
-                      "type"    : "MESSAGE",
-                      "message_type" : "$type",
-                      "caption" : "$caption",
-                      "messaga" : "$message"
-                      $id
-                    }/;
+  my $tpl_id = 'MESSAGE' . (($attr->{ID}) ? '_' . $attr->{ID} : q{});
+  my $json_body = << "[MESSAGE]";
+{
+  "type"    : "MESSAGE",
+  "message_type" : "$type",
+  "caption" : "$caption",
+  "messaga" : "$message"
+  $id
+}
+[MESSAGE]
 
-  $json_body =~ s/\n/ /gm;
+  $json_body =~ s/\n/ /xgm;
 
-  if (! $attr->{OUTPUT2RETURN}) {
-    push @{ $self->{JSON_OUTPUT} }, { $tpl_id => $json_body };
+  if (!$attr->{OUTPUT2RETURN}) {
+    push @{$self->{JSON_OUTPUT}}, { $tpl_id => $json_body };
     return q{};
   }
   else {
@@ -807,13 +862,19 @@ sub message {
 }
 
 #**********************************************************
-=head2 pages($count, $argument)- Make pages and count total records
+=head2 pages($count, $argument, $attr)- Make pages and count total records
+
+  Arguments:
+    $count,
+    $argument
+    $attr
+  Results:
+    $self->{pages}
 
 =cut
 #**********************************************************
 sub pages {
-  my $self = shift;
-  my ($count, $argument, $attr) = @_;
+  my ($self, $count, $argument, $attr) = @_;
 
   if (defined($attr->{recs_on_page})) {
     $PAGE_ROWS = $attr->{recs_on_page};
@@ -824,7 +885,7 @@ sub pages {
   return '' if ($count < $PAGE_ROWS);
   $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
 
-  for (my $i = $begin ; ($i <= $count && $i < $PG + $PAGE_ROWS * 10) ; $i += $PAGE_ROWS) {
+  for (my $i = $begin; ($i <= $count && $i < $PG + $PAGE_ROWS * 10); $i += $PAGE_ROWS) {
     push @tpl_arr, $self->button($i, "$argument&pg=$i") if ($i != $PG);
   }
 
@@ -832,19 +893,24 @@ sub pages {
 }
 
 #**********************************************************
-=head2 date_fld2($base_name) - Make data field
+=head2 date_fld2($base_name, $attr) - Make data field
+
+  Arguments:
+    $base_name
+    $attr
+  Results:
+    $self->{data_field}
 
 =cut
 #**********************************************************
 sub date_fld2 {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
+  my ($self, $base_name, $attr) = @_;
 
   my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
 
-  my $day   = sprintf("%.2d", $FORM{ $base_name . 'D' } || 1);
+  my $day = sprintf("%.2d", $FORM{ $base_name . 'D' } || 1);
   my $month = sprintf("%.2d", $FORM{ $base_name . 'M' } || $mon);
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
+  my $year = $FORM{ $base_name . 'Y' } || $curyear + 1900;
   my $result = "$base_name Y=\'$year\' M=\'$month\' D=\'$day\' ";
 
   if ($FORM{$base_name}) {
@@ -855,13 +921,13 @@ sub date_fld2 {
     ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));
 
     $month = $mon + 1;
-    $year  = $curyear + 1900;
-    $day   = $mday;
+    $year = $curyear + 1900;
+    $day = $mday;
 
-    if ($base_name =~ /to/i) {
+    if ($base_name =~ /to/xmi) {
       $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
     }
-    elsif ($base_name =~ /from/i && !$attr->{NEXT_DAY}) {
+    elsif ($base_name =~ /from/xmi && !$attr->{NEXT_DAY}) {
       $day = 1;
     }
     my $date = sprintf("%d-%.2d-%.2d", $year, $month, $day);
@@ -874,31 +940,45 @@ sub date_fld2 {
 #**********************************************************
 =head2 log_print($level, $text)
 
+  Arguments:
+    $level
+    $text
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub log_print {
-  shift;
-  my ($level, $text) = @_;
+  my (undef, $level, $text) = @_;
 
   if ($debug < $log_levels{$level}) {
     return 0;
   }
 
-  print << "[END]";
-<LOG_PRINT level="$level">
-$text
-</LOG_PRINT>
+  print <<"[END]";
+{"LOG_PRINT" : {
+   level: "$level"
+   text: "$text"
+  }
+}
 [END]
+  return q{};
 }
 
 #**********************************************************
 =head2 element($name, $value, $attr)
 
+  Arguments:
+    $name
+    $value
+    $attr
+  Results:
+    $self
+
 =cut
 #********************************`**************************
 sub element {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   if ($attr->{ID}) {
     $value = " \"$name\" : [ $value ] ";
@@ -917,11 +997,18 @@ sub element {
 #**********************************************************
 =head2 tpl_show($tpl, $variables_ref, $attr) - show tamplate
 
+  Arguments:
+    $tpl
+    $variables_ref
+    $attr
+  Results:
+    $self->{table}
+
 =cut
 #**********************************************************
 sub tpl_show {
-  my $self = shift;
-  my ($tpl, $variables_ref, $attr) = @_;
+  my ($self, $tpl, $variables_ref, $attr) = @_;
+
   my @val_arr = ();
 
   if ($attr->{CONFIG_TPL}) {
@@ -936,7 +1023,7 @@ sub tpl_show {
   my $tpl_id = $tpl_name || "_INFO";
   my $no_subject = $attr->{NO_SUBJECT} || '--';
 
-  $tpl_name = "HASH" if (! $attr->{MAIN});
+  $tpl_name = "HASH" if (!$attr->{MAIN});
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_id) {
     return '';
@@ -945,37 +1032,37 @@ sub tpl_show {
   my $xml_tpl = "";
 
   if ($tpl_name) {
-    $xml_tpl = (($self->{tpl_num} && ! $attr->{SKIP_D}) ? "\n(,) \n" : '' ) ."\"$tpl_name\" :";
+    $xml_tpl = (($self->{tpl_num} && !$attr->{SKIP_D}) ? "\n(,) \n" : '') . "\"$tpl_name\" :";
     $self->{tpl_num}++;
   }
 
-  while ($tpl =~ /\%(\w+)\%/g) {
+  while ($tpl =~ /\%(\w+)\%/xmg) {
     my $var = $1;
 
-    if ($var =~ /ACTION_LNG|CID_PATTERN|CPE_PATTERN/) {
+    if ($var =~ /ACTION_LNG|CID_PATTERN|CPE_PATTERN/xm) {
       next;
     }
-    elsif ($variables_ref->{$var} =~ m/^\{\n\}/i) {
+    elsif ($variables_ref->{$var} =~ m/^\{\n\}/xi) {
       next;
     }
     elsif ($variables_ref->{$var}) {
-      if ($variables_ref->{$var} !~ m/\{/g) {
-        $variables_ref->{$var} =~ s/\\/\\\\/g;
-        $variables_ref->{$var} =~ s/\"/\\\\\\\"/g;
-        $variables_ref->{$var} =~ s/\n//g;
+      if ($variables_ref->{$var} !~ m/\{/gx) {
+        $variables_ref->{$var} =~ s/\\/\\\\/gx;
+        $variables_ref->{$var} =~ s/\"/\\\\\\\"/xg;
+        $variables_ref->{$var} =~ s/\n//xg;
 
         my $value = "\"$var\" : \"$variables_ref->{$var}\"";
-        if(! grep { $_ eq $value } @val_arr) {
+        if (!grep {$_ eq $value} @val_arr) {
           push @val_arr, $value;
         }
       }
-      elsif ($variables_ref->{$var} =~ m/^\"TABLE/i) {
+      elsif ($variables_ref->{$var} =~ m/^\"TABLE/xi) {
         push @val_arr, "\"$var\" : { $variables_ref->{$var} }";
       }
-      elsif ($variables_ref->{$var} =~ m/MESSAGE/i) {
+      elsif ($variables_ref->{$var} =~ m/MESSAGE/xi) {
         push @val_arr, "\"__$var\" : { $variables_ref->{$var} }";
       }
-      elsif (($variables_ref->{$var} !~ m/^\"\S+\" : \{/ig) || ($variables_ref->{$var} !~ m/\"\S+\" : \{/ig)) {
+      elsif (($variables_ref->{$var} !~ m/^\"\S+\"\s+:\s+\{/xig) || ($variables_ref->{$var} !~ m/\"\S+\"\s+:\s+\{/xig)) {
         push @val_arr, "\"__$var\" : [ $variables_ref->{$var} ]";
       }
       else {
@@ -991,21 +1078,21 @@ sub tpl_show {
 
   my $json_body = q{};
 
-  if($#val_arr > -1) {
+  if ($#val_arr > -1) {
     $json_body = "{\n";
     $json_body .= '' . join(",\n  ", @val_arr);
     $json_body .= "}\n";
   }
 
-  $xml_tpl .= $json_body."\n";
+  $xml_tpl .= $json_body . "\n";
 
-  if (! $attr->{OUTPUT2RETURN}) {
-    if($json_body) {
+  if (!$attr->{OUTPUT2RETURN}) {
+    if ($json_body) {
       push @{$self->{JSON_OUTPUT}}, {
         $tpl_id => $json_body
       };
     }
-    return ;
+    return;
   }
   elsif ($self->{SELECT}) {
     return '';
@@ -1035,13 +1122,17 @@ sub table_header {
 }
 
 #**********************************************************
-=head2 fetch() - Fetch cache data
+=head2 fetch($attr) - Fetch cache data
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub fetch  {
-  my $self = shift;
-  my ($attr) = @_;
+sub fetch {
+  my ($self, $attr) = @_;
 
   my @output_arr = ();
   my %dup_keys;
@@ -1069,19 +1160,20 @@ sub fetch  {
 
   if ($FORM{EXPORT_CONTENT} && $#output_arr == 0) {
     $result = join(",\n\n", @output_arr);
-    $result = '{' . $result . '}' if ($result !~ /^{/);
+    $result = '{' . $result . '}' if ($result !~ /^{/xm);
   }
-  elsif($attr->{FULL_RESULT}) { #XXX what is this?
+  elsif ($attr->{FULL_RESULT}) {
+    #XXX what is this?
     $result = join(",\n\n", @output_arr);
-    if ($result !~ /^{/) {
+    if ($result !~ /^{/xm) {
       $result = '{' . $result . '}';
     }
   }
   else {
-    $result = "{\n". join(",\n\n", @output_arr) ."\n}";
+    $result = "{\n" . join(",\n\n", @output_arr) . "\n}";
   }
 
-  if($attr->{DEBUG}) {
+  if ($attr->{DEBUG}) {
     $self->{RESULT} = $result;
   }
   else {
@@ -1097,20 +1189,20 @@ sub fetch  {
 =cut
 #**********************************************************
 sub AUTOLOAD {
+  my ($self, $data) = @_;
   our $AUTOLOAD;
 
-  return if ($AUTOLOAD =~ /::[A-Z]+$/);
+  return if ($AUTOLOAD =~ /::[A-Z]+$/xm);
   my $function = $AUTOLOAD;
 
-  if($function =~ /table_header|progress_bar|/) {
+  if ($function =~ /table_header|progress_bar|/xm) {
     return q{};
   }
 
-  my ($self, $data) = @_;
 
   return $data;
 }
 
 DESTROY {}
 
-1
+1;

@@ -3,5 +3,6 @@ $lang{USER_FLAT_NUM_NO_CORRECT} = 'Несоответствие параметр
 $lang{FLAT} = 'кв.';
 $lang{BUILD} = 'Дом';
 $lang{START_NUMBERING_FLAT} = 'Нумерация квартир с';
+$lang{START_NUMBERING_FLOOR} = 'Нумерация этажей с';
 
 1

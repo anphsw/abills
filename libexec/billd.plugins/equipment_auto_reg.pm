@@ -133,13 +133,14 @@ sub _auto_reg {
   foreach my $nas (@$Equipment_list) {
     my $SNMP_COMMUNITY = "$nas->{nas_mng_password}\@" . (($nas->{nas_mng_ip_port}) ? $nas->{nas_mng_ip_port} : $nas->{nas_ip});
 
-    if($SNMP_COMMUNITY =~ /(.+):(.+)/xm) {
+    if($SNMP_COMMUNITY =~ /(.+):([0-5]+)/xm) {
       $SNMP_COMMUNITY = $1;
       my $SNMP_PORT = 161;
-      $SNMP_COMMUNITY .= ':'.$SNMP_PORT;
+      $SNMP_COMMUNITY .= ':::'.$SNMP_PORT;
     }
 
     $nas->{SNMP_COMMUNITY} = $SNMP_COMMUNITY;
+    $nas->{VERSION} = $nas->{SNMP_VERSION} || 2;
 
     _log('LOG_NOTICE', "NAS_NAME: $nas->{NAS_NAME}, NAS_ID: $nas->{NAS_ID}");
 

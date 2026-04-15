@@ -107,6 +107,7 @@ sub disconnect{
     $attr   - Extra attributes
       COLS_NAME   - Return Array of HASH_ref. Column name as hash key
       COLS_UPPER  - Make hash key upper
+      GET_COL_TYPES - Get DB cols types
       INFO        - Return fields as objects parameters $self->{LOGIN}
       LIST2HASH   - Return 2 field hash
             KEY,VAL
@@ -214,9 +215,11 @@ sub query {
   }
 
   if ($type && $type eq 'do') {
-    $self->{AFFECTED} = $db->do($query, undef, @{$attr->{Bind}});
-    if ($db->{'mysql_insertid'}) {
-      $self->{INSERT_ID} = $db->{'mysql_insertid'};
+    if($self->{AFFECTED} = $db->do($query, undef, @{$attr->{Bind}})) {
+      $self->{AFFECTED} += 0;
+      if ($db->{'mysql_insertid'}) {
+        $self->{INSERT_ID} = $db->{'mysql_insertid'};
+      }
     }
   }
   else {
@@ -226,12 +229,13 @@ sub query {
       return $self->_multi_query($query, $type, { %$attr, start_query_time => $start_query_time }, $q);
     }
     else {
-      $q->execute(@{$attr->{Bind}});
-      $self->{TOTAL} = $q->rows;
+      if($q->execute(@{$attr->{Bind}})) {
+        $self->{TOTAL} = $q->rows;
+      }
     }
   }
 
-  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
+  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2 && ! $self->{debug}) {
     my $elapsed = Time::HiRes::tv_interval($start_query_time);
     ${$self->{db}->{queries_list}}[-1]->[1] = $elapsed;
   }
@@ -245,6 +249,7 @@ sub query {
 
     if ($attr->{COLS_NAME}) {
       push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME} || []};
+      push @{$self->{COL_TYPES_ARR}}, @{$q->{mysql_type_name}} if ($attr->{GET_COL_TYPES});
 
       while (my $row = $q->fetchrow_hashref()) {
         if ($attr->{COLS_UPPER}) {
@@ -258,7 +263,9 @@ sub query {
       }
     }
     elsif ($attr->{INFO}) {
-      push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME}};
+      push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME}} if ($q->{NAME});
+      push @{$self->{COL_TYPES_ARR}}, @{$q->{mysql_type_name}} if ($attr->{GET_COL_TYPES});
+
       while (my $row = $q->fetchrow_hashref()) {
         while (my ($k, $v) = each %{$row}) {
           $self->{ uc($k) } = $v;
@@ -288,6 +295,10 @@ sub query {
     $self->{list} = \@rows;
   }
   else {
+    if ($type && $type eq 'do') {
+      return $self
+    }
+
     if ($q && $q->{NAME} && ref $q->{NAME} eq 'ARRAY') {
       push @{$self->{COL_NAMES_ARR}}, @{$q->{NAME}};
     }
@@ -327,7 +338,7 @@ sub db_debug {
 
   if($self->{debug}) {
     my $bind_values = q{};
-    if ($attr->{Bind}) {
+    if ($attr->{Bind} && ref $attr->{Bind} eq 'ARRAY') {
       $bind_values = join(', ', @{$attr->{Bind}});
     }
 
@@ -446,6 +457,10 @@ sub db_error_log {
       $bind_values = ' Binds: ' . join(', ', @{$attr->{Bind}});
       $self->{sql_query} .= "\n" . $bind_values;
     }
+
+    $self->{sql_errno} //= 0;
+    $self->{sql_errstr} //= '';
+
     Log::log_print(undef, 'LOG_ERR', '',
       "index:" . ($attr->{index} || q{}) . "\n"
         . ($query || q{}) . "\n$bind_values\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $autocommit \n$caller\n"

@@ -7,6 +7,9 @@
   "05:1:$lang{PROCESSES}:sqlcmd_procs:"    => 5,
 );
 
+if($conf{REDIS_DB}) {
+   $FUNCTIONS_LIST{"06:1:Redis:sqlcmd_redis:"}=5
+}
 
 if ($conf{SQLCMD_CLUSTER_HOSTS}) {
   $FUNCTIONS_LIST{"06:1:Cluster:sqlcmd_cluster:"} = 5;

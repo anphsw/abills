@@ -240,13 +240,15 @@ sub zte_onu_gpon_list {
         print "gpon $oid_name NAME: $snmp->{$oid_name}->{NAME} OID: $snmp->{$oid_name}->{OIDS}.$snmp_id \n";
       }
 
-      my $values = snmp_get({ %{$attr},
+      my $values = snmp_get({
+        %{$attr},
         WALK    => 1,
         OID     => $oid . '.' . $snmp_id,
         TIMEOUT => 25
       });
 
       if (!$values) {
+        print "NO VALUESSSS $oid . '.' . $snmp_id Next!!!!!!!!!!!!!!!!!!\n";
         next;
       }
 
@@ -255,7 +257,7 @@ sub zte_onu_gpon_list {
         my ($onu_id, $oid_value) = split(/:/x, $line, 2);
         $onu_id =~ s/\.\d+//x;
         if ($attr->{DEBUG} && $attr->{DEBUG} > 3) {
-          print $oid . ' -> ' . "$onu_id, $oid_value \n";
+          print $oid . ' -> ' . "OID_ID: $onu_id OID_VALUE: $oid_value \n";
         }
         my $function = $snmp->{$oid_name}->{PARSER};
         if ($function && defined(&{$function})) {
@@ -349,7 +351,7 @@ sub _zte_onu_list {
       push @onu_list, @{zte_onu_epon_list($port_list, $attr)};
     }
     else {
-      print "1111";
+      print "GPON:" if ($attr->{DEBUG});
       push @onu_list, @{zte_onu_gpon_list($port_list, $attr)};
     }
   }
@@ -1490,6 +1492,7 @@ sub _zte_unregister {
   #return \@unregister;
   #}
 
+  #Epon unregister
   $snmp = _zte({ TYPE => 'unregister' });
 
   my $unreg_result = snmp_get({
@@ -1501,7 +1504,7 @@ sub _zte_unregister {
   });
 
   my %unreg_info = (
-    2  => 'mac',
+    2  => 'mac', #zxGponUnCfgSnOntSN
     3  => 'info',
     #    4  => 'x4',
     #    5  => 'x5',
@@ -1874,11 +1877,10 @@ sub _zte_get_onu_config {
   my $dir = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
   my $template = 'zte_get_onu_config_' . $pon_type . '_' . $model . '.tpl';
 
-  my $template_file = $dir.$template;
-  if (!-f $template_file) {
+  if (!-f $dir.$template) {
     $template = 'zte_get_onu_config_' . $pon_type . '_' . $model . '.tpl.example';
   }
-  if (!-f $template_file) {
+  if (!-f $dir.$template) {
     $template = "zte_get_onu_config_$pon_type.tpl.example";
   }
 

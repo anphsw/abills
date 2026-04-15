@@ -80,7 +80,7 @@ sub plugin_show {
   if ($attr->{ping}) {
     require Internet::Diagnostic;
     Internet::Diagnostic->import('host_diagnostic');
-    my $result = ::host_diagnostic($attr->{ping});
+    my $result = host_diagnostic($attr->{ping});
     $html->message('info', $lang->{INFO}, $result);
     return { RETURN_VALUE => 1 };
   }

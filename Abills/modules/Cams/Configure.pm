@@ -28,8 +28,6 @@ my $Cams = Cams->new($db, $admin, \%conf);
 #**********************************************************
 sub cams_tp {
 
-  require Control::Services;
-
   my %TEMPLATE_CAMS_TP = ();
   my $show_add_form = $FORM{add_form} || 0;
   my %payment_types = (0 => $lang{PREPAID}, 1 => $lang{POSTPAID});

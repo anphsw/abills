@@ -29,13 +29,13 @@
     "ONU_TX_POWER"   : {
       "NAME"   : "ONU_TX_POWER",
       "OIDS"   : ".1.3.6.1.4.1.3320.101.10.5.1.6",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
     },
     // "tx_power" = "tx_power * 0.1"
     "ONU_RX_POWER"   : {
       "NAME"   : "ONU_RX_POWER",
       "OIDS"   : ".1.3.6.1.4.1.3320.101.10.5.1.5",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
     },
     // "tx_power" = "tx_power * 0.1"
     // OLT_RX_POWER have different OID for P3310C, P3310D, P3608, P3612-2TE, P3616-2TE
@@ -43,9 +43,8 @@
     "OLT_RX_POWER"   : {
       "NAME"   : "OLT_RX_POWER",
       "OIDS"   : "1.3.6.1.4.1.3320.101.108.1.3",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
     },
-    // "olt_rx_power" = "olt_rx_power * 0.1"
     "ONU_DESC"       : {
       "NAME"   : "DESCRIBE",
       "OIDS"   : ".1.3.6.1.2.1.31.1.1.1.18"
@@ -63,7 +62,7 @@
     "TEMPERATURE"    : {
       "NAME"   : "TEMPERATURE",
       "OIDS"   : ".1.3.6.1.4.1.3320.101.10.5.1.2",
-      "PARSER" : "_bdcom_convert_temperature"
+      "PARSER" : "bdcom_convert_temperature"
     }, // temperature = temperature / 256
     "reset"          : {
       "NAME"        : "",
@@ -93,7 +92,7 @@
       "VOLTAGE"          : {
         "NAME"   : "VOLTAGE",
         "OIDS"   : ".1.3.6.1.4.1.3320.101.10.5.1.3",
-        "PARSER" : "_bdcom_convert_voltage"
+        "PARSER" : "bdcom_convert_voltage"
       }, // voltage = voltage * 0.0001
       "DISTANCE"         : {
         "NAME"   : "DISTANCE",
@@ -112,7 +111,7 @@
       //"VIDEO_RX_POWER" : { //XXX is very slow, at least when there"s no CATV port on ONU
       //  "NAME"   : "VIDEO_RX_POWER",
       //  "OIDS"   : "1.3.6.1.4.1.3320.101.10.31.1.2",
-      //  "PARSER" : "_bdcom_convert_video_power"
+      //  "PARSER" : "bdcom_convert_video_power"
       //},
       "MAC_BEHIND_ONU"   : {
         "NAME"   : "MAC_BEHIND_ONU",
@@ -141,19 +140,19 @@
     "ONU_TX_POWER"        : {
       "NAME"   : "ONU_TX_POWER",
       "OIDS"   : ".1.3.6.1.4.1.3320.10.3.4.1.3",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
     }, //tx_power : tx_power * 0.1
     "ONU_RX_POWER"        : {
       "NAME"   : "ONU_RX_POWER",
       "OIDS"   : ".1.3.6.1.4.1.3320.10.3.4.1.2",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
     }, //tx_power : tx_power * 0.1
     // ONU_TX_POWER check if working on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
     // Another OID .1.3.6.1.4.1.3320.9.183.1.1.5
     "OLT_RX_POWER"        : {
       "NAME"   : "OLT_RX_POWER",
       "OIDS"   : "1.3.6.1.4.1.3320.10.2.3.1.3",
-      "PARSER" : "_bdcom_convert_power"
+      "PARSER" : "bdcom_convert_power"
       //SKIP   : "P3616-2TE" //seems that SKIP is not used anywhere. fix? re"NAME" to SKIP_MODEL?
     }, //olt_rx_power : olt_rx_power * 0.1
     "ONU_DESC"            : {
@@ -182,7 +181,7 @@
     // "TEMPERATURE"    : {
     //   "NAME"   : "TEMPERATURE",
     //   "OIDS"   : "1.3.6.1.4.1.3320.10.2.2.1.4",
-    //   "PARSER" : "_bdcom_convert_temperature"
+    //   "PARSER" : "bdcom_convert_temperature"
     // }, //"temperature" : "temperature / 256"
     "reset"               : {
       "NAME"        : "",
@@ -201,12 +200,12 @@
       // "VOLTAGE"          : {
       //   "NAME"   : "VOLTAGE",
       //   "OIDS"   : ".1.3.6.1.4.1.3320.101.10.5.1.3",
-      //   "PARSER" : "_bdcom_convert_voltage"
+      //   "PARSER" : "bdcom_convert_voltage"
       // }, //"voltage" : "voltage * 0.0001"
       "DISTANCE"         : {
         "NAME"   : "DISTANCE",
         "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.33",
-        "PARSER" : "_bdcom_convert_distance_gpon"
+        "PARSER" : "bdcom_convert_distance_gpon"
       }, //"distance" : "distance * 0.001"
       // 0-1 - Active
       // 2 - Not connected
@@ -218,12 +217,12 @@
       "UPTIME"           : {
         "NAME"   : "UPTIME",
         "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.19",
-        "PARSER" : "_bdcom_sec2time"
+        "PARSER" : "bdcom_sec2time"
       },
       "ONU_LAST_DOWN_CAUSE" : {
         "NAME"   : "ONU_LAST_DOWN_CAUSE",
         "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.35",
-        "PARSER" : "_bdcom_convert_onu_last_down_cause"
+        "PARSER" : "bdcom_convert_onu_last_down_cause"
       },
       "MAC_BEHIND_ONU"      : {
         "NAME"        : "MAC_BEHIND_ONU",

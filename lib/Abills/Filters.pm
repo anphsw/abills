@@ -22,7 +22,8 @@ our (
   $MAC,
   $DEFAULT_DATE_FORMAT,
   $EMAIL_EXPR,
-  $URL_EXPR
+  $URL_EXPR,
+  $UUID_EXPR
 );
 
 use base 'Exporter';
@@ -44,6 +45,7 @@ our @EXPORT = qw(
   value2readable
   mk_cid_list
   email_valid
+  uuid_valid
   $IPV4
   $IPV4CIDR
   $HD
@@ -55,6 +57,7 @@ our @EXPORT = qw(
   $DEFAULT_DATE_FORMAT
   $EMAIL_EXPR
   $URL_EXPR
+  $UUID_EXPR
 );
 
 our @EXPORT_OK = qw(
@@ -71,6 +74,7 @@ our @EXPORT_OK = qw(
   value2readable
   mk_cid_list
   email_valid
+  uuid_valid
   $IPV4
   $IPV4CIDR
   $HD
@@ -82,6 +86,7 @@ our @EXPORT_OK = qw(
   $DEFAULT_DATE_FORMAT
   $EMAIL_EXPR
   $URL_EXPR
+  $UUID_EXPR
 );
 
 #Check IP
@@ -98,6 +103,7 @@ $MAC  = "$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT"
 $DEFAULT_DATE_FORMAT='\d{4}-\d{2}-\d{2}';
 $EMAIL_EXPR = '(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))';
 $URL_EXPR = '^([a-z]+):\/\/([A-Za-z0-9\-\.]+):?([0-9]+)?(.*)$';
+$UUID_EXPR = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 
 #**********************************************************
 =head2 _expr($value, $expr_tpl) - Expration
@@ -623,6 +629,36 @@ sub email_valid {
   }
 
   return 1;
+}
+
+
+#**********************************************************
+=head2 uuid_valid($uuid) - validate UUID format
+
+  Arguments:
+    $uuid - UUID string to validate
+
+  Returns:
+    1 if valid UUID, 0 otherwise
+
+=cut
+#**********************************************************
+sub uuid_valid {
+  my ($uuid) = @_;
+
+  if (!$uuid || $uuid eq '') {
+    return 0
+  }
+
+  if (length($uuid) != 36) {
+    return 0;
+  }
+
+  if ($uuid =~ /^$UUID_EXPR$/xm) {
+    return 1;
+  }
+
+  return 0;
 }
 
 1;

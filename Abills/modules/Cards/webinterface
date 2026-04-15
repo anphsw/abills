@@ -1003,7 +1003,7 @@ sub cards_user_payment  {
             $gt = gen_time($begin_time);
           }
 
-          `echo "$DATE $TIME $user->{LOGIN} R: $rand $Cards->{SERIAL}$Cards->{NUMBER} A:$ENV{HTTP_USER_AGENT} QS:$ENV{QUERY_STRING} RA:$ENV{REMOTE_ADDR} ADDED ($gt)"   >> /tmp/cards_debug`;
+          `echo "$DATE $TIME $user->{LOGIN} R: $rand $Cards->{SERIAL}$Cards->{NUMBER} A:$ENV{HTTP_USER_AGENT} QS:$ENV{QUERY_STRING} RA:$ENV{REMOTE_ADDR} ADDED ($gt) PAYMENT_ID: $Payments->{PAYMENT_ID}"   >> /tmp/cards_debug`;
         }
 
         $_db->{AutoCommit} = 1;

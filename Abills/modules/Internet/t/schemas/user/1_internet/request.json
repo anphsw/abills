@@ -3,5 +3,18 @@
   "method": "GET",
   "path": "user/internet/",
   "params": {},
-  "TODO": "pass internetId by post-response in first item of array, after delete Api.t"
+  "TODO": "pass internetId by post-response in first item of array, after delete Api.t",
+  "post-response": {
+    "variables": [
+      {
+        "name": "serviceId",
+        "value": "id"
+      },
+      {
+        "name": "id",
+        "value": "id"
+      }
+    ]
+  }
+
 }

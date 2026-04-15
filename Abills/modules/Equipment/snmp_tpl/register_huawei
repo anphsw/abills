@@ -215,23 +215,25 @@ sub register_gpon_huawei {
       print "Add TR-069 server profile-name $tr_069_profile\n";
     }
 
-
-    if ($attr->{ONU_PORTS} && $attr->{ONU_PORTS} > 1) {
+    my $onu_ports = $attr->{ONU_PORTS};
+    if ($onu_ports > 1) {
       my ($gem_port) = keys %$line_profile_info;
       #L3 devices
       if ($attr->{ONU_PORTS} == 999) {
         $data = telnet_cmd("ont port native-vlan $port $onu_id iphost vlan $line_profile_info->{$gem_port}->[0] priority 0");
       }
       else {
-        for (my $eth_port = 1; $eth_port <= $attr->{ONU_PORTS}; $eth_port++) {
+        for (my $eth_port = 1; $eth_port <= $onu_ports; $eth_port++) {
           $data = telnet_cmd("ont port native-vlan $port $onu_id eth $eth_port vlan $line_profile_info->{$gem_port}->[0] priority 0");
         }
       }
     }
     elsif ($vlan && $vlan_count == 1) {
-      foreach my $gem_port (keys %$line_profile_info) {
-        my $eth_port = 1; #$gem_port;
-        $data = telnet_cmd("ont port native-vlan $port $onu_id eth $eth_port vlan $line_profile_info->{$gem_port}->[0] priority 0");
+      if (! $conf{EQUIPMET_HUAWEI_SKIP_ONUPORTS_CFG}) {
+        foreach my $gem_port (keys %$line_profile_info) {
+          my $eth_port = 1; #$gem_port;
+          $data = telnet_cmd("ont port native-vlan $port $onu_id eth $eth_port vlan $line_profile_info->{$gem_port}->[0] priority 0");
+        }
       }
     }
 

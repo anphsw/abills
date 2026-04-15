@@ -18,9 +18,9 @@ package Sorm::Plugins::Kzt;
 
 =head1 VERSION
 
-  VERSION: 1.5
+  VERSION: 1.7
   CREATED: 20240821
-  UPDATED: 202510015
+  UPDATED: 20260206
 
 =cut
 
@@ -185,13 +185,17 @@ sub ABD_report {
 
   my $internet_tp_name = $Internet->{TP_NAME} || q{};
   my $user_mac = $Internet->{CPE_MAC} ? $Internet->{CPE_MAC} : $Internet->{CID};
-  $user_mac =~ s/://g if $Internet->{CPE_MAC};
+  $user_mac =~ s/://g if ($Internet->{CPE_MAC});
 
   my $network_type = 'FTTH';
   my $service_type = 'фиксированный интернет ';
-  my $phone = '';
   my $imsi = '';
+  my $imei = '';
   my $install_date = ($Internet->{REGISTRATION} && $Internet->{REGISTRATION} ne '0000-00-00') ? date_format($Internet->{REGISTRATION}, "%d.%m.%Y") : q{};
+
+  my $phone = $User->{CELL_PHONE} || $User->{PHONE} || '';
+  my $phone_without_sign = $phone if ($phone);
+  $phone_without_sign =~ s/\+//g if ($phone);
 
   my $user_status = '';
   if (defined($Internet->{DISABLE})){
@@ -199,7 +203,6 @@ sub ABD_report {
     $user_status = 'C' if ($Internet->{DISABLE} == 1);
     $user_status = 'S' if ($Internet->{DISABLE} > 1);
   }
-  $phone = $User->{CELL_PHONE} || $User->{PHONE} || '';
 
   my $user_address = '';
   if ($User->{ADDRESS_FULL_LOCATION}) {
@@ -210,6 +213,7 @@ sub ABD_report {
   }
 
   my $region_id = _region($user_address);
+  my $mob_activation = '';
 
   # Mobile subscribers
   if ($self->{conf}->{SORM_IMSI_PREFIX} && $Internet->{CID} && $Internet->{CID} =~ /^$self->{conf}->{SORM_IMSI_PREFIX}/){
@@ -217,9 +221,17 @@ sub ABD_report {
     $network_type = 'FWA';
     $service_type = 'мобильная связь ';
     $imsi = $Internet->{CID};
+    $mob_activation = $install_date;
 
-    my $user_storage = $Storage->storage_installation_list({ UID => $uid, DATE => '_SHOW', COLS_NAME => 1 });
+    my $user_storage = $Storage->storage_installation_list({
+      UID       => $uid,
+      DATE      => '_SHOW',
+      IDENT1    => '_SHOW',
+      IDENT2    => '_SHOW',
+      COLS_NAME => 1
+    });
     $install_date = $user_storage->[0]->{date} || '';
+    $imei = $user_storage->[0]->{ident2} || '';
     $prefix = 'Mob_';
 
     if ($mob_header == 0){
@@ -234,12 +246,12 @@ sub ABD_report {
   $arr[0] = $uid;
     # ФИО/Наименование организации
   $arr[1] = ($User->{COMPANY_ID} > 0) ? $Company->{NAME} : ($User->{FIO} || q{});
-    # Номер телефона абонента (empty)
-  $arr[2] = $phone;
+    # Номер телефона абонента
+  $arr[2] = $phone_without_sign;
     # IMSI
   $arr[3] = $imsi;
-    # IMEI (empty)
-  $arr[4] = '';
+    # IMEI
+  $arr[4] = $imei;
     # Адрес проживания/Адрес регистрации
   $arr[5] = $user_address || q{};
     # Номер и дата выдачи документа
@@ -251,9 +263,9 @@ sub ABD_report {
     # Тип пользователя 1 - юридическое лицо, 2 - физическое лицо
   $arr[9] = ($User->{COMPANY_ID} > 0) ? 1 : 2;
     # Контактное лицо
-  $arr[10] = ($User->{COMPANY_ID} > 0) ? $Company->{REPRESENTATIVE} : ($User->{FIO} || q{});
+  $arr[10] = ($User->{COMPANY_ID} > 0) ? ($Company->{REPRESENTATIVE} || $User->{FIO}) : $User->{FIO};
     # Контактный телефон
-  $arr[11] = ($User->{COMPANY_ID} > 0) ? $Company->{PHONE} : $phone;
+  $arr[11] = ($User->{COMPANY_ID} > 0) ? ($Company->{PHONE} || $phone) : $phone;
     # Тип услуги
   $arr[12] = $service_type.$internet_tp_name;
     # Короткий номер  (empty)
@@ -290,7 +302,7 @@ sub ABD_report {
     # Дата и время активации (введения в статус) абонентского оборудования
   $arr[29] = ($User->{ACTIVATE} && $User->{ACTIVATE} ne '0000-00-00') ? date_format($User->{ACTIVATE}, "%d.%m.%Y"): q{};
     # Дата активации SIM абонента (empty)
-  $arr[30] = '';
+  $arr[30] = $mob_activation || q{};
     # Адрес, с которого оплачивается услуга
   $arr[31] = $user_address || q{};
     # UserName
@@ -324,9 +336,9 @@ sub ABD_report {
 sub _add_report {
   my ($type, @params) = @_;
 
-  my $string = '';
+  my $string = "";
   foreach my $line (@params) {
-    $line //= '';
+    $line //= "";
     $line =~ s/$delimeter//;
     $string .= $line . $delimeter;
   }
@@ -421,13 +433,13 @@ sub _add_header {
       'Адрес, с которого оплачивается услуга',
       'UserName',
       'Номера устройств абонентского оборудования',
-      'Дата установки оборудования',
+      'Дата установки оборудования'
     ]
   );
 
-  my $string = '';
+  my $string = "";
   foreach (@{$headers{$type}}) {
-    $string .= ($_ // '') . $delimeter;
+    $string .= ($_ // "") . $delimeter;
   }
   # $string =~ s/$delimeter$/\n/;
 

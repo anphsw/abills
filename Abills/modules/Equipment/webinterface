@@ -37,7 +37,8 @@ our Abills::HTML $html;
 require Equipment::Snmp_cmd;
 require Equipment::Ports;
 require Equipment::Pon_mng;
-require Equipment::Boxes;
+#Waiting for full relise
+#require Equipment::Boxes;
 require Equipment::Traps;
 require Equipment::Grabbers;
 require Equipment::Backup;
@@ -75,8 +76,8 @@ our %PORT_STATUS = (
 
 my $debug = 0;
 my $used_ports;
-my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_COLORS[6]", '#009999', '#0099ee');
-our @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
+my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_COLORS[6]", '#009999', '#FF6347', '#FF63FF');
+our @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING}, $lang{ERR_NOT_RESPONSE});
 our $SNMP_TPL_DIR = "../../Abills/modules/Equipment/snmp_tpl/";
 
 my $dlink_switch_cmds = [
@@ -203,7 +204,7 @@ sub equipment_zabbix {
   }
 
   if ($attr->{MAIN} || $conf{ZABBIX_URL}) {
-    my $zabbix_url = $conf{ZABBIX_URL};
+    my $zabbix_url = $conf{ZABBIX_URL} || q{};
 
     if ($zabbix_url !~ s/\%HOSTID\%/$Nas->{ZABBIX_HOSTID}/xm) {
       $zabbix_url = $conf{ZABBIX_URL} . '/charts.php?hostid=' . $Nas->{ZABBIX_HOSTID};
@@ -569,7 +570,8 @@ sub equipment_device_info {
         2 => $lang{NOT_ACTIVE},
         3 => $lang{ERROR},
         4 => $lang{BREAKING},
-        5 => $lang{NOT_MONITORING}
+        5 => $lang{NOT_MONITORING},
+        6 => $lang{ERR_NOT_RESPONSE}
       },
       NO_ID    => 1,
       STYLE    => \@service_status_colors,
@@ -1170,7 +1172,8 @@ sub equipment_list {
     last_activity    => $lang{LAST_ACTIVITY},
     domain_id        => 'DOMAIN_ID',
     domain_name      => 'DOMAIN_NAME',
-    nas_descr        => $lang{DESCRIBE}
+    nas_descr        => $lang{DESCRIBE},
+    snmp_timeout     => 'SNMP Timeout'
   );
 
   my $hidden_fields = '';
@@ -1407,6 +1410,7 @@ sub equipment_mac_log {
       width            => '100%',
       caption          => "MAC",
       EXPORT           => 1,
+      DATA_TABLE       => 1,
       qs               => "$pages_qs&visual=$FORM{visual}",
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
@@ -1476,36 +1480,6 @@ sub equipment_mac_log {
 
   return 1 if (!$nas_id);
 
-  print << "[END]";
-<script>\$(function () {
-  var \$table = \$('#EQUIPMENT_MACS_LIST_');
-  var correct = (\$table.find('tbody').find('tr').first().find('td').length - $table.find('thead th').length );
-  for (var i = 0; i < correct; i++) {
-    \$table.find('thead th:last-child').after('<th></th>');
-  }
-    var dataTable = \$("#EQUIPMENT_MACS_LIST_")
-      .DataTable({
-        "language": {
-          paginate: {
-              first:    "«",
-              previous: "‹",
-              next:     "›",
-              last:     "»",
-          },
-          "zeroRecords":    "' . $lang{NOT_EXIST} . '",
-          "lengthMenu":     "' . $lang{SHOW} . ' _MENU_",
-          "search":         "' . $lang{SEARCH} . ':",
-          "info":           "' . $lang{SHOWING} . ' _START_ - _END_ ' . $lang{OF} . ' _TOTAL_ ",
-          "infoEmpty":      "' . $lang{SHOWING} . ' 0",
-          "infoFiltered":   "(' . $lang{TOTAL} . ' _MAX_)",
-        },
-        "ordering": false,
-        "lengthMenu": [[25, 50, -1], [25, 50, "' . $lang{ALL} . '"]]
-      });
-    });</script
-
-[END]
-
   # print '<script>$(function () {
   # var $table = $(\'#EQUIPMENT_MACS_LIST_\');
   # var correct = ($table.find(\'tbody\').find(\'tr\').first().find(\'td\').length - $table.find(\'thead th\').length );
@@ -1558,13 +1532,14 @@ sub equipment_fdb_list {
 
   my $visual = $FORM{visual} || '';
   my $table = $html->table({
-    width   => '100%',
-    caption => "$lang{RESULT}:" . ($attr->{IP} || q{}) . (($attr->{EXT_INFO}) ? ' '
+    width    => '100%',
+    caption  => "$lang{RESULT}:" . ($attr->{IP} || q{}) . (($attr->{EXT_INFO}) ? ' '
       . $html->button($attr->{EXT_INFO},
       "index=" . get_function_index('form_nas') . "&NAS_ID=" . $nas_id) : ''), # . " $SNMP_COMMUNITY",
-    title   => [ 'ID', "$lang{PORT} $lang{NAME}", 'MAC', 'VLAN', 'USER/NAS' ],
-    qs      => "&fdb=1&visual=$visual&NAS_ID=$nas_id",
-    ID      => 'EQUIPMENT_FDB_LIST',
+    title    => [ 'ID', "$lang{PORT} $lang{NAME}", 'MAC', 'VLAN', 'USER/NAS' ],
+    qs       => "&fdb=1&visual=$visual&NAS_ID=$nas_id",
+    ID       => 'EQUIPMENT_FDB_LIST',
+    DATA_TABLE => 1
   });
 
   my %ports_macs = ();
@@ -1609,31 +1584,6 @@ sub equipment_fdb_list {
   });
 
   print $table->show();
-  if (!$attr->{FILTER}) {
-    print << "[END]";
-<script>\$(function () {
-      var table = \$("#EQUIPMENT_FDB_LIST_")
-        .DataTable({
-          "language": {
-            paginate: {
-                first:    "«",
-                previous: "‹",
-                next:     "›",
-                last:     "»",
-            },
-            "zeroRecords":    "' . $lang{NOT_EXIST} . '",
-            "lengthMenu":     "' . $lang{SHOW} . ' _MENU_",
-            "search":         "' . $lang{SEARCH} . ':",
-            "info":           "' . $lang{SHOWING} . ' _START_ - _END_ ' . $lang{OF} . ' _TOTAL_ ",
-            "infoEmpty":      "' . $lang{SHOWING} . ' 0",
-            "infoFiltered":   "(' . $lang{TOTAL} . ' _MAX_)",
-        },
-        "ordering": false,
-        "lengthMenu": [[25, 50, -1], [25, 50, "' . $lang{ALL} . '"]]
-        });
-      });</script>
-[END]
-  }
 
   return 1;
 }
@@ -2867,21 +2817,24 @@ sub equipment_change_port_status_ajax {
 =cut
 #**********************************************************
 sub mac_flood {
-  my $mac_flood_list = $Equipment->mac_flood_search({
+
+  my $mac_flood_list;
+
+  $mac_flood_list = $Equipment->mac_flood_search({
     MIN_COUNT => $conf{EQUIPMENT_MAC_PER_PORT},
     COLS_NAME => 1,
   }) if ($conf{EQUIPMENT_MAC_PER_PORT});
 
   my $table = $html->table({
-    width => '100%',
-    title => [$lang{NAS}, $lang{PORT}, $lang{MAC_FLOOD_COUNT}, '-'],
+    width      => '100%',
+    title      => [ $lang{NAS}, $lang{PORT}, $lang{MAC_FLOOD_COUNT}, '-' ],
     DATA_TABLE => 1
-    });
+  });
 
   foreach my $port (@$mac_flood_list) {
     my $view_btn = $html->button("", "index=" . get_function_index('equipment_info')
-      ."&visual=6&search=1&NAS_ID=$port->{NAS_ID}&PORT=" . $port->{PORT},
-      {ICON => 'fa fa-eye', ex_params =>
+      . "&visual=6&search=1&NAS_ID=$port->{NAS_ID}&PORT=" . $port->{PORT},
+      { ICON => 'fa fa-eye', ex_params =>
         "data-tooltip='$lang{SHOW}' data-tooltip-position='top'" });
     $table->addrow("$port->{NAME} ( $port->{NAS_ID} )", $port->{PORT}, $port->{CNT}, $view_btn)
   }

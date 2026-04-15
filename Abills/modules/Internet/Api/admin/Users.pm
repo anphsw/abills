@@ -60,8 +60,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_internet_uid_activate {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -73,13 +72,13 @@ sub post_internet_uid_activate {
 
   my $user_info = $self->_get_user_info($path_params->{uid});
 
-  $Internet_services->user_add({
+  return $Internet_services->user_add({
     %$query_params,
     API        => 1,
     UID        => $path_params->{uid},
     USERS_INFO => $user_info,
+    QUITE      => 1
   });
-
 }
 
 #**********************************************************
@@ -90,8 +89,7 @@ sub post_internet_uid_activate {
 =cut
 #**********************************************************
 sub put_internet_uid_activate {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -101,13 +99,17 @@ sub put_internet_uid_activate {
   # make empty before call not isolated function
   %main::FORM = ();
 
+  # Internet::user_change has fallback $attr->{NAS_ID} = $attr->{NAS_ID1}; so we need to define NAS_ID1
+  $query_params->{NAS_ID1} = 0 if (defined $query_params->{NAS_ID} and !$query_params->{NAS_ID});
+
   my $user_info = $self->_get_user_info($path_params->{uid});
 
-  $Internet_services->user_change({
+  return $Internet_services->user_change({
     %$query_params,
     API        => 1,
     UID        => $path_params->{uid},
     USERS_INFO => $user_info,
+    QUITE      => 1
   });
 
 }
@@ -120,14 +122,13 @@ sub put_internet_uid_activate {
 =cut
 #**********************************************************
 sub get_internet_uid_id_warnings {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   require Control::Service_control;
   Control::Service_control->import();
   my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
-  $Service_control->service_warning({
+  return $Service_control->service_warning({
     UID    => $path_params->{uid},
     ID     => $path_params->{id},
     MODULE => 'Internet'
@@ -142,8 +143,7 @@ sub get_internet_uid_id_warnings {
 =cut
 #**********************************************************
 sub post_internet_uid_session_hangup {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -151,7 +151,7 @@ sub post_internet_uid_session_hangup {
   } if !$self->{admin}->{permissions}{5};
 
   ::load_module('Internet::Monitoring', { LOAD_PACKAGE => 1 });
-  ::_internet_hangup({ %$query_params, UID => $path_params->{uid} });
+  return ::_internet_hangup({ %$query_params, UID => $path_params->{uid} });
 }
 
 #**********************************************************
@@ -162,8 +162,7 @@ sub post_internet_uid_session_hangup {
 =cut
 #**********************************************************
 sub put_internet_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   # clear global form
   %main::FORM = ();
@@ -210,8 +209,7 @@ sub delete_internet_users_uid_services_id {
 =cut
 #**********************************************************
 sub _get_user_info {
-  my $self = shift;
-  my ($uid)=@_;
+  my ($self, $uid)=@_;
 
   require Users;
   Users->import();

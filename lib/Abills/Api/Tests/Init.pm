@@ -20,7 +20,7 @@ use JSON qw(decode_json encode_json);
 
 use Abills::Init qw/$db %conf $admin @MODULES/;
 use Abills::HTML;
-use Abills::Base qw(in_array decamelize);
+use Abills::Base qw(in_array decamelize parse_arguments gen_time);
 use Abills::Fetcher qw(web_request);
 use Abills::Api::Handle;
 
@@ -31,7 +31,7 @@ do 'language/english.pl';
 our %lang;
 our $html = Abills::HTML->new({ CONF => \%conf });
 
-$ENV{REMOTE_ADDR} = '127.0.0.7';
+$ENV{REMOTE_ADDR} = '127.0.0.8';
 
 my Abills::Api::Handle $Api;
 
@@ -90,6 +90,9 @@ sub test_runner {
 
   my $debug = $attr->{debug} || $attr->{argv}->{DEBUG} || 0;
 
+  $db //= $attr->{db};
+  $admin //= $attr->{admin};
+
   # define here can be redefined ref of $admin object in test file
   $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
     html        => $html,
@@ -117,7 +120,9 @@ sub test_runner {
     $url = $attr->{argv}->{URL};
   }
 
-  my ($uid, $sid) = _user_login($url, $debug);
+  my ($uid, $sid) = _user_login($url, $attr);
+
+  $ENV{HTTP_USERSID} = $sid if ($sid);
 
   if ($attr->{argv} && !$attr->{argv}->{USER} && !$api_key) {
     print "Skip. No parameter KEY for running ADMIN PATHS.\n";
@@ -178,6 +183,9 @@ sub run_tests {
     if ($test->{path} =~ /:uid/xm) {
       $test->{path} =~ s/:uid/$attr->{uid}/xg;
     }
+    if ($attr->{id} && $test->{path} =~ /:id/xm) {
+      $test->{path} =~ s/:id/$attr->{id}/xg;
+    }
 
     my @vars = $test->{path} =~ /(?<=:)\w+/xg;
     foreach my $var (@vars) {
@@ -187,12 +195,16 @@ sub run_tests {
 
     my $http_status = 0;
     my $execution_time = 0;
-    my @req_headers = ('Content-Type: application/json');
+    my @req_headers = $test->{'form-data'} ? () : ('Content-Type: application/json');
     my $req_body = '';
     my $query = '';
 
     if ($test->{path} =~ /user\//xm) {
       push @req_headers, "USERSID: $sid";
+    }
+    elsif ($test->{path} =~ /users\/login/xm && $sid) {
+      print "Skip user login use default sid: $sid\n" if ($debug);
+      next;
     }
     else {
       push @req_headers, "KEY: $attr->{apiKey}";
@@ -232,7 +244,11 @@ sub run_tests {
       print color($colors{BAD});
     }
 
-    print "[$test_number]-$test->{name} ($test->{method})    HTTP STATUS CODE: $http_status    RESPONSE TIME: $execution_time ms. \n";
+    if ($execution_time !~ /GT:/xm) {
+      $execution_time = 'GT: '. $execution_time;
+    }
+
+    print "[$test_number]-$test->{name} ($test->{method})    HTTP_STATUS_CODE: $http_status    $execution_time ms. \n";
 
     if ($debug) {
       print color($colors{INFO}), "\n\n";
@@ -252,7 +268,12 @@ sub run_tests {
       # save locally needed vars
       if ($test->{'post-response'} && $test->{'post-response'}->{variables}) {
         foreach my $variable (@{$test->{'post-response'}->{variables}}) {
-          $variables{$variable->{name}} = $res->{$variable->{value}};
+          my $info_line = (ref $res eq 'ARRAY') ? $res->[0] : $res;
+          $variables{$variable->{name}} = $info_line->{$variable->{value}};
+
+          if ($variable->{name} && $info_line->{$variable->{value}}) {
+            print "// $variable->{name} // $info_line->{$variable->{value}}\n\n" if ($debug > 5);
+          }
         }
       }
 
@@ -271,11 +292,23 @@ sub run_tests {
           ($res->{error} || $res->{errno} || q{UNKNOWN}) . "\nERROR STRING: " .
           ($res->{errstr} || q{UNKNOWN}) . "\n", color($colors{INFO});
       }
+
+      #Add slast insertId to global :id migrate on future to post-response
+      if(ref $res eq 'HASH' && $res->{insertId}) {
+        $attr->{id} = $res->{insertId};
+        print " Make new ID: $attr->{id}\n" if ($debug > 2);
+      }
+
+      if ($debug > 3) {
+        print "\n $result\n";
+      }
     }
     else {
       print "JSON: $result \n";
     }
-    print color($colors{INFO}), "------------------------------------\n";
+
+
+    print color($colors{INFO}), "------------------------------------\n" if($debug > 1);
   }
 
   return 1;
@@ -335,15 +368,23 @@ sub _process_request_body {
 sub _run_test_web_request {
   my ($test, $url, $headers, $debug) = @_;
 
-  my ($result, $info) = web_request($url, {
+  my %args = (
     HEADERS     => $headers,
-    JSON_BODY   => $test->{body},
     INSECURE    => 1,
     DEBUG       => $debug ? 6 : 0,
     METHOD      => $test->{method},
     MORE_INFO   => 1,
     JSON_RETURN => $test->{json_return} ? 1 : 0
-  });
+  );
+
+  if ($test->{'form-data'} && $test->{body} && ref $test->{body} eq 'HASH') {
+    $args{FORM_DATA} = $test->{body};
+  }
+  elsif ($test->{body}) {
+    $args{JSON_BODY} = $test->{body};
+  }
+
+  my ($result, $info) = web_request($url, \%args);
 
   return $result, $info;
 }
@@ -364,6 +405,7 @@ sub _run_test_web_request {
 sub _run_test_directly {
   my ($test, $test_number, $debug) = @_;
 
+  my $service_start = check_time();
   print color($colors{BLUE}), "[$test_number]\nSQL\n" if ($test_number && $debug);
 
   my ($result, $status) = $Api->api_call({
@@ -380,6 +422,7 @@ sub _run_test_directly {
 
   return $result, {
     status => $status,
+    time   => gen_time($service_start)
   };
 }
 
@@ -395,7 +438,9 @@ sub _run_test_directly {
 =cut
 #**********************************************************
 sub _user_login {
-  my ($url, $debug) = @_;
+  my ($url, $attr) = @_;
+
+  my $debug = $attr->{argv}->{DEBUG} || 0;
 
   my $result;
   my $test = {
@@ -408,11 +453,11 @@ sub _user_login {
     json_return => 1,
   };
 
-  if ($debug < 5) {
-    ($result) = _run_test_web_request($test, $url . "/api.cgi/$test->{path}", [ 'Content-Type: application/json' ], ($debug > 2) ? 1 : 0);
+  if ($debug > 4 || $attr->{argv}->{DIRECT}) {
+    ($result) = _run_test_directly($test);
   }
   else {
-    ($result) = _run_test_directly($test);
+    ($result) = _run_test_web_request($test, $url . "/api.cgi/$test->{path}", [ 'Content-Type: application/json' ], ($debug > 2) ? 1 : 0);
   }
 
   if (!$result || ref $result ne 'HASH') {
@@ -442,6 +487,7 @@ sub _user_login {
       DEBUG: int            - level of debug
       KEY?: str             - admin API KEY
       EXECUTABLE_TESTS: str - list of tests which need to run
+      PATH
 
     $main_dir - place where is folder
 
@@ -454,15 +500,17 @@ sub folder_list {
   my @folders = ();
   my @test_list = ();
 
+  $attr->{PATH} //= q{};
+
   if ($attr->{ADMIN}) {
-    push @folders, _read_dir('admin', $main_dir, ($attr->{PATH} || q{}));
+    push @folders, _read_dir('admin', $main_dir, $attr->{PATH});
   }
   elsif ($attr->{USER}) {
-    push @folders, _read_dir('user', $main_dir, ($attr->{PATH} || q{}));
+    push @folders, _read_dir('user', $main_dir, $attr->{PATH});
   }
   else {
-    push @folders, _read_dir('admin', $main_dir, ($attr->{PATH} || q{}));
-    push @folders, _read_dir('user', $main_dir, ($attr->{PATH} || q{}));
+    push @folders, _read_dir('admin', $main_dir, $attr->{PATH});
+    push @folders, _read_dir('user', $main_dir, $attr->{PATH});
   }
 
   my $debug = $attr->{debug} || 0;
@@ -473,8 +521,8 @@ sub folder_list {
   }
 
   @folders = sort {
-    my ($a_type, $a_id) = $a =~ m{/schemas/(admin|user)/(\d+)_};
-    my ($b_type, $b_id) = $b =~ m{/schemas/(admin|user)/(\d+)_};
+    my ($a_type, $a_id) = $a =~ m{/schemas/(admin|user)/(\d+)_}x;
+    my ($b_type, $b_id) = $b =~ m{/schemas/(admin|user)/(\d+)_}x;
 
     # can be undefined values need to set default value for correct compare
     ($a_type // '') cmp ($b_type // '') || ($a_id // 0) <=> ($b_id // 0);
@@ -528,6 +576,7 @@ sub folder_list {
   Params
     $dir      - dir name admin or user
     $main_dir - place where is folder
+    $path
 
   Returns
     @folders - name list of folders of tests
@@ -540,7 +589,7 @@ sub _read_dir {
   my @folder_list = ();
   my $tests_path = "$main_dir/schemas/$dir";
 
-  return \@folders if (! -d $tests_path);
+  return @folders if (! -d $tests_path);
 
   if (opendir(my $dh, $tests_path) ) {
     @folder_list = readdir($dh);
@@ -548,7 +597,7 @@ sub _read_dir {
   }
 
   foreach my $folder (@folder_list) {
-    next if ($folder =~ /\./);
+    next if ($folder =~ /\./xm);
     next if ($path && $folder ne $path);
     push @folders, "$tests_path/$folder";
   }
@@ -631,6 +680,27 @@ sub test_preprocess {
 
   return \@run_tests;
 }
+
+#**********************************************************
+=head2 db_connect() - Db connector
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub db_connect {
+  my $db_ = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, {
+    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    dbdebug => $conf{dbdebug}
+  });
+
+  my $admin = Admins->new($db_, \%conf);
+
+  return $db_, $admin;
+}
+
 
 #*******************************************************************
 =head2 help() - Help

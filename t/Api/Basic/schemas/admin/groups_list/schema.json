@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
-  "title": "The Root Schema",
+  "type": "object",
+  "title": "groupsList",
   "items": {
     "type": "object",
     "properties": {
@@ -30,6 +30,6 @@
         "type": "number"
       }
     },
-    "required": ["domainId", "name", "usersCount", "descr", "allowCredit", "gid", "disableChgTp", "disablePaysys"]
+    "required": ["domainId", "name", "descr", "allowCredit", "gid", "disableChgTp", "disablePaysys"]
   }
 }

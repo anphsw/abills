@@ -107,8 +107,7 @@ sub settings_get {
 =cut
 #**********************************************************
 sub settings_set{
-  my $self = shift;
-  my ($all_params) = @_;
+  my ($self, $all_params) = @_;
 
   my %new_params = ();
 
@@ -182,8 +181,7 @@ sub _settings_define{
 =cut
 #**********************************************************
 sub list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -199,8 +197,8 @@ sub list {
     }
   );
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
        r.uid, r.referrer,
        rr.id AS ref_request_id,
         IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
@@ -209,10 +207,9 @@ sub list {
        LEFT JOIN users_pi pi ON (r.uid=pi.uid)
        LEFT JOIN referral_requests rr ON (r.uid=rr.referral_uid)
     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
-     ",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -228,8 +225,7 @@ sub list {
 =cut
 #**********************************************************
 sub tp_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -254,15 +250,14 @@ sub tp_list {
     [ 'INACTIVE_DAYS',    'INT', 'r.inactive_days',     1 ]
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
      $self->{SEARCH_FIELDS} r.id
      FROM referral_tp r
     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
-     ",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -278,8 +273,7 @@ sub tp_list {
 =cut
 #**********************************************************
 sub request_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -328,8 +322,8 @@ sub request_list{
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
   }
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+    SELECT
      $self->{SEARCH_FIELDS} r.id
      FROM referral_requests r
      LEFT JOIN users u ON (u.uid = r.referrer)
@@ -337,10 +331,9 @@ sub request_list{
      LEFT JOIN referral_tp rt ON (r.tp_id = rt.id)
     $EXT_TABLES
     $WHERE $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
-     ",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -356,10 +349,13 @@ sub request_list{
 =cut
 #**********************************************************
 sub tp_info{
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query("SELECT * FROM referral_tp WHERE id = ? ", undef, {
+  my $sql = <<'SQL';
+SELECT * FROM referral_tp WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ $id ],
   });
@@ -368,7 +364,7 @@ sub tp_info{
 }
 
 #**********************************************************
-=head2 get_default_tp()
+=head2 tp_get_default()
 
   Arguments:
 
@@ -376,10 +372,14 @@ sub tp_info{
 
 =cut
 #**********************************************************
-sub get_default_tp{
+sub tp_get_default{
   my $self = shift;
 
-  $self->query("SELECT * FROM referral_tp WHERE is_default = ? ", undef, {
+  my $sql = <<'SQL';
+SELECT * FROM referral_tp WHERE is_default = ?;
+SQL
+
+  $self->query($sql, undef, {
       INFO => 1,
       Bind => [ 1 ],
   });
@@ -398,8 +398,7 @@ sub get_default_tp{
 =cut
 #**********************************************************
 sub log_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -416,16 +415,15 @@ sub log_list{
     [ 'REFERRER',         'INT',  'rl.referrer',         1 ],
   ], { WHERE => 1 });
 
-  $self->query(
-    "SELECT
+  my $sql = <<"SQL";
+  SELECT
         $self->{SEARCH_FIELDS} rl.id
      FROM referral_log rl
      LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
-     ",
-    undef,
-    $attr
-  );
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -442,8 +440,7 @@ sub log_list{
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($uid) = @_;
+  my ($self, $uid) = @_;
 
   my $list = $self->list({ UID => $uid, COLS_NAME => 1 });
 
@@ -463,8 +460,7 @@ sub info {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('referral_main', $attr, { REPLACE => 1 });
   $self->{admin}->{MODULE} = $MODULE;
@@ -474,7 +470,7 @@ sub add {
 }
 
 #**********************************************************
-=head2 add($attr)
+=head2 request_add($attr)
 
   Arguments:
     $attr - hash_ref
@@ -483,10 +479,8 @@ sub add {
 
 =cut
 #**********************************************************
-sub add_request {
-  my $self = shift;
-  my ($attr) = @_;
-
+sub request_add {
+  my ($self, $attr) = @_;
   return $self->query_add('referral_requests', $attr, { REPLACE => 1 });
 }
 
@@ -501,14 +495,12 @@ sub add_request {
 =cut
 #**********************************************************
 sub tp_add{
-  my $self = shift;
-  my ($attr) = @_;
-
+  my ($self, $attr) = @_;
   return $self->query_add( 'referral_tp', $attr );
 }
 
 #**********************************************************
-=head2 add($attr)
+=head2 log_add($attr)
 
   Arguments:
     $attr - hash_ref
@@ -517,10 +509,8 @@ sub tp_add{
 
 =cut
 #**********************************************************
-sub add_log{
-  my $self = shift;
-  my ($attr) = @_;
-
+sub log_add{
+  my ($self, $attr) = @_;
   return $self->query_add( 'referral_log', $attr, { REPLACE => 1 } );
 }
 
@@ -528,33 +518,29 @@ sub add_log{
 =head2 del($uid)
 
   Arguments:
-
+    uid
 
   Returns:
 
 =cut
 #**********************************************************
 sub del{
-  my $self = shift;
-  my ($uid) = @_;
-
+  my ($self, $uid) = @_;
   return $self->query_del('referral_main', undef, { UID => $uid });
 }
 
 #**********************************************************
-=head2 del($id)
+=head2 request_del($id)
 
   Arguments:
-
+    id
 
   Returns:
 
 =cut
 #**********************************************************
-sub del_request{
-  my $self = shift;
-  my ($id) = @_;
-
+sub request_del{
+  my ($self,  $id) = @_;
   return $self->query_del( 'referral_requests', { ID => $id } );
 }
 
@@ -569,14 +555,12 @@ sub del_request{
 =cut
 #**********************************************************
 sub tp_del{
-  my $self = shift;
-  my ($id) = @_;
-
+  my ($self, $id) = @_;
   return $self->query_del( 'referral_tp', { ID => $id } );
 }
 
 #**********************************************************
-=head2 change_request($attr)
+=head2 request_change($attr)
 
   Arguments:
 
@@ -585,9 +569,8 @@ sub tp_del{
 
 =cut
 #**********************************************************
-sub change_request{
-  my $self = shift;
-  my ($attr) = @_;
+sub request_change{
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -609,8 +592,7 @@ sub change_request{
 =cut
 #**********************************************************
 sub tp_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -634,22 +616,23 @@ sub tp_change{
 =cut
 #**********************************************************
 sub get_user_info {
-  my $self = shift;
-  my ($uid) = @_;
+  my ($self, $uid) = @_;
 
   delete $self->{COLS_NAME_ARR};
   delete $self->{COL_NAMES_ARR};
 
-  $self->query( "
-  SELECT
-     u.uid,
-     u.id AS login,
-     pi.fio AS fio,
-     IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
-   FROM users u
-   INNER JOIN users_pi pi ON (u.uid=pi.uid)
-   WHERE u.uid = ?
-  ", undef, { COLS_NAME => 1, Bind => [ $uid ] } );
+  my $sql = <<'SQL';
+SELECT
+  u.uid,
+  u.id AS login,
+  pi.fio AS fio,
+  IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
+FROM users u
+       INNER JOIN users_pi pi ON (u.uid=pi.uid)
+WHERE u.uid = ?;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $uid ] } );
 
   my $list = $self->{list};
 
@@ -661,7 +644,7 @@ sub get_user_info {
 }
 
 #**********************************************************
-=head2 get_referrers_list() - get all users who are referrers
+=head2 referrers_list() - get all users who are referrers
 
   Arguments:
 
@@ -671,20 +654,22 @@ sub get_user_info {
 
 =cut
 #**********************************************************
-sub get_referrers_list {
+sub referrers_list {
   my $self = shift;
 
   delete $self->{COL_NAMES_ARR};
 
-  $self->query( "
-  SELECT DISTINCT(u.uid),
-     u.id AS login,
-     pi.fio AS fio,
-     IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
-   FROM users u
-   INNER JOIN referral_main r ON (r.referrer=u.uid)
-   LEFT JOIN users_pi pi ON (u.uid=pi.uid)
-  ", undef, { COLS_NAME => 1 } );
+  my $sql = <<'SQL';
+SELECT DISTINCT(u.uid),
+               u.id AS login,
+               pi.fio AS fio,
+               IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
+FROM users u
+       INNER JOIN referral_main r ON (r.referrer=u.uid)
+       LEFT JOIN users_pi pi ON (u.uid=pi.uid);
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1 } );
 
   return $self->{list} || [];
 }
@@ -705,8 +690,7 @@ sub get_referrers_list {
 =cut
 #**********************************************************
 sub referral_bonus_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('referral_users_bonus', $attr);
 
@@ -714,7 +698,7 @@ sub referral_bonus_add {
 }
 
 #**********************************************************
-=head2 referral_bonus_add($attr) save new counted bonus
+=head2 referral_bonus_multi_add($attr) save new counted bonus
 
   Arguments:
     UID
@@ -729,8 +713,7 @@ sub referral_bonus_add {
 =cut
 #**********************************************************
 sub referral_bonus_multi_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self if (!$attr->{BONUSES} || ref $attr->{BONUSES} ne 'ARRAY');
 
@@ -747,7 +730,7 @@ sub referral_bonus_multi_add {
 }
 
 #**********************************************************
-=head2 get_payments_bonus($uid) get all new payments
+=head2 bonus_payments_get($uid) get all new payments
 
   Arguments:
     attr
@@ -757,12 +740,11 @@ sub referral_bonus_multi_add {
 
 =cut
 #**********************************************************
-sub get_payments_bonus {
-  my $self = shift;
-  my ($attr) = @_;
+sub bonus_payments_get {
+  my ($self, $attr) = @_;
   my $payments_type = $attr->{PAYMENTS_TYPE} ? $attr->{PAYMENTS_TYPE} : 0;
 
-  $self->query("
+  my $sql = <<"SQL";
     SELECT p.uid, p.date, p.sum, p.id
     FROM payments p
     WHERE p.id NOT IN
@@ -770,13 +752,15 @@ sub get_payments_bonus {
     AND DATE(p.date) >= DATE(NOW())- INTERVAL 2 DAY
     AND p.method IN ($payments_type)
     AND p.uid = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
 
   return $self->{list} || [];
 }
 
 #**********************************************************
-=head2 get_fees_bonus($uid) get all new fees
+=head2 bonus_fees_get($uid) get all new fees
 
   Arguments:
     UID
@@ -786,12 +770,11 @@ sub get_payments_bonus {
 
 =cut
 #**********************************************************
-sub get_fees_bonus {
-  my $self = shift;
-  my ($attr) = @_;
+sub bonus_fees_get {
+  my ($self, $attr) = @_;
   my $fees_type = $attr->{FEES_TYPE} ? $attr->{FEES_TYPE} : 0;
 
-  $self->query("
+  my $sql = <<"SQL";
     SELECT f.uid, f.date, f.sum, f.id
     FROM fees f
     WHERE f.id NOT IN
@@ -799,13 +782,15 @@ sub get_fees_bonus {
     AND DATE(f.date) >= DATE(NOW())- INTERVAL 2 DAY
     AND f.method IN ($fees_type)
     AND f.uid = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
 
   return $self->{list} || [];
 }
 
 #**********************************************************
-=head2 get_single_bonus($uid) get is received single bonus
+=head2 bonus_single_get($uid) get is received single bonus
 
   Arguments:
     UID
@@ -815,21 +800,22 @@ sub get_fees_bonus {
 
 =cut
 #**********************************************************
-sub get_single_bonus {
-  my $self = shift;
-  my ($uid) = @_;
+sub bonus_single_get {
+  my ($self, $uid) = @_;
 
-  $self->query("
+  my $sql = <<'SQL';
     SELECT *
     FROM referral_users_bonus rub
     WHERE rub.fee_id = 0 AND rub.payment_id = 0 AND rub.uid = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $uid ] } );
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $uid ] } );
 
   return $self->{list} || [];
 }
 
 #**********************************************************
-=head2 get_bonus_history($uid) get bonus history
+=head2 bonus_history_get($uid) get bonus history
 
   Arguments:
     UID
@@ -839,22 +825,23 @@ sub get_single_bonus {
 
 =cut
 #**********************************************************
-sub get_bonus_history {
-  my $self = shift;
-  my ($referrer) = @_;
+sub bonus_history_get {
+  my ($self, $referrer) = @_;
 
-  $self->query("
-    SELECT rub.date, rub.sum, rr.id, rr.fio, rr.address, rr.comments
-    FROM referral_users_bonus rub
-    LEFT JOIN referral_requests rr ON (rub.uid = rr.referral_uid)
-    WHERE rub.referrer = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $referrer ] } );
+  my $sql = <<'SQL';
+   SELECT rub.date, rub.sum, rr.id, rr.fio, rr.address, rr.comments
+   FROM referral_users_bonus rub
+       LEFT JOIN referral_requests rr ON (rub.uid = rr.referral_uid)
+   WHERE rub.referrer = ?;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1, Bind => [ $referrer ] } );
 
   return $self->{list} || [];
 }
 
 #**********************************************************
-=head2 get_total_bonus($uid) get total bonus on referral
+=head2 bonus_total_get($uid) get total bonus on referral
 
   Arguments:
     UID
@@ -864,14 +851,16 @@ sub get_bonus_history {
 
 =cut
 #**********************************************************
-sub get_total_bonus {
-  my $self = shift;
-  my ($uid) = @_;
+sub bonus_total_get {
+  my ($self, $uid) = @_;
 
-  $self->query("SELECT COUNT(*) AS total, SUM(rub.sum) AS total_sum
+  my $sql = <<'SQL';
+    SELECT COUNT(*) AS total, SUM(rub.sum) AS total_sum
     FROM referral_users_bonus rub
-    WHERE rub.uid = ?;",
-    undef, { INFO => 1, Bind => [ $uid ] } );
+    WHERE rub.uid = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $uid ] } );
 
   return $self;
 }

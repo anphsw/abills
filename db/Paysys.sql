@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS `paysys_main`
     `subscribe_date_start` DATE                 NOT NULL DEFAULT '0000-00-00' COMMENT 'Legacy starting date of first regular payment from payment system',
     `domain_id`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0' COMMENT 'domains.id',
     `info`                 VARCHAR(100)         NOT NULL DEFAULT '' COMMENT 'Internal info for regular payments, can be salt, extra linked desc etc',
-    UNIQUE (`uid`, `paysys_id`),
+    UNIQUE KEY `uid_paysys_id` (`uid`, `paysys_id`),
     KEY `uid` (`uid`),
     KEY `paysys_id` (`paysys_id`),
     KEY `domain_id` (`domain_id`)

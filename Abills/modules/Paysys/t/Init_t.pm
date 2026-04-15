@@ -69,9 +69,9 @@ if (defined($argv->{help})) {
 }
 
 our $debug = $argv->{debug} || $argv->{DEBUG} || 0;
-our $user_id = $argv->{user_id} || $argv->{user} || $conf{PAYSYS_TEST_USER} || 1;
-our $payment_sum = $argv->{payment_sum} || $conf{PAYSYS_TEST_SUM} || 1;
-our $payment_id = $argv->{payment_id} || mk_unique_value(4, { SYMBOLS => '123456789' });
+our $user_id = $argv->{user_id} || $argv->{user} || $conf{PAYSYS_TEST_USER} || $argv->{USER} || 1;
+our $payment_sum = $argv->{payment_sum} || $argv->{sum} || $conf{PAYSYS_TEST_SUM} || $argv->{SUM} || 1;
+our $payment_id = $argv->{payment_id} || $argv->{PAYMENT_ID} || mk_unique_value(4, { SYMBOLS => '123456789' });
 
 our $program_name = $0;
 if ($program_name =~ /\/?([a-zA-Z0-9\.\_\-]+)$/xm) {

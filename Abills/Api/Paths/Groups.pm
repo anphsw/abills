@@ -29,8 +29,6 @@ use Api::Validations::Groups qw(POST_GROUP PUT_GROUP);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -53,7 +51,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/groups/',
-      controller  => 'Api::Controllers::Admin::Groups',
       endpoint    => \&Api::Controllers::Admin::Groups::get_groups,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -62,7 +59,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/groups/:id/',
-      controller  => 'Api::Controllers::Admin::Groups',
       endpoint    => \&Api::Controllers::Admin::Groups::get_groups_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -72,7 +68,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/groups/',
       params      => POST_GROUP,
-      controller  => 'Api::Controllers::Admin::Groups',
       endpoint    => \&Api::Controllers::Admin::Groups::post_groups,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -82,7 +77,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/groups/:id/',
       params      => PUT_GROUP,
-      controller  => 'Api::Controllers::Admin::Groups',
       endpoint    => \&Api::Controllers::Admin::Groups::put_groups_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -91,7 +85,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/groups/:id/',
-      controller  => 'Api::Controllers::Admin::Groups',
       endpoint    => \&Api::Controllers::Admin::Groups::delete_groups_id,
       credentials => [
         'ADMIN', 'ADMINSID'

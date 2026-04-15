@@ -14,9 +14,9 @@ use warnings FATAL => 'all';
 
 use Control::Errors;
 
-use Equipment;
+use Equipment::db::Boxes;
 
-my Equipment $Equipment;
+my Equipment::db::Boxes $Equipment_box;
 my Control::Errors $Errors;
 
 #**********************************************************
@@ -38,8 +38,8 @@ sub new {
 
   bless($self, $class);
 
-  $Equipment = Equipment->new($db, $admin, $conf);
-  $Equipment->{debug} = $self->{debug};
+  $Equipment_box = Equipment::db::Boxes->new($db, $admin, $conf);
+  $Equipment_box->{debug} = $self->{debug};
 
   $Errors = $self->{attr}->{Errors};
 
@@ -54,19 +54,9 @@ sub new {
 =cut
 #**********************************************************
 sub get_equipment_box_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  my %PARAMS = (
-    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-    SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
-  );
-
-  $Equipment->equipment_box_list({
-    %PARAMS,
-    COLS_NAME => 1,
-  });
+  return $Equipment_box->list($query_params);
 }
 
 

@@ -73,7 +73,9 @@ if ($ENV{REQUEST_URI} && !$ENV{PATH_INFO}) {
 }
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+  {
+    %conf,
+    CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
     dbdebug   => $conf{dbdebug},
     db_engine => 'dbcore'
   });

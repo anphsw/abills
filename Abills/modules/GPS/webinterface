@@ -703,9 +703,11 @@ sub get_route_length {
 #**********************************************************
 sub extract_date {
   my ($date_time, $get_time) = @_;
-  my ($date, $time) = split(/\s/x, $date_time);
 
-  unless ($get_time) {
+  return '' if (!$date_time);
+
+  my ($date, $time) = split(/\s/x, $date_time);
+  if (!$get_time) {
     return $date;
   }
 

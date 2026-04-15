@@ -1,7 +1,7 @@
 {
   "definitions": {},
   "type": "object",
-  "title": "The Root Schema",
+  "title": "nasGreoupAdd",
   "required": [
   ],
   "properties": {

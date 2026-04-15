@@ -4,7 +4,7 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db, $msgs_permissions);
-my $json;
+#my $json;
 my Abills::HTML $html;
 my $lang;
 my $Msgs;
@@ -67,14 +67,14 @@ sub plugin_info {
 =head2 plugin_show($attr)
 
   Arguments:
+    $attr
 
   Return:
 
 =cut
 #**********************************************************
 sub plugin_show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{index} ||= $attr->{qindex};
   return '' if !$attr->{index};
@@ -120,8 +120,7 @@ sub plugin_show {
 =cut
 #**********************************************************
 sub _get_watch_button {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$msgs_permissions->{1}{17};
 
@@ -159,8 +158,7 @@ sub _get_watch_button {
 =cut
 #**********************************************************
 sub _get_export_button {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$msgs_permissions->{1}{15};
   if ($attr->{PLUGIN} && $attr->{export}) {
@@ -187,8 +185,7 @@ sub _get_export_button {
 =cut
 #**********************************************************
 sub _get_history_button {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{PLUGIN} && $attr->{PLUGIN} eq $self->{PLUGIN_NAME} && $attr->{MSG_HISTORY}) {
     main::form_changes({
@@ -222,8 +219,7 @@ sub _get_history_button {
 =cut
 #**********************************************************
 sub _get_delegate_buttons {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$msgs_permissions->{1}{9};
 
@@ -279,8 +275,7 @@ sub _get_delegate_buttons {
 =cut
 #**********************************************************
 sub _get_inner_msg_button {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if $attr->{PLUGIN} && !$attr->{change};
 
@@ -303,8 +298,7 @@ sub _get_inner_msg_button {
 =cut
 #**********************************************************
 sub _get_tags_button {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$msgs_permissions->{1}{18} || !$msgs_permissions->{1}{19};
   return '' if $attr->{PLUGIN} && !$attr->{change};
@@ -331,8 +325,7 @@ sub _get_tags_button {
 =cut
 #**********************************************************
 sub _payments_btn {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$admin->{permissions}{2} || !$admin->{permissions}{2}{1};
   return '' if !$CONF->{MSGS_TICKET_PRICE};
@@ -393,14 +386,14 @@ sub _payments_btn {
 =head2 export_ticket($attr)
 
   Arguments:
+    $attr
 
   Return:
 
 =cut
 #**********************************************************
 sub export_ticket {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   require Msgs::Export_redmine;
   Export_redmine->import();

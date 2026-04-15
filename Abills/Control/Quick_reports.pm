@@ -39,6 +39,7 @@ sub form_quick_reports {
   $quick_reports{users_summary} = $lang{USERS} if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
   $quick_reports{payments_types} = $lang{PAYMENT_TYPE} if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
   $quick_reports{payments_self} = "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}" if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
+  $quick_reports{fees_without_codefication} = "$lang{FEES} $lang{WITHOUT} $lang{CODEFICATION}" if (($permission->{1}{0} || $permission->{1}{3}) && $permission->{0}{2});
 
   if ($conf{SHOW_LICENSE}) {
     $quick_reports{license_info}='License';
@@ -389,6 +390,50 @@ sub start_page_license_info {
     LICENSE      => sprintf("%07d", $users->{ll}),
     TOTAL        => sprintf("%07d", $users->{list}->[0]->[0]),
   }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 start_page_fees_without_codefication()
+
+=cut
+#**********************************************************
+sub start_page_fees_without_codefication {
+  return '' if (!$admin->{permissions}->{2}->{0} && !$admin->{permissions}->{2}->{3});
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $html->button("$lang{FEES} $lang{WITHOUT} $lang{CODEFICATION}", "index=3&METHOD=<2&search=1"),
+    title_plain => [ 'ID', $lang{LOGIN}, $lang{SUM}, $lang{DATE}, $lang{METHOD}],
+    ID          => 'LAST_PAYMENTS'
+  });
+
+  my $fees_methods = get_fees_types();
+  my $Fees = Fees->new($db, $admin, \%conf);
+
+  my $fees_list = $Fees->list({
+    UID       => '_SHOW',
+    LOGIN     => '_SHOW',
+    ID        => '_SHOW',
+    SUM       => '_SHOW',
+    DATETIME  => '_SHOW',
+    METHOD    => '<2',
+    COLS_NAME => 1,
+    SORT      => 'id',
+    DESC      => 'desc',
+    PAGE_ROWS => 10
+  });
+
+  foreach my $line (@{$fees_list}) {
+    $table->addrow(
+      $line->{id},
+      $html->button($line->{login}, "index=11&UID=$line->{uid}"),
+      $line->{sum},
+      $line->{datetime},
+      $fees_methods->{$line->{method}},
+    );
+  }
+
+  return $table->show();
 }
 
 1;

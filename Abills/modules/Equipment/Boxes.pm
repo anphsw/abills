@@ -6,70 +6,75 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Equipment::db::Boxes;
 
-our(
-  $Equipment,
+our (
   $html,
   %lang,
+  $db,
+  $admin,
+  %conf
 );
+
+my $Equipment_box  = Equipment::db::Boxes->new($db, $admin, \%conf);
 
 #********************************************************
 =head2 equipment_boxes()
 
 =cut
 #********************************************************
-sub equipment_boxes{
+sub equipment_boxes {
 
-  $Equipment->{ACTION} = 'add';
-  $Equipment->{LNG_ACTION} = "$lang{ADD}";
+  $Equipment_box->{ACTION} = 'add';
+  $Equipment_box->{LNG_ACTION} = "$lang{ADD}";
 
-  if ( $FORM{add} ){
-    $Equipment->equipment_box_add( { %FORM } );
-    if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{BOXES}, "$lang{ADDED}" );
+  if ($FORM{add}) {
+    $Equipment_box->equipment_box_add({ %FORM });
+    if (!$Equipment_box->{errno}) {
+      $html->message('info', $lang{BOXES}, "$lang{ADDED}");
     }
   }
-  elsif ( $FORM{change} ){
-    $Equipment->equipment_box_change( \%FORM );
-    if ( !_error_show( $Equipment ) ){
-      $html->message( 'info', $lang{BOXES}, "$lang{CHANGED}" );
+  elsif ($FORM{change}) {
+    $Equipment_box->equipment_box_change(\%FORM);
+    if (!_error_show($Equipment_box)) {
+      $html->message('info', $lang{BOXES}, "$lang{CHANGED}");
     }
   }
-  elsif ( $FORM{chg} ){
-    $Equipment->equipment_box_info( "$FORM{chg}" );
+  elsif ($FORM{chg}) {
+    $Equipment_box->equipment_box_info("$FORM{chg}");
 
-    if ( !$Equipment->{errno} ){
-      $Equipment->{ACTION} = 'change';
-      $Equipment->{LNG_ACTION} = "$lang{CHANGE}";
-      $html->message( 'info', $lang{BOXES}, "$lang{CHANGING}" );
+    if (!$Equipment_box->{errno}) {
+      $Equipment_box->{ACTION} = 'change';
+      $Equipment_box->{LNG_ACTION} = "$lang{CHANGE}";
+      $html->message('info', $lang{BOXES}, "$lang{CHANGING}");
     }
   }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ){
-    $Equipment->equipment_box_del( "$FORM{del}" );
-    if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{BOXES}, "$lang{DELETED}" );
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Equipment_box->equipment_box_del("$FORM{del}");
+    if (!$Equipment_box->{errno}) {
+      $html->message('info', $lang{BOXES}, "$lang{DELETED}");
     }
   }
 
-  if ( $FORM{add_form} ){
-    $Equipment->{TYPE_SEL} = $html->form_select(
+  if ($FORM{add_form}) {
+    $Equipment_box->{TYPE_SEL} = $html->form_select(
       'TYPE_ID',
       {
-        SELECTED       => $Equipment->{TYPE_ID} || 0,
-        SEL_LIST       => $Equipment->equipment_box_type_list( { COLS_NAME => 1, CLEAR_NAMES => 1 } ),
+        SELECTED       => $Equipment_box->{TYPE_ID} || 0,
+        SEL_LIST       => $Equipment_box->equipment_box_type_list({ COLS_NAME => 1, CLEAR_NAMES => 1 }),
         SEL_VALUE      => 'marking,units',
         NO_ID          => 1,
-        MAIN_MENU      => get_function_index( 'equipment_box_types' ),
-        MAIN_MENU_ARGV => "chg=$Equipment->{TYPE}"
+        MAIN_MENU      => get_function_index('equipment_box_types'),
+        MAIN_MENU_ARGV => "chg=$Equipment_box->{TYPE}"
       }
     );
 
-    $html->tpl_show( _include( 'equipment_box', 'Equipment' ), $Equipment );
+    $html->tpl_show(_include('equipment_box', 'Equipment'), $Equipment_box);
   }
 
-  _error_show( $Equipment );
+  _error_show($Equipment_box);
   result_former({
-    INPUT_DATA        => $Equipment,
+    INPUT_DATA      => $Equipment_box,
     FUNCTION        => 'equipment_box_list',
     BASE_FIELDS     => 3,
     FUNCTION_FIELDS => 'change,del',
@@ -89,7 +94,7 @@ sub equipment_boxes{
     },
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
-     TOTAL           => 1
+    TOTAL           => 1
   });
 
   return 1;
@@ -100,48 +105,48 @@ sub equipment_boxes{
 
 =cut
 #********************************************************
-sub equipment_box_types{
+sub equipment_box_types {
 
-  $Equipment->{ACTION} = 'add';
-  $Equipment->{LNG_ACTION} = "$lang{ADD}";
+  $Equipment_box->{ACTION} = 'add';
+  $Equipment_box->{LNG_ACTION} = "$lang{ADD}";
 
-  if ( $FORM{add} ){
-    $Equipment->equipment_box_type_add( { %FORM } );
-    if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{BOXES}, "$lang{ADDED}" );
+  if ($FORM{add}) {
+    $Equipment_box->equipment_box_type_add({ %FORM });
+    if (!$Equipment_box->{errno}) {
+      $html->message('info', $lang{BOXES}, "$lang{ADDED}");
     }
   }
-  elsif ( $FORM{change} ){
-    $Equipment->equipment_box_type_change( \%FORM );
-    if ( !_error_show( $Equipment ) ){
-      $html->message( 'info', $lang{BOXES}, "$lang{CHANGED}" );
+  elsif ($FORM{change}) {
+    $Equipment_box->equipment_box_type_change(\%FORM);
+    if (!_error_show($Equipment_box)) {
+      $html->message('info', $lang{BOXES}, "$lang{CHANGED}");
     }
   }
-  elsif ( $FORM{chg} ){
-    $Equipment->equipment_box_type_info( "$FORM{chg}" );
+  elsif ($FORM{chg}) {
+    $Equipment_box->equipment_box_type_info("$FORM{chg}");
 
-    if ( !$Equipment->{errno} ){
-      $Equipment->{ACTION} = 'change';
-      $Equipment->{LNG_ACTION} = "$lang{CHANGE}";
+    if (!$Equipment_box->{errno}) {
+      $Equipment_box->{ACTION} = 'change';
+      $Equipment_box->{LNG_ACTION} = "$lang{CHANGE}";
       $FORM{add_form} = 1;
-      $html->message( 'info', $lang{BOXES}, "$lang{CHANGING}" );
+      $html->message('info', $lang{BOXES}, "$lang{CHANGING}");
     }
   }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ){
-    $Equipment->equipment_box_type_del( "$FORM{del}" );
-    if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{BOXES}, "$lang{DELETED}" );
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Equipment_box->equipment_box_type_del("$FORM{del}");
+    if (!$Equipment_box->{errno}) {
+      $html->message('info', $lang{BOXES}, "$lang{DELETED}");
     }
   }
 
-  if ( $FORM{add_form} ){
-    $html->tpl_show( _include( 'equipment_box_types', 'Equipment' ), $Equipment );
+  if ($FORM{add_form}) {
+    $html->tpl_show(_include('equipment_box_types', 'Equipment'), $Equipment_box);
   }
 
-  _error_show( $Equipment );
+  _error_show($Equipment_box);
 
   result_former({
-    INPUT_DATA        => $Equipment,
+    INPUT_DATA      => $Equipment_box,
     FUNCTION        => 'equipment_box_type_list',
     BASE_FIELDS     => 5,
     FUNCTION_FIELDS => 'change,del',
@@ -170,6 +175,5 @@ sub equipment_box_types{
 
   return 1;
 }
-
 
 1;

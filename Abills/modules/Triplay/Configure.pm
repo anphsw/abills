@@ -18,6 +18,7 @@ our (
 );
 
 require Control::Selects;
+require Control::System;
 our Abills::HTML $html;
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Triplay = Triplay->new($db, $admin, \%conf);
@@ -33,8 +34,6 @@ my $Triplay = Triplay->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub triplay_tp {
-
-  require Control::Services;
 
   $Triplay->{ACTION} = 'add';
   $Triplay->{ACTION_LNG} = $lang{ADD};

@@ -55,7 +55,7 @@
       "type": "number"
     },
     "taxNumber": {
-      "type": "number"
+      "type": "string"
     },
     "zip": {
       "type": "string"

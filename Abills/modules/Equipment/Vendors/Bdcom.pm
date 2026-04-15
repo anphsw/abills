@@ -40,7 +40,7 @@ sub _bdcom_get_ports {
   });
 
   foreach my $key (keys %{$ports_info}) {
-    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_NAME} =~ /(.PON)(\d+\/\d+)$/i) {
+    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_NAME} =~ /(.PON)(\d+\/\d+)$/xmi) {
       my $type = lc($1);
       #my $branch = decode_port($key);
       $ports_info->{$key}{BRANCH} = $2;
@@ -121,8 +121,8 @@ sub _bdcom_onu_list {
   my @onu_indexes = ();
   foreach my $line (@$ports_descr) {
     next if (!$line);
-    my ($interface_index, $type) = split(/:/, $line, 2);
-    if ($type && $type =~ /(.+):(.+)/) {
+    my ($interface_index, $type) = split(/:/x, $line, 2);
+    if ($type && $type =~ /(.+):(.+)/xm) {
       push @onu_indexes, $interface_index;
     }
   }
@@ -159,7 +159,7 @@ sub _bdcom_onu_list {
 
         foreach my $line (@$result) {
           next if (!$line);
-          my ($interface_index, $value) = split(/:/, $line, 2);
+          my ($interface_index, $value) = split(/:/x, $line, 2);
           my $function = $snmp->{$oid_name}->{PARSER};
 
           if (!defined($value)) {
@@ -216,24 +216,22 @@ sub _bdcom_onu_list {
 
     foreach my $line (@$ports_descr) {
       next if (!$line);
-      my ($interface_index, $type) = split(/:/, $line, 2);
-      if ($type && $type =~ /(.+):(.+)/) {
-        $type =~ /(\d+)\/(\d+):(\d+)/;
-        my $device_index = $3;
-        my $branch_index = $2;
+      my ($interface_index, $type) = split(/:/x, $line, 2);
+      if ($type && $type =~ /(.+):(.+)/xm) {
+        my ($tree, $branch_index, $device_index) = $type =~ /\S+(\d+)\/(\d+):(\d+)/xm;
         my %onu_info = ();
 
         if ($onu_snmp_info{$interface_index}) {
           %onu_info = %{$onu_snmp_info{$interface_index}};
         }
 
-        $onu_info{PORT_ID} = $port_ids{$1 . '/' . $branch_index};
+        $onu_info{PORT_ID} = $port_ids{$tree . '/' . $branch_index};
         $onu_info{ONU_ID} = $device_index;
         $onu_info{ONU_SNMP_ID} = $interface_index;
         $onu_info{PON_TYPE} = $pon_type;
 
-        $type =~ /\/(\d+)/;
-        my $olt_num = $1 + $ether_ports;
+        my ($port_prefix) = $type =~ /\/(\d+)/xm;
+        my $olt_num = $port_prefix + $ether_ports;
         my $port_id = sprintf("%02x%02x", $olt_num, $device_index);
         $onu_info{ONU_DHCP_PORT} = $port_id;
 
@@ -241,7 +239,7 @@ sub _bdcom_onu_list {
           if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
             next;
           }
-          elsif ($oid_name =~ /POWER|TEMPERATURE/
+          elsif ($oid_name =~ /POWER|TEMPERATURE/xm
             && defined($onu_snmp_info{$interface_index}{ONU_STATUS})
             && $onu_snmp_info{$interface_index}{ONU_STATUS} ne '3') {
             $onu_info{$oid_name} = 0;
@@ -288,11 +286,11 @@ sub _bdcom {
 
   # P3616-2TE need test
   if ($attr->{MODEL}) {
-    if ($attr->{MODEL} =~ /OLT P3310|P3310C|P3310D|P3608$|P3612-2TE/i) {
-      $snmp->{epon}->{OLT_RX_POWER}->{OIDS} = '.1.3.6.1.4.1.3320.101.108.1.3';
+    if ($attr->{MODEL} =~ /P3310|P3310C|P3310D|P3608$|P3612-2TE/xmi) {
+      $snmp->{epon}->{OLT_RX_POWER}->{OIDS} = '1.3.6.1.4.1.3320.9.183.1.1.5 ';
     }
 
-    if ($attr->{MODEL} =~ /P3310D/i) {
+    if ($attr->{MODEL} =~ /P3310D/xmi) {
       delete $snmp->{epon}->{catv_port_manage};
     }
   }
@@ -329,7 +327,7 @@ sub _bdcom_get_profiles {
   });
 
   foreach my $profile ( @$profile_info ) {
-    my ($index, $value)=split(/:/, $profile);
+    my ($index, $value)=split(/:/x, $profile);
     $profiles{$index}{VLAN}=$value;
   }
 
@@ -337,21 +335,27 @@ sub _bdcom_get_profiles {
 }
 
 #**********************************************************
-=head2 _bdcom_pon_vlan() - Tempory VLAN function
+=head2 _bdcom_pon_vlan($value) - Tempory VLAN function
 
 =cut
 #**********************************************************
 sub _bdcom_pon_vlan {
+  my ($value)=@_;
 
-  return q{};
+  return $value;
 }
 
 #**********************************************************
-=head2 _bdcom_sec2time($sec)
+=head2 bdcom_sec2time($sec)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
-sub _bdcom_sec2time {
+sub bdcom_sec2time {
   my ($sec)=@_;
 
   return sec2time($sec, { str => 1 });
@@ -374,6 +378,11 @@ sub _bdcom_sec2time {
 
 #**********************************************************
 =head2 _bdcom_onu_status()
+
+  Arguments:
+    $pon_type
+  Results:
+    \%status
 
 =cut
 #**********************************************************
@@ -408,6 +417,8 @@ sub _bdcom_onu_status {
 
   Arguments:
     $attr
+      PORT
+      DESC
 
   Returns:
     TRUE or FALSE
@@ -433,11 +444,16 @@ sub _bdcom_set_desc {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_power();
+=head2 bdcom_convert_power($power);
+
+  Arguments:
+    $power
+  Results:
+    $power
 
 =cut
 #**********************************************************
-sub _bdcom_convert_power {
+sub bdcom_convert_power {
   my ($power) = @_;
   $power //= 0;
 
@@ -452,11 +468,16 @@ sub _bdcom_convert_power {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_temperature();
+=head2 bdcom_convert_temperature($temperature);
+
+  Arguments:
+    $temperature
+  Results:
+    $temperature
 
 =cut
 #**********************************************************
-sub _bdcom_convert_temperature {
+sub bdcom_convert_temperature {
   my ($temperature) = @_;
 
   $temperature //= 0;
@@ -467,11 +488,16 @@ sub _bdcom_convert_temperature {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_voltage();
+=head2 bdcom_convert_voltage($voltage);
+
+  Arguments:
+    $voltage
+  Results:
+    $voltage
 
 =cut
 #**********************************************************
-sub _bdcom_convert_voltage {
+sub bdcom_convert_voltage {
   my ($voltage) = @_;
 
   $voltage //= 0;
@@ -483,7 +509,12 @@ sub _bdcom_convert_voltage {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_distance_epon();
+=head2 _bdcom_convert_distance_epon($distance);
+
+  Arguments:
+    $distance
+  Results:
+    $distance
 
 =cut
 #**********************************************************
@@ -498,11 +529,16 @@ sub _bdcom_convert_distance_epon {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_distance_gpon();
+=head2 bdcom_convert_distance_gpon($distance);
+
+  Arguments:
+    $distance
+  Results:
+    $distance
 
 =cut
 #**********************************************************
-sub _bdcom_convert_distance_gpon {
+sub bdcom_convert_distance_gpon {
   my ($distance) = @_;
 
   $distance //= 0;
@@ -513,11 +549,16 @@ sub _bdcom_convert_distance_gpon {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_onu_last_down_cause($last_down_cause_code)
+=head2 bdcom_convert_onu_last_down_cause($last_down_cause_code)
+
+  Arguments:
+    $last_down_cause_code
+  Results:
+    $last_down_cause
 
 =cut
 #**********************************************************
-sub _bdcom_convert_onu_last_down_cause {
+sub bdcom_convert_onu_last_down_cause {
   my ($last_down_cause_code) = @_;
 
   my %last_down_cause_hash = (
@@ -574,7 +615,7 @@ sub _bdcom_get_fdb {
   #Version 10.1.0F
   #firmware versions known to not support dot1qTpFdbTable (ifFdbReadByPortMacAddress is working):
   #Version 10.1.0B
-  if ($system_descr && $system_descr !~ /Version 10\.1\.0B/) {
+  if ($system_descr && $system_descr !~ /Version\s+10\.1\.0B/xm) {
     return default_get_fdb($attr);
   }
 
@@ -588,9 +629,9 @@ sub _bdcom_get_fdb {
   my @EXPR_IDS = ();
 
   if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
-    $perl_scalar->{FDB_EXPR} =~ s/\%\%/\\/g;
-    ($expr_, $values, $attribute) = split(/\|/, $perl_scalar->{FDB_EXPR} || '');
-    @EXPR_IDS = split(/,/, $values);
+    $perl_scalar->{FDB_EXPR} =~ s/\%\%/\\/xg;
+    ($expr_, $values, $attribute) = split(/\|/x, $perl_scalar->{FDB_EXPR} || '');
+    @EXPR_IDS = split(/,/x, $values);
   }
 
   #Get port name list
@@ -612,7 +653,7 @@ sub _bdcom_get_fdb {
   foreach my $iface (@$ports_name) {
     next if (!$iface);
     print "Iface: $iface \n" if ($debug > 1);
-    my ($id, $port_name) = split(/:/, $iface, 2);
+    my ($id, $port_name) = split(/:/x, $iface, 2);
 
     #get macs
     my $mac_list = snmp_get({
@@ -624,7 +665,6 @@ sub _bdcom_get_fdb {
     });
 
     foreach my $line (@$mac_list) {
-      #print "$line <br>";
       next if (!$line);
       my $vlan;
       my $mac_dec;
@@ -633,7 +673,7 @@ sub _bdcom_get_fdb {
       if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
         my %result = ();
 
-        if (my @res = ($line =~ /$expr_/g)) {
+        if (my @res = ($line =~ /$expr_/xmg)) {
           for (my $i = 0; $i <= $#res; $i++) {
             $result{$EXPR_IDS[$i]} = $res[$i];
           }
@@ -728,7 +768,7 @@ sub _bdcom_unregister {
     Errmode => 'return'
   );
 
-  my ($ip) = split(/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT});
+  my ($ip) = split(/:/x, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT});
 
   $Telnet->open(
     Host => $ip
@@ -753,16 +793,16 @@ sub _bdcom_unregister {
     ($waitfor_prematch, $waitfor_match) = $Telnet->waitfor('/.*(#|>)$/');
   }
 
-  if ($waitfor_match =~ />$/) {
+  if ($waitfor_match =~ />$/xm) {
     print "enable failed: $waitfor_prematch\n";
     return [];
   }
 
   my @unregister = ();
-  if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /\bGP/i) { #seems that model_name of GPON OLT always starts with GP
+  if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /\bGP/xmi) { #seems that model_name of GPON OLT always starts with GP
     my @rejected_onus = $Telnet->cmd('show gpon onu-rejected-information');
     foreach my $line (@rejected_onus) {
-      if ($line =~ /\d+\s+([0-9A-F]{16})\s+GPON(\d+\/\d+)/) {
+      if ($line =~ /\d+\s+([0-9A-F]{16})\s+GPON(\d+\/\d+)/xm) {
         push @unregister,
           {
             pon_type   => 'gpon',
@@ -781,13 +821,14 @@ sub _bdcom_unregister {
         print $line."\n";
       }
 
-      if ($line =~ /ONU rejected to register on interface EPON(\d+\/\d+):/) {
+      my $expr_ = q{ONU\s+rejected\s+to\s+register\s+on\s+interface\s+EPON(\d+\/\d+):};
+      if ($line =~ /$expr_/xm) {
         $current_branch = $1;
       }
 
-      if ($line =~ /\s*([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s*/) {
+      if ($line =~ /\s*([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s*/xm) {
         my $mac_serial = $1;
-        $mac_serial =~ s/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/$1:$2:$3:$4:$5:$6/;
+        $mac_serial =~ s/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/$1:$2:$3:$4:$5:$6/x;
         push @unregister,
           {
             pon_type   => 'epon',
@@ -846,7 +887,7 @@ sub _bdcom_get_onu_config {
   my $password = $conf{EQUIPMENT_OLT_PASSWORD} || $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
   my $enable_password = $conf{EQUIPMENT_BDCOM_ENABLE_PASSWORD} || $password;
 
-  my ($ip, undef) = split (/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
+  my ($ip, undef) = split(/:/x, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
 
   my @cmds = @{equipment_get_telnet_tpl({
     TEMPLATE => "bdcom_get_onu_config_$pon_type.tpl",
@@ -896,7 +937,7 @@ sub _bdcom_get_onu_config {
         $waitfor_match = $t->{LAST_PROMPT};
       }
 
-      if ($waitfor_match =~ />$/) {
+      if ($waitfor_match =~ />$/x) {
         return [$lang{ERROR}, "enable failed: " . join("\n", @$waitfor_prematch)];
       }
       next;
@@ -921,6 +962,11 @@ sub _bdcom_get_onu_config {
 #**********************************************************
 =head2 _bdcom_convert_catv_port_admin_status($status_code);
 
+  Arguments:
+    $status_code
+  Results:
+    $status
+
 =cut
 #**********************************************************
 sub _bdcom_convert_catv_port_admin_status {
@@ -941,11 +987,16 @@ sub _bdcom_convert_catv_port_admin_status {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_video_power($video_power);
+=head2 bdcom_convert_video_power($video_power);
+
+  Arguments:
+    $video_power
+  Results:
+    $video_power
 
 =cut
 #**********************************************************
-sub _bdcom_convert_video_power {
+sub bdcom_convert_video_power {
   my ($video_power) = @_;
 
   return 0 if (!defined $video_power || $video_power == 0);
@@ -953,4 +1004,4 @@ sub _bdcom_convert_video_power {
   return $video_power * 0.1;
 }
 
-1
+1;

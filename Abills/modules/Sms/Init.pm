@@ -52,7 +52,7 @@ sub init_sms_service {
     next if !$service->{plugin};
 
     my $service_params = $Sms->service_params({ SERVICE_ID => $service->{id}, COLS_NAME => 1, COLS_UPPER => 1 });
-    my $params = { DEBUG => $service->{debug} };
+    my $params = { DEBUG => $service->{debug} || $attr->{DEBUG} };
 
     foreach my $param (@{$service_params}) {
       next if !$param->{PARAM};

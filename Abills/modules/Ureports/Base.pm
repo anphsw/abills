@@ -127,9 +127,11 @@ sub ureports_payments_maked {
   my %info = ();
   $info{AMOUNT} = $attr->{AMOUNT} if $attr->{AMOUNT};
 
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Control/Services.pm"}));
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
-  my $service_info = ::get_services({
+  my $service_info = $Services->get_services({
     UID           => $user->{UID},
     REDUCTION     => $user->{REDUCTION},
     SKIP_DISABLED => 1,
@@ -316,6 +318,10 @@ sub ureports_send_reports {
   foreach my $send_type (@types) {
     # Fix old EMAIL type 0 -> 9
     $send_type = 9 if (! $send_type || $send_type eq '0');
+
+    if ($destinations[$type_index] =~ /\|/x) {
+      $destinations[$type_index] = (split(/\|/x, $destinations[$type_index]))[1];
+    }
 
     if ($attr->{MESSAGE_TEPLATE}) {
       $message = $html->tpl_show(main::_include($attr->{MESSAGE_TEPLATE}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });

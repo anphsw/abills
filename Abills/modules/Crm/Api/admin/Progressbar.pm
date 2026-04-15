@@ -49,10 +49,11 @@ sub new {
 =cut
 #**********************************************************
 sub post_crm_progressbar_messages {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  return $Crm->progressbar_comment_add({ %{$query_params}, DOMAIN_ID => $self->{admin}{DOMAIN_ID} || 0 });
+  use Crm::Leads_service;
+  my $Leads_service = Crm::Leads_service->new($self->{db}, $self->{admin}, $self->{conf});
+  return $Leads_service->crm_progressbar_comment_add({ %{$query_params}, DOMAIN_ID => $self->{admin}{DOMAIN_ID} || 0 });
 }
 
 #**********************************************************

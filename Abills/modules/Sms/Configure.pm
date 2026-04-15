@@ -8,7 +8,6 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(json_former);
 use Abills::Loader qw /load_plugin/;
-require Control::Services;
 
 our (
   %lang,
@@ -45,6 +44,12 @@ sub sms_services {
   $Sms->{ACTION} = 'add';
   $Sms->{LNG_ACTION} = $lang{ADD};
 
+  if ($FORM{test}){
+    print $html->header();
+    $html->tpl_show(_include('sms_service_test', 'Sms'), \%FORM);
+    return 1;
+  }
+
   if ($FORM{add}) {
     my $result = $Services->sms_service_add(\%FORM);
     $result->{message} = $result->{errmsg} if ($result->{errmsg});
@@ -60,6 +65,20 @@ sub sms_services {
     $FORM{add_form} = 1;
     $Sms->{ACTION} = 'change';
     $Sms->{LNG_ACTION} = $lang{CHANGE};
+    $Sms->{TEST_BTN} = $html->button($lang{TEST}, undef, {
+      class          => 'p-3',
+      ICON           => 'fa fa-play',
+      title          => $lang{TEST},
+      ex_params      => qq/onclick=loadToModal('?qindex=$index&chg=$FORM{chg}&test=1')/,
+      NO_LINK_FORMER => 1,
+      SKIP_HREF      => 1,
+    });
+
+    if ($FORM{NUMBER}){
+      use Sms::Init;
+      my $Sms_service = init_sms_service($db, $admin, \%conf, { SMS_SERVICE => $FORM{chg}, DEBUG => 1 });
+      $Sms_service->send_sms({ NUMBER => $FORM{NUMBER}, MESSAGE => 'Test' });
+    }
   }
   elsif ($FORM{del}) {
     $Sms->service_del({ ID => $FORM{del} });

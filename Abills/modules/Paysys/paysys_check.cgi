@@ -32,7 +32,7 @@ use Abills::Defs;
 do "../libexec/config.pl";
 
 use Abills::Filters;
-use Abills::Base qw(decode_base64 check_ip in_array);
+use Abills::Base qw(decode_base64 check_ip in_array escape_for_sql json_former xml_former);
 use Users;
 use Paysys;
 use Paysys::Init;
@@ -46,34 +46,50 @@ our %lang;
 our $debug = $conf{PAYSYS_DEBUG} || 0;
 our $html = Abills::HTML->new({ CONF => \%conf });
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+  { %conf,
+    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef
+  });
 
 our $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} });
 $admin->{DATE} = $DATE;
 
-if (in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
-  if ($ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /(?<=\/)\d+/xm) {
-    my ($domain) = $ENV{PATH_INFO} =~ /(?<=\/)\d+/xgm;
-    $ENV{PATH_INFO} =~ s/^\/\d+//xm;
+my $path_paysys_id = 0;
+my $path_merchant_id = 0;
 
-    eval {
-      require Multidoms;
-      Multidoms->import();
-    };
+if ($ENV{REQUEST_URI} && !$ENV{PATH_INFO}) {
+  $ENV{PATH_INFO} = $ENV{REQUEST_URI};
+  $ENV{PATH_INFO} =~ s/\/paysys_check.cgi//x;
+}
 
-    if ($domain && !$@) {
-      my $Domains = Multidoms->new($db, $admin, \%conf);
-      my $domains_list = $Domains->multidoms_domains_list({
-        COLS_NAME => 1,
-        ID        => $domain
-      });
+if ($ENV{PATH_INFO}) {
+  # Handle multidoms domain ID (legacy format: /{domain_id})
+  if (in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
+    if ($ENV{PATH_INFO} =~ /(?<=\/)\d+/xm) {
+      my ($domain) = $ENV{PATH_INFO} =~ /(?<=\/)\d+/xgm;
+      $ENV{PATH_INFO} =~ s/^\/\d+//xm;
 
-      #TODO remove and make as attr for Paysys::Core
-      $ENV{DOMAIN_ID} = $domain if ($domains_list);
+      eval {
+        require Multidoms;
+        Multidoms->import();
+      };
+
+      if ($domain && !$@) {
+        my $Domains = Multidoms->new($db, $admin, \%conf);
+        my $domains_list = $Domains->multidoms_domains_list({
+          COLS_NAME => 1,
+          ID        => $domain
+        });
+
+        #TODO remove and make as attr for Paysys::Core
+        $ENV{DOMAIN_ID} = $domain if ($domains_list);
+      }
     }
   }
-};
+
+  $path_paysys_id = _path_param($ENV{PATH_INFO}, 'paysys_id');
+  $path_merchant_id = _path_param($ENV{PATH_INFO}, 'merchant_id');
+}
 
 # read conf for DB
 our $Conf = Conf->new($db, $admin, \%conf);
@@ -134,12 +150,12 @@ our Users $users = Users->new($db, $admin, \%conf);
 
 Abills::Templates::template_init({
   #BIN   => $Bin,
-  LIB   => $libpath,
-  ADMIN => $admin,
-  HTML  => $html,
-  FORM  => \%FORM,
-  LANG  => \%lang,
-  CONF  => \%conf
+  LIBPATH => $libpath,
+  ADMIN   => $admin,
+  HTML    => $html,
+  FORM    => \%FORM,
+  LANG    => \%lang,
+  CONF    => \%conf
 });
 
 
@@ -210,6 +226,10 @@ sub paysys_new_scheme {
       $allowed = 1 if ($ENV{HTTP_CGI_AUTHORIZATION} eq $bearer);
     }
 
+    if ($conf{PAYSYS_ALLOW_NON_IP_AUTH}) {
+      $allowed = 1 if ($path_paysys_id == $id);
+    }
+
     if ($conf{PAYSYS_ALLOW_DOMAIN} && $paysys_ip =~ /domain/) {
       my ($domain) = $paysys_ip =~ /(?<=domain: ).*/mxg;
 
@@ -240,11 +260,20 @@ sub paysys_new_scheme {
         REMOTE_ADDR  => $REMOTE_ADDR,
       });
 
+      # if defined from path params and do not supports own validation on module
+      if ($conf{PAYSYS_ALLOW_NON_IP_AUTH} && $allowed) {
+        my $own_validation = $Payment_system->{OWN_VALIDATION} || 0;
+
+        return 1 if (!$own_validation);
+      }
+
       if ($debug > 2) {
         $Paysys_Core->mk_log("$module object created", { PAYSYS_ID => $id });
       }
 
       if ($Payment_system->can('proccess')) {
+        $Payment_system->{MERCHANT_ID} = $path_merchant_id || 0;
+
         $Payment_system->proccess(\%FORM);
 
         if ($debug > 2) {
@@ -263,18 +292,11 @@ sub paysys_new_scheme {
     }
   }
 
-  # payment function
-  paysys_payment_gateway();
-
-  if ($debug > 1) {
-    $Paysys_Core->mk_log('', { REPLY => 1 });
-  }
-
-  return 1;
+  return paysys_payment_gateway();
 }
 
 #**********************************************************
-=head2 paysys_payment_gateway()
+=head2 paysys_web_gateway()
 
   Arguments:
      -
@@ -284,6 +306,82 @@ sub paysys_new_scheme {
 =cut
 #**********************************************************
 sub paysys_payment_gateway {
+
+  my $user_agent = $ENV{HTTP_USER_AGENT} || '';
+  my $is_browser = 0;
+
+  my $DESKTOP_RE = qr{Mozilla|Chrome|Safari|Firefox|Edge|Opera}xi;
+  my $MOBILE_RE  = qr{Mobile|Android|iPhone|iPad}xi;
+
+  if ($user_agent =~ qr/$DESKTOP_RE|$MOBILE_RE/x) {
+    $is_browser = 1;
+  }
+
+  if ($is_browser) {
+    paysys_web_gateway();
+  }
+  else {
+    my ($headers, $body) = paysys_payment_gateway_401();
+
+    print join("\n", @$headers);
+    print $body;
+  }
+
+  if ($debug > 1) {
+    $Paysys_Core->mk_log('', { REPLY => 1 });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_payment_gateway_401()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_payment_gateway_401 {
+  my $accept_header = $ENV{HTTP_ACCEPT} || '';
+
+  my %response = (
+    error   => 'Unauthorized request',
+    message => 'HTML response is disabled for non-browser requests',
+  );
+
+  my $content_type = 'json';
+  my $response = '';
+
+  if ($accept_header =~ /xml/xi) {
+    $content_type = 'xml';
+    $response = xml_former(\%response, { PRETTY => 1, ROOT_NAME => 'response' });
+  }
+  else {
+    $response = json_former(\%response, { PRETTY => 1, ROOT_NAME => 'response' });
+  }
+
+  my @headers = (
+    "Status: 401",
+    "Content-Type: application/$content_type\n\n",
+  );
+
+  return (\@headers, $response);
+}
+
+#**********************************************************
+=head2 paysys_web_gateway()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_web_gateway {
 
   require Paysys::User_portal;
 
@@ -332,6 +430,25 @@ XML
   $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS, {});
 
   return 1;
+}
+
+#**********************************************************
+=head2 _path_param()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _path_param {
+  my ($path, $name) = @_;
+
+  my ($value) = $path =~ m{/\Q$name\E/([^/]+)}x
+    or return 0;
+
+  return escape_for_sql(int($value));
 }
 
 1;

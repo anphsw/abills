@@ -45,6 +45,7 @@ our %conf;
       CURL_OPTIONS   - curl options
       HEADERS        - curl -H option (ARRAY_ref)
       BIN_DATA       - Send data through file
+      FORM_DATA       - multipart/form-data (hash: key => value, or key => { file => path }, or key => { content => $data, filename => 'name' })
       COOKIE         - Use cookies
       CLEAR_COOKIE   - Clear saved cookies
       TIMEOUT        - Request timeout (Default: 30 sec)
@@ -77,6 +78,7 @@ our %conf;
       METHOD      => $req_header,
       MORE_INFO   => 1
     });
+
 
 
 =cut
@@ -277,9 +279,42 @@ sub _curl_request {
     }
   }
   elsif ($attr->{FORM_DATA}) {
-    foreach my $key (keys %{$attr->{FORM_DATA}}) {
-      $request_params .= qq/ --form "$key=$attr->{FORM_DATA}->{$key}" /;
+    my $form_data = $attr->{FORM_DATA};
+    my @tmp_files;
+    foreach my $key (keys %{$form_data}) {
+      my $val = $form_data->{$key};
+
+      # file object
+      if (ref $val eq 'HASH') {
+        if (exists $val->{file}) {
+          $request_params .= qq/ --form "$key=\@$val->{file}" /;
+        }
+        elsif (exists $val->{content}) {
+          my $tpl_dir = $attr->{TPL_DIR} || $conf{TPL_DIR} || '/tmp/';
+          my $safe_key = $key;
+          $safe_key =~ s/[^a-zA-Z0-9_-]/_/xg;
+          my $tmp_file = "$tpl_dir/abills_multipart_$$\_$safe_key";
+          if (open(my $fh, '>', $tmp_file)) {
+            binmode($fh);
+            print $fh $val->{content};
+            close($fh);
+            push @tmp_files, $tmp_file;
+            my $filename = $val->{filename} || $key;
+            $request_params .= qq/ --form "$key=\@$tmp_file;filename=$filename" /;
+          }
+        }
+      }
+
+      # file on server
+      elsif ($val =~ m/^\@/x) {
+        $request_params .= qq/ --form "$key=$val" /;
+      }
+      # sample param
+      else {
+        $request_params .= qq/ --form "$key=$val" /;
+      }
     }
+    $attr->{_MULTIPART_TMP_FILES} = \@tmp_files;
   }
   elsif ($attr->{JSON_BODY}) {
     $request_params = '-d "' . json_former($attr->{JSON_BODY}, { ESCAPE_DQ => 1, %{$attr->{JSON_FORMER} || {}} }) . '"';
@@ -295,7 +330,12 @@ sub _curl_request {
     }
     #POST request string
     else {
-      $request_params = "-d \"$request_params\" ";
+      if ($attr->{SINGLE_QUOTES}) {
+        $request_params = "-d '$request_params' ";
+      }
+      else {
+        $request_params = "-d \"$request_params\" ";
+      }
     }
   }
 
@@ -331,6 +371,10 @@ sub _curl_request {
 
   if ($attr->{CLEAR_COOKIE}) {
     unlink "/tmp/cookie.";
+  }
+
+  if ($attr->{_MULTIPART_TMP_FILES}) {
+    unlink @{$attr->{_MULTIPART_TMP_FILES}};
   }
 
   return $result;

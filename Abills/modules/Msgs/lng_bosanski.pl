@@ -6,7 +6,6 @@ $lang{RESPOSIBLE} = 'Responsible';
 $lang{HIDE} = 'Hide';
 $lang{INNER} = 'Inner message';
 $lang{QUOTING} = 'Quoting';
-$lang{NEW_MESSAGE} = 'New message';
 $lang{RUN_TIME} = 'Run time';
 $lang{MSG_SENDED} = 'Send to administrator';
 $lang{ANSWER_WAIT} = 'Waiting for user answer';
@@ -209,7 +208,6 @@ $lang{SEND} = 'Send';
 $lang{AUTHOR} = 'Author';
 $lang{CLOSED_THE_TICKET} = 'Closed the ticket';
 
-$lang{NEW_MESSAGE} = 'New message';
 $lang{SELECT_FROM_LIST} = 'Select from list';
 $lang{SUBJECTS} = 'Subjects';
 $lang{CHANGE_CHAPTER} = 'Change chapter';

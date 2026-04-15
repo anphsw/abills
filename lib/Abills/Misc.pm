@@ -21,7 +21,6 @@ our Abills::HTML $html;
 our ($db,
   $admin,
   $base_dir,
-  #%permissions,
   %menu_args,
   %module,
   %uf_menus,
@@ -1078,13 +1077,20 @@ sub service_get_month_fee {
         $Users,
         $tp->{ACTIV_PRICE},
         {
-          DESCRIBE => $service_name .': $lang{ACTIVATE_TARIF_PLAN}',
+          DESCRIBE => $service_name . ': $lang{ACTIVATE_TARIF_PLAN}',
           DATE     => "$date $time",
-          METHOD   => $tp->{FEES_METHOD} #TP fees method
+          METHOD   => $tp->{FEES_METHOD}, #TP fees method
+          MODULE   => $module,
+          TP_ID    => $Service->{TP_ID}
         }
       );
       $total_sum{ACTIVATE} = $tp->{ACTIV_PRICE};
-      $html->message('info', $lang{INFO}, "$lang{ACTIVATE_TARIF_PLAN}") if ($html && ! $attr->{QUITE});
+      if ($html && ! $attr->{QUITE}) {
+        $html->message('info', $lang{INFO}, $lang{ACTIVATE_TARIF_PLAN});
+      }
+
+      $Service->{message}='ACTIVATE_TARIF_PLAN';
+      $Service->{message_type}='info';
 
       if($Fees->{FEES_ID}) {
         push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
@@ -1103,10 +1109,13 @@ sub service_get_month_fee {
 
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
-    DATE   => "$DATE $TIME",
-    METHOD => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+    DATE            => "$DATE $TIME",
+    METHOD          => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
     EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+    TP_ID           => $tp->{TP_ID},
+    MODULE          => $module
   );
+
   $FEES_PARAMS{INNER_DESCRIBE} = $attr->{INNER_DESCRIBE} if $attr->{INNER_DESCRIBE};
 
   if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
@@ -1126,7 +1135,6 @@ sub service_get_month_fee {
     ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
   ) {
     #Get back month fee
-    #if ($FORM{RECALCULATE} || $attr->{RECALCULATE}) {
     if ($attr->{RECALCULATE}) {
       my $result = service_recalculate($Service, $attr);
       if (! $result) {
@@ -1169,7 +1177,9 @@ sub service_get_month_fee {
 
     }
     elsif ($tp->{PERIOD_ALIGNMENT} && !$tp->{ABON_DISTRIBUTION}) {
-      $FEES_DSC{EXTRA} = " $lang{MONTH_ALIGNMENT},";
+      if($d != $conf{START_PERIOD_DAY}) {
+        $FEES_DSC{EXTRA} = " $lang{MONTH_ALIGNMENT},";
+      }
 
       if ($account_activate ne '0000-00-00') {
         $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
@@ -1186,6 +1196,10 @@ sub service_get_month_fee {
       }
 
       $html->message('info', $lang{INFO}, $message) if ($html && !$attr->{QUITE});
+
+      $Service->{message}=$message;
+      $Service->{message_type}='info';
+
       return \%total_sum
     }
 
@@ -1296,7 +1310,9 @@ sub service_get_month_fee {
           $DATE = $account_activate;
           my $end_period = POSIX::strftime('%Y-%m-%d',
             localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
-          $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
+          $FEES_PARAMS{START_DATE} = "$active_y-$m-$active_d";
+          $FEES_PARAMS{END_DATE} = $end_period;
+
           if (in_array('Internet', \@MODULES)) {
             my $change_function = 'user_change';
             $Service->$change_function({
@@ -1320,7 +1336,8 @@ sub service_get_month_fee {
         }
         else {
           $DATE = "$active_y-$m-01";
-          $FEES_DSC{PERIOD} = "($active_y-$m-01-$active_y-$m-$days_in_month)";
+          $FEES_PARAMS{START_DATE} = "$active_y-$m-01";
+          $FEES_PARAMS{END_DATE} = "$active_y-$m-$days_in_month";
         }
       }
       elsif ($account_activate ne '0000-00-00') {
@@ -1412,12 +1429,22 @@ sub service_get_month_fee {
           }
         }
 
-        $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)" if(! $tp->{ABON_DISTRIBUTION});
+        if(! $tp->{ABON_DISTRIBUTION}) {
+          $FEES_PARAMS{START_DATE} = "$active_y-$m-$active_d";
+          $FEES_PARAMS{END_DATE} = $end_period;
+        }
       }
       else {
-        $days_in_month = days_in_month({ DATE => "$y-$m" });
-        my $start_date = ($tp->{PERIOD_ALIGNMENT} && ! $attr->{FULL_MONTH_FEE}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
-        $FEES_DSC{PERIOD} = ($tp->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
+        if (!$tp->{ABON_DISTRIBUTION}) {
+          $days_in_month = days_in_month({ DATE => "$y-$m" });
+          my $start_date = ($tp->{PERIOD_ALIGNMENT} && !$attr->{FULL_MONTH_FEE}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
+          $FEES_PARAMS{START_DATE} = $start_date;
+          $FEES_PARAMS{END_DATE} = "$y-$m-$days_in_month";
+        }
+      }
+
+      if($FEES_PARAMS{START_DATE} && $FEES_PARAMS{END_DATE}) {
+        $FEES_DSC{PERIOD} = "($FEES_PARAMS{START_DATE}-$FEES_PARAMS{END_DATE})";
       }
 
       $total_sum{FEES_DSC} = \%FEES_DSC;
@@ -1453,6 +1480,9 @@ sub service_get_month_fee {
             $html->message('info', $lang{INFO},
               $message."\n $lang{SUM}: ".sprintf("%.2f", $sum)) if ($html && !$attr->{QUITE});
 
+            $Service->{message}=$message."\n $lang{SUM}: ".sprintf("%.2f", $sum);
+            $Service->{message_type}='info';
+
             if($Fees->{FEES_ID}) {
               push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
             }
@@ -1469,8 +1499,13 @@ sub service_get_month_fee {
     my $external_cmd = '_EXTERNAL_CMD';
     $external_cmd = uc($module).$external_cmd;
     if ($conf{$external_cmd}) {
-      if (!_external($conf{$external_cmd}, { %FORM, %$Users, %$Service, %$attr })) {
-        print "Error: external cmd '$conf{$external_cmd}'\n";
+      if ($Service->{OLD_INFO}) {
+         foreach my $key ( keys %{ $Service->{OLD_INFO} } ) {
+           $attr->{'OLD_'. $key}=$Service->{OLD_INFO}->{$key};
+         }
+      }
+      if (!_external($conf{$external_cmd}, { %FORM, %$Users, %$Service, %$attr, SERVICE => $Service })) {
+        print "ERROR: external cmd '$conf{$external_cmd}'\n";
       }
     }
   }
@@ -1492,6 +1527,7 @@ sub service_get_month_fee {
       QUITE
       EXTERNAL_CMD
       DEBUG
+      SERVICE - Service object
 
   Returns:
     1 - Success
@@ -1503,6 +1539,7 @@ sub _external {
   my ($file, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
+  my $Service = $attr->{SERVICE};
 
   if ($attr->{EXTERNAL_CMD}) {
     my $external_cmd = '_EXTERNAL_CMD';
@@ -1516,6 +1553,10 @@ sub _external {
     }
   }
 
+  if ($Service->{admin} && $Service->{admin}->{AID}) {
+    $attr->{AID}=$Service->{admin}->{AID};
+  }
+
   my $result = cmd($file, {
     ARGV    => 1,
     PARAMS  => $attr,
@@ -1525,18 +1566,28 @@ sub _external {
 
   my $error = $!;
   my ($num, $message) = split(':', $result, 2);
-
   # 1 - ok
   if ($num && $num =~ m/^\d+$/x && $num == 1) {
+    if($attr->{SERVICE}) {
+      $Service->{message}=$message;
+      $Service->{message_type}='info';
+    }
+
     $html->message('info', $lang{EXTERNAL_CMD}, $message) if ($html && !$attr->{QUITE});
     return 1;
   }
   else {
+    if($attr->{SERVICE}) {
+      $Service->{message}="[" . ($num || '') . "] " . ($message || q{}) . " ERROR: " . ($error || q{});
+      $Service->{message_type}='err';
+    }
+
     if ($html && !$attr->{QUITE}) {
       $html->message('err', $lang{EXTERNAL_CMD}, "[" . ($num || '') . "] " . ($message || q{}) . " ERROR: " . ($error || q{}));
     }
-    return 0;
   }
+
+  return 0;
 }
 
 
@@ -1905,7 +1956,7 @@ sub upload_file {
 =cut
 #**********************************************************
 sub import_show {
-  my($attr) = @_;
+  my ($attr) = @_;
 
   my @cols_names = ();
   my @import_data = @{ $attr->{DATA} };
@@ -1941,7 +1992,7 @@ sub import_show {
 
   my $table = $html->table({
     width   => '100%',
-    caption => $lang{IMPORT},
+    caption => $lang{PRE},
     title   => \@cols_names,
     ID      => 'STORAGE_ID',
     rows    => \@result_rows
@@ -2026,7 +2077,7 @@ sub import_former {
     }
 
     my $delimiter = $attr->{IMPORT_DELIMITER} || "\t+";
-    my @rows = split(/[\r\n]+/x, $attr->{UPLOAD_FILE}{Contents});
+    my @rows = split(/[\r\n]+/x, $attr->{UPLOAD_FILE}{Contents} || '');
 
     my %user_info = ();
     foreach my $line (@rows) {
@@ -2068,6 +2119,7 @@ sub import_former {
       USER_FUNCTION_LIST
       CUSTOM
       EXTRA_MENU
+      ADMIN_INFO
 
   Results:
 
@@ -2076,6 +2128,7 @@ sub import_former {
 sub mk_menu {
   my($menu, $attr) = @_;
 
+  my $admin_ = $attr->{ADMIN_INFO};
   my $maxnumber=0;
 
   foreach my $line (@{ $menu }) {
@@ -2101,7 +2154,7 @@ sub mk_menu {
   }
   #Add modules
   foreach my $mod (@MODULES) {
-    next if ($admin->{MODULES} && !$admin->{MODULES}{$mod});
+    next if ($admin_->{MODULES} && !$admin_->{MODULES}{$mod});
     load_module($mod, { %$html, CONFIG_ONLY => 1, SKIP_LANG => $attr->{SKIP_LANG} || 0 });
 
     if ($attr->{USER_FUNCTION_LIST}){
@@ -2194,13 +2247,14 @@ sub custom_menu {
 
   my $menu_content = templates($tpl_name);
 
-  if ( $html && $html->{TYPE} && !$html->{TYPE} eq 'html' ) {
-    $menu_content = $html->tpl_show($menu_content, {}, {
-      ID            => $tpl_name,
-      SKIP_ERRORS   => 1,
-      OUTPUT2RETURN => 1
-    });
-  }
+  #XXX: error occurs when TYPE is not 'html'
+  # if ( $html && $html->{TYPE} && $html->{TYPE} ne 'html' ) {
+  #   $menu_content = $html->tpl_show($menu_content, {}, {
+  #     ID            => $tpl_name,
+  #     SKIP_ERRORS   => 1,
+  #     OUTPUT2RETURN => 1
+  #   });
+  # }
 
   if ( !$menu_content ) {
     return \@menu;
@@ -2210,7 +2264,7 @@ sub custom_menu {
 
   foreach my $line ( @rows ) {
     $line =~ s/^[\s\r]+//xg;
-    if ( $line =~ m/^#/x
+    if ( $line =~ m/^\#/x
       || $line =~ m/^\s{0,100}$/x
       || $line =~ m/^</x ) {
       next;
@@ -2449,42 +2503,12 @@ sub recomended_pay {
     return $recommended_sum;
   }
 
-  if ($conf{PAYSYS_RECOMMENDED_SUM_AS_DEPOSIT}) {
-    return 0 if (!defined($user_->{DEPOSIT}));
-    return ($user_->{DEPOSIT} < 0) ? abs($user_->{DEPOSIT}) : 0;
-  }
+  require Control::Recommended_pay;
+  Control::Recommended_pay->import();
+  my $Recommended_pay = Control::Recommended_pay->new($db, $admin, \%conf);
 
-  my $service_info;
+  $user_->{TOTAL_DEBET} = $Recommended_pay->recomended_sum_default($user_, $attr);
 
-  if ($attr->{SERVICE_INFO}) {
-    $service_info = $attr->{SERVICE_INFO};
-  }
-  else {
-    # with the same config on version 5.34 works, on 5.36
-    # if (!exists($INC{'Control/Services.pm'})) {
-    #   require Control::Services;
-    # }
-    do 'Control/Services.pm';
-    $service_info = get_services($user_, { SKIP_MODULES => 'Sqlcmd' });
-  }
-
-  $user_->{TOTAL_DEBET} = $service_info->{total_sum} || 0;
-
-  return 0 if ($conf{PAYSYS_NET_RECOMMENDED_SUM});
-
-  return 0 if (!defined($user_->{DEPOSIT}));
-
-  if(! $attr->{SKIP_DEPOSIT_CHECK}) {
-    $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) : ($user_->{DEPOSIT} > $user_->{TOTAL_DEBET}) ? 0 : $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
-  }
-
-  if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
-    $user_->{TOTAL_DEBET} = sprintf('%.2f', int($user_->{TOTAL_DEBET}));
-    $user_->{TOTAL_DEBET} += (($conf{PAYSYS_DEBET_RECOMMENDED_SUM} || $attr->{SKIP_ADD_SUM}) && !$user_->{TOTAL_DEBET}) ? 0 : 1;
-  }
-
-  $user_->{TOTAL_DEBET} += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);
-  $user_->{TOTAL_DEBET} = sprintf('%.2f', $user_->{TOTAL_DEBET});
   return $user_->{TOTAL_DEBET};
 }
 

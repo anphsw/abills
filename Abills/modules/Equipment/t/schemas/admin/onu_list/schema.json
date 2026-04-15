@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "The Root Schema",
+  "title": "adminEquipmentOnuList",
   "type": "array",
   "items": {
     "type": "object",
@@ -12,10 +12,10 @@
         "type": "string"
       },
       "onuId": {
-        "type": "string"
+        "type": "number"
       },
       "vlan": {
-        "type": "string"
+        "type": "number"
       },
       "onuBillingDesc": {
         "type": "string"

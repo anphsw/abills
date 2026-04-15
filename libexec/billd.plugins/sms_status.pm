@@ -21,10 +21,11 @@ our (
   $debug,
   %conf,
   $Admin,
-  $db
+  $db,
+  $argv,
 );
 
 my $Sms_misc = Sms::Misc->new($db, $Admin, \%conf);
-$Sms_misc->sms_status({ DEBUG => $debug });
+$Sms_misc->sms_status({ DEBUG => $debug, SMS_SERVICE => $argv->{SMS_SERVICE} || '' });
 
 1;

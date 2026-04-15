@@ -29,8 +29,6 @@ use Api::Validations::Payments qw(POST_PAYMENTS_TYPES PUT_PAYMENTS_TYPES);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/payments/',
-      controller  => 'Api::Controllers::User::Payments',
       endpoint    => \&Api::Controllers::User::Payments::get_user_payments,
       credentials => [
         'USER', 'USERBOT'
@@ -79,8 +76,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -103,7 +98,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/payments/types/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::get_payments_types,
       credentials => [
         'ADMIN'
@@ -112,7 +106,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/payments/types/:id/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::get_payments_types_id,
       credentials =>[
         'ADMIN', 'ADMINSID'
@@ -122,7 +115,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/payments/types/:id/',
       params      => POST_PAYMENTS_TYPES,
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::post_payments_types_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -132,7 +124,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/payments/types/:id/',
       params      => PUT_PAYMENTS_TYPES,
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::put_payments_types_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -141,7 +132,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/payments/types/:id/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::delete_payments_types_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -150,7 +140,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/payments/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::get_payments,
       credentials => [
         'ADMIN'
@@ -159,7 +148,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/payments/users/:uid/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::get_payments,
       # That's not a typo, internally /payments/users/:uid/ and /payments/ is same.
       credentials => [
@@ -169,7 +157,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/payments/users/:uid/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::post_payments_users_uid,
       credentials => [
         'ADMIN'
@@ -178,7 +165,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/payments/users/:uid/:id/',
-      controller  => 'Api::Controllers::Admin::Payments',
       endpoint    => \&Api::Controllers::Admin::Payments::delete_payments_users_uid_id,
       credentials => [
         'ADMIN'

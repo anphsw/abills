@@ -1,29 +1,40 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
-  "title": "The Root Schema",
-  "items": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "number"
-      },
-      "serial": {
-        "type": "string"
-      },
-      "articleName": {
-        "type": "string"
-      },
-      "articleTypeName": {
-        "type": "string"
-      },
-      "siaCount": {
-        "type": "number"
-      },
-      "siaSum": {
-        "type": "number"
+  "type": "object",
+  "title": "user_storage_incoming_articles ?serial=123456789",
+  "properties": {
+    "list": {
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "articleName": {
+            "type": "string"
+          },
+          "articleTypeName": {
+            "type": "string"
+          },
+          "siaCount": {
+            "type": "number"
+          },
+          "siaSum": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "serial",
+          "articleName",
+          "articleTypeName",
+          "siaCount",
+          "siaSum"
+        ]
       }
-    },
-    "required": [ "id", "serial", "articleName", "articleTypeName", "siaCount", "siaSum" ]
+    }
   }
 }

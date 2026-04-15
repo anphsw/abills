@@ -1,0 +1,12 @@
+{
+  "name": "ADMIN_USERS_DOCUMENTS_CHANGE",
+  "method": "PUT",
+  "path": "users/documents/100/",
+  "body": {
+    "doc_type": 1,
+    "num": "AB123456",
+    "date": "2024-01-15",
+    "expire": "2034-01-15",
+    "issued_by": "Ministry of Internal Affairs"
+  }
+}

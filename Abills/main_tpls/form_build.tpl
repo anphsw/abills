@@ -51,6 +51,10 @@
             <div class='col-md-8'>
               <input id='FLORS' name='FLORS' value='%FLORS%' class='form-control' type='text'>
             </div>
+            <label class='col-md-4 col-form-label text-md-right' for='START_NUMBERING_FLOOR'>_{START_NUMBERING_FLOOR}_:</label>
+            <div class='col-md-8'>
+              <input id='START_NUMBERING_FLOOR' name='START_NUMBERING_FLOOR' value='%START_NUMBERING_FLOOR%' class='form-control' type='number'>
+            </div>
           </div>
 
           <div class='form-group row'>
@@ -58,9 +62,6 @@
             <div class='col-md-8'>
               <input id='FLATS' name='FLATS' value='%FLATS%' class='form-control' type='text'>
             </div>
-          </div>
-
-          <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='START_NUMBERING_FLAT'>_{START_NUMBERING_FLAT}_:</label>
             <div class='col-md-8'>
               <input id='START_NUMBERING_FLAT' name='START_NUMBERING_FLAT' value='%START_NUMBERING_FLAT%' class='form-control' type='text'>
@@ -68,19 +69,19 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='BUILD_SCHEMA'>_{BUILD_SCHEMA}_:</label>
-            <div class='col-md-8'>
-              <textarea id='BUILD_SCHEMA' name='BUILD_SCHEMA' class='form-control' rows='2'>%BUILD_SCHEMA%</textarea>
-            </div>
-          </div>
-
-          <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='NUMBERING_DIRECTION'>_{NUMERATION_ROOMS}_:</label>
-            <div class='col-md-8'>
+            <div class='col-md-8 p-2'>
               <div class='form-check'>
                 <input type='checkbox' class='form-check-input' id='NUMBERING_DIRECTION' name='NUMBERING_DIRECTION'
                        %NUMBERING_DIRECTION_CHECK% value='1'>
               </div>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='BUILD_SCHEMA'>_{BUILD_SCHEMA}_:</label>
+            <div class='col-md-8'>
+              <textarea id='BUILD_SCHEMA' name='BUILD_SCHEMA' class='form-control' rows='2'>%BUILD_SCHEMA%</textarea>
             </div>
           </div>
 
@@ -154,7 +155,7 @@
 
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='ADDED'>_{ADDED}_:</label>
-            <div class='col-md-8'>
+            <div class='col-md-8 p-2'>
               %ADDED%
             </div>
           </div>
@@ -176,3 +177,11 @@
     </div>
   </div>
 </form>
+
+<script>
+  if ('%BUILD_NUMBER_CAPITALIZE%'){
+    document.getElementById('NUMBER').addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+  }
+</script>

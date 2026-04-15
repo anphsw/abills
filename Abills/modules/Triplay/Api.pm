@@ -36,8 +36,6 @@ use Triplay::Validations qw(POST_TRIPLAY_USERS PUT_TRIPLAY_USERS PATCH_TRIPLAY_U
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -59,7 +57,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/triplay/tariffs/',
-      controller  => 'Triplay::Api::Admin::Tariffs',
       endpoint    => \&Triplay::Api::Admin::Tariffs::get_triplay_tariffs,
       credentials => [
         'ADMIN',
@@ -68,7 +65,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/triplay/users/',
-      controller  => 'Triplay::Api::Admin::Users',
       endpoint    => \&Triplay::Api::Admin::Users::get_triplay_users,
       credentials => [
         'ADMIN',
@@ -77,7 +73,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/triplay/users/:uid/',
-      controller  => 'Triplay::Api::Admin::Users',
       endpoint    => \&Triplay::Api::Admin::Users::get_triplay_users_uid,
       credentials => [
         'ADMIN',
@@ -87,7 +82,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/triplay/users/:uid/',
       params      => POST_TRIPLAY_USERS,
-      controller  => 'Triplay::Api::Admin::Users',
       endpoint    => \&Triplay::Api::Admin::Users::post_triplay_users_uid,
       credentials => [
         'ADMIN',
@@ -98,7 +92,6 @@ sub admin_routes {
     #   method      => 'PUT',
     #   path        => '/triplay/users/:uid/',
     #   params      => PUT_TRIPLAY_USERS,
-    #   controller  => 'Triplay::Api::Admin::Users',
     #   endpoint    => \&Triplay::Api::Admin::Users::put_triplay_users_uid,
     #   credentials => [
     #     'ADMIN',
@@ -108,7 +101,6 @@ sub admin_routes {
       method      => 'PATCH',
       path        => '/triplay/users/:uid/',
       params      => PATCH_TRIPLAY_USERS,
-      controller  => 'Triplay::Api::Admin::Users',
       endpoint    => \&Triplay::Api::Admin::Users::patch_triplay_users_uid,
       credentials => [
         'ADMIN',
@@ -117,7 +109,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/triplay/users/:uid/',
-      controller  => 'Triplay::Api::Admin::Users',
       endpoint    => \&Triplay::Api::Admin::Users::delete_triplay_users_uid,
       credentials => [
         'ADMIN',
@@ -145,8 +136,6 @@ sub admin_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -167,7 +156,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/triplay/',
-      controller  => 'Triplay::Api::User::Services',
       endpoint    => \&Triplay::Api::User::Services::get_user_triplay,
       credentials => [
         'USER', 'USERBOT'

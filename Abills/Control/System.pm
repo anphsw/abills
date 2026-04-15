@@ -17,7 +17,6 @@ our (
   $db,
   %lang,
   $base_dir,
-  %LANG,
   @MONTHES,
   @WEEKDAYS,
   @bool_vals,
@@ -399,807 +398,6 @@ sub form_billd_plugins {
 }
 
 #**********************************************************
-=head2 form_templates_pdf_edit() - build plugin organizer
-
-=cut
-#**********************************************************
-sub form_templates_pdf_edit {
-  my $file = $FORM{file};
-
-  if (! $file) {
-    $html->message('err', $lang{ERROR}, $lang{ERROR_FILE});
-    return 0
-  }
-
-  my $json_docs_vars = "{}";
-  if(in_array("Docs", \@MODULES)) {
-    ::load_module("Docs", $html);
-    my $docs_vars = eval { docs_take_variables() } || {};
-    $json_docs_vars = json_former($docs_vars);
-  }
-
-  my $pdf_content = '';
-  my $dsc_parsed_data = {};
-
-  open(my $pdf_file, '<', "$conf{TPL_DIR}/" . $file . '.pdf') if (-e "$conf{TPL_DIR}/" . $file . '.pdf');
-  open(my $dsc_file, '<', "$conf{TPL_DIR}/" . $file . '.dsc') if (-e "$conf{TPL_DIR}/" . $file . '.dsc');
-
-  if ($pdf_file) {
-    while (<$pdf_file>) {
-      $pdf_content .= $_;
-    }
-
-    close($pdf_file);
-  }
-  else {
-    $html->message( 'danger text-center', $lang{ERROR}, $lang{ERROR_FILE}.$file.'.pdf');
-    return 0;
-  }
-
-  if($dsc_file) {
-    my $dsc_content = '';
-
-    while (<$dsc_file>) {
-      $dsc_content .= $_;
-    }
-
-    $dsc_parsed_data = dsc2hash($dsc_content);
-    close($dsc_file);
-  }
-  else {
-    $html->message( 'danger text-center', $lang{ERROR}, $lang{ERROR_FILE}.$file.'.dsc');
-  }
-
-  my $pdf_base64 = encode_base64($pdf_content);
-  load_pmodule('JSON');
-  my $json = JSON->new()->utf8(0);
-
-  $html->tpl_show(templates('form_templates_pdf_edit'), {
-    DOCS_VARS  => $json_docs_vars,
-    FILE_NAME  => $file,
-    PDF_BASE64 => $pdf_base64,
-    DSC        => $json->encode($dsc_parsed_data),
-    SAVE_INDEX => get_function_index('form_templates_pdf_save')
-  });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 form_templates_pdf_save() - build plugin organizer
-
-=cut
-#**********************************************************
-sub form_templates_pdf_save {
-  if(!defined($FORM{FILE_NAME})) {
-    print json_former({ 'status' => 400, 'text' => 'UNDEFINED_FILE_NAME'});
-    return 0;
-  }
-
-  my $dcs_file_name = $FORM{FILE_NAME} =~ s/pdf/dsc/rg;
-  open(my $dsc_file, '+>', "$conf{TPL_DIR}/" . $dcs_file_name . '.dsc') || die "Can't open file $!";
-
-  my $tpl_file_name = $FORM{FILE_NAME} =~ s/pdf/tpl/rg;
-  open(my $tpl_file, '+>', "$conf{TPL_DIR}/" . $tpl_file_name . '.tpl') || die "Can't open file $!";
-
-  print $dsc_file $FORM{DSC_CONTENT};
-
-  close($dsc_file);
-  close($tpl_file);
-
-  # If this script breaks - printing html error by default, unfortunately
-  if ($@) {
-    return 0;
-  }
-
-  print json_former({ 'status' => 200, 'text' => 'SUCCESS'});
-  return 0;
-}
-
-#**********************************************************
-=head2 form_templates() - Create templates and manage template
-
-=cut
-#**********************************************************
-sub form_templates {
-
-  my $sys_templates      = '../../Abills/modules';
-  my $main_templates_dir = '../../Abills/main_tpls/';
-  my %info               = (TEMPLATE => '', ORIG_TEMPLATE => '');
-  my $main_tpl_name      = '';
-
-  my $domain_path = '';
-  if ($admin->{DOMAIN_ID}) {
-    $domain_path = "$admin->{DOMAIN_ID}/";
-    $conf{TPL_DIR} = "$conf{TPL_DIR}/$domain_path";
-    if (!-d $conf{TPL_DIR}) {
-      if (!mkdir($conf{TPL_DIR})) {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$conf{TPL_DIR}' $lang{ERROR}: $!\n");
-      }
-    }
-  }
-
-  $info{ACTION_LNG} = $lang{SAVE};
-
-  if ($FORM{create}) {
-    my ($module, $file, $lang) = split(/:/, $FORM{create}, 3);
-
-    if($file !~ /\.tpl$/) {
-      $file .= ".tpl";
-    }
-
-    $info{TEMPLATE} = file_op({
-      FILENAME => $file,
-      PATH     => ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
-    });
-
-    my $filename = ($module) ? "$sys_templates/$module/templates/$file" : "$main_templates_dir/$file";
-    if ( $lang  ){
-      $file =~ s/\.tpl/_$lang/;
-      $file .= '.tpl';
-    }
-
-    $main_tpl_name = $file;
-    $info{TPL_NAME} = "$module" . '_' . "$file";
-
-    $info{TEMPLATE} =~ s/\\"/"/g;
-    show_tpl_info($filename, ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/");
-  }
-  elsif ($FORM{SHOW}) {
-    $html->{METATAGS} = templates('metatags');
-    print $html->header();
-    my ($module, $file, $lang) = split(/:/, $FORM{SHOW}, 3);
-    $file =~ s/.tpl//;
-    $file =~ s/ |\///g;
-
-    $html->{language} = $lang if ($lang && $lang ne '');
-
-    if ($module) {
-      my $realfilename = "/Abills/modules/$module/lng_$html->{language}.pl";
-      my $lang_file = '';
-      my $prefix = '../..';
-      if (-f $realfilename) {
-        $lang_file = $realfilename;
-      }
-      elsif (-f "$prefix/Abills/modules/$module/lng_english.pl") {
-        $lang_file = "$prefix/Abills/modules/$module/lng_english.pl";
-      }
-
-      if ($lang_file ne '') {
-        do $lang_file;
-      }
-    }
-
-    if ($module) {
-      $html->tpl_show(_include("$file", "$module"), { LNG_ACTION => $lang{ADD} },);
-    }
-    else {
-      $html->tpl_show(templates("$file"), { LNG_ACTION => $lang{ADD} },);
-    }
-
-    return 0;
-  }
-  elsif ($FORM{change}) {
-    my %FORM2 = ();
-    my @pairs = split(/&/, $FORM{__BUFFER} || q{});
-    $info{ACTION_LNG} = $lang{CHANGE};
-
-    foreach my $pair (@pairs) {
-      my ($side, $value) = split(/=/, $pair);
-      $value =~ tr/+/ /;
-      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-
-      if (defined($FORM2{$side})) {
-        $FORM2{$side} .= ", $value";
-      }
-      else {
-        $FORM2{$side} = $value;
-      }
-    }
-
-    if ($FORM{FORMAT} && $FORM{FORMAT} eq 'unix') {
-      $FORM2{template} =~ s/\r//g;
-    }
-
-    $info{TEMPLATE} = $FORM2{template} || q{};
-    $info{TPL_NAME} = $FORM{tpl_name};
-    if ($info{TEMPLATE}) {
-      $info{TEMPLATE} = convert($info{TEMPLATE}, { '2_tpl' => 1 });
-      $info{TEMPLATE} =~ s/\"/\'/g;
-      $info{TEMPLATE} =~ s/\@/\\@/g;
-    }
-
-    if ($info{TEMPLATE}) {
-      file_op({ WRITE => 1,
-          FILENAME    => $FORM{tpl_name},
-          PATH        => $conf{TPL_DIR},
-          CONTENT     => $info{TEMPLATE}
-        });
-
-      $main_tpl_name = $FORM{tpl_name};
-      $main_tpl_name =~ s/^_//;
-      $info{TEMPLATE} =~ s/\\"/"/g;
-      $info{TEMPLATE} =~ s/\\\@/\@/g;
-      $admin->system_action_add( "$lang{CHANGED} - " . ($FORM{tpl_name} || q{}), { TYPE => 60 } );
-    }
-    else {
-      $html->message('err', 'Empty', $lang{ERR_NODATA});
-    }
-  }
-  elsif ($FORM{FILE_UPLOAD}) {
-    if($FORM{FILE_UPLOAD}{filename}) {
-      upload_file($FORM{FILE_UPLOAD}, { EXTENTIONS => 'tpl,jpg,pdf,dsc,gif,jpeg,png' });
-      $admin->system_action_add("$lang{ADDED} $lang{FILE} - $FORM{FILE_UPLOAD}{filename}", { TYPE => 62 });
-    }
-  }
-  elsif ($FORM{file_del} && $FORM{COMMENTS}) {
-    $FORM{file_del} =~ s/ |\///g;
-    if (unlink("$conf{TPL_DIR}/$FORM{file_del}") == 1) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED}: '$FORM{file_del}'");
-      $admin->system_action_add("$lang{DELETED} - $FORM{file_del} - $FORM{COMMENTS}", {TYPE => 63});
-    }
-    else {
-      $html->message('err', $lang{DELETED}, "$lang{ERROR}");
-    }
-  }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $FORM{del} =~ s/ |\///g;
-    if (unlink("$conf{TPL_DIR}/$FORM{del}") == 1) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED}: '$FORM{del}'");
-      $admin->system_action_add("$lang{DEL} - $FORM{del} - $FORM{COMMENTS}", {TYPE => 61});
-    }
-    else {
-      $html->message('err', $lang{DELETED}, "$lang{ERROR} '$conf{TPL_DIR}/$FORM{del}' $!");
-    }
-  }
-  elsif ($FORM{tpl_name}) {
-    $info{ACTION_LNG} = $lang{CHANGE};
-
-    my ($module, $file) = split(/_/, $FORM{tpl_name}, 2);
-
-    $info{TEMPLATE} = file_op({
-      FILENAME => $FORM{tpl_name},
-      PATH     => $conf{TPL_DIR},
-    });
-
-    $info{ORIG_TEMPLATE} = file_op({
-      FILENAME => $file,
-      PATH     => $module ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
-    });
-
-    if ($info{TEMPLATE}) {
-      show_tpl_info("$conf{TPL_DIR}/$FORM{tpl_name}", $conf{TPL_DIR});
-
-      $info{TPL_NAME} = $FORM{tpl_name};
-
-      $main_tpl_name = $FORM{tpl_name};
-      $main_tpl_name =~ s/^_//;
-
-      $info{TEMPLATE} =~ s/\\"/"/g;
-    }
-  }
-
-  $info{TEMPLATE} = convert($info{TEMPLATE}, { from_tpl => 1 });
-  $info{ORIG_TEMPLATE} = convert($info{ORIG_TEMPLATE}, { from_tpl => 1 });
-
-  $FORM{create} = '' if (!$FORM{create});
-  $FORM{tpl_name} = '' if (!$FORM{create});
-  $info{TPL_NAME} = '' if (!$info{TPL_NAME});
-
-  my $card = templates('form_template_card');
-  $info{CARDS} = $html->tpl_show($card, { TITLE => $lang{PREVIOUS} }, { OUTPUT2RETURN => 1 });
-  $info{CARDS} .= $html->tpl_show($card, { TITLE => $lang{YOUR} }, { OUTPUT2RETURN => 1 });
-  if ($info{ORIG_TEMPLATE}) {
-    $info{CARDS} .= $html->tpl_show($card, { TITLE => $lang{SYSTEM} }, { OUTPUT2RETURN => 1 });
-  }
-
-  my $tpl_ = $html->tpl_show(templates('form_template_editor'), \%info, { OUTPUT2RETURN => 1 });
-  $tpl_ =~ s/__TEMPLATE__/$info{TEMPLATE}/g;
-  $tpl_ =~ s/__ORIG_TEMPLATE__/$info{ORIG_TEMPLATE}/g;
-  print $tpl_;
-
-  if($info{TPL_NAME} =~ /_admin_menu/){
-    admin_menu();
-  }
-  elsif($info{TPL_NAME} =~ /_client_menu/){
-    client_menu();
-  }
-
-  my @header_arr = ("$lang{MAIN}:index=$index&MODULE=main");
-  foreach my $module (sort @MODULES) {
-    if (-d "$sys_templates/$module/templates") {
-      push @header_arr, "$module:index=$index&MODULE=$module";
-    }
-  }
-
-  my $module_title = ($FORM{MODULE} && $FORM{MODULE} ne 'main') ? $FORM{MODULE} : $lang{MAIN};
-  my $template_path = ($FORM{MODULE} && $FORM{MODULE} ne 'main') ? "$sys_templates/$module_title/templates" : $main_templates_dir;
-
-  print $html->table_header(\@header_arr, { TABS => 1, FORCED_CHECK_NAME => $module_title, class => 'mb-2' });
-
-  my @caption = sort keys %LANG;
-  $FORM{MODULE} //= 'main';
-
-  my $table = $html->table({
-    width       => '100%',
-    caption     => $html->b($module_title) .' '. $template_path,
-    title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
-    ID          => 'TEMPLATES_LIST',
-    DATA_TABLE  => 1,
-  });
-
-  #Main templates
-  if ($FORM{MODULE} && $FORM{MODULE} eq 'main') {
-    if (-d $main_templates_dir) {
-      my $tpl_describe = get_tpl_describe("describe.tpls", $main_templates_dir);
-      opendir my $fh, "$main_templates_dir" or die "Can't open dir '$sys_templates/main_tpls' $!\n";
-      my @contents = grep !/^\.\.?$/, readdir $fh;
-      closedir $fh;
-      $table->{rowcolor} = undef;
-      $table->{extra} = undef;
-      my $module = "";
-      foreach my $file (sort @contents) {
-        if (-d "$main_templates_dir" . $file) {
-          next;
-        }
-        elsif ($file !~ /\.tpl$/) {
-          next;
-        }
-
-        my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
-
-        if (-f "$conf{TPL_DIR}/$module" . "_$file") {
-          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$module" . "_$file");
-          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-        }
-        else {
-          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$main_templates_dir" . $file);
-          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-        }
-
-        # LANG
-        my @rows = (
-          "$file", $size, $mtime, (($tpl_describe->{$file}) ? $tpl_describe->{$file} : ''),
-          $html->button($lang{SHOW}, "#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file", class => 'show' })
-            . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=" . "_$file", { class => 'change', }) : $html->button($lang{CREATE}, "index=$index&create=:$file", { class => 'add' }))
-            . ((-f "$conf{TPL_DIR}/_$file") ? $html->button($lang{DEL}, "index=$index&del=" . "_$file", { MESSAGE => "$lang{DEL} '$file'", class => 'del' }) : '')
-        );
-
-        $file =~ s/\.tpl//;
-        foreach my $lang (@caption) {
-          my $f = '_' . $file . '_' . $lang . '.tpl';
-          push @rows,
-            ((-f "$conf{TPL_DIR}/$f")
-              ? $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$module:$file:$lang", class => 'show' }) . $html->br() . $html->button($lang{CHANGE}, "index=$index&tpl_name=$f", { class => 'change' })
-              : $html->button($lang{CREATE}, "index=$index&create=:$file" . '.tpl' . ":$lang", { class => 'add' }))
-              . ((-f "$conf{TPL_DIR}/$f") ? $html->button($lang{DEL}, "index=$index&del=$f", { MESSAGE => "$lang{DEL} '$f'", class => 'del' }) : '');
-        }
-
-        $table->{rowcolor} = ($file . '.tpl' eq $main_tpl_name) ? 'active' : undef;
-        $table->addrow(@rows);
-      }
-    }
-  }
-  else{
-    # Modules templates
-    if (-d "$sys_templates/$FORM{MODULE}/templates") {
-      my $tpl_describe = get_tpl_describe("describe.tpls", "$sys_templates/$FORM{MODULE}/templates/");
-
-      opendir my $fh, "$sys_templates/$FORM{MODULE}/templates" or die "Can't open dir '$sys_templates/$FORM{MODULE}/templates' $!\n";
-        my @contents = grep !/^\.\.?$/ && /\.tpl$/, readdir $fh;
-      closedir $fh;
-
-      $table->{rowcolor} = undef;
-      $table->{extra}    = undef;
-
-      foreach my $file (sort @contents) {
-        next if (-d "$sys_templates/$FORM{MODULE}/templates/" . $file);
-
-        my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
-
-        if (-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") {
-          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$FORM{MODULE}" . "_$file");
-          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-        }
-        else {
-          ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$sys_templates/$FORM{MODULE}/templates/" . $file);
-          $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-        }
-
-        # LANG
-        my @rows = (
-          "$file", $size, $mtime, (($tpl_describe->{$file}) ? $tpl_describe->{$file} : ''),
-          $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$FORM{MODULE}:$file", class => 'show' })
-          . ((-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") ? $html->button($lang{CHANGE}, "index=$index&tpl_name=$FORM{MODULE}" . "_$file", { class => 'change' }) : $html->button($lang{CREATE}, "index=$index&create=$FORM{MODULE}:$file", { class => 'add' }))
-          . ((-f "$conf{TPL_DIR}/$FORM{MODULE}" . "_$file") ? $html->button($lang{DEL}, "index=$index&del=$FORM{MODULE}" . "_$file", { MESSAGE => "$lang{DEL} $file", class => 'del' }) : '')
-        );
-
-        $file =~ s/\.tpl//;
-
-        foreach my $lang (@caption) {
-          my $template_name = '_' . $file . '_' . $lang . '.tpl';
-
-          my $file_exists = -f "$conf{TPL_DIR}/$FORM{MODULE}" . "$template_name";
-          my $row = q{};
-
-          if ($file_exists){
-            $row .= $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&SHOW=$FORM{MODULE}:$file:$lang",  class => 'show'  })
-            . $html->button($lang{CHANGE}, "index=$index&tpl_name=$FORM{MODULE}" . "$template_name", { class => 'change' })
-            . $html->button($lang{DEL}, "index=$index&del=$FORM{MODULE}" . "$template_name", { MESSAGE => "$lang{DEL} $file", class => 'del' });
-          }
-          else {
-            $row = $html->button($lang{CREATE}, "index=$index&create=$FORM{MODULE}:$file" . '.tpl' . ":$lang", { class => 'add' });
-          }
-
-          push @rows, $row;
-        }
-
-        $table->addrow(@rows);
-      }
-    }
-  }
-
-  print $table->show();
-
-  # OTHER
-  $table = $html->table({
-    width       => '600',
-    caption     => $lang{OTHER},
-    title_plain => [ "FILE", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "-" ],
-  });
-
-  if (-d "$conf{TPL_DIR}") {
-    opendir my $fh, "$conf{TPL_DIR}" or die "Can't open dir '$conf{TPL_DIR}' $!\n";
-      my @contents = grep !/^\.\.?$/ && !/\.tpl$/, readdir $fh;
-    closedir $fh;
-
-    $table->{rowcolor} = undef;
-    $table->{extra}    = undef;
-
-    my $describe = '';
-    my $pdf_editor_index = get_function_index('form_templates_pdf_edit');
-
-    foreach my $file (sort @contents) {
-      next if (-d "$conf{TPL_DIR}/" . $file);
-
-      my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks);
-
-      ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$file");
-      $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
-
-      my $file_actions = '';
-
-      $file_actions .= $html->button($lang{DEL}, "index=$index&file_del=$file", {
-        MESSAGE => "$lang{DEL} '$file'",
-        class => 'del'
-       });
-
-      if($file =~ /\.pdf$/) {
-        my $file_without_extention = $file =~ s/\.pdf//r;
-
-        $file_actions .= $html->button(
-            $lang{EDIT},
-            "index=$pdf_editor_index&file=$file_without_extention",
-            {
-              ICON => 'fa fa-pencil-alt'
-            }
-          );
-      }
-
-      $table->addrow(
-        "$file",
-        $size,
-        $mtime,
-        $describe,
-        $file_actions
-      );
-    }
-
-  }
-  print $table->show();
-
-  $html->tpl_show(templates('form_fileadd'), undef);
-
-  return 1;
-}
-
-#**********************************************************
-=head2 get_tpl_describe($file, $path) Get teblate describe
-
-=cut
-#**********************************************************
-sub get_tpl_describe {
-  my ($file, $path) = @_;
-  my %tpls_describe = ();
-
-  my $rows= file_op({ FILENAME  => $file,
-                      PATH      => $path,
-                      SKIP_CHECK=> 1,
-                      ROWS      => 1 });
-
-  if ( $rows ne q{} ){
-    foreach my $line ( @{$rows} ){
-      if ( $line =~ /^#/ ){
-        next;
-      }
-      my ($tpl, $lang, $describe) = split( /:/, $line, 3 );
-
-      if ( $lang eq $html->{language} ){
-        $tpls_describe{$tpl} = $describe;
-      }
-    }
-  }
-
-  return \%tpls_describe;
-}
-
-#**********************************************************
-=head2 show_tpl_info()
-
-=cut
-#**********************************************************
-sub show_tpl_info {
-  my ($filename, $path) = @_;
-
-  $filename =~ s/\.tpl$//x;
-
-  my $tpl_params = tpl_describe("$filename", $path);
-
-  if (!%$tpl_params) {
-    return 1;
-  }
-
-  my $table = $html->table({
-    width       => '600',
-    caption     => "$lang{INFO} - '$filename'",
-    title_plain => [ $lang{NAME}, $lang{DESCRIBE}, $lang{PARAMS} ],
-    ID          => 'TPL_INFO'
-  });
-
-  foreach my $key (sort keys %$tpl_params) {
-    $table->addrow('%' . $key . '%', $tpl_params->{$key}->{DESCRIBE}, $tpl_params->{$key}->{PARAMS});
-  }
-
-  print $table->show();
-  return 1;
-}
-
-#**********************************************************
-=head2 tpl_describe($tpl_name, $path, $attr) -  Get template describe. Variables and other
-
-  tpl describe file format
-  TPL_VARIABLE:TPL_VARIABLE_DESCRIBE:DESCRIBE_LANG:PARAMS
-
-=cut
-#**********************************************************
-sub tpl_describe {
-  my ($tpl_name, $path, $attr) = @_;
-  my $filename     = $tpl_name . '.dsc';
-  my %TPL_DESCRIBE = ();
-
-  my $rows = file_op({
-    FILENAME  => $filename,
-    SKIP_CHECK=> 1,
-    ROWS      => 1,
-    PATH      => $path
-  });
-
-  return { } if (!$rows || $rows eq q{});
-
-  foreach my $line (@$rows) {
-    if ($line =~ /^#/) {
-      next;
-    }
-    elsif ($line =~ /^(\S+):(.+):(\S+):(\S{0,200})/) {
-      my $name     = $1;
-      my $describe = $2;
-      my $lang     = $3;
-      my $params   = $4;
-      next if ($attr->{LANG} && $attr->{LANG} ne $lang);
-      $TPL_DESCRIBE{$name}{DESCRIBE} = $describe;
-      $TPL_DESCRIBE{$name}{LANG}     = $lang;
-      $TPL_DESCRIBE{$name}{PARAMS}   = $params;
-    }
-  }
-
-  return \%TPL_DESCRIBE;
-}
-
-#**********************************************************
-=head2  form_dictionary() - Dictionary mangment
-
-=cut
-#**********************************************************
-sub form_dictionary {
-  my $sub_dict = $FORM{SUB_DICT} || '';
-
-  if($sub_dict =~ /\D\.\D/){
-    ($sub_dict, undef) = split(/\./, $sub_dict, 2);
-  }
-
-  if ($FORM{add_form}) {
-    print $html->form_main(
-      {
-        CONTENT => "$lang{DICTIONARY}: " . $html->form_input('SUB_DICT', "" ),
-        HIDDEN  => {
-          index => $index,
-        },
-        SUBMIT  => { add => "$lang{ADD}" },
-        class   => 'form-inline'
-      }
-    );
-  }
-  elsif($FORM{add} && $FORM{SUB_DICT}) {
-    $sub_dict = $FORM{SUB_DICT};
-
-    file_op({
-      WRITE     => 1,
-      FILENAME  => $sub_dict .".pl",
-      PATH      => $libpath.'/language/',
-      CREATE    => 1
-    })
-  }
-  elsif ($FORM{change}) {
-    my $out = '';
-    my $i   = 0;
-    while (my ($k, $v) = each %FORM) {
-      if ($sub_dict && $k =~ /$sub_dict/ && $k ne '__BUFFER') {
-        my (undef, $key) = split(/_/, $k, 2);
-        next if(!$key || !$v);
-        $key =~ s/\%40/\@/;
-        if ($key =~ /@/) {
-          next if !$v;      # Will break syntax if empty
-          $v =~ s/\\'/'/g;
-          $v =~ s/\\"/"/g;
-          $v =~ s/\;$//g;
-          $out .= "our  $key=$v;\n";
-        }
-        else {
-          $key =~ s/%7B/\{/g;
-          $key =~ s/%7D/\}/g;
-          $key =~ s/\%24/\$/;
-          $v   =~ s/'/\'/g;
-          $out .= "$key='$v';\n";
-        }
-        $i++;
-      }
-    }
-
-    file_op({
-      WRITE    => 1,
-      FILENAME => $sub_dict .".pl",
-      PATH     => $libpath.'/language/',
-      CONTENT  => $out
-    });
-  }
-
-  my $table = $html->table({
-    width       => '600',
-    title_plain => [ "$lang{NAME}", "-" ],
-    caption     => "$lang{DICTIONARY}",
-    ID          => 'DICTIONARY_LIST',
-    MENU        => "$lang{ADD}:index=$index&add_form=1:add",
-  });
-
-  #show dictionaries
-  opendir my $fh, $libpath."/language/" or die "Can't open dir '". $libpath ."/language/' $!\n";
-    my @contents = grep !/^\.\.?$/, readdir $fh;
-  closedir $fh;
-
-  if ($#contents > 0) {
-    foreach my $file (@contents) {
-      $file =~ s/\.pl//;
-
-      if (-f $libpath."/language/" . $file .'.pl') {
-        if ($sub_dict && $sub_dict . ".pl" eq $file) {
-          $table->{rowcolor} = 'active';
-        }
-        else {
-          undef($table->{rowcolor});
-        }
-        $table->addrow("$file", $html->button($lang{CHANGE}, "index=$index&SUB_DICT=$file", { class => 'change' }));
-      }
-    }
-  }
-
-  print $table->show();
-
-  #Open main dictionary
-  my %main_dictionary = ();
-
-  my $rows = file_op({
-    FILENAME => 'english.pl',
-    PATH      => $libpath.'/language/',
-    ROWS      => 1
-  });
-
-  my $i=0;
-  foreach my $line (@$rows) {
-    my ($name, $value) = split(/=/, $line, 2);
-    $name =~ s/ //ig;
-    $name =~ s/^our//;
-    if ($name =~ /^@/) {
-      $main_dictionary{"$name"} = $value;
-    }
-    elsif ($line !~ /^#|^\n/) {
-      $main_dictionary{"$name"} = clearquotes($value, { EXTRA => "|\'|;" });
-    }
-  }
-
-  my %sub_dictionary = ();
-
-  if($sub_dict){
-    $rows = file_op({
-      FILENAME   => $sub_dict . '.pl',
-      PATH       => $libpath . '/language/',
-      SKIP_CHECK => 1,
-      ROWS       => 1
-    });
-
-    if ($rows) {
-      foreach my $line (@{$rows}) {
-        $line =~ s/ = /=/ if ($line =~ / = /g);
-        my ($name, $value) = split(/=/, $line, 2);
-        $name =~ s/ //ig;
-        $name =~ s/^our//;
-        if ($name =~ /^@/) {
-          $sub_dictionary{"$name"} = $value;
-        }
-        elsif ($line !~ /^#|^\n/) {
-          $sub_dictionary{"$name"} = clearquotes($value, { EXTRA => "|\'|;" });
-        }
-      }
-    }
-  }
-
-  $table = $html->table({
-    width       => '600',
-    caption     => $lang{DICTIONARY},
-    title_plain => [ "$lang{NAME}", "$lang{VALUE}", "-" ],
-    ID          => 'FORM_DICTIONARY'
-  });
-
-  foreach my $k (sort keys %main_dictionary) {
-    my $v  = $main_dictionary{$k};
-    my $v2 = '';
-
-    if($k eq '1' || $k eq '1;') {
-      next;
-    }
-
-    if (defined($sub_dictionary{"$k"})) {
-      $v2 = $sub_dictionary{"$k"};
-      $table->{rowcolor} = undef;
-    }
-    else {
-      $v2 = '';
-      $table->{rowcolor} = 'danger';
-    }
-
-    $table->addrow($html->form_input('NAME',
-      $k, { SIZE => 30 }),
-      $html->form_input($k, $v, { SIZE => 45 }),
-      ($sub_dict) ? $html->form_input($sub_dict . "_" . $k, "$v2", { SIZE => 100 }) : ''
-    );
-    $i++;
-  }
-
-  $table->{rowcolor} = 'active';
-  $table->addrow("$lang{TOTAL}", "$i", '');
-
-  print $html->form_main({
-    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-    HIDDEN  => {
-      index    => "$index",
-      SUB_DICT => ($sub_dict || '')
-    },
-    SUBMIT  => { change => "$lang{CHANGE}" }
-  });
-
-  return 1;
-}
-
-#**********************************************************
 =head form_sql_backup() - Make SQL backup
 
 =cut
@@ -1212,7 +410,7 @@ sub form_sql_backup {
     my $tables      = '';
     my $backup_file = "$conf{BACKUP_DIR}/abills-$DATE.sql.gz";
     if ($attr->{TABLES}) {
-      my @tables_arr = split(/,/, $attr->{TABLES});
+      my @tables_arr = split(/,/x, $attr->{TABLES});
       $tables = join(' ', @tables_arr);
       if ($#tables_arr == 0) {
         $backup_file = "$conf{BACKUP_DIR}/abills_$tables-$DATE.sql.gz";
@@ -1231,8 +429,8 @@ sub form_sql_backup {
     my $gzip = $startup_files->{GZIP} || $GZIP;
 
     my $cmd = qq{ $mysqldump --default-character-set=$conf{dbcharset} --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} $tables | $gzip > $backup_file };
-    my $res = `$cmd`;
-    $cmd =~ s/password=\"(.+)\" /password=\"\*\*\*\*\" /g;
+    my $res = cmd($cmd);
+    $cmd =~ s/password=\"(.+)\"\s/password=\"\*\*\*\*\" /xg;
 
     if ($attr->{EXTERNAL} && -s $backup_file){
       return {
@@ -1258,7 +456,7 @@ sub form_sql_backup {
     $html->message( 'err', $lang{ERROR}, "Can't open dir '$conf{BACKUP_DIR}' $!\n" );
     return 0;
   };
-    my @contents = grep !/^\.\.?$/, readdir $fh;
+    my @contents = grep { !/^\.\.?$/xm } readdir $fh;
   closedir $fh;
 
   my $i =0;
@@ -1426,12 +624,12 @@ sub form_holidays {
     }
   }
 
-  if ($FORM{FILE}){
+  if ($FORM{FILE}) {
     upload_file($FORM{FILE},
-                {
-                  PREFIX  => 'holiday',
-                  REWRITE => 1
-                });
+      {
+        PREFIX  => 'holiday',
+        REWRITE => 1
+      });
   }
 
   if ($FORM{file} || $FORM{FILE}){
@@ -1468,7 +666,7 @@ sub form_holidays {
 
   if($FORM{chg} || $FORM{show}){
     my $holiday_info;
-    my ($month, $day)=split(/\-/, $DATE);
+    my ($month, $day)=split(/\-/x, $DATE);
 
     if ($FORM{chg}) {
       $holiday_info = $Holidays->holidays_info({ DAY => $FORM{change} });
@@ -1477,7 +675,7 @@ sub form_holidays {
       }
       ($month, $day) = split('-', $holiday_info->{DAY});
     }
-    elsif($FORM{show} =~ /\-/) {
+    elsif($FORM{show} =~ /\-/xm) {
       my ($m, $d) = split('-', $FORM{show});
       my $search = $m . '-' . $d;
       $holiday_info = $Holidays->holidays_info({ DAY => $search });
@@ -1574,7 +772,7 @@ sub form_holidays {
   });
 
   foreach my $line (@$list) {
-    my ($m, $d) = split(/-/, $line->{day});
+    my ($m, $d) = split(/\-/x, $line->{day});
     my $change = $html->button($lang{CHANGE}, "index=$index&change=$line->{day}", { class=>'change'});
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->{day}", { MESSAGE => "$lang{DEL} $line->{day}?", class => 'del' });
     $table->addrow("$d $MONTHES[$m - 1]", $line->{file}, $line->{descr}, $change . $delete);
@@ -1615,7 +813,7 @@ sub table_for_calendar{
 
   my $i       = 1;
   my $no_days = 1;
-  my $week_row .= "<tr>";
+  my $week_row = "<tr>";
 
   while ($no_days < $attr->{CUR_WDAY}) {
     $week_row .= "<td></td>";
@@ -1646,12 +844,16 @@ sub table_for_calendar{
       $holiday_day = "class='danger'";
     }
 
-    $week_row .= "<td width='100' height='100' $holiday_day>
-                  <a href='/admin/index.cgi?index=$index&$action=$attr->{MONTH}-$i&year=". ($FORM{year} || '') ."&month=". ($FORM{month} || '') ."' title='$comment'>
+    $FORM{year} //= q{};
+    $FORM{month} //= q{};
+    $week_row .= << "HTML";
+<td width='100' height='100' $holiday_day>
+                  <a href='/admin/index.cgi?index=$index&$action=$attr->{MONTH}-$i&year=$FORM{year}&month=$FORM{month}' title='$comment'>
                     <h4>$i</h4><br>
                   </a>
                   $delete
-                  </td>";
+                  </td>
+HTML
 
     if (($no_days % 7) == 0) {
       $week_row .= "</tr>";
@@ -1809,23 +1011,23 @@ sub form_info_lists {
 sub form_config {
 
   my %main_checksum = ();
-
-  if (-f $base_dir.'/VERSION') {
+  my $version_file = $base_dir.'/VERSION';
+  if (-f $version_file) {
     if (open(my $fh, '<', $base_dir."/VERSION")) {
       $conf{VERSION} = <$fh>;
       close($fh);
     }
   }
 
-  my($version)=split(/ /, $conf{VERSION});
+  my($version)=split(/\s+/x, $conf{VERSION});
 
   require Abills::Fetcher;
   Abills::Fetcher->import('web_request');
   my $output = web_request('http://abills.net.ua/misc/checksum/'.$version, { BODY_ONLY => 1 });
-  my @rows = split(/[\r\n]/, $output);
+  my @rows = split(/[\r\n]/x, $output);
 
   foreach my $line (@rows) {
-    my($k, $v)= split(/:/, $line) ;
+    my($k, $v)= split(/:/x, $line) ;
     if ( defined $k ){
       $main_checksum{$k} = $v;
     }
@@ -1840,12 +1042,13 @@ sub form_config {
     caption     => 'config options',
     width       => '600',
     title_plain => [ $lang{NAME}, $lang{DATE}, "MD5", "-" ],
+
   });
 
   foreach my $file (sort keys %file_check_sum) {
-    my ($checksum, $date) = split(/:/, $file_check_sum{$file}, 2);
+    my ($checksum, $date) = split(/:/x, $file_check_sum{$file}, 2);
     my $compare_checksum = '';
-    $table->{rowcolor}=undef;
+    delete $table->{rowcolor};
     if ($main_checksum{$file}) {
       if ($main_checksum{$file} eq $checksum) {
         $compare_checksum='ok'
@@ -1871,7 +1074,7 @@ sub form_config {
 
   $table = $html->table({
     caption     => 'config options',
-    title_plain => [ "$lang{NAME}", "$lang{VALUE}", $lang{STATUS} ],
+    title_plain => [ $lang{NAME}, $lang{VALUE}, $lang{STATUS} ],
   });
 
   $table->addrow("Perl Version:", $], '');
@@ -2016,10 +1219,11 @@ sub get_checksum {
       next;
     }
 
+    my $allow_files_expr = q{webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$};
     if (-d $filename) {
       &get_checksum($filename, $file_check_sum);
     }
-    elsif($filename =~ /webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$/xm) {
+    elsif($filename =~ /$allow_files_expr/xm) {
       my $file_content = '';
       if (open(my $fh, '<', $filename)) {
         while(<$fh>) {
@@ -2134,149 +1338,176 @@ sub form_tp_groups {
 }
 
 #**********************************************************
+=head2 form_intervals_actions($attr) - Time intervals
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_intervals_actions {
+  my ($attr) = @_;
+
+  my @DAY_NAMES = ($lang{ALL}, $WEEKDAYS[7], $WEEKDAYS[1], $WEEKDAYS[2], $WEEKDAYS[3], $WEEKDAYS[4], $WEEKDAYS[5], $WEEKDAYS[6], $lang{HOLIDAYS});
+  my $visual_view = $attr->{VISUAL_VIEW};
+
+  my Tariffs $tarif_plan;
+  my $max_traffic_class_id = 0;    #Max taffic class id
+  $tarif_plan               = $attr->{TP};
+  $tarif_plan->{ACTION}     = 'add';
+  $tarif_plan->{LNG_ACTION} = $lang{ADD};
+
+  if (defined($FORM{tt})) {
+    load_module('Internet', $html);
+    internet_traf_tarifs({ TP => $tarif_plan });
+  }
+  elsif ($FORM{add}) {
+    $tarif_plan->ti_add({%FORM});
+    if (!$tarif_plan->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{ADDED}");
+      $tarif_plan->ti_defaults();
+    }
+  }
+  elsif ($FORM{change}) {
+    $tarif_plan->ti_change($FORM{TI_ID}, {%FORM});
+    if (!$tarif_plan->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{CHANGED} [$tarif_plan->{TI_ID}]");
+    }
+  }
+  elsif (defined($FORM{chg})) {
+    $tarif_plan->ti_info($FORM{chg});
+    if (!$tarif_plan->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{CHANGE} [$FORM{chg}]");
+    }
+
+    $tarif_plan->{ACTION}     = 'change';
+    $tarif_plan->{LNG_ACTION} = $lang{CHANGE};
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $tarif_plan->ti_del($FORM{del});
+    if (!$tarif_plan->{errno}) {
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+    }
+  }
+  else {
+    $tarif_plan->ti_defaults();
+  }
+
+  _error_show($tarif_plan);
+
+  if (! $tarif_plan->{TP_ID} && $FORM{TP_ID})  {
+    $tarif_plan->{TP_ID} = $FORM{TP_ID};
+  }
+
+  my $list  = $tarif_plan->ti_list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{INTERVALS},
+    title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, $lang{TRAFFIC}, '-', '-', '-' ],
+    qs         => $pages_qs,
+    class      => 'table table-hover table-condensed table-striped table-bordered'
+  });
+
+  my $color = "AAA000";
+  foreach my $line (@$list) {
+    my $delete = $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->{id}", { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' });
+    $color = sprintf("%06x", hex('0x' . $color) + 7000);
+
+    #day, $hour|$end = color
+    my ($h_b) = split(/:/x, $line->{begin}, 3);
+    my ($h_e) = split(/:/x, $line->{end}, 3);
+
+    push(@{ $visual_view->{ $line->{day} } }, "$h_b|$h_e|$color|$line->{id}");
+
+    if (($FORM{chg} && $FORM{tt} && $FORM{tt} eq $line->{id}) || ($FORM{chg} && $FORM{chg} eq $line->{id})) {
+      $table->{rowcolor} = 'active';
+    }
+    else {
+      delete($table->{rowcolor});
+    }
+
+    $table->addtd(
+      $table->td($line->{id}, { rowspan => ($line->{traffic_classes} > 0) ? 2 : 1 }),
+      $table->td($html->b($DAY_NAMES[ $line->{day} ])),
+      $table->td($line->{begin}),
+      $table->td($line->{end}),
+      $table->td($line->{tarif}),
+      $table->td($html->button($lang{TRAFFIC}, "index=$index$pages_qs&tt=$line->{id}",  { class => 'btn btn-xs btn-default traffic' })),
+      $table->td($html->button($lang{CHANGE},  "index=$index$pages_qs&chg=$line->{id}", { class => 'change' })),
+      $table->td($delete), $table->td("&nbsp;", { bgcolor => '#' . $color, rowspan => ($line->{traffic_classes} > 0) ? 2 : 1 })
+    );
+
+    if ($line->{traffic_classes} > 0) {
+      my $TI_ID = $line->{id};
+
+      #Traffic tariff IN (1 Mb) Traffic tariff OUT (1 Mb) Prepaid (Mb) Speed (Kbits) Describe NETS
+      my $table2 = $html->table({
+        width       => '100%',
+        title_plain => [ "#", "$lang{TRAFIC_TARIFS} In ", "$lang{TRAFIC_TARIFS} Out ", "$lang{PREPAID} (Mb)", "$lang{SPEED} IN", "$lang{SPEED} OUT", "DESCRIBE", "NETS", "-", "-" ],
+        caption     => $lang{TRAFIC_TARIFS},
+        class       => 'table table-hover table-condensed table-striped table-bordered',
+        ID          => 'TRAFIC_TARIFS'
+      });
+
+      my $list_tt = $tarif_plan->tt_list({ TI_ID => $line->{id} });
+      foreach my $line2 (@$list_tt) {
+        $max_traffic_class_id = $line2->[0] if ($line2->[0] > $max_traffic_class_id);
+
+        $table2->addrow(
+          ($line2->[0] != 0) ? $html->color_mark($line2->[0], 'red') : $line2->[0],
+          $line2->[1],
+          $line2->[2],
+          $line2->[3],
+          int2byte($line2->[4], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
+          int2byte($line2->[5], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
+          $line2->[6],
+          convert($line2->[7], { text2html => 1 }),
+          $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]", { class => 'change' }),
+          $html->button($lang{DEL}, "index=$index$pages_qs&tt=$TI_ID&del=$line2->[0]", { MESSAGE => "$lang{DEL} [$line2->[0]]?", class => 'del' })
+        );
+      }
+
+      my $table_traf = $table2->show();
+
+      $table->addtd($table->td("$table_traf", { bgcolor => $_COLORS[2], colspan => 7 }));
+    }
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
 =head2 form_intervals($attr) - Time intervals
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub form_intervals {
   my ($attr) = @_;
 
-  my @DAY_NAMES = ("$lang{ALL}", "$WEEKDAYS[7]", "$WEEKDAYS[1]", "$WEEKDAYS[2]", "$WEEKDAYS[3]", "$WEEKDAYS[4]", "$WEEKDAYS[5]", "$WEEKDAYS[6]", "$lang{HOLIDAYS}");
+  my @DAY_NAMES = ($lang{ALL}, $WEEKDAYS[7], $WEEKDAYS[1], $WEEKDAYS[2], $WEEKDAYS[3], $WEEKDAYS[4], $WEEKDAYS[5], $WEEKDAYS[6], $lang{HOLIDAYS});
 
   my %visual_view = ();
   my Tariffs $tarif_plan;
   my $max_traffic_class_id = 0;    #Max taffic class id
 
   if ($attr->{TP}) {
-    $tarif_plan               = $attr->{TP};
-    $tarif_plan->{ACTION}     = 'add';
-    $tarif_plan->{LNG_ACTION} = $lang{ADD};
-
-    if (defined($FORM{tt})) {
-      load_module('Internet', $html);
-      internet_traf_tarifs({ TP => $tarif_plan });
-    }
-    elsif ($FORM{add}) {
-      $tarif_plan->ti_add({%FORM});
-      if (!$tarif_plan->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{ADDED}");
-        $tarif_plan->ti_defaults();
-      }
-    }
-    elsif ($FORM{change}) {
-      $tarif_plan->ti_change($FORM{TI_ID}, {%FORM});
-      if (!$tarif_plan->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{CHANGED} [$tarif_plan->{TI_ID}]");
-      }
-    }
-    elsif (defined($FORM{chg})) {
-      $tarif_plan->ti_info($FORM{chg});
-      if (!$tarif_plan->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{INTERVALS} $lang{CHANGE} [$FORM{chg}]");
-      }
-
-      $tarif_plan->{ACTION}     = 'change';
-      $tarif_plan->{LNG_ACTION} = $lang{CHANGE};
-    }
-    elsif ($FORM{del} && $FORM{COMMENTS}) {
-      $tarif_plan->ti_del($FORM{del});
-      if (!$tarif_plan->{errno}) {
-        $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
-      }
-    }
-    else {
-      $tarif_plan->ti_defaults();
-    }
-
-    _error_show($tarif_plan);
-
-    if (! $tarif_plan->{TP_ID} && $FORM{TP_ID})  {
-      $tarif_plan->{TP_ID} = $FORM{TP_ID};
-    }
-
-    my $list  = $tarif_plan->ti_list({ %LIST_PARAMS, COLS_NAME => 1 });
-    my $table = $html->table({
-      width      => '100%',
-      caption    => $lang{INTERVALS},
-      title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, $lang{TRAFFIC}, '-', '-', '-' ],
-      qs         => $pages_qs,
-      class      => 'table table-hover table-condensed table-striped table-bordered'
-    });
-
-    my $color = "AAA000";
-    foreach my $line (@$list) {
-      my $delete = $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->{id}&subf=$FORM{subf}", { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' });
-      $color = sprintf("%06x", hex('0x' . $color) + 7000);
-
-      #day, $hour|$end = color
-      my ($h_b) = split(/:/x, $line->{begin}, 3);
-      my ($h_e) = split(/:/x, $line->{end}, 3);
-
-      push(@{ $visual_view{ $line->{day} } }, "$h_b|$h_e|$color|$line->{id}");
-
-      if (($FORM{chg} && $FORM{tt} && $FORM{tt} eq $line->{id}) || ($FORM{chg} && $FORM{chg} eq $line->{id})) {
-        $table->{rowcolor} = 'active';
-      }
-      else {
-        undef($table->{rowcolor});
-      }
-
-      $table->addtd(
-        $table->td($line->{id}, { rowspan => ($line->{traffic_classes} > 0) ? 2 : 1 }),
-        $table->td($html->b($DAY_NAMES[ $line->{day} ])),
-        $table->td($line->{begin}),
-        $table->td($line->{end}),
-        $table->td($line->{tarif}),
-        $table->td($html->button($lang{TRAFFIC}, "index=$index$pages_qs&tt=$line->{id}&subf=$FORM{subf}",  { class => 'btn btn-xs btn-default traffic' })),
-        $table->td($html->button($lang{CHANGE},  "index=$index$pages_qs&chg=$line->{id}&subf=$FORM{subf}", { class => 'change' })),
-        $table->td($delete), $table->td("&nbsp;", { bgcolor => '#' . $color, rowspan => ($line->{traffic_classes} > 0) ? 2 : 1 })
-      );
-
-      if ($line->{traffic_classes} > 0) {
-        my $TI_ID = $line->{id};
-
-        #Traffic tariff IN (1 Mb) Traffic tariff OUT (1 Mb) Prepaid (Mb) Speed (Kbits) Describe NETS
-        my $table2 = $html->table({
-          width       => '100%',
-          title_plain => [ "#", "$lang{TRAFIC_TARIFS} In ", "$lang{TRAFIC_TARIFS} Out ", "$lang{PREPAID} (Mb)", "$lang{SPEED} IN", "$lang{SPEED} OUT", "DESCRIBE", "NETS", "-", "-" ],
-          caption     => "$lang{TRAFIC_TARIFS}",
-          class       => 'table table-hover table-condensed table-striped table-bordered'
-        });
-
-        my $list_tt = $tarif_plan->tt_list({ TI_ID => $line->{id} });
-        foreach my $line2 (@$list_tt) {
-          $max_traffic_class_id = $line2->[0] if ($line2->[0] > $max_traffic_class_id);
-
-          $table2->addrow(
-            ($line2->[0] != 0) ? $html->color_mark($line2->[0], 'red') : $line2->[0],
-            $line2->[1],
-            $line2->[2],
-            $line2->[3],
-            int2byte($line2->[4], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
-            int2byte($line2->[5], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
-            $line2->[6],
-            convert($line2->[7], { text2html => 1 }),
-            $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]&subf=$FORM{subf}", { class => 'change' }),
-            $html->button($lang{DEL}, "index=$index$pages_qs&tt=$TI_ID&del=$line2->[0]&subf=$FORM{subf}", { MESSAGE => "$lang{DEL} [$line2->[0]]?", class => 'del' })
-          );
-        }
-
-        my $table_traf = $table2->show();
-
-        $table->addtd($table->td("$table_traf", { bgcolor => $_COLORS[2], colspan => 7 }));
-      }
-
-    }
-
-    print $table->show();
+    $tarif_plan = $attr->{TP};
+    $attr->{VISUAL_VIEW}=\%visual_view;
+    form_intervals_actions($attr);
   }
   elsif ($FORM{TP_ID}) {
     $FORM{subf} = $index;
-    # if (defined( &dv_tp )) {
-    #   dv_tp();
-    # }
-    # els
-    if (defined( &internet_tp )) {
+
+    if (defined(&internet_tp)) {
       internet_tp();
     }
 
@@ -2300,7 +1531,6 @@ sub form_intervals {
     my $link = "&nbsp;";
     my $tdcolor;
     for (my $h = 0 ; $h < 24 ; $h++) {
-
       if (defined($visual_view{$i})) {
         my $day_periods = $visual_view{$i};
         foreach my $line (@$day_periods) {
@@ -2321,7 +1551,7 @@ sub form_intervals {
         $tdcolor = $_COLORS[1];
       }
 
-      push(@hours, $table->td("$link", { align => 'center', bgcolor => $tdcolor }));
+      push(@hours, $table->td($link, { align => 'center', bgcolor => $tdcolor }));
     }
 
     $table->addtd($table->td($DAY_NAMES[$i]), @hours);
@@ -2440,57 +1670,6 @@ sub form_prog_pathes {
       SUBMIT_BTN_NAME => "$lang{CHANGE}",
       %pathes
     });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 admin_menu($attr) - show admin menu functions list
-
-  Arguments:
-    attr      -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub admin_menu {
-
-  my $table = $html->table({
-    width       => '100%',
-    caption     => $lang{FUNCTION},
-    title_plain => [ 'ID', $lang{NAME}, $lang{FUNCTION} ],
-    ID          => 'FUNCTIONS_LIST'
-  });
-
-  my @keys = ();
-  foreach my $key (keys %functions){
-    push @keys, $key if ($key =~ /^\d+$/xm);
-  }
-  @keys = sort {$a <=> $b} @keys;
-
-  foreach my $ID (@keys){
-    $table->addrow($ID, $menu_names{$ID}, $functions{$ID});
-  }
-
-  print $table->show();
-
-  return 1;
-}
-
-#**********************************************************
-=head2 client_menu($attr) - show client menu functions
-
-  Arguments:
-    attr      -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub client_menu {
-
-  admin_menu();
 
   return 1;
 }
@@ -2911,11 +2090,11 @@ sub form_info_fields {
 
       my $field_name = '';
 
-      if ($line->{param} =~ /ifu\_(\S+)/) {
+      if ($line->{param} =~ /ifu\_(\S+)/xm) {
         $field_name = $1;
       }
 
-      my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->{value});
+      my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/x, $line->{value});
       $can_be_changed_by_user = ($can_be_changed_by_user) ? 1 : 0;
       if (!defined($field_type)) {
         $field_type = 0;
@@ -3059,6 +2238,8 @@ sub form_password_blacklist {
     MAKE_ROWS       => 1,
     TOTAL           => 1
   });
+
+  return 1;
 }
 
 

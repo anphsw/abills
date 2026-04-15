@@ -81,6 +81,58 @@
         </div>
       </div>
 
+
+
+      <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{EXTRA}_</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+        <div class='card-body'>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='User_UID'>UID:</label>
+            <div class='col-md-8'>
+              <input id='User_UID' name='User_UID' value='' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='ONU_WiFI_2_SID'>WiFI_2.4GHz SSID:</label>
+            <div class='col-md-8'>
+              <input id='ONU_WiFI_2_SID' name='ONU_WiFI_2_SID' value='' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='ONU_WiFI_2_PASS'>WiFI_2.4GHz Pass:</label>
+            <div class='col-md-8'>
+              <input id='ONU_WiFI_2_PASS' name='ONU_WiFI_2_PASS' value='' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='ONU_WiFI_5_SID'>WiFI_5GHz SSID:</label>
+            <div class='col-md-8'>
+              <input id='ONU_WiFI_5_SID' name='ONU_WiFI_5_SID' value='' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='ONU_WiFI_5_PASS'>WiFI_5GHz Pass:</label>
+            <div class='col-md-8'>
+              <input id='ONU_WiFI_5_PASS' name='ONU_WiFI_5_PASS' value='' class='form-control' type='text'>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='TEMPLATE'>_{ONU_PROFILE}_:</label>
         <div class='col-md-8'>

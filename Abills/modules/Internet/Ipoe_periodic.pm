@@ -116,16 +116,20 @@ sub ipoe_periodic_session_restart {
   }
 
   my $nas_list = $Nas->list({
-    NAS_IDS    => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
-    PAGE_ROWS  => 10000,
-    COLS_NAME  => 1,
-    COLS_UPPER => 1
+    NAS_IDS           => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
+    NAS_IP            => '_SHOW',
+    NAS_TYPE          => '_SHOW',
+    MNG_HOST_PORT     => '_SHOW',
+    MNG_USER          => '_SHOW',
+    MNG_PASSWORD      => '_SHOW',
+    PAGE_ROWS         => 10000,
+    COLS_UPPER        => 1
   });
 
   my %nas_info = ();
   foreach my $line (@{$nas_list}) {
     if (in_array($line->{NAS_TYPE}, \@nas_types) || $attr->{NAS_IDS}) {
-      $nas_info{ $line->{NAS_ID} } = $line;
+      $nas_info{ $line->{ID} } = $line;
     }
   }
 
@@ -191,11 +195,11 @@ sub ipoe_periodic_session_restart {
       NAS_PORT             => $online->{nas_port_id} || 0,
       NAS_ID_SWITCH        => $nas_id_switch || 0,
       NAS_ID               => $nas_id || 0,
-      NAS_IP_ADDRESS       => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_IP} : q{},
+      NAS_IP_ADDRESS       => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{IP} : q{},
       NAS_TYPE             => $nas_info{$nas_id}{NAS_TYPE},
-      NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
-      NAS_MNG_IP_PORT      => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
-      NAS_MNG_PASSWORD     => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
+      NAS_MNG_USER         => $nas_info{$nas_id}{MNG_USER},
+      NAS_MNG_IP_PORT      => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{MNG_HOST_PORT} : q{},
+      NAS_MNG_PASSWORD     => $nas_info{$nas_id}{MNG_PASSWORD},
       CONNECT_INFO         => $connect_info
     });
 
@@ -223,11 +227,11 @@ sub ipoe_periodic_session_restart {
         NAS_ID_SWITCH        => $nas_id_switch || 0,
         NAS_ID               => $nas_id || 0,
         NAS_TYPE             => $nas_info{$nas_id}{NAS_TYPE} || 'ipcad',
-        NAS_IP_ADDRESS       => $nas_info{$nas_id}{NAS_IP},
-        'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
-        NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
-        NAS_MNG_IP_PORT      => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
-        NAS_MNG_PASSWORD     => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
+        NAS_IP_ADDRESS       => $nas_info{$nas_id}{IP},
+        'NAS-IP-Address'     => $nas_info{$nas_id}{IP},
+        NAS_MNG_USER         => $nas_info{$nas_id}{MNG_USER},
+        NAS_MNG_IP_PORT      => (!$attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{MNG_HOST_PORT} : q{},
+        NAS_MNG_PASSWORD     => $nas_info{$nas_id}{MNG_PASSWORD},
         TP_ID                => $Internet->{TP_ID},
         CALLING_STATION_ID   => $online->{CID} || $online->{client_ip},
         'Calling-Station-Id' => $online->{CID} || $online->{client_ip},
@@ -243,6 +247,7 @@ sub ipoe_periodic_session_restart {
 
       $Auth->{UID} = $online->{uid};
       $Auth->{IPOE_IP} = $online->{client_ip};
+      $nas_info{IP}=ip2int($nas_info{IP});
       $Auth->{SERVICE_ID} = $online->{service_id};
 
       my ($r, $RAD_PAIRS) = $Auth->auth(\%AUTH_REQUEST, \%nas_info);
@@ -322,17 +327,21 @@ sub ipoe_start_active {
   }
 
   my $nas_list = $Nas->list({
-    NAS_IDS    => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
-    PAGE_ROWS  => 100000,
-    COLS_NAME  => 1,
-    COLS_UPPER => 1
+    NAS_IDS           => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
+    NAS_IP            => '_SHOW',
+    NAS_TYPE          => '_SHOW',
+    MNG_HOST_PORT     => '_SHOW',
+    MNG_USER          => '_SHOW',
+    MNG_PASSWORD      => '_SHOW',
+    PAGE_ROWS         => 100000,
+    COLS_UPPER        => 1
   });
 
   my %nas_info = ();
   foreach my $line (@{$nas_list}) {
     if (in_array($line->{NAS_TYPE}, \@nas_types) || $attr->{NAS_IDS}) {
-      $nas_info{ $line->{NAS_ID} } = $line;
-      ($nas_info{$line->{NAS_ID}}{NAS_MNG_IP}, undef, $nas_info{$line->{NAS_ID}}{NAS_MNG_PORT}) = split(/:/x, $nas_info{$line->{NAS_ID}}{NAS_MNG_IP_PORT}, 4);
+      $nas_info{ $line->{ID} } = $line;
+      ($nas_info{$line->{ID}}{MNG_IP}, undef, $nas_info{$line->{ID}}{MNG_PORT}) = split(/:/x, $nas_info{$line->{ID}}{MNG_HOST_PORT}, 4);
     }
   }
 
@@ -346,12 +355,11 @@ sub ipoe_start_active {
 
   #Get pools for nas
   my $poll_list = $Nas->nas_ip_pools_list({
-    SHOW_ALL_COLUMNS => 1,
+    _SHOW_ALL_COLUMNS=> 1,
     NAS_ID           => '_SHOW',
     IP               => '_SHOW',
     LAST_IP_NUM      => '_SHOW',
-    PAGE_ROWS        => 60000,
-    COLS_NAME        => 1
+    PAGE_ROWS        => 60000
   });
   my %nas_pools_hash = ();
 
@@ -422,7 +430,6 @@ sub ipoe_start_active {
     IPN_ACTIVATE      => 1,
     %LIST_PARAMS,
     GROUP_BY          => 'internet.id',
-    COLS_NAME         => 1,
     PAGE_ROWS         => 1000000,
   });
 
@@ -486,7 +493,7 @@ sub ipoe_start_active {
 
     #Activate
     if (int($nas_id) < 1) {
-      $debug_output .= "IP: $ip  : $nas_id ($nas_id_switch) NAS NOT_EXIST\n";
+      $debug_output .= "IP: $ip NAS_ID: $nas_id SWITCH: $nas_id_switch NAS NOT_EXIST\n";
     }
     else {
       $debug_output .= "$login $uid $ip -> $nas_id ($nas_id_switch)\n" if ($debug > 1);
@@ -504,10 +511,10 @@ sub ipoe_start_active {
         NAS_ID_SWITCH      => $nas_id_switch,
         NAS_ID             => $nas_id,
         NAS_TYPE           => $nas_info{$nas_id}{NAS_TYPE},
-        NAS_IP_ADDRESS     => int2ip($nas_info{$nas_id}{NAS_IP}),
-        NAS_MNG_USER       => $nas_info{$nas_id}{NAS_MNG_USER},
-        NAS_MNG_IP_PORT    => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
-        NAS_MNG_PASSWORD   => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
+        NAS_IP_ADDRESS     => int2ip($nas_info{$nas_id}{IP}),
+        NAS_MNG_USER       => $nas_info{$nas_id}{MNG_USER},
+        NAS_MNG_IP_PORT    => $nas_info{$nas_id}{MNG_HOST_PORT},
+        NAS_MNG_PASSWORD   => $nas_info{$nas_id}{MNG_PASSWORD},
         TP_ID              => $tp_id,
         CALLING_STATION_ID => $ip,
         CONNECT_INFO       => 'IPoE:' . $connect_info,
@@ -526,13 +533,14 @@ sub ipoe_start_active {
         'Acct-Session-Id'    => $DATA{ACCT_SESSION_ID},
         'Framed-IP-Address'  => $ip,
         'Calling-Station-Id' => $ip,
-        'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
+        'NAS-IP-Address'     => $nas_info{$nas_id}{IP},
         'NAS-Port'           => $port,
         'Filter-Id'          => $filter_id,
         'Connect-Info'       => 'IPoE:' . $connect_info,
       );
 
       $Nas->{NAS_ID} = $nas_id;
+      $Nas->{IP} = ip2int($Nas->{IP});
       $Auth->{UID} = $uid;
       $Auth->{SERVICE_ID} = $internet->{id};
       my ($r, $RAD_PAIRS) = $Auth->auth(\%RAD_REQUEST, $Nas);

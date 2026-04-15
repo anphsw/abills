@@ -11,7 +11,7 @@ Abills::Server - Base server functions
 =cut
 
 use strict;
-our $VERSION = 2.00;
+our $VERSION = 2.01;
 use POSIX qw(locale_h);
 use parent 'Exporter';
 
@@ -50,11 +50,12 @@ sub make_pid {
   if (!$pid_file) {
     $pid_file = _get_pid_filename($attr);
   }
-
   if ($attr && $attr eq 'clean') {
     unlink($pid_file);
     return 0;
   }
+  #print " / $pid_file \n";
+
 
   if (-f $pid_file) {
     my $pid = _read_pid($pid_file);
@@ -87,17 +88,15 @@ sub verify_pid {
   my ($pid) = @_;
 
   return 0 if (!$pid);
-
   #my $me = $$;
-
-  my @ps = split m|$/|, qx/ps -fp $pid/
-    || die "ps utility not available: $!";
-  s/^\s+// for (@ps); # leading spaces confuse us
+  my @ps = split(m|$/|, qx/ps -fp $pid/ || die "ps utility not available: $!");
+  s/^\s+//x for (@ps); # leading spaces confuse us
 
   no warnings; # hate that deprecated @_ thing
-  my $n = split(/\s+/, $ps[0]);
-  @ps = split /\s+/, $ps[1], $n;
+  my $n = split(/\s+/x, $ps[0]);
+  @ps = split(/\s+/x, $ps[1], $n);
 
+  #return ($ps[0] && $ps[0] =~ /^\d+$/xm) ? 1 : 0;
   return ($ps[0]) ? 1 : 0;
 }
 
@@ -106,8 +105,9 @@ sub verify_pid {
 
   Arguments: 
     $attr
-      PROGRAM_NAME -  Program name
-      LOG_DIR      -  logdir for pid  Default: /usr/abills/var/log/
+      PROGRAM_NAME - Program name
+      LOG_DIR      - logdir for pid  Default: /usr/abills/var/log/
+      LOG_FILE     - LOG ALL STDOUT, STDERR
       DEBUG
 
   Returns:
@@ -128,9 +128,10 @@ sub daemonize {
 
   if (! $attr->{DEBUG}) {
     #Reset out
-    open STDIN, '>', '/dev/null';
-    open STDOUT, '>', '/dev/null';
-    open STDERR, '>', '/dev/null';
+    my $log_file = $attr->{LOG_FILE} || '/dev/null';
+    open(STDIN, '>', '/dev/null');
+    open(STDOUT, '>>', $log_file);
+    open(STDERR, '>>', $log_file);
   }
 
   if (fork()) {
@@ -145,6 +146,7 @@ sub daemonize {
       #Open old out
       open(STDOUT, ">&", $SAVEOUT);
       print "Already running!\n";
+      close(STDOUT);
       exit;
     }
     return $pid_file;
@@ -227,10 +229,10 @@ sub _get_pid_filename {
     $program_name = $attr->{PROGRAM_NAME};
   }
   else {
-    if ($program_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
+    if ($program_name =~ /\/?([a-zA-Z\.\_\-]+)$/xm) {
       $program_name = $1;
     }
-    $program_name =~ s/\.[a-zA-Z0-9]+$//;
+    $program_name =~ s/\.[a-zA-Z0-9]+$//x;
   }
 
   my $log_dir = $attr->{LOG_DIR} || '/usr/abills/var/log/';

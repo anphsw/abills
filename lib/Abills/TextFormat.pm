@@ -3,7 +3,16 @@ package Abills::TextFormat;
 use strict;
 use warnings FATAL => 'all';
 
+use Encode;
+
 use Abills::Base qw(json_former);
+
+our @EXPORT = qw(
+  hide_text
+);
+our @EXPORT_OK = qw(
+  hide_text
+);
 
 my $conf;
 my Abills::HTML $html;
@@ -68,6 +77,49 @@ sub text_editor {
   return $html->tpl_show(::templates('input_text_editor'), $attr, {
     OUTPUT2RETURN => 1,
   });
+}
+
+#**********************************************************
+=head2 hide_text($text) - Hide text string
+
+  Arguments:
+     $text
+
+  Returns:
+    $hidden_text
+
+=cut
+#**********************************************************
+sub hide_text {
+  my ($text) = @_;
+
+  my $hidden_text = '';
+  if (!$text) {
+    return q{};
+  }
+
+  my @join_test = ();
+  $text =~ s/\s+$//xgm;
+  $text =~ s/\'/_/xg;
+  $text =~ s/&|%//xg;
+  my $str_utf8 = decode('UTF-8', $text);
+
+  my @split_fio = split(/ /, $str_utf8);
+  my @split_word = ();
+  foreach my $key (@split_fio) {
+    @split_word = split(//, $key);
+    for (my $i = 0; $i < @split_word; $i++) {
+      if ($i != 0 && ($i % 2 == 0 || $i % 3 == 0)) {
+        $split_word[$i] = '*';
+      }
+    }
+    my $hidden = join('', @split_word);
+    push(@join_test, $hidden);
+  }
+
+  $hidden_text = encode('UTF-8', join(' ', @join_test));
+
+  return $hidden_text;
 }
 
 1;

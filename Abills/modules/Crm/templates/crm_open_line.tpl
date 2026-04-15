@@ -27,6 +27,13 @@
           %ADMIN_SEL%
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='AUTOCLOSE'>_{CRM_AUTO_CLOSE_AFTER_DAYS}_:</label>
+        <div class='col-md-8'>
+          <input class='form-control' type='text' name='AUTOCLOSE' id='AUTOCLOSE' value='%AUTOCLOSE%'>
+        </div>
+      </div>
     </div>
     <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>

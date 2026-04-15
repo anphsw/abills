@@ -29,8 +29,6 @@ use Tags::Api::Validations qw(POST_TAGS);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/',
-      controller  => 'Tags::Api::Admin::Tags',
       endpoint    => \&Tags::Api::Admin::Tags::get_tags,
       credentials => [
         'ADMIN'
@@ -61,7 +58,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/tags/',
       params      => POST_TAGS,
-      controller  => 'Tags::Api::Admin::Tags',
       endpoint    => \&Tags::Api::Admin::Tags::post_tags,
       credentials => [
         'ADMIN'
@@ -70,7 +66,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/:id/',
-      controller  => 'Tags::Api::Admin::Tags',
       endpoint    => \&Tags::Api::Admin::Tags::get_tags_id,
       credentials => [
         'ADMIN'
@@ -79,7 +74,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/tags/:id/',
-      controller  => 'Tags::Api::Admin::Tags',
       endpoint    => \&Tags::Api::Admin::Tags::put_tags_id,
       credentials => [
         'ADMIN'
@@ -88,7 +82,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/tags/:id/',
-      controller  => 'Tags::Api::Admin::Tags',
       endpoint    => \&Tags::Api::Admin::Tags::delete_tags_id,
       credentials => [
         'ADMIN'
@@ -97,7 +90,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/tags/:id/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::post_tags_id_users_uid,
       credentials => [
         'ADMIN'
@@ -106,7 +98,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/tags/:id/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::put_tags_id_users_uid,
       credentials => [
         'ADMIN'
@@ -115,7 +106,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/tags/:id/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::delete_tags_id_users_uid,
       credentials => [
         'ADMIN'
@@ -124,7 +114,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/users/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::get_tags_users,
       credentials => [
         'ADMIN'
@@ -133,7 +122,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::get_tags_users_uid,
       credentials => [
         'ADMIN'
@@ -142,7 +130,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/tags/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::post_tags_users_uid,
       credentials => [
         'ADMIN'
@@ -151,7 +138,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/tags/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::put_tags_users_uid,
       credentials => [
         'ADMIN'
@@ -160,7 +146,6 @@ sub admin_routes {
     {
       method      => 'PATCH',
       path        => '/tags/users/:uid/',
-      controller  => 'Tags::Api::Admin::Users',
       endpoint    => \&Tags::Api::Admin::Users::patch_tags_users_uid,
       credentials => [
         'ADMIN'

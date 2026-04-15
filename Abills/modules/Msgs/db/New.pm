@@ -46,7 +46,9 @@ sub messages_new {
   my $EXT_TABLE = '';
   my $fields = '';
 
-  push @WHERE_RULES, "m.external_chat_id = 0";
+  if (! $attr->{SHOW_CHAPTERS}) {
+    push @WHERE_RULES, "m.external_chat_id = 0";
+  }
 
   if ($attr->{USER_READ}) {
     push @WHERE_RULES, "m.user_read='$attr->{USER_READ}' AND admin_read>'0000-00-00 00:00:00' AND m.inner_msg='0'";
@@ -96,13 +98,13 @@ FIELDS
     my $sql = <<"SQL";
 SELECT c.id,
 c.name,
-     SUM(IF(admin_read='0000-00-00 00:00:00', 1, 0)) AS admin_unread_count,
-     SUM(IF(plan_date=CURDATE() AND resposible = $self->{admin}->{AID}, 1, 0)) AS today_plan_count,
-SUM(IF(state = 0, 1, 0)) AS open_count,
-SUM(IF(resposible = $self->{admin}->{AID}, 1, 0)) AS resposible_count,
+     COALESCE(SUM(m.admin_read = '0000-00-00 00:00:00'), 0) AS admin_unread_count,
+     COALESCE(SUM(plan_date=CURDATE() AND resposible = $self->{admin}->{AID}), 0) AS today_plan_count,
+     COUNT(*) AS open_count,
+     COALESCE(SUM(resposible = $self->{admin}->{AID}), 0) AS resposible_count,
 1, 1, 1
 FROM msgs_chapters c
-LEFT JOIN msgs_messages m ON (m.chapter= c.id AND m.state=0)
+LEFT JOIN msgs_messages m ON (m.chapter= c.id AND m.state=0 AND m.external_chat_id = 0)
 $EXT_TABLE
 $WHERE
 GROUP BY c.id;
@@ -126,6 +128,10 @@ SQL
 SQL
   }
   else {
+    if ($attr->{CHAPTER}) {
+      $EXT_TABLE .= " LEFT JOIN msgs_chapters c ON (m.chapter=c.id) ";
+    }
+
     $sql = <<"SQL";
 SELECT $fields
 FROM msgs_messages m

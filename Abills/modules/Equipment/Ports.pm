@@ -1904,39 +1904,18 @@ sub cable_tester_result_former {
 
   Arguments:
     $attr
+      NAS_INFO
       IP
+
+  Results:
+    TRUE o FALSE
 
 =cut
 #********************************************************
 sub equipment_vlans {
   my ($attr) = @_;
 
-  if (!defined($FORM{sub}) || $FORM{sub} eq '') {
-    $FORM{sub} = 1;
-  }
-  #=== NAV TABS ===
-  if ((!$attr->{NAS_INFO}->{TYPE_ID} || ($attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} != 4)) && !$conf{SKIP_UNNUMBERED_TAB}) {
-    my $active_button->{$FORM{sub}} = 'active';
-    my %nav_tabs = (
-      1 => "Vlans",
-      2 => "Unnumbered vlans",
-    );
-
-    my $buttons = '';
-    foreach (sort {$a <=> $b} keys(%nav_tabs)) {
-      $buttons .= $html->li(
-        $html->button($nav_tabs{$_},
-          "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_",
-          { class => "nav-link " . ($active_button->{$_} // '') }
-        ),
-        { class => 'nav-item' }
-      )
-    }
-
-    my $ul_nav_bar = $html->element('ul', $buttons, { class => 'nav-tabs navbar-nav' });
-    print $html->element('nav', $ul_nav_bar, { class => 'abills-navbar navbar navbar-expand-lg navbar-light' });
-  }
-  #=== NAV TABS END ===
+  $FORM{sub} //= 1;
 
   if ($FORM{sub} == 2) {
     $Equipment->info($FORM{NAS_ID});
@@ -2031,6 +2010,47 @@ sub equipment_vlans {
     }
 
     print $table->show();
+  }
+
+  return 1;
+}
+
+#********************************************************
+=head2 equipment_vlans_navbar($attr) - Show VLANs
+
+  Arguments:
+    $attr
+      NAS_INFO
+      IP
+
+  Results:
+    TRUE o FALSE
+
+=cut
+#********************************************************
+sub equipment_vlans_navbar {
+  my ($attr) = @_;
+
+  if ((!$attr->{NAS_INFO}->{TYPE_ID} || ($attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} != 4)) && !$conf{SKIP_UNNUMBERED_TAB}) {
+    my $active_button->{$FORM{sub}} = 'active';
+    my %nav_tabs = (
+      1 => "Vlans",
+      2 => "Unnumbered vlans",
+    );
+
+    my $buttons = '';
+    foreach (sort {$a <=> $b} keys(%nav_tabs)) {
+      $buttons .= $html->li(
+        $html->button($nav_tabs{$_},
+          "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_",
+          { class => "nav-link " . ($active_button->{$_} // '') }
+        ),
+        { class => 'nav-item' }
+      )
+    }
+
+    my $ul_nav_bar = $html->element('ul', $buttons, { class => 'nav-tabs navbar-nav' });
+    print $html->element('nav', $ul_nav_bar, { class => 'abills-navbar navbar navbar-expand-lg navbar-light' });
   }
 
   return 1;

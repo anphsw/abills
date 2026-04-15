@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub docs_invoices_period {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   require POSIX;
   POSIX->import(qw/mktime strftime/);
@@ -84,7 +83,7 @@ sub docs_invoices_period {
     $date = $service_activate;
   }
 
-  my ($Y, $M, $D) = split(/-/, $date);
+  my ($Y, $M, $D) = split(/\-/x, $date);
   my ($num, $service_info) = (0, 0, 0, 0, '');
 
   my %current_invoice = ();
@@ -168,8 +167,7 @@ sub docs_invoices_period {
 =cut
 #**********************************************************
 sub _docs_invoices_next_period {
-  my $self = shift;
-  my ($attr, $Users, $num, $service_activate, $date, $fees_tax, $current_invoice) = @_;
+  my ($self, $attr, $Users, $num, $service_activate, $date, $fees_tax, $current_invoice) = @_;
 
   my %service_orders = ();
 
@@ -178,9 +176,11 @@ sub _docs_invoices_next_period {
     DATE   => $date
   });
 
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Control/Services.pm'}));
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
-  my $service_info = ::get_services($Users, {
+  my $service_info = $Services->get_services($Users, {
     ACTIVE_ONLY => 1
   });
 
@@ -200,7 +200,7 @@ sub _docs_invoices_next_period {
     }
     else {
       $from_date = $main::DATE || '0000-00-00';
-      $from_date =~ s/\d+$/01/;
+      $from_date =~ s/\d+$/01/x;
     }
 
     for (my $i = ($attr->{NEXT_PERIOD} == -1) ? -2 : 0; $i < int($attr->{NEXT_PERIOD}); $i++) {
@@ -250,8 +250,7 @@ sub _docs_invoices_next_period {
 =cut
 #**********************************************************
 sub _docs_invoices_new {
-  my $self = shift;
-  my ($attr, $Users, $num, $fees_tax, $current_invoice) = @_;
+  my ($self, $attr, $Users, $num, $fees_tax, $current_invoice) = @_;
 
   my @new_invoices = ();
 
@@ -268,7 +267,7 @@ sub _docs_invoices_new {
     next if ($line->{fees_id});
     $num++;
     my $Date = $line->{date} || q{};
-    $Date =~ s/ \d+:\d+:\d+//g;
+    $Date =~ s/\s+\d+:\d+:\d+//xg;
 
     if ($line->{dsc} && !$current_invoice->{$line->{dsc}}) {
       push @new_invoices, {
@@ -339,7 +338,7 @@ sub docs_invoices_add {
   }
 
   if ($Users->{REGISTRATION}) {
-    my ($Y, $M) = split(/-/, $main::DATE, 3);
+    my ($Y, $M) = split(/-/x, $main::DATE, 3);
     $Docs->user_change({
       UID          => $Users->{UID},
       INVOICE_DATE => ($Users->{ACTIVATE} ne '0000-00-00') ? $main::DATE : "$Y-$M-01",

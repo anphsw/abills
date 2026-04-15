@@ -64,5 +64,6 @@ $lang{INTERNET_NO_STREETS_IN_THIS_AREA} = 'Немає вулиць у цьому
 $lang{INTERNET_NO_BUILDINGS_ON_THIS_STREET} = 'Немає будівель на цій вулиці';
 
 $lang{ERR_NO_WRONG_PORT_SELECTED} = 'Вибрано неправильний порт';
+$lang{UNKNOWN_USERS} = 'Невідомі користувачі';
 
 1;

@@ -1,5 +1,5 @@
 {
-  "name": "ADMIN_EQUIPMENT_ONU_LIST",
+  "name": "ADMIN_EQUIPMENT_ONU_ID",
   "method": "GET",
   "path": "equipment/onu/:id/",
   "params": {}

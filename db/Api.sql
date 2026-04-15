@@ -22,3 +22,17 @@ CREATE TABLE IF NOT EXISTS `api_log`
 )
     CHARSET = utf8
     COMMENT = 'Api log';
+
+CREATE TABLE IF NOT EXISTS `api_idempotency_keys`
+(
+    `key_uuid`      VARCHAR(36)          NOT NULL DEFAULT '',
+    `http_status`   SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+    `response`      TEXT                 NOT NULL,
+    `datetime`      TIMESTAMP            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `log_id`        INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+    PRIMARY KEY (`key_uuid`),
+    KEY `datetime` (`datetime`),
+    KEY `log_id` (`log_id`)
+)
+    CHARSET = utf8
+    COMMENT = 'Idempotency keys for API requests';

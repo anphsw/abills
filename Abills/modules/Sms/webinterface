@@ -584,7 +584,7 @@ sub sms_send_register {
     require Sms::Misc;
     Sms::Misc->import();
     my $Sms_misc = Sms::Misc->new($db, $admin, \%conf);
-    $Sms_misc->sms_status();
+    $Sms_misc->sms_status({ UID => $FORM{UID} || '' });
   }
 
   my $sms_list = $Sms->list({

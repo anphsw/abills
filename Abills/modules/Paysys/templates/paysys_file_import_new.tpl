@@ -14,7 +14,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right required' for='UPLOAD_FILE'>_{FILE}_:</label>
         <div class='col-md-8'>
-          <input type='file' accept='.csv,.CVS' name='UPLOAD_FILE' id='UPLOAD_FILE' class='control-element' required/>
+          <input type='file' accept='%EXTENSIONS%' name='UPLOAD_FILE' id='UPLOAD_FILE' class='control-element' required/>
         </div>
       </div>
 

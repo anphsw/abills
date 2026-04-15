@@ -18,7 +18,7 @@ use FindBin '$Bin';
 
 push @INC, $Bin . '/../', $Bin . '/../Abills/';
 
-use Abills::Base qw(sendmail in_array datetime_diff);
+use Abills::Base qw(sendmail in_array datetime_diff _bp);
 use Abills::Sender::Core;
 use Time::HiRes qw(sleep);
 
@@ -75,9 +75,13 @@ sub portal_newsletter {
 
   my $SEND_DATE = $argv->{DATE} || "$DATE $TIME";
   my $send_methods = $Sender->available_types({ HASH_RETURN => 1 });
-  my @read_methods = keys %$send_methods;
+  my @read_methods = keys %{$send_methods};
 
-  $Portal->{debug} = 1 if $debug > 6;
+  if ($debug > 5) {
+    Abills::Base::_bp('ALLOWED METHODS', $send_methods, {TO_CONSOLE => 1});
+  }
+
+  $Portal->{debug} = 1 if ($debug > 6);
 
   my $newsletter_list = $Portal->portal_newsletter_list({ STATUS => 0, COLS_NAME => 1, COLS_UPPER  => 1 });
   foreach my $letter (@$newsletter_list) {
@@ -107,8 +111,8 @@ sub portal_newsletter {
     my @ATTACHMENTS = ();
 
     if ($letter->{picture}) {
-      my $base_dir = $main::base_dir || '/usr/abills/';
-      my (undef, $type) = split(/\./, $letter->{picture}, 2);
+      $base_dir = $main::base_dir || '/usr/abills/';
+      my (undef, $type) = split(/\./x, $letter->{picture}, 2);
       @ATTACHMENTS = ({
         ATTACHMENT_ID => $letter->{id},
         filename      => $letter->{picture},

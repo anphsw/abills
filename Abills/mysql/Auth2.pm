@@ -112,9 +112,9 @@ sub auth {
     return 1, $RAD_PAIRS;
   }
 
-  if(! $NAS->{NAS_ID}) {
-  	`echo "$NAS->{NAS_ID} / $RAD->{'NAS-IP-Address'} / $RAD->{'User-Name'}" >> /tmp/nas_error`;
-  }
+  # if(! $NAS->{NAS_ID}) {
+  # 	`echo "$NAS->{NAS_ID} / $RAD->{'NAS-IP-Address'} / $RAD->{'User-Name'}" >> /tmp/nas_error`;
+  # }
 
   my $cid = $RAD->{'Calling-Station-Id'} || q{};
   my $ipv6 = q{};
@@ -308,10 +308,10 @@ SQL
   if ($self->{LOGINS} > 0) {
     $sql = <<'SQL';
 SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online
-WHERE user_name= ? AND (status <> 2) AND guest=0
+WHERE uid= ? AND (status <> 2) AND guest=0
 SQL
 
-    $self->query($sql, undef, { Bind => [ $RAD->{'User-Name'} ] });
+    $self->query($sql, undef, { Bind => [ $self->{UID} ] });
 
     my ($active_logins)  = $self->{TOTAL};
     if (length($cid) > 20) {
@@ -329,14 +329,13 @@ SQL
         # Zap session with same CID
         elsif ( $line->[0] ne ''
           && ($line->[0] eq $cid && ($line->[2] eq $NAS->{NAS_ID} || $CONF->{hard_simultaneously_control_skip_nas}) )
-          #&& $NAS->{NAS_TYPE} ne 'ipcad'
           )
         {
-          $self->query("UPDATE internet_online SET status=6 WHERE user_name= ? AND cid= ? AND status <> 2;",
+          $self->query("UPDATE internet_online SET status=6 WHERE uid = ? AND cid= ? AND status <> 2;",
            'do',
           { Bind => [
-             $RAD->{'User-Name'} || '',
-             $cid
+            $self->{UID},
+            $cid
             ]
             });
 
@@ -415,11 +414,10 @@ SQL
     return 1, $RAD_PAIRS;
   }
   elsif ($remaining_time == -2) {
-#    if ($self->{NEG_DEPOSIT_FILTER_ID}) {
     return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID},
         {
           RAD_PAIRS   => $RAD_PAIRS,
-          MESSAGE     => "Not Allow time" . (($ATTR->{TT}) ? " Interval: $ATTR->{TT}" : q{}),
+          MESSAGE     => "NOT_ALLOW_TIME" . (($ATTR->{TT}) ? " Interval: $ATTR->{TT}" : q{}),
           FILTER_TYPE => 'NOT_ALLOW_TIME'
         });
   }
@@ -432,15 +430,7 @@ SQL
     $attr->{GUEST}=1;
   }
 
-  $self->traffic_time_limits($RAD, $NAS);
-
-  # if ($NAS->{NAS_TYPE} && $NAS->{NAS_TYPE} eq 'ipcad') {
-  #   # SET ACCOUNT expire date
-  #   if ($self->{ACCOUNT_AGE} > 0 && ! $self->{INTERNET_EXPIRE}) {
-  #     $self->query("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day WHERE uid='$self->{UID}';", 'do');
-  #   }
-  #   return 0, $RAD_PAIRS, '';
-  # }
+  (undef, $RAD_PAIRS) = $self->traffic_time_limits($RAD, $NAS);
 
   if ($CONF->{AUTH_SKIP_GUEST_IPV6} && $self->{GUEST}) {
   }
@@ -466,7 +456,7 @@ SQL
         %{($attr) ? $attr : {}},
         NAS_ID                => $NAS->{NAS_ID},
         FRAMED_IP_ADDRESS     => "INET_ATON('$self->{IP}')",
-        NAS_IP_ADDRESS        => $RAD->{'NAS-IP-Address'},
+        NAS_IP_ADDRESS        => $NAS->{IP},
         FRAMED_IPV6_PREFIX    => ($self->{IPV6}) ? "INET6_ATON('" . $self->{IPV6} . "')" : undef,
         DELEGATED_IPV6_PREFIX => ($self->{IPV6_PREFIX}) ? "INET6_ATON('" . $self->{IPV6_PREFIX} . "')" : undef,
         CONNECT_INFO          => $RAD->{'NAS-Port-Id'} || '',
@@ -477,7 +467,7 @@ SQL
     delete $self->{REASSIGN};
   }
   else {
-    my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, {
+    my $ip = $self->get_ip($NAS->{NAS_ID}, $NAS->{IP}, {
       TP_IPPOOL => $self->{TP_IPPOOL},
       NAS_MAC   => $self->{NAS_MAC}
     });
@@ -843,7 +833,7 @@ SQL
         ACCT_SESSION_ID   => $RAD->{'Acct-Session-Id'} || 'IP',
         NAS_ID            => $NAS->{NAS_ID},
         FRAMED_IP_ADDRESS => "INET_ATON('". $RAD->{'Framed-IP-Address'} ."')",
-        NAS_IP_ADDRESS    => $NAS->{NAS_IP}
+        NAS_IP_ADDRESS    => $NAS->{IP}
       });
     }
   }
@@ -1105,8 +1095,8 @@ sub internet_auth {
     $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'} if (! $user_auth_params->{USER_MAC});
     $user_auth_params->{IP}       = $RAD->{'Framed-IP-Address'} if($RAD->{'Framed-IP-Address'});
     $user_auth_params->{USER_NAME}= $RAD->{'User-Name'};
-    if ($CONF->{NAS_PORT_AUTH}) {
-      $user_auth_params->{NAS_PORT_AUTH}=$CONF->{NAS_PORT_AUTH};
+    if ($CONF->{NAS_PORT_AUTH} || $CONF->{AUTH_NAS_PORT}) {
+      $user_auth_params->{AUTH_NAS_PORT}=1;
     }
     $self->dhcp_info($user_auth_params, $NAS);
     if($user_auth_params->{SERVER_VLAN}) {
@@ -1222,7 +1212,7 @@ sub check_bill_account {
   }
   else {
     #get sum from bill account
-    $self->query("SELECT ROUND(deposit, 2) FROM bills WHERE id='$self->{BILL_ID}';");
+    $self->query("SELECT ROUND(deposit, 2) FROM bills WHERE id= ? ;", undef, { Bind => [ $self->{BILL_ID} ] });
     if ($self->{errno}) {
       return $self;
     }
@@ -1566,254 +1556,6 @@ SQL
 }
 
 #*******************************************************************
-=head2 get_ip($nas_num, $nas_ip, $attr) - Get IP for user
-
-  Arguments:
-   $nas_num  - NAS id
-   $nas_ip   - NAS IP
-   $attr
-     TP_IPPOOL - TP ip pool id
-     GUEST
-     SERVER_VLAN - Get Pool with VLAN
-     VLAN
-
-  Returns:
-
-   -2 - No Free Address in TP pool
-   -1 - No free address in nas pool
-    0 - No address pool using nas servers ip address
-   192.168.101.1 - assign ip address
-
-=cut
-#*******************************************************************
-# sub get_ip {
-#   my ($self, $nas_num, $nas_ip, $attr) = @_;
-#
-#   my $guest_mode = $self->{GUEST} || $attr->{GUEST} || 0;
-#
-#   if ($self->{conf}->{NAS_IP_ASSIGN}) {
-#     return 0;
-#   }
-#
-#   if($self->{conf}->{GET_IP2}) {
-#     return $self->get_ip2($nas_num, $nas_ip, $attr);
-#   }
-#
-#   my $guest = ($guest_mode) ? "AND guest='$guest_mode'" : "AND guest=0" ;
-#   my $extra_params = '';
-#   if($attr->{SERVER_VLAN} && $attr->{VLAN}) {
-#     $extra_params = " AND (server_vlan='$attr->{SERVER_VLAN}' AND vlan='$attr->{VLAN}') ";
-#   }
-#
-#   #Get reserved IP with status 11
-#   my $user_name = $self->{USER_NAME} || '';
-#   if (! $self->{LOGINS} || ($guest_mode && $user_name)) {
-#     my $status = ($guest_mode) ? q{AND status<>2} : q{AND status=11};
-#     $self->query("SELECT INET_NTOA(framed_ip_address) AS ip
-#        FROM internet_online
-#        WHERE user_name='$user_name'
-#          $status
-#          AND nas_id='$nas_num'
-#          AND framed_ip_address > 0
-#          $guest $extra_params;");
-#
-#     if ($self->{TOTAL} > 0) {
-#       my $ip = $self->{list}->[0]->[0];
-#       $self->query("SELECT INET_NTOA(netmask) AS netmask,
-#         dns,
-#         ntp,
-#         INET_NTOA(gateway) AS gateway,
-#         id
-#       FROM ippools
-#       WHERE ip<=INET_ATON('$ip') AND INET_ATON('$ip')<=ip+counts
-#       ORDER BY netmask
-#       LIMIT 1", undef, { INFO => 1 });
-#
-#       return $ip;
-#     }
-#   }
-#
-#   delete $self->{GATEWAY};
-#   delete $self->{DNS};
-#   delete $self->{NTP};
-#
-#   if ($self->{NETMASK} && $self->{NETMASK} eq '255.255.255.255') {
-#     delete $self->{NETMASK};
-#   }
-#
-#   if ($attr->{TP_IPPOOL}) {
-#     $self->query("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
-#       IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), 0),
-#       IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
-#     FROM ippools
-#     WHERE ippools.id='$attr->{TP_IPPOOL}'
-#     ORDER BY ippools.priority;"
-#     );
-#
-#     delete ($attr->{TP_IPPOOL});
-#   }
-#   else {
-#     my $WHERE = q{};
-#     if($guest_mode) {
-#       #Only guest pool
-#       #$WHERE = "AND ippools.guest=1";
-#       if($attr->{SERVER_VLAN}) {
-#         $WHERE .= " AND (ippools.vlan='$attr->{SERVER_VLAN}' OR ippools.vlan=0)";
-#       }
-#
-#       if(! $self->{UID}) {
-#         $WHERE .= $guest;
-#       }
-#       #Get Real NET IP for guest session
-#       else {
-#         $WHERE .= " AND guest=0";
-#       }
-#     }
-#     else {
-#       $WHERE .= $guest;
-#
-#       if($CONF->{AUTH_VLAN_FOR_IP} && $attr->{SERVER_VLAN}) {
-#         $WHERE .= " AND (ippools.vlan='$attr->{SERVER_VLAN}')";
-#       }
-#     }
-#
-#     $self->query("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
-#        IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
-#        IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
-#      FROM ippools, nas_ippools
-#      WHERE ippools.id=nas_ippools.pool_id
-#        AND nas_ippools.nas_id='$nas_num'
-#        $WHERE
-#      ORDER BY ippools.priority;"
-#     );
-#   }
-#
-#   if ($self->{TOTAL} < 1) {
-#     return 0;
-#   }
-#
-#   my @pools_arr      = ();
-#   my $pool_list      = $self->{list};
-#   my @used_pools_arr = ();
-#   my $next_pool_id   = 0;
-#   my %poolss         = ();
-#   my %pool_info      = ();
-#
-#   foreach my $line (@$pool_list) {
-#     my $sip   = $line->[0];
-#     my $count = $line->[1];
-#     my $id    = $line->[2];
-#     $next_pool_id = $line->[3];
-#     $pool_info{$id}{GATEWAY}=$line->[4];
-#     $pool_info{$id}{NETMASK}=$line->[5];
-#     $pool_info{$id}{DNS}=$line->[6];
-#     $pool_info{$id}{NTP}=$line->[7];
-#
-#     push @used_pools_arr, $id;
-#     my %pools = ();
-#
-#     for (my $i = $sip ; $i < $sip + $count ; $i++) {
-#       $pools{$i} = 1;
-#     }
-#
-#     if ($CONF->{unite_ip_pools}) {
-#       %poolss = (%poolss, %pools)
-#     }
-#     else {
-#       push @pools_arr, \%pools;
-#       if($next_pool_id) {
-#         last;
-#       }
-#     }
-#   }
-#
-#   if ($CONF->{unite_ip_pools}) {
-#     push @pools_arr, \%poolss;
-#   }
-#
-#   my $used_pools = join(', ', @used_pools_arr);
-#
-#   #Lock table for read
-#   my DBI $db_ =  $self->{db}{db};
-#   $db_->do('lock tables internet_online as c read, nas_ippools as np read, internet_online write');
-#   #get active address and delete from pool
-#   # Select from active users and reserv ips
-#   $self->query("SELECT DISTINCT(c.framed_ip_address)
-#     FROM internet_online c
-#     INNER JOIN nas_ippools np ON (c.nas_id=np.nas_id)
-#     WHERE np.pool_id in ( $used_pools );"
-#   );
-#
-#   my $list = $self->{list};
-#   $self->{USED_IPS} = 0;
-#
-#   my %pool = %{ $pools_arr[0] };
-#   my $active_pool = 0;
-#   for (my $i = 0 ; $i <= $#pools_arr ; $i++) {
-#     %pool = %{ $pools_arr[$i] };
-#     foreach my $ip (@$list) {
-#       if (exists($pool{ $ip->[0] })) {
-#         delete($pool{ $ip->[0] });
-#         $self->{USED_IPS}++;
-#       }
-#     }
-#     $active_pool = $used_pools_arr[$i];
-#     last if (scalar(keys %pool) > 0);
-#   }
-#
-#   my @ips_arr = keys %pool;
-#   my $assign_ip = ($#ips_arr > -1) ? $ips_arr[ rand($#ips_arr + 1) ] : undef;
-#
-#   if ($assign_ip) {
-#     # Make reserv ip
-#     if (! $attr->{SKIP_RESERV}) {
-#       $self->online_add({
-#         %$attr,
-#         NAS_ID            => $nas_num,
-#         FRAMED_IP_ADDRESS => $assign_ip,
-#         NAS_IP_ADDRESS    => $nas_ip
-#       });
-#     }
-#
-#     $db_->do('unlock tables');
-#     if( $self->{errno} ) {
-#       return -1;
-#     }
-#     else {
-#       my $w=($assign_ip/16777216)%256;
-#       my $x=($assign_ip/65536)%256;
-#       my $y=($assign_ip/256)%256;
-#       my $z=$assign_ip%256;
-#
-#       if($pool_info{$active_pool}) {
-#         $self->{GATEWAY} = $pool_info{$active_pool}{GATEWAY};
-#         if(! $self->{NETMASK}) {
-#           $self->{NETMASK} = $pool_info{$active_pool}{NETMASK};
-#         }
-#         $self->{DNS} = $pool_info{$active_pool}{DNS};
-#         $self->{NTP} = $pool_info{$active_pool}{NTP};
-#       }
-#
-#       return "$w.$x.$y.$z";
-#     }
-#   }
-#   else {    # no addresses available in pools
-#     $db_->do('unlock tables');
-#     if($next_pool_id) {
-#       return $self->get_ip($nas_num, $nas_ip, { TP_IPPOOL => $next_pool_id });
-#     }
-#     elsif ($attr->{TP_IPPOOL}) {
-#       return $self->get_ip($nas_num, $nas_ip, $attr);
-#     }
-#     else {
-#       return -1;
-#     }
-#   }
-#   #return 0;
-# }
-
-
-#*******************************************************************
 =head2 get_ip2($nas_num, $nas_ip, $attr) - Get IP for user
 
   Arguments:
@@ -1863,7 +1605,6 @@ SQL
     if ($self->{TOTAL} > 0) {
       my $ip = $self->{list}->[0]->[0];
       $self->get_net_params($ip);
-
       return $ip;
     }
   }
@@ -1891,22 +1632,26 @@ SQL
 
   my $next_pool_id = 0;
 
-  #Lock table for read
-  my DBI $db_ =  $self->{db}{db};
-  my $sql = <<'SQL';
-LOCK TABLES internet_online AS c read,
-  internet_online write,
-  ippools_ips AS pool read,
-  ippools read,
-  nas_ippools read
-SQL
 
-  $db_->do($sql);
+  my DBI $dbh =  $self->{db}{db};
+  $dbh->begin_work;
+
+#Lock table for read
+#old way with lock
+#   my $sql = <<'SQL';
+# LOCK TABLES internet_online AS c read,
+#   internet_online write,
+#   ippools_ips AS pool read,
+#   ippools read,
+#   nas_ippools read
+# SQL
+#
+#   $dbh->do($sql);
 
   #get active address and delete from pool  Select from active users and reserv ips
-  $sql = <<"SQL";
+  my $sql = <<"SQL";
 SELECT INET_NTOA(pool.ip) AS pool_ip,
-       pool.ippool_id,
+       pool.ip,
        IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
        IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''),
        dns,
@@ -1919,22 +1664,46 @@ WHERE
   $WHERE
   AND c.framed_ip_address IS NULL
 ORDER BY ippools.priority
-LIMIT 1;
+LIMIT 1
+FOR UPDATE
 SQL
 
   $self->query($sql);
 
   my $assign_ip = undef;
 
-  if($self->{TOTAL} && $self->{TOTAL}  == 1) {
+  if($self->{TOTAL} && $self->{TOTAL} == 1) {
     $assign_ip = $self->{list}->[0]->[0];
-    #$active_pool = $self->{list}->[0]->[1];
+    my $ip_num = $self->{list}->[0]->[1];
     $self->{GATEWAY} = $self->{list}->[0]->[2];
     $self->{NETMASK} = $self->{list}->[0]->[3];
     $self->{DNS} = $self->{list}->[0]->[4];
     $self->{NTP} = $self->{list}->[0]->[5];
+
+    # Make reserv ip
+    if (! $attr->{SKIP_RESERV}) {
+      $self->online_add({
+        %$attr,
+        NAS_ID            => $nas_num,
+        FRAMED_IP_ADDRESS => $ip_num,
+        NAS_IP_ADDRESS    => $nas_ip,
+      });
+    }
+
+    #$dbh->do('UNLOCK TABLES');
+
+    if ($self->{errno}) {
+      $dbh->rollback;
+      return -1;
+    }
+    else {
+      $dbh->commit;
+      return $assign_ip;
+    }
   }
   else {
+    $dbh->rollback;
+    #@deprecated remove it
     $sql = <<'SQL';
 SELECT COUNT(*) AS used_ips
 FROM ippools_ips pool
@@ -1944,30 +1713,12 @@ SQL
 
     $self->query($sql);
     $self->{USED_IPS} = $self->{list}->[0]->[0];
+    #===========
   }
 
-  if ($assign_ip) {
-    # Make reserv ip
-    if (! $attr->{SKIP_RESERV}) {
-      $self->online_add({
-        %$attr,
-        NAS_ID            => $nas_num,
-        FRAMED_IP_ADDRESS => "INET_ATON('". $assign_ip . "')",
-        NAS_IP_ADDRESS    => $nas_ip,
-      });
-    }
-
-    $db_->do('UNLOCK TABLES');
-
-    if( $self->{errno} ) {
-      return -1;
-    }
-    else {
-      return $assign_ip;
-    }
-  }
-  else {    # no addresses available in pools
-    $db_->do('UNLOCK TABLES');
+  if (! $assign_ip) { # no addresses available in pools
+    #$dbh->rollback;
+    #$dbh->do('UNLOCK TABLES');
     if($next_pool_id) {
       return $self->get_ip($nas_num, $nas_ip, { TP_IPPOOL => $next_pool_id });
     }
@@ -2019,13 +1770,14 @@ sub online_add {
   );
 
   my $sql = << "SQL";
-INSERT INTO internet_online SET started=NOW(),
-                                lupdated        = UNIX_TIMESTAMP(),
-                                status          = '11'
+INSERT INTO internet_online SET
+  started  = NOW(),
+  lupdated = UNIX_TIMESTAMP(),
+  status   = '11'
 SQL
 
   $sql .= ", acct_session_id = '". ($attr->{ACCT_SESSION_ID} || 'IP') ."', "
-     . " nas_ip_address  = INET_ATON('". ($attr->{'NAS_IP_ADDRESS'} || '0.0.0.0') ."')";
+     . " nas_ip_address = $attr->{NAS_IP_ADDRESS} ";
 
   while(my ($k, $v) = each %insert_hash) {
     next if (! $v);
@@ -2079,7 +1831,7 @@ sub check_systemauth {
     return 0;
   }
 
-  my $salt = "$pw[1]";
+  my $salt = $pw[1];
   my $ep = crypt($password, $salt);
 
   if ($ep eq $pw[1]) {
@@ -2250,7 +2002,7 @@ sub neg_deposit_filter_former {
           IP                 => $RAD_PAIRS->{'Framed-IP-Address'},
           NAS_ID             => $NAS->{NAS_ID},
           FRAMED_IP_ADDRESS  => "INET_ATON('$self->{IP}')",
-          NAS_IP_ADDRESS     => $RAD->{'NAS-IP-Address'},
+          NAS_IP_ADDRESS     => $NAS->{IP},
           #FRAMED_IPV6_PREFIX => $RAD->{'Framed-IPv6-Prefix'},
           #FRAMED_INTERFACE_ID=> $RAD->{'Framed-Interface-Id'},
           GUEST              => 1,
@@ -2259,7 +2011,7 @@ sub neg_deposit_filter_former {
       }
     }
     elsif(! $attr->{SKIP_ADD_IP}) {
-      my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'},
+      my $ip = $self->get_ip($NAS->{NAS_ID}, $NAS->{IP},
         {
           %$attr,
           TP_IPPOOL    => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
@@ -2544,11 +2296,13 @@ sub dhcp_info {
     $self->{conf} = $CONF;
   }
 
+  $attr->{AUTH_NAS_PORT} //= $attr->{NAS_PORT_AUTH};
+
   if ($CONF->{AUTH_IP} && $attr->{IP}) {
     push @WHERE_RULES, "internet.ip=INET_ATON('$attr->{IP}')";
     $self->{INFO} = "AUTH IP '$attr->{IP}'";
   }
-  elsif ($attr->{NAS_PORT_AUTH} && ! $attr->{MAC_AUTH}) {
+  elsif ($attr->{AUTH_NAS_PORT} && ! $attr->{MAC_AUTH}) {
     my $auth_options = "n.mac='$attr->{NAS_MAC}' AND internet.port<>'' AND internet.port='$attr->{PORT}'";
 
     if($CONF->{NAS_SECOND_MAC_AUTH}) {
@@ -2595,7 +2349,7 @@ WHERE
   }
   elsif ($attr->{USER_MAC}) {
     push @WHERE_RULES, "internet.cid='$attr->{USER_MAC}'";
-    $self->{INFO} = "USER MAC '$attr->{USER_MAC}'";
+    $self->{INFO} = "USER_MAC '$attr->{USER_MAC}'";
   }
 #  else {
 #    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
@@ -2649,7 +2403,8 @@ SQL
 
   if ($self->{TOTAL} < 1) {
     $self->{errno}    = 2;
-    $self->{error_str}= 'USER_NOT_EXIST '.$self->{INFO};
+    $self->{error_str}= 'USER_NOT_EXIST';
+    #$self->{error_str}= 'USER_NOT_EXIST '.$self->{INFO};
   }
   elsif ($self->{TOTAL} > 1) {
     my $i = 0;
@@ -2675,7 +2430,8 @@ SQL
     }
 
     $self->{errno}    = 2;
-    $self->{error_str}= (($self->{error_str}) ? $self->{error_str} :  'USER_NOT_EXIST ') . $self->{INFO};
+    $self->{error_str}= (($self->{error_str}) ? $self->{error_str} :  'USER_NOT_EXIST');
+    #$self->{error_str}= (($self->{error_str}) ? $self->{error_str} :  'USER_NOT_EXIST ') . $self->{INFO};
     $self->{TOTAL}    = 0;
   }
   elsif($self->{TOTAL}==1) {
@@ -2780,6 +2536,7 @@ SQL
 =head2 traffic_time_limits($NAS) - Traffic time limits
 
   Arguments:
+    $RAD_REQUEST
     $NAS
   Results:
     $self
@@ -2789,99 +2546,8 @@ SQL
 sub traffic_time_limits {
   my($self, $RAD_REQUEST, $NAS)=@_;
 
-   my %RAD_REPLY = ();
-   my @time_limits = ();
-#   #Periods Time and traf limits
-#   # 0 - Total limit
-#   # 1 - Day limit
-#   # 2 - Week limit
-#   # 3 - Month limit
-#   #my @traf_limits = ();
-#   my $time_limit = $self->{TIME_LIMIT} || 0;
-#   my $traf_limit = 0;
-#   my @direction_sum = (
-#     "SUM(sent + recv) / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096 + SUM(acct_input_gigawords) * 4096",
-#     "SUM(recv) / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096",
-#     "SUM(sent) / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096"
-#   );
-#   push @time_limits, $self->{MAX_SESSION_DURATION} if ($self->{MAX_SESSION_DURATION} > 0);
-#
-#   my @periods = ('TOTAL', 'DAY', 'WEEK', 'MONTH');
-#   my %SQL_params = (
-#     TOTAL => '',
-#     DAY   => "AND DATE_FORMAT(start, '%Y-%m-%d')=CURDATE()",
-#     WEEK  => "AND (YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start))",
-#     MONTH => "AND DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')"
-#   );
-#
-#   my $WHERE = "uid='$self->{UID}'";
-#
-#   foreach my $period (@periods) {
-#     my $period_time_limit = $self->{ $period . '_TIME_LIMIT' } || 0;
-#     my $period_traffic_limit = $self->{ $period . '_TRAF_LIMIT' } || 0;
-#
-#     if ($period_traffic_limit > 0) {
-#       my $session_time_limit = $time_limit;
-#       my $session_traf_limit = $traf_limit;
-#
-#       my $sql = <<"SQL";
-#       SELECT
-#         IF($period_time_limit > 0, $period_time_limit - SUM(duration), 0),
-#         IF($period_traffic_limit > 0, $period_traffic_limit - $direction_sum[$self->{OCTETS_DIRECTION}], 0),
-#         1
-#       FROM internet_log
-#       WHERE $WHERE
-#       $SQL_params{$period}
-#       GROUP BY 3;
-# SQL
-#
-#       $self->query($sql);
-#
-#       if ($self->{TOTAL} == 0) {
-#         push(@time_limits, $self->{ $period . '_TIME_LIMIT' }) if ($self->{ $period . '_TIME_LIMIT' } > 0);
-#         $session_traf_limit = $period_traffic_limit if ($period_traffic_limit > 0);
-#       }
-#       else {
-#         ($session_time_limit, $session_traf_limit) = @{$self->{list}->[0]};
-#         push(@time_limits, $session_time_limit) if ($self->{ $period . '_TIME_LIMIT' } && $self->{ $period . '_TIME_LIMIT' } > 0);
-#       }
-#
-#       if ($period_traffic_limit > 0 && (!$traf_limit || $traf_limit > $session_traf_limit)) {
-#         $traf_limit = $session_traf_limit;
-#       }
-#
-#       if (defined($traf_limit) && $traf_limit <= 0) {
-#         $RAD_REPLY{'Reply-Message'} = "Rejected! $period Traffic limit utilized '$traf_limit Mb'";
-#         if ($self->{NEG_DEPOSIT_FILTER_ID}) {
-#           rad_pairs_former($self->{NEG_DEPOSIT_FILTER_ID} || $NAS->{NAS_RAD_PAIRS}, { RAD_PAIRS => \%RAD_REPLY });
-#           #return $self->neg_deposit_filter_former($RAD_REQUEST, $NAS, $self->{NEG_DEPOSIT_FILTER_ID}, { MESSAGE => $RAD_REPLY{'Reply-Message'} });
-#           return 0, \%RAD_REPLY;
-#         }
-#
-#         return 1, \%RAD_REPLY;
-#       }
-#     }
-#   }
-#
-#   $self->{TRAF_LIMIT}=$traf_limit;
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-
-
-
-
+  my %RAD_REPLY = ();
+  my @time_limits = ();
 
   #Periods Time and traf limits
   # 0 - Total limit

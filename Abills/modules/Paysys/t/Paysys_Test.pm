@@ -218,7 +218,7 @@ sub paysys_test {
   else {
     my $http_status = $info->{status} || $info->{response_code} || $info->{http_code} || 0;
 
-    if ($http_status && $http_status != 200) {
+    if ($http_status && $http_status != 200 && $http_status != 201) {
       $html->message('err', $lang{ERROR}, "HTTP STATUS: $http_status");
     }
   }

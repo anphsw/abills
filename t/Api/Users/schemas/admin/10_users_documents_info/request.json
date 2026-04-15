@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_USERS_DOCUMENTS_INFO",
+  "method": "GET",
+  "path": "users/documents/100/"
+}

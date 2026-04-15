@@ -135,11 +135,11 @@ sub get_info_fields_read_only_view {
         my $field_value_list = $Info_fields->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 });
         if (
           # No list or broken list
-          !$field_value_list || !ref $field_value_list eq 'ARRAY'
+          !$field_value_list || ref $field_value_list ne 'ARRAY'
             # Empty list
             || !$field_value_list->[0]
             # Broken value
-            || !ref $field_value_list->[0] eq 'HASH'
+            || ref $field_value_list->[0] ne 'HASH'
         ) {
           $value_view = $html->element(
             'span',

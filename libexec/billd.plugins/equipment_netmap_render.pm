@@ -22,7 +22,6 @@ use Net::SNMP;
 use Equipment;
 use Nas;
 require Equipment::Snmp_cmd;
-use feature qw(say);
 
 use SNMP_util;
 use SNMP_Session;
@@ -46,7 +45,7 @@ my @serials = ();
 my @ips = ();
 my @info = ();
 
-equipment_grab();
+equipment_grab($argv);
 
 
 #***************************************************************************
@@ -55,8 +54,14 @@ equipment_grab();
 =cut
 #***************************************************************************
 sub equipment_grab {
+  my ($attr)=@_;
 
-  my @equipment_info = @{equipment_scan($argv->{CORE})};
+  if(! $attr->{CORE}) {
+    print "Please addd core server ip: CORE=xxx.xxx.xxx.xxx\n";
+    return 0;
+  }
+
+  my @equipment_info = @{equipment_scan($attr->{CORE})};
 
   foreach my $info (@equipment_info) {
     my $nas_list = $Nas->list({
@@ -66,14 +71,14 @@ sub equipment_grab {
     });
 
     if (!$Nas->{TOTAL}) {
-      if ($argv->{DEBUG}) {
-        print "Not exists \n";
+      if ($debug > 0) {
+        print "Not exists IP: $info->{IP}\n";
       }
 
       if (!$info->{NAS_TYPE}) {
         $info->{NAS_TYPE} = 'other';
       }
-      if ($argv->{DEBUG}) {
+      if ($debug > 0) {
         _bp('NAS ADD', $info, { TO_CONSOLE => 1 });
       }
       $info->{NAS_MNG_IP_PORT} = $info->{IP} . ':::';
@@ -95,8 +100,8 @@ sub equipment_grab {
     });
 
     if (!$Nas->{TOTAL}) {
-      if ($argv->{DEBUG}) {
-        say 'NAS not exist';
+      if ($debug > 0) {
+        print 'NAS not exist IP:'. $info->{IP} ."\n";
       }
       next;
     }
@@ -109,20 +114,20 @@ sub equipment_grab {
       if ($info->{MODEL_ID}) {
         my ($snmp_version) = $argv->{SNMP_VERSION} =~ /(\d)/xm;
         my %equipment_attr = ('NAS_ID' => $info->{NAS_ID}, COMMENTS => $info->{COMMENTS}, MODEL_ID => $info->{MODEL_ID}, SNMP_VERSION => $snmp_version);
+
         $Equipment->add(\%equipment_attr);
-        if ($argv->{DEBUG}) {
+        if ($debug > 0) {
           _bp('Equipment ADD', \%equipment_attr, { TO_CONSOLE => 1 });
         }
       }
     }
     else {
-      if ($argv->{DEBUG}) {
-        say "Equipment exist";
+      if ($debug > 0) {
+        print "Equipment exist\n";
       }
     }
 
     if ($info->{NAS_ID} && defined $info->{PORT} && $info->{UPLINK}) {
-
       my $uplink = $Nas->list({
         NAS_IP    => $info->{UPLINK},
         COLS_NAME => 1,
@@ -137,7 +142,7 @@ sub equipment_grab {
       if (!$Equipment->{TOTAL}) {
         $Equipment->port_add(\%port_attr);
       }
-      if ($argv->{DEBUG}) {
+      if ($debug > 0) {
         _bp('PORT ADD', \%port_attr, { TO_CONSOLE => 1 });
       }
     }
@@ -147,17 +152,20 @@ sub equipment_grab {
 }
 
 #***************************************************************************
-=heade2 equipment_scan() - getting neighbours of $core
+=heade2 equipment_scan($nas_ip, $uplink, $port) - getting neighbours of $core
 
   Arguments:
-    $core - ip of main switch
+    $nas_ip - ip of main switch
     $uplink - parent (optional)
     $port - uplink port(optional)
+
+  Returns:
+    \@info
 
 =cut
 #***************************************************************************
 sub equipment_scan {
-  my ($core, $uplink, $port) = @_;
+  my ($nas_ip, $uplink, $port) = @_;
 
   my $oid = "1.0.8802.1.1.2.1.4.2.1.5";
   my $community = $argv->{COMMUNITY} || 'public';
@@ -168,7 +176,7 @@ sub equipment_scan {
   });
 
   my $serial = snmp_get({
-    SNMP_COMMUNITY => $community . '@' . $core,
+    SNMP_COMMUNITY => $community . '@' . $nas_ip,
     OID            => "1.3.6.1.2.1.47.1.1.1.1.11.1",
     SILENT         => 1,
     TIMEOUT        => 1,
@@ -176,42 +184,49 @@ sub equipment_scan {
   });
 
   if (in_array($serial, \@serials)) {
-    if ($argv->{DEBUG}) {
-      say "SERIAL EXIST  " . $core;
+    if ($debug > 0) {
+      print "SERIAL EXIST  " . $nas_ip ."\n";
     }
     return \@info;
   }
 
   push @serials, $serial;
-  push @ips, $core;
+  push @ips, $nas_ip;
 
   my %host = ();
 
-  say "CHECKING " . $core;
+  print "CHECKING IP: $community@" . $nas_ip . (($uplink) ? " UPLINK: $uplink " : q{} )
+    . (($port) ? " PORT: $port " : q{}) ."\n";
 
-  $host{IP} = $core;
+  $host{IP} = $nas_ip;
   $host{PORT} = $port if ($port);
   $host{COMMENTS} = snmp_get({
-    SNMP_COMMUNITY => $community . '@' . $core,
+    SNMP_COMMUNITY => $community . '@' . $nas_ip,
     OID            => ".1.3.6.1.2.1.1.1.0",
     SILENT         => 1,
     TIMEOUT        => 1,
-    VERSION        => $argv->{SNMP_VERSION} || 1
+    VERSION        => $argv->{SNMP_VERSION} || 1,
+    DEBUG          => ($debug > 1) ? $debug - 2 : 0
   });
 
   $host{NAS_NAME} = snmp_get({
-    SNMP_COMMUNITY => $community . '@' . $core,
+    SNMP_COMMUNITY => $community . '@' . $nas_ip,
     OID            => ".1.3.6.1.2.1.1.5.0",
     SILENT         => 1,
     TIMEOUT        => 1,
-    VERSION        => $argv->{SNMP_VERSION} || 1
+    VERSION        => $argv->{SNMP_VERSION} || 1,
+    DEBUG          => ($debug > 1) ? $debug - 2 : 0
   });
 
   if ($host{COMMENTS}) {
-    print "SNMP answer: '$host{COMMENTS}'\n" if ($argv->{DEBUG} || $argv->{INFO_ONLY});
+    if ($debug || $argv->{INFO_ONLY}) {
+      print "SNMP answer: ";
+      print $host{COMMENTS};
+      print "\n";
+    }
     foreach (@$list) {
       next unless ($_->{model_name});
-      if ($argv->{DEBUG}) {
+      if ($debug > 0) {
         if ($host{COMMENTS} =~ m/$_->{model_name}/x) {
           print "Found matches:\n model_id: '$_->{id}'\n model_name: '$_->{model_name}'\n";
 
@@ -220,9 +235,10 @@ sub equipment_scan {
       }
     }
   }
+
   if ($host{COMMENTS}) {
     my ($session, $error) = Net::SNMP->session(
-      -hostname  => $core,
+      -hostname  => $nas_ip,
       -version   => $argv->{SNMP_VERSION} || 1,
       -community => $community
     );
@@ -245,14 +261,14 @@ sub equipment_scan {
         if (in_array($ip, \@ips)) {
           next;
         }
-        equipment_scan($ip, $core, $port_);
+        equipment_scan($ip, $nas_ip, $port_);
       }
     }
 
     push @info, \%host;
   }
   else {
-    say "NO RESPONSE";
+    print "NO RESPONSE\n";
   }
 
   return \@info;

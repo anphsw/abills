@@ -9,7 +9,6 @@ use Abills::Base qw(in_array cmd date_diff);
 use Shedule;
 require Abills::Misc;
 require Control::Service_control;
-require Control::Services;
 use Abills::Loader qw/load_plugin/;
 use Iptv::Init qw/init_iptv_service/;
 
@@ -155,7 +154,7 @@ sub iptv_user {
         $html->redirect($action->{url});
       }
       elsif ($action->{type} eq 'template') {
-        $html->tpl_show(_include($action->{template}, 'Iptv'), { %{$Iptv}, %FORM });
+        $html->tpl_show(_include($action->{template}, 'Iptv'), { %{$Iptv}, %FORM, %{$action->{params} || {}} });
       }
 
       return if $FORM{IN_MODAL};
@@ -1133,7 +1132,15 @@ sub iptv_get_service_tps {
 
   my $uid = $FORM{UID} || 0;
   my $user_info = $users->pi({ UID => $uid });
-  my $tp_gids = ($user_info->{LOCATION_ID}) ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
+
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $tp_gids = '';
+  if ($user_info->{LOCATION_ID}) {
+    $Services->tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID});
+  }
 
   $attr->{EX_PARAMS} ||= $FORM{EX_PARAMS};
 
@@ -1393,7 +1400,15 @@ sub _iptv_add_shedule_form {
 
   my $uid = $user->{UID} || $FORM{UID} || 0;
   my $user_info = $users->pi({ UID => $uid });
-  my $tp_gids = ($user_info->{LOCATION_ID}) ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
+
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $tp_gids = '';
+  if ($user_info->{LOCATION_ID}) {
+    $Services->tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID});
+  }
 
   my $tariffs_list = $Tariffs->list({
     MODULE       => 'Iptv',

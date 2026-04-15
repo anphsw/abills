@@ -9,9 +9,9 @@ use JSON;
 use File::Find;
 
 BEGIN {
-  our $libpath = $Bin . '/../../../';
+  my $libpath = $Bin . '/../../../';
 
-  require $libpath . 'libexec/config.pl';
+  do $libpath . 'libexec/config.pl';
   our %conf;
   my $sql_type = 'mysql';
   unshift(@INC, $libpath . "Abills/$sql_type/");
@@ -31,7 +31,7 @@ use Abills::Fetcher;
 
 my $TELEGRAM_API_URL = 'https://api.telegram.org';
 
-my $ARGS = parse_arguments(\@ARGV);
+my $argv = parse_arguments(\@ARGV);
 
 my $db = Abills::SQL->connect(
   $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -40,21 +40,25 @@ my $db = Abills::SQL->connect(
     dbdebug => $conf{dbdebug}
   }
 );
-our $admin = Admins->new($db, \%conf);
+
+my $admin = Admins->new($db, \%conf);
 # Just init Tokens from Config
 my $Conf = Conf->new($db, $admin, \%conf);
 
-my $is_admin = !!$ARGS->{ADMIN};
+my $is_admin = !!$argv->{ADMIN};
 my $desc_key = $is_admin ? 'TELEGRAM_ADMIN' : 'TELEGRAM';
 
 _start();
+
 sub _start {
-  if ($ARGS->{help}) {
+  if ($argv->{help}) {
     help();
   }
   else {
     integration();
   }
+
+  return 1;
 }
 
 
@@ -78,8 +82,8 @@ sub integration {
     return;
   }
 
-  if ($billing_url =~ /http:\/\// || $billing_url =~ /:9443/) {
-    print << "[END]";
+  if ($billing_url =~ /http:\/\//xm || $billing_url =~ /:9443/xm) {
+    print <<"[END]";
     Your \$conf{BILLING_URL} is not valid for Telegram.
     Change it due to requirements and change web server config.
 
@@ -136,7 +140,7 @@ sub integration {
     # print in debug that symlink exist
   }
   elsif (!$create_folder_and_symlink->()) {
-    print << "[END]";
+    print <<"[END]";
 ERROR Cannot create folder and symlink.
 
 Create it manually with commands:
@@ -163,7 +167,7 @@ And start this script again.
 
   my $cert = '';
   if ($cert_path && -f $cert_path && open(my $fh, '<', $cert_path)) {
-    while(<$fh>) {
+    while (<$fh>) {
       $cert .= $_;
     }
     close($fh);
@@ -171,12 +175,12 @@ And start this script again.
 
   my $subscribe_result = web_request("$bot_api_base/setWebhook",
     {
-      CURL => 1,
+      CURL           => 1,
       REQUEST_PARAMS => {
         url  => $generated_url,
         cert => $cert,
       },
-      JSON_RETURN => 1
+      JSON_RETURN    => 1
     }
   );
 
@@ -187,7 +191,7 @@ And start this script again.
 
   my $fresh_webhook_info = web_request("$bot_api_base/getWebhookInfo",
     {
-      CURL => 1,
+      CURL        => 1,
       JSON_RETURN => 1
     }
   );
@@ -200,7 +204,7 @@ And start this script again.
         print "Regenerate your self-signed certificate with right ip and domain.\n";
       }
       else {
-        print << "[END]";
+        print <<"[END]";
   You need to have a signed certificate like Let's Encrypt
     OR
   You can use \$conf{$desc_key\_CERT_PATH} option - fill path of your public pem self-signed certificate.
@@ -213,7 +217,7 @@ And start this script again.
   _load_telegram_db();
 
   my $bot_type = $is_admin ? 'Admin' : 'User';
-  print << "[END]";
+  print <<"[END]";
   Congratulations!
   ABillS $bot_type Telegram bot successfully subscribed.
 
@@ -222,6 +226,8 @@ And start this script again.
   # Fill config variables
   $Conf->config_add({ PARAM => $desc_key . '_BOT_NAME', VALUE => $bot_info->{result}->{username}, REPLACE => 1 });
   $Conf->config_add({ PARAM => $desc_key . '_WEBHOOK_URL', VALUE => $generated_url, REPLACE => 1 });
+
+  return 1;
 }
 
 #*******************************************************************
@@ -231,6 +237,7 @@ And start this script again.
 #*******************************************************************
 sub _load_telegram_db {
   my $content = '';
+
   if (open(my $fh, '<', $Bin . '/Telegram.sql')) {
     while (<$fh>) {
       $content .= $_;
@@ -247,6 +254,8 @@ sub _load_telegram_db {
       print "$admin->{errno}\n";
     }
   }
+
+  return 1;
 }
 
 #*******************************************************************
@@ -256,7 +265,7 @@ sub _load_telegram_db {
 #*******************************************************************
 sub help {
 
-  print << "[END]";
+  print <<"[END]";
 ABillS Telegram bot setup in one click
 
   Required config params:
@@ -270,4 +279,8 @@ ABillS Telegram bot setup in one click
     help - show this message
 
 [END]
+
+  return 1;
 }
+
+1;

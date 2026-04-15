@@ -20,9 +20,9 @@ our (
   $VERSION,
   %FORM,
   $admin,
-#  $html,
+  #  $html,
   $index,
-  @ISA,
+  #@ISA,
   @EXPORT,
   @EXPORT_OK,
   %EXPORT_TAGS
@@ -50,7 +50,7 @@ sub sort_array_to_hash {
   $key_name ||= 'id';
 
   my %result_hash = ();
-  foreach my $list_row ( @{$array_ref} ) {
+  foreach my $list_row (@{$array_ref}) {
     next unless ($list_row && $list_row->{$key_name});
     $result_hash{$list_row->{$key_name}} = $list_row;
   }
@@ -71,22 +71,22 @@ sub sort_array_to_hash {
 =cut
 #**********************************************************
 sub show_result {
-  my ($Module, $caption, $message, $attr) =  @_;
+  my ($Module, $caption, $message, $attr) = @_;
 
   $attr //= {};
-  $caption //= '',
+  $caption //= '';
   $message //= '';
 
   return 0 if (_error_show($Module, { MESSAGE => $message }));
 
-  if (exists $Module->{INSERT_ID}){
-    $attr->{RESPONCE_PARAMS}{INSERT_ID} =  $Module->{INSERT_ID};
+  if (exists $Module->{INSERT_ID}) {
+    $attr->{RESPONCE_PARAMS}{INSERT_ID} = $Module->{INSERT_ID};
   }
-  
-  if ($FORM{ID} && $FORM{change}){
-    $message .= $html->button($lang{SHOW}, "index=$index&chg=$FORM{ID}", { BUTTON => 2} ) if ($html->{TYPE} && $html->{TYPE} eq 'html');
+
+  if ($FORM{ID} && $FORM{change}) {
+    $message .= $html->button($lang{SHOW}, "index=$index&chg=$FORM{ID}", { BUTTON => 2 }) if ($html->{TYPE} && $html->{TYPE} eq 'html');
   }
-  
+
   $html->message('info', $caption, $message, $attr) if ($caption || $message);
 
   return 1;
@@ -110,13 +110,14 @@ sub translate_list_value {
   $key_names[0] //= 'name';
 
   return [] if !$list || ref $list ne 'ARRAY';
-  
-  if (scalar @key_names == 1){
-    return [ map { $_->{$key_names[0]} = _translate($_->{$key_names[0]}); $_ } @$list ];
+
+  if (scalar @key_names == 1) {
+    return [ map {$_->{$key_names[0]} = _translate($_->{$key_names[0]});
+      $_} @$list ];
   }
-  
-  for (@$list){
-    foreach my $key_name (@key_names){
+
+  for (@$list) {
+    foreach my $key_name (@key_names) {
       $_->{$key_name} = _translate($_->{$key_name});
     }
   }
@@ -137,15 +138,15 @@ sub translate_list_value {
 #**********************************************************
 sub translate_list_simple {
   my ($list, @name_keys) = @_;
-  
+
   $name_keys[0] //= 'name';
-  
-  foreach my $line (@$list){
-    foreach ( @name_keys ) {
+
+  foreach my $line (@$list) {
+    foreach (@name_keys) {
       $line->{$_} = translate_simple($line->{$_}) if ($line->{$_});
     }
   }
-  
+
   return $list;
 }
 
@@ -156,14 +157,14 @@ sub translate_list_simple {
 #**********************************************************
 sub translate_simple {
   my $text = shift || return '';
-  
-  while ( $text =~ /\_\{(\w+)\}\_/g ) {
+
+  while ($text =~ /\_\{(\w+)\}\_/xmg) {
     my $to_translate = $1 or next;
     my $translation = $lang{$to_translate} // "{$to_translate}";
-    
-    $text =~ s/\_\{$to_translate\}\_/$translation/sg;
+
+    $text =~ s/\_\{$to_translate\}\_/$translation/xsg;
   }
-  
+
   return $text
 }
 
@@ -209,12 +210,12 @@ sub is_not_empty_array_ref {
 #**********************************************************
 sub arrays_array2table {
   my ($lines_array) = @_;
-  
+
   my $table = '<table class="table table-hover">';
-  
+
   $table .= join('', map {
-      "<tr><td><strong>$_->[0]</strong></td><td>" . ($_->[1] || q{}) . ' </td></tr>'
-    } @{ $lines_array });
+    "<tr><td><strong>$_->[0]</strong></td><td>" . ($_->[1] || q{}) . ' </td></tr>'
+  } @{$lines_array});
 
   $table .= '</table>'
 }
@@ -229,31 +230,31 @@ sub arrays_array2table {
 sub compare_hashes_deep {
   my ($hash1, $hash2) = @_;
   return 0 unless ($hash1 && $hash2);
-  
+
   my @differences = ();
-  
-  my @keys1 = sort keys (%{$hash1});
-  my @keys2 = sort keys (%{$hash2});
-  
-  if ( $#keys1 != $#keys2 ) {
+
+  my @keys1 = sort keys(%{$hash1});
+  my @keys2 = sort keys(%{$hash2});
+
+  if ($#keys1 != $#keys2) {
     return [ 'Number of keys differs ' . join(',', @keys1) . ' -  ' . join(',', @keys2) ];
   }
-  
-  for ( 0 .. $#keys1 ) {
+
+  for (0 .. $#keys1) {
     my $first_val = $hash1->{$keys1[$_]};
     my $second_val = $hash2->{$keys2[$_]};
-    
-    if ( ref $first_val && ref $second_val ) {
+
+    if (ref $first_val && ref $second_val) {
       my $diff2 = compare_hashes_deep($first_val, $second_val);
       push @differences, @{$diff2} if scalar(@{$diff2} > 0);
     }
-    elsif ( !ref $first_val && !ref $second_val ) {
-      if ( $first_val ne $second_val ) {
+    elsif (!ref $first_val && !ref $second_val) {
+      if ($first_val ne $second_val) {
         push @differences, "hash1->{$keys1[$_]}($first_val) ne hash2->{$keys2[$_]}($second_val)";
       }
     }
   }
-  
+
   return \@differences;
 }
 #**********************************************************
@@ -263,36 +264,35 @@ sub compare_hashes_deep {
 #**********************************************************
 sub make_select_from_db_table {
   my ($module_obj, $module_name, $entity_name, $select_name, $attr_) = @_;
-  
+
   return sub {
-    my $attr  = { %{$attr_ || {} }, %{ shift || {} } };
-    
+    my $attr = { %{$attr_ || {}}, %{shift || {}} };
+
     my $name = ($attr->{NAME} || $attr_->{NAME} || $select_name || 'INVALID_SELECT_NAME');
-    
+
     my $selected = $attr->{SELECTED} || $FORM{$name} || '';
     my $object_list_function = $entity_name . "_list";
-    
+
     my $list = $module_obj->$object_list_function({
       ID        => '_SHOW',
       NAME      => '_SHOW',
-      %{ $attr_->{FILTERS} // {} },
+      %{$attr_->{FILTERS} // {}},
       PAGE_ROWS => 10000
     });
     _error_show($module_obj);
-    
-    if ($attr->{FORMAT_LIST} && ref $attr->{FORMAT_LIST} eq 'CODE'){
+
+    if ($attr->{FORMAT_LIST} && ref $attr->{FORMAT_LIST} eq 'CODE') {
       $list = $attr->{FORMAT_LIST}->($list);
     }
-    
-    if ($attr->{_TRANSLATE}){
+
+    if ($attr->{_TRANSLATE}) {
       $list = translate_list($list);
     }
-    
-    if (!$attr->{NO_EMPTY_FIRST}){
-      $attr->{SEL_OPTIONS} = {'' => ''};
+
+    if (!$attr->{NO_EMPTY_FIRST}) {
+      $attr->{SEL_OPTIONS} = { '' => '' };
     }
-    
-    
+
     return $html->form_select(
       $select_name,
       {
@@ -301,10 +301,9 @@ sub make_select_from_db_table {
         NO_ID          => 1,
         MAIN_MENU      => !$attr->{NO_EXT_MENU} ? get_function_index(lc($module_name) . '_' . $entity_name) : '',
         MAIN_MENU_ARGV => !$attr->{NO_EXT_MENU} ? ($selected ? 'chg=' . $selected : '') : '',
-        %{ $attr // {} }
+        %{$attr // {}}
       }
     );
-    
   }
 }
 
@@ -322,15 +321,15 @@ sub make_select_from_db_table {
 =cut
 #**********************************************************
 sub make_select_from_hash {
-  my ( $name, $hash_ref, $attr ) = @_;
-  
+  my ($name, $hash_ref, $attr) = @_;
+
   $html->form_select($name, {
-      SELECTED => $FORM{$name} || '',
-      SEL_HASH => $hash_ref,
-      SORT_KEY => 1,
-      NO_ID       => 1,
-      %{ $attr // {} }
-    });
+    SELECTED => $FORM{$name} || '',
+    SEL_HASH => $hash_ref,
+    SORT_KEY => 1,
+    NO_ID    => 1,
+    %{$attr // {}}
+  });
 }
 
 #**********************************************************
@@ -347,14 +346,14 @@ sub make_select_from_hash {
 =cut
 #**********************************************************
 sub make_select_from_list {
-  my ( $name, $arr_ref, $attr ) = @_;
-  
-  $html->form_select($name, {
-      SELECTED => $FORM{$name} || '',
-      SEL_LIST => $arr_ref,
-      NO_ID       => 1,
-      %{ $attr // {} }
-    });
+  my ($name, $arr_ref, $attr) = @_;
+
+  return $html->form_select($name, {
+    SELECTED => $FORM{$name} || '',
+    SEL_LIST => $arr_ref,
+    NO_ID    => 1,
+    %{$attr // {}}
+  });
 }
 
 #**********************************************************
@@ -371,14 +370,14 @@ sub make_select_from_list {
 =cut
 #**********************************************************
 sub make_select_from_arr_ref {
-  my ( $name, $arr_ref, $attr ) = @_;
-  
-  $html->form_select($name, {
-      SELECTED  => $FORM{$name} || '',
-      SEL_ARRAY => $arr_ref,
-      NO_ID       => 1,
-      %{ $attr // {} }
-    });
+  my ($name, $arr_ref, $attr) = @_;
+
+  return $html->form_select($name, {
+    SELECTED  => $FORM{$name} || '',
+    SEL_ARRAY => $arr_ref,
+    NO_ID     => 1,
+    %{$attr // {}}
+  });
 }
 
 #**********************************************************
@@ -388,18 +387,18 @@ sub make_select_from_arr_ref {
 #**********************************************************
 sub function_button {
   my ($text, $fn_name, $chg_id, $attr) = @_;
-  
+
   my $fn_index = get_function_index($fn_name);
-  if (!$fn_index){
+  if (!$fn_index) {
     return "$lang{ERROR} : $lang{FUNCTION} $fn_name $lang{ERR_NOT_EXISTS}";
   }
-  
+
   my $link_params = '';
   my $chg_param = $attr->{ID_PARAM} || 'chg';
-  if ( $chg_id ) {
+  if ($chg_id) {
     $link_params = "&$chg_param=$chg_id";
   }
-  
+
   return $html->button($text, "index=$fn_index$link_params", $attr);
 }
 
@@ -426,26 +425,26 @@ sub function_button {
 #**********************************************************
 sub run_in_background {
   my ($command, $args, $attr) = @_;
-  
+
   require Abills::Sender::Browser;
   Abills::Sender::Browser->import();
-  
+
   my Abills::Sender::Browser $Browser = Abills::Sender::Browser->new(\%conf);
-  
-  my $sended = $Browser->json_request( {
+
+  my $sended = $Browser->json_request({
     MESSAGE => {
       TYPE    => 'COMMAND',
       AID     => $admin->{AID},
       PROGRAM => $command,
       ARGS    => $args,
-      %{ $attr || {} }
+      %{$attr || {}}
     }
   });
-  
-  if ($sended && !$attr->{SILENT}){
+
+  if ($sended && !$attr->{SILENT}) {
     $html->message('callout', $lang{SENT}, $command);
   }
-  
+
   return 1;
 }
 
@@ -467,27 +466,27 @@ sub run_in_background {
 #**********************************************************
 sub get_checkboxes_form_html {
   my ($checkbox_name, $list, $checked_hash, $form_main_attr, $attr) = @_;
-  
+
   $attr //= {};
-  
+
   my $checkboxes_html = join('',
     map {
       $html->element('div',
         $html->element('label',
           $html->form_input($checkbox_name, $_->{id}, {
-              TYPE          => 'checkbox',
-              STATE         => $checked_hash->{$_->{id}},
-              OUTPUT2RETURN => 1
-            })
+            TYPE          => 'checkbox',
+            STATE         => $checked_hash->{$_->{id}},
+            OUTPUT2RETURN => 1
+          })
             . $html->element('strong', $_->{name}, { OUTPUT2RETURN => 1 })
         ),
         { class => 'checkbox', OUTPUT2RETURN => 1 }
       )
     } @{$list}
   );
-  
+
   return $checkboxes_html if ($attr->{SKIP_FORM});
-  
+
   return $html->form_main({
     CONTENT       => $checkboxes_html,
     OUTPUT2RETURN => 1,

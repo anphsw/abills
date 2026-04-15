@@ -1,0 +1,36 @@
+#!/usr/bin/expect
+
+set timeout 300
+
+if { $argc < 3 } {
+  puts "Usage: bdcom.backup <ip> <login> <password>"
+  exit 1
+}
+
+set ip [lindex $argv 0]
+set login [lindex $argv 1]
+set password [lindex $argv 2]
+set port [lindex $argv 3]
+
+spawn telnet $ip
+
+expect "Username:*"
+send "$login\r"
+
+expect "Password:*"
+send "$password\r"
+
+expect "*>"
+send "enable\r"
+
+expect "*#"
+send "terminal length 0\r"
+
+expect "*#"
+send "show running-config | exclude bind-onu\r"
+
+expect "*#"
+send "exit\r"
+
+expect "*>"
+send "exit\r"

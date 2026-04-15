@@ -517,6 +517,7 @@ FIELD
     [ 'WIDTH',                         'INT',  'm.width',                         1 ],
     [ 'HEIGHT',                        'INT',  'm.height',                        1 ],
     [ 'CONT_NUM_EXTRA_PORTS',          'INT',  'm.cont_num_extra_ports',          1 ],
+    [ 'SNMP_TIMEOUT',                  'INT',  'i.snmp_timeout',                  1 ],
     [ 'USERS',                         'INT',  'COUNT(im.uid)',            'COUNT(im.uid) AS users' ],
     [ 'USERS_ONLINE',                  'INT',  'COUNT(io.uid)',     'COUNT(io.uid) AS users_online' ]
   );
@@ -995,263 +996,6 @@ SQL
   return $self;
 }
 
-#**********************************************************
-=head2 equipment_box_type_add($attr)
-
-  Arguments:
-    $attr
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_type_add {
-  my ($self, $attr) = @_;
-
-  $self->query_add('equipment_box_types', $attr);
-  return [] if ($self->{errno});
-
-  $admin->system_action_add("card TYPES: $self->{INSERT_ID}", { TYPE => 1 });
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_type_info()
-
-  Arguments:
-    $attr
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_type_info {
-  my ($self, $id) = @_;
-
-  $self->query('SELECT * FROM equipment_box_types WHERE id= ? ;',
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_type_del($id)
-
-  Arguments:
-    $id
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_type_del {
-  my ($self, $id) = @_;
-
-  $self->query_del('equipment_box_types', { ID => $id });
-
-  return [] if ($self->{errno});
-
-  $admin->system_action_add("card TYPES: $id", { TYPE => 10 });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_type_change($id)
-
-  Arguments:
-    $id
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_type_change {
-  my ($self, $attr) = @_;
-
-  $attr->{DISABLE} = (!defined($attr->{DISABLE})) ? 0 : 1;
-
-  $self->changes({
-    CHANGE_PARAM => 'ID',
-    TABLE        => 'equipment_box_types',
-    DATA         => $attr
-  });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_type_list($id)
-
-  Arguments:
-    $id
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_type_list {
-  my ($self, $attr) = @_;
-
-  my $WHERE = $self->search_former($attr, [
-    [ 'MARKING', 'STR', 'marking', ],
-    [ 'VENDOR', 'STR', 'vendor', ],
-  ],
-    { WHERE => 1 }
-  );
-
-  my $sql = <<"SQL";
-SELECT marking, vendor, units, width, hieght, length, diameter, id
-FROM equipment_box_types
-$WHERE
-SQL
-
-  $self->query_list($sql, $attr);
-
-  return [] if ($self->{errno});
-
-  my $list = $self->{list};
-
-  if ($self->{TOTAL} >= 0) {
-    $self->query("SELECT COUNT(id) AS total FROM equipment_box_types $WHERE",
-      undef, { INFO => 1 });
-  }
-
-  return $list;
-}
-
-#**********************************************************
-=head2 equipment_box_add($attr)
-
-  Arguments:
-    $attr
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_add {
-  my ($self, $attr) = @_;
-
-  $self->query_add('equipment_boxes', $attr);
-  return [] if ($self->{errno});
-
-  $admin->system_action_add("card TYPES: $self->{INSERT_ID}", { TYPE => 1 });
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_info($attr)
-
-  Arguments:
-    $id
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_info {
-  my ($self, $id) = @_;
-
-  $self->query("SELECT * FROM equipment_boxes WHERE id= ? ;",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_del($attr)
-
-  Arguments:
-    $id
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_del {
-  my ($self, $id) = @_;
-
-  $self->query_del('equipment_boxes', { ID => $id });
-
-  return [] if ($self->{errno});
-
-  $admin->system_action_add("card: $id", { TYPE => 10 });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_change($attr)
-
-  Arguments:
-    $attr
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_change {
-  my ($self, $attr) = @_;
-
-  $attr->{DISABLE} = (!defined($attr->{DISABLE})) ? 0 : 1;
-
-  $self->changes({
-    CHANGE_PARAM => 'ID',
-    TABLE        => 'equipment_boxes',
-    DATA         => $attr
-  });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 equipment_box_list($attr)
-
-  Arguments:
-    $attr
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub equipment_box_list {
-  my ($self, $attr) = @_;
-
-  my $WHERE = $self->search_former($attr, [
-    [ 'SERIAL', 'STR', 'serial', ],
-    [ 'VENDOR', 'STR', 'vendor', ],
-  ],
-    { WHERE => 1 }
-  );
-
-  my $sql = <<"SQL";
-SELECT b.serial, bt.marking, b.datetime, b.id
-FROM equipment_boxes b
-LEFT JOIN equipment_box_types bt ON (b.type_id=bt.id)
-$WHERE
-SQL
-
-
-  $self->query_list($sql, $attr);
-
-  return [] if ($self->{errno});
-
-  my $list = $self->{list} || [];
-
-  if ($self->{TOTAL} >= 0) {
-    $self->query("SELECT COUNT(id) AS total FROM equipment_box_types $WHERE",
-      undef, { INFO => 1 });
-  }
-
-  return $list;
-}
 
 #**********************************************************
 =head2 extra_port_update($attr)
@@ -2177,7 +1921,7 @@ WHERE
     [ 'ONU_GRAPH',        'STR', 'onu.onu_graph',                 1 ],
     [ 'NAS_ID',           'STR', 'p.nas_id',                      0 ],
     [ 'NAS_NAME',         'STR', 'n.name', 'n.name AS nas_name'     ],
-    [ 'NAS_IP',           'STR', 'INET_NTOA(n.ip) AS nas_ip',     1 ],
+    [ 'NAS_IP',           'STR', 'INET_NTOA(n.ip)', 'INET_NTOA(n.ip) AS nas_ip' ],
     [ 'PON_TYPE',         'STR', 'p.pon_type',                    0 ],
     [ 'OLT_PORT',         'STR', 'p.id',                          0 ],
     [ 'ONU_SNMP_ID',      'INT', 'onu.onu_snmp_id',               1 ],
@@ -2283,6 +2027,7 @@ sub onu_date_status {
 
   my @WHERE_RULES = ();
 
+
   if ($attr->{RX_POWER_SIGNAL} && $attr->{RX_POWER_SIGNAL} eq 'BAD'){
     my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
     my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
@@ -2354,12 +2099,16 @@ sub pon_onus_report {
 
   my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
   my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
+  my $level_max_worth = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MAX} : -10;
+  my $level_min_worth = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MIN} : -27;
 
   my $sql = <<"SQL";
 SELECT
   COUNT(*) onu_count,
   SUM($onu_status_where) active_onu_count,
-  SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min)) bad_onu_count
+  SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min)) bad_onu_count,
+  SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max_worth OR onu.onu_rx_power < $level_min_worth)) worth_onu_count,
+  SUM(onu.onu_status IN ('30')) unactivated
 FROM equipment_pon_onu onu
        LEFT JOIN equipment_pon_ports p ON (onu.port_id=p.id)
        LEFT JOIN equipment_infos i ON (p.nas_id = i.nas_id)
@@ -3054,10 +2803,9 @@ WHERE el.mac IN (
   GROUP BY mac
   HAVING COUNT(*) > 1
 )
-ORDER BY el.mac;
 SQL
 
-  $self->query_list($sql, { Bind => [ $attr->{NAS_ID} ], COLS_UPPER => 1 });
+  $self->query_list($sql, { Bind => [ $attr->{NAS_ID} ], COLS_UPPER => 1, SORT => 'el.mac' });
 
   return $self->{list} || [];
 }

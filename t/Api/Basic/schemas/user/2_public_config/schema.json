@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "publicConfig",
   "type": "object",
   "properties": {
     "auth": {
@@ -75,7 +76,7 @@
           "type": "integer"
         }
       },
-      "required": ["facebook", "google", "apple"]
+      "required": [ ]
     },
     "socialAuth": {
       "type": "object",

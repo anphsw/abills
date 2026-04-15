@@ -356,6 +356,7 @@ sub make_request {
 
   my $request;
 
+  #TODO: use web_request already added support of files
   if($params->{RAW_BODY}){
     delete $params->{RAW_BODY};
 

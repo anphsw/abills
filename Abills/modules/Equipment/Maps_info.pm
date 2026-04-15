@@ -261,7 +261,6 @@ sub pon_maps {
     UID         => '_SHOW',
     RX_POWER    => '_SHOW',
     NAS_NAME    => '_SHOW',
-    COLS_NAME   => 1,
     PAGE_ROWS   => 100000
   });
   ::_error_show($Equipment);
@@ -272,6 +271,8 @@ sub pon_maps {
   my @builds_without_coords = ();
 
   foreach my $point (@{$equipment_list}) {
+    next if (! $point->{build_id});
+
     my ($color, $row_color) = _pon_state($point->{rx_power});
 
     my @address_info = ();

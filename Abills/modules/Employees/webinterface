@@ -2863,7 +2863,7 @@ sub employees_start_page {
 #**********************************************************
 sub employees_cash_balance_total {
 
-  my $employees_cash = $Employees->employees_payments_cashbox({ AID => $admin->{AID}, COLS_NAME => 1 });
+  my $employees_cash = $Employees->employees_payments_cashbox({ AID => $admin->{AID}, _MULTI_HIT => 1, COLS_NAME => 1 });
   return if ( !$Employees->{TOTAL} );
 
   my @ids;
@@ -2922,7 +2922,7 @@ sub employees_cashbox_admin_payment {
       $employees_cash_all = $Employees->employees_payments_cashbox({ COLS_NAME => 1 });
     }
   }
-  my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash});
+  my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash, _MULTI_HIT => 1});
 
   #  get default cash for current admin
   my $cashbox_id = '';

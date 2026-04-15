@@ -19,10 +19,10 @@ post:
     required: true
   responses:
     200:
-      description: успешное выполнение
+      description: Успешное выполнение
       content:
         application/json:
           schema:
-            $ref: "../schemas/addUserResponse200.yaml"
+            $ref: "../schemas/user.yaml"
   security:
     - KEY: []

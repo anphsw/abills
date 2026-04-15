@@ -230,11 +230,12 @@ sub paysys_edrpou_check {
 
   my $uid = (!$Companies->{errno} && scalar @{$company}) ? ($company->[0]->{company_admin} || $company->[0]->{uid}) : '';
 
-  return $uid if (!$uid || $CHECK_FIELD eq 'UID');
+  return $uid if (!$uid && $check_field eq 'EDRPOU');
 
   my $users = $Users->list({
     $CHECK_FIELD => '_SHOW',
-    UID          => $uid,
+    TAX_NUMBER   => (!$uid && $check_field eq 'TAX_NUMBER') ?  $edrpou : '_SHOW',
+    UID          => (!$uid) ? '_SHOW' : $uid,
     FIO          => '_SHOW',
     LOGIN        => '_SHOW',
     COLS_NAME    => 1,

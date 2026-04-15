@@ -220,7 +220,10 @@ sub form_user_banner {
   my ($user_info)=@_;
 
   require Control::Services;
-  my $service_info = get_services($user_info, {});
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $service_info = $Services->get_services($user_info, { FORM => \%FORM });
   my $pre_info = '';
 
   foreach my $service (@{$service_info->{list}}) {
@@ -306,7 +309,10 @@ sub get_pay_sum {
   }
 
   require Control::Services;
-  my $service_info = get_services($user_info, {});
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $service_info = $Services->get_services($user_info, { FORM => \%FORM });
 
   my $sum = 0;
   foreach my $service (@{$service_info->{list}}) {
@@ -435,12 +441,14 @@ sub form_user_info {
         ex_params => "data-tooltip='$lang{USER_PORTAL}' data-tooltip-position='top' target='_blank'"
       });
 
-    my Users $user_i = $users->info($uid, { SHOW_PASSWORD => 1 });
+    #my Users $user_i = $users->info($uid, { SHOW_PASSWORD => 1 });
+    my $u_list = $users->list({ UID => $uid, PASSWORD => '_SHOW', _SKIP_TOTAL =>1, COLS_NAME => 1, PAGE_ROWS => 1 });
+
     my $copy_btn = $html->button("", "", {
       class     => 'btn btn-sm btn-default',
       ICON      => 'fa fa-copy',
       ex_params => "data-tooltip='$lang{COPY} $lang{PASSWD}' data-tooltip-position='top'",
-      COPY      => $user_i->{PASSWORD},
+      COPY      => $u_list->[0]{password},
     });
 
     $user_info->{PASSWORD} = $html->element('div', $show_btn . $chg_btn . $copy_btn . $portal_btn, { class => 'btn-group' });
@@ -483,14 +491,15 @@ sub form_user_info {
       my $Payments = Finance->payments($db, $admin, \%conf);
 
       my $last_payments = $Payments->list({
-        DATETIME  => '_SHOW',
-        SUM       => '_SHOW',
-        DESCRIBE  => '_SHOW',
-        UID       => $uid,
-        DESC      => 'desc',
-        SORT      => 1,
-        PAGE_ROWS => 1,
-        COLS_NAME => 1
+        DATETIME    => '_SHOW',
+        SUM         => '_SHOW',
+        DESCRIBE    => '_SHOW',
+        UID         => $uid,
+        DESC        => 'desc',
+        SORT        => 1,
+        PAGE_ROWS   => 1,
+        _SKIP_TOTAL => 1,
+        COLS_NAME   => 1
       });
 
       my $last_date_payments = '';
@@ -501,14 +510,15 @@ sub form_user_info {
       }
 
       my $last_fees = $Fees->list({
-        DATETIME  => '_SHOW',
-        SUM       => '_SHOW',
-        DESCRIBE  => '_SHOW',
-        UID       => $uid,
-        DESC      => 'desc',
-        SORT      => 1,
-        PAGE_ROWS => 1,
-        COLS_NAME => 1
+        DATETIME    => '_SHOW',
+        SUM         => '_SHOW',
+        DESCRIBE    => '_SHOW',
+        UID         => $uid,
+        DESC        => 'desc',
+        SORT        => 1,
+        _SKIP_TOTAL => 1,
+        PAGE_ROWS   => 1,
+        COLS_NAME   => 1
       });
 
       my $last_date_fees = '';
@@ -866,8 +876,11 @@ sub form_user_change {
 
     if ($user_info->{DISABLE} && $user_info->{DISABLE} == 3 && $form->{DISABLE} == 0) {
       require Control::Services;
+      Control::Services->import();
+      my $Services = Control::Services->new($db, $admin, \%conf);
+
       my $action = 0;
-      service_status_change($user_info,
+      $Services->service_status_change($user_info,
         $action,
         {
           DATE      => $DATE,
@@ -979,7 +992,7 @@ sub form_user_add {
     require Referral;
     Refferal->import();
     my $Referral = Referral->new($db, $admin, \%conf);
-    $Referral->change_request({
+    $Referral->request_change({
       ID           => $FORM{REFERRAL_REQUEST},
       REFERRAL_UID => $user_info->{UID},
     });
@@ -1525,12 +1538,29 @@ sub user_pi {
 
     #$user_pi->{DOCS_TEMPLATE} = $html->tpl_show(templates('form_box_contract'), { %{$user_pi}, %{$attr} }, { OUTPUT2RETURN => 1 });
 
-    $user_pi->{BTN_FIO_COPY} = $html->button('', '', {
-      COPY      => $user_pi->{FIO} || ' ',
-      ADD_ICON  => 'fa fa-clone',
-      class     => 'btn btn-default py-1 px-2 my-n3 m-1',
-      ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
-    });
+    if ($user_pi->{FIO}){
+      $user_pi->{BTN_FIO_COPY} = $html->button('', '', {
+        COPY      => $user_pi->{FIO} || ' ',
+        ADD_ICON  => 'fa fa-clone',
+        class     => 'btn btn-default py-1 px-2 my-n3 m-1',
+        ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+      });
+    }
+
+    if ($user_pi->{UID}) {
+      if ($admin->{permissions}{0} && $admin->{permissions}{0}{44}) {
+        if ($conf{PASSPORT_NEW}) {
+          $user_pi->{USER_PI_DOCS} = $html->tpl_show(templates('form_pi_docs'), { %$user_pi }, {
+            OUTPUT2RETURN => 1
+          });
+        }
+        else {
+          $user_pi->{USER_PI_DOCS} = $html->tpl_show(templates('form_pi_passport_old'), { %$user_pi }, {
+            OUTPUT2RETURN => 1
+          });
+        }
+      }
+    }
 
     my $pi_form = $html->tpl_show(templates('form_pi'), {
       FORM_ATTR => 'container-md pr-0 pl-0',
@@ -2137,8 +2167,8 @@ sub user_right_menu {
   my @items_arr = ();
 
   my $html_content = "";
-  my $qs = $ENV{QUERY_STRING};
-  $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg;
+  my $qs = $ENV{QUERY_STRING} || q{};
+  $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/xeg if ($qs ne q{});
   my $section_title = '';
   my $i = 0;
 
@@ -2441,7 +2471,7 @@ sub user_tags  {
 =cut
 #**********************************************************
 sub user_msgs_quick  {
-  my ($uid, $attr)=@_;
+  my ($uid, $attr) = @_;
 
   if (in_array('Msgs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Msgs})) {
     $conf{MSGS_QUICK_ADD} //= 'get_index=msgs_admin&add_form=1&UID=%UID%&PHONE=%PHONE%&QUICK=1&full=1&INNER_MSG=1';
@@ -2568,7 +2598,7 @@ sub user_info {
 
   #show tags
   my $user_tags = user_tags($uid);
-  my $msgs_quick = user_msgs_quick($uid, \%FORM);
+  my $msgs_quick = user_msgs_quick($uid, { %FORM });
 
   my $full_info = ($permissions{1}) ? $html->button('', "index=2&UID=$uid",
     { TITLE => $lang{PAYMENTS}, class => 'btn btn-default btn-sm', ICON => 'fa fa-plus', ex_params => 'style="color: green;"' }) : '';
@@ -3520,7 +3550,7 @@ sub form_contact_types {
 sub _user_contract_form {
   my ($attr) = @_;
 
-  my $user_pi  = $attr->{USER_PI};
+  my $user_pi = $attr->{USER_PI};
   my $uid = $user_pi->{UID};
 
   require Control::Contracts_mng;
@@ -3656,6 +3686,7 @@ sub _user_contacts_form {
     $user_pi->{CALLTO_HREF} = "callto:" . ($user_contacts_list->[0]->{value} || q{});
 
     my @quick_contacts = ();
+    my $contacts_lite = '';
     foreach my $contact (@$user_contacts_list) {
       if ($contact->{type_id} && ($contact->{type_id} == 2 || $contact->{type_id}==1)) {
         my $call_btn = $html->button($contact->{value}, '', {
@@ -3670,11 +3701,12 @@ sub _user_contacts_form {
           ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
         });
 
+        $contacts_lite .= $contact->{value}.', ' if ($contact->{value});
         push (@quick_contacts, $call_btn, $copy_btn);
       }
     }
 
-    $user_pi->{PHONE} = join(' ', @quick_contacts);
+    $user_pi->{PHONE} = (!$permissions{0}{24}) ? $contacts_lite : join(' ', @quick_contacts);
   }
 
   return $html->tpl_show(templates('form_contacts'), {
@@ -4724,6 +4756,9 @@ sub form_user_holdup {
   if ($holdup_info->{error}) {
     my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
     $html->message('err', $lang{ERROR}, $error_message, { ID => $holdup_info->{error} })
+  }
+  elsif($holdup_info->{info_message}) {
+    $html->message('info', $lang{HOLDUP}, $holdup_info->{info_message});
   }
 
   if (!$holdup_info->{DEL}) {

@@ -16,9 +16,11 @@ use Abills::Base qw(dirname cmd next_month in_array);
 use Control::Errors;
 
 use Tasks::db::Tasks;
+use Tasks::Tasks_manager;
 
 my Tasks $Tasks;
 my Control::Errors $Errors;
+my $Tasks_manager;
 
 my %permissions = ();
 
@@ -44,6 +46,8 @@ sub new {
   $Tasks = Tasks->new($db, $admin, $conf);
   $Errors = $self->{attr}->{Errors};
 
+  $Tasks_manager = Tasks::Tasks_manager->new($db, $admin, $conf, { lang => $attr->{lang} });
+
   return $self;
 }
 
@@ -55,29 +59,9 @@ sub new {
 =cut
 #**********************************************************
 sub post_tasks {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  $Tasks->add($query_params);
-  return $Tasks if $Tasks->{errno} || !$Tasks->{INSERT_ID};
-
-  my $task_id = $Tasks->{INSERT_ID};
-
-  if (!$query_params->{PATH} && $query_params->{PARENT_ID}) {
-    my $task = $Tasks->info({ ID => $query_params->{PARENT_ID} });
-    if (!$Tasks->{errno} && !$task->{PATH}) {
-      $Tasks->change({ ID => $query_params->{PARENT_ID}, PATH => $query_params->{PARENT_ID} });
-      $task->{PATH} = $query_params->{PARENT_ID};
-    }
-
-    my $path = join('/', ($task->{PATH}, $task_id));
-    $Tasks->change({ ID => $task_id, PATH => $path });
-  }
-  else {
-    $Tasks->change({ ID => $task_id, PATH => $task_id });
-  }
-
-  return $Tasks;
+  return $Tasks_manager->tasks_add($query_params);
 }
 
 #**********************************************************
@@ -88,41 +72,9 @@ sub post_tasks {
 =cut
 #**********************************************************
 sub put_tasks {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  my $old_info = $Tasks->info({ ID => $path_params->{id} });
-  my $old_path = $old_info->{PATH};
-  my $old_state = $old_info->{STATE};
-
-  if ($query_params->{STATE} && $old_state ne $query_params->{STATE}) {
-    my $subtasks = $Tasks->list({ PARENT_ID => $path_params->{id}, STATE => '0' });
-    return $Errors->throw_error(1580001) if $Tasks->{TOTAL} && $Tasks->{TOTAL} > 0;
-  }
-
-  if ($query_params->{PARENT_ID}) {
-    my $task = $Tasks->info({ ID => $query_params->{PARENT_ID} });
-    if (!$Tasks->{errno} && !$task->{PATH}) {
-      $self->district_change({ ID => $query_params->{PARENT_ID}, PATH => $query_params->{PARENT_ID} });
-      $task->{PATH} = $query_params->{PARENT_ID};
-    }
-
-    my $current_path = join('/', ($task->{PATH}, $path_params->{id}));
-
-    if ($current_path ne $old_path) {
-      $query_params->{PATH} = $current_path;
-      $Tasks->query("UPDATE tasks_main SET path = REPLACE(path, '$old_path', '$current_path') WHERE path LIKE '$old_path%';", 'do')
-    }
-  }
-  elsif (defined $query_params->{PARENT_ID}) {
-    $query_params->{PATH} = $path_params->{id};
-  }
-
-  $query_params->{CLOSED_DATE} = $main::DATE if $query_params->{STATE} && !$query_params->{CLOSED_DATE};
-
-  $Tasks->change({ %{$query_params}, ID => $path_params->{id} });
-
-  return $Tasks;
+  return $Tasks_manager->tasks_change({ %$query_params, ID => $path_params->{id} });
 }
 
 #**********************************************************

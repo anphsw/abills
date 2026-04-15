@@ -39,19 +39,21 @@
         </div>
       </div>
 
-      <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='UPLOAD_PRE'>_{PRE}_:</label>
-        <div class='col-md-8'>
-          <input type='checkbox' name='UPLOAD_PRE' id='UPLOAD_PRE' value=1 class='control-element'/>
-        </div>
-      </div>
+<!--      <div class='form-group row'>-->
+<!--        <label class='col-md-4 col-form-label text-md-right' for='UPLOAD_PRE'>_{PRE}_:</label>-->
+<!--        <div class='col-md-8'>-->
+<!--          <input type='checkbox' name='UPLOAD_PRE' id='UPLOAD_PRE' value=1 class='control-element'/>-->
+<!--        </div>-->
+<!--      </div>-->
 
       %EXTRA_ROWS%
 
+      <div id='preview-container'></div>
     </form>
   </div>
 
   <div class='card-footer'>
+    <button type='submit' class='btn btn-default float-left' id='upload-pre-button' form='ajax_upload_form'>_{PRE}_</button>
     <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>_{ADD}_</button>
   </div>
 </div>

@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -49,7 +47,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/contacts/:id/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::get_user_contacts_id,
       credentials => [
         'USER', 'USERBOT'
@@ -58,7 +55,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/contacts/push/subscribe/:id/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::post_user_contacts_push_subscribe_id,
       credentials => [
         'USER', 'PUBLIC'
@@ -67,7 +63,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/contacts/push/subscribe/:id/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::delete_user_contacts_push_subscribe_id,
       credentials => [
         'USER'
@@ -76,7 +71,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/contacts/push/subscribe/:id/:string_token/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::delete_user_contacts_push_subscribe_id_string_token,
       credentials => [
         'USER'
@@ -85,7 +79,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/contacts/push/subscribe/:id/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::get_user_contacts_push_subscribe_id,
       credentials => [
         'USER'
@@ -94,7 +87,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/contacts/push/messages/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::get_user_contacts_push_messages,
       credentials => [
         'USER'
@@ -103,7 +95,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/contacts/push/badges/:id/',
-      controller  => 'Api::Controllers::User::Contacts',
       endpoint    => \&Api::Controllers::User::Contacts::delete_user_contacts_push_badges,
       credentials => [
         'USER'

@@ -78,8 +78,11 @@ sub auth_user {
   my $res = 0;
   my $REMOTE_ADDR = $ENV{'REMOTE_ADDR'} || '';
   my $uid = 0;
-
   my $Auth;
+
+  if($REMOTE_ADDR eq '::1') {
+    $REMOTE_ADDR = '0.0.0.1';
+  }
 
   # request from apple only POST without custom prop, we dont handle query params in POST request
   $params->{external_auth} = 'Apple' if ($self->{conf}->{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/xm);
@@ -502,6 +505,10 @@ sub _passwordless_access {
 
       $user->{REMOTE_ADDR} = $remote_addr;
     }
+  }
+
+  if ($self->{conf}->{PASSWORDLESS_ACCESS_DEBUG}) {
+    `echo "IP: $remote_addr UID: $auth_uid TOTAL: $Sessions->{TOTAL}" >> $self->{conf}->{PASSWORDLESS_ACCESS_DEBUG}`;
   }
 
   $session_id= mk_unique_value(14) if ($auth_uid);

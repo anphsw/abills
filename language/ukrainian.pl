@@ -1144,6 +1144,7 @@ $lang{ERR_CONTACT_VALUE_REQUIRED} = 'Значення контакту обов&
 $lang{ERR_WRONG_CELL_PHONE_FORMAT} = 'Невірний формат мобільного телефону';
 $lang{ERR_WRONG_PHONE_FORMAT} = 'Невірний формат телефону';
 $lang{ERR_CONTACT_ID_REQUIRED} = 'ID контакту обов&#39;язковий';
+$lang{ERR_BUILD_ALREADY_EXISTS} = 'Будівля вже існує';
 
 $lang{FIXED_FEES_FREE_PERIOD}='Безкоштовний період до початку місяця';
 
@@ -1177,6 +1178,7 @@ $lang{REWRITE} = 'Перезаписати';
 $lang{PARENT_ELEMENT} = 'Батьківський елемент';
 $lang{PARENT_ELEMENT_VALUE} = 'Значення батьківського елемента';
 $lang{MANAGING_EXTERNAL_SERVICES} = 'Управління зовнішніми сервісами';
+$lang{MANAGING_PASSPORT_DATA} = 'Управління паспортними даними';
 $lang{APPLICATION_TERMINATION_CONTRACT} = 'Заява про розірвання договору';
 $lang{FORBIDDEN_PASSWORDS} = 'Заборонені паролі';
 $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Кількість дозволених неправильних спроб входу';
@@ -1188,5 +1190,21 @@ $lang{IN_TERMINATION_PROCESS} = 'В процесі розірвання';
 $lang{TERMINATED_CONTRACT} = 'Договір розірвано';
 
 $lang{EXTERNAL_CMD} = 'Зовнішня команда';
+$lang{CODEFICATION} = 'кодифікації';
+$lang{CONNECTION_TO_THE_BOT} = 'Підключення до бота';
+
+$lang{MAIN_DOCUMENT} = 'Основний документ';
+$lang{ID_CARD} = 'ID-картка';
+$lang{DRIVER_LICENSE} = 'Водійське посвідчення';
+$lang{SAVING} = 'Збереження';
+$lang{NO_DOCUMENTS} = 'Немає документів';
+$lang{DOCUMENT_EXPIRED} = 'Документ прострочено';
+$lang{EXPIRES_IN} = 'Закінчується через';
+$lang{ERROR_LOADING_LIST} = 'Помилка завантаження списку';
+$lang{CONNECTION_ERROR} = 'Помилка з’єднання';
+$lang{ERROR_LOADING_DOCUMENT} = 'Помилка завантаження документа';
+$lang{DELETING_DOCUMENT} = 'Видалення документа';
+$lang{CONFIRM_DELETE_DOCUMENT} = 'Ви впевнені, що хочете видалити цей документ?';
+$lang{DOCUMENT_DELETED} = 'Документ видалено';
 
 1;

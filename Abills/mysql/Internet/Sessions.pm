@@ -68,8 +68,8 @@ sub del {
       my $sql = <<'SQL';
 UPDATE traffic_prepaid_sum pl, internet_log l
 SET
-  traffic_in =traffic_in-(l.recv + 4294967296 * acct_input_gigawords),
-  traffic_out=traffic_out-(l.sent + 4294967296 * acct_output_gigawords)
+  traffic_in =traffic_in-(l.recv + (acct_input_gigawords << 32)),
+  traffic_out=traffic_out-(l.sent + (acct_output_gigawords << 32))
 WHERE pl.uid=l.uid
   AND l.uid= ?
   AND l.start= ?
@@ -252,7 +252,9 @@ SQL
     my $sql = <<"SQL";
 SELECT 1, COUNT(DISTINCT c.uid) AS total_users,
        SUM(IF (c.status=1 or c.status>=3, 1, 0)) AS online,
-       SUM(IF (c.status=2, 1, 0)) AS zaped
+       SUM(IF (c.status=2, 1, 0))                AS zaped,
+       SUM(IF (c.guest>0 AND c.uid>0, 1, 0))     AS guest,
+       SUM(IF (c.uid=0, 1, 0))                   AS unknown
 FROM internet_online c
   $EXT_TABLE
   $WHERE
@@ -316,7 +318,8 @@ sub online {
       $WHERE = 'WHERE c.status=2';
     }
     else {
-      $WHERE = 'WHERE ((c.status=1 OR c.status>=3) AND c.status<11)';
+      #$WHERE = 'WHERE ((c.status=1 OR c.status>=3) AND c.status<11)';
+      $WHERE = 'WHERE c.status IN (1,3,4,5,6,7,8,9,10)'
     }
 
     $self->query("SELECT COUNT(*) AS total FROM internet_online c $WHERE;", undef, { INFO => 1 });
@@ -327,7 +330,9 @@ sub online {
 SELECT SUM(IF ((c.status=1 OR c.status>=3) AND c.status<11, 1, 0)) AS online_count,
        SUM(IF (c.status=2, 1, 0))                                  AS zapped_count,
        SUM(IF (c.status=6, 1, 0))                                  AS reconnect_count,
-       SUM(IF (c.status=9, 1, 0))                                  AS recover_count
+       SUM(IF (c.status=9, 1, 0))                                  AS recover_count,
+       SUM(IF (c.guest>0 AND c.uid>0, 1, 0))                       AS guest_count,
+       SUM(IF (c.uid=0, 1, 0))                                     AS unknown_count
 FROM internet_online c $WHERE;
 SQL
 
@@ -337,7 +342,18 @@ SQL
   }
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $ORDER_BY = q{};
+  if(!$attr->{SKIP_SORT}) {
+    my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+    $ORDER_BY = qq{ ORDER BY $SORT $DESC };
+  }
+
+  my $LIMIT = '';
+  if ($attr->{LIMIT} && $attr->{PAGE_ROWS}) {
+    my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+    $LIMIT = " LIMIT $PG, $attr->{PAGE_ROWS} ";
+  }
 
   my @WHERE_RULES = ();
 
@@ -350,7 +366,8 @@ SQL
   elsif ($attr->{ALL} || ($attr->{STATUS} && $attr->{STATUS} ne '_SHOW')) {
   }
   else {
-    push @WHERE_RULES, "((c.status=1 OR c.status>=3) AND c.status<11)";
+    #push @WHERE_RULES, "((c.status=1 OR c.status>=3) AND c.status<11)";
+    push @WHERE_RULES, "c.status IN (1,3,4,5,6,7,8,9,10)";
   }
 
   if ($attr->{FILTER}) {
@@ -383,8 +400,8 @@ SQL
     ['FRAMED_IPV6_PREFIX',   'IP', 'c.framed_ipv6_prefix',  'INET6_NTOA(c.framed_ipv6_prefix) AS framed_ipv6_prefix', 1 ],
     ['FRAMED_INTERFACE_ID',  'IP', 'c.framed_interface_id', 'INET6_NTOA(c.framed_interface_id) AS ipv6_interface_id', 1 ],
     ['DELEGATED_IPV6_PREFIX','IP', 'c.delegated_ipv6_prefix', 'INET6_NTOA(c.delegated_ipv6_prefix) AS delegated_ipv6_prefix', 1 ],
-    ['ACCT_INPUT_OCTETS', 'INT', 'c.acct_input_octets + 4294967296 * acct_input_gigawords AS acct_input_octets',    1 ],
-    ['ACCT_OUTPUT_OCTETS','INT', 'c.acct_output_octets + 4294967296 * acct_output_gigawords AS acct_output_octets', 1 ],
+    ['ACCT_INPUT_OCTETS', 'INT', 'c.acct_input_octets + (acct_input_gigawords << 32) AS acct_input_octets',    1 ],
+    ['ACCT_OUTPUT_OCTETS','INT', 'c.acct_output_octets + (acct_output_gigawords << 32) AS acct_output_octets', 1 ],
     ['EX_INPUT_OCTETS',   'INT', 'c.ex_input_octets',                            1 ],
     ['EX_OUTPUT_OCTETS',  'INT', 'c.ex_output_octets',                           1 ],
     ['CID',               'STR', 'c.cid',                                        1 ],
@@ -399,6 +416,7 @@ SQL
     ['TP_ID',             'INT', 'internet.tp_id',                               1 ],
     ['SERVICE_CID',       'STR', 'internet.cid',     'internet.cid AS service_cid' ],
     ['GUEST',             'INT', 'c.guest',                                      1 ],
+    ['UNKNOWN',           'INT', 'c.uid',                                        1 ],
     ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
     ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin'             ],
     ['TURBO_END',         'STR', 'tm.start + interval tm.time second', 'tm.start + interval tm.time second AS turbo_end' ],
@@ -445,8 +463,7 @@ SQL
     ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
     ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],
     ['UID',               'INT', 'c.uid'                                           ],
-    ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - MIN(c.lupdated)', 'IF(UNIX_TIMESTAMP() > MIN(c.lupdated), UNIX_TIMESTAMP() - MIN(c.lupdated), 0) AS last_alive', 1 ],
-    ['ONLINE_BASE',       '',    '', 'c.cid, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
+    ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - c.lupdated', 'GREATEST(UNIX_TIMESTAMP() - c.lupdated, 0) AS last_alive', 1 ],
     ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
     ['TP_NUM',            'INT', 'tp.id',                         'tp.id AS tp_num'],
     ['SESSIONS_COUNT',    'INT', '',                   'COUNT(*) AS sessions_count']
@@ -484,32 +501,25 @@ SQL
 
   delete $self->{COL_NAMES_ARR};
 
-  #	my $sort_position = ($SORT-1 < 1) ? 1 : $SORT-1;
-  #  if($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ /ip/) {
-  #  	$SORT = " c.framed_ip_address+0";
-  #  }
-  my $LIMIT = '';
-  my $PG = 0;
+  # if($self->{SORT_BY}) {
+  #   $SORT = $self->{SORT_BY};
+  # }
 
-  if ($attr->{LIMIT} && $attr->{PAGE_ROWS}) {
-    $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-    $LIMIT = " LIMIT $PG, $attr->{PAGE_ROWS} ";
+  if($self->{SEARCH_FIELDS} =~ /pi\.|u\./xm || $WHERE =~ /u\./xm) {
+    $EXT_TABLE = "LEFT JOIN users u ON (u.uid=c.uid) " . $EXT_TABLE;
   }
-
-  if($self->{SORT_BY}) {
-    $SORT = $self->{SORT_BY};
+  if($self->{SEARCH_FIELDS} =~ /internet\.|tp\./xm) {
+    $EXT_TABLE = "LEFT JOIN internet_main internet ON (internet.id = c.service_id) ". $EXT_TABLE;
   }
 
   my $sql = <<"SQL";
 SELECT $self->{SEARCH_FIELDS}
     c.uid,c.nas_id,c.acct_session_id,c.user_name
 FROM internet_online c
-  LEFT JOIN users u ON (u.uid=c.uid)
-  LEFT JOIN internet_main internet ON (internet.id = c.service_id)
   $EXT_TABLE
   $WHERE
 GROUP BY $GROUP_BY
-ORDER BY $SORT $DESC
+$ORDER_BY
 $LIMIT;
 SQL
 
@@ -549,25 +559,6 @@ SQL
 
   return $self->{list} || [];
 }
-
-# #**********************************************************
-# =head2 online_join_services()
-#
-# =cut
-# #**********************************************************
-# sub online_join_services {
-#   my $self = shift;
-#
-#   $self->query(
-#     "SELECT  join_service,
-#    SUM(c.acct_input_octets) + 4294967296 * SUM(acct_input_gigawords),
-#    SUM(c.acct_output_octets) + 4294967296 * SUM(acct_output_gigawords)
-#  FROM internet_online c
-#  GROUP BY join_service;"
-#   );
-#
-#   return $self->{list};
-# }
 
 #**********************************************************
 =head2 online_del($attr) - Del online session
@@ -757,8 +748,8 @@ SELECT
   l.duration,
   l.tp_id,
   tp.name AS tp_name,
-  l.sent + 4294967296 * acct_output_gigawords AS sent,
-  l.recv + 4294967296 * acct_input_gigawords AS recv,
+  l.sent + (acct_output_gigawords << 32) AS sent,
+  l.recv + (acct_input_gigawords << 32) AS recv,
   l.recv2 AS recv2,
   l.sent2 AS sent2,
   INET_NTOA(l.ip) AS ip,
@@ -808,27 +799,27 @@ sub detail_list {
   my $GROUP;
 
   if ($attr->{PERIOD} eq 'days') {
-    $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d') AS date";
+    $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d')";
     $GROUP   = $lupdate;
     $WHERE   = '';
   }
   elsif ($attr->{PERIOD} eq 'hours') {
-    $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d %H') AS date";
+    $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d %H')";
     $GROUP   = $lupdate;
     $WHERE   = '';
   }
   elsif ($attr->{PERIOD} eq 'sessions') {
     $WHERE   = '';
-    $lupdate = "FROM_UNIXTIME(last_update) AS date";
+    $lupdate = "FROM_UNIXTIME(last_update)";
     $GROUP   = 'acct_session_id';
   }
   else {
-    $lupdate = "FROM_UNIXTIME(last_update) AS date";
+    $lupdate = "FROM_UNIXTIME(last_update)";
     $GROUP   = 'last_update';
   }
 
   my $sql = <<"SQL";
-SELECT $lupdate,
+SELECT $lupdate  AS date,
        acct_session_id,
        nas_id,
        SUM(sent1) AS sent1,
@@ -921,24 +912,24 @@ sub periods_totals {
   }
   my $sql = <<"SQL";
 SELECT
-  SUM(IF(start>=DATE_FORMAT(CURDATE(), '%Y-%m-%d 00:00:00'), sent + 4294967296 * acct_output_gigawords, 0)) AS day_sent,
-  SUM(IF(start>=DATE_FORMAT(CURDATE(), '%Y-%m-%d 00:00:00'), recv + 4294967296 * acct_input_gigawords, 0)) AS day_recv,
+  SUM(IF(start>=DATE_FORMAT(CURDATE(), '%Y-%m-%d 00:00:00'), sent + (acct_output_gigawords << 32), 0)) AS day_sent,
+  SUM(IF(start>=DATE_FORMAT(CURDATE(), '%Y-%m-%d 00:00:00'), recv + (acct_input_gigawords << 32), 0)) AS day_recv,
   SUM(IF(start>=DATE_FORMAT(CURDATE(), '%Y-%m-%d 00:00:00'), duration, 0)) AS day_duration,
 
-  SUM(IF(TO_DAYS(CURDATE()) - TO_DAYS(start) = 1, sent + 4294967296 * acct_output_gigawords, 0)) AS yesterday_sent,
-  SUM(IF(TO_DAYS(CURDATE()) - TO_DAYS(start) = 1, recv + 4294967296 * acct_input_gigawords, 0)) AS yesterday_resc,
+  SUM(IF(TO_DAYS(CURDATE()) - TO_DAYS(start) = 1, sent + (acct_output_gigawords << 32), 0)) AS yesterday_sent,
+  SUM(IF(TO_DAYS(CURDATE()) - TO_DAYS(start) = 1, recv + (acct_input_gigawords << 32), 0)) AS yesterday_resc,
   SUM(IF(TO_DAYS(CURDATE()) - TO_DAYS(start) = 1, duration, 0)) AS yesterday_duration,
 
-  SUM(IF((YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start)), sent + 4294967296 * acct_output_gigawords, 0)) AS week_sent,
-  SUM(IF((YEAR(CURDATE())=YEAR(start)) AND  WEEK(CURDATE()) = WEEK(start), recv + 4294967296 * acct_input_gigawords, 0)) AS week_resc,
+  SUM(IF((YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start)), sent + (acct_output_gigawords << 32), 0)) AS week_sent,
+  SUM(IF((YEAR(CURDATE())=YEAR(start)) AND  WEEK(CURDATE()) = WEEK(start), recv + (acct_input_gigawords << 32), 0)) AS week_resc,
   SUM(IF((YEAR(CURDATE())=YEAR(start)) AND  WEEK(CURDATE()) = WEEK(start), duration, 0)) AS week_duration,
 
-  SUM(IF(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), sent + 4294967296 * acct_output_gigawords, 0)) AS month_sent,
-  SUM(IF(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), recv + 4294967296 * acct_input_gigawords, 0)) AS month_recv,
+  SUM(IF(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), sent + (acct_output_gigawords << 32), 0)) AS month_sent,
+  SUM(IF(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), recv + (acct_input_gigawords << 32), 0)) AS month_recv,
   SUM(IF(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), duration, 0)) AS month_duration,
 
-  SUM(sent + 4294967296 * acct_output_gigawords) AS total_sent,
-  SUM(recv + 4294967296 * acct_input_gigawords)  AS total_recv,
+  SUM(sent + (acct_output_gigawords << 32)) AS total_sent,
+  SUM(recv + (acct_input_gigawords << 32))  AS total_recv,
   SUM(duration)  AS total_duration
 FROM internet_log $WHERE;
 SQL
@@ -1043,23 +1034,23 @@ SQL
 
   return 1 if ($attr->{INFO_ONLY});
 
-  my $octets_direction          = "(sent + 4294967296 * acct_output_gigawords) + (recv + 4294967296 * acct_input_gigawords) ";
+  my $octets_direction          = "(sent + (acct_output_gigawords << 32)) + (recv + (acct_input_gigawords << 32)) ";
   my $octets_direction2         = "sent2 + recv2";
   my $octets_online_direction   = "acct_input_octets + acct_output_octets";
   my $octets_online_direction2  = "ex_input_octets + ex_output_octets";
   my $octets_direction_interval = "(li.sent + li.recv)";
 
   if ($self->{INFO_LIST}->[0]->{octets_direction} == 1) {
-    $octets_direction          = "recv + 4294967296 * acct_input_gigawords ";
+    $octets_direction          = "recv + (acct_input_gigawords << 32) ";
     $octets_direction2         = "recv2";
-    $octets_online_direction   = "acct_input_octets + 4294967296 * acct_input_gigawords";
+    $octets_online_direction   = "acct_input_octets + (acct_input_gigawords << 32) ";
     $octets_online_direction2  = "ex_input_octets";
     $octets_direction_interval = "li.recv";
   }
   elsif ($self->{INFO_LIST}->[0]->{octets_direction} == 2) {
-    $octets_direction          = "sent + 4294967296 * acct_output_gigawords ";
+    $octets_direction          = "sent + (acct_output_gigawords << 32)";
     $octets_direction2         = "sent2";
-    $octets_online_direction   = "acct_output_octets + 4294967296 * acct_output_gigawords";
+    $octets_online_direction   = "acct_output_octets + (acct_output_gigawords << 32)";
     $octets_online_direction2  = "ex_output_octets";
     $octets_direction_interval = "li.sent";
   }
@@ -1145,7 +1136,7 @@ SQL
 
   if (! $CONF->{INTERNET_INTERVAL_PREPAID}) {
     #Check online
-    my $sql = <<"SQL";
+    $sql = <<"SQL";
 SELECT
   $rest{0} - SUM($octets_online_direction) / $CONF->{MB_SIZE},
   $rest{1} - SUM($octets_online_direction2) / $CONF->{MB_SIZE},
@@ -1222,8 +1213,8 @@ sub list {
       [ 'END',             'DATE','l.start+INTERVAL l.duration SECOND', 'l.start+INTERVAL l.duration SECOND AS end '],
       [ 'DURATION',        'DATE','SEC_TO_TIME(l.duration) AS duration',   1 ],
       [ 'DURATION_SEC',    'INT', 'l.duration AS duration_sec',   1],
-      [ 'SENT',            'INT', 'l.sent + 4294967296 * acct_output_gigawords AS sent', 1 ],
-      [ 'RECV',            'INT', 'l.recv + 4294967296 * acct_input_gigawords AS recv',  1 ],
+      [ 'SENT',            'INT', 'l.sent + (acct_output_gigawords << 32) AS sent', 1 ],
+      [ 'RECV',            'INT', 'l.recv + (acct_input_gigawords << 32) AS recv',  1 ],
       [ 'SENT2',           'INT', 'l.sent2',                      1],
       [ 'RECV2',           'INT', 'l.recv2',                      1],
       [ 'IP',              'IP',  'l.ip',   'INET_NTOA(l.ip) AS ip'],
@@ -1285,11 +1276,16 @@ sub list {
     $EXT_TABLE .= " INNER JOIN internet_main im ON (l.uid=im.uid)";
   }
 
+  my $table_name = 'internet_log';
+  if($attr->{TABLE_SUFIX}) {
+    $table_name .= '_' . $attr->{TABLE_SUFIX};
+  }
+
   $EXT_TABLE .= $self->{EXT_TABLES};
   $SORT = $self->{SEARCH_FIELDS_COUNT}+2 if ($SORT > $self->{SEARCH_FIELDS_COUNT}+2);
   my $sql = <<"SQL";
 SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid
-FROM internet_log l
+FROM $table_name l
 $EXT_TABLE
 $WHERE
 $HAVING
@@ -1305,12 +1301,12 @@ SQL
     $sql = <<"SQL";
 SELECT COUNT(l.uid) AS total,
        SUM(l.duration) AS duration,
-       SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_in,
-       SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_out,
+       SUM(l.sent + (acct_output_gigawords << 32)) AS traffic_in,
+       SUM(l.recv + (acct_input_gigawords << 32)) AS traffic_out,
        SUM(l.sent2) AS traffic2_in,
        SUM(l.recv2) AS traffic2_out,
        SUM(sum) AS sum
-FROM internet_log l
+FROM $table_name l
 $EXT_TABLE
 $WHERE;
 SQL
@@ -1324,16 +1320,14 @@ SQL
     $sql = <<'SQL';
 SELECT
   sum(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(l.started)) AS online_duration,
-  SUM(l.acct_input_octets) + 4294967296 * SUM(acct_input_gigawords) AS online_traffic_in,
-  SUM(l.acct_output_octets) + 4294967296 * SUM(acct_output_gigawords) AS online_traffic_out
+  SUM(l.acct_input_octets) + (SUM(acct_input_gigawords) << 32) AS online_traffic_in,
+  SUM(l.acct_output_octets) + (SUM(acct_output_gigawords) << 32) AS online_traffic_out
 FROM internet_online l
 WHERE uid = ?
 GROUP BY uid;
 SQL
 
-    $self->query($sql, undef,
-      { INFO => 1, Bind => [ $attr->{UID} ] }
-    );
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{UID} ] });
 
     $self->{TRAFFIC_IN} += $self->{ONLINE_TRAFFIC_OUT};
     $self->{TRAFFIC_OUT}+= $self->{ONLINE_TRAFFIC_IN};
@@ -1386,14 +1380,14 @@ SELECT
   MAX(l.duration) AS max_dur,
   AVG(l.duration) AS avg_dur,
   SUM(l.duration) AS total_dur,
-  MIN(l.sent + 4294967296 * acct_output_gigawords) AS min_sent,
-  MAX(l.sent + 4294967296 * acct_output_gigawords) AS max_sent,
-  AVG(l.sent + 4294967296 * acct_output_gigawords) AS avg_sent,
-  SUM(l.sent + 4294967296 * acct_output_gigawords) AS total_sent,
-  MIN(l.recv + 4294967296 * acct_input_gigawords) AS min_recv,
-  MAX(l.recv + 4294967296 * acct_input_gigawords) AS max_recv,
-  AVG(l.recv + 4294967296 * acct_input_gigawords) AS avg_recv,
-  SUM(l.recv + 4294967296 * acct_input_gigawords) AS total_recv,
+  MIN(l.sent +  (acct_output_gigawords << 32)) AS min_sent,
+  MAX(l.sent +  (acct_output_gigawords << 32)) AS max_sent,
+  AVG(l.sent +  (acct_output_gigawords << 32)) AS avg_sent,
+  SUM(l.sent +  (acct_output_gigawords << 32)) AS total_sent,
+  MIN(l.recv +  (acct_input_gigawords << 32)) AS min_recv,
+  MAX(l.recv +  (acct_input_gigawords << 32)) AS max_recv,
+  AVG(l.recv +  (acct_input_gigawords << 32)) AS avg_recv,
+  SUM(l.recv +  (acct_input_gigawords << 32)) AS total_recv,
   MIN(l.recv+l.sent) AS min_sum,
   MAX(l.recv+l.sent) AS max_sum,
   AVG(l.recv+l.sent) AS avg_sum,
@@ -1431,12 +1425,12 @@ sub reports {
     USERS_FIO       => 'u.fio',
     SESSIONS        => 'COUNT(l.uid)',
     TERMINATE_CAUSE => 'l.terminate_cause',
-    TRAFFIC_SUM     => 'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords)',
+    TRAFFIC_SUM     => 'SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32))',
     TRAFFIC_2_SUM   => 'SUM(l.sent2 + l.recv2)',
     DURATION        => 'SEC_TO_TIME(SUM(l.duration))',
     SUM             => 'SUM(l.sum)',
-    TRAFFIC_SENT    => 'SUM(l.sent + 4294967296 * acct_output_gigawords)',
-    TRAFFIC_RECV    => 'SUM(l.recv + 4294967296 * acct_input_gigawords)',
+    TRAFFIC_SENT    => 'SUM(l.sent + (acct_output_gigawords << 32))',
+    TRAFFIC_RECV    => 'SUM(l.recv + (acct_input_gigawords << 32))',
     USERS_COUNT     => 'COUNT(DISTINCT l.uid)',
     TP              => 'l.tp_id',
     COMPANIES       => 'c.name',
@@ -1491,8 +1485,8 @@ sub reports {
 
     my $sql = <<"SQL";
 SELECT
-  SUM(l.sent + 4294967296 * acct_output_gigawords) AS sent,
-  SUM(l.recv + 4294967296 * acct_input_gigawords) AS recv
+  SUM(l.sent + (acct_output_gigawords << 32)) AS sent,
+  SUM(l.recv + (acct_input_gigawords << 32)) AS recv
 FROM internet_log l
 WHERE uid= ? AND $period
 GROUP BY uid;
@@ -1526,7 +1520,7 @@ SQL
   my $fields =<< "FIELDS";
 $date, COUNT(DISTINCT l.uid) AS users_count,
       COUNT(l.uid) AS sessions_count,
-      SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS sent,
+      SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32)) AS sent,
       SUM(l.sent2 + l.recv2) AS sent2,
       SEC_TO_TIME(SUM(l.duration)),
       SUM(l.sum) AS sum
@@ -1567,7 +1561,7 @@ FIELDS
 SELECT DATE_FORMAT(l.start, '%Y-%m-%d %H') AS start,
        COUNT(DISTINCT l.uid) AS total_users,
        COUNT(l.uid) AS count,
-       SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS traffic_sum,
+       SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32)) AS traffic_sum,
        SUM(l.sent2 + l.recv2) AS traffic_2_sum,
        SUM(l.duration) AS duration_sec,
        SUM(l.sum) AS sum,
@@ -1587,7 +1581,7 @@ SQL
 SELECT DATE_FORMAT(l.start, '%Y-%m-%d') AS date,
        IF(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id) AS login,
        COUNT(l.uid) AS login_count,
-       SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS traffic_sum,
+       SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32)) AS traffic_sum,
        SUM(l.sent2 + l.recv2) AS traffic_2_sum,
        SEC_TO_TIME(SUM(l.duration)) AS duration_sec,
        SUM(l.sum) AS sum,
@@ -1640,8 +1634,8 @@ SQL
   $sql = <<"SQL";
 SELECT COUNT(DISTINCT l.uid) AS users,
        COUNT(l.uid) AS sessions,
-       SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_out,
-       SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_in,
+       SUM(l.sent + (acct_output_gigawords << 32)) AS traffic_out,
+       SUM(l.recv + (acct_input_gigawords << 32)) AS traffic_in,
        SUM(l.sent2) AS traffic_2_out,
        SUM(l.recv2) AS traffic_2_in,
        SEC_TO_TIME(SUM(l.duration)) AS duration,
@@ -1706,16 +1700,16 @@ sub reports2 {
     ['USERS_FIO',        'STR', 'u.fio',              1 ],
     ['SESSIONS',         'INT', 'COUNT(l.uid)',    'COUNT(l.uid) AS sessions' ],
     ['TERMINATE_CAUSE',  'INT', 'l.terminate_cause',  1 ],
-    ['TRAFFIC_SUM',      'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords)',
-      'SUM(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS traffic_sum' ],
+    ['TRAFFIC_SUM',      'INT', 'SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32))',
+      'SUM(l.sent + (acct_output_gigawords << 32) + l.recv + (acct_input_gigawords << 32)) AS traffic_sum' ],
     ['TRAFFIC_2_SUM',    'INT', 'SUM(l.sent2 + l.recv2)', 'SUM(l.sent2 + l.recv2) AS traffic_2_sum'       ],
     ['DURATION',         'INT', 'SEC_TO_TIME(SUM(l.duration))', 'SEC_TO_TIME(SUM(l.duration)) AS duration' ],
     ['TP_ID',            'INT', 'l.tp_id',            1 ],
     ['COMPANIES',        'STR', 'c.name',             1 ],
     ['USERS_COUNT',      'INT', '',  'COUNT(DISTINCT l.uid) AS users_count'            ],
     ['SESSIONS_COUNT',   '',    '',  'COUNT(l.uid) AS sessions_count',                    ],
-    ['TRAFFIC_RECV',     'INT', 'SUM(l.recv + 4294967296 * acct_input_gigawords)',  'SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_recv' ],
-    ['TRAFFIC_SENT',     'INT', 'SUM(l.sent + 4294967296 * acct_output_gigawords)', 'SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_sent' ],
+    ['TRAFFIC_RECV',     'INT', 'SUM(l.recv + (acct_input_gigawords << 32))',  'SUM(l.recv + (acct_input_gigawords << 32)) AS traffic_recv'  ],
+    ['TRAFFIC_SENT',     'INT', 'SUM(l.sent + (acct_output_gigawords << 32))', 'SUM(l.sent + (acct_output_gigawords << 32)) AS traffic_sent' ],
     ['DURATION_SEC',     'INT', 'SUM(l.duration)', 'SUM(l.duration) AS duration_sec'      ],
     ['SUM',              'INT', 'SUM(l.sum)',  'SUM(l.sum) AS sum'                        ],
     ['LOCATION_ID',      'INT', 'builds.id', 'builds.id AS location_id',                  ],
@@ -1847,8 +1841,8 @@ SQL
   $sql = <<"SQL";
     SELECT COUNT(DISTINCT l.uid) AS users,
       COUNT(l.uid) AS sessions,
-      SUM(l.sent + 4294967296 * acct_output_gigawords) AS traffic_out,
-      SUM(l.recv + 4294967296 * acct_input_gigawords) AS traffic_in,
+      SUM(l.sent + (acct_output_gigawords << 32)) AS traffic_out,
+      SUM(l.recv + (acct_input_gigawords << 32)) AS traffic_in,
       SUM(l.sent2) AS traffic_2_out,
       SUM(l.recv2) AS traffic_2_in,
       SUM(l.duration) AS duration_sec,

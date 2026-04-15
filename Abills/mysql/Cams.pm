@@ -209,6 +209,7 @@ sub _del {
   push @del_descr, "ID: $attr->{ID}" if $attr->{ID};
   push @del_descr, "COMMENTS: $attr->{COMMENTS}" if $attr->{COMMENTS};
 
+  $admin->{MODULE} = $MODULE;
   $admin->action_add($self->{UID}, join(' ', @del_descr), { TYPE => 10 });
 
   return $self;
@@ -388,6 +389,7 @@ sub user_add {
 
   $self->{ID} = $self->{INSERT_ID};
 
+  $admin->{MODULE} = $MODULE;
   $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
   return $self->{INSERT_ID};
@@ -805,6 +807,7 @@ sub stream_add {
     }
   }
 
+  $admin->{MODULE} = $MODULE;
   $admin->action_add(0, "CAMERA: ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
   return $self->{INSERT_ID};
@@ -835,6 +838,7 @@ sub stream_del {
   push @del_descr, "ID: $attr->{ID}" if $attr->{ID};
   push @del_descr, "COMMENTS: $attr->{COMMENTS}" if $attr->{COMMENTS};
 
+  $admin->{MODULE} = $MODULE;
   $admin->action_add(0, join(' ', @del_descr), { TYPE => 10 });
 
   return 1;

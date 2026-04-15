@@ -229,7 +229,10 @@ use constant {
     TP_ID            => {
       type     => 'custom',
       function => \&check_tp,
-    }
+    },
+    NAS_ID          => {
+      type     => 'unsigned_integer'
+    },
   }
 };
 

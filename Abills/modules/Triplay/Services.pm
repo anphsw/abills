@@ -199,11 +199,6 @@ sub user_change {
 sub user_del {
   my ($self, $attr) = @_;
 
-  delete $INC{'Control/Services.pm'};
-  eval {
-    do 'Control/Services.pm';
-  };
-
   my $user_info = $attr->{USER_INFO} || {};
   my $uid = $attr->{UID} || $user_info->{UID} || 0;
   $Triplay->user_info({ UID => $uid, ID => $attr->{ID} });

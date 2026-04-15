@@ -19,7 +19,7 @@ our (
   %conf,
   %lang,
   @MONTHES,
-  @WEEKDAYS,
+  #@WEEKDAYS,
   %ADMIN_REPORT,
   %permissions,
   %err_strs,
@@ -48,7 +48,7 @@ sub extfin_periodic_paids {
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
 
-  my (undef, undef, $D) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my (undef, undef, $D) = split(/-/x, $ADMIN_REPORT{DATE}, 3);
 
   if ($attr->{LOGIN}) {
     $Users->info(undef, {LOGIN => $attr->{LOGIN}});
@@ -1093,58 +1093,62 @@ sub extfin_sum {
 sub extfin_debetors {
 
   if ($FORM{show}) {
-    $LIST_PARAMS{DATE} = "$FORM{FROM_DATE}" if ($FORM{show} && $FORM{SEL_DATE});
+    $LIST_PARAMS{DATE} = $FORM{FROM_DATE} if ($FORM{SEL_DATE});
     $LIST_PARAMS{STATUS} = $FORM{STATUS};
   }
   else {
     $LIST_PARAMS{DATE} = $DATE;
   }
 
-  my $table = $html->table(
-    {
-      width    => '100%',
-      rowcolor => $_COLORS[0],
-      rows     => [
-        [
-          "$lang{PERIOD}: ",
-          $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld2('FROM_DATE',
-            { MONTHES => \@MONTHES }),
-          "$lang{STATUS}: "
-            . $html->form_select(
-            'STATUS',
-            {
-              SELECTED     => $FORM{STATUS},
-              SEL_ARRAY    => [ $lang{ALL}, "$lang{ENABLE}", "$lang{DISABLE}" ],
-              ARRAY_NUM_ID => 1
-            }
-          ),
-          "$lang{ROWS}: ".
+  my $table = $html->table({
+    width    => '100%',
+    rowcolor => 'bg-info',
+    rows     => [
+      [
+        "$lang{PERIOD}: ",
+        $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES }),
+        "$lang{STATUS}: "
+          . $html->form_select(
+          'STATUS',
+          {
+            SELECTED     => $FORM{STATUS},
+            SEL_ARRAY    => [ $lang{ALL}, $lang{ENABLE}, $lang{DISABLE} ],
+            ARRAY_NUM_ID => 1
+          }
+        ),
+        "$lang{ROWS}: " .
           $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 }),
-          $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' })
-        ]
-      ],
-    }
-  );
+        $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' })
+      ]
+    ]
+  });
 
   print $html->form_main({
-    CONTENT => $table->show({OUTPUT2RETURN => 1}),
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
     HIDDEN  => {
       sid   => $sid,
       index => $index,
       UID   => $FORM{UID}
-    }
+    },
+    METHOD  => 'GET'
   });
 
-  my $list = $Extfin->extfin_debetors({ %LIST_PARAMS, });
-
-  if ($Extfin->{errno}) {
-    $html->message('err', $lang{ERROR}, "[$Extfin->{errno}] $err_strs{$Extfin->{errno}}");
+  if($FORM{DEBUG}) {
+    $Extfin->{debug}=1;
   }
+
+  my $module = q{ (Internet)};
+  if(in_array('Triplay', \@MODULES)) {
+    $module = ' (Triplay)';
+    $LIST_PARAMS{MODULE}='Triplay';
+  }
+
+  my $list = $Extfin->extfin_debetors(\%LIST_PARAMS);
+  _error_show($Extfin);
 
   $table = $html->table({
     width   => '100%',
-    caption => "$lang{DEBETORS}",
-    border  => 1,
+    caption => $lang{DEBETORS},
     title   =>
       [
         '#',
@@ -1152,8 +1156,8 @@ sub extfin_debetors {
         $lang{CONTRACT_ID},
         $lang{FIO},
         $lang{REGISTRATION},
-        "$lang{STATUS}",
-        "$lang{TARIF_PLAN}",
+        $lang{STATUS},
+        $lang{TARIF_PLAN} . $module,
         $lang{DEPOSIT},
         "< 32 $lang{DAYS}",
         "33 - 64 $lang{DAYS}",
@@ -1165,7 +1169,7 @@ sub extfin_debetors {
     ID      => 'DEBETORS'
   });
 
-  my $i = 0;
+  my $i = 1;
   my $total = 0;
   my $total_sum = 0.00;
   my $total_32 = 0;
@@ -1201,16 +1205,20 @@ sub extfin_debetors {
 
     #my $deposit = $Extfin->{DEPOSITS}->{ $line->[14] };
     $table->addrow(
-      $i, $html->button($line->[1], "index=15&UID=$line->[14]"),
-      $line->[2], $line->[3], $line->[4],
-        ($line->[5] == 1) ? $html->color_mark($status[ $line->[5] ], '#FF0000') : $status[ $line->[5] ],
+      $i,
+      $html->button($line->[1], "index=15&UID=$line->[0]"),
+      $line->[2],
+      $line->[3],
+      $line->[4],
+      ($line->[5] && $line->[5] == 1) ? $html->color_mark($status[ $line->[5] ], '#FF0000') : $status[ $line->[5] ],
       $line->[6],
-        ($line->[7]) ? sprintf("%.2f", $line->[7]) : '',
-        ($line->[8]) ? sprintf("%.2f", $line->[8]) : '', @interval,
+      ($line->[7]) ? sprintf("%.2f", $line->[7]) : '',
+      ($line->[8]) ? sprintf("%.2f", $line->[8]) : '',
+      @interval,
     );
 
-    $total_sum += $line->[7] if ($line->[7] < 0);
-    $total_32_sum += $line->[8];
+    $total_sum += $line->[7] if ($line->[7] && $line->[7] < 0);
+    $total_32_sum += $line->[8] || 0;
 
     $total += ($line->[7] < 0) ? 1 : 0;
     $total_32 += ($line->[8]) ? 1 : 0;
@@ -1220,7 +1228,10 @@ sub extfin_debetors {
 
   $table->{rowcolor} = $_COLORS[2];
 
-  @interval = ($html->b($total_65), $html->b($total_97), $html->b($total_184), $html->b($total_365),
+  @interval = ($html->b($total_65),
+    $html->b($total_97),
+    $html->b($total_184),
+    $html->b($total_365),
     $html->b($total_maximum));
 
   $table->addrow(
@@ -1230,12 +1241,18 @@ sub extfin_debetors {
     @interval
   );
 
-  @interval = ($html->b(sprintf("%.2f", $total_65_sum)), $html->b(sprintf("%.2f", $total_97_sum)),
-    $html->b(sprintf("%.2f", $total_184_sum)), $html->b(sprintf("%.2f", $total_365_sum)),
-    $html->b(sprintf("%.2f", $total_maximum_sum)));
+  @interval = ($html->b(sprintf("%.2f", $total_65_sum)),
+    $html->b(sprintf("%.2f", $total_97_sum)),
+    $html->b(sprintf("%.2f", $total_184_sum)),
+    $html->b(sprintf("%.2f", $total_365_sum)),
+    $html->b(sprintf("%.2f", $total_maximum_sum))
+  );
 
-  $table->addrow("$lang{SUM}: ", '', '', '', '', '', '', $html->b(sprintf("%.2f", $total_sum)),
-    $html->b(sprintf("%.2f", $total_32_sum)), @interval);
+  $table->addrow("$lang{SUM}: ", '', '', '', '', '', '',
+    $html->b(sprintf("%.2f", $total_sum)),
+    $html->b(sprintf("%.2f", $total_32_sum)),
+    @interval
+  );
 
   print $table->show();
 

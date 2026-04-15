@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS `iptv_devices` (
   `ip_activity` int(11) unsigned NOT NULL DEFAULT '0',
   `service_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `code` VARCHAR(10) NOT NULL DEFAULT '',
+  `comments` TEXT NOT NULL,
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `service_id` (`service_id`)

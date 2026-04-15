@@ -1,0 +1,103 @@
+get:
+  tags:
+    - users
+  summary: Получить документ пользователя по ID
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/documentSingle.yaml"
+  security:
+    - KEY: []
+
+post:
+  tags:
+    - users
+  summary: Добавить новый документ пользователю
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addDocumentRequest.yaml"
+  responses:
+    200:
+      description: Документ создан
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/documentSingle.yaml"
+    400:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addDocumentResponse400.yaml"
+  security:
+    - KEY: []
+
+put:
+  tags:
+    - users
+  summary: Изменить документ пользователя
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addDocumentRequest.yaml"
+  responses:
+    200:
+      description: Документ изменен
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/documentSingle.yaml"
+  security:
+    - KEY: []
+
+delete:
+  tags:
+    - users
+  summary: Удалить документ пользователя
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Документ удален
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponseMessage200"
+    400:
+      description: Документа нет в системе
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteDocument400.yaml"
+  security:
+    - KEY: []

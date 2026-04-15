@@ -11,7 +11,7 @@ use Abills::Base qw(_bp in_array);
 use Cablecat;
 use Encode;
 
-our (%FORM, $db, %conf, $admin, %lang, %CROSS_PORT_TYPE, %CROSS_POLISH_TYPE, %CROSS_FIBER_TYPE);
+our (%FORM, $db, $admin, %lang, %CROSS_PORT_TYPE, %CROSS_POLISH_TYPE, %CROSS_FIBER_TYPE);
 our Cablecat $Cablecat;
 our Abills::HTML $html;
 our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON', 'SFP-RJ45');
@@ -159,18 +159,23 @@ sub show_box {
 
   print_links();
 
-  open(my $out, '>', 'img.png') or die "Write image $!\n";
-  binmode $out;
-  print $out $img->png;
+  my $scheme_file = 'img.png';
+  if(open(my $out, '>', $scheme_file)) {
+    binmode $out;
+    print $out $img->png;
+    close($out);
+  }
+  else {
+    print "Write image '$scheme_file' $!\n";
+    return 0;
+  }
 
   if ($FORM{print} && $FORM{print} == 1) {
-    $html->tpl_show(_include('cable_blank_print', 'Cablecat'));
-    print qq(<img src="img.png" alt="Smiley face">);
-
+    $html->tpl_show(_include('cable_blank_print', 'Cablecat'), { IMG => $scheme_file });
     return 1;
   }
 
-  print qq(<img src="img.png" alt="Smiley face">);
+  print qq(<img src="$scheme_file" alt="Smiley face">);
 
   return 1;
 }
@@ -178,12 +183,16 @@ sub show_box {
 #**********************************************************
 =head2 print_links ()
 
+  Arguments:
+
+  Results:
+
 =cut
 #**********************************************************
 sub print_links {
 
   $img->penSize(2);
-  my $letter_center = $SCHEME_OPTIONS{PAGE_WIDTH} / 2;
+  #my $letter_center = $SCHEME_OPTIONS{PAGE_WIDTH} / 2;
   my $commutations = $Cablecat->links_list({ ID => $FORM{COMMUTATION_ID}, SHOW_ALL_COLUMNS => 1, PAGE_ROWS => 10000 });
   foreach my $commutation (@{$commutations}) {
     my $element_1 = $OBJECTS{$commutation->{element_1_type}}{$commutation->{element_1_id}};
@@ -221,10 +230,19 @@ sub print_links {
       $SCHEME_OPTIONS{RIGHT_LINK_X} -= $SCHEME_OPTIONS{LINK_INDENT};
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
-=head2 size_calculations ()
+=head2 size_calculations ($object, $side, $page_was_created)
+
+  Arguments:
+    $object
+    $side
+    $page_was_created
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -258,8 +276,8 @@ sub size_calculations {
     }
   }
 
-  return 0 if $has_place;
-  return 0 if $page_was_created;
+  return 0 if ($has_place);
+  return 0 if ($page_was_created);
 
   my $last_page = $PAGES[-1];
   my $page_y = $last_page->{Y} + $SCHEME_OPTIONS{PAGE_HEIGHT} + $SCHEME_OPTIONS{PAGE_INDENT};
@@ -272,7 +290,7 @@ sub size_calculations {
     HEIGHT  => $SCHEME_OPTIONS{PAGE_HEIGHT} - $SCHEME_OPTIONS{PAGE_PADDING_BOTTOM},
   };
 
-  size_calculations($object, $side, 1);
+  return size_calculations($object, $side, 1);
 }
 
 #**********************************************************
@@ -284,7 +302,7 @@ sub _get_cables {
   my %cable_objects = ();
   my $commutation_info = $Cablecat->commutations_info($FORM{ID});
 
-  $commutation_info->{CABLE_IDS} =~ s/,/;/ if ($commutation_info->{CABLE_IDS});
+  $commutation_info->{CABLE_IDS} =~ s/,/;/x if ($commutation_info->{CABLE_IDS});
   my $cables_list = $Cablecat->cables_list({
     ID               => $commutation_info->{CABLE_IDS} || '_SHOW',
     SHOW_ALL_COLUMNS => 1,
@@ -293,8 +311,8 @@ sub _get_cables {
   });
 
   foreach my $cable (@{$cables_list}) {
-    my @fibers_colors = $cable->{fibers_colors} ? split(/,\s?/, $cable->{fibers_colors}) : [];
-    my @modules_colors = $cable->{modules_colors} ? split(/,\s?/, $cable->{modules_colors}) : [];
+    my @fibers_colors = $cable->{fibers_colors} ? split(/,\s?/x, $cable->{fibers_colors}) : [];
+    my @modules_colors = $cable->{modules_colors} ? split(/,\s?/x, $cable->{modules_colors}) : [];
 
     $cable_objects{$cable->{id}} = {
       FIBERS_COUNT   => $cable->{fibers_count},
@@ -322,8 +340,8 @@ sub _get_splitters {
   my $splitters = $Cablecat->splitters_list({ COMMUTATION_ID => $FORM{ID}, SHOW_ALL_COLUMNS => 1 });
 
   foreach my $splitter (@{$splitters}) {
-    my @fibers_colors = $splitter->{fibers_colors} ? split(/,\s?/, $splitter->{fibers_colors}) : ();
-    my @attenuation = $splitter->{attenuation} ? split(/\//, $splitter->{attenuation}) : ();
+    my @fibers_colors = $splitter->{fibers_colors} ? split(/,\s?/x, $splitter->{fibers_colors}) : ();
+    my @attenuation = $splitter->{attenuation} ? split(/\//x, $splitter->{attenuation}) : ();
 
     $splitter->{fibers_in} //= 0;
     $splitter->{fibers_out} //= 0;
@@ -355,7 +373,7 @@ sub _get_crosses {
 
   my $crosses = $Cablecat->commutation_crosses_list({ COMMUTATION_ID => $FORM{ID}, SHOW_ALL_COLUMNS => 1 });
   foreach my $cross (@{$crosses}) {
-    my @fibers_colors = $cross->{fibers_colors} ? split(/,\s?/, $cross->{fibers_colors}) : ();
+    my @fibers_colors = $cross->{fibers_colors} ? split(/,\s?/x, $cross->{fibers_colors}) : ();
 
     $cross_objects{$cross->{cross_id}} = {
       FIBERS_COUNT  => $cross->{port_finish} - $cross->{port_start} + 1,
@@ -446,9 +464,9 @@ sub _draw_base {
   return '' if !$object->{TYPE};
 
   my $function_name = $object->{TYPE} . '_print_info';
-  return if !defined(&$function_name);
+  return if (!defined(&$function_name));
 
-  &{\&{$function_name}}($object);
+  return &{\&{$function_name}}($object);
 }
 
 #**********************************************************
@@ -480,7 +498,7 @@ sub cable_print_info {
       $object->{FIBERS_START_Y} + $i * $SCHEME_OPTIONS{PORT_HEIGHT}
     );
 
-    my $modules_count = $object->{MODULES_COUNT} == 1 ? $object->{MODULES_COUNT} : $object->{MODULES_COUNT} + 1;
+    #my $modules_count = $object->{MODULES_COUNT} == 1 ? $object->{MODULES_COUNT} : $object->{MODULES_COUNT} + 1;
     my $color_index = ($i - 1) % ($#{$fibers_colors} + 1);
 
     my $fiber_color = $object->{FIBERS_COLORS} && ref $object->{FIBERS_COLORS} eq 'ARRAY' ?
@@ -523,6 +541,8 @@ sub cable_print_info {
       $lang{uc($CABLE_COLORS{$module_color} || $module_color)} || ''
     );
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -597,6 +617,8 @@ sub splitter_print_info {
 
     $fibers_count += 1;
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -642,6 +664,8 @@ sub cross_print_info {
     _print_string($object->{COLOR_X_START} + $CROSS_OPTIONS{COLOR_COLUMN_WIDTH} / 2, $text_y_coord, $fiber_color);
     $fiber_num += 1;
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -675,6 +699,8 @@ sub equipment_print_info {
     my $fiber_color = $lang{GRAY};
     _print_string($object->{COLOR_X_START} + $EQUIPMENT_OPTIONS{COLOR_COLUMN_WIDTH} / 2, $text_y_coord, $fiber_color);
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -698,7 +724,12 @@ sub _draw_column_block {
 }
 
 #**********************************************************
-=head2 _print_string ()
+=head2 _print_string ($cx, $cy, $str, $color)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -709,10 +740,19 @@ sub _print_string {
 
   $img->moveTo($cx - length(Encode::decode_utf8($str)) * 3, $cy);
   $img->string($str, $color);
+
+  return 1;
 }
 
 #**********************************************************
-=head2 _print_name ()
+=head2 _print_name ($x, $y, $name)
+
+  Arguments:
+    $x
+    $y
+    $name
+  Results:
+    TRUE or FASLE
 
 =cut
 #**********************************************************
@@ -747,6 +787,8 @@ sub _print_name {
     $img->string($fragments[2], $black);
     return;
   }
+
+  return 1;
 }
 
 1;

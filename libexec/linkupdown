@@ -59,7 +59,7 @@ use Billing;
 use Tariffs;
 use Admins;
 
-my $db = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+my $db = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, \%conf);
 my $OS = $^O;
 my $argv = parse_arguments(\@ARGV);
 

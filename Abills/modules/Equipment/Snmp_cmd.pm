@@ -128,7 +128,7 @@ sub snmp_get {
       $value = [] unless $@ eq "alarm\n";                  # propagate unexpected errors
     }
     else {
-      print "NO errors\n" if ($debug>2);
+      print "NO_ERRORS: \n" if ($debug>2);
     }
 
     $value = \@value_arr;

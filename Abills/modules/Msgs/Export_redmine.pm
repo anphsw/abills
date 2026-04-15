@@ -22,15 +22,13 @@ our $VERSION = 1.23;
 
 my $MODULE = 'Export_redmine';
 my ($json);
-my ($admin, $CONF);
+#my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-  my $db = shift;
-  ($admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
 
   my $self = {
@@ -51,7 +49,7 @@ sub new {
   $self->{project_id} = $CONF->{MSGS_REDMINE_PROJECT_ID} || '1';
   $self->{subject_prefix} = $CONF->{MSGS_REDMINE_SUBJECT_PREFIX} // '#S';
 
-  if ($self->{api_url} && $self->{api_url} !~ /\/$/) {
+  if ($self->{api_url} && $self->{api_url} !~ /\/$/xm) {
     $self->{api_url} .= '/';
   }
 
@@ -68,14 +66,49 @@ sub new {
 =cut
 #**********************************************************
 sub task_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $project_id = $attr->{PROJECT} || $self->{project_id};
-  return $self if !$project_id;
+  return $self if (!$project_id);
 
   $self->send_request({
     ACTION => "issues.json?sort=id:desc",
+  });
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 task_update() - update tasks
+
+   Attr:
+     ID - task(issue) ID
+     STATUS_ID - task status ( 1 - new, 5 - closed)
+
+   API method: https://www.redmine.org/projects/redmine/wiki/Rest_Issues
+
+   Example: $Export_redmine->task_update({ ID => 100, STATUS_ID => 5 });
+
+=cut
+#**********************************************************
+sub task_update {
+  my ($self, $attr) = @_;
+
+  my $project_id = $attr->{PROJECT} || $self->{project_id};
+  return $self if (!$project_id);
+  return $self if (!$attr->{ID});
+
+  my $data = {
+    "issue" => {
+      "status_id" => "$attr->{STATUS_ID}",
+    }
+  };
+
+  $self->send_request({
+    ACTION    => "issues/$attr->{ID}.json",
+    JSON_BODY => $data,
+    METHOD    => 'PUT',
   });
 
   return $self;
@@ -91,9 +124,7 @@ sub task_list {
 =cut
 #**********************************************************
 sub check_dublicate {
-  my $self = shift;
-  my $search_query = shift;
-  my ($attr) = @_;
+  my ($self, $search_query, $attr) = @_;
 
   my $project = $attr->{PROJECT_ID} || $self->{project_id};
 
@@ -117,7 +148,7 @@ sub check_dublicate {
         if ($task_info->{project} && $task_info->{project}{id} & $task_info->{project}{id} eq $project_info->{id}) {
           $self->{TASK_ID} = $task->{id};
           $self->{TASK_LINK} = $self->{api_url};
-          $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//;
+          $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//x;
           $self->{TASK_LINK} .= "/issues/" . $task->{id};
           return 1;
         }
@@ -145,8 +176,7 @@ sub check_dublicate {
 =cut
 #**********************************************************
 sub export_task {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $priority = $attr->{PRIORITY} || 2;
 
@@ -157,16 +187,19 @@ sub export_task {
     return $self;
   }
 
-  $attr->{MESSAGE} =~ s/\\\"/\"/g;
-  $attr->{SUBJECT} =~ s/\\\"/\"/g;
+  $attr->{MESSAGE} =~ s/\\\"/\"/xg;
+  $attr->{SUBJECT} =~ s/\\\"/\"/xg;
 
   my $data = {
     "issue" => {
+      "id"          => 11,
       "project_id"  => $attr->{PROJECT_ID} || $self->{project_id},
       "subject"     => "$self->{subject_prefix}$attr->{ID} $attr->{SUBJECT}",
       "priority_id" => $priority,
       "notes"       => 'ABillS',
       "description" => $attr->{MESSAGE}
+      # "status_id"   => $attr->{STATUS_ID} || '',
+      # "custom_fields" => [ { "id" => "9", "value" => "$attr->{ID}" } ]
     }
   };
 
@@ -193,8 +226,7 @@ sub export_task {
 =cut
 #**********************************************************
 sub task_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $task_id = $attr->{TASK_ID} || 0;
   return $self if (!$task_id);
@@ -203,6 +235,7 @@ sub task_info {
     ACTION   => "issues.json?issue_id=$task_id&status_id=*",
     METHOD   => 'GET',
   });
+
   $self->{TASK_LINK} = $self->{api_url};
   $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//x;
   $self->{TASK_LINK} .= '/issues/' . $task_id;
@@ -220,8 +253,7 @@ sub task_info {
 =cut
 #**********************************************************
 sub project_info {
-  my $self = shift;
-  my $project_id = shift;
+  my ($self, $project_id) = @_;
 
   return {} if !$project_id;
 
@@ -256,8 +288,7 @@ sub project_list {
 =cut
 #**********************************************************
 sub send_request {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $request_url = $self->{api_url};
 
@@ -266,7 +297,7 @@ sub send_request {
   delete($self->{errstr});
 
   if ($attr->{ACTION}) {
-    $request_url .= "$attr->{ACTION}";
+    $request_url .= $attr->{ACTION};
   }
 
   my @headers = ('Content-Type: application/json');
@@ -285,7 +316,7 @@ sub send_request {
     HEADERS       => \@headers,
     REQUEST_COUNT => $self->{request_count},
     CURL_OPTIONS  => ($attr->{METHOD}) ? "-X $attr->{METHOD}" : undef,
-    TPL_DIR       => $CONF->{TPL_DIR}
+    TPL_DIR       => $self->{conf}->{TPL_DIR}
   });
 
   $result = $attr->{_RESULT} if ($attr->{_RESULT});
@@ -316,7 +347,7 @@ sub send_request {
   if ($perl_scalar->{status} && $perl_scalar->{status} eq 'ERROR') {
     $self->{errno} = 1;
     $self->{error} = 1;
-    $self->{errstr} = "$perl_scalar->{error}";
+    $self->{errstr} = $perl_scalar->{error};
   }
 
   $self->{RESULT} = $perl_scalar;

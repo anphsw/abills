@@ -111,9 +111,11 @@ sub fees_last_remove {
 
    Attr:
     FINE - for start function
-    UID
+    UID - if uids are several, indicate UIDs via comma (UID=1,5,25)
     LAST_PAYMENT_MONTH - quantity last monthes
     DEBUG - if debug > 8 - is not add/remove data to database
+
+    EXAMPLE: /usr/abills/libexec/billd fees_last_remove FINE=1
 
 =cut
 #**********************************************************
@@ -125,7 +127,7 @@ sub fees_last_remove_with_fine {
 
   if ($argv->{UID}){
     $WHERE .= <<"WHERE";
-    WHERE u.uid = $argv->{UID}
+    WHERE u.uid IN ($argv->{UID})
 WHERE
   }
 
@@ -180,9 +182,11 @@ SQL
         $has_fine = 1;
       }
       if ($fee->{id} && $fee->{method_id} == 1) {
-        $Fees->del({ UID => $user->{uid} }, $fee->{id}) if ($argv->{DEBUG} && $argv->{DEBUG} < 7);
+        if (!$argv->{DEBUG} || $argv->{DEBUG} && $argv->{DEBUG} < 7){
+          $Fees->del({ UID => $user->{uid} }, $fee->{id});
+        }
         if (!_error_show($Fees) && $argv->{DEBUG}){
-          print "UID:$user->{uid} $lang{DELETED} FEE_ID:$fee->{id} $lang{DATE}:$user->{last_fee_date}\n";
+          print "UID:$user->{uid} $lang{DELETED} FEE_ID:$fee->{id}\n";
         }
       }
     }
@@ -193,7 +197,7 @@ SQL
     if ($monthes && $user->{status} < 6){
       if ($monthes <= 11) {
         $fine = ($has_fine) ? $user->{fine_sum} : $user->{fine_total};
-        if ($argv->{DEBUG} && $argv->{DEBUG} < 7){
+        if (!$argv->{DEBUG} || $argv->{DEBUG} && $argv->{DEBUG} < 7){
           $users->change($user->{uid}, { DISABLE => 5 }) if ($user->{status} < 5);
           $Fees->take({ UID => $user->{uid}, BILL_ID => $user->{bill_id}}, $fine, {
             DESCRIBE => "$lang{FINE} $monthes $lang{MONTHES_A2}",
@@ -206,7 +210,7 @@ SQL
         if ($has_fine == 0) {
           $monthes = 12;
           $fine = $user->{fine_sum} * $monthes;
-          if ($argv->{DEBUG} && $argv->{DEBUG} < 7) {
+          if (!$argv->{DEBUG} || $argv->{DEBUG} && $argv->{DEBUG} < 7) {
             $Fees->take({ UID => $user->{uid}, BILL_ID => $user->{bill_id} }, $fine, {
               DESCRIBE => "$lang{FINE} $monthes $lang{MONTHES_A2}",
               METHOD   => 2

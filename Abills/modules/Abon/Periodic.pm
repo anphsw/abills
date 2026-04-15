@@ -94,12 +94,18 @@ sub abon_periodic {
         BILL_ID => $u->{BILL_ID}
       );
 
-      my $period_dates = get_period_dates({
+      my %PARAMS = (
+        METHOD   => $u->{FEES_TYPE},
+        DATE     => $cur_date
+      );
+
+      ($PARAMS{START_DATE}, $PARAMS{END_DATE}) = get_period_dates({
         TYPE         => $u->{PERIOD},
-        START_PERIOD => $cur_date
+        START_DATE   => $cur_date,
+        MULTI_VALUE  => 1
       });
 
-      my $describe = fees_dsc_former({
+      $PARAMS{DESCRIBE} = fees_dsc_former({
         TEMPLATE_KEY_NAME => 'ABON_FEES_DSC',
         SERVICE_NAME      => $lang{ABON},
         FEES_PERIOD_MONTH => ($u->{PERIOD} ? $lang{MONTH} : ''),
@@ -107,14 +113,8 @@ sub abon_periodic {
         TP_NAME           => $u->{TP_NAME},
         TP_ID             => $u->{TP_ID},
         EXTRA             => $u->{COMMENTS},
-        PERIOD            => $period_dates || (!$u->{PERIOD} ? $DATE : ''), # If period is DAY, show current date
+        PERIOD            => ($PARAMS{START_DATE} && $PARAMS{END_DATE}) ? "($PARAMS{START_DATE}-$PARAMS{END_DATE})" : (!$u->{PERIOD} ? $DATE : ''), # If period is DAY, show current date
       });
-
-      my %PARAMS = (
-        DESCRIBE => $describe,
-        METHOD   => $u->{FEES_TYPE},
-        DATE     => $cur_date
-      );
 
       $u->{CREDIT} = 0 if (!$u->{CREDIT});
 
@@ -147,6 +147,8 @@ sub abon_periodic {
         if (defined($u->{DEPOSIT}) && ($u->{DEPOSIT} + $u->{CREDIT} > 0 || $u->{PAYMENT_TYPE} == 1) && $u->{DISABLE} == 0) {
           $PARAMS{DESCRIBE} =~ s/\'/\\\'/gx;
           $Fees->{debug} = 1 if ($debug > 7);
+          $PARAMS{MODULE}='Abon';
+          $PARAMS{TP_ID}=$u->{TP_ID};
 
           if ($debug < 8) {
             $Fees->take(\%user, $sum, { %PARAMS }) if ($u->{DISCOUNT} < 100);

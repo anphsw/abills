@@ -58,8 +58,8 @@ sub report_users_summary {
   my $sql = <<"SQL";
 SELECT COUNT(*) AS total_users,
        SUM(IF(u.disable>0, 1, 0)) AS disabled_users,
-       SUM(IF(u.credit>0, 1, 0)) AS creditors_count,
-       SUM(IF(u.credit>0, u.credit, 0)) AS creditors_sum,
+       SUM(IF((IF(u.credit > 0, u.credit, IF(company.id IS NULL, 0, company.credit))) > 0,1,0)) AS creditors_count,
+       SUM(IF(u.credit > 0,u.credit,IF(company.id IS NOT NULL AND company.credit > 0, company.credit, 0))) AS creditors_sum,
        SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, 1, 0)) AS debetors_count,
        SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, b.deposit, 0)) AS debetors_sum
 FROM users u

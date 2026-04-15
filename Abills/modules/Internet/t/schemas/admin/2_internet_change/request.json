@@ -5,6 +5,7 @@
   "body": {
     "cid": "aa:aa:aa:aa:aa:00",
     "id": "{{serviceId}}",
+    "tp_id": "{{tpId}}",
     "status": 0
   }
 }

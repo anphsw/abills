@@ -114,7 +114,7 @@ sub get_msgs_statuses {
   foreach my $status (@$list) {
     if ($status->{name} && $status->{name} =~ /\$lang\{(\S+)\}/xg) {
       my $marker = $1;
-      if($self->{lang}{$marker}) {
+      if ($self->{lang}{$marker}) {
         $status->{locale_name} = $status->{name};
         $status->{locale_name} =~ s/\$lang\{$marker\}/$self->{lang}{$marker}/x;
       }
@@ -259,7 +259,7 @@ sub get_msgs_list {
     total => $Msgs->{TOTAL}
   );
 
-  if (!$query_params->{TOTAL_SHORT} ) {
+  if (!$query_params->{TOTAL_SHORT}) {
     my @extra_params = (
       'OPEN',
       'CLOSED',

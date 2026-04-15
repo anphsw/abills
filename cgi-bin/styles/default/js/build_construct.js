@@ -1,9 +1,10 @@
-function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, user_info, lang_pack, min_height, flats_sum, build_schema, numbering_direction, start_numbering_flat) {
+function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, user_info, lang_pack, min_height, flats_sum, build_schema, numbering_direction, start_numbering_flat, start_numbering_floor) {
 
   var status_colors = ['#00a65a', "#747372", '#f39c12', '#dd4b39', '#FF8000', '#9b9b9b'];
   var status_colors_window = ["#0000FF", '#0000FF', '#824227', '#009D00', '#FF8000'];
 //Primitiv param
   var scale = 60;
+  var floors_panel_width = 60;
   var room_width = scale;
   var room_height = scale * 0.6;
   var window_width = scale * 0.3;
@@ -27,12 +28,11 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
   var entrances_width = Param_rooms * room_width / 2 - room_width;
   var dor_num = 0;
   var flat_score = start_numbering_flat;
-  console.log(flat_score);
   var d = 0;
   var timeeqel;
   var canvas_width = jQuery('#canvas_container').prop("clientWidth");
   var paper_height = (Param_flors * room_height + padding) < min_height ? min_height : Param_flors * room_height + padding;
-  var paper_width = (room_width * Param_rooms * Param_entrances + padding) < canvas_width ? canvas_width : (room_width * Param_rooms * Param_entrances + padding);
+  var paper_width = (room_width * Param_rooms * Param_entrances + padding + floors_panel_width) < canvas_width ? canvas_width : (room_width * Param_rooms * Param_entrances + padding  + floors_panel_width);
   var build_x = 0;
   var user_info = JSON.parse(user_info);
   var lang_pack = JSON.parse(lang_pack);
@@ -57,6 +57,14 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
       fill: '#42a5f5',
       stroke: 'none'
     });
+
+  var building_width = room_width * Param_rooms * Param_entrances;
+  var floors_panel_x = build_x + building_width + room_width;
+
+  var floors_panel = paper.rect(floors_panel_x, 0, floors_panel_width, paper_height).attr({
+    fill: '#42a5f5',
+    stroke: 'none'
+  });
 
 // Hover function
   var hoverIn = function () {
@@ -215,5 +223,19 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
       'font-weight': 900,
       'fill': 'white'
     });
+
+    // print floor numbering
+    var first_floor_y = build_y - (2 * room_height);
+    for (var row = 0; row < Param_flors; row++) {
+      var y = first_floor_y - (row * room_height) + room_height / 2;
+      var floor_label = Number(start_numbering_floor) + row;
+
+      paper.text(floors_panel_x + floors_panel_width / 2, y, floor_label).attr({
+        'font-size': 14,
+        'font-weight': 900,
+        'fill': 'white'
+      });
+    }
+
   }
 }

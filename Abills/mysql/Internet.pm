@@ -340,13 +340,18 @@ sub user_change {
         return $self;
       }
 
+      if ($Tariffs->{AGE} > 0) {
+        expire_date($attr, $Tariffs);
+      }
+
       my $Fees = Fees->new($self->{db}, $admin, $self->{conf});
-
-      $Fees->take($user, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => 'CHANGE_TP:'. $Tariffs->{NAME} });
-    }
-
-    if ($Tariffs->{AGE} > 0) {
-      expire_date($attr, $Tariffs);
+      $Fees->take($user, $Tariffs->{CHANGE_PRICE}, {
+        DESCRIBE   => 'CHANGE_TP:'. $Tariffs->{NAME},
+        TP_ID      => $Tariffs->{TP_ID},
+        MODULE     => 'Internet',
+        START_DATE => $attr->{DATE},
+        END_DATE   => $attr->{EXPIRE}
+      });
     }
   }
   elsif (($old_info->{STATUS} && $old_info->{STATUS} == 3)
@@ -397,10 +402,11 @@ sub user_change {
 
   $admin->{MODULE} = $MODULE;
   $self->changes({
-    CHANGE_PARAM    => 'UID'. (($attr->{ID}) ? ',ID' : q{}),
+    CHANGE_PARAM    => 'UID' . (($attr->{ID}) ? ',ID' : q{}),
     TABLE           => 'internet_main',
     DATA            => $attr,
-    EXT_CHANGE_INFO => "ID:$attr->{ID}"
+    EXT_CHANGE_INFO => "ID:$attr->{ID}",
+    GET_OLD_INFO    => 1
   });
 
   $self->{TP_INFO}->{ACTIV_PRICE} = 0 if (! $self->{OLD_STATUS} || $self->{OLD_STATUS} != 2);
@@ -568,6 +574,7 @@ FIELD
     ['NAS_IP',            'IP',  'INET_NTOA(nas.ip) AS nas_ip',            1 ],
     ['REGISTRATION_FROM|REGISTRATION_TO','DATE',"DATE_FORMAT(u.registration, '%Y-%m-%d')"],
     ['REDUCTION',         'INT', 'u.reduction', 'u.reduction AS user_reduction' ],
+    ['FINE',              'INT', 'tp.fine',                                1 ],
   );
 
   if ($CONF->{IPV6}) {
@@ -606,6 +613,16 @@ RULES
     $attr->{TP_ID} = '_SHOW';
   }
 
+  if ($attr->{PAYMENT_DAYS}) {
+    my $expr = '=';
+    $expr = $1 if ($attr->{PAYMENT_DAYS} =~ s/^(<|>)//x);
+    push @WHERE_RULES, "p.date $expr CURDATE() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
+  }
+  if ($attr->{PAYMENTS}) {
+    my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
+    push @WHERE_RULES,  "DATE_FORMAT(p.date,'%Y-%m-%d')$value";
+  }
+
   my $WHERE = $self->search_former($attr, \@search_fields, {
     WHERE             => 1,
     USERS_FIELDS_PRE  => 1,
@@ -639,6 +656,9 @@ RULES
   if($attr->{NAS_IP}) {
     $EXT_TABLE .= "LEFT JOIN nas ON (nas.id=internet.nas_id)";
   }
+  if($attr->{PAYMENT_DAYS} || $attr->{PAYMENTS}) {
+    $EXT_TABLE .= "LEFT JOIN payments p ON (p.uid=u.uid)";
+  }
 
   if ($attr->{USERS_WARNINGS}) {
     $attr->{WHERE} = $WHERE;
@@ -650,11 +670,11 @@ RULES
   }
 
   if ($attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT} || $attr->{LAST_ACTIVITY}) {
-    $EXT_TABLE .= "LEFT JOIN internet_log l ON (l.uid=internet.uid AND DATE_FORMAT(l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
+    $EXT_TABLE .= "LEFT JOIN internet_log l ON (l.uid=internet.uid AND l.start BETWEEN DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00') AND DATE_FORMAT(LAST_DAY(CURDATE()), '%Y-%m-%d 23:59:59')) ";
   }
 
   if ($attr->{MONTH_IPN_TRAFFIC_IN} || $attr->{MONTH_IPN_TRAFFIC_OUT}) {
-    $EXT_TABLE .= "LEFT JOIN ipn_log ipn_l ON (ipn_l.uid=internet.uid AND DATE_FORMAT(ipn_l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
+    $EXT_TABLE .= "LEFT JOIN ipn_log ipn_l ON (ipn_l.uid=internet.uid AND ipn_l.start BETWEEN UNIX_TIMESTAMP(DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')) AND UNIX_TIMESTAMP(DATE_FORMAT(LAST_DAY(CURDATE()), '%Y-%m-%d 23:59:59'))) ";
   }
 
   if($self->{SORT_BY}) {

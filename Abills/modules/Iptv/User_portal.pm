@@ -414,12 +414,12 @@ sub iptv_user_service {
   my $user_portal_info = 0;
 
   if ($service_id_info) {
-    my $user_info = $Iptv->user_info($service_id_info);
+    my $user_info = $Iptv->user_info($service_id_info, { UID => $user->{UID} });
     my $service_info_ = $Iptv->services_info($user_info->{SERVICE_ID});
     $user_portal_info = 1 if $service_info_->{USER_PORTAL} && $service_info_->{USER_PORTAL} eq "1";
   }
 
-  $Iptv->user_info($service_id_info);
+  $Iptv->user_info($service_id_info, { UID => $user->{UID} });
   iptv_users_screens($Iptv, { SHOW_FULL => $PORTAL_ACTIONS->{$Iptv->{SERVICE_ID}}, DISABLED_INPUT => 1 });
   iptv_user_channels({ SERVICE_INFO => $Iptv, SHOW_ONLY => (!$conf{IPTV_USER_CHG_CHANNELS}) ? 1 :
     undef, CHANNEL_DISABLE => $user_portal_info });
@@ -732,7 +732,7 @@ sub _iptv_portal_get_service_info_btn {
   my $can_service_info = $Iptv_services->service_info({ TP_ID => $Iptv->{TP_ID} || $tp_info->{tp_id}, CHECK_METHOD_AVAILABLE => 1 });
 
   if ($FORM{chg} && $can_service_info && ref $can_service_info ne 'HASH') {
-    $Iptv->user_info($FORM{chg});
+    $Iptv->user_info($FORM{chg}, { UID => $user->{UID} });
     return 1 if !$Iptv->{TOTAL};
 
     my $link = "qindex=$function_index&SHOW_SERVICE_INFO=1&TP_ID=$Iptv->{TP_ID}&header=2";

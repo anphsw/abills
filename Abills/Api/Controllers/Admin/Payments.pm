@@ -122,11 +122,21 @@ sub post_payments_users_uid {
     });
   }
   else {
-    $Bills->list({
-      UID       => $path_params->{uid},
-      BILL_ID   => $query_params->{BILL_ID},
-      COLS_NAME => 1,
-    });
+    if ($query_params->{SKIP_BILL_ID_CHECK}) {
+      my $bills = $Bills->list({
+        UID       => $path_params->{uid},
+        COLS_NAME => 1,
+      });
+
+      $query_params->{BILL_ID} = $bills->[0]->{id} if ($Bills->{TOTAL} && $bills && $bills->[0] && $bills->[0]->{id});
+    }
+    else {
+      $Bills->list({
+        UID       => $path_params->{uid},
+        BILL_ID   => $query_params->{BILL_ID},
+        COLS_NAME => 1,
+      });
+    }
   }
 
   return {
@@ -323,8 +333,7 @@ sub post_payments_users_uid {
 =cut
 #**********************************************************
 sub get_payments_types {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -335,9 +344,17 @@ sub get_payments_types {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
+  my $allowed_payments = $Payments->admin_payment_type_list({
+    COLS_NAME => 1,
+    AID       => $self->{admin}->{AID},
+  });
+
+  my @allowed_payments_ids = map {$_->{payments_type_id}} @{$allowed_payments};
+
   $Payments->payment_type_list({
     %$query_params,
-    COLS_NAME => 1
+    COLS_NAME => 1,
+    IDS       => scalar @allowed_payments_ids ? \@allowed_payments_ids : undef,
   });
 }
 
@@ -412,8 +429,21 @@ sub delete_payments_users_uid_id {
 =cut
 #**********************************************************
 sub get_payments_types_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
+
+  my $allowed_payments = $Payments->admin_payment_type_list({
+    COLS_NAME => 1,
+    AID       => $self->{admin}->{AID},
+  });
+
+  my @allowed_payments_ids = map {$_->{payments_type_id}} @{$allowed_payments};
+
+  if (scalar @allowed_payments_ids && !in_array($path_params->{id}, \@allowed_payments_ids)) {
+    return {
+      errno  => 10291,
+      errstr => 'Access denied'
+    };
+  }
 
   $Payments->payment_type_info({ ID => $path_params->{id} });
 

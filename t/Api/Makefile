@@ -7,7 +7,7 @@ PERL          := /usr/bin/perl
 SEARCH_DIR    := ../../Abills
 
 ifneq ($(MODULE), "")
-   $(info Copying custom header)
+   #$(info Copying custom header)
    SEARCH_DIR := ../../Abills/modules/$(MODULE)
 endif
 
@@ -28,7 +28,7 @@ all:
 
 direct:
 	$(foreach test, $(TESTS), \
-		echo "TEST: " $(test); perl $(test) KEY=${KEY} URL=$(URL) EXECUTABLE_TESTS=$(EXECUTABLE_TESTS) DIRECT=1; )
+		echo "DIRECT: "; perl $(test) KEY=${KEY} URL=$(URL) EXECUTABLE_TESTS=$(EXECUTABLE_TESTS) DIRECT=1 DEBUG=$(DEBUG); )
 
 user:
 	$(foreach test, $(TESTS), \
@@ -37,6 +37,10 @@ user:
 admin:
 	$(foreach test, $(TESTS), \
 		perl $(test) ADMIN='1' KEY=${KEY};)
+
+custom:
+	$(foreach test,$(shell find Custom/ -name "Api.t"), \
+		perl $(test) KEY=${KEY} URL=$(URL) EXECUTABLE_TESTS=$(EXECUTABLE_TESTS) DIRECT=1 DEBUG=$(DEBUG);)
 
 
 help:

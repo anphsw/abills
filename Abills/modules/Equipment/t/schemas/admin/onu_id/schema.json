@@ -1,7 +1,7 @@
 {
   "definitions": {},
-  "title": "The Root Schema",
-  "type": "array",
+  "title": "onuId",
+  "type": "object",
   "items": {
     "type": "object",
     "properties": {
@@ -15,7 +15,7 @@
       },
       "onuId": {
         "$id": "#/properties/onuId",
-        "type": "string"
+        "type": "number"
       },
       "vlan": {
         "$id": "#/properties/vlan",

@@ -15,10 +15,12 @@ use warnings FATAL => 'all';
 use Control::Errors;
 use Crm::db::Crm;
 use Crm::Attachments;
+use Crm::Leads_service;
 
 my Crm $Crm;
 my Crm::Attachments $Attachments;
 my Control::Errors $Errors;
+my $Leads_service;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -42,6 +44,7 @@ sub new {
   $Crm->{debug} = $self->{debug};
 
   $Attachments = Crm::Attachments->new($self->{db}, $self->{admin}, $self->{conf});
+  $Leads_service = Crm::Leads_service->new($self->{db}, $self->{admin}, $self->{conf});
 
   $Errors = $self->{attr}->{Errors};
 
@@ -56,8 +59,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_crm_leads {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   if ($query_params->{CURRENT_STEP} && $query_params->{CURRENT_STEP} =~ /\D/g) {
     my $steps = $Crm->crm_progressbar_step_list({
@@ -70,7 +72,7 @@ sub post_crm_leads {
     $query_params->{CURRENT_STEP} = $Crm->{TOTAL} > 0 ? $steps->[0]{step_number} : 1;
   }
 
-  $Crm->crm_lead_add($query_params);
+  return $Leads_service->crm_lead_add($query_params);
 }
 
 #**********************************************************
@@ -81,10 +83,9 @@ sub post_crm_leads {
 =cut
 #**********************************************************
 sub put_crm_leads_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  $Crm->crm_lead_change({ ID => $path_params->{id}, %{$query_params} });
+  return $Leads_service->crm_lead_change({ ID => $path_params->{id}, %{$query_params} });
 }
 
 #**********************************************************
@@ -95,8 +96,7 @@ sub put_crm_leads_id {
 =cut
 #**********************************************************
 sub delete_crm_leads_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Crm->crm_lead_info({ ID => $path_params->{id} });
   if ($Crm->{TOTAL} < 1) {

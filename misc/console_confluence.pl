@@ -11,29 +11,25 @@
 
 =cut
 use strict;
-no warnings 'layer';
+
 
 BEGIN {
   our $libpath = '../';
   unshift(@INC,
     $libpath . '/lib/',
+    $libpath . '/Abills/modules/',
     $libpath
   );
 }
 
-use Abills::Base qw(parse_arguments);
-use JSON qw(decode_json);
-use HTTP::Request::Common;
-use LWP::Simple;
-
-my $main_url = 'http://abills.net.ua/wiki';
+use Abills::Base qw(parse_arguments show_hash);
+use Config::Confluence qw(get_doc);
 
 my $argv = parse_arguments(\@ARGV);
-
-my $debug = $argv->{DEBUG} || 0;
+$argv->{MAIN_URL} //= 'https://abills.net.ua/wiki';
 
 if ($argv->{WORD} || $argv->{CONF}) {
-  get_doc($argv);
+  show_console($argv);
 }
 else {
   print "To do a documentation search write: 'Internet'\n";
@@ -46,123 +42,37 @@ else {
     . " console_confluence.pl CONF=ADMIN_MAIL\n\n";
 }
 
+
 #**********************************************************
-=comments parse_page($attr)
+=comments get_docs($attr)
 
   Arguments:
     $attr
 
   Results:
-    $context
+    TRUE or FALSE
 
 =cut
 #**********************************************************
-sub get_doc {
+sub show_console {
   my ($attr) = @_;
+  my $docs = get_doc($attr);
 
-  my $doc_url = q{};
+  my $doc_count = $#{$docs};
+  for (my $i = 0; $i <= $doc_count; $i++) {
+    my $doc = $docs->[$i];
+    print <<"[TEXT]";
+    $i. WORD: $doc->{WORD}
+    TITLE: $doc->{TITLE} ($doc->{URL})
+    VALUE: $doc->{VALUE}
+    DESCRIBE: $doc->{DESCRIBE}
 
-  if ($attr->{CONF}) {
-    $attr->{WORD} = $attr->{CONF};
-    $attr->{WORD} =~ s/$attr->{WORD}/\$conf{$attr->{WORD}}/xg;
+[TEXT]
   }
 
-  if ($attr->{WORD} =~ /on\s+page|\$/xm) {
-    $attr->{WORD} .= ' ' if ($attr->{WORD} !~ /\$/xm);
-    $attr->{WORD} =~ s/\s+on\s+page\s+//xg;
-    $doc_url = "$main_url/rest/api/content/search?limit=500&cql=text~'$attr->{WORD}'";
-  }
-  else {
-    $doc_url = "$main_url/rest/api/content/search?limit=500&cql=title~'$attr->{WORD}'";
-  }
-
-  if ($debug > 3) {
-    print "Request: $doc_url\n";
-  }
-
-  my $Ua = LWP::UserAgent->new(
-    ssl_opts => {
-      verify_hostname => 0,
-      SSL_verify_mode => 0
-    },
-  );
-
-  my $get_request = HTTP::Request->new('GET', $doc_url);
-
-  my $response = $Ua->request($get_request);
-  $response = decode_json($response->{_content});
-
-  my $count = 0;
-  my $text = q{};
-  foreach my $result (@{$response->{results}}) {
-    next if ($result->{type} ne 'page');
-    $count++;
-    my $link = $result->{_links}->{webui};
-    $text .= "$result->{title} URL: $main_url$link\n";
-    if ($attr->{WORD} =~ /\$/xm) {
-      if (parse_page($main_url . $link, $attr->{WORD})) {
-        return 1;
-      }
-    }
-  }
-
-  print "Found $count matches with $attr->{WORD}\n$text";
+  print "TOTAL: " . ($doc_count + 1) . "\n";
 
   return 1;
-}
-
-#**********************************************************
-=comments parse_page($page, $word)
-
-  Arguments:
-    $page
-    $word
-
-  Results:
-    $context
-
-=cut
-#**********************************************************
-sub parse_page {
-  my ($page, $word) = @_;
-  my $result = q{};
-
-  my $Ua = LWP::UserAgent->new(
-    ssl_opts => {
-      verify_hostname => 0,
-      SSL_verify_mode => 0
-    }
-  );
-
-  if ($debug > 3) {
-    print "PAGE: $page\n";
-  }
-
-  my $get_request = HTTP::Request->new('GET', $page);
-
-  my $response = $Ua->request($get_request);
-
-  my $context = $response->{_content};
-
-  #$word = '\$conf{dbhost}';
-  $word =~ s/\$/\\\$/xg;
-  #print "- $word -";
-  $context =~ s/<br\/>/ /xig;
-
-  my $get_varieble_dsc_expr = << 'EXPR';
->$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">([\W\_\-\.\,0-9\(\)\s]+)<\/td><\/tr>
- | >$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">(.+)<\/td><\/tr><tr
- | >$word\s?=\s?([a-z0-9'"\_\@\,]+);<\/th><td\s+class=\"confluenceTd\">(.+)<\/td><\/tr>
-EXPR
-
-  if ($context =~ /$get_varieble_dsc_expr/mxig) {
-    $result = $2;
-    my $value = $1;
-
-    print " Value: $value \n Describe: $result\n URL: $page\n";
-  }
-
-  return $result;
 }
 
 1;

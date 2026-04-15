@@ -62,6 +62,7 @@
     </div>
 
     %SHEDULE_FORM%
+    %FORM_FEES_EXTRA%
     %DOCS_FEES_ELEMENT%
 
   <div class='card-footer'>

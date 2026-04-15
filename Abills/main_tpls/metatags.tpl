@@ -96,7 +96,21 @@
   <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
-  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+<!--  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>-->
+
+  <script>window.CONTENT_LANGUAGE = "%CONTENT_LANGUAGE%";</script>
+  <script>
+    (function() {
+      const lang = (window.CONTENT_LANGUAGE || 'en').toLowerCase().trim();
+
+      if (!lang || lang === 'en') return;
+
+      const script = document.createElement('script');
+      script.src = `/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.${encodeURIComponent(lang)}.js`;
+
+      document.head.appendChild(script);
+    })();
+  </script>
   <script src='/styles/%HTML_STYLE%/js/select2.min.js'></script>
   <script>
     window['IS_ADMIN_INTERFACE'] = true;

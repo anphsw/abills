@@ -63,6 +63,7 @@
 
     </div>
     <div class='card-footer'>
+      %TEST_BTN%
       <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>

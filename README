@@ -1,14 +1,14 @@
 #*********************** ABillS ***********************************
-# Copyright (с) 2003-2023 Andy Gulay (ABillS DevTeam) Ukraine
+# Copyright (с) 2003-2026 Andy Gulay (ABillS DevTeam) Ukraine
 #
 #******************************************************************
 
 #******************************************************************
-ABillS - ~AsmodeuS~ Billing System.
-Version: 0.94 (2023)
+ABillS - OSS/BSS system for Telecom operators.
+Version: 1.6x (2026)
 https://abills.net.ua
 -------------------------------------------------------------------
-Open Source Billing Solution under GNU GPLv2
+Open Source OSS/BSS under GNU GPLv2
 #******************************************************************
 
 Billing system with different abilities:
@@ -29,25 +29,28 @@ Billing system with different abilities:
    IPTV (VoD,nVoD,OTT)
    Antivirus 
    Marketing Reports
-   Payments Systems (Webmoney, Pegas, 24 Non Stop, SMS Proxy and other)
+   Support over 250 Payments Systems
+   Powerful Restful API
 
 Technology: 
    FreeBSD, Linux, MySQL, Radius, DHCP, Netflow, SNMP, SMTP
 
 NAS Servers:
-  Mikrotik
-  Cisco/Cisco ISG
+  Cisco/Cisco ISG/BNG
+  Ericson RedBack
+  Huawei ISG/BNG/FWA
+  ZTE
   Juniper
+  Mikrotik
   Linux Accel-ppp
   Freebsd MPD
-  Ericson RedBack
 
 
 Site: 
    http://abills.net.ua
-Google+
-   https://plus.google.com/+AbillsNetUa
 Facebook:
    https://www.facebook.com/abills.net/
 Telegram:
    https://t.me/abills
+Youtube:
+   https://www.youtube.com/@AbillsNetUa

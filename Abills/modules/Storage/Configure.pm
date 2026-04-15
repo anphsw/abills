@@ -47,8 +47,8 @@ sub storage_articles {
       $html->message('warn', $lang{INFO}, $lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED});
     }
   }
-  elsif ($FORM{del}) {
-    my $list = $Storage->storage_incoming_articles_list({ ARTICLE_ID => $FORM{del}, COLS_NAME => 1 });
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Storage->storage_incoming_articles_list({ ARTICLE_ID => $FORM{del}, COLS_NAME => 1 });
     if ($Storage->{TOTAL} > 0) {
       $html->message('warning', $lang{INFO}, $lang{CANT_DELETE_ERROR1});
     }
@@ -91,7 +91,8 @@ sub storage_articles {
   });
 
   if (in_array('Equipment', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{'Equipment'})) {
-    use Equipment;
+    require Equipment;
+    Equipment->import();
     my $Equipment = Equipment->new($db, $admin, \%conf);
 
     $Storage->{EQUIPMENT_MODEL_SEL} = $html->form_select('EQUIPMENT_MODEL_ID', {
@@ -218,15 +219,18 @@ sub storage_measure {
     MODULE          => 'Storage',
     TOTAL           => "TOTAL:$lang{TOTAL}",
   });
+
+  return 1;
 }
 
 #**********************************************************
 =head2 storage_translate_measure()
 
   Arguments:
-     -
+    $attr
 
   Returns:
+    $attr
 
 =cut
 #**********************************************************
@@ -271,7 +275,7 @@ sub storage_articles_types {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    my $list_in_use = $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{del} });
+    $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{del} });
     if ($Storage->{TOTAL} > 0) {
       $html->message('warn', $lang{ERROR}, $lang{CANT_DELETE_ERROR2});
     }
@@ -410,7 +414,7 @@ sub suppliers_main {
     $Storage->suppliers_info({ ID => $FORM{chg} });
     $html->message('info', $lang{INFO}, $lang{CHANGING}) if !$Storage->{errno};
   }
-  if (!$FORM{add} and !$FORM{change}) {
+  if (!$FORM{add} && !$FORM{change}) {
     $Storage->{ADDRESS_FORM} = form_address_select({
       LOCATION_ID           => $Storage->{LOCATION_ID} || 0,
       DISTRICT_ID           => $Storage->{DISTRICT_ID} || 0,
@@ -523,8 +527,8 @@ sub storage_storages {
 
   if (!$FORM{add} && !$FORM{change}) {
     $Storage->{RESPONSIBLE_SEL} = sel_admins({
-      NAME         => 'RESPONSIBLE',
-      RESPONSIBLE  => $Storage->{RESPONSIBLE} ? $Storage->{RESPONSIBLE} : ''
+      NAME        => 'RESPONSIBLE',
+      RESPONSIBLE => $Storage->{RESPONSIBLE} ? $Storage->{RESPONSIBLE} : ''
     });
 
     $html->tpl_show(_include('storage_storages', 'Storage'), $Storage);
@@ -570,11 +574,11 @@ sub storage_storages {
 sub storage_admin_access {
 
   my $admins = $admin->list({
-    GID           => $admin->{GID},
-    DOMAIN_ID     => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-    DISABLE       => 0,
-    COLS_NAME     => 1,
-    PAGE_ROWS     => 10000
+    GID       => $admin->{GID},
+    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    DISABLE   => 0,
+    COLS_NAME => 1,
+    PAGE_ROWS => 10000
   });
 
   if ($FORM{change} && $FORM{access}) {
@@ -600,7 +604,7 @@ sub storage_admin_access {
     ACCESS     => '_SHOW',
     COLS_NAME  => 1
   });
-  map $storage_admin_access_hash{$_->{aid}} = $_->{access}, @{$storage_admin_access};
+  map {$storage_admin_access_hash{$_->{aid}} = $_->{access}} @{$storage_admin_access};
 
   my $table = $html->table({
     width       => '100%',
@@ -613,12 +617,12 @@ sub storage_admin_access {
   foreach my $admin_info (@{$admins}) {
     my $admin_access = $storage_admin_access_hash{$admin_info->{aid}};
     my $view_access_checkbox = $html->form_input("ACCESS_VIEW_$admin_info->{aid}", '1', {
-      TYPE => 'checkbox',
+      TYPE  => 'checkbox',
       STATE => (defined($admin_access) && !$admin_access ? 'checked' : ''),
     });
 
     my $full_access_checkbox = $html->form_input("ACCESS_FULL_$admin_info->{aid}", '1', {
-      TYPE => 'checkbox',
+      TYPE  => 'checkbox',
       STATE => ($admin_access ? 'checked' : ''),
     });
     $table->addrow(join(' : ', ($admin_info->{login} || '', $admin_info->{name} || '')), $view_access_checkbox, $full_access_checkbox);
@@ -637,6 +641,8 @@ sub storage_admin_access {
     METHOD  => 'POST',
     NAME    => 'storage_access_admin_form'
   });
+
+  return 1;
 }
 
 #**********************************************************
@@ -717,15 +723,18 @@ sub storage_properties {
     MODULE          => 'Storage',
     TOTAL           => "TOTAL:$lang{TOTAL}",
   });
+
+  return 1;
 }
 
 #**********************************************************
 =head2 _property_list_html()
 
   Arguments:
-     -
+    $incoming_articles_id
 
   Returns:
+    $properties_html
 
 =cut
 #**********************************************************
@@ -773,6 +782,11 @@ sub _property_list_html {
 
 #**********************************************************
 =head2 storage_admins()
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -845,6 +859,8 @@ sub storage_admins {
     MODULE          => 'Storage',
     TOTAL           => "TOTAL:$lang{TOTAL}",
   });
+
+  return 1;
 }
 
 #***********************************************************

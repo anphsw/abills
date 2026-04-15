@@ -1149,7 +1149,7 @@ sub cablecat_user_trace_connection_form {
     # Get start commutation for nas_port
     my $equipment_commutation_ids = $Tracer->get_commutation_for_equipment($nas_port->{nas_id}, $nas_port->{port},
       { WITH_TYPE => 1 });
-    if (!$equipment_commutation_ids || !ref $equipment_commutation_ids eq 'ARRAY') {
+    if (!$equipment_commutation_ids || ref $equipment_commutation_ids ne 'ARRAY') {
       # Show message about no commutation
       $return_with_error->("$lang{EQUIPMENT} $lang{IS_NOT_PRESENT_ON_ANY_COMMUTATION}", undef, $Tracer->{errno});
     }
@@ -1205,7 +1205,7 @@ sub cablecat_user_trace_connection_form {
     my $user_services_search_list = $Tracer->get_user_nas_port_services($uid);
     _error_show($Tracer);
 
-    if (!$user_services_search_list || !ref($user_services_search_list) eq 'ARRAY' ){
+    if (!$user_services_search_list || ref($user_services_search_list) ne 'ARRAY' ){
       $return_with_error->($lang{CANNOT_GET_USER_SERVICE_LIST});
     }
 

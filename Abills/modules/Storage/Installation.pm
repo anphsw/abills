@@ -82,7 +82,7 @@ sub _start_transaction {
       $db->rollback();
       $db->{AutoCommit} = 1;
     },
-    commit => sub {
+    commit   => sub {
       return if !$manage_transaction;
 
       delete $Storage->{db}->{TRANSACTION};
@@ -229,6 +229,24 @@ sub storage_add_installation {
 
   $attr->{COUNT} = $attr->{COUNT} && $attr->{COUNT} > 0 ? $attr->{COUNT} : 0;
   my $stock_balance = $incoming_article_info->{COUNT} || 0;
+
+  my $accountability_items = $Storage->storage_accountability_list({
+    STORAGE_INCOMING_ARTICLES_ID => $attr->{ARTICLE_ID},
+    COUNT                        => '!',
+    COLS_NAME                    => 1,
+    COLS_UPPER                   => 1
+  });
+  my $reserve = $Storage->storage_reserve_list({
+    STORAGE_INCOMING_ARTICLES_ID => $attr->{ARTICLE_ID},
+    COUNT                        => '!',
+    COLS_NAME                    => 1,
+    COLS_UPPER                   => 1
+  });
+
+  for my $item (@$accountability_items, @$reserve) {
+    $stock_balance -= $item->{COUNT} if ($item->{COUNT} && $item->{COUNT} > 0);
+  }
+
   if ($attr->{COUNT} < 1 || $stock_balance < 1 || ($stock_balance - $attr->{COUNT} < 0)) {
     return $Errors->throw_error(1180001);
   }
@@ -250,34 +268,24 @@ sub storage_add_installation {
 
   if ($attr->{SERIAL} && $attr->{COUNT} == 1 && !$incoming_article_info->{SN}) {
     if ($incoming_article_info->{SIA_COUNT} && $incoming_article_info->{SIA_COUNT} > 1) {
-      $Storage->storage_incoming_articles_divide({
-        ARTICLE_ID          => $incoming_article_info->{ARTICLE_ID},
-        COUNT               => $incoming_article_info->{COUNT},
-        DIVIDE              => 1,
-        SUM                 => $incoming_article_info->{SUM} / $incoming_article_info->{COUNT},
-        SN                  => $incoming_article_info->{SN},
-        MAIN_ARTICLE_ID     => $incoming_article_info->{ID},
-        STORAGE_INCOMING_ID => $incoming_article_info->{STORAGE_INCOMING_ID},
-        SUM_TOTAL           => $incoming_article_info->{SUM},
+      use Storage::Incoming_article;
+      my $Incoming_article = Storage::Incoming_article->new($self->{db}, $self->{admin}, $self->{conf}, {
+        lang => $self->{lang}, html => $self->{html}, libpath => $self->{libpath} });
+
+      my $result = $Incoming_article->storage_incoming_articles_divide({
+        INCOMING_ARTICLE_ID => $incoming_article_info->{ID},
+        DIVIDED_ITEMS       => [ { SERIAL => $attr->{SERIAL} } ]
       });
 
-      if ($Storage->{errno} || !$Storage->{INCOMING_ARTICLE_ID}) {
+      if ($result->{errno}) {
         $transaction->{rollback}->();
-        return $Errors->throw_error(1180004);
+        return $result;
       }
 
-      if (!$Storage->{errno} && $Storage->{INCOMING_ARTICLE_ID}) {
-        $Storage->storage_incoming_articles_change({
-          ID     => $Storage->{INCOMING_ARTICLE_ID},
-          SERIAL => $attr->{SERIAL}
-        });
+      if ($result->{DIVIDED_ARTICLE_IDS} && ref $result->{DIVIDED_ARTICLE_IDS} eq 'ARRAY') {
+        my $new_incoming_article_id = $result->{DIVIDED_ARTICLE_IDS}[0];
 
-        if ($Storage->{errno}) {
-          $transaction->{rollback}->();
-          return $Storage;
-        }
-
-        $incoming_article_info = $Storage->storage_incoming_articles_info({ ID => $Storage->{INCOMING_ARTICLE_ID} });
+        $incoming_article_info = $Storage->storage_incoming_articles_info({ ID => $new_incoming_article_id });
       }
     }
     else {
@@ -471,8 +479,9 @@ sub storage_del_installation {
     my $accountability_info = $accountability_list->[0];
 
     $Storage->storage_accountability_change({
-      ID    => $accountability_info->{id},
-      COUNT => $accountability_info->{count} + $installation_info->{count},
+      ID         => $accountability_info->{id},
+      COUNT      => $accountability_info->{count} + $installation_info->{count},
+      SKIP_PERMS => 1
     });
 
     if ($Storage->{errno}) {
@@ -486,7 +495,8 @@ sub storage_del_installation {
       COUNT                        => $installation_info->{count},
       AID                          => $self->{admin}{AID},
       ADDED_BY_AID                 => $self->{admin}{AID},
-      COMMENTS                     => $attr->{COMMENTS}
+      COMMENTS                     => $attr->{COMMENTS},
+      SKIP_PERMS                   => 1
     });
 
     if ($Storage->{errno}) {
@@ -680,7 +690,7 @@ sub _storage_assign_internet_parameters {
 sub _storage_clear_internet_parameters {
   my ($self, $installation, $uid) = @_;
 
-  if (!grep { $installation->{$_} } qw(SERIAL IDENT1 IDENT2 IDENT3 IDENT4)) {
+  if (!grep {$installation->{$_}} qw(SERIAL IDENT1 IDENT2 IDENT3 IDENT4)) {
     return;
   }
 
@@ -703,7 +713,7 @@ sub _storage_clear_internet_parameters {
   for my $pair (split(/;/, $self->{conf}{STORAGE_INTERNET_ASSIGN})) {
     my ($key, $value) = split(/=/, $pair, 2);
 
-    if (!grep { $_ eq $key } @changeable_fields) {
+    if (!grep {$_ eq $key} @changeable_fields) {
       next;
     }
 
@@ -779,11 +789,11 @@ sub _send_reserve_notification {
   });
 
   my $message = $self->{html}->tpl_show($Templates->_include('storage_reserve_item_from_user_portal_admin_notify', 'Storage'), {
-    LOGIN           => $attr->{USER_INFO}{LOGIN},
-    ARTICLE_NAME    => $incoming_article_info->{ARTICLE_NAME} || '',
-    COUNT           => $attr->{COUNT} || 0,
-    SELL_PRICE      => $attr->{SELL_PRICE} || 0,
-    STORAGE_NAME    => $Storage->{NAME} || '',
+    LOGIN        => $attr->{USER_INFO}{LOGIN},
+    ARTICLE_NAME => $incoming_article_info->{ARTICLE_NAME} || '',
+    COUNT        => $attr->{COUNT} || 0,
+    SELL_PRICE   => $attr->{SELL_PRICE} || 0,
+    STORAGE_NAME => $Storage->{NAME} || '',
   }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 
   require Abills::Sender::Core;

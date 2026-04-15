@@ -340,12 +340,18 @@ sub sel_tp {
   Tariffs->import();
   my $Tariffs = Tariffs->new($db, \%conf, $admin);
   my %params = (MODULE => 'Dv;Internet');
-  $params{MODULE} = $attr->{MODULE} if $attr->{MODULE};
+  $params{MODULE} = $attr->{MODULE} if ($attr->{MODULE});
 
   my $user_info = $attr->{USER_INFO};
 
-  my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
-    tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $tp_gids = '';
+  if ($attr->{CHECK_GROUP_GEOLOCATION}) {
+    $tp_gids = $Services->tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID});
+  }
 
   if ($attr->{TP_ID}) {
     $attr->{TP_ID} = $1 if $attr->{TP_ID} =~ m/:(\d+)/x;
@@ -481,6 +487,41 @@ sub sel_plugins {
       ? %{$attr->{EX_PARAMS}}
       : (EX_PARAMS => $attr->{EX_PARAMS}))
       : {},
+  });
+}
+
+#**********************************************************
+=head2 sel_departments ($attr) - department select element
+
+  Arguments:
+    NAME     - Element name
+    SELECTED - value
+    REQUIRED - Required options
+    MULTIPLE - multiple admins
+
+  Returns:
+    Select element
+
+=cut
+#**********************************************************
+sub sel_departments {
+  my ($attr) = @_;
+
+  my $select_name = $attr->{NAME} || 'DEPARTMENT';
+
+  require Employees;
+  Employees->import();
+  my $Employees = Employees->new($db, $admin, \%conf);
+
+  return $html->form_select($select_name, {
+    SELECTED    => $attr->{SELECTED} || 0,
+    SEL_LIST    => $Employees->employees_department_list({ NAME => '_SHOW', COLS_NAME => 1 }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'name',
+    NO_ID       => 1,
+    REQUIRED    => ($attr->{REQUIRED}) ? 'required' : undef,
+    MULTIPLE    =>  $attr->{MULTIPLE} ? 1 : undef,
+    SEL_OPTIONS => { '' => '' }
   });
 }
 

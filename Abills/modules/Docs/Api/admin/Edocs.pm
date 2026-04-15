@@ -231,7 +231,65 @@ sub get_docs_edocs_branches {
   return $branches;
 }
 
+#**********************************************************
+=head2 post_document($path_params, $query_params)
 
+  Endpoint POST /docs/edocs/documents/
+
+=cut
+#**********************************************************
+sub post_document {
+  my ($self, $path_params, $query_params) = @_;
+
+  return if (!$query_params->{INVOICE_ID});
+
+  $Docs->edocs_list({
+    DOC_ID     => $query_params->{INVOICE_ID},
+    COLS_UPPER => 1,
+    COLS_NAME  => 1
+  });
+
+  if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0) {
+    return $Errors->throw_error(1054025);
+  }
+
+  $Docs->invoice_info($query_params->{INVOICE_ID}, {
+    GROUP_ORDERS => $self->{conf}{DOCS_INVOICE_GROUP_ORDERS}
+  });
+
+  if (!$Docs->{TOTAL} || $Docs->{TOTAL} < 1) {
+    return $Docs;
+  }
+
+  ::load_module('Docs', $self->{html});
+  my $doc_info = ::docs_invoice_print($query_params->{INVOICE_ID}, { OUTPUT2RETURN => 1, RETURN_DOC_INFO => 1 });
+  delete $doc_info->{content};
+
+  my $ESignService = $self->_init_esign_service();
+  return $ESignService if ($ESignService->{errno});
+
+  return $Errors->throw_error(1054026) if !$ESignService->can('send_document');
+
+  my $result = $ESignService->send_document({
+    INVOICE_ID  => $query_params->{INVOICE_ID},
+    DOC_INFO    => { %$Docs, %$doc_info }
+  });
+
+  if (!$result->{id}) {
+    if ($result->{errno}) {
+      return $result;
+    }
+    return $Errors->throw_error(1054026);
+  }
+
+  $Docs->edocs_add({
+    DOC_ID => $query_params->{INVOICE_ID},
+    EXT_ID => $result->{id},
+    UID    => $Docs->{UID}
+  });
+
+  return { DOC_ID => $query_params->{INVOICE_ID}, EXT_ID => $result->{id} };
+}
 
 #**********************************************************
 =head2 _init_esign_service()

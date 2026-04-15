@@ -51,14 +51,14 @@
       "endDate": { "type": "string", "format": "date" },
       "period": { "type": "string" },
       "personalDescription": { "type": "string" },
-      "price": { "type": "integer" },
+      "price": { "type": "number" },
       "serviceImg": { "type": "string" },
       "serviceLink": { "type": "string" },
       "startDate": { "type": "string", "format": "date" },
       "tpReductionFee": { "type": "integer" },
       "monthFee": { "type": "integer" },
       "statusName": { "type": "string" },
-      "originalPrice": { "type": "integer" }
+      "originalPrice": { "type": "number" }
     },
     "required": [
       "id", "tpName", "tpId", "uid",

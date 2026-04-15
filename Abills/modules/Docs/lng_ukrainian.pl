@@ -96,9 +96,13 @@ $lang{ERR_INVOICE_ID_AND_CREATE_INVOICE} = 'Некоректні дані, по�
 $lang{ERR_NO_ID_OR_IDS} = 'Некоректні дані, повинен бути параметр id або ids. Відсутні обидва.';
 $lang{ERR_NO_INVOICE_ID_AND_CREATE_INVOICE} = 'Некоректні дані, повинен бути параметр invoiceCreate або invoiceId.';
 $lang{ERR_ADD_INVOICE} = 'Не вдалося додати рахунок-фактуру';
+$lang{ERR_DOCUMENT_HAS_ALREADY_BEEN_SENT} = 'Документ уже було надіслано.';
+$lang{ERR_SEND_DOCUMENT} = 'Помилка під час надсилання документа.';
+
 $lang{ALL_PERIOD} = 'Весь період';
 $lang{DOCUMENT_CUSTOMERS_LOG} = 'Журнал клієнтів';
 $lang{DOCS_FOP} = 'ФОП';
+$lang{DOCS_DOWNLOAD_FOR_E_SIGN} = 'Завантажити для електронного підпису';
 
 $lang{DOCS_SEND_INVOICE} = 'Дата відправки';
 $lang{DOCS_RECEIVE_INVOICE} = 'Дата отримання';
@@ -106,5 +110,9 @@ $lang{DOCS_TRACKING_NUMBER} = 'Номер трекінгу';
 $lang{DOCS_TRACKING_DATE} = 'Дата трекінгу';
 $lang{OF_CLIENT} = 'клієнта';
 $lang{BY_CLIENT} = 'клієнтом';
+$lang{INCOMING_DOCUMENTS} = 'Вхідні документи';
+$lang{OUTGOING_DOCUMENTS} = 'Вихідні документи';
+$lang{NOT_AVAILABLE} = 'Відсутні';
+$lang{SIGNATURES} = 'Підписи';
 
 1;

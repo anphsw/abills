@@ -76,7 +76,7 @@ sub password_recovery {
     errno      => 10005,
     errstr     => 'No uid, login or contractId field',
     errstr_lng => $lang{ERR_WRONG_DATA},
-  } if (!$attr->{UID} && !$attr->{CONTRACT_ID} && !$attr->{LOGIN});
+  } if (!$attr->{UID} && !$attr->{CONTRACT_ID} && !$attr->{LOGIN} && !$conf{PASSWORD_RECOVERY_CONTACT_ONLY});
 
   my %fields = ();
   $fields{$_} = 1 for split ',\s?', ($conf{PASSWORD_RECOVERY_REQUIRED_PARAMS} || 'LOGIN,EMAIL');
@@ -95,13 +95,14 @@ sub password_recovery {
     UID         => $attr->{UID} || '_SHOW',
     CONTRACT_ID => $attr->{CONTRACT_ID} || '_SHOW',
     LOGIN       => $attr->{LOGIN} || '_SHOW',
+    #_MULTI_HIT  => 1, #$attr->{_MULTI_HIT},
+    SKIP_DEL_CHECK => 1,
     COLS_NAME   => 1
   });
 
   if (!$Users->{TOTAL} || $Users->{TOTAL} < 1) {
     my $search_param = ($attr->{PHONE} && $attr->{PHONE} ne '') ? 'cell phone' : 'email';
     my $search_param_lng = ($attr->{PHONE} && $attr->{PHONE} ne '') ? $lang{PHONE} : 'Email';
-
     return {
       errno      => 10006,
       errstr     => "User not exists with this $search_param",
@@ -116,7 +117,6 @@ sub password_recovery {
     Contacts->import();
     my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
     $Contacts->contacts_list({ VALUE => "$attr->{PHONE},+$attr->{PHONE}", UID => $user->{uid} });
-
     if ($Contacts->{TOTAL} < 1) {
       return {
         errno      => 10007,
@@ -139,7 +139,7 @@ sub password_recovery {
     $mess = "$self->{lang}->{PASSWD_RESET_LINK}: $url"
   }
 
-  #::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
   my $message = $self->{html}->tpl_show(Abills::Templates::templates('msg_passwd_recovery'), {
     MESSAGE => $mess,
     URL     => $url,
@@ -172,8 +172,8 @@ sub password_recovery {
     if ($sms_limit <= $sent_sms) {
       return {
         errno      => 10008,
-        errstr     => "User sms limit has been reached - $conf{USER_LIMIT_SMS} sms",
-        errstr_lng => "SMS $lang{LIMIT} $conf{USER_LIMIT_SMS}",
+        errstr     => "User sms limit has been reached - $sms_limit sms",
+        errstr_lng => "SMS $lang{LIMIT} $sms_limit",
       };
     }
 

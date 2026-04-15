@@ -14,7 +14,6 @@ our (
   $db,
   $admin,
   %conf,
-  %LANG,
   %lang,
   %permissions
 );
@@ -39,8 +38,6 @@ my $Referral_users = Referral::Users->new($db, $admin, \%conf, {
 my %bills_types = (
   0 => $lang{MAIN},
 );
-my $payments_types = get_payment_methods();
-my $fees_types = get_fees_types();
 
 $bills_types{1} = $lang{EXTRA_BILL} if ($conf{EXT_BILL_ACCOUNT});
 
@@ -173,7 +170,7 @@ sub referral_report {
     $Referral->del($FORM{REFERRAL_DEL});
   }
 
-  my $users_who_have_referrals = $Referral->get_referrers_list();
+  my $users_who_have_referrals = $Referral->referrers_list();
 
   _error_show($Referral);
 
@@ -254,7 +251,8 @@ sub referral_show {
     }
   }
 
-  my $tree = $html->tree_menu($users_list, $caption, {
+  my $tree = '';
+  $tree = $html->tree_menu($users_list, $caption, {
     PARENT_KEY     => 'referrer',
     ID_KEY         => 'uid',
     LABEL_KEY      => 'id',
@@ -411,7 +409,7 @@ sub referral_set {
     });
 
     if ($Referral->{TOTAL} <= 0) {
-      $Referral->add_log({
+      $Referral->log_add({
         LOG_TYPE         => 1,
         UID              => $who_is_referred,
         REFERRER         => $who_referred_him,
@@ -567,10 +565,13 @@ sub add_friend {
   my $info = {};
   my $action_res = {};
 
-  require Control::Services;
   require Service;
   Service->import();
   my $Service = Service->new($db, $admin, \%conf);
+
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
 
   if ($FORM{add}) {
     $action_res = $Referral_users->referral_user_manage({
@@ -644,7 +645,7 @@ sub add_friend {
     my $status_color = $user_status_list->{$referral->{DISABLE}}->{color} || '';
     my $user_status = $html->badge(_translate($status_name), {STYLE => "style=\"background-color: #$status_color;\""});
     my $service_info = ();
-    $service_info = get_services({ UID => $referral->{UID}} ) if $referral->{UID};
+    $service_info = $Services->get_services({ UID => $referral->{UID} }, { FORM => \%FORM }) if ($referral->{UID});
 
     my $user_service_status = '';
     foreach my $service (@{ $service_info->{list} }){
@@ -671,7 +672,7 @@ sub add_friend {
   my $script_name = $ENV{SCRIPT_NAME} || q{};
   $referral_link =~ s/$script_name/\/registration.cgi?module=Referral&REFERRER=$user->{UID}/;
 
-  $Referral->get_default_tp();
+  $Referral->tp_get_default();
 
   my $address_sel = form_address({
     # SHOW => 0,
@@ -716,7 +717,7 @@ sub referral_requests {
     return 1;
   }
 
-  $Referral->get_default_tp();
+  $Referral->tp_get_default();
   my $default_tp_id = $Referral->{ID} || '';
   my $default_tp_name = $Referral->{NAME} || '';
 
@@ -729,7 +730,7 @@ sub referral_requests {
     $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
 
     $Referral->del($referral_uid);
-    $Referral->del_request($FORM{del});
+    $Referral->request_del($FORM{del});
   }
 
   if ($FORM{chg}) {
@@ -863,7 +864,7 @@ sub referral_requests {
       delete $FORM{ADDRESS_FLAT};
     }
 
-    $Referral->change_request(\%FORM);
+    $Referral->request_change(\%FORM);
   }
 
   my $referrers = $Referral->request_list({
@@ -1026,6 +1027,8 @@ sub referral_pay {
 sub referral_tp {
   my $default_payments_types = '0,1,2';
   my $default_fees_types = '0,1';
+  my $payments_types = get_payment_methods();
+  my $fees_types = get_fees_types();
 
   my $payments_type_sel = $html->form_select('PAYMENTS_TYPE', {
   SEL_HASH     => $payments_types,
@@ -1057,7 +1060,7 @@ sub referral_tp {
     });
   }
   elsif ($FORM{add}) {
-    $Referral->get_default_tp();
+    $Referral->tp_get_default();
     if ($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT}) {
       $html->message('err', $lang{ERROR}, $lang{ONE_DEFAULT});
     }
@@ -1111,7 +1114,7 @@ sub referral_tp {
     $FORM{IS_DEFAULT} = 0 if (!$FORM{IS_DEFAULT});
     $FORM{STATIC_ACCRUAL} = 0 if (!$FORM{STATIC_ACCRUAL});
     $FORM{MULTI_ACCRUAL} = 0 if (!$FORM{MULTI_ACCRUAL});
-    $Referral->get_default_tp();
+    $Referral->tp_get_default();
     if ($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT} && $FORM{ID} && $FORM{ID} ne $Referral->{ID}) {
       $html->message('err', $lang{ERROR}, $lang{ONE_DEFAULT});
     }
@@ -1243,7 +1246,7 @@ sub referral_redirect {
     return 1;
   }
 
-  $Referral->change_request({
+  $Referral->request_change({
     ID     => $FORM{REFERRAL_REQUEST},
     STATUS => 1
   });
@@ -1267,7 +1270,7 @@ sub referral_redirect {
   if ($Referral->{list}[0]->{referral_tp} || $FORM{TP_ID}) {
 
     if ($FORM{TP_ID}) {
-      $Referral->change_request({
+      $Referral->request_change({
         ID    => $FORM{REFERRAL_REQUEST},
         TP_ID => $FORM{TP_ID}
       });
@@ -1314,11 +1317,11 @@ sub referral_link_registered {
 
   $Users->info($attr->{UID});
   $Users->pi({UID => $attr->{UID}});
-  $Referral->get_default_tp();
+  $Referral->tp_get_default();
 
   my $default_tp = $Referral->{ID};
 
-  $Referral->add_request({
+  $Referral->request_add({
     FIO          => $Users->{FIO},
     PHONE        => $Users->{PHONE},
     ADDRESS      => $Users->{ADDRESS_FULL},

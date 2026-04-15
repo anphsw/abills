@@ -42,7 +42,8 @@ our (
   # @MONTHES,
   # @WEEKDAYS,
   %ADMIN_REPORT,
-  $base_dir
+  $base_dir,
+  @MODULES
 );
 
 our Abills::HTML $html;
@@ -63,6 +64,7 @@ my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my %service_type = %{$Sender->available_types(
   { CLIENT => 1, HASH_RETURN => 1, SOFT_CHECK => 1 }
 )};
+
 if (in_array('Sms', \@MODULES)) {
   $service_type{1} = 'Sms';
 }
@@ -85,6 +87,7 @@ my %REPORTS = (
   14 => "$lang{DEPOSIT_NOTIFY_BEFORE_ABON}",
   15 => "$lang{INTERNET_DISABLED}",
   16 => "$lang{NEXT_PERIOD_TP}",
+  17 => "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{STEP} 2",
 );
 
 our %error_codes_to_lang = (
@@ -349,6 +352,28 @@ sub ureports_user {
     $Ureports->user_del({ UID => $FORM{UID} });
     $html->message('info', $lang{INFO}, $lang{DELETED}) if (!_error_show($Ureports));
   }
+  elsif ($FORM{test} && $FORM{UID} && $FORM{REPORT_ID}) {
+    $Ureports->user_info($FORM{UID});
+
+    require Users;
+    Users->import();
+    my $Users = Users->new($db, $admin, \%conf);
+
+    $Users->info($FORM{UID});
+    $Users->pi({ UID => $FORM{UID} });
+    my $send_status = $Ureports_base->ureports_send_reports($Ureports->{TYPES}, $Ureports->{DESTINATIONS}, undef, {
+      %{$Users},
+      %{$Ureports},
+      DATE      => $DATE,
+      REPORT_ID => $FORM{REPORT_ID},
+      UID       => $FORM{UID},
+      DEBUG     => $FORM{DEBUG}
+    });
+
+    if (!$send_status) {
+      $html->message('info', $lang{INFO}, "$lang{MESSAGE} $lang{SENDED}");
+    }
+  }
 
   if (_error_show($Ureports, { MODULE_NAME => 'Ureports', ID => 2101, MESSAGE => $Ureports->{errstr} })) {
     return 1 if ($attr->{REGISTRATION});
@@ -378,7 +403,7 @@ sub ureports_user {
     my $table = $html->table({
       width   => '100%',
       caption => $lang{REPORTS},
-      title   => [ '#', $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED} ],
+      title   => [ '#', $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED}, '' ],
       qs      => $pages_qs,
       ID      => 'REPORTS_TP'
     });
@@ -400,7 +425,8 @@ sub ureports_user {
         (($line->{msg_price}) ? $line->{msg_price} : '0.00'),
         ($line->{date} || '') . (($line->{date} && $line->{date} ne '0000-00-00') ? $html->button($lang{RESET},
           "index=$index&UID=$line->{uid}&REPORT_ID=$line->{report_id}&reset_date=1",
-          { MESSAGE => "$lang{RESET}", class => 'del' }) : '')
+          { MESSAGE => "$lang{RESET}", class => 'del' }) : ''),
+        $html->button($lang{TEST}, "index=$index&UID=$Ureports->{UID}&REPORT_ID=$line->{report_id}&test=1", { class => 'btn btn-default btn-sm' })
       );
     }
 
@@ -800,6 +826,7 @@ sub ureports_stats {
     $pages_qs .= "&PERIOD=$FORM{PERIOD}";
   }
   $LIST_PARAMS{STATUS} = $FORM{STATUS} if defined $FORM{STATUS};
+  $LIST_PARAMS{PAGE_ROWS} = 10000 if (!$admin->{MAX_ROWS});
 
   my $list = $Ureports->log_list({ %LIST_PARAMS, COLS_NAME => 1 });
 
@@ -987,7 +1014,7 @@ sub ureports_user_info {
     my %rev_service_type = reverse %service_type;
     my %user_types = ();
     foreach my $type (@types) {
-      $user_types{$type} = $rev_service_type{$type} if ($type);
+      $user_types{$type} = $rev_service_type{$type} if ($type && $rev_service_type{$type});
     }
     %service_type = reverse %user_types;
   }
@@ -1050,7 +1077,7 @@ sub ureports_daily_resets {
   my $d = (split('-', $ADMIN_REPORT{DATE}, 3))[2];
   if ($d == 1) {
     my $list = $Ureports->tp_user_reports_list({
-      REPORT_ID => "13;14;3;11;10;9",
+      REPORT_ID => "13;14;3;11;10;9;17",
       DATE      => '>0000-00-00',
       %LIST_PARAMS,
       COLS_NAME => 1,
@@ -1058,9 +1085,10 @@ sub ureports_daily_resets {
     });
 
     foreach my $line (@{$list}) {
-      $debug_output .= "UID: $line->{uid} REPORT_ID: $line->{report_id} VALUE: $line->{value} DEPOSIT: $line->{deposit}\n" if ($debug > 1);
+      my $deposit = $line->{deposit} || 0;
+      $debug_output .= "UID: $line->{uid} REPORT_ID: $line->{report_id} VALUE: $line->{value} DEPOSIT: $deposit\n" if ($debug > 1);
       if ($debug < 5) {
-        next if($line->{deposit} < 0 && $line->{report_id} == 2);
+        next if($deposit < 0 && $line->{report_id} == 2);
 
         $Ureports->tp_user_reports_reset_date({
           REPORT_ID => $line->{report_id},
@@ -1757,8 +1785,15 @@ sub ureports_monthly_periodic {
 
         my $user = $users->info($u->{uid});
 
+        if (! $user->{DEPOSIT}) {
+          print "[ERROR] LOGIN: $user->{LOGIN} NO_DEPOSIT\n";
+          next;
+        }
+
+
         if (!$postpaid) {
           my $ext = $user->{EXT_DEPOSIT} ? $user->{EXT_DEPOSIT} : 0;
+
           if ($ext + $user->{DEPOSIT} + $user->{CREDIT} > $month_fee) {
             $Fees->take($user, $month_fee, { %PARAMS });
           }

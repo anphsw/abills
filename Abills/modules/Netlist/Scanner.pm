@@ -45,7 +45,7 @@ sub new {
     }
     
     if (!$self->{nmap}){
-      my $which = `which nmap`;
+      my $which = cmd('which nmap');
       if ($which){
         chomp $which;
         $self->{nmap} = $which;
@@ -72,8 +72,7 @@ sub new {
 =cut
 #**********************************************************
 sub set_nmap_location {
-  my $self = shift;
-  my ($filename) = @_;
+  my ($self, $filename) = @_;
 
   $self->{nmap} = $filename;
 
@@ -92,8 +91,7 @@ sub set_nmap_location {
 =cut
 #**********************************************************
 sub set_target {
-  my $self = shift;
-  my ($target) = @_;
+  my ($self, $target) = @_;
 
   $self->{target} = $target;
 
@@ -112,8 +110,8 @@ sub set_target {
 =cut
 #**********************************************************
 sub set_timeout {
-  my $self = shift;
-  my ($ms) = @_;
+  my ($self, $ms) = @_;
+
   $self->{timeout} = $ms . 'ms';
   return 1;
 }
@@ -175,6 +173,7 @@ sub scan {
 #**********************************************************
 sub _prepare_results {
   my $self = shift;
+
   my Nmap::Parser $parser = shift;
 
   my %results = ();

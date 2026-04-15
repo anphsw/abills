@@ -315,6 +315,7 @@ sub form_streets{
   }
 
   $LIST_PARAMS{SORT} = 2 if !$FORM{sort};
+  $LIST_PARAMS{PAGE_ROWS} = 65000;
 
   my Abills::HTML $table;
   ($table) = result_former( {
@@ -371,6 +372,7 @@ sub form_streets{
       SHOW_FULL_LIST => 1,
       ID      => 'STREETS_LIST',
       EXPORT  => 1,
+      DATA_TABLE  => 1,
       MENU    => "$lang{ADD}:index=$index&add_form=1&DISTRICT_ID=" . ($FORM{DISTRICT_ID} || '') . ":add; $lang{SEARCH}:index=$index&search_form=1&DISTRICT_ID=" . ($FORM{DISTRICT_ID} || '') . ":search",
       SHOW_COLS_HIDDEN => {
         DISTRICT_ID => $FORM{DISTRICT_ID}
@@ -482,6 +484,8 @@ sub form_builds{
       SEL_OPTIONS => { '' => '--' },
       NO_ID       => 1
     });
+
+    $Address->{BUILD_NUMBER_CAPITALIZE} = ($conf{BUILD_NUMBER_CAPITALIZE}) ? $conf{BUILD_NUMBER_CAPITALIZE} : '';
 
     $html->tpl_show(templates('form_build'), $Address);
   }
@@ -778,6 +782,7 @@ sub sel_districts {
     PARENT_NAME => '_SHOW',
     ID          => $attr->{ID} || '_SHOW',
     TYPE_NAME   => '_SHOW',
+    _SKIP_TOTAL => 1,
     PAGE_ROWS   => 10000,
     COLS_NAME   => 1
   });
@@ -985,7 +990,7 @@ sub sel_streets {
   foreach my $street (@{$streets}) {
     next if !$street->{district_id} || !$street->{district_name};
     if ($street->{second_name}) {
-      $street->{street_name} .= " ($street->{second_name})";
+      $street->{street_name} .= " [$street->{second_name}]";
     }
 
     $street_hash{$street->{district_name}}{$street->{street_id}} = $street->{street_name};
@@ -1245,7 +1250,6 @@ sub form_address {
   if ($_address_full->{address_name}){
     $params{ADD_NAME} = $_address_full->{address_name};
     $params{ADD_TO_BUFFER} = $_address_full->{address_name};
-    $params{ADD_TO_BUFFER} =~ s/\'/\\\'/xg;
   }
 
   $attr->{ADDRESS_FULL} = $_address_full->{address_full} if ($_address_full->{address_full});
@@ -1565,15 +1569,27 @@ sub address_import {
     my %district_list  = map { $_->{name} => $_->{id} } @{$districts_list};
     my %street_list    = map { $_->{district_id} .'_'.$_->{street_name} => $_->{id} } @{$streets_list};
 
+    my @failed = ();
+
     foreach my $address_ (@$import_info) {
       address_create($address_, {
         DISTRICTS => \%district_list,
         STREETS   => \%street_list
       });
+      
+      if ($Address->{errno}) {
+        my $address_label = join('/', ($address_->{DISTRICT} || '', $address_->{STREET} || ''), $address_->{BUILD} || '');
+        _error_show($Address, { MESSAGE => $address_label });
+        push(@failed, $address_label);
+      }
     }
 
-    $html->message('info', $lang{INFO},
-      "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n $lang{SIZE}: $FORM{UPLOAD_FILE}{Size}\n $lang{COUNT}: $total" );
+    $html->message('info', $lang{INFO}, "$lang{ADDED}\n $
+      lang{FILE}: " . ($FORM{UPLOAD_FILE}{filename} || '') .
+      "\n$lang{SIZE}: " . ($FORM{UPLOAD_FILE}{Size} || '') .
+      "\n$lang{COUNT}: $total
+      $lang{SUCCESS}: " . ($total - scalar(@failed))
+    );
 
     return 1;
   }
@@ -1628,42 +1644,59 @@ sub address_create {
 
     if ($Address->{TOTAL} || $Address->{TOTAL} == 1) {
       $location_id = $builds_list->[0]->{id} || 0;
-      if ($address_->{ADDRESS_COORDX} && $address_->{ADDRESS_COORDY}
-        && (
-        ($address_->{ADDRESS_COORDX} ne $builds_list->[0]->{coordx})
-          || ($address_->{ADDRESS_COORDY} ne $builds_list->[0]->{coordy})
-      )
-      ) {
-        $Address->build_change({
-          ID     => $location_id,
-          COORDX => $address_->{ADDRESS_COORDX},
-          COORDY => $address_->{ADDRESS_COORDY},
-        });
+      if ($address_->{ADDRESS_COORDX} && $address_->{ADDRESS_COORDY}) {
+        my $different_coords = ($address_->{ADDRESS_COORDX} ne $builds_list->[0]->{coordx})
+          || ($address_->{ADDRESS_COORDY} ne $builds_list->[0]->{coordy});
+
+        if ($different_coords) {
+          $Address->build_change({
+            ID     => $location_id,
+            COORDX => $address_->{ADDRESS_COORDX},
+            COORDY => $address_->{ADDRESS_COORDY},
+          });
+        }
+      }
+      else {
+        $Address->{errno} = 1000022;
+        $Address->{errstr} = 'ERR_BUILD_ALREADY_EXISTS';
       }
 
       return $location_id;
     }
   }
 
+  my $exist_street_id = 0;
+  if ($address_->{DISTRICT} && $address_->{STREET} && $district->{ $address_->{DISTRICT} } && $street->{ $district->{ $address_->{DISTRICT} } }) {
+    $exist_street_id = $street->{ $district->{ $address_->{DISTRICT} } . '_' . $address_->{STREET} };
+  }
+
   if ($address_->{DISTRICT} && (! $district || !$district->{ $address_->{DISTRICT} })) {
     my $districts_id = address_district_add($address_->{DISTRICT}, $attr);
+    return 0 if ($Address->{errno});
+
     $district->{$address_->{DISTRICT}} = $districts_id;
     my $street_id = $address_->{STREET} ? address_street_add($address_->{STREET}, $districts_id, $attr) : 0;
+    return 0 if ($Address->{errno});
+
     if ($street_id && $address_->{BUILD}) {
-      return address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
+      return address_build_add($address_->{BUILD}, $street_id || $exist_street_id);
     }
   }
-  elsif ($address_->{STREET} && !$street->{ $district->{ $address_->{DISTRICT} }.'_'.$address_->{STREET} }) {
+  elsif ($address_->{STREET} && !$exist_street_id) {
     my $street_id = address_street_add($address_->{STREET}, $district->{ $address_->{DISTRICT} });
-    address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} }) if $address_->{BUILD};
+    return 0 if ($Address->{errno});
+
+    if ($address_->{BUILD}) {
+      return address_build_add($address_->{BUILD}, $street_id || $exist_street_id);
+    }
   }
   else {
     if ($address_->{STREET} && $address_->{BUILD}) {
-      address_build_add($address_->{BUILD}, $street->{ $address_->{STREET} });
+      return address_build_add($address_->{BUILD}, $exist_street_id);
     }
   }
 
-  return 1;
+  return 0;
 }
 
 #**********************************************************
@@ -1728,13 +1761,13 @@ sub address_build_add {
 
   my $location_id = 0;
   $Address->build_add({
-    STREET_ID => $street_id,
+    STREET_ID         => $street_id,
     ADD_ADDRESS_BUILD => $number || $attr->{ADDRESS_BUILD},
-    COORDX    => $attr->{ADDRESS_COORDX},
-    COORDY    => $attr->{ADDRESS_COORDY},
-    ZIP       => $attr->{ZIP},
-    FLORS     => $attr->{ADDRESS_BUILD_FLORS},
-    ENTRANCES => $attr->{ADDRESS_BUILD_ENTRANCES},
+    COORDX            => $attr->{ADDRESS_COORDX},
+    COORDY            => $attr->{ADDRESS_COORDY},
+    ZIP               => $attr->{ZIP},
+    FLORS             => $attr->{ADDRESS_BUILD_FLORS},
+    ENTRANCES         => $attr->{ADDRESS_BUILD_ENTRANCES},
   });
 
   if ($Address->{errno}) {

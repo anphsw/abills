@@ -29,8 +29,6 @@ use Api::Validations::Services qw(POST_SERVICES_STATUSES PUT_SERVICES_STATUSES);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -53,7 +51,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/services/statuses/',
-      controller  => 'Api::Controllers::Admin::Services',
       endpoint    => \&Api::Controllers::Admin::Services::get_services_statuses,
       credentials => [ 'ADMIN' ]
     },
@@ -61,7 +58,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/services/statuses/:id/',
       params      => POST_SERVICES_STATUSES,
-      controller  => 'Api::Controllers::Admin::Services',
       endpoint    => \&Api::Controllers::Admin::Services::post_services_statuses,
       credentials => [ 'ADMIN' ]
     },
@@ -69,21 +65,18 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/services/statuses/:id/',
       params      => PUT_SERVICES_STATUSES,
-      controller  => 'Api::Controllers::Admin::Services',
       endpoint    => \&Api::Controllers::Admin::Services::put_services_statuses_id,
       credentials => [ 'ADMIN' ]
     },
     {
       method      => 'DELETE',
       path        => '/services/statuses/:id/',
-      controller  => 'Api::Controllers::Admin::Services',
       endpoint    => \&Api::Controllers::Admin::Services::delete_services_statuses_id,
       credentials => [ 'ADMIN' ]
     },
     {
       method      => 'GET',
       path        => '/services/statuses/:id/',
-      controller  => 'Api::Controllers::Admin::Services',
       endpoint    => \&Api::Controllers::Admin::Services::get_services_statuses_id,
       credentials => [ 'ADMIN' ]
     },

@@ -31,7 +31,8 @@ jQuery(function () {
     
     _add_btn.html('<span class="fa fa-spinner fa-pulse"></span>');
     _add_btn.addClass('disabled');
-    
+
+    jQuery('#upload-pre-button').hide();
     ajax_clear_body = _ajax_body.html();
 
     jQuery.ajax({
@@ -41,10 +42,10 @@ jQuery(function () {
       contentType: false,                       // The content type used when sending data to the server.
       cache      : false,                       // To unable request pages to be cached
       processData: false,                       // To send DOMDocument or non processed data file it is set to false
-      success    : function (data)              // A function to be called if request succeeds
+      success    : function (data)
       {
         _ajax_body.empty().html(data);
-        
+
         if (self_close) setTimeout(renewForm, timeout);
       }
     });
@@ -68,6 +69,26 @@ jQuery(function () {
       e.preventDefault();
     
       uploadForm(this);
+    });
+
+    jQuery('#upload-pre-button').on('click', function (e) {
+      e.preventDefault();
+
+      const form = document.getElementById('ajax_upload_form');
+      const formData = new FormData(form);
+      formData.append('UPLOAD_PRE', 1);
+
+      jQuery.ajax({
+        url: '/admin/index.cgi',
+        type: 'POST',
+        data: formData,
+        contentType: false,
+        cache: false,
+        processData: false,
+        success: function (data) {
+          jQuery('#preview-container').html(data);
+        }
+      });
     });
   }
 });

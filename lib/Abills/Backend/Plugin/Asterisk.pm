@@ -40,6 +40,7 @@ my Abills::Backend::Plugin::Websocket::API $websocket_api = get_global('WEBSOCKE
 
 # Cache
 my %calls_statuses = ();
+my %admins_sip = (); # sip -> aid
 my @skip_nums = ();
 
 #**********************************************************
@@ -56,8 +57,7 @@ my @skip_nums = ();
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($CONF, $attr) = @_;
+  my ($class, $CONF, $attr) = @_;
 
   %conf = %{$CONF};
 
@@ -84,7 +84,17 @@ sub new {
   };
 
   if ($conf{CALLCENTER_SKIP_LOG}) {
-    @skip_nums = split(/,\s?/, $conf{CALLCENTER_SKIP_LOG});
+    @skip_nums = split(/,\s?/x, $conf{CALLCENTER_SKIP_LOG});
+  }
+
+  my $admin_list = $Admins->list({
+    SIP_NUMBER => '!',
+    COLS_NAME  => 1,
+    PAGE_ROWS  => 1000
+  });
+
+  foreach my $admin (@$admin_list) {
+    $admins_sip{$admin->{sip_number}} = $admin->{aid};
   }
 
   bless($self, $class);
@@ -119,7 +129,7 @@ sub init {
 sub init_connection {
   my $self = shift;
 
-  eval {require Asterisk::AMI};
+  eval {require Asterisk::AMI };
   if ($@) {
     $Log->critical($log_user, "Can't load Asterisk::AMI perl module");
     die "Can't load Asterisk::AMI perl module";
@@ -129,7 +139,7 @@ sub init_connection {
 
   $Log->info("Connecting to asterisk ");
 
-  $self->connect_to_asterisk();
+  return $self->connect_to_asterisk();
 }
 
 #**********************************************************
@@ -166,7 +176,7 @@ sub connect_to_asterisk {
     Username   => $conf{ASTERISK_AMI_USERNAME},
     Secret     => $conf{ASTERISK_AMI_SECRET},
     Events     => 'on', # Give us something to proxy
-    Timeout    => 2,
+    Timeout    => $conf{ASTERISK_AMI_TIMEOUT} || 2,
     Blocking   => 0,
     Handlers   => \%handlers,
     Keepalive  => 3, # Send a keepalive every 3 seconds
@@ -183,7 +193,7 @@ sub connect_to_asterisk {
       $self->reconnect_to_asterisk_in(3) or $self->exit_with_error("Unable to connect to Asterisk");
     },
     on_timeout => sub {
-      $Log->critical("Connection $self->{connection_num} to Asterisk timed out");
+      $Log->critical("Connection $self->{connection_num} to Asterisk '$conf{ASTERISK_AMI_IP}:$conf{ASTERISK_AMI_PORT}' timed out");
       $self->reconnect_to_asterisk_in(2) or $self->exit_with_error("Unable to connect to Asterisk");
     }
   );
@@ -240,9 +250,7 @@ sub reconnect_to_asterisk_in {
 sub process_asterisk_newchannel {
   my ($asterisk, $event) = @_;
 
-  my $event_ = $event->{Event} || 'NO EVENT';
-
-  #`echo "NEWCHANNEL: $event_ // $event->{Uniqueid}" >> /tmp/sip`;
+  #my $event_ = $event->{Event} || 'NO EVENT';
 
   process_default($asterisk, $event, { LOG_FILE => '/usr/abills/var/log/newchannel.log' });
 
@@ -459,11 +467,11 @@ sub notify_admin_about_new_call {
   }
 
   if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//x;
   }
 
   my $search_expr = '*USER_PHONE';
-  if ($caller_number =~ /(\d{6,13})/) {
+  if ($caller_number =~ /(\d{6,13})/xm) {
     $search_expr = '*USER_PHONE*';
   }
   elsif ($conf{CALLCENTER_ASTERISK_SEARCH}) {
@@ -552,7 +560,7 @@ sub exit_with_error {
 =cut
 #**********************************************************
 sub _create_user_notification {
-  my ($user_info, $number) = @_;
+  my ($user_info) = @_;
 
   my $tp_name = '';
   my $internet_status = 0;
@@ -593,7 +601,7 @@ sub _create_user_notification {
   my %service_status = ();
   foreach my $line (@$status_list) {
     my $name = $line->{name} || q{};
-    if ($name =~ /\$lang\{(.+)\}/) {
+    if ($name =~ /\$lang\{(.+)\}/xm) {
       $name = $lang{$1} || $1 || q{};
     }
     $service_status{$line->{id} || 0} = $name || q{};
@@ -601,7 +609,7 @@ sub _create_user_notification {
 
   my $money_name = '';
   if ($conf{MONEY_UNIT_NAMES}) {
-    $money_name = $conf{MONEY_UNIT_NAMES} ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : '';
+    $money_name = $conf{MONEY_UNIT_NAMES} ? (split(/;/x, $conf{MONEY_UNIT_NAMES}))[0] : '';
   }
 
   my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
@@ -819,7 +827,7 @@ sub process_asterisk_bridge {
 sub process_asterisk_softhanguprequest {
   my ($asterisk, $event) = @_;
 
-  my $event_ = $event->{Event} || 'NO EVENT';
+  #my $event_ = $event->{Event} || 'NO EVENT';
   #my $called_number = $event->{Exten} || q{};
   my $call_id = $event->{Uniqueid} || q{UNKNOWN};
 
@@ -912,10 +920,7 @@ sub process_asterisk_rtcpsent {
   #   #`echo "$DATE $TIME  RTCP: $event_ /$channel_state/ $call_id, $caller_number -> $called_number" >> /tmp/sip`;
   # }
 
-  $Callcenter->query("SELECT status
-    FROM callcenter_calls_handler
-    WHERE id='$call_id';"
-  );
+  $Callcenter->query("SELECT status FROM callcenter_calls_handler  WHERE id='$call_id';");
 
   if (!$Callcenter->{TOTAL}) {
     call_processing($asterisk, {
@@ -973,35 +978,43 @@ sub call_processing {
   my $call_id = $attr->{CALL_ID} || q{};
 
   if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//x;
   }
 
   my $newchannel_handler = sub {
-    my $search_expr = '*USER_PHONE';
-
-    if ($caller_number =~ /(\d{6,13})/) {
-      $search_expr = '*USER_PHONE*';
-    }
-    elsif ($conf{CALLCENTER_ASTERISK_SEARCH}) {
-      $search_expr = $conf{CALLCENTER_ASTERISK_SEARCH};
-    }
-
-    $search_expr =~ s/USER_PHONE/$caller_number/g;
-
-    my $user = $Users->list({
-      UID       => '_SHOW',
-      PHONE     => $search_expr,
-      COLS_NAME => 1,
-      TEST      => 1
-    });
 
     my $uid = 0;
-    if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
-      $uid = $user->[0]->{uid};
+    my $aid = 0;
+
+    if($admins_sip{$caller_number}) {
+      $aid=$admins_sip{$caller_number};
     }
-    my $error = -1;
-    if ($Users->{errno}) {
-      $error = $Users->{errno} || '-2';
+    else {
+      my $search_expr = '*USER_PHONE';
+
+      if ($caller_number =~ /(\d{6,13})/xm) {
+        $search_expr = '*USER_PHONE*';
+      }
+      elsif ($conf{CALLCENTER_ASTERISK_SEARCH}) {
+        $search_expr = $conf{CALLCENTER_ASTERISK_SEARCH};
+      }
+
+      $search_expr =~ s/USER_PHONE/$caller_number/xg;
+
+      my $user = $Users->list({
+        UID       => '_SHOW',
+        PHONE     => $search_expr,
+        COLS_NAME => 1,
+        TEST      => 1
+      });
+
+      if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
+        $uid = $user->[0]->{uid};
+      }
+      my $error = -1;
+      if ($Users->{errno}) {
+        $error = $Users->{errno} || '-2';
+      }
     }
 
     $Callcenter->callcenter_add_calls({
@@ -1010,6 +1023,7 @@ sub call_processing {
       ID             => $call_id,
       UID            => $uid || 0,
       STATUS         => $attr->{STATUS} || 1,
+      AID            => $aid
     });
 
     if (!$Callcenter->{errno}) {
@@ -1067,7 +1081,7 @@ sub skip_call {
   elsif(in_array($called_number, [ '+', 's'])) {
     return 1
   }
-  elsif ($called_number =~ /unknown/ || $caller_number =~ /unknown/) {
+  elsif ($called_number =~ /unknown/xm || $caller_number =~ /unknown/xm) {
     return 1;
   }
   elsif ($conf{CALLCENTER_SKIP_LOG}) {
@@ -1080,7 +1094,18 @@ sub skip_call {
   return 0;
 }
 
+#**********************************************************
+=head2 process_asterisk_rtcpreceived($asterisk, $event)
 
+  Arguments:
+    $asterisk
+    $event
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
 sub process_asterisk_rtcpreceived {
   my ($asterisk, $event) = @_;
 

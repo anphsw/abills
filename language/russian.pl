@@ -1145,6 +1145,7 @@ $lang{ERR_CONTACT_VALUE_REQUIRED} = 'Значение контакта обяз�
 $lang{ERR_WRONG_CELL_PHONE_FORMAT} = 'Неверный формат мобильного телефона';
 $lang{ERR_WRONG_PHONE_FORMAT} = 'Неверный формат телефона';
 $lang{ERR_CONTACT_ID_REQUIRED} = 'ID контакта обязателен';
+$lang{ERR_BUILD_ALREADY_EXISTS} = 'Здание уже существует';
 
 $lang{FIXED_FEES_FREE_PERIOD}='Бесплатный период до начала месяца';
 
@@ -1178,7 +1179,7 @@ $lang{REWRITE} = 'Перезаписать';
 $lang{PARENT_ELEMENT} = 'Родительский элемент';
 $lang{PARENT_ELEMENT_VALUE} = 'Значение родительского элемента';
 $lang{MANAGING_EXTERNAL_SERVICES} = 'Управление внешними сервисами';
-
+$lang{MANAGING_PASSPORT_DATA} = 'Управление паспортными данными';
 $lang{APPLICATION_TERMINATION_CONTRACT} = 'Заявление на расторжение договора';
 $lang{FORBIDDEN_PASSWORDS} = 'Запрещённые пароли';
 $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Количество допустимых ошибочных попыток входа';
@@ -1189,5 +1190,21 @@ $lang{SUBCONTO} = 'Код Субконто';
 $lang{IN_TERMINATION_PROCESS} = 'В процессе расторжения';
 $lang{TERMINATED_CONTRACT} = 'Договор расторгнут';
 $lang{EXTERNAL_CMD} = 'Внешняя команда';
+$lang{CODEFICATION} = 'кодификации';
+$lang{CONNECTION_TO_THE_BOT} = 'Подключение к боту';
+
+$lang{MAIN_DOCUMENT} = 'Основной документ';
+$lang{ID_CARD} = 'ID-карта';
+$lang{DRIVER_LICENSE} = 'Водительское удостоверение';
+$lang{SAVING} = 'Сохранение';
+$lang{NO_DOCUMENTS} = 'Нет документов';
+$lang{DOCUMENT_EXPIRED} = 'Документ просрочен';
+$lang{EXPIRES_IN} = 'Истекает через';
+$lang{ERROR_LOADING_LIST} = 'Ошибка загрузки списка';
+$lang{CONNECTION_ERROR} = 'Ошибка соединения';
+$lang{ERROR_LOADING_DOCUMENT} = 'Ошибка загрузки документа';
+$lang{DELETING_DOCUMENT} = 'Удаление документа';
+$lang{CONFIRM_DELETE_DOCUMENT} = 'Вы уверены, что хотите удалить этот документ?';
+$lang{DOCUMENT_DELETED} = 'Документ удалён';
 
 1;

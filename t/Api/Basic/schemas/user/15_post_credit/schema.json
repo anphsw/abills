@@ -1,22 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
+  "title": "postCredit",
   "properties": {
     "creditSum": {
-      "type": "integer"
+      "type": "number"
     },
-    "creditChangePrice": {
-      "type": "integer"
+    "creditChgPrice": {
+      "type": "number"
     },
     "uid": {
       "type": "integer"
     },
     "creditDays": {
-      "type": "string"
+      "type": "integer"
     },
     "creditMonthChanges": {
-      "type": "string"
+      "type": "integer"
     }
   },
-  "required": ["creditSum", "creditChangePrice", "uid", "creditDays", "creditMonthChanges"]
+  "required": ["creditSum", "creditChgPrice", "uid", "creditDays", "creditMonthChanges"]
 }

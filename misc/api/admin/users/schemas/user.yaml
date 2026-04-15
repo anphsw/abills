@@ -1,7 +1,7 @@
 type: object
 description: >
   Также можно добавлять все информационные поля
-  Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+  Пример: если в БД `_TEST_FIELD` то можно добавить как `__testField`
 properties:
   login:
     type: string
@@ -88,3 +88,194 @@ properties:
     example: 1
     default: 0
     description: Установить статус удалено пользователю, но полностью не удалять
+  acceptRules:
+    type: integer
+    example: 0
+  addressBuild:
+    type: integer
+    example: 5
+  addressDistrict:
+    type: string
+    example: "Івано-Франківська"
+  addressDistrictFull:
+    type: string
+    example: "Україна / Івано-Франківська"
+  addressFlat:
+    type: string
+    example: "3132"
+  addressFlors:
+    type: integer
+    example: 0
+  addressFull:
+    type: string
+    example: "Test, 5, 3132"
+  addressFullLocation:
+    type: string
+    example: "Україна / Івано-Франківська: Test, 5, 3132"
+  addressStreet:
+    type: string
+    example: "Test"
+  addressStreet2:
+    type: string
+    example: "sınaq küçəsi"
+  addressStreetTypeName:
+    type: string
+    example: ""
+  billOwner:
+    type: integer
+    example: 103359
+  birthDate:
+    type: string
+    format: date
+    example: "0000-00-00"
+  cellPhone:
+    type: array
+    items:
+      type: string
+    example: []
+  city:
+    type: string
+    example: ""
+  comments:
+    type: string
+    example: ""
+  companyCredit:
+    type: number
+    example: 0
+  companyName:
+    type: string
+    example: ""
+  companyVat:
+    type: number
+    example: 0
+  contractDate:
+    type: string
+    format: date
+    example: "2023-01-19"
+  contractId:
+    type: integer
+    example: 1150031992
+  contractSufix:
+    type: string
+    example: ""
+  coordx:
+    type: number
+    example: 0
+  countryId:
+    type: integer
+    example: 0
+  deposit:
+    type: number
+    example: 0
+  districtId:
+    type: integer
+    example: 14
+  email:
+    type: array
+    items:
+      type: string
+      format: email
+    example:
+      - "andrusakura46@gmail.com"
+  entrance:
+    type: integer
+    example: 0
+  fio:
+    type: string
+    example: "Юра Андрусяк"
+  fio2:
+    type: string
+    example: ""
+  fio3:
+    type: string
+    example: ""
+  floor:
+    type: integer
+    example: 0
+  googlePush:
+    type: array
+    items:
+      type: string
+    example: []
+  gName:
+    type: string
+    example: ""
+  icq:
+    type: array
+    items:
+      type: string
+    example: []
+  locationId:
+    type: integer
+    example: 148
+  mobilePush:
+    type: array
+    items:
+      type: string
+    example: []
+  pasportDate:
+    type: string
+    format: date
+    example: "0000-00-00"
+  pasportGrant:
+    type: string
+    example: "First consul of Persia"
+  pasportNum:
+    type: string
+    example: "IBC821712"
+  phone:
+    type: array
+    items:
+      type: string
+  registration:
+    type: string
+    format: date
+    example: "2023-01-19"
+  regAddress:
+    type: string
+    example: ""
+  skype:
+    type: array
+    items:
+      type: string
+    example: []
+  streetId:
+    type: integer
+    example: 13
+  taxNumber:
+    type: integer
+    example: 0
+  telegram:
+    type: array
+    items:
+      type: string
+    example: []
+  total:
+    type: integer
+    example: 1
+  uid:
+    type: integer
+    example: 103359
+  viber:
+    type: array
+    items:
+      type: string
+    example: []
+  zip:
+    type: string
+    example: ""
+  apple:
+    type: string
+    example: ","
+  document:
+    type: integer
+    example: 0
+  facebook:
+    type: string
+    example: ","
+  g2fa:
+    type: string
+    example: ""
+  google:
+    type: string
+    example: ","

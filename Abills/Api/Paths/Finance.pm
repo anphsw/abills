@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/finance/exchange/rate/',
-      controller  => 'Api::Controllers::Admin::Finance',
       endpoint    => \&Api::Controllers::Admin::Finance::get_finance_exchange_rate,
       credentials => [
         'ADMIN'
@@ -60,7 +57,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/finance/exchange/rate/log/',
-      controller  => 'Api::Controllers::Admin::Finance',
       endpoint    => \&Api::Controllers::Admin::Finance::get_finance_exchange_rate_log,
       credentials => [
         'ADMIN'

@@ -21,9 +21,15 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right required'>_{ADMINS}_:</label>
+        <label class='col-md-4 col-form-label text-md-right'>_{ADMINS}_:</label>
         <div class='col-md-6'>
           %ADMINS_SELECT%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{DEPARTMENT}_:</label>
+        <div class='col-md-6'>
+          %DEPARTMENT_SELECT%
         </div>
       </div>
       <div class='form-group row'>

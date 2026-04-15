@@ -10,7 +10,7 @@
       "type": "integer"
     },
     "activatePrice": {
-      "type": "integer"
+      "type": "number"
     },
     "affected": {
       "type": "integer"
@@ -164,13 +164,13 @@
       "type": "object",
       "properties": {
         "activatePrice": {
-          "type": "integer"
+          "type": "number"
         },
         "createAccount": {
           "type": "integer"
         },
         "discount": {
-          "type": "integer"
+          "type": "number"
         },
         "extBillAccount": {
           "type": "integer"

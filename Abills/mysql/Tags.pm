@@ -60,6 +60,8 @@ sub add {
   my ($attr) = @_;
 
   $self->query_add('tags', $attr);
+
+  $self->{admin}->{MODULE} = 'Tags';
   $self->{admin}->system_action_add("TAG_ID:$self->{INSERT_ID}", { TYPE => 1 });
 
   return $self;
@@ -96,6 +98,7 @@ sub del{
   $self->query_del('tags', { ID => $id });
   $self->query_del('tags_users', undef, { TAG_ID => $id });
 
+  $self->{admin}->{MODULE} = 'Tags';
   $self->{admin}->system_action_add( "TAG_ID:$id", { TYPE => 10 } );
   return $self;
 }
@@ -248,7 +251,24 @@ sub tags_user_change{
       undef, { MULTI_QUERY => \@MULTI_QUERY });
   }
   $attr->{IDS} //= '';
-  $self->{admin}->action_add( $attr->{UID}, (join(',', keys(%{$old_tags})) || '') . " -> $attr->{IDS}", { TYPE => 1 } );
+
+  if ($attr->{IDS}) {
+    my $tags_list = $self->list({ NAME => '_SHOW', COLS_NAME => 1 });
+    my %tags_hash = ();
+    foreach my $tag (@{$tags_list}) {
+      $tags_hash{$tag->{id}} = $tag->{name};
+    }
+
+    my @ids_old = keys %$old_tags;
+    my @ids_new = split /\s*,\s*/, $attr->{IDS};
+
+    $attr->{TAGS_OLD} = join(' | ', map { "$tags_hash{$_}" } @ids_old);
+    $attr->{TAGS_NEW} = join(' | ', map { "$tags_hash{$_}" } @ids_new);
+
+  }
+
+  $self->{admin}->{MODULE} = 'Tags';
+  $self->{admin}->action_add( $attr->{UID}, "$attr->{TAGS_OLD} <b>-></b> $attr->{TAGS_NEW}", { TYPE => 1 } );
 
   return $self;
 }
@@ -296,6 +316,8 @@ sub user_add {
   my ($attr) = @_;
 
   $self->query_add('tags_users', $attr);
+
+  $self->{admin}->{MODULE} = 'Tags';
   $self->{admin}->system_action_add("USER:$attr->{UID}, TAG_ID:$attr->{TAG_ID}", { TYPE => 1 });
 
   return $self;

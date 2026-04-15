@@ -522,6 +522,7 @@ ATTRIBUTE  Huawei-Input-Average-Rate         2  integer Huawei
 ATTRIBUTE  Huawei-Output-Average-Rate        5  integer Huawei
 ATTRIBUTE  Huawei-PortalURL                 27  string Huawei
 ATTRIBUTE  Huawei-Qos-Profile-Name	        31  string Huawei
+ATTRIBUTE  Huawei-Subnet-Mask               72  ipaddr Huawei
 ATTRIBUTE  Huawei-Vpn-Instance              94  string Huawei
 ATTRIBUTE  Huawei-Domain-Name              138  string Huawei
 ATTRIBUTE  Huawei-Auth-Type                180  integer Huawei

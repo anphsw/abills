@@ -35,6 +35,7 @@ $lang{EXTERNAL_ID} = 'Внешний ID';
 $lang{NEED_CONFIRM} = 'Включить подтверждение получения';
 $lang{REBOOT} = 'Перезагрузить приставку';
 $lang{NEXT_PERIOD_TP} = 'Следующий тарифный план';
+$lang{WITHOUT_SERVICE} = 'Без услуги';
 
 $lang{BLOCKED} = 'Блокирована';
 $lang{STOLEN} = 'Украдена';

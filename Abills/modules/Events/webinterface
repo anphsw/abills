@@ -14,7 +14,7 @@ our (
   $html,
   $admin, $db, %conf,
   %permissions,
-  @DEFAULT_SEND_TYPES,
+  #@DEFAULT_SEND_TYPES,
 );
 
 
@@ -120,7 +120,7 @@ sub events_notice {
   
   my @new_events_list = ();
   foreach my $event (@$translated_events_list) {
-    if ($event->{send_types} && $event->{send_types} =~ /Browser/) {
+    if ($event->{send_types} && $event->{send_types} =~ /Browser/xm) {
       push(@new_events_list, $event);
     }
   }
@@ -153,7 +153,7 @@ sub events_rotate {
 
   $Events->log_rotate();
 
-  $debug_output .= "Make events rotate\n" if ($debug > 0);
+  $debug_output .= "Make events rotate\n" if ($debug > 1);
 
   $DEBUG .= $debug_output;
   return $debug_output;
@@ -208,4 +208,4 @@ sub events_widget {
   return $table->show();
 }
 
-1
+1;

@@ -1,4 +1,4 @@
-package Log;
+package Storage::db::Log;
 
 =head1 NAME
 

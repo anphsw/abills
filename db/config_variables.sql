@@ -97,6 +97,7 @@ REPLACE INTO `config_variables` (`param`, `type`, `value`, `regex`) VALUES
 ('BRUTEFORCE_PERIOD', 0, '', ''),
 ('BSR1000_PROMPT', 0, '', ''),
 ('BUILD_DELIMITER', 0, '', ''),
+('BUILD_NUMBER_CAPITALIZE', 1, '1', ''),
 ('CABLECAT_CLEAR_DEFAULT_COLORS', 0, '', ''),
 ('CABLECAT_COLOR_SCHEME_NUMBERS', 0, '', ''),
 ('CABLECAT_LIST_SIZE', 0, '', ''),

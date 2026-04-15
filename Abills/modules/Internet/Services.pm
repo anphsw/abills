@@ -68,8 +68,7 @@ sub new {
 =cut
 #**********************************************************
 sub internet_user_chg_tp {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   #TODO: move it to the API schema validation can not right now
   #TODO: because the same function used in two different places
@@ -199,7 +198,7 @@ sub internet_user_chg_tp {
         ::service_get_month_fee($Internet, {
           QUITE       => 1,
           RECALCULATE => $attr->{RECALCULATE} || 0,
-          #USER_INFO   =>
+          USER_INFO   => $Users
         });
         if ($attr->{ACTIVE_SERVICE}) {
           $attr->{STATUS} = 0;
@@ -232,8 +231,7 @@ sub internet_user_chg_tp {
 =cut
 #**********************************************************
 sub service_get_abon_date {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $Service = $attr->{SERVICE};
   my $user_info = $attr->{USER_INFO};
@@ -292,8 +290,7 @@ sub service_get_abon_date {
 =cut
 #**********************************************************
 sub user_preproccess {
-  my $self = shift;
-  my ($uid, $attr) = @_;
+  my ($self, $uid, $attr) = @_;
 
   my $web_admin_id = $self->{conf}{USERS_WEB_ADMIN_ID} || 3;
   my $system_aid = $self->{conf}{SYSTEM_ADMIN_ID} || 2;
@@ -308,8 +305,9 @@ sub user_preproccess {
   }
 
   if ((!$attr->{IP} || $attr->{IP} eq '0.0.0.0') && $attr->{STATIC_IP_POOL}) {
-    #require Internet::User_ips;
-    $attr->{IP} = $self->get_static_ip($attr->{STATIC_IP_POOL});
+    require Internet::User_ips;
+    Internet::User_ips->import();
+    $attr->{IP} = $self->Internet::User_ips::get_static_ip($attr->{STATIC_IP_POOL});
     if ($self->{error}) {
       return $attr;
     }
@@ -320,23 +318,28 @@ sub user_preproccess {
   }
 
   if ($attr->{STATIC_IPV6_POOL}) {
-    ($attr->{IPV6}, $attr->{IPV6_MASK}, $attr->{IPV6_TEMPLATE},
-      $attr->{IPV6_PD}, $attr->{IPV6_PREFIX_MASK}, $attr->{IPV6_PD_TEMPLATE}) = $self->get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
+    require Internet::User_ips;
+    Internet::User_ips->import();
 
-    if ($uid > 65000) {
-      $Errors->throw_error(1360019);
-      #$html->message('warn', "UID too high $uid for IPv6");
-    }
+    ($attr->{IPV6}, $attr->{IPV6_MASK},
+     $attr->{IPV6_PD}, $attr->{IPV6_PREFIX_MASK}) = $self->Internet::User_ips::get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
 
-    my $uid_hex = sprintf("%x", $uid);
-    my $id_hex = sprintf("%x", $attr->{ID} || 0);
-    $attr->{IPV6} = $attr->{IPV6_TEMPLATE};
-    $attr->{IPV6} =~ s/\{UID\}/$uid_hex/xg;
-    $attr->{IPV6} =~ s/\{ID\}/$id_hex/gx;
-
-    $attr->{IPV6_PREFIX} = $attr->{IPV6_PD_TEMPLATE};
-    $attr->{IPV6_PREFIX} =~ s/\{UID\}/$uid_hex/xg;
-    $attr->{IPV6_PREFIX} =~ s/\{ID\}/$id_hex/gx;
+    # if ($uid > 65000) {
+    #   $Errors->throw_error(1360019);
+    #   #$html->message('warn', "UID too high $uid for IPv6");
+    # }
+    # #@deprecated all way
+    # if($attr->{IPV6_TEMPLATE}) {
+    #   my $uid_hex = sprintf("%x", $uid);
+    #   my $id_hex = sprintf("%x", $attr->{ID} || 0);
+    #   $attr->{IPV6} = $attr->{IPV6_TEMPLATE};
+    #   $attr->{IPV6} =~ s/\{UID\}/$uid_hex/xg;
+    #   $attr->{IPV6} =~ s/\{ID\}/$id_hex/gx;
+    #
+    #   $attr->{IPV6_PREFIX} = $attr->{IPV6_PD_TEMPLATE};
+    #   $attr->{IPV6_PREFIX} =~ s/\{UID\}/$uid_hex/xg;
+    #   $attr->{IPV6_PREFIX} =~ s/\{ID\}/$id_hex/gx;
+    # }
   }
 
   #Check duplicate CID & format CID
@@ -353,8 +356,6 @@ sub user_preproccess {
     });
 
     if ($Internet->{TOTAL} > 0 && $list->[0]{uid} && $list->[0]{uid} != $uid) {
-      #$message = "CID/MAC: $attr->{CID} $lang{EXIST}. $lang{LOGIN}: " . $html->button($list->[0]->{login},
-      #  "index=15&UID=" . $list->[0]{uid});
       $Errors->throw_error(1360020, { errextra => { UID => $list->[0]->{uid}, LOGIN => $list->[0]{login} } });
       $attr->{RETURN} = 1360020;
     }
@@ -430,7 +431,6 @@ sub user_preproccess {
       my $equipment_info = $Equipment->info($attr->{NAS_ID});
       if ($equipment_info->{PORTS_WITH_EXTRA} < $attr->{PORT}) {
         $Errors->throw_error(1360023, { errextra => { UID => $list->[0]->{uid}, LOGIN => $list->[0]{login} } });
-        ##$html->message('warn', $lang{WARNING}, $lang{ERR_NO_WRONG_PORT_SELECTED});
 
         if (!$attr->{SKIP_ERRORS}) {
           $attr->{RETURN} = 1;
@@ -504,8 +504,7 @@ sub user_preproccess {
 =cut
 #**********************************************************
 sub user_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID} || 0;
   $attr = $self->user_preproccess($uid, $attr);
@@ -524,13 +523,14 @@ sub user_add {
     $Internet->user_info($uid, { ID => $service_id });
     if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
       ::service_get_month_fee($Internet, {
+        %$attr,
         REGISTRATION               => 1,
         DO_NOT_USE_GLOBAL_USER_PLS => $attr->{DO_NOT_USE_GLOBAL_USER_PLS} || 0,
         USER_INFO                  => $attr->{USER_INFO}
       });
     }
     else {
-      ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
+      ::_external('', { %$attr, EXTERNAL_CMD => 'Internet', %{$Internet}, SERVICE => $self });
     }
 
     $attr->{ID} = $service_id;
@@ -551,7 +551,6 @@ sub user_add {
       else {
         $self->{ACTION} = 'ADDED';
         #return 1;
-        #$html->message('info', $lang{INTERNET}, $lang{ADDED}) if (!$attr->{QUITE});
       }
     }
 
@@ -591,8 +590,7 @@ sub user_add {
 =cut
 #**********************************************************
 sub user_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $Internet->user_del($attr);
 
@@ -618,8 +616,7 @@ sub user_del {
 =cut
 #**********************************************************
 sub user_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $Internet->user_info($attr->{UID}, {
     DOMAIN_ID => $attr->{DOMAIN_ID},
@@ -645,20 +642,18 @@ sub user_info {
 =cut
 #**********************************************************
 sub user_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $uid = $attr->{UID} || 0; # $LIST_PARAMS{UID} || 0;
   my $web_admin_id = $self->{conf}{USERS_WEB_ADMIN_ID} || 3;
   my $system_aid = $self->{conf}{SYSTEM_ADMIN_ID} || 2;
-  my $user_info = $attr->{USER_INFO};
+  #my $user_info = $attr->{USER_INFO};
 
   if (!in_array($self->{admin}->{AID}, [ $web_admin_id, $system_aid ]) && !$self->{admin}->{permissions}{0}{4}) {
     return {
       errno  => 950,
       errstr => 'ACCESS DENIED',
     } if ($attr->{API});
-    ##$html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 1360950 });
     $Errors->throw_error(1360950);
     return 0;
   }
@@ -752,7 +747,7 @@ sub user_change {
         }
 
         if ($month_fee) {
-          ::service_get_month_fee($Internet, { USER_INFO => $attr->{USER_INFO} });
+          ::service_get_month_fee($Internet, $attr);
           $attr->{GET_ABON}=1;
         }
       }
@@ -760,7 +755,7 @@ sub user_change {
 
     #if ($attr->{STATUS} && ! $attr->{GET_ABON} && !$attr->{TP_ID}) {
     if ($attr->{STATUS} || ! $attr->{GET_ABON}) {
-      if(! ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} })) {
+      if(! ::_external('', { %$attr, EXTERNAL_CMD => 'Internet', %{$Internet}, SERVICE => $self })) {
         $Errors->throw_error(1360028);
       }
     }
@@ -827,81 +822,6 @@ sub ipoe_activate_manual {
 }
 
 #**********************************************************
-=head2 get_static_ip($pool_id) - Get static ip from pool
-
-  Arguments:
-    $pool_id   - IP pool ID
-    $attr
-      SILENT
-      IPV6
-
-  Returns:
-    IP address
-
-=cut
-#**********************************************************
-sub get_static_ip {
-  my $self = shift;
-  my ($pool_id, $attr) = @_;
-  my $ip = '0.0.0.0';
-
-  require Nas;
-  Nas->import();
-  my $Nas = Nas->new($self->{db}, $self->{conf}, $self->{admin});
-  my $Ip_pool = $Nas->ip_pools_info($pool_id);
-
-  if ($attr->{IPV6}) {
-    return $Ip_pool->{IPV6_PREFIX}, $Ip_pool->{IPV6_MASK}, $Ip_pool->{IPV6_TEMPLATE},
-      $Ip_pool->{IPV6_PD}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
-  }
-
-  #if(_error_show($Ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. ($pool_id || '') })) {
-  if ($Ip_pool->{error}) {
-    $Errors->throw_error(1360017);
-    return '0.0.0.0';
-  }
-
-  my @arr_ip_skip = $Ip_pool->{IP_SKIP} ? split(/,\s?|;\s?/x, $Ip_pool->{IP_SKIP}) : ();
-
-  my $start_ip = ip2int($Ip_pool->{IP});
-  my $end_ip = $start_ip + $Ip_pool->{COUNTS};
-
-  my %users_ips = ();
-
-  my $Internet_list = $Internet->user_list({
-    PAGE_ROWS      => 1000000,
-    IP             => ">=$Ip_pool->{IP}",
-    SKIP_GID       => 1,
-    GROUP_BY       => 'internet.id',
-    SKIP_DEL_CHECK => 1,
-    COLS_NAME      => 1
-  });
-
-  foreach my $line (@$Internet_list) {
-    $users_ips{ $line->{ip_num} } = 1;
-  }
-
-  for (my $ip_cur = $start_ip; $ip_cur < $end_ip; $ip_cur++) {
-    if (!$users_ips{ $ip_cur }) {
-      my $ip_ = int2ip($ip_cur);
-
-      if (!in_array($ip_, \@arr_ip_skip)) {
-        return $ip_;
-      }
-    }
-  }
-
-  if ($Ip_pool->{NEXT_POOL_ID}) {
-    return $self->get_static_ip($Ip_pool->{NEXT_POOL_ID});
-  }
-
-  #$html->message('err', $lang{ERROR}, $lang{ERR_NO_FREE_IP_IN_POOL});
-  $Errors->throw_error(1360005);
-
-  return $ip;
-}
-
-#**********************************************************
 =head2 get_vlan($attr)
 
   Arguments:
@@ -915,8 +835,7 @@ sub get_static_ip {
 =cut
 #**********************************************************
 sub get_vlan {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $vlan = 0;
 
@@ -961,10 +880,8 @@ sub get_vlan {
 =cut
 #**********************************************************
 sub user_change_nas {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  #load_module('Equipment');
   require Equipment;
   Equipment->import();
   my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});

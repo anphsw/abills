@@ -75,19 +75,19 @@ sub triplay_daily_fees {
     PAGE_ROWS    => 10000
   });
 
-  foreach my $tariff (@{$tariff_plans}) {
-    next if !$tariff->{DAY_FEE};
+  foreach my $tp (@{$tariff_plans}) {
+    next if !$tp->{DAY_FEE};
 
     if ($debug > 1) {
-      $debug_output .= "TP ID: $tariff->{ID} DF: $tariff->{DAY_FEE}\n";
+      $debug_output .= "TP ID: $tp->{ID} DF: $tp->{DAY_FEE}\n";
     }
 
-    $USERS_LIST_PARAMS{DOMAIN_ID} = $tariff->{DOMAIN_ID};
+    $USERS_LIST_PARAMS{DOMAIN_ID} = $tp->{DOMAIN_ID};
 
     my $user_list = $Triplay->user_list({
       SERVICE_STATUS => '0',
       LOGIN_STATUS   => 0,
-      TP_ID          => $tariff->{TP_ID},
+      TP_ID          => $tp->{TP_ID},
       TP_CREDIT      => '_SHOW',
       DELETED        => 0,
       LOGIN          => '_SHOW',
@@ -113,32 +113,36 @@ sub triplay_daily_fees {
         REDUCTION      => $u->{reduction},
         DEPOSIT        => $u->{deposit},
         SERVICE_STATUS => $u->{service_status},
-        CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($tariff->{CREDIT} || 0),
+        CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($tp->{CREDIT} || 0),
         COMPANY_ID     => $u->{company_id},
         STATUS         => $u->{service_status},
-        TP_ID          => $tariff->{TP_ID}
+        TP_ID          => $tp->{TP_ID}
       );
 
       my %FEES_DSC = (
         MODULE          => 'Triplay',
-        TP_ID           => $tariff->{TP_ID},
-        TP_NAME         => $tariff->{NAME},
+        TP_ID           => $tp->{TP_ID},
+        TP_NAME         => $tp->{NAME},
         SERVICE_NAME    => 'Triplay',
         FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
-        FEES_METHOD     => $FEES_METHODS->{$tariff->{FEES_METHOD}},
+        FEES_METHOD     => $FEES_METHODS->{$tp->{FEES_METHOD}},
         DATE            => $date,
-        METHOD          => $tariff->{FEES_METHOD} ? $tariff->{FEES_METHOD} : 1,
+        METHOD          => $tp->{FEES_METHOD} ? $tp->{FEES_METHOD} : 1,
       );
 
       my %PARAMS = (
-        DESCRIBE => fees_dsc_former(\%FEES_DSC),
-        DATE     => "$date $TIME",
-        METHOD   => $tariff->{fees_method} ? $tariff->{fees_method} : 1
+        DESCRIBE   => fees_dsc_former(\%FEES_DSC),
+        DATE       => "$date $TIME",
+        METHOD     => $tp->{fees_method} ? $tp->{fees_method} : 1,
+        MODULE     => 'Triplay',
+        TP_ID      => $tp->{TP_ID},
+        # START_DATE => $date,
+        # END_DATE   => $date
       );
 
-      if ($tariff->{payment_type} || $user{DEPOSIT} + $user{CREDIT} > 0) {
-        $Fees->take(\%user, $tariff->{DAY_FEE}, \%PARAMS);
-        $debug_output .= "UID: $user{UID} SUM: $tariff->{DAY_FEE} REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
+      if ($tp->{payment_type} || $user{DEPOSIT} + $user{CREDIT} > 0) {
+        $Fees->take(\%user, $tp->{DAY_FEE}, \%PARAMS);
+        $debug_output .= "UID: $user{UID} SUM: $tp->{DAY_FEE} REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
       }
     }
   }
@@ -218,7 +222,7 @@ sub triplay_monthly_fees {
 
   $Triplay->{debug} = 1 if ($debug > 5);
 
-  my $list = $Triplay->tp_list({
+  my $tariff_plans = $Triplay->tp_list({
     %LIST_PARAMS,
     NAME          => '_SHOW',
     MODULE        => 'Triplay',
@@ -231,7 +235,7 @@ sub triplay_monthly_fees {
     REDUCTION_FEE => '_SHOW',
     COLS_NAME     => 1,
     COLS_UPPER    => 1,
-    PAGE_ROWS     => 1000
+    PAGE_ROWS     => 10000
   });
 
   my %discounts = ();
@@ -244,20 +248,20 @@ sub triplay_monthly_fees {
     );
   }
 
-  foreach my $TP_INFO (@$list) {
-    my $month_fee = $TP_INFO->{MONTH_FEE} || 0;
-    my $postpaid = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
-    $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
+  foreach my $tp (@$tariff_plans) {
+    my $month_fee = $tp->{MONTH_FEE} || 0;
+    my $postpaid = $tp->{POSTPAID_MONTHLY_FEE} || $tp->{PAYMENT_TYPE} || 0;
+    $USERS_LIST_PARAMS{DOMAIN_ID} = $tp->{DOMAIN_ID};
 
     if ($month_fee > 0) {
-      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $postpaid "
-        . "CREDIT: $TP_INFO->{CREDIT} "
+      $debug_output .= "TP ID: $tp->{ID} MF: $tp->{MONTH_FEE} POSTPAID: $postpaid "
+        . "CREDIT: $tp->{CREDIT} "
         . "\n" if ($debug > 1);
 
       my $user_list = $Triplay->user_list({
         SERVICE_STATUS => "0;5",
         LOGIN_STATUS => 0,
-        TP_ID        => $TP_INFO->{TP_ID},
+        TP_ID        => $tp->{TP_ID},
         SORT         => 1,
         PAGE_ROWS    => 1000000,
         TP_CREDIT    => '_SHOW',
@@ -284,25 +288,27 @@ sub triplay_monthly_fees {
           REDUCTION      => $u->{reduction} || 0,
           DEPOSIT        => $u->{deposit},
           SERVICE_STATUS => $u->{service_status},
-          CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($TP_INFO->{CREDIT} || 0),
+          CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($tp->{CREDIT} || 0),
           COMPANY_ID     => $u->{company_id},
           STATUS         => $u->{service_status},
-          TP_ID          => $TP_INFO->{TP_ID}
+          TP_ID          => $tp->{TP_ID}
         );
 
         my %FEES_DSC = (
           MODULE            => 'Triplay',
-          TP_ID             => $TP_INFO->{TP_ID},
-          TP_NAME           => $TP_INFO->{NAME},
+          TP_ID             => $tp->{TP_ID},
+          TP_NAME           => $tp->{NAME},
           SERVICE_NAME      => 'Triplay',
           FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-          FEES_METHOD       => $FEES_METHODS->{$TP_INFO->{FEES_METHOD}},
+          FEES_METHOD       => $FEES_METHODS->{$tp->{FEES_METHOD}},
           DATE              => $date,
-          METHOD            => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
+          METHOD            => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+          MODULE            => 'Triplay',
+          TP_ID             => $tp->{TP_ID}
         );
 
         if ($debug > 3) {
-          $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: $u->{tp_id} Fees: $TP_INFO->{MONTH_FEE}"
+          $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: $u->{tp_id} Fees: $tp->{MONTH_FEE}"
             . "REDUCTION: $user{REDUCTION} DEPOSIT: $user{DEPOSIT} CREDIT $user{CREDIT} TP: $user{TP_ID}\n";
         }
 
@@ -313,7 +319,7 @@ sub triplay_monthly_fees {
 
         my $sum =  $month_fee;
         if ($u->{personal_tp} && $u->{personal_tp} > 0) {
-          if($TP_INFO->{ABON_DISTRIBUTION}) {
+          if($tp->{ABON_DISTRIBUTION}) {
             $sum = $u->{personal_tp} / $days_in_month;
           }
           else {
@@ -330,7 +336,7 @@ sub triplay_monthly_fees {
             $sum = ($sum > $u->{discount_sum}) ? $sum - $u->{discount_sum} : 0;
           }
         }
-        elsif ($TP_INFO->{REDUCTION_FEE} && $user{REDUCTION} > 0) {
+        elsif ($tp->{REDUCTION_FEE} && $user{REDUCTION} > 0) {
           $sum = $sum * (100 - $user{REDUCTION}) / 100;
           if ($user{REDUCTION} == 100) {
             $debug_output .= " REDUCTION: $user{REDUCTION}\n";
@@ -342,7 +348,7 @@ sub triplay_monthly_fees {
           #Block services
           $debug_output .= "$user{LOGIN} deactivate\n";
           _triplay_service_deactivate({
-            TP_INFO   => $TP_INFO,
+            TP_INFO   => $tp,
             USER_INFO => \%user,
             DATE      => $date,
             DEBUG     => $debug
@@ -353,7 +359,7 @@ sub triplay_monthly_fees {
         if ($user{SERVICE_STATUS} == 5) {
           $debug_output .= "$user{LOGIN} activate";
           _triplay_service_activate({
-            TP_INFO   => $TP_INFO,
+            TP_INFO   => $tp,
             USER_INFO => \%user,
             DEBUG     => $debug
           });
@@ -366,10 +372,16 @@ sub triplay_monthly_fees {
           }
 
           my %PARAMS = (
-            DATE     => "$date $TIME",
-            METHOD   => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
-            DESCRIBE => fees_dsc_former(\%FEES_DSC),
+            DATE       => "$date $TIME",
+            METHOD     => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+            DESCRIBE   => fees_dsc_former(\%FEES_DSC),
+            MODULE     => 'Triplay',
+            TP_ID      => $tp->{TP_ID},
+            START_DATE => $cure_month_begin,
+            END_DATE   => $cure_month_end,
+            DISCOUNT   => $u->{discount_percent} || $user{REDUCTION}
           );
+
           $PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)";
 
           $Fees->take(\%user, $sum, \%PARAMS);
@@ -638,6 +650,7 @@ sub triplay_sheduler {
           {
             DESCRIBE => $lang{HOLD_UP},
             DATE     => "$date $TIME",
+            MODULE   => 'Triplay'
           }
         );
 
@@ -852,7 +865,12 @@ sub triplay_monthly_next_tp {
           && $tp_info->{next_tp_id} == $tp_info->{tp_id}
           #&& ! $status
         ) {
-          $Fees->take(\%user_info, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+          $Fees->take(\%user_info, $tp_info->{change_price}, {
+            DESCRIBE => $lang{ACTIVATE_TARIF_PLAN},
+            MODULE   => 'Triplay',
+            TP_ID    => $tp_info->{next_tp_id}
+          });
+
           if($Fees->{errno}) {
             print "ERROR: $Fees->{errno} $Fees->{errstr}\n";
           }

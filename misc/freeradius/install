@@ -10,7 +10,6 @@
 :OS=FREEBSD:12  9    *   *  *    root   find /var/log/radacct/ -type f -mtime +30d -delete  >> [/etc/]/crontab
 
 
-
 #Freeradius V3
 :OS=FREEBSD,FREERADIUS=3:FILE=v3/users  > [/usr/local/etc/raddb]/users
 :OS=FREEBSD,FREERADIUS=3:FILE=v3/mods-enabled/perl > [/usr/local/etc/raddb]/mods-enabled/perl
@@ -37,5 +36,4 @@
 :OS=LINUX,FREERADIUS=3,DHCP=1:exec:echo "" > /usr/local/freeradius/etc/raddb/clients.conf
 :OS=LINUX,FREERADIUS=3:exec:%RESTART_RADIUS% restart
 
-
-
+:FREERADIUS=3:exec:/usr/abills/libexec/radtest.sh auth -rad

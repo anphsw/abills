@@ -1,5 +1,5 @@
-show gpon onu detail-info gpon_onu-%BRANCH%:%ONU_ID%
 show mac interface gpon_onu-%BRANCH%:%ONU_ID%
+show gpon onu detail-info gpon_onu-%BRANCH%:%ONU_ID%
 show gpon remote-onu interface eth gpon_onu-%BRANCH%:%ONU_ID%
 show gpon onu distance gpon_onu-%BRANCH%:%ONU_ID%
 show running-config-interface vport-%BRANCH%.%ONU_ID%:1

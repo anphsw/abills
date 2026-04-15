@@ -38,16 +38,13 @@ sub new {
 =cut
 #**********************************************************
 sub info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT *
-     FROM sms_log
-   WHERE id = ?;",
-    undef,
-    { INFO => 1,
-      Bind => [ $attr->{ID} ]}
-  );
+  my $sql = <<'SQL';
+  SELECT * FROM sms_log WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ]});
 
   return $self;
 }
@@ -58,8 +55,7 @@ sub info {
 =cut
 #**********************************************************
 sub add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('sms_log', { %$attr });
 
@@ -72,8 +68,7 @@ sub add {
 =cut
 #**********************************************************
 sub change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -90,8 +85,7 @@ sub change {
 =cut
 #**********************************************************
 sub del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('sms_log',$attr);
 
@@ -104,8 +98,7 @@ sub del {
 =cut
 #**********************************************************
 sub list {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -117,7 +110,7 @@ sub list {
   $self->{SEARCH_FIELDS_COUNT}=0;
 
   if ($attr->{INTERVAL}) {
-    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//x, $attr->{INTERVAL}, 2);
   }
 
   my $skip_fields = 'UID';
@@ -146,7 +139,8 @@ sub list {
 
   my $EXT_TABLE = $self->{EXT_TABLES};
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+    SELECT
       $self->{SEARCH_FIELDS}
       sms.uid,
       sms.id,
@@ -156,10 +150,10 @@ sub list {
      $EXT_TABLE
      $WHERE
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+     LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
 
@@ -184,8 +178,7 @@ sub list {
 =cut
 #**********************************************************
 sub service_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM sms_services WHERE id = ?;",
     undef, { INFO => 1, Bind => [ $attr->{ID} ] });
@@ -204,8 +197,7 @@ sub service_info {
 =cut
 #**********************************************************
 sub service_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('sms_services', { %$attr });
 
@@ -218,8 +210,7 @@ sub service_add {
 =cut
 #**********************************************************
 sub service_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{STATUS} //= 0;
   $attr->{BY_DEFAULT} //= 0;
@@ -239,8 +230,7 @@ sub service_change {
 =cut
 #**********************************************************
 sub service_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('sms_services', $attr);
 
@@ -253,15 +243,17 @@ sub service_del {
 =cut
 #**********************************************************
 sub service_params_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return $self if !$attr->{SERVICE_ID} || !$attr->{PARAMS} || ref($attr->{PARAMS}) ne 'ARRAY';
 
   $self->query_del('sms_service_params', undef, { SERVICE_ID => $attr->{SERVICE_ID} });
 
-  $self->query("INSERT INTO sms_service_params(service_id, param, value) VALUES (?, ?, ?);",
-    undef, { MULTI_QUERY => $attr->{PARAMS} });
+  my $sql = <<'SQL';
+INSERT INTO sms_service_params(service_id, param, value) VALUES (?, ?, ?);
+SQL
+
+  $self->query($sql, undef, { MULTI_QUERY => $attr->{PARAMS} });
 
   return $self;
 }
@@ -272,11 +264,13 @@ sub service_params_change {
 =cut
 #**********************************************************
 sub service_params {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query("SELECT * FROM sms_service_params WHERE service_id = ?;",
-    undef, { %{$attr}, Bind => [ $attr->{SERVICE_ID} ] });
+  my $sql = <<'SQL';
+  SELECT * FROM sms_service_params WHERE service_id = ?;
+SQL
+
+  $self->query($sql, undef, { %{$attr}, Bind => [ $attr->{SERVICE_ID} ] });
 
   return $self->{list} || [];
 }
@@ -287,8 +281,7 @@ sub service_params {
 =cut
 #**********************************************************
 sub service_list {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -305,13 +298,14 @@ sub service_list {
     [ 'DEBUG',      'INT', 'smss.debug',      1 ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} smss.id
+my $sql = <<"SQL";
+     SELECT $self->{SEARCH_FIELDS} smss.id
      FROM sms_services smss
      $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
 

@@ -6,3 +6,7 @@ properties:
   password:
     type: number
     example: 1234567
+  g2fa:
+    description: Нужно передавать когда включена опция g2fa
+    type: number
+    example: 1234567

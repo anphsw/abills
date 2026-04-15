@@ -328,7 +328,7 @@ sub equipment_switch_report {
 sub equipment_onu_report {
   my $Nas = Nas->new($db, \%conf, $admin);
 
-  my $list = $Equipment->list({
+  my $equipment_list = $Equipment->list({
     TYPE_ID              => 4,
     NAS_IP               => '_SHOW',
     NAS_ID               => '_SHOW',
@@ -336,7 +336,6 @@ sub equipment_onu_report {
     GPON_SUPPORTED_ONUS  => '_SHOW',
     GEPON_SUPPORTED_ONUS => '_SHOW',
     PAGE_ROWS            => 1000000,
-    COLS_NAME            => 1
   });
 
   my $full_branch_list = $Equipment->pon_port_list({
@@ -345,10 +344,11 @@ sub equipment_onu_report {
     COLS_NAME => 1
   });
 
-  foreach my $line (@$list) {
+  foreach my $line (@$equipment_list) {
     my $nas_info = $Nas->list({
-      NAS_ID    => $line->{nas_id},
-      COLS_NAME => 1,
+      NAS_IP   => '_SHOW',
+      NAS_NAME => '_SHOW',
+      NAS_ID   => $line->{nas_id},
     });
 
     next if(!$nas_info->[0]);
@@ -363,7 +363,6 @@ sub equipment_onu_report {
       BRANCH      => '_SHOW',
       BRANCH_DESC => '_SHOW',
       PAGE_ROWS   => 10000,
-      COLS_NAME   => 1,
     });
 
     my %branch_list = ();
@@ -439,8 +438,8 @@ sub equipment_onu_report {
       ID      => 'info_' . $line->{nas_id},
       title   => [ $lang{INTERFACE}, $title_count, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %', "$lang{BRANCH} $lang{DESCRIBE}" ],
       caption => $html->button(
-          "$nas_info->[0]->{nas_id}: $nas_info->[0]->{nas_name} ($nas_info->[0]->{nas_ip})",
-          "index=" . $index_equipment_info. "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}"
+          "$nas_info->[0]->{id}: $nas_info->[0]->{nas_name} ($nas_info->[0]->{ip})",
+          "index=" . $index_equipment_info. "&visual=4&NAS_ID=$nas_info->[0]->{id}"
         ) .
         " - $lang{OLT_BUSY} $busy% ($total_count ONU $lang{REGISTERED})",
     });
@@ -468,14 +467,14 @@ sub equipment_onu_report {
       $table->addrow(
         $html->button(
            $branch_list{$key}->{pon_type} . ' ' . $key,
-           "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port"
+           "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{id}&OLT_PORT=$olt_port"
         ).' '.$rx_notification,
         $total,
         $html->badge($good, { TYPE => 'badge-success' }),
         $good ? sprintf("%.2f", $good / $online * 100) . '%' : '',
-        $html->button($html->badge($worth, { TYPE => 'badge-warning' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=WORTH", {target => '_blank' }),
+        $html->button($html->badge($worth, { TYPE => 'badge-warning' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=WORTH", {target => '_blank' }),
         $worth ? sprintf("%.2f", $worth / $online * 100) . '%' : '',
-        $html->button($html->badge($bad, { TYPE => 'badge-danger' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=BAD", {target => '_blank' }),
+        $html->button($html->badge($bad, { TYPE => 'badge-danger' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{id}&OLT_PORT=$olt_port&RX_POWER_SIGNAL=BAD", {target => '_blank' }),
         $bad ? sprintf("%.2f", $bad / $online * 100) . '%' : '',
         $branch_list{$key}->{branch_desc}
       );

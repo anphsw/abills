@@ -6,16 +6,12 @@
 
 use strict;
 use warnings;
-
-use Test::More;
-
 use FindBin '$Bin';
-use FindBin qw($RealBin);
-use JSON;
+
 
 BEGIN {
   our $libpath = $Bin . '/../../../../';
-  require "$libpath/libexec/config.pl";
+  do "$libpath/libexec/config.pl";
   my $sql_type = 'mysql';
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
@@ -27,8 +23,6 @@ BEGIN {
 
 use Abills::Defs;
 use Abills::Api::Tests::Init qw(test_runner folder_list help test_preprocess);
-use Abills::Base qw(parse_arguments);
-use Admins;
 use Users;
 use Abon;
 
@@ -36,15 +30,9 @@ our (
   %conf
 );
 
-my $db = Abills::SQL->connect(
-  $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  {
-    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
-    dbdebug => $conf{dbdebug}
-  }
-);
+my ($db, $admin) = db_connect();
+my $argv = parse_arguments(\@ARGV);
 
-my $admin = Admins->new($db, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 my $Abon = Abon->new($db, $admin, \%conf);
 
@@ -59,12 +47,11 @@ my $abon_tariffs = $Abon->user_tariff_list($user->[0]->{uid} || '---', {
   COLS_NAME    => 1
 });
 
-my $ARGS = parse_arguments(\@ARGV);
-my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
-my @test_list = folder_list($ARGS, $RealBin);
-my $debug = $ARGS->{DEBUG} || 0;
 
-if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
+my $apiKey = $argv->{KEY};
+my $debug = $argv->{DEBUG} || 0;
+
+if (defined($argv->{help})) {
   help();
   exit 0;
 }
@@ -74,13 +61,14 @@ my %params =  (
   id => $tariff_id
 );
 
-my $run_test = test_preprocess(\@test_list, \%params);
+my @available_tests = folder_list($argv, $Bin);
+my $run_tests = test_preprocess(\@available_tests, \%params, \%conf, { DEBUG => 2 });
 
 test_runner({
   apiKey => $apiKey,
   debug  => $debug,
-  args   => $ARGS
-}, $run_test);
+  argv   => $argv
+}, $run_tests);
 
 done_testing();
 

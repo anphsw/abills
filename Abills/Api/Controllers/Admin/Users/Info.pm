@@ -55,8 +55,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_users_all {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -95,24 +94,17 @@ sub get_users_all {
 =cut
 #**********************************************************
 sub get_users_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{0};
 
-  my @allowed_params = (
-    'SHOW_PASSWORD'
-  );
-  my %PARAMS = ();
-  foreach my $param (@allowed_params) {
-    next if (!defined($query_params->{$param}));
-    $PARAMS{$param} = '_SHOW';
-  }
+  my $show_pass = (defined $query_params->{SHOW_PASSWORD}) ? 1 : 0;
 
-  $Users->info($path_params->{uid}, \%PARAMS);
+  $Users->info($path_params->{uid}, { SHOW_PASSWORD => $show_pass });
+  $Users->pi({ UID => $path_params->{uid} });
   delete @{$Users}{qw/list AFFECTED/};
   return $Users;
 }
@@ -125,8 +117,7 @@ sub get_users_uid {
 =cut
 #**********************************************************
 sub put_users_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $query_params->{SKIP_STATUS_CHANGE} = 1 if (!defined $query_params->{DISABLE});
 
@@ -157,6 +148,11 @@ sub put_users_uid {
     });
   }
 
+  if (!$Users->{errno}) {
+    $Users->info($path_params->{uid});
+    $Users->pi({ UID => $path_params->{uid} });
+  }
+
   return $Users;
 }
 
@@ -168,8 +164,7 @@ sub put_users_uid {
 =cut
 #**********************************************************
 sub delete_users_uid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -180,6 +175,7 @@ sub delete_users_uid {
     'COMMENTS',
     'DATE',
   );
+
   my %PARAMS = ();
   foreach my $param (@allowed_params) {
     next if (!defined($query_params->{$param}));
@@ -210,15 +206,14 @@ sub delete_users_uid {
 =cut
 #**********************************************************
 sub get_users_uid_pi {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   return {
     errno  => 10,
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{0};
 
-  $Users->pi({ UID => $path_params->{uid} });
+  return $Users->pi({ UID => $path_params->{uid}, GET_COL_TYPES => 1 });
 }
 
 #**********************************************************
@@ -229,8 +224,7 @@ sub get_users_uid_pi {
 =cut
 #**********************************************************
 sub post_users {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -238,7 +232,8 @@ sub post_users {
   } if !$self->{admin}->{permissions}{0}{1};
 
   $Users->add({
-    %$query_params
+    %$query_params,
+    CREATE_BILL => 1,
   });
 
   if (!$Users->{errno}) {
@@ -246,6 +241,11 @@ sub post_users {
       UID => $Users->{UID},
       %$query_params
     });
+  }
+
+  if (!$Users->{errno}) {
+    $Users->info($Users->{UID});
+    $Users->pi({ UID => $Users->{UID} });
   }
 
   return $Users;
@@ -259,15 +259,14 @@ sub post_users {
 =cut
 #**********************************************************
 sub post_users_uid_pi {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{1};
 
-  $Users->pi_add({
+  return $Users->pi_add({
     %$query_params,
     UID => $path_params->{uid}
   });
@@ -281,15 +280,14 @@ sub post_users_uid_pi {
 =cut
 #**********************************************************
 sub put_users_uid_pi {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
     errstr => 'Access denied'
   } if !$self->{admin}->{permissions}{0}{4};
 
-  $Users->pi_change({
+  return $Users->pi_change({
     %$query_params,
     UID => $path_params->{uid}
   });

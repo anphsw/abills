@@ -1,9 +1,12 @@
 use strict;
 use warnings;
+use Users;
 
-our ($db,
+our (
+  $db,
   %lang,
   $admin,
+  %conf,
   %permissions,
 );
 
@@ -25,7 +28,6 @@ sub company_users_total_info {
   my ($company_id) = @_;
 
   my $user = Users->new($db, $admin, \%conf);
-  require Control::Services;
 
   my $sum_total = 0;
   my $total     = 0;
@@ -41,11 +43,16 @@ sub company_users_total_info {
   my $sum_for_pay = 0;
 
   foreach my $line (@$users_list) {
-    my $service_info = get_services({
+
+    require Control::Services;
+    Control::Services->import();
+    my $Services = Control::Services->new($db, $admin, \%conf);
+
+    my $service_info = $Services->get_services({
       UID          => $line->{UID},
       REDUCTION    => $line->{REDUCTION},
-      PAYMENT_TYPE => 0
-    });
+      PAYMENT_TYPE => 0,
+    }, { FORM => \%FORM });
 
     foreach my $service ( @{ $service_info->{list} } ) {
       $sum_total += $service->{SUM};
@@ -65,3 +72,5 @@ sub company_users_total_info {
     SUM   => sprintf("%.2f", $sum_total)
   };
 }
+
+1;

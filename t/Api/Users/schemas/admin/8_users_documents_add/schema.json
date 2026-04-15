@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Unique identifier for the document"
+    },
+    "uid": {
+      "type": "integer",
+      "description": "User ID who owns the document"
+    },
+    "doc_type": {
+      "type": "integer",
+      "description": "Document type (1 - passport, 2 - ID card, 3 - driver license)"
+    },
+    "num": {
+      "type": "string",
+      "description": "Document number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Document issue date (YYYY-MM-DD)"
+    },
+    "expire": {
+      "type": "string",
+      "format": "date",
+      "description": "Document expiration date (YYYY-MM-DD)"
+    },
+    "issued_by": {
+      "type": "string",
+      "description": "Authority that issued the document"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Attached file name"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Record creation timestamp"
+    }
+  },
+  "required": [
+    "uid",
+    "doc_type",
+    "num"
+  ]
+}

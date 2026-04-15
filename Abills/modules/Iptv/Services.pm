@@ -213,10 +213,25 @@ sub user_info {
 
   if ($tv_service && $tv_service->can('additional_info')) {
     my $result = $tv_service->additional_info({
-      %{$attr}, %{$user_service_info}, %{$Users}
+      %{$attr}, %{$user_service_info}, %{$Users}, COMMENTS => $attr->{COMMENTS}
     });
 
     if ($result) {
+      if ($result->{template}) {
+        push @{$response->{actions}}, {
+          type     => ACTION_TEMPLATE,
+          template => $result->{template},
+          params   => ($result->{template_params} && ref($result->{template_params}) eq 'HASH') ? $result->{template_params} : {}
+        };
+      }
+      if ($result->{message}) {
+        push @{$response->{actions}}, {
+          type    => ACTION_MESSAGE,
+          message => $result->{message},
+          level   => $result->{level} || 'info'
+        };
+      }
+
       $response->{data}{additional_info} = $self->_format_additional_tables($result);
     }
   }
@@ -494,7 +509,7 @@ sub user_del {
 
   my $transaction = $self->_start_transaction();
 
-  $Iptv->user_del({ ID => $attr->{ID}, COMMENTS => $attr->{COMMENTS} });
+  $Iptv->user_del({ ID => $attr->{ID}, COMMENTS => $attr->{COMMENTS}, UID => $uid });
   if ($Iptv->{errno}) {
     $transaction->{rollback}->();
     return $Iptv;
@@ -874,6 +889,7 @@ sub user_activate {
     return $Iptv;
   }
 
+  $user_service_info->{OLD_STATUS} = $Iptv->{OLD_STATUS};
   my $tv_service;
   if ($service_info && $service_info->{MODULE}) {
     $tv_service = init_iptv_service($self->{db}, $self->{admin}, $self->{conf}, {
@@ -911,6 +927,17 @@ sub user_activate {
   $self->_activate_user_channels($attr, $user_service_info, $user_info);
   $attr->{BUNDLE_TYPE} = 'subs_renew';
   $self->_activate_user_screens($tv_service, $attr, $user_service_info, $user_info);
+
+  if ($user_service_info->{IPTV_ACTIVATE} && $user_service_info->{IPTV_ACTIVATE} ne '0000-00-00') {
+    $Iptv->user_change({
+      ID            => $attr->{ID},
+      IPTV_ACTIVATE => 'NOW()'
+    });
+    if ($Iptv->{errno}) {
+      $transaction->{rollback}->();
+      return $Iptv;
+    }
+  }
 
   $transaction->{commit}->();
 
@@ -1054,6 +1081,7 @@ sub user_chg_tp {
       %$Users,
       %$Iptv,
       %$attr,
+      TP_INFO_OLD   => $Iptv->{TP_INFO_OLD},
       EMAIL         => $Users->{EMAIL} || $Iptv->{EMAIL},
       SERVICE_EMAIL => $Iptv->{EMAIL},
       CHANGE_TP     => 1
@@ -1147,9 +1175,11 @@ sub user_screen_add {
   }
 
   my $fee_result = $self->_process_screen_fees({
-    SCREEN_ID => $attr->{SCREEN_ID},
-    TP_ID     => $user_service_info->{TP_ID}
-  });
+    SCREEN_ID  => $attr->{SCREEN_ID},
+    TP_ID      => $user_service_info->{TP_ID},
+    SERVICE_ID => $attr->{ID},
+    UID        => $user_service_info->{UID}
+  }, $user_service_info);
   if (ref($fee_result) eq 'HASH' && $fee_result->{errno}) {
     $transaction->{rollback}->();
     return $fee_result;
@@ -1300,6 +1330,7 @@ sub user_screen_del {
     TP_FILTER_ID    => $user_service_info->{FILTER_ID},
     SUB_ID          => $user_service_info->{FILTER_ID},
     del             => 1,
+    del_screen      => 1,
     TYPE            => $attr->{TYPE} || 'subs_break_contract',
     DEVICE_DEL_TYPE => $attr->{DEVICE_DEL_TYPE} || 'device_break_contract'
   );
@@ -1836,6 +1867,8 @@ sub _get_service_info {
     return $Errors->throw_error(1080003);
   }
 
+  delete $Iptv->{LOGIN};
+  delete $Iptv->{PASSWORD};
   if ($service_info->{STATUS} && $service_info->{STATUS} > 0) {
     return $Errors->throw_error(1080003);
   }
@@ -2085,6 +2118,8 @@ sub _process_channel_fees {
     elsif ($Iptv->{TP_INFO}->{DAY_FEE} && $Iptv->{TP_INFO}->{DAY_FEE} > 0) {
       my %PARAMS = (
         DESCRIBE => "$self->{lang}{TV}: $self->{lang}{DAY_FEE}",
+        MODULE   => 'Iptv',
+        TP_ID    => $user_service_info->{TP_ID},
         METHOD   => 1
       );
       $Fees->take($user_info, $Iptv->{TP_INFO}->{DAY_FEE}, { %PARAMS });
@@ -2129,11 +2164,12 @@ sub _process_channel_fees {
 sub _process_screen_fees {
   my ($self, $attr, $user_service_info) = @_;
 
+  $Iptv->{OLD_STATUS} = $user_service_info->{OLD_STATUS} if ($user_service_info && $user_service_info->{OLD_STATUS});
   my $user_screens = $Iptv->users_screens_list({
     LOGIN            => '_SHOW',
     LOGIN_STATUS     => 0,
     SERVICE_TP_ID    => $attr->{TP_ID},
-    # MONTH_FEE        => '>0',
+    MONTH_FEE        => '_SHOW',
     NUM              => '_SHOW',
     NAME             => '_SHOW',
     FILTER_ID        => '_SHOW',
@@ -2322,13 +2358,15 @@ sub _activate_user_screens {
     LOGIN            => '_SHOW',
     LOGIN_STATUS     => 0,
     SERVICE_TP_ID    => $user_service_info->{TP_ID},
+    UID              => $user_service_info->{UID},
+    SERVICE_ID       => $user_service_info->{ID},
     MONTH_FEE        => '_SHOW',
     NUM              => '_SHOW',
     NAME             => '_SHOW',
     FILTER_ID        => '_SHOW',
     REDUCTION        => '_SHOW',
     TP_REDUCTION_FEE => '_SHOW',
-    SCREEN_ID        => '_SHOW',
+    SCREEN_ID        => '!',
     COLS_NAME        => 1,
     COLS_UPPER       => 1,
     SORT             => 's.num'
@@ -2340,8 +2378,10 @@ sub _activate_user_screens {
 
   foreach my $screen (@{$user_screens}) {
     my $fee_result = $self->_process_screen_fees({
-      TP_ID     => $user_service_info->{TP_ID},
-      SCREEN_ID => $screen->{screen_id},
+      TP_ID      => $user_service_info->{TP_ID},
+      SCREEN_ID  => $screen->{screen_id},
+      UID        => $user_service_info->{UID},
+      SERVICE_ID => $user_service_info->{ID},
     }, $user_service_info);
 
     if (ref($fee_result) eq 'HASH' && $fee_result->{errno}) {
@@ -2364,6 +2404,7 @@ sub _activate_user_screens {
     $params{LOGIN} = $user_info->{LOGIN};
     $params{PASSWORD} = $user_info->{PASSWORD};
     $params{DEPOSIT} = $user_info->{DEPOSIT};
+    $params{ID} = $user_service_info->{ID};
 
     $tv_service->user_screens(\%params);
   }

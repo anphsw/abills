@@ -55,7 +55,8 @@ function initMultifileUploadZone(id, name_, max_files_, dropZoneId) {
   function createNewInput() {
     const newInput = jQuery('<input/>', {
       type: 'file',
-      name: CONFIG.name
+      name: CONFIG.name,
+      autocomplete: 'off'
     });
 
     newInput.data('number', -1);
@@ -130,9 +131,15 @@ function initMultifileUploadZone(id, name_, max_files_, dropZoneId) {
   }
 
   function findEmptyInput() {
-    return elements.fileZone.find('input[type="file"]').filter(function() {
-      return this.files.length === 0;
-    }).first();
+    let found = null;
+    elements.fileZone.find('input[type="file"]').each(function() {
+      const isEmpty = this.files ? this.files.length === 0 : !this.value;
+      if (isEmpty) {
+        found = jQuery(this);
+        return false;
+      }
+    });
+    return found || jQuery();
   }
 
   function handleFiles(files) {
@@ -144,7 +151,11 @@ function initMultifileUploadZone(id, name_, max_files_, dropZoneId) {
         emptyInput = createNewInput();
       }
 
-      emptyInput[0].files = files;
+      emptyInput.val('');
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      emptyInput[0].files = dataTransfer.files;
 
       if (file.type.indexOf('image/') >= 0) {
         createThumbnail(file, emptyInput);

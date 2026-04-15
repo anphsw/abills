@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,12 +53,19 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/maps/online/',
-      controller  => 'Maps::Api::admin::Online',
       endpoint    => \&Maps::Api::admin::Online::get_maps_online,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
     },
+    {
+      method      => 'POST',
+      path        => '/maps/import/',
+      endpoint    => \&Maps::Api::admin::Import::post_maps_import,
+      credentials => [
+        'ADMINSID'
+      ]
+    }
   ];
 }
 

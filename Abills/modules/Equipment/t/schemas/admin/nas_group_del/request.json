@@ -1,0 +1,8 @@
+{
+  "name": "ADMIN_EQUIPMENT_NAS_GROUP_DEL",
+  "method": "DELETE",
+  "path": "equipment/nas/groups/:id/",
+  "params": {
+    "id" : 33
+  }
+}

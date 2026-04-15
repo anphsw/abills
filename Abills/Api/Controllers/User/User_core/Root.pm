@@ -53,15 +53,13 @@ sub new {
 =cut
 #**********************************************************
 sub get_user_services {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  if ($INC{'Control/Services.pm'}) {
-    delete $INC{'Control/Services.pm'};
-  }
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
-  my $services = ::get_user_services({
+  my $services = $Services->get_user_services({
     uid         => $path_params->{uid},
     active_only => $query_params->{ACTIVE_ONLY} ? 1 : 0
   });
@@ -77,8 +75,7 @@ sub get_user_services {
 =cut
 #**********************************************************
 sub get_user_services_statuses {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self) = @_;
 
   require Service;
   Service->import();
@@ -109,8 +106,7 @@ sub get_user_services_statuses {
 =cut
 #**********************************************************
 sub post_user_acceptRules {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   return $Errors->throw_error(1001501) if (!$self->{conf}->{ACCEPT_RULES});
 

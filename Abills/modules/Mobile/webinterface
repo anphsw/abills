@@ -501,7 +501,6 @@ sub mobile_chg_tp {
 
   my $user_info = $users->pi({ UID => $uid });
 
-  require Control::Services;
   $Tariffs->{TARIF_PLAN_SEL} = sel_tp({
     CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
     USER_GID                => $user_info->{GID} || 0,

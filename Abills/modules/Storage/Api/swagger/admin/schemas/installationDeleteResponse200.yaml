@@ -1,0 +1,14 @@
+type: object
+properties:
+  toStorage:
+    type: number
+    example: 1
+  storageName:
+    type: string
+    example: 'Test street'
+  count:
+    type: number
+    example: 2
+  staName:
+    type: string
+    example: 'Test'

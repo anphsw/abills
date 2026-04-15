@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/storage/installation/',
-      controller  => 'Storage::Api::admin::Installation',
       endpoint    => \&Storage::Api::admin::Installation::get_storage_installation,
       credentials => [
         'ADMIN',
@@ -65,8 +62,16 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/storage/installation/',
-      controller  => 'Storage::Api::admin::Installation',
       endpoint    => \&Storage::Api::admin::Installation::post_storage_installation,
+      credentials => [
+        'ADMIN',
+        'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/storage/installation/:id/',
+      endpoint    => \&Storage::Api::admin::Installation::del_storage_installation,
       credentials => [
         'ADMIN',
         'ADMINSID'
@@ -76,7 +81,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/storage/incoming_articles/',
-      controller  => 'Storage::Api::admin::Incoming_articles',
       endpoint    => \&Storage::Api::admin::Incoming_articles::get_storage_incoming_articles,
       credentials => [
         'ADMIN',
@@ -87,7 +91,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/storage/invoices/',
-      controller  => 'Storage::Api::admin::Invoices',
       endpoint    => \&Storage::Api::admin::Invoices::get_storage_invoices,
       credentials => [
         'ADMIN',
@@ -116,8 +119,6 @@ sub admin_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -138,7 +139,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/storage/incoming_articles/',
-      controller  => 'Storage::Api::user::Incoming_articles',
       endpoint    => \&Storage::Api::user::Incoming_articles::get_incoming_articles_by_serial_number,
       credentials => [
         'USER'
@@ -147,7 +147,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/storage/installation/',
-      controller  => 'Storage::Api::user::Installation',
       endpoint    => \&Storage::Api::user::Installation::post_user_storage_installation,
       credentials => [
         'USER'

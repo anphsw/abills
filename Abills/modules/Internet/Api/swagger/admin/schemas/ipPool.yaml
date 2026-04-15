@@ -1,0 +1,39 @@
+type: object
+properties:
+  id:
+    type: number
+    example: 2
+  name:
+    type: string
+    example: "Test pool"
+  ip:
+    type: number
+    example: 0
+  firstIp:
+    type: string
+    example: "10.0.0.1"
+  lastIp:
+    type: string
+    example: "10.0.1.0"
+  lastIpNum:
+    type: number
+    example: 255
+  counts:
+    type: number
+    example: 255
+  netmask:
+    type: number
+    example: 4294967294
+  gateway:
+    type: number
+    example: 0
+  dns:
+    type: string
+    example: ""
+  nas:
+    type: number
+    example: 0
+  priority:
+    type: number
+    example: 0
+

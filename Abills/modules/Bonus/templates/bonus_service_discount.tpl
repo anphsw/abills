@@ -64,6 +64,30 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='control-label col-md-4'>_{GROUPS}_:</label>
+
+        <div class='col-md-8'>
+          %SEL_GID%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-4' for='START_DATE'>_{START}_:</label>
+
+        <div class='col-md-8'>
+          <input type=text name='START_DATE' class='form-control datepicker' value='%START_DATE%' id='START_DATE'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-4' for='END_DATE'>_{FINISH}_:</label>
+
+        <div class='col-md-8'>
+          <input type=text name='END_DATE' class='form-control datepicker' value='%END_DATE%' id='END_DATE'>
+        </div>
+      </div>
+
 
       <div class='form-group row bg-info'>
         <h3 class='card-title'>_{RESULT}_</h3>
@@ -72,7 +96,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-4' for='DISCOUNT'>_{REDUCTION}_ %:</label>
         <div class='col-md-8'>
-          <input type=text name='DISCOUNT' id='DISCOUNT' class='form-control' value='%DISCOUNT%'>
+          <input type=text name='DISCOUNT' id='DISCOUNT' class='form-control ' value='%DISCOUNT%'>
         </div>
       </div>
       <div class='form-group row'>

@@ -58,7 +58,7 @@
             "type": "string"
           }
         },
-        "required": ["canCancel", "dateFrom", "dateTo", "del", "delIds"]
+        "required": ["canCancel", "dateTo", "del", "delIds"]
       },
       "schedule": {
         "type": "object",

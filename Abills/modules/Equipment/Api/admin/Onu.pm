@@ -54,8 +54,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_equipment_onu_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $self->_get_onu_list($path_params, $query_params);
 }
@@ -68,8 +67,7 @@ sub get_equipment_onu_list {
 =cut
 #**********************************************************
 sub get_equipment_onu_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $self->_get_onu_list($path_params, $query_params, { ONE => 1 });
 }
@@ -90,15 +88,11 @@ sub get_equipment_onu_id {
 =cut
 #**********************************************************
 sub _get_onu_list {
-  my $self = shift;
-  my ($path_params, $query_params, $attr) = @_;
+  my ($self, $path_params, $query_params, $attr) = @_;
 
   $query_params->{ONU_VLAN} = $query_params->{VLAN} if ($query_params->{VLAN});
   $query_params->{DATETIME} = $query_params->{DATE_TIME} if ($query_params->{DATE_TIME});
-
-  $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} || 25;
-  $query_params->{SORT} = $query_params->{SORT} || 1;
-  $query_params->{PG} = $query_params->{PG} || 0;
+  $query_params->{OLT_PORT} = $query_params->{PORT_ID} if ($query_params->{PORT_ID});
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
@@ -106,10 +100,7 @@ sub _get_onu_list {
 
   $query_params->{ID} = ($attr && $attr->{ONE}) ? ($path_params->{id} || 0) : ($query_params->{ID} || 0);
 
-  my $list = $Equipment->onu_list({
-    %{$query_params},
-    COLS_NAME => 1,
-  });
+  my $list = $Equipment->onu_list($query_params);
 
   if ($attr && $attr->{ONE}) {
     return $list->[0] if (scalar @{$list});

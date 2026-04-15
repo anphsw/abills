@@ -43,10 +43,17 @@ sub discounts_report {
     PER_MONTH      => $lang{PER_MONTH},
   );
 
-  require Control::Services;
   my $user_services = '';
   my %user_service_hash = ();
-  $user_services = get_services($users, { MODULES => $Discounts->{MODULE} || $FORM{MODULE} });
+
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  $user_services = $Services->get_services($users, {
+    MODULES => $Discounts->{MODULE} || $FORM{MODULE},
+    FORM    => \%FORM
+  });
 
   if ($user_services->{list}) {
     foreach my $service (@{$user_services->{list}}) {

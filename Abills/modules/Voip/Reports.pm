@@ -54,12 +54,12 @@ sub voip_error {
 
   my $list = $Nas->list({
     NAS_TYPE  => 'asterisk,gnugk,cisco_voip,eltex_smg',
+    NAS_NAME  => '_SHOW',
     PAGE_ROWS => 50000,
-    COLS_NAME => 1
   });
 
   foreach my $line (@{$list}) {
-    $nas_ids{ $line->{nas_id} } = $line->{nas_name};
+    $nas_ids{ $line->{id} } = $line->{nas_name};
   }
 
   $Voip->{LOG_TYPE_SEL} = $html->form_select('LOG_TYPE', {

@@ -64,6 +64,7 @@ sub new {
       DEBUG
       DATE
       SERVICE_RECOVERY
+      SKIP_FEE
 
   Returns:
     $service_inf_hash_ref
@@ -103,7 +104,6 @@ sub abon_user_tariff_activate {
 
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
-
   if ($tariff_info->{MAIN_TP_IDS}) {
     $tariff_info->{MAIN_TP_IDS} =~ s/,/;/xg;
 
@@ -158,10 +158,10 @@ sub abon_user_tariff_activate {
     return { errno => 240, errstr => 'ERR_SMALL_DEPOSIT' };
   }
 
-  my $period = $tariff_info->{PERIOD} == 1 ? get_period_dates({
+  my $period = ($tariff_info->{PERIOD} == 1) ? get_period_dates({
     TYPE             => $tariff_info->{PERIOD},
     PERIOD_ALIGNMENT => $Abon->{TP_INFO}{PERIOD_ALIGNMENT},
-    ACCOUNT_ACTIVATE => $user_info->{ACTIVATE}
+    ACCOUNT_ACTIVATE => ($Abon->{TP_INFO}{PERIOD_ALIGNMENT}) ? $user_info->{ACTIVATE} : undef
   }) : '';
 
   my $cur_date = strftime('%Y-%m-%d', localtime(time));
@@ -232,6 +232,14 @@ sub abon_user_tariff_activate {
 
   delete $self->{OPERATION_SUM};
   delete $self->{OPERATION_DESCRIBE};
+
+  #Add only service without feee for reg wizard
+  if ($attr->{SKIP_FEE}) {
+    return {
+      %{$Abon},
+      MESSAGES    => \@messages,
+    };
+  }
 
   if (time() >= $select_time) {
     if ($tariff_info->{PERIOD} == 1 && $Abon->{TP_INFO}{PERIOD_ALIGNMENT} == 1) {
@@ -349,7 +357,7 @@ sub abon_user_tariff_deactivate {
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if (!$Abon->{TOTAL} || $Abon->{TOTAL} < 1);
 
   if ($tariff_info->{SUB_TP_IDS}) {
-    $tariff_info->{SUB_TP_IDS} =~ s/,/;/g;
+    $tariff_info->{SUB_TP_IDS} =~ s/,/;/xg;
 
     my $user_main_tariffs = $Abon->user_tariff_list($user_info->{UID}, {
       ACTIVE_ONLY => 1, ID => $tariff_info->{SUB_TP_IDS}, COLS_NAME => 1 });
@@ -563,7 +571,10 @@ sub abon_get_month_fee {
   if ($Service->{TP_INFO}{ACTIVATE_PRICE} && $Service->{TP_INFO}{ACTIVATE_PRICE} > 0) {
     $Fees->take($user, $Service->{TP_INFO}{ACTIVATE_PRICE}, {
       DESCRIBE => 'ACTIVATE_TARIF_PLAN',
-      DATE     => "$cur_date $TIME"
+      DATE     => "$cur_date $TIME",
+      MODULE   => 'Abon',
+      TP_ID    => $Service->{TP_INFO}->{TP_ID},
+      METHOD   => $Service->{TP_INFO}->{FEES_TYPE} || 1
     });
 
     push @messages, abon_fees_dsc_former({ %FEES_DSC, EXTRA => "$lang{ACTIVATE_TARIF_PLAN}: $Service->{TP_INFO}{ACTIVATE_PRICE}" })
@@ -647,7 +658,7 @@ sub abon_get_month_fee {
       TYPE             => 1,
       START_DATE       => $DATE_ || $cur_date,
       PERIOD_ALIGNMENT => $Service->{TP_INFO}{PERIOD_ALIGNMENT},
-      ACCOUNT_ACTIVATE => $DATE_ #$Service->{ACTIVATE}
+      ACCOUNT_ACTIVATE => ($Service->{TP_INFO}{PERIOD_ALIGNMENT}) ? $DATE_ : undef #$Service->{ACTIVATE}
     );
 
     my $work_days = 0;
@@ -705,8 +716,10 @@ sub abon_get_month_fee {
     }
 
     #add period
-    $FEES_DSC{PERIOD} = get_period_dates(\%period_params);
+    $period_params{MULTI_VALUE}=1;
+    ($FEES_DSC{START_DATE}, $FEES_DSC{END_DATE}) = get_period_dates(\%period_params);
 
+    $FEES_DSC{PERIOD} = "($FEES_DSC{START_DATE}-$FEES_DSC{END_DATE})";
     my $fees_message = abon_fees_dsc_former(\%FEES_DSC);
     $fees_message =~ s/\n//gx;
     $active_m++;
@@ -723,9 +736,13 @@ sub abon_get_month_fee {
     }
 
     $Fees->take($users, $sum, {
-      DESCRIBE => $fees_message,
-      METHOD   => $Service->{TP_INFO}->{FEES_TYPE},
-      DATE     => "$cur_date $TIME"
+      DESCRIBE   => $fees_message,
+      METHOD     => $Service->{TP_INFO}->{FEES_TYPE},
+      DATE       => "$cur_date $TIME",
+      MODULE     => 'Abon',
+      TP_ID      => $Service->{TP_INFO}{TP_ID},
+      START_DATE => $FEES_DSC{START_DATE},
+      END_DATE   => $FEES_DSC{END_DATE},
     });
 
     if ($attr->{SHOW_SUM}) {

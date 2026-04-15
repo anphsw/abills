@@ -572,7 +572,7 @@ sub _info_add {
     AID      => $instance->{admin}{AID}
   });
 
-  return 1;
+  return $instance->{INSERT_ID} || '';
 }
 
 #**********************************************************
@@ -903,7 +903,7 @@ sub _read_file_from_disk {
 sub _read_file_params {
   my ($self, $content_field_value) = @_;
 
-  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/xm) {
+  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/) {
     my $directory = $1;
     my $filename = $2;
 

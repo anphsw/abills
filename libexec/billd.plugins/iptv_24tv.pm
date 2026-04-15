@@ -133,6 +133,7 @@ sub process_service {
     SERVICE_STATUS => '_SHOW',
     LOGIN          => '_SHOW',
     UID            => '_SHOW',
+    PHONE          => '_SHOW',
     COLS_NAME      => 1,
     PAGE_ROWS      => 65535
   });
@@ -147,9 +148,12 @@ sub process_service {
       next;
     }
 
+    my $phone = (split(';', $user->{phone}))[0];
+    next if (!$phone);
+
     my $billing_status = $user->{service_status} || 0;
 
-    if (!$service_users_list->{$user->{login}} && !$billing_status) {
+    if (!$service_users_list->{$phone} && !$billing_status) {
       if ($debug < 5) {
         $Iptv_services->_execute_service_user_add($Tv_service, $user->{uid}, $user->{id}, {});
       }
@@ -166,11 +170,11 @@ sub process_service {
       next;
     }
 
-    if (!$service_users_list->{$user->{login}}) {
+    if (!$service_users_list->{$phone}) {
       next;
     }
 
-    my $service_status = $service_users_list->{$user->{login}}{is_active} ? 0 : 1;
+    my $service_status = $service_users_list->{$phone}{is_active} ? 0 : 1;
     if ($service_status == $billing_status) {
       next;
     }

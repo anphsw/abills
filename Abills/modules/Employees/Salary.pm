@@ -26,6 +26,7 @@ our (
   @PRIORITY,
   @MONTHES,
   %permissions,
+  %LIST_PARAMS
 );
 
 my $Employees = Employees->new($db, $admin, \%conf);
@@ -53,7 +54,8 @@ sub employees_cashbox_main {
     $cashbox = $Employees->employees_add_cashbox({ AID => $FORM{ADMIN_DEFAULT}, %FORM });
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_ADDED}");
-      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $cashbox->{INSERT_ID} });
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $cashbox->{INSERT_ID}, ADMINS => 1 }) if ($FORM{ADMINS});
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{DEPARTMENT}, CASHBOX_ID => $cashbox->{INSERT_ID}, DEPARTMENT => 1 }) if ($FORM{DEPARTMENT});
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{CASHBOX_NOT_ADDED}");
@@ -63,9 +65,12 @@ sub employees_cashbox_main {
     $Employees->employees_change_cashbox({ AID => $FORM{ADMIN_DEFAULT}, %FORM });
 
     if (!$Employees->{errno}) {
+      $Employees->employees_cashbox_admins_del({ CASHBOX_ID => $FORM{ID}});
+
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $FORM{ID}, ADMINS => 1 }) if ($FORM{ADMINS});
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{DEPARTMENT}, CASHBOX_ID => $FORM{ID}, DEPARTMENT => 1 }) if ($FORM{DEPARTMENT});
+
       $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
-      $Employees->employees_cashbox_admins_del({ CASHBOX_ID => $FORM{ID} });
-      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $FORM{ID} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
@@ -83,6 +88,7 @@ sub employees_cashbox_main {
     $CASHBOX{ADMIN_DEFAULT} = $cashbox_info->{AID};
     $CASHBOX{ADMINS} = $cashbox_info->{ADMINS};
     $CASHBOX{COMMENTS} = $cashbox_info->{COMMENTS};
+    $CASHBOX{DEPARTMENT} = $cashbox_info->{DEPARTMENT};
   }
   elsif ($FORM{del}) {
     $Employees->employees_delete_cashbox({ ID => $FORM{del} });
@@ -95,19 +101,17 @@ sub employees_cashbox_main {
     }
   }
 
-  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}, MULTIPLE => 1 });
   $CASHBOX{ADMIN_DEFAULT_SELECT} = sel_admins({ NAME => 'ADMIN_DEFAULT', SELECTED => $CASHBOX{ADMIN_DEFAULT}});
+  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}, MULTIPLE => 1 });
+  $CASHBOX{DEPARTMENT_SELECT} = sel_departments({ NAME => 'DEPARTMENT', SELECTED => $CASHBOX{DEPARTMENT}, MULTIPLE => 1 });
 
   if ($FORM{add_form} || $FORM{chg}) {
-    $html->tpl_show(
-      _include('employees_cashbox_add', 'Employees'),
-      {
+    $html->tpl_show(_include('employees_cashbox_add', 'Employees'),{
         %CASHBOX,
         ACTION       => $action,
         ACTION_LANG  => $action_lang,
         ACTION_TITLE => $action_title
-      }
-    );
+    });
   }
 
   my $types = translate_list($Employees->employees_list_cashbox({ COLS_NAME => 1 }));
@@ -118,20 +122,21 @@ sub employees_cashbox_main {
       LIST            => $types,
       FUNCTION        => 'employees_list_cashbox',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, NAME, ADMINS, ADMIN, COMMENTS",
+      DEFAULT_FIELDS  => "ID, NAME, ADMINS, ADMIN, COMMENTS,DEPARTMENT",
       FUNCTION_FIELDS => 'employees_cashbox_balance:$lang{BALANCE}:id, change, del',
       EXT_TITLES      => {
-        'name'          => "$lang{NAME}",
-        'id'            => "ID",
-        'admin_default' => "$lang{ADMIN_DEFAULT}",
-        'admins'        => "$lang{ADMINS} $lang{PERMISSION}",
-        'comments'      => "$lang{COMMENTS}"
+        'name'          => $lang{NAME},
+        'id'            => 'ID',
+        'admin_default' => $lang{ADMIN_DEFAULT},
+        'admins'        => $lang{ADMINS},
+        'department'    => $lang{DEPARTMENT},
+        'comments'      => $lang{COMMENTS}
       },
       TABLE           => {
         width   => '100%',
         caption => "$lang{CASHBOXS}",
         qs      => $pages_qs,
-        ID      => 'EMPLOYEES',
+        ID      => 'CASHBOXS',
         header  => '',
         EXPORT  => 1,
         MENU    => "$lang{ADD}:index=$index&add_form=1:add;",
@@ -727,7 +732,7 @@ sub employees_cashbox_spending_add {
         width   => '100%',
         caption => "$lang{SPENDING}",
         qs      => $pages_qs,
-        ID      => 'EMPLOYEES',
+        ID      => 'EMPLOYEES_LIST_SPENDING',
         header  => '',
         EXPORT  => 1,
       },
@@ -821,15 +826,12 @@ sub employees_cashbox_coming_add {
 
   $CASHBOX{CASHBOX_SELECT} = employees_cashbox_select({ ID => $CASHBOX{CASHBOX_ID} });
 
-  $html->tpl_show(
-    _include('employees_coming_add', 'Employees'),
-    {
+  $html->tpl_show(_include('employees_coming_add', 'Employees'),{
       %CASHBOX,
       ACTION      => $action,
       ACTION_LANG => $action_lang,
       DATE        => $DATE
-    }
-  );
+    });
 
   result_former(
     {
@@ -851,9 +853,9 @@ sub employees_cashbox_coming_add {
       FUNCTION_INDEX  => $index,
       TABLE           => {
         width   => '100%',
-        caption => "$lang{COMING}",
+        caption => $lang{COMING},
         qs      => $pages_qs,
-        ID      => 'EMPLOYEES',
+        ID      => 'EMPLOYEES_LIST_COMING',
         header  => '',
         EXPORT  => 1,
       },
@@ -918,15 +920,13 @@ sub employees_coming_reports {
       COLS_NAME => 1,
     });
 
-    $report_table = $html->table(
-      {
+    $report_table = $html->table({
         width       => '100%',
         caption     => $lang{COMING},
         title_plain => \@title_plain,
         ID          => 'EMPLOYEES_COMING_REPORT',
         DATA_TABLE  => 1,
-      }
-    );
+      });
 
     my $month_total_sum = 0.00;
     my $month_total_count = 0;
@@ -1145,7 +1145,7 @@ sub employees_cashbox_select {
     $attr->{NAME} || 'CASHBOX_ID',
     {
       SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{ID}, # add defalt value
-      SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1, AID => $aid }),
+      SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1, AID => $aid, _MULTI_HIT => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2698,15 +2698,14 @@ sub employees_moving_between_cashboxes {
   $CASHBOX{CASHBOX_SELECT_COMING} = employees_cashbox_select({ NAME => 'CASHBOX_COMING', ID => $coming_cashbox});
   $CASHBOX{CASHBOX_SELECT_SPENDING} = employees_cashbox_select({ NAME => 'CASHBOX_SPENDING', ID => $spending_cashbox });
 
-  $html->tpl_show(
-    _include('employees_moving_between_cashboxes', 'Employees'),
-    {
+  $html->tpl_show(_include('employees_moving_between_cashboxes', 'Employees'),{
       %CASHBOX,
       ACTION      => $action,
       ACTION_LANG => $action_lang,
       DATE        => $DATE
-    }
-  );
+    });
+
+  $LIST_PARAMS{_MULTI_HIT} = 1;
 
   result_former(
     {
@@ -2730,7 +2729,7 @@ sub employees_moving_between_cashboxes {
         width   => '100%',
         caption => $lang{MOVING_BETWEEN_CASHBOXES},
         qs      => $pages_qs,
-        ID      => 'EMPLOYEES',
+        ID      => 'CASHBOXS_MOVING',
         header  => '',
         EXPORT  => 1,
       },

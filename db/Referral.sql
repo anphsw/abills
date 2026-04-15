@@ -60,7 +60,9 @@ CREATE TABLE IF NOT EXISTS `referral_requests`
     `address_flat` VARCHAR(10)          NOT NULL DEFAULT '',
     `comments`     VARCHAR(100)         NOT NULL DEFAULT '',
     `inner_comments` VARCHAR(200)       NOT NULL DEFAULT '',
-    KEY referral_uid (`referral_uid`)
+    KEY `referral_uid` (`referral_uid`),
+    KEY `location_id` (`location_id`),
+    KEY `status` (`status`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Referral request table stores information about referral status and request info';
@@ -73,7 +75,9 @@ CREATE TABLE IF NOT EXISTS `referral_users_bonus`
     `payment_id` INT(11) UNSIGNED       NOT NULL DEFAULT 0,
     `fee_id`     INT(11) UNSIGNED       NOT NULL DEFAULT 0,
     `date`       TIMESTAMP              NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    KEY uid (`uid`)
+    KEY uid (`uid`),
+    KEY `payment_id` (`payment_id`),
+    KEY `fee_id` (`fee_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Referral payments and fees bonus for user';

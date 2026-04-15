@@ -4,7 +4,7 @@
   "path": "equipment/nas/groups/add",
   "body": {
     "name": "test api add",
-    "comments": "Hello world",
+    "comments": "test api  NAS",
     "disable": 1
   }
 }

@@ -40,6 +40,7 @@ account=$user_id},
     get           => 1,
     result        => qq{},
     result_schema => 'Monobank_terminal/check-response.json',
+    path    => '/api/v1/debt/search',
   },
   {
     name    => 'PAY',
@@ -69,15 +70,17 @@ account=$user_id},
 }
 },
     result_schema => 'Monobank_terminal/pay-response.json',
-    result_type => 'xml',
+    path    => '/api/v1/debt/payment',
+    result_type => 'json',
     result  => q{}
   },
   {
-    name          => 'USER_LIST',
+    name          => 'STATUS',
     request       => qq{
 trackingId=$payment_id},
     get           => 1,
     result        => qq{},
+    path          => '/api/v1/debt/payment/check',
     result_schema => 'Monobank_terminal/status-response.json',
   },
 );

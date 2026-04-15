@@ -22,8 +22,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -44,7 +42,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/ureports/user/list/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::get_ureports_user_list,
       credentials => [
         'ADMIN'
@@ -53,7 +50,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/ureports/user/:uid/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::get_ureports_user_uid,
       credentials => [
         'ADMIN'
@@ -62,7 +58,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/ureports/user/:uid/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::post_ureports_user_uid,
       credentials => [
         'ADMIN'
@@ -71,7 +66,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/ureports/user/:uid/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::put_ureports_user_uid,
       credentials => [
         'ADMIN'
@@ -80,7 +74,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/ureports/user/:uid/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::delete_ureports_user_uid,
       credentials => [
         'ADMIN'
@@ -89,7 +82,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/ureports/user/:uid/reports/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::get_ureports_user_uid_reports,
       credentials => [
         'ADMIN'
@@ -98,7 +90,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/ureports/user/:uid/reports/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::post_ureports_user_uid_reports,
       credentials => [
         'ADMIN'
@@ -107,7 +98,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/ureports/user/:uid/reports/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::delete_ureports_user_uid_reports,
       credentials => [
         'ADMIN'
@@ -116,7 +106,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/ureports/user/:uid/reports/:id/',
-      controller  => 'Ureports::Api::admin::User',
       endpoint    => \&Ureports::Api::admin::User::delete_ureports_user_uid_reports_id,
       credentials => [
         'ADMIN'
@@ -125,7 +114,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/ureports/plugins/',
-      controller  => 'Ureports::Api::admin::Plugins',
       endpoint    => \&Ureports::Api::admin::Plugins::get_ureports_plugins,
       credentials => [
         'ADMIN', 'ADMINSID'

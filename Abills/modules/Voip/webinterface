@@ -56,11 +56,11 @@ our (
   %ADMIN_REPORT,
   @status,
   %permissions,
-  @bool_vals,
+  #@bool_vals,
   @_COLORS,
   @PERIODS,
   @MONTHES,
-  @WEEKDAYS,
+  #@WEEKDAYS,
   $base_dir
 );
 
@@ -244,13 +244,13 @@ sub voip_users_list {
       $active = 'active';
     }
     else {
-      $qs =~ s/\&SERVICE_STATUS=\d//;
+      $qs =~ s/\&SERVICE_STATUS=\d//x;
     }
     $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-default $active" });
   }
-  if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
+  if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/x) {
     my $search = $FORM{SERVICES};
-    if ($search !~ m/^[<>]/) {
+    if ($search !~ m/^[<>]/x) {
       $search = "=$search";
     }
     $LIST_PARAMS{SERVICE_COUNT} = $FORM{SERVICES};
@@ -313,10 +313,10 @@ sub voip_user {
 
   my $action_res = {};
   if ($FORM{add}) {
-    $action_res = $Voip_users->voip_user_add({ %{ ($attr) ? $attr : {} } , %FORM });
+    $action_res = $Voip_users->voip_user_add({ %{($attr) ? $attr : {}}, %FORM });
   }
   elsif ($FORM{set}) {
-    $action_res = $Voip_users->voip_user_chg({ %{ ($attr) ? $attr : {} }, %FORM });
+    $action_res = $Voip_users->voip_user_chg({ %{($attr) ? $attr : {}}, %FORM });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $action_res = $Voip_users->voip_user_del({ UID => $attr->{USER_INFO}->{UID} });
@@ -375,7 +375,7 @@ sub voip_user {
   }
 
   $Voip->{ALLOW_ANSWER} = ' checked ' if ($Voip->{ALLOW_ANSWER}); # && $Voip->{ALLOW_ANSWER} == 1);
-  $Voip->{ALLOW_CALLS} = ' checked' if ($Voip->{ALLOW_CALLS}); # && $Voip->{ALLOW_CALLS} == 1);
+  $Voip->{ALLOW_CALLS} = ' checked' if ($Voip->{ALLOW_CALLS});    # && $Voip->{ALLOW_CALLS} == 1);
 
   $Voip->{STATUS_SEL} = $html->form_select(
     'DISABLE',
@@ -400,9 +400,8 @@ sub voip_user {
     'PROVISION_NAS_ID',
     {
       SELECTED       => $Voip->{PROVISION_NAS_ID} || $FORM{PROVISION_NAS_ID} || '',
-      SEL_LIST       => $Nas->list({ TYPE => 'ls_pap2t;ls_spa8000', COLS_NAME => 1, SHORT => 1, NAS_NAME => '_SHOW', PAGE_ROWS => 10000 })
-        ,
-      SEL_KEY        => 'nas_id',
+      SEL_LIST       => $Nas->list({ TYPE => 'ls_pap2t;ls_spa8000', NAS_NAME => '_SHOW', PAGE_ROWS => 10000 }),
+      SEL_KEY        => 'id',
       SEL_VALUE      => 'nas_name',
       MAIN_MENU      => get_function_index('form_nas'),
       MAIN_MENU_ARGV => ($Voip->{NAS_ID}) ? "chg=$Voip->{NAS_ID}" : ''
@@ -452,7 +451,7 @@ sub voip_nas {
 #*******************************************************************
 sub voip_online {
 
-  if (!$permissions{5} || ! $permissions{5}{0}) {
+  if (!$permissions{5} || !$permissions{5}{0}) {
     $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     return 0;
   }
@@ -466,7 +465,7 @@ sub voip_online {
     $html->message('info', $lang{INFO}, $result);
   }
   elsif ($FORM{hangup}) {
-    my ($nas_id, $acct_session_id) = split(/ /, $FORM{hangup});
+    my ($nas_id, $acct_session_id) = split(/\s+/x, $FORM{hangup});
     $Nas->info({ NAS_ID => $nas_id, SECRETKEY => $conf{secretkey} });
 
     if (_error_show($Nas)) {
@@ -481,11 +480,13 @@ sub voip_online {
     });
 
     if ($ret == 0) {
-      $message = "$lang{NAS} ID: $nas_id
-                 $lang{NAS} IP: $Nas->{NAS_IP}
-                 $lang{PORT}: $nas_port_id
-                 $lang{SESSION_ID}: $acct_session_id
-                 $ret ";
+      $message = <<"[TEXT]";
+ $lang{NAS} ID: $nas_id
+ $lang{NAS} IP: $Nas->{NAS_IP}
+ $lang{PORT}: $nas_port_id
+ $lang{SESSION_ID}: $acct_session_id
+ $ret
+[TEXT]
       sleep 3;
     }
     elsif ($ret == 1) {
@@ -509,7 +510,7 @@ sub voip_online {
       return 0;
     }
 
-    my ($nas_id, $acct_session_id, $nas_port_id) = split(/[ +]+/, $FORM{zap}, 3);
+    my ($nas_id, $acct_session_id, $nas_port_id) = split(/\s+/x, $FORM{zap}, 3);
     $Sessions->zap($nas_id, $acct_session_id);
 
     if (_error_show($Sessions)) {
@@ -521,12 +522,10 @@ sub voip_online {
       . "$lang{PORT}: " . ($nas_port_id || q{}) . "\n"
       . "SESSION_ID: $acct_session_id\n";
 
-    $Sessions->list(
-      {
-        ACCT_SESSION_ID => $acct_session_id,
-        NAS_ID          => $Nas->{NAS_ID}
-      }
-    );
+    $Sessions->list({
+      ACCT_SESSION_ID => $acct_session_id,
+      NAS_ID          => $Nas->{NAS_ID}
+    });
 
     if ($Sessions->{TOTAL} < 1) {
       $message .= $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id",
@@ -586,7 +585,7 @@ sub voip_online {
   }
   elsif ($FORM{del} || $FORM{dellist}) {
     if ($FORM{dellist}) {
-      my @sessions_list = split(/, /, $FORM{dellist});
+      my @sessions_list = split(/,\s+/x, $FORM{dellist});
       $Sessions->online_del({ SESSIONS_LIST => \@sessions_list });
       $FORM{del} = $FORM{dellist};
     }
@@ -641,17 +640,17 @@ sub voip_online {
   });
 
   my $online = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ PAGE_ROWS => 10000 });
-  my @call_types = ("$lang{ANSWER}", "$lang{ORIGIN}");
-  foreach my $nas_row (@{$nas_list}) {
-    next if (!defined($online->{ $nas_row->[0] }));
+  my $nas_list = $Nas->list({ NAS_NAME => '_SHOW', NAS_IP => '_SHOW', PAGE_ROWS => 10000 });
+  my @call_types = ($lang{ANSWER}, $lang{ORIGIN});
+  foreach my $nas (@{$nas_list}) {
+    next if (!$nas->{id} || !defined($online->{ $nas->{id} }));
 
     $table->{rowcolor} = $_COLORS[0];
     $table->{extra} = "colspan='9' class='small'";
-    $table->addrow("$nas_row->[0]:" . $html->button($html->b($nas_row->[1]),
-      "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_row->[0]") . ":$nas_row->[4]");
+    $table->addrow("$nas->[0]:" . $html->button($html->b($nas->{nas_name}),
+      "index=" . get_function_index('form_nas') . "&NAS_ID=$nas->{id}") . ":$nas->{ip}");
 
-    my $l = $online->{ $nas_row->[0] };
+    my $l = $online->{ $nas->{id} };
     my $bg;
     foreach my $line (@{$l}) {
       delete($table->{rowcolor});
@@ -659,10 +658,10 @@ sub voip_online {
       if (defined($dub_logins->{ $line->[0] })) {$bg = '#FFFF00';}
       elsif ($line->[9] == 3) {$bg = '#FF0000';}
 
-      my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[10]", { TITLE => 'Zap', class => 'del' });
+      my $zap = $html->button('Z', "index=$index&zap=$nas->{id}+$line->[10]", { TITLE => 'Zap', class => 'del' });
       my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[10]",
         { TYPE => 'checkbox' }) : $html->button('H',
-        "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup', class => 'off' });
+        "index=$index&hangup=$nas->{id}+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup', class => 'off' });
 
       my $user_info = '';
 
@@ -760,7 +759,8 @@ sub voip_stats {
       $html->message('err', $lang{ERROR}, "$lang{EXIST} $FORM{OP_SID} eq $op_sid");
     }
     elsif ($FORM{bm}) {
-      use Bills;
+      require Bills;
+      Bills->import();
       my $Bill = Bills->new($db);
       $Bill->action('add', $FORM{BILL_ID}, $FORM{sum});
       if (_error_show($Bill)) {
@@ -797,7 +797,7 @@ sub voip_stats {
   });
 
   for (my $i = 0; $i < 5; $i++) {
-    $table->addrow($html->button("$PERIODS[$i]", "index=$index&period=$i$pages_qs"), "$Sessions->{'duration_'. $i}",
+    $table->addrow($html->button($PERIODS[$i], "index=$index&period=$i$pages_qs"), $Sessions->{'duration_'. $i},
       $Sessions->{ 'sum_' . $i });
   }
   print $table->show();
@@ -903,7 +903,7 @@ sub voip_stats_calculation {
 
   my $table = $html->table({
     width       => '640',
-    title_plain => [ "-", "$lang{MIN}", "$lang{MAX}", "$lang{AVG}" ],
+    title_plain => [ "-", $lang{MIN}, $lang{MAX}, $lang{AVG} ],
     rows        => [ [ $lang{DURATION}, $sessions_->{MIN_DUR}, $sessions_->{MAX_DUR}, $sessions_->{AVG_DUR} ],
       [ $lang{SUM}, $sessions_->{MIN_SUM}, $sessions_->{MAX_SUM}, $sessions_->{AVG_SUM} ] ]
   });
@@ -925,33 +925,37 @@ sub voip_gk_console {
     return 0;
   }
 
-  my $list = $Nas->list({
-    NAS_TYPE  => 'gnugk',
-    PAGE_ROWS => 10000,
-    DOMAIN_ID => $admin->{DOMAIN_ID}
+  my $nas_list = $Nas->list({
+    NAS_TYPE       => 'gnugk',
+    NAS_NAME       => '_SHOW',
+    NAS_IP         => '_SHOW',
+    NAS_IDENTIFIER => '_SHOW',
+    PAGE_ROWS      => 10000,
+    DOMAIN_ID      => $admin->{DOMAIN_ID}
   });
 
   my $table = $html->table({
     caption => $lang{NAS},
     width   => '100%',
-    title   => [ "#", "$lang{NAME}", 'NAS-Identifier', 'IP' ],
+    title   => [ "#", $lang{NAME}, 'NAS-Identifier', 'IP' ],
     qs      => $pages_qs,
     ID      => 'NAS_INFO'
   });
 
   #my ($host, $user, $password);
-  foreach my $line (@{$list}) {
-    if ($FORM{NAS_ID} && $line->[0] eq $FORM{NAS_ID}) {
+  foreach my $nas (@{$nas_list}) {
+    if ($FORM{NAS_ID} && $nas->{id} eq $FORM{NAS_ID}) {
       $table->{rowcolor} = $_COLORS[4];
     }
     else {
       undef($table->{rowcolor});
     }
 
-    $table->addrow($html->button("$line->[0]", "index=$index&NAS_ID=$line->[0]"),
-      $line->[1],
-      $line->[2],
-      $line->[3]
+    $table->addrow(
+      $html->button($nas->{id}, "index=$index&NAS_ID=$nas->{id}"),
+      $nas->{nas_name},
+      $nas->{nas_identifier},
+      $nas->{ip}
     );
   }
   print $table->show();
@@ -1000,10 +1004,10 @@ sub voip_gk_console {
 
       my $result = Abills::Nas::Control::telnet_cmd("$Nas->{NAS_MNG_IP_PORT}", \@commands, { debug => 1 });
       my $total = 0;
-      my @rows = split(/\n/, $result);
+      my @rows = split(/\n/x, $result);
       my @registred = ();
 
-      if ($FORM{command} =~ /\!|CurrentCalls/) {
+      if ($FORM{command} =~ /\!|CurrentCalls/xm) {
         $table = $html->table({
           width   => '100%',
           title   =>
@@ -1013,17 +1017,17 @@ sub voip_gk_console {
           caption => 'Associated'
         });
 
-        @rows = split(/\n/, $result);
+        @rows = split(/\n/x, $result);
 
         foreach my $line (@rows) {
-          if ($line =~ /Dial/) {
+          if ($line =~ /Dial/xm) {
             #print "#      Caller_Aliases|Callee_Aliases|Bandwidth|Connected_Time <r>";
-            @registred = split(/\|/, $line);
+            @registred = split(/\|/x, $line);
             $table->addrow(@registred);
             $total++;
           }
           elsif ($line =~ /ACF/) {
-            @registred = split(/\|/, $line);
+            @registred = split(/\|/xm, $line);
 
             #ACF|Caller_IP:Port|Caller_EPID|CRV|DestinationInfo|SrcInfo|IsAnswered;
             #ACF|Callee_IP:Port|Callee_EPID|CRV|DestinationInfo|SrcInfo|IsAnswered;
@@ -1049,7 +1053,7 @@ sub voip_gk_console {
         #ACF|192.168.101.18:1720|9870_ag1|41122|600:dialedDigits|101:dialedDigits|true;
         #Number of Calls: 1 Active: 0 From Neighbor: 0 From Parent: 0
       }
-      elsif ($FORM{command} =~ /\?|PrintAllRegistrations$/) {
+      elsif ($FORM{command} =~ /\?|PrintAllRegistrations$/xm) {
         $table = $html->table({
           width   => '100%',
           title   => [ "#", "IP", 'NUMBER', "$lang{TYPE}", "ID", '' ],
@@ -1059,7 +1063,7 @@ sub voip_gk_console {
 
         foreach my $line (@rows) {
           if ($line =~ /RCF/) {
-            @registred = split(/\|/, $line);
+            @registred = split(/\|/x, $line);
             push @registred, $html->button('H', "index=$index&NAS_ID=$FORM{NAS_ID}&command=UnregisterIP+$registred[1]",
               { TITLE => 'Hangup', BUTTON => 1 });
             $table->addrow(@registred);
@@ -1069,12 +1073,12 @@ sub voip_gk_console {
 
         $table = $html->table({
           width => '100%',
-          rows  => [ [ "$lang{TOTAL}:", "$total" ] ]
+          rows  => [ [ "$lang{TOTAL}:", $total ] ]
         });
         print $table->show();
       }
       else {
-        $result =~ s/\n/<br>/g;
+        $result =~ s/\n/<br>/xg;
         $html->message('info', $lang{INFO}, "$result");
       }
     }

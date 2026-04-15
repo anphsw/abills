@@ -32,7 +32,7 @@ our Abills::HTML $html;
 if (form_purchase_module({
   HEADER          => $user->{UID} || $FORM{UID},
   MODULE          => 'Crm::db::Crm',
-  REQUIRE_VERSION => 1.23
+  REQUIRE_VERSION => 1.25
 })) {
   exit;
 }
@@ -49,6 +49,9 @@ if ($conf{CRM_ECHAT}) {
 }
 
 our Crm $Crm = Crm->new($db, $admin, \%conf);
+
+use Crm::Leads_service;
+my $Leads_service = Crm::Leads_service->new($db, $admin, \%conf);
 
 require Control::Schedule;
 my $Schedule_control = Control::Schedule->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, index => $index });
@@ -331,26 +334,27 @@ sub crm_mass_adding {
   if ($FORM{add}) {
     if ($FORM{BUILD_ID} && $FORM{FLAT_START} && $FORM{FLAT_END}) {
       for (my $i = $FORM{FLAT_START}; $i <= $FORM{FLAT_END}; $i++) {
-        $Crm->crm_lead_add({ ADDRESS_FLAT => $i, BUILD_ID => $FORM{BUILD_ID} });
+        my $result = $Leads_service->crm_lead_add({ ADDRESS_FLAT => $i, BUILD_ID => $FORM{BUILD_ID} });
 
-        $leads_number++ if (!_error_show($Crm));
+        $leads_number++ if (!_error_show($result));
       }
 
-      $html->message('success', "$lang{ADDED}", "$lang{LEADS}: $leads_number");
+      $html->message('success', $lang{ADDED}, "$lang{LEADS}: $leads_number");
     }
     elsif ($FORM{STREET_ID} && $FORM{BUILD_START} && $FORM{BUILD_END}) {
       for (my $i = $FORM{BUILD_START}; $i <= $FORM{BUILD_END}; $i++) {
         my $build_info = $Address->build_list({ NUMBER => $i, STREET_ID => $FORM{STREET_ID}, COLS_NAME => 1 });
 
+        my $result;
         if ($Address->{TOTAL} > 0) {
-          $Crm->crm_lead_add({ BUILD_ID => $build_info->[0]{id} });
+          $result = $Leads_service->crm_lead_add({ BUILD_ID => $build_info->[0]{id} });
         }
         else {
-          $Crm->crm_lead_add({ ADD_ADDRESS_BUILD => $i, STREET_ID => $FORM{STREET_ID} });
+          $result = $Leads_service->crm_lead_add({ ADD_ADDRESS_BUILD => $i, STREET_ID => $FORM{STREET_ID} });
         }
-        $leads_number++ if (!_error_show($Crm));
+        $leads_number++ if (!_error_show($result));
       }
-      $html->message('success', "$lang{ADDED}", "$lang{LEADS}: $leads_number");
+      $html->message('success', $lang{ADDED}, "$lang{LEADS}: $leads_number");
     }
   }
 
@@ -587,8 +591,8 @@ sub crm_registration {
   my ($attr) = @_;
 
   if ($FORM{reg}) {
-    $Crm->crm_lead_add(\%FORM);
-    $html->message('info', $lang{SUCCESS}, $lang{ADDED}) if !_error_show($Crm);
+    my $result = $Leads_service->crm_lead_add(\%FORM);
+    $html->message('info', $lang{SUCCESS}, $lang{ADDED}) if !_error_show($result);
   }
 
   $Crm->{ADDRESS_TPL} = form_address_select();
@@ -1043,10 +1047,11 @@ sub crm_open_lines {
     SOURCE_SEL => $html->form_select('SOURCE', {
       SELECTED => $Crm->{SOURCE},
       SEL_HASH => {
-        facebook  => 'Facebook',
         telegram  => 'Telegram',
-        instagram => 'Instagram',
         viber_bot => 'Viber Bot',
+        facebook  => 'Facebook',
+        instagram => 'Instagram',
+        whatsapp  => 'WhatsApp',
         mail      => 'Mail',
         ( $conf{CRM_ECHAT} ? (echat => 'E-chat') : () )
       },
@@ -1058,7 +1063,7 @@ sub crm_open_lines {
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_open_lines_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,NAME,SOURCE,ADMINS_NAME',
+    DEFAULT_FIELDS  => 'ID,NAME,SOURCE,ADMINS_NAME,AUTOCLOSE',
     FUNCTION_FIELDS => 'change,del',
     FUNCTION_INDEX  => $index,
     SKIP_USER_TITLE => 1,
@@ -1066,7 +1071,8 @@ sub crm_open_lines {
       id          => '#',
       name        => $lang{NAME},
       source      => $lang{SOURCE},
-      admins_name => $lang{ADMINS}
+      admins_name => $lang{ADMINS},
+      autoclose   => $lang{CRM_AUTO_CLOSE_AFTER_DAYS}
     },
     SKIP_PAGES      => 1,
     TABLE           => {

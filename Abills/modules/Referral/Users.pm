@@ -55,8 +55,7 @@ sub new {
 =cut
 #**********************************************************
 sub referral_user_manage {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $phone_format = $self->{conf}->{PHONE_FORMAT} || $self->{conf}->{CELL_PHONE_FORMAT};
 
@@ -67,7 +66,7 @@ sub referral_user_manage {
       element => [ 'err', $lang{ERROR}, "$lang{FIO} $lang{OR} $lang{PHONE} $lang{EMPTY}", { ID => 41003 } ]
     };
   }
-  elsif ($attr->{PHONE} && (($phone_format && $attr->{PHONE} !~ /$phone_format/) || $attr->{PHONE} !~ /^\d+$/g)) {
+  elsif ($attr->{PHONE} && (($phone_format && $attr->{PHONE} !~ /$phone_format/) || $attr->{PHONE} !~ /^\d+$/xg)) {
     return {
       errno   => 41001,
       errstr  => 'Invalid phone',
@@ -98,7 +97,7 @@ sub referral_user_manage {
   }
 
   if ($attr->{add}) {
-    my $result = $Referral->add_request({
+    my $result = $Referral->request_add({
       %params,
       REFERRER      => $attr->{UID} || $attr->{REFERRER},
       LOCATION_ID   => $attr->{LOCATION_ID},
@@ -133,7 +132,7 @@ sub referral_user_manage {
       }
     }
 
-    $Referral->change_request({
+    $Referral->request_change({
       %params,
       ID       => $attr->{ID} || '',
       REFERRER => $attr->{UID},
@@ -160,8 +159,7 @@ sub referral_user_manage {
 =cut
 #**********************************************************
 sub referrals_user {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $Users->info($attr->{UID} || '--');
 
@@ -177,7 +175,7 @@ sub referrals_user {
   if (scalar @main::REGISTRATION || $self->{conf}->{NEW_REGISTRATION_FORM}) {
     my $referral_link = $main::SELF_URL || q{};
     my $script_name = $ENV{SCRIPT_NAME} || q{};
-    $referral_link =~ s/$script_name/\/registration.cgi?module=Referral&REFERRER=$Users->{UID}/;
+    $referral_link =~ s/$script_name/\/registration.cgi?module=Referral&REFERRER=$Users->{UID}/x;
 
     $params{referral_link} = $referral_link;
   }
@@ -195,8 +193,7 @@ sub referrals_user {
 =cut
 #**********************************************************
 sub referrals_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @referrals = ();
   my $total_bonus = 0;
@@ -309,8 +306,7 @@ sub referrals_list {
 =cut
 #**********************************************************
 sub _referral_calculate_bonus {
-  my $self = shift;
-  my ($register, $attr) = @_;
+  my ($self, $register, $attr) = @_;
 
   return {
     errno  => 41021,
@@ -322,7 +318,7 @@ sub _referral_calculate_bonus {
     $tariff_settings = $Referral->tp_info($attr->{TP_ID} || '--');
   }
   else {
-    $tariff_settings = $Referral->get_default_tp();
+    $tariff_settings = $Referral->tp_get_default();
   }
 
   return {
@@ -340,7 +336,7 @@ sub _referral_calculate_bonus {
   my $max_bonus = 0;
 
   if ($tariff_settings->{MAX_BONUS_AMOUNT} && $tariff_settings->{MAX_BONUS_AMOUNT} > 0) {
-    $Referral->get_total_bonus($attr->{UID});
+    $Referral->bonus_total_get($attr->{UID});
     my $max_amount = sprintf('%.2f', $tariff_settings->{MAX_BONUS_AMOUNT} || 0);
     my $curr_total_sum = sprintf('%.2f', $Referral->{TOTAL_SUM} || 0);
 
@@ -354,7 +350,7 @@ sub _referral_calculate_bonus {
 
   if (!$register && ($recharge_percent || $spend_percent || $tariff_settings->{STATIC_ACCRUAL})) {
     if ($tariff_settings->{PERIOD}) {
-      if ($attr->{DATE} && $attr->{DATE} =~ /(\d{4})-(\d{2})-(\d{2})/g) {
+      if ($attr->{DATE} && $attr->{DATE} =~ /(\d{4})-(\d{2})-(\d{2})/xg) {
         my $allowed_days = $tariff_settings->{PERIOD} * 30;
         my $days = date_diff("$1-$2-$3", $main::DATE);
 
@@ -401,7 +397,7 @@ sub _referral_calculate_bonus {
       return {
         errno  => 4117,
         errstr => 'Not first day of month'
-      } if ($main::DATE !~ /^\d{4}-\d{2}-01$/g);
+      } if ($main::DATE !~ /^\d{4}-\d{2}-01$/xg);
 
       my $default_bonus = sprintf('%.2f', $tariff_settings->{BONUS_AMOUNT} || 0);
 
@@ -416,7 +412,7 @@ sub _referral_calculate_bonus {
     }
     else {
       if ($recharge_percent) {
-        my $payments = $Referral->get_payments_bonus($attr);
+        my $payments = $Referral->bonus_payments_get($attr);
         if (!$Referral->{errno} && scalar @{$payments}) {
           foreach my $payment (@{$payments}) {
             next if (!$payment->{sum});
@@ -435,7 +431,7 @@ sub _referral_calculate_bonus {
       }
 
       if ($spend_percent) {
-        my $fees = $Referral->get_fees_bonus($attr);
+        my $fees = $Referral->bonus_fees_get($attr);
         if (!$Referral->{errno} && scalar @{$fees}) {
           foreach my $fee (@{$fees}) {
             next if (!$fee->{sum});
@@ -455,7 +451,7 @@ sub _referral_calculate_bonus {
     }
   }
   else {
-    my $result = $Referral->get_single_bonus($attr->{UID});
+    my $result = $Referral->bonus_single_get($attr->{UID});
 
     if ($result && scalar @{$result}) {
       return {
@@ -514,8 +510,7 @@ sub _referral_calculate_bonus {
 =cut
 #**********************************************************
 sub _referral_add_bonus {
-  my $self = shift;
-  my ($referral) = @_;
+  my ($self, $referral) = @_;
 
   return {
     errno  => 4112,
@@ -587,8 +582,7 @@ sub _referral_add_bonus {
 =cut
 #**********************************************************
 sub _referral_bonus_report_send {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $referrals = $Referral->list({
     REFERRAL  => $attr->{UID},
@@ -632,8 +626,7 @@ sub _referral_bonus_report_send {
 =cut
 #**********************************************************
 sub referral_registered {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $calculated_sum = $self->_referral_calculate_bonus(1, {
     REFERRER => $attr->{REFERRER},
@@ -657,8 +650,7 @@ sub referral_registered {
 =cut
 #**********************************************************
 sub referral_bonus_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %params = ();
   $params{REFERRAL_UID} = $attr->{REFERRAL_UID} if ($attr->{REFERRAL_UID});
@@ -671,11 +663,11 @@ sub referral_bonus_add {
   if ($result && $result->{referrals_total}) {
     foreach my $referral (@{$result->{referrals}}) {
       if ($referral->{TP_INACTIVE_DAYS} > 0){
-        my $check_inactive_days = _referral_check_inactive_days($referral);
+        my $check_inactive_days = $self->_referral_check_inactive_days($referral);
         next if ($check_inactive_days);
       }
 
-      my $user_status = _referral_check_user_status($referral);
+      my $user_status = $self->_referral_check_user_status($referral);
       next if ($user_status > 0);
 
       $self->_referral_add_bonus($referral);
@@ -699,18 +691,19 @@ sub referral_bonus_add {
 =cut
 #**********************************************************
 sub _referral_check_inactive_days {
-  my ($referral) = @_;
-  return if !$referral->{UID};
+  my ($self, $referral) = @_;
+
+  return 0 if !$referral->{UID};
 
   my $user_info = $Users->info($referral->{UID});
-  return if $user_info->{DISABLE_DATE} eq '0000-00-00';
+  return 0 if $user_info->{DISABLE_DATE} eq '0000-00-00';
 
   my $fact_inactive_days = date_diff($user_info->{DISABLE_DATE}, $DATE);
   if ($fact_inactive_days >= $referral->{TP_INACTIVE_DAYS}){
     return 1;
   }
 
-  return;
+  return 0;
 }
 
 
@@ -726,16 +719,20 @@ sub _referral_check_inactive_days {
 =cut
 #**********************************************************
 sub _referral_check_user_status {
-  my ($referral) = @_;
-  return if !$referral->{UID};
+  my ($self, $referral) = @_;
+
+  return if (!$referral->{UID});
 
   my $status = 0;
 
   my $user_info = $Users->info($referral->{UID});
   $status += $user_info->{DISABLE} if ($user_info->{DISABLE});
 
-  do 'Control/Services.pm';
-  my $service_info = get_services({ UID => $referral->{UID}} );
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
+
+  my $service_info = $Services->get_services({ UID => $referral->{UID}} );
 
   foreach my $service (@{ $service_info->{list} }){
     if ($service->{MODULE} && $service->{MODULE} eq 'Internet'){

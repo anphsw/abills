@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 2
+  errstr:
+    type: string
+    example: ERR_NOT_EXISTS

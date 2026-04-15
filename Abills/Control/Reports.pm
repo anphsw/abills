@@ -1247,6 +1247,10 @@ sub form_changes_summary {
     31 => "$lang{ICARDS} $lang{USED}"
   );
 
+  my $month = strftime("%Y-%m", localtime(time));
+  $LIST_PARAMS{FROM_DATE} = $month.'-01';
+  $LIST_PARAMS{TO_DATE} = $DATE;
+
   my $list = $admin->action_summary({
     TYPE      => join(';', keys %action_types),
     COLS_NAME => 1,
@@ -1261,8 +1265,8 @@ sub form_changes_summary {
   }
 
   if (!$FORM{show}) {
-    $pages_qs .= "&FROM_DATE=" . ($FORM{FROM_DATE} ? $FORM{FROM_DATE} : q{});
-    $pages_qs .= "&TO_DATE=" . ($FORM{TO_DATE} ? $FORM{TO_DATE} : q{});
+    $pages_qs .= '&FROM_DATE=' . ($FORM{FROM_DATE} ? $FORM{FROM_DATE} : $LIST_PARAMS{FROM_DATE});
+    $pages_qs .= '&TO_DATE=' . ($FORM{TO_DATE} ? $FORM{TO_DATE} : $LIST_PARAMS{TO_DATE});
   }
 
   my $table = $html->table({
@@ -1831,7 +1835,6 @@ sub report_sender {
       qs      => $pages_qs,
       ID      => 'REPORT_SENDER',
       EXPORT  => 1,
-      DATA_TABLE => 1,
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1,

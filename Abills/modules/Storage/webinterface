@@ -13,7 +13,7 @@ use strict;
 use warnings FATAL => 'all';
 use utf8;
 use Encode;
-use Abills::Base qw(in_array load_pmodule _bp int2ml vars2lang convert);
+use Abills::Base qw(in_array load_pmodule _bp int2ml vars2lang convert is_number);
 use Abills::Backend::Utils qw(json_decode_safe);
 use Abills::Defs;
 use Fees;
@@ -54,7 +54,7 @@ my @item_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLM
 if (form_purchase_module({
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 8.95
+  REQUIRE_VERSION => 9.06
 })) {
   exit;
 }
@@ -74,6 +74,9 @@ for (1..EXTRA_IDENTS) {
 
 use Storage::Installation;
 my $Installation = Storage::Installation->new($db, $admin, \%conf, { lang => \%lang, html => $html, libpath => $libpath });
+
+use Storage::Incoming_article;
+my $Incoming_article = Storage::Incoming_article->new($db, $admin, \%conf, { lang => \%lang, html => $html, libpath => $libpath });
 
 if ($conf{STORAGE_IDENT_DESCR}) {
   for my $part (split /;/, $conf{STORAGE_IDENT_DESCR}) {
@@ -151,14 +154,25 @@ sub storage_items {
     }
 
     my $existing_incoming_article = _storage_incoming_article_already_exist(\%FORM);
-    if (ref $existing_incoming_article eq 'HASH' && $existing_incoming_article->{id}) {
-      $Storage->storage_incoming_articles_change({
-        ID                  => $existing_incoming_article->{sia_id},
-        COUNT               => $existing_incoming_article->{sia_count} + $FORM{COUNT},
-        SUM                 => $existing_incoming_article->{total_sum} + $FORM{SUM},
-        STORAGE_INCOMING_ID => $existing_incoming_article->{storage_incoming_id},
-        COMBINE_ITEMS       => 1
-      });
+
+    if ($existing_incoming_article && ref $existing_incoming_article eq 'HASH' && $existing_incoming_article->{id}) {
+      if ($existing_incoming_article->{storage_id} && defined $Storage->{STORAGE_ADMIN_PERMISSIONS}) {
+        if (!$Storage->{STORAGE_ADMIN_PERMISSIONS}{$existing_incoming_article->{storage_id}}) {
+          $Storage->storage_incoming_articles_add({ %FORM });
+        }
+        else {
+          $Storage->storage_incoming_articles_change({
+            ID                  => $existing_incoming_article->{sia_id},
+            COUNT               => $existing_incoming_article->{sia_count} + $FORM{COUNT},
+            SUM                 => $existing_incoming_article->{total_sum} + $FORM{SUM},
+            STORAGE_INCOMING_ID => $existing_incoming_article->{storage_incoming_id},
+            COMBINE_ITEMS       => 1
+          });
+        }
+      }
+      else {
+        $Storage->storage_incoming_articles_add({ %FORM });
+      }
     }
     else {
       $Storage->storage_incoming_articles_add({ %FORM });
@@ -578,30 +592,15 @@ sub storage_main {
     return 1;
   }
   elsif ($FORM{divide}) {
-    my $list = $Storage->storage_incoming_articles_list({ ID => $FORM{divide}, COLS_NAME => 1 });
+    my $result = $Incoming_article->storage_incoming_articles_divide({
+      INCOMING_ARTICLE_ID => $FORM{divide},
+      DIVIDED_ITEMS       => [ { SERIAL => '' }]
+    });
 
-    _error_show($Storage);
-
-    foreach my $line (@{$list}) {
-      if ($line->{sia_count} > 1 and $line->{total_sum} != 0) {
-        $Storage->storage_incoming_articles_divide({
-          ARTICLE_ID          => $line->{article_id},
-          COUNT               => $line->{sia_count},
-          DIVIDE              => $FORM{DIVIDE} || 1,
-          SUM                 => $line->{total_sum} / $line->{sia_count},
-          SN                  => $line->{serial},
-          MAIN_ARTICLE_ID     => $line->{sia_id},
-          STORAGE_INCOMING_ID => $line->{storage_incoming_id},
-          SUM_TOTAL           => $line->{total_sum},
-        });
-
-        if (!$Storage->{errno}) {
-          $html->message('info', $lang{INFO}, $lang{DIVIDED});
-          $FORM{chg} = $Storage->{INCOMING_ARTICLE_ID};
-        }
-      }
-      else {
-        $html->message('info', $lang{INFO}, "$lang{CANT_DIVIDE}");
+    if (!_error_show($result)) {
+      $html->message('info', $lang{INFO}, $lang{DIVIDED});
+      if ($result && $result->{DIVIDED_ARTICLE_IDS} && ref($result->{DIVIDED_ARTICLE_IDS}) eq 'ARRAY') {
+        $FORM{chg} = $result->{DIVIDED_ARTICLE_IDS}[0];
       }
     }
   }
@@ -610,95 +609,49 @@ sub storage_main {
     return 1;
   }
   elsif ($FORM{divide_all}) {
-    my @sns = split(',\s?', $FORM{SN});
-    my @ident1 = split(',\s?', $FORM{IDENT1});
-    my @ident2 = split(',\s?', $FORM{IDENT2});
-    my @ident3 = split(',\s?', $FORM{IDENT3});
-    # my @ident4 = split(',\s?', $FORM{IDENT4});
-    my @ids = split(',\s?', $FORM{IDS});
-    my $article_id = $FORM{ARTICLE_ID};
-    my @sn_comments = split(',\s?', $FORM{SN_COMMENTS});
-    my $main_article_id = $FORM{MAIN_ARTICLE_ID};
-    my $sell_price = $FORM{SELL_PRICE};
-    my $rent_price = $FORM{RENT_PRICE};
-    my $by_installments_prices = $FORM{IN_INSTALLMENTS_PRICE};
-    my $incoming_article_id = $FORM{INCOMING_ARTICLE_ID};
-    my $sum_total = $FORM{SUM_TOTAL};
-    my $total_count = $FORM{TOTAL_COUNT};
-    my $sum = $sum_total / $total_count;
+    my $divide_data = {};
+    my $count = 0;
 
-    my $i = 0;
+    my $article_data_keys = [ 'IDENT1', 'IDENT2', 'IDENT3', 'IDENT4', 'SN_COMMENTS', 'SERIAL' ];
+    foreach my $key (@{$article_data_keys}) {
+      next if (!$FORM{$key} && $key ne 'SERIAL');
 
-    foreach my $id (@ids) {
-      if (($i + 1) < scalar(@ids)) {
-        $Storage->storage_incoming_articles_divide({
-          ARTICLE_ID            => $article_id,
-          COUNT                 => $total_count,
-          #        DIVIDE                => 1,
-          SUM_TOTAL             => $sum_total,
-          SUM                   => $sum,
-          # SN                    => $sns[$i] || Abills::Base::mk_unique_value(10),
-          MAIN_ARTICLE_ID       => $main_article_id,
-          STORAGE_INCOMING_ID   => $incoming_article_id,
-          SUM_TOTAL             => $sum_total,
-          SELL_PRICE            => $sell_price,
-          RENT_PRICE            => $rent_price,
-          IN_INSTALLMENTS_PRICE => $by_installments_prices,
-        });
-        last if _error_show($Storage);
+      my @parts = split(/\s*,\s*/, ($FORM{$key} // ''), -1);
 
-        my $new_incoming_articles_id = $Storage->{INSERT_ID};
-
-        my $properties_values = $Storage->storage_property_value_list({
-          STORAGE_INCOMING_ARTICLES_ID => $main_article_id || 0,
-          VALUE                        => '_SHOW',
-          PROPERTY_ID                  => '_SHOW',
-          DESC                         => 'desc',
-          COLS_NAME                    => 1,
-          COLS_UPPER                   => 1
-        });
-
-        foreach my $property_value (@$properties_values) {
-          $Storage->storage_property_value_add({
-            STORAGE_INCOMING_ARTICLES_ID => $new_incoming_articles_id,
-            PROPERTY_ID                  => $property_value->{property_id},
-            VALUE                        => $property_value->{value}
-          });
-        }
-
-        use Digest::MD5 qw(md5_hex);
-        my $qrcode_hash = md5_hex("$new_incoming_articles_id");
-        $Storage->storage_incoming_articles_change({
-          ID          => $new_incoming_articles_id,
-          SERIAL      => $sns[$i] || Abills::Base::mk_unique_value(10),
-          IDENT1      => $ident1[$i] || '',
-          IDENT2      => $ident2[$i] || '',
-          IDENT3      => $ident3[$i] || '',
-          # IDENT4      => $ident4[$i] || '',
-          SN_COMMENTS => $sn_comments[$i],
-          QRCODE_HASH => $qrcode_hash,
-        });
-
-        $sum_total = $sum_total - $sum_total / $total_count;
-        $total_count--;
-      }
-      else {
-        use Digest::MD5 qw(md5_hex);
-        my $qrcode_hash = md5_hex("$main_article_id");
-
-        $Storage->storage_incoming_articles_change({
-          ID          => $main_article_id,
-          SERIAL      => $sns[$i] || Abills::Base::mk_unique_value(10),
-          IDENT1      => $ident1[$i] || '',
-          IDENT2      => $ident2[$i] || '',
-          IDENT3      => $ident3[$i] || '',
-          # IDENT4      => $ident4[$i] || '',
-          SN_COMMENTS => $sn_comments[$i],
-          QRCODE_HASH => $qrcode_hash,
-        });
+      if ($key eq 'SERIAL') {
+        @parts = map {
+          ($_ // '') eq '' ? Abills::Base::mk_unique_value(10) : $_
+        } @parts;
       }
 
-      $i++;
+      @{$divide_data->{$key}} = @parts;
+
+      if (!$count) {
+        $count = scalar(@parts);
+      }
+    }
+
+    my $divided_items = [];
+    for (my $i = 0; $i < $count; $i++) {
+
+      my $item = {};
+      foreach my $key (keys %{$divide_data}) {
+        last if (!defined $divide_data->{$key}[$i]);
+
+        $item->{$key} = $divide_data->{$key}[$i];
+      }
+
+      if (scalar(keys %{$item}) > 0) {
+        push @{$divided_items}, $item;
+      }
+    }
+
+    my $result = $Incoming_article->storage_incoming_articles_divide({
+      INCOMING_ARTICLE_ID => $FORM{INCOMING_ARTICLE_ID},
+      DIVIDED_ITEMS       => $divided_items
+    });
+    if (!_error_show($result)) {
+      $html->message('info', $lang{INFO}, $lang{DIVIDED});
     }
   }
   elsif ($FORM{accountability}) {
@@ -1166,7 +1119,8 @@ sub storage_main {
           ID              => $FORM{return_id},
           COUNT           => $discard_info->{COUNT},
           COMMENTS        => $FORM{COMMENTS} || '',
-          STORAGE_MAIN_ID => $discard_info->{STORAGE_INCOMING_ARTICLES_ID}
+          STORAGE_MAIN_ID => $discard_info->{STORAGE_INCOMING_ARTICLES_ID},
+          SKIP_LOG        => 1
         });
         if (!_error_show($Storage)) {
           $html->message('info', $lang{SUCCESS}, "$lang{RETURN} $lang{SUCCESS}");
@@ -1884,13 +1838,43 @@ sub storage_accountability {
     $FORM{add_form} = 1;
   }
   elsif ($FORM{del_accountability}) {
-    $Storage->storage_accountability_del({ ID => $FORM{ID} });
-    if (!$Storage->{errno}) {
-      $html->tpl_show(_include('storage_redirect', 'Storage'), {
-        SECTION => '&show_accountability=1' . (($FORM{AID}) ? "&AID=$FORM{AID}" : q{}),
-        MESSAGE => $lang{RETURNED_STORAGE},
-      });
+
+    if($FORM{STORAGE_ID} && $FORM{confirm} && $FORM{ID}){
+      my $accountability = $Storage->storage_accountability_info({ ID => $FORM{ID} });
+      return if (!$Storage->{TOTAL} || $Storage->{TOTAL} < 1);
+      my $old_storage_id = $accountability->{STORAGE_ID};
+      my $accountability_count = $accountability->{COUNT};
+
+      $Storage->storage_accountability_del({ ID => $FORM{ID} });
+
+      if (!_error_show($Storage)) {
+        if ($old_storage_id && $FORM{STORAGE_ID} ne $old_storage_id && $accountability->{STORAGE_INCOMING_ARTICLES_ID}) {
+          my $incoming_article = $Storage->storage_incoming_articles_info({ ID => $accountability->{STORAGE_INCOMING_ARTICLES_ID} });
+
+          my $result = $Incoming_article->storage_incoming_articles_move($accountability->{STORAGE_INCOMING_ARTICLES_ID}, {
+            STORAGE_ID => $FORM{STORAGE_ID},
+            COUNT      => $accountability_count
+          });
+          if (!_error_show($result)) {
+            $html->message('info', $lang{RETURNED_STORAGE});
+            $html->redirect("?get_index=storage_main&show_accountability=1&full=1");
+          }
+        }
+        else {
+          $html->message('info', $lang{RETURNED_STORAGE});
+          $html->redirect("?get_index=storage_main&show_accountability=1&full=1");
+        }
+      }
+
+      return 1;
     }
+
+    $Storage->storage_accountability_info({ ID => $FORM{ID} });
+    $html->tpl_show(_include('storage_return_accountability', 'Storage'), {
+      STORAGE_SELECT => storage_storage_sel($Storage, { ADMIN_ACCESS => 0, DISABLE_CHANGE_EVENT => 1 }),
+      ID             => $FORM{ID}
+    });
+    return 1;
   }
   elsif ($FORM{print_accountability}) {
     my $item_print_info = $Storage->storage_print_info({
@@ -2005,7 +1989,7 @@ sub storage_accountability {
   result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_accountability_list',
-    DEFAULT_FIELDS  => 'ADMIN_NAME, ARTICLE_NAME, TYPE_NAME, COUNT, SA_SUM, DATE, COMMENTS, SERIAL, ID',
+    DEFAULT_FIELDS  => 'ADMIN_NAME,ARTICLE_NAME,TYPE_NAME,COUNT,SA_SUM,DATE,COMMENTS,SERIAL,ID,STORAGE_NAME',
     BASE_FIELDS     => 0,
     HIDDEN_FIELDS   => 'AID,MEASURE,ARTICLE_ID,ARTICLE_TYPE_ID,STORAGE_ID,IDENT1,IDENT2,IDENT3,IDENT4',
     FUNCTION_FIELDS => '',
@@ -2030,6 +2014,7 @@ sub storage_accountability {
       ident2              => $lang{IDENT2},
       ident3              => $lang{IDENT3},
       ident4              => $lang{IDENT4},
+      storage_name        => $lang{STORAGE}
     },
     TABLE           => {
       width            => '100%',
@@ -2135,13 +2120,19 @@ sub storage_log {
     HIDDEN_FIELDS   => 'UID,MEASURE,AID,TYPE_ID,INVOICE_ID,IDENT1,IDENT2,IDENT3,IDENT4,STORAGE_INCOMING_ARTICLES_ID,STORAGE_INCOMING_ID',
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
-      action     => \%article_actions,
-      storage_id => $storages_hash
+      action => \%article_actions
     },
     FILTER_COLS     => {
       count => '_storage_log_count::MEASURE,',
     },
     FILTER_VALUES   => {
+      storage_id     => sub {
+        my $storage_id = shift;
+
+        return '' if (!$storage_id || !$storages_hash->{$storage_id});
+
+        return $storages_hash->{$storage_id};
+      },
       comments       => sub {
         my $comments = shift;
 
@@ -2282,34 +2273,37 @@ sub _storage_log_format_operation_data {
   my $is_html = ($html->{TYPE} eq 'html');
 
   my %field_config = (
-    FEES_METHOD              => {
+    FEES_METHOD                => {
       transform => sub {$FEES_METHODS->{$_[0]} // $_[0]},
       label     => "$lang{TYPE} $lang{FEES}",
     },
-    STORAGE_ID               => {
+    STORAGE_ID                 => {
       transform => sub {$storages_hash->{$_[0]} // $_[0]},
       label     => $lang{STORAGE},
     },
-    ABON_DISTRIBUTION        => {
+    ABON_DISTRIBUTION          => {
       transform => sub {$bool_vals[$_[0]] // $_[0]},
     },
-    PUBLIC_SALE              => {
+    PUBLIC_SALE                => {
       transform => sub {$bool_vals[$_[0]] // $_[0]},
     },
-    COMMENTS                 => {
+    COMMENTS                   => {
       transform => sub {return convert($_[0], { text2html => 1 })}
     },
-    DISCARD_ID               => {
+    DISCARD_ID                 => {
       label => "$lang{DISCARDED} ID"
     },
-    ACTUAL_SELL_PRICE        => {
+    ACTUAL_SELL_PRICE          => {
       label => $lang{SELL_PRICE},
     },
-    AID                      => {
+    ACCOUNTABILITY             => {
+      transform => sub {$admins_hash->{$_[0]} // $_[0]},
+    },
+    AID                        => {
       transform => sub {$admins_hash->{$_[0]} // $_[0]},
       label     => $lang{ADMIN},
     },
-    NEW_INCOMING_ARTICLES_ID => {
+    NEW_INCOMING_ARTICLES_ID   => {
       label     => $lang{ARRIVAL_OF_THE_GOODS},
       transform => sub {
         my ($incoming_article_id) = @_;
@@ -2319,7 +2313,7 @@ sub _storage_log_format_operation_data {
         return $html->button($incoming_article_id, "get_index=storage_main&full=1&chg=$incoming_article_id");
       }
     },
-    INSTALLATION_SOURCE      => {
+    INSTALLATION_SOURCE        => {
       label     => $lang{STORAGE_INSTALLATION_SOURCE},
       transform => sub {
         my ($installation_source) = @_;
@@ -2333,6 +2327,24 @@ sub _storage_log_format_operation_data {
           "$lang{ACCOUNTABILITY}: $admins_hash->{$1}" : "$lang{ACCOUNTABILITY}: $lang{UNKNOWN} ($1)"/ge;
 
         return $installation_source;
+      }
+    },
+    PARENT_INCOMING_ARTICLE_ID => {
+      label     => $lang{STORAGE_ITEM_FROM_WHICH_DIVISION_OCCURRED},
+      transform => sub {
+        my ($incoming_article_id) = @_;
+
+        return '' if (!$incoming_article_id);
+
+        return $html->button($incoming_article_id, "get_index=storage_main&full=1&chg=$incoming_article_id");
+      }
+    },
+    DIVIDED_ITEMS              => {
+      label => $lang{STORAGE_DIVIDED_ITEMS},
+      transform => sub {
+        my ($incoming_articles) = @_;
+
+        return $incoming_articles && ref($incoming_articles) eq 'ARRAY' ? join(',', @{$incoming_articles}) : $incoming_articles;
       }
     }
   );
@@ -2351,7 +2363,9 @@ sub _storage_log_format_operation_data {
     my $transform = sub {
       my ($val) = shift;
 
-      return sprintf("%.2f", $val) if ($key =~ /PRICE|SUM/x);
+      if ($key =~ /PRICE|SUM/x && is_number($val)) {
+        return sprintf("%.2f", $val);
+      }
       return $field_config{$key}{transform}->($val) if ($field_config{$key}{transform});
       return $val;
     };
@@ -2865,6 +2879,18 @@ sub storage_hardware {
           HIDE_ZERO_VALUE   => 1,
         });
         if (!$Storage->{TOTAL} || $Storage->{TOTAL} < 1) {
+          my $installations = $Storage->storage_installation_list({
+            UID       => '_SHOW',
+            LOGIN     => '_SHOW',
+            SERIAL    => $serial,
+            COLS_NAME => 1
+          });
+          if ($Storage->{TOTAL} && $Storage->{TOTAL} > 0) {
+            my $login = $html->button($installations->[0]{login} || '', "index=15&UID=" . ($installations->[0]{uid} || ''));
+            $html->message('err', $lang{ERROR}, $lang{STORAGE_EQUIPMENT_ALREADY_INSTALLED_FOR_ANOTHER_USER} . " ($login)", { ID => 1180004 });
+            return 0;
+          }
+
           $html->message('err', $lang{ERROR}, $lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID}, { ID => 1180004 });
           return 0;
         }
@@ -3803,42 +3829,27 @@ sub storage_start_divide {
     COLS_UPPER => 1
   });
 
-  my $incoming_article_info = '';
-  if (scalar @$incoming_articles_list == 1) {
-    $incoming_article_info = $incoming_articles_list->[0];
+  if (!$Storage->{TOTAL} || $Storage->{TOTAL} < 1) {
+    return 1;
   }
+
+  my $incoming_article_info = $incoming_articles_list->[0];
 
   my $total_left_count = $incoming_article_info->{total} || 0;
   my $article_type = $incoming_article_info->{article_type} || '';
   my $article_name = $incoming_article_info->{article_name} || '';
 
-  my $tabindex = 1;
-
   my $divide_table = $html->table({
     caption => $lang{STORAGE},
-    title   => [ 'ID', $lang{NAME}, 'SN', $lang{NOTES}, $lang{IDENT1}, $lang{IDENT2}, $lang{IDENT3} ],
+    title   => [ 'ID', 'SN', $lang{NOTES}, $lang{IDENT1}, $lang{IDENT2}, $lang{IDENT3}, $lang{IDENT4} ],
+    ID      => 'splitTable'
   });
 
-  for (my $article = 1; $article <= $total_left_count; $article++) {
-    my $autofocus = $article == 1 ? 'autofocus' : '';
-    $divide_table->addrow(
-      $article,
-      "$article_type $article_name",
-      $html->form_input('SN', '',
-        { class => 'form-control sn_check_class', EX_PARAMS => "tabindex=$tabindex $autofocus style='min-width:140px'" })
-        . $html->form_input('IDS', '1',
-        { class => 'form-control', EX_PARAMS => "tabindex=$tabindex $autofocus", TYPE => 'hidden' }),
-      $html->element('textarea', '', { class => 'form-control', name => "SN_COMMENTS" }),
-      $html->form_input('IDENT1', '', { class => 'form-control' }),
-      $html->form_input('IDENT2', '', { class => 'form-control' }),
-      $html->form_input('IDENT3', '', { class => 'form-control' })
-    );
-  }
-
   $html->tpl_show(_include('storage_divide', 'Storage'), {
-    DIVIDE_TABLE   => $divide_table->show(),
-    CHECK_SN_INDEX => get_function_index('storage_main'),
-    %{$incoming_article_info}
+    INCOMING_ARTICLE_ID => $installment_id,
+    DIVIDE_TABLE        => $divide_table->show(),
+    NAME                => "$article_type $article_name",
+    COUNT               => $total_left_count
   });
 
   return 1;
@@ -3856,57 +3867,74 @@ sub storage_start_divide {
 sub storage_move_item {
 
   if($FORM{STORAGE_ID} && $FORM{move_confirm}){
-    my $incoming_article = $Storage->storage_incoming_articles_info({ ID => $FORM{INCOMING_ARTICLE_ID} });
+    my $result = $Incoming_article->storage_incoming_articles_move($FORM{INCOMING_ARTICLE_ID}, {
+      STORAGE_ID => $FORM{STORAGE_ID},
+      COUNT      => $FORM{COUNT_ITEMS}
+    });
 
-    if ($incoming_article->{COUNT} == $FORM{COUNT_ITEMS}) {
-      $Storage->storage_income_add(\%FORM);
+    if (!_error_show($result)) {
+      my $move_print_button = $html->button($lang{PRINT},
+        "qindex=" . get_function_index("storage_main"). "&header=2&incoming_article_id=$FORM{INCOMING_ARTICLE_ID}&print_move=1", {
+          ICON   => 'fas fa-print',
+          target => '_blank',
+        });
 
-      $Storage->storage_incoming_articles_change({
-        ID                  => $FORM{INCOMING_ARTICLE_ID},
-        STORAGE_INCOMING_ID => $Storage->{INSERT_ID},
-        MOVE_ITEMS          => $FORM{COUNT_ITEMS},
-        OLD_STORAGE_ID      => $incoming_article->{STORAGE_ID},
-        NEW_STORAGE_ID      => $FORM{STORAGE_ID},
-      });
-    }
-    else {
-      my $price_for_one_piece = $incoming_article->{SUM} / $incoming_article->{COUNT};
-      my $sum_for_new_items = $price_for_one_piece * $FORM{COUNT_ITEMS};
-      my $sum_for_old_items = $incoming_article->{SUM} - $sum_for_new_items;
-
-      $Storage->storage_incoming_articles_change({
-        ID             => $FORM{INCOMING_ARTICLE_ID},
-        SUM            => $sum_for_old_items,
-        COUNT          => $incoming_article->{COUNT} - $FORM{COUNT_ITEMS},
-        INVOICE_ID     => $incoming_article->{STORAGE_INCOMING_ID},
-        MOVE_ITEMS     => $FORM{COUNT_ITEMS},
-        OLD_STORAGE_ID => $incoming_article->{STORAGE_ID},
-        NEW_STORAGE_ID => $FORM{STORAGE_ID},
-      });
-
-      $Storage->storage_income_add(\%FORM);
-      delete $incoming_article->{ID};
-      $Storage->storage_incoming_articles_add({
-        %{$incoming_article},
-        SUM            => $sum_for_new_items,
-        COUNT          => $FORM{COUNT_ITEMS},
-        INVOICE_ID     => $Storage->{INSERT_ID},
-        MOVE_ITEMS     => 1,
-        OLD_STORAGE_ID => $incoming_article->{STORAGE_ID},
-        STORAGE_ID     => $FORM{STORAGE_ID}
-      });
-
-      $FORM{INCOMING_ARTICLE_ID} = $Storage->{INSERT_ID};
+      $html->message('info', $lang{SUCCESS}, "$lang{PRINT_MOVE_INVOICE}: $move_print_button");
+      $html->redirect("?get_index=storage_main&full=1", { WAIT => 2 });
     }
 
-    my $move_print_button = $html->button($lang{PRINT},
-      "qindex=" . get_function_index("storage_main"). "&header=2&incoming_article_id=$FORM{INCOMING_ARTICLE_ID}&print_move=1", {
-        ICON   => 'fas fa-print',
-        target => '_blank',
-      });
-
-    $html->message("info", $lang{SUCCESS}, "$lang{PRINT_MOVE_INVOICE}: $move_print_button");
     return 1;
+    # my $incoming_article = $Storage->storage_incoming_articles_info({ ID => $FORM{INCOMING_ARTICLE_ID} });
+    #
+    # if ($incoming_article->{COUNT} == $FORM{COUNT_ITEMS}) {
+    #   $Storage->storage_income_add(\%FORM);
+    #
+    #   $Storage->storage_incoming_articles_change({
+    #     ID                  => $FORM{INCOMING_ARTICLE_ID},
+    #     STORAGE_INCOMING_ID => $Storage->{INSERT_ID},
+    #     MOVE_ITEMS          => $FORM{COUNT_ITEMS},
+    #     OLD_STORAGE_ID      => $incoming_article->{STORAGE_ID},
+    #     NEW_STORAGE_ID      => $FORM{STORAGE_ID},
+    #   });
+    # }
+    # else {
+    #   my $price_for_one_piece = $incoming_article->{SUM} / $incoming_article->{COUNT};
+    #   my $sum_for_new_items = $price_for_one_piece * $FORM{COUNT_ITEMS};
+    #   my $sum_for_old_items = $incoming_article->{SUM} - $sum_for_new_items;
+    #
+    #   $Storage->storage_incoming_articles_change({
+    #     ID             => $FORM{INCOMING_ARTICLE_ID},
+    #     SUM            => $sum_for_old_items,
+    #     COUNT          => $incoming_article->{COUNT} - $FORM{COUNT_ITEMS},
+    #     INVOICE_ID     => $incoming_article->{STORAGE_INCOMING_ID},
+    #     MOVE_ITEMS     => $FORM{COUNT_ITEMS},
+    #     OLD_STORAGE_ID => $incoming_article->{STORAGE_ID},
+    #     NEW_STORAGE_ID => $FORM{STORAGE_ID},
+    #   });
+    #
+    #   $Storage->storage_income_add(\%FORM);
+    #   delete $incoming_article->{ID};
+    #   $Storage->storage_incoming_articles_add({
+    #     %{$incoming_article},
+    #     SUM            => $sum_for_new_items,
+    #     COUNT          => $FORM{COUNT_ITEMS},
+    #     INVOICE_ID     => $Storage->{INSERT_ID},
+    #     MOVE_ITEMS     => 1,
+    #     OLD_STORAGE_ID => $incoming_article->{STORAGE_ID},
+    #     STORAGE_ID     => $FORM{STORAGE_ID}
+    #   });
+    #
+    #   $FORM{INCOMING_ARTICLE_ID} = $Storage->{INSERT_ID};
+    # }
+    #
+    # my $move_print_button = $html->button($lang{PRINT},
+    #   "qindex=" . get_function_index("storage_main"). "&header=2&incoming_article_id=$FORM{INCOMING_ARTICLE_ID}&print_move=1", {
+    #     ICON   => 'fas fa-print',
+    #     target => '_blank',
+    #   });
+    #
+    # $html->message("info", $lang{SUCCESS}, "$lang{PRINT_MOVE_INVOICE}: $move_print_button");
+    # return 1;
   }
 
   my $incoming_article = $Storage->storage_incoming_articles_info({ ID => $FORM{incoming_article_id} });
@@ -3958,10 +3986,8 @@ sub _storage_actions_list {
     $info_divide = $html->button($lang{INFO}, "index=$index&add_article=1&chg=$id&sn=1", { class => 'dropdown-item cursor-pointer' });
   }
   else {
-    $info = $html->button($lang{DIVIDE}, "get_index=storage_main&start_divide=$id&header=2", {
+    $info = $html->button($lang{DIVIDE}, "get_index=storage_main&start_divide=$id&full=1", {
       class         => 'dropdown-item cursor-pointer',
-      LOAD_TO_MODAL => 1,
-      MODAL_SIZE    => 'lg',
     });
     $info_divide = $html->button($lang{INFO}, "index=$index&add_article=1&chg=$id", { class => 'dropdown-item' });
   }
@@ -4208,8 +4234,9 @@ sub _storage_accountability_buttons {
   my $storage_full_access = !defined($Storage->{STORAGE_ADMIN_PERMISSIONS});
   return '' if ($storage_id && !$storage_full_access && !defined($Storage->{STORAGE_ADMIN_PERMISSIONS}{$storage_id}));
 
-  my $return_btn = $html->button($lang{RETURN_STORAGE}, "index=$index&del_accountability=1&ID=$id", {
-    class => 'btn btn-default btn-xs',
+  my $return_btn = $html->button($lang{RETURN_STORAGE}, "qindex=$index&del_accountability=1&ID=$id&header=2", {
+    LOAD_TO_MODAL => 1,
+    class         => 'btn btn-default btn-xs'
   }, { OUTPUT2RETURN => 1 });
 
   my $print_btn = $html->button($lang{PRINT}, "qindex=$index&print_accountability=1&header=2&ID=$id", {

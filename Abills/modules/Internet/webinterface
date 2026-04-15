@@ -51,7 +51,6 @@ my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
 my $Log      = Log->new($db, \%conf);
 
-require Control::Services;
 if (($functions{$index} && $functions{$index} eq 'form_intervals')
   || ($FORM{subf} && $functions{$FORM{subf}} && $functions{$FORM{subf}} eq 'form_intervals')) {
   require Control::System;
@@ -228,16 +227,21 @@ sub internet_users_search {
 =head2 internet_multiuser($ids) - Make multiuser panel
 
   Arguments:
-        $ids = string of ids
+    $ids = string of ids
+
+  Returns:
+    %operation_result
+      UID => $status
 
 =cut
 #**********************************************************
 sub internet_multiuser {
-  my ($ids) = @_;
+  my ($attr) = @_;
 
-  my @multiuser_arr = split(/,\s/x, $ids || q{});
-  my @multiuser_no_error;
+  my @multiuser_arr = split(/,\s/x, $attr->{IDS} || q{});
+  my @multiuser_no_error = ();
   my %params = ();
+  my %operation_result = ();
 
   $Internet->user_list({
     GROUP_BY  => 'internet.id',
@@ -248,44 +252,44 @@ sub internet_multiuser {
 
   my $uid_hash = $Internet->{list_hash};
 
-  if ($FORM{MU_TP} && $FORM{TP_SHEDULE} eq '0000-00-00') {
-    $params{TP_ID} = $FORM{INTERNET_MU_TP};
+  if ($attr->{MU_TP} && $attr->{TP_SHEDULE} eq '0000-00-00') {
+    $params{TP_ID} = $attr->{INTERNET_MU_TP};
   }
-  if ($FORM{MU_GID}) {
-    $params{GID} = $FORM{GID};
+  if ($attr->{MU_GID}) {
+    $params{GID} = $attr->{GID};
   }
-  if ($FORM{MU_DATE}) {
-    $params{SERVICE_EXPIRE} = $FORM{INTERNET_MU_DATEPICKER};
+  if ($attr->{MU_DATE}) {
+    $params{SERVICE_EXPIRE} = $attr->{INTERNET_MU_DATEPICKER};
   }
-  if ($FORM{MU_STATUS}) {
-    $params{STATUS} = $FORM{INTERNET_MU_STATUS};
+  if ($attr->{MU_STATUS}) {
+    $params{STATUS} = $attr->{INTERNET_MU_STATUS};
   }
-  if ($FORM{MU_REDUCTION}) {
-    $params{REDUCTION} = $FORM{MU_REDUCTION_SUM} || 0;
-    $params{REDUCTION_DATE} = $FORM{MU_REDUCTION_DATE} || '0000-00-00';
+  if ($attr->{MU_REDUCTION}) {
+    $params{REDUCTION} = $attr->{MU_REDUCTION_SUM} || 0;
+    $params{REDUCTION_DATE} = $attr->{MU_REDUCTION_DATE} || '0000-00-00';
   }
-  if ($FORM{MU_ACTIVATE}) {
-    $params{ACTIVATE} = $FORM{MU_ACTIVATE_DATE};
+  if ($attr->{MU_ACTIVATE}) {
+    $params{ACTIVATE} = $attr->{MU_ACTIVATE_DATE};
   }
-  if ($FORM{MU_SERVICE_ACTIVATE}) {
-    $params{SERVICE_ACTIVATE} = $FORM{MU_SERVICE_ACTIVATE_DATE};
+  if ($attr->{MU_SERVICE_ACTIVATE}) {
+    $params{SERVICE_ACTIVATE} = $attr->{MU_SERVICE_ACTIVATE_DATE};
   }
-  if ($FORM{MU_SERVICE_EXPIRE}) {
-    $params{SERVICE_EXPIRE} = $FORM{MU_SERVICE_EXPIRE_DATE};
+  if ($attr->{MU_SERVICE_EXPIRE}) {
+    $params{SERVICE_EXPIRE} = $attr->{MU_SERVICE_EXPIRE_DATE};
   }
 
   if ($#multiuser_arr < 0) {
     $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
     return 1;
   }
-  elsif ($FORM{MU_TP} && $FORM{TP_SHEDULE} ne '0000-00-00') {
-    my ($year, $month, $day) = split('-', $FORM{TP_SHEDULE}, 3);
+  elsif ($attr->{MU_TP} && $attr->{TP_SHEDULE} ne '0000-00-00') {
+    my ($year, $month, $day) = split('-', $attr->{TP_SHEDULE}, 3);
     foreach my $id (@multiuser_arr) {
       $Internet->user_info($uid_hash->{$id}, { ID => $id });
       $Shedule->add({
         UID          => $uid_hash->{$id},
         TYPE         => 'tp',
-        ACTION       => "$id:$FORM{INTERNET_MU_TP}",
+        ACTION       => "$id:$attr->{INTERNET_MU_TP}",
         D            => $day,
         M            => $month,
         Y            => $year,
@@ -294,72 +298,80 @@ sub internet_multiuser {
         ADMIN_ACTION => 1
       });
 
-      last if (_error_show($Shedule));
-
-      push @multiuser_no_error, $id;
+      if ($Shedule->{errno}) {
+        $operation_result{$uid_hash->{$id}}{STATUS}=0;
+        $operation_result{$uid_hash->{$id}}{ERROR}="$Shedule->{errno}:$Shedule->{errstr}";
+        last;
+      }
+      $operation_result{$uid_hash->{$id}}{STATUS}=1;
     }
-    $html->message('info', $lang{MULTIUSER_OP}, "$lang{TO_PLAN}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
   }
-  elsif ($FORM{MU_CREDIT} || $FORM{MU_REDUCTION} || $FORM{MU_ACTIVATE} || $FORM{MU_GID}) {
-    $params{CREDIT} = $FORM{MU_CREDIT_SUM} || 0;
-    $params{CREDIT_DATE} = $FORM{MU_CREDIT_DATE} || '0000-00-00';
+  elsif ($attr->{MU_CREDIT} || $attr->{MU_REDUCTION} || $attr->{MU_ACTIVATE} || $attr->{MU_GID}) {
+    $params{CREDIT} = $attr->{MU_CREDIT_SUM} || 0;
+    $params{CREDIT_DATE} = $attr->{MU_CREDIT_DATE} || '0000-00-00';
 
     my %uids_hash = reverse %$uid_hash;
     foreach my $uid (keys %uids_hash) {
       $users->change($uid, { UID => $uid, %params });
     }
   }
-  elsif ($FORM{MU_SET_IPV6}) {
-    my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV6_POLL});
+  elsif ($attr->{MU_SET_IPV6}) {
+    require Internet::User_ips;
+    Internet::User_ips->import();
+    *Internet::get_static_ipv6 = \&Internet::User_ips::get_static_ipv6;
+    *Internet::get_internet_ips = \&Internet::User_ips::get_internet_ips;
+
     foreach my $id (@multiuser_arr) {
-      my $uid_hex = sprintf("%x", $uid_hash->{$id});
-      my $id_hex  = sprintf("%x", $id);
-      my $ipv6    = $Ip_pool->{IPV6_TEMPLATE} || '';
-      $ipv6       =~ s/\{UID\}/$uid_hex/xg;
-      $ipv6       =~ s/\{ID\}/$id_hex/xg;
-      my $ipv6_pd = $Ip_pool->{IPV6_PD_TEMPLATE} || '';
-      $ipv6_pd    =~ s/\{UID\}/$uid_hex/xg;
-      $ipv6_pd    =~ s/\{ID\}/$id_hex/xg;
+      my ($ipv6, $ipv6_mask,
+        $ipv6_pd, $ipv6_pd_mask) = $Internet->Internet::User_ips::get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
 
       $Internet->user_change({
         ID               => $id,
         UID              => $uid_hash->{$id},
         IPV6             => $ipv6,
         IPV6_PREFIX      => $ipv6_pd,
-        IPV6_MASK        => $Ip_pool->{IPV6_MASK},
-        IPV6_PREFIX_MASK => $Ip_pool->{IPV6_PD_MASK},
+        IPV6_MASK        => $ipv6_mask,
+        IPV6_PREFIX_MASK => $ipv6_pd_mask
       });
     }
   }
-  elsif ($FORM{MU_SET_IPV4}) {
+  elsif ($attr->{MU_SET_IPV4}) {
     require Internet::User_ips;
-    $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
+    Internet::User_ips->import();
+    *Internet::get_internet_ips = \&Internet::User_ips::get_internet_ips;
 
     foreach my $id (@multiuser_arr) {
       $Internet->user_change({
         ID  => $id,
         UID => $uid_hash->{$id},
-        IP  => get_static_ip($FORM{INTERNET_MU_IPV4_POLL}),
+        IP  => $Internet->Internet::User_ips::get_static_ip($attr->{INTERNET_MU_IPV4_POLL}),
       });
+      if (! $Internet->{error})  {
+        $operation_result{$uid_hash->{$id}}{STATUS} = 1;
+      }
+      else {
+        $operation_result{$uid_hash->{$id}}{STATUS} = 0;
+        $operation_result{$uid_hash->{$id}}{ERROR} = "$Internet->{error}: ";
+      }
     }
   }
-  elsif (defined($FORM{MU_TAGS_USER} && in_array('Tags', \@MODULES))) {
+  elsif (defined($attr->{MU_TAGS_USER} && in_array('Tags', \@MODULES))) {
     require Tags;
 
     my $Tags = Tags->new($db, $admin, \%conf);
 
     foreach my $id (@multiuser_arr) {
       $Tags->tags_user_change({
-        IDS => $FORM{TAGS},
+        IDS => $attr->{TAGS},
         UID => $uid_hash->{$id},
       });
       $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
     }
   }
-  elsif ($FORM{MU_DELIVERY} && in_array('Msgs', \@MODULES)) {
+  elsif ($attr->{MU_DELIVERY} && in_array('Msgs', \@MODULES)) {
     load_module('Msgs', $html);
-    $FORM{IDS} = join(', ', values %{$uid_hash});
-    msgs_mu_delivery_add(\%FORM)
+    $attr->{IDS} = join(', ', values %{$uid_hash});
+    msgs_mu_delivery_add($attr);
   }
   elsif (!%params) {
     $html->message('warn', $lang{MULTIUSER_OP}, $lang{THERE_ARE_NO_SETTINGS_TO_CHANGE});
@@ -382,7 +394,7 @@ sub internet_multiuser {
     $html->message('info', $lang{MULTIUSER_OP}, "$lang{CHANGED}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
   }
 
-  return 1;
+  return \%operation_result;
 }
 
 #**********************************************************
@@ -495,7 +507,21 @@ sub internet_users_list {
   }
 
   if($FORM{INTERNET_MULTIUSER} && $FORM{IDS}) {
-    internet_multiuser($FORM{IDS});
+    my $operation_result = internet_multiuser(\%FORM);
+
+    if(ref $operation_result eq 'HASH') {
+      my $message = q{};
+      foreach my $uid_ (keys %$operation_result) {
+        my $text = "$uid_ - ";
+        if ($operation_result->{$uid_}{STATUS}) {
+          $message .= $text . " OK\n";
+        }
+        else {
+          $message .= $html->color_mark($text .' '. $operation_result->{$uid_}{ERROR}, 'text-danger');
+        }
+      }
+      $html->message('info', $lang{MULTIUSER_OP}, $message);
+    }
   }
 
   if (defined($FORM{TP_NUM}) && $FORM{TP_NUM} eq '0') {
@@ -739,8 +765,9 @@ sub internet_users_list {
         COLS_NAME => 1
       });
       $Internet->{MU_IPV6_POLL_SEL} = $html->form_select('INTERNET_MU_IPV6_POLL', {
-        SEL_LIST    => $pool_ipv6_list,
-        NO_ID    => 1
+        SEL_LIST  => $pool_ipv6_list,
+        SEL_VALUE => 'name,ipv6_prefix',
+        NO_ID     => 1
       });
 
       my $pool_ipv4_list = $Nas->ip_pools_list({
@@ -750,7 +777,8 @@ sub internet_users_list {
       });
 
       $Internet->{MU_IPV4_POLL_SEL} = $html->form_select('INTERNET_MU_IPV4_POLL', {
-        SEL_LIST    => $pool_ipv4_list,
+        SEL_LIST => $pool_ipv4_list,
+        SEL_VALUE=> 'name,first_ip',
         NO_ID    => 1
       });
 
@@ -1491,16 +1519,7 @@ sub _internet_registration_form {
     $LIST_PARAMS{TP_GID} = '>0';
   }
 
-  $Internet->{TP_SEL} = $html->form_select('TP_ID', {
-    SELECTED => $FORM{TP_ID},
-    SEL_LIST => $Tariffs->list({ %LIST_PARAMS,
-      MODULE       => 'Dv;Internet',
-      STATUS       => '<1',
-      NEW_MODEL_TP => 1,
-      COLS_NAME    => 1,
-    }),
-    SEL_KEY  => 'tp_id'
-  });
+  $Internet->{TP_SEL} = sel_tp();
 
   if ($conf{INTERNET_REGISTRATION_IP}) {
     $Internet->{USER_IP_FORM} = $html->tpl_show(templates('form_row'), {
@@ -1692,6 +1711,11 @@ sub internet_service_deactivate {
 #**********************************************************
 =head2 internet_nas_access() - Allow NAS servers
 
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub internet_nas_access{
@@ -1700,7 +1724,7 @@ sub internet_nas_access{
   my @allow     = ();
   my %allow_nas = ();
 
-  if ( $FORM{ids} ){
+  if ($FORM{ids}) {
     @allow = split(/,\s+/x, $FORM{ids});
   }
 
@@ -1762,7 +1786,7 @@ sub internet_nas_access{
     return 0;
   }
 
-  $Nas = Nas->new($db, \%conf, $admin);
+  #my $Nas = Nas->new($db, \%conf, $admin);
   my $table = $html->table({
     width   => '100%',
     caption => $lang{NAS},
@@ -1775,37 +1799,40 @@ sub internet_nas_access{
     $LIST_PARAMS{SORT} = 1;
   }
 
-  my $list = $Nas->list({
+  my $nas_list = $Nas->list({
     %LIST_PARAMS,
-    PAGE_ROWS => 100000,
-    GID       => undef,
-    COLS_NAME => 1
+    PAGE_ROWS      => 100000,
+    NAS_TYPE       => '_SHOW',
+    NAS_NAME       => '_SHOW',
+    NAS_IDENTIFIER => '_SHOW',
+    NAS_IP         => '_SHOW',
+    GID            => undef
   });
 
-  foreach my $line (@$list) {
+  foreach my $line (@$nas_list) {
     $table->addrow(
-      ($line->{nas_id} || '')
-        . $html->form_input('ids', $line->{nas_id},
+      ($line->{id} || '')
+        . $html->form_input('ids', $line->{id},
         {
           TYPE          => 'checkbox',
           OUTPUT2RETURN => 1,
-          STATE         => (defined($allow_nas{ $line->{nas_id} }) || $allow_nas{all}) ? 1 : undef
+          STATE         => (defined($allow_nas{ $line->{id} }) || $allow_nas{all}) ? 1 : undef
         }
       ),
       $line->{nas_name},
       $line->{nas_identifier},
-      $line->{nas_ip},
+      $line->{ip},
       $line->{nas_type}
     );
   }
 
   print $html->form_main({
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {%EX_HIDDEN_PARAMS},
-      SUBMIT  => {
-        change  => $lang{CHANGE},
-        default => $lang{DEFAULT}
-      }
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => { %EX_HIDDEN_PARAMS },
+    SUBMIT  => {
+      change  => $lang{CHANGE},
+      default => $lang{DEFAULT}
+    }
   });
 
   return 1;

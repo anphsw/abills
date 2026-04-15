@@ -9,12 +9,8 @@ package Abills::XML;
 
 use strict;
 our (
-  @_COLORS,
   %FORM,
-  %LIST_PARAMS,
   %COOKIES,
-  $index,
-  $pages_qs,
   $SORT,
   $DESC,
   $PG,
@@ -23,25 +19,7 @@ our (
   $CONFIG_TPL_SHOW,
 );
 
-#use base 'Exporter';
 our $VERSION = 2.01;
-
-#our @EXPORT = qw(
-#  @_COLORS
-#  %FORM
-#  %LIST_PARAMS
-#  %COOKIES
-#  $index
-#  $pages_qs
-#  $SORT
-#  $DESC
-#  $PG
-#  $PAGE_ROWS
-#  $SELF_URL
-#);
-#
-#our @EXPORT_OK   = ();
-#our %EXPORT_TAGS = ();
 
 my $debug;
 my %log_levels;
@@ -53,8 +31,7 @@ my $CONF;
 # Create Object
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($attr) = @_;
+  my ($class, $attr) = @_;
 
   require Abills::HTML;
   Abills::HTML->import();
@@ -76,24 +53,33 @@ sub new {
     $self->{language} = $CONF->{default_language} || 'english';
   }
 
-  $FORM{_export}='xml';
+  $FORM{_export} = 'xml';
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
-  $self->{TYPE}='xml' if(! $self->{TYPE});
+  $self->{TYPE} = 'xml' if (!$self->{TYPE});
+  $self->{admin} = $attr->{ADMIN};
 
   return $self;
 }
 
 
 #**********************************************************
-# form_input
+=head2 form_input()
+
+  Arguments:
+    $name
+    $value
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub form_input {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
-  my $type  = (defined($attr->{TYPE}))  ? $attr->{TYPE}             : 'text';
-  my $state = (defined($attr->{STATE})) ? ' checked="1"'            : '';
-  my $size  = (defined($attr->{SIZE}))  ? " SIZE=\"$attr->{SIZE}\"" : '';
+  my $type = (defined($attr->{TYPE})) ? $attr->{TYPE} : 'text';
+  my $state = (defined($attr->{STATE})) ? ' checked="1"' : '';
+  my $size = (defined($attr->{SIZE})) ? " SIZE=\"$attr->{SIZE}\"" : '';
 
   $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size/>";
 
@@ -106,11 +92,17 @@ sub form_input {
 }
 
 #**********************************************************
-# HTML Input form
+=head3 form_main($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub form_main {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
     return '';
@@ -147,11 +139,19 @@ sub form_main {
 }
 
 #**********************************************************
-# form_input
+=head2 form_textarea($name, $value, $attr)
+
+  Arguments:
+    $name
+    $value
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub form_textarea {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, $name, $value, $attr) = @_;
 
   $self->{FORM_INPUT} = "<textarea id='$name' name='$name'>$value</textarea>";
 
@@ -167,11 +167,16 @@ sub form_textarea {
 #**********************************************************
 =head2 form_select($name, $attr)
 
+  Arguments:
+    $name
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_select {
-  my $self = shift;
-  my ($name, $attr) = @_;
+  my ($self, $name, $attr) = @_;
 
   my $ex_params = ''; #(defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
 
@@ -180,7 +185,7 @@ sub form_select {
   if (defined($attr->{SEL_OPTIONS})) {
     my $H = $attr->{SEL_OPTIONS};
     while (my ($k, $v) = each %$H) {
-      if (! $k && ! $v) {
+      if (!$k && !$v) {
         next;
       }
 
@@ -202,9 +207,9 @@ sub form_select {
     }
   }
   elsif (defined($attr->{SEL_MULTI_ARRAY})) {
-    my $key   = $attr->{MULTI_ARRAY_KEY};
+    my $key = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
-    my $H     = $attr->{SEL_MULTI_ARRAY};
+    my $H = $attr->{SEL_MULTI_ARRAY};
 
     foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
@@ -218,10 +223,10 @@ sub form_select {
     my @H = ();
 
     if ($attr->{SORT_KEY}) {
-      @H = sort keys %{ $attr->{SEL_HASH} };
+      @H = sort keys %{$attr->{SEL_HASH}};
     }
     else {
-      @H = keys %{ $attr->{SEL_HASH} };
+      @H = keys %{$attr->{SEL_HASH}};
     }
 
     foreach my $k (@H) {
@@ -229,7 +234,7 @@ sub form_select {
       $self->{SELECT} .= " selected='1'" if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
 
       if ($attr->{EXT_PARAMS}) {
-        while (my ($ext_k, undef) = each %{ $attr->{EXT_PARAMS} }) {
+        while (my ($ext_k, undef) = each %{$attr->{EXT_PARAMS}}) {
           $self->{SELECT} .= " $ext_k='";
           $self->{SELECT} .= $attr->{EXT_PARAMS}->{$ext_k}->{$k} if ($attr->{EXT_PARAMS}->{$ext_k}->{$k});
           $self->{SELECT} .= "'";
@@ -249,30 +254,25 @@ sub form_select {
 
 
 #**********************************************************
-=head2 menu2($menu_items, $menu_args, $permissions, $attr) Functions list
-
-=cut
-#**********************************************************
-sub menu2 {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
-  $self->menu($menu_items, $menu_args, $permissions, $attr);
-}
-
-
-#**********************************************************
 =head2 menu($menu_items, $menu_args, $permissions, $attr) Functions list
+
+  Arguments:
+    $menu_items
+    $menu_args
+    $permissions
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub menu {
-  my $self = shift;
-  my ($menu_items, undef, $permissions, $attr) = @_;
+  my ($self, $menu_items, undef, $permissions, $attr) = @_;
 
   return 0 if ($FORM{index} > 0);
 
   my $menu_navigator = '';
-  my $menu_text      = '';
+  my $menu_text = '';
   $menu_text = "<SID>$self->{SID}</SID>\n" if ($self->{SID});
 
   return $menu_navigator, $menu_text if ($FORM{NO_MENU});
@@ -287,21 +287,21 @@ sub menu {
     }
   }
 
-  my $h          = $new_hash{0};
+  my $h = $new_hash{0};
   my @last_array = ();
 
-  my @menu_sorted = sort { $b cmp $a } keys %$h;
+  my @menu_sorted = sort {$b cmp $a} keys %$h;
 
-  for (my $parent = 0 ; $parent < $#menu_sorted + 1 ; $parent++) {
+  for (my $parent = 0; $parent < $#menu_sorted + 1; $parent++) {
     my $val = $h->{ $menu_sorted[$parent] } || q{};
 
-    if($val =~ /<span>(.+)<\/span>/) {
+    if ($val =~ /<span>(.+)<\/span>/) {
       $val = $1;
     }
 
-    my $level  = 0;
+    my $level = 0;
     my $prefix = '';
-    my $ID     = $menu_sorted[$parent];
+    my $ID = $menu_sorted[$parent];
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $parent - 1 }) && $parent == 0);
     my $ext_args = ($self->link_former("$EX_ARGS")) ? "EX_ARGS=\"" . $self->link_former($EX_ARGS) . "\"" : q{};
@@ -350,7 +350,7 @@ sub menu {
 =cut
 #**********************************************************
 sub make_charts {
-   return q{};
+  return q{};
 }
 
 #**********************************************************
@@ -359,19 +359,18 @@ sub make_charts {
 =cut
 #**********************************************************
 sub header {
-  my $self       = shift;
-  my ($attr)     = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{DEBUG}) {
     print "Content-Type: text/plain\n\n";
   }
 
-  $self->{header}  = "Content-Type: text/xml\n";
+  $self->{header} = "Content-Type: text/xml\n";
   $self->{header} .= "Access-Control-Allow-Origin: *"
     . "\n\n";
 
   my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'utf8';
-  $CHARSET =~ s/ //g;
+  $CHARSET =~ s/\s+//xg;
   $self->{header} .= qq{<?xml version="1.0"  encoding="$CHARSET" ?>};
 
   return $self->{header};
@@ -388,29 +387,25 @@ sub css {
 }
 
 #**********************************************************
-=head2 table() - Create tabel object
+=head2 table($attr) - Create tabel object
 
 =cut
 #**********************************************************
 sub table {
-  my $proto  = shift;
-  my $class  = ref($proto) || $proto;
+  my ($proto, $attr) = @_;
+  my $class = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
   my $self;
-  $self = {};
+  $self = {
+    prototype => $proto,
+    NO_PRINT  => $proto->{NO_PRINT},
+    HTML      => $parent,
+    rows      => '',
+    rowcolor  => $attr->{rowcolor},
+    ID        => $attr->{ID}
+  };
 
   bless($self, $class);
-
-  $self->{prototype} = $proto;
-  $self->{NO_PRINT}  = $proto->{NO_PRINT};
-  $self->{HTML}      = $parent;
-
-  my ($attr) = @_;
-  $self->{rows} = '';
-
-  if (defined($attr->{rowcolor})) {
-    $self->{rowcolor} = $attr->{rowcolor};
-  }
 
   if (defined($attr->{rows})) {
     my $rows = $attr->{rows};
@@ -419,7 +414,6 @@ sub table {
     }
   }
 
-  $self->{ID} = $attr->{ID};
   $self->{table} = "<TABLE";
 
   if (defined($attr->{caption})) {
@@ -431,7 +425,7 @@ sub table {
   }
 
   if ($attr->{SELECT_ALL}) {
-    $self->{SELECT_ALL}=$attr->{SELECT_ALL};
+    $self->{SELECT_ALL} = $attr->{SELECT_ALL};
   }
 
   $self->{table} .= ">\n";
@@ -453,7 +447,7 @@ sub table {
     if (defined($attr->{recs_on_page})) {
       $ATTR{recs_on_page} = $attr->{recs_on_page};
     }
-    $self->{pages} = $self->pages($attr->{pages}, "$op$attr->{qs}", {%ATTR});
+    $self->{pages} = $self->pages($attr->{pages}, "$op$attr->{qs}", { %ATTR });
   }
 
   return $self;
@@ -462,23 +456,28 @@ sub table {
 #**********************************************************
 =head2 addrows(@rows)
 
+  Arguments:
+    @row
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub addrow {
-  my $self = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
   $row_number++;
   $self->{rows} .= "  <ROW>";
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
-  for (my $i=0; $i<=$#row; $i++) {
-    my $val = $row[$i+$select_present];
-    $val = normalize_str($val || q{});
+  for (my $i = 0; $i <= $#row; $i++) {
+    my $val = $row[$i + $select_present];
+    $val = _normalize_str($val || q{});
     $self->{rows} .= "<TD>" . (($self->{SKIP_FORMER}) ? $val : $self->link_former($val, { SKIP_SPACE => 1 })) . "</TD>";
   }
 
   $self->{rows} .= "</ROW>\n";
+
   return $self->{rows};
 }
 
@@ -488,13 +487,12 @@ sub addrow {
 =cut
 #**********************************************************
 sub addtd {
-  my $self  = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
   $self->{rows} .= "<ROW>";
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
-  for (my $i=0; $i<=$#row; $i++) {
-    my $val = $row[$i+$select_present];
+  for (my $i = 0; $i <= $#row; $i++) {
+    my $val = $row[$i + $select_present];
     $self->{rows} .= "$val";
   }
 
@@ -508,8 +506,7 @@ sub addtd {
 =cut
 #**********************************************************
 sub th {
-  my $self = shift;
-  my ($value) = @_;
+  my ($self, $value) = @_;
 
   return $self->td($value, { TH => 1 });
 }
@@ -533,7 +530,7 @@ sub td {
   }
   else {
     $td = "<TD$extra>";
-    $td .= normalize_str($value) if (defined($value));
+    $td .= _normalize_str($value) if (defined($value));
     $td .= "</TD>";
   }
   return $td;
@@ -542,11 +539,15 @@ sub td {
 #**********************************************************
 =head2 title_plain($caption)
 
+  Arguments:
+    $caption
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub table_title_plain {
-  my $self = shift;
-  my ($caption) = @_;
+  my ($self, $caption) = @_;
 
   $self->{table_title} = "<TITLE columns=\"" . ($#{$caption} + 1) . "\">\n";
 
@@ -563,11 +564,20 @@ sub table_title_plain {
 #**********************************************************
 =head2 table_title($sort, $desc, $pg, $caption, $qs) -  Show table column  titles with wort derectives
 
+  Arguments:
+    $sort
+    $desc
+    $pg
+    $caption
+    $qs
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub table_title {
-  my $self = shift;
-  my ($sort, $desc, $pg, $caption, $qs, $attr) = @_;
+  my ($self, undef, undef, undef, $caption, undef, $attr) = @_;
 
   $self->{table_title} = "<TITLE columns=\"" . ($#{$caption} + 1) . "\">\n";
   my $i = 1;
@@ -575,8 +585,8 @@ sub table_title {
     $self->{table_title} .= " <COLUMN_" . $i . " NAME=\"$line\" ";
 
     if ($attr->{FIELDS_IDS}) {
-      if ($attr->{FIELDS_IDS}->[$i-1] && $line ne '-') {
-        $self->{table_title} .= " ID='". $attr->{FIELDS_IDS}->[$i-1] ."'";
+      if ($attr->{FIELDS_IDS}->[$i - 1] && $line ne '-') {
+        $self->{table_title} .= " ID='" . $attr->{FIELDS_IDS}->[$i - 1] . "'";
       }
     }
 
@@ -589,12 +599,18 @@ sub table_title {
 }
 
 #**********************************************************
-#
-# img($img, $name, $attr)
+=head2 img($img, $name, $attr)
+
+  Arguments:
+    $img,
+    $name
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub img {
-  my $self = shift;
-  my ($img, $name) = @_;
+  my (undef, $img, $name) = @_;
 
   my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
   $img =~ s/\&/\&amp;/g;
@@ -602,11 +618,17 @@ sub img {
 }
 
 #**********************************************************
-# show
+=head2 show($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
@@ -647,15 +669,14 @@ sub show {
 =cut
 #**********************************************************
 sub button {
-  my $self = shift;
-  my ($name, $params, $attr) = @_;
+  my ($self, $name, $params, $attr) = @_;
   my $ex_attr = '';
 
   if ($attr->{ONLY_IN_HTML}) {
     return '';
   }
 
-  if(! $params && ! $name) {
+  if (!$params && !$name) {
     return '';
   }
 
@@ -677,16 +698,15 @@ sub button {
 =cut
 #**********************************************************
 sub message {
-  my $self = shift;
-  my ($type, $caption, $message, $attr) = @_;
+  my ($self, $type, $caption, $message, $attr) = @_;
 
   if ($type eq 'warning') {
-    $type='info';
+    $type = 'info';
   }
 
   my $output = "<MESSAGE TYPE=\"$type\" CAPTION=\"$caption\">$message</MESSAGE>\n";
 
-  if($attr->{OUTPUT2RETURN})  {
+  if ($attr->{OUTPUT2RETURN}) {
     return $output;
   }
   elsif ($self->{NO_PRINT}) {
@@ -705,8 +725,7 @@ sub message {
 # pages($count, $argument)
 #**********************************************************
 sub pages {
-  my $self = shift;
-  my ($count, $argument, $attr) = @_;
+  my ($self, $count, $argument, $attr) = @_;
 
   if (defined($attr->{recs_on_page})) {
     $PAGE_ROWS = $attr->{recs_on_page};
@@ -719,7 +738,7 @@ sub pages {
   $self->{pages} = '';
   $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
 
-  for (my $i = $begin ; ($i <= $count && $i < $PG + $PAGE_ROWS * 10) ; $i += $PAGE_ROWS) {
+  for (my $i = $begin; ($i <= $count && $i < $PG + $PAGE_ROWS * 10); $i += $PAGE_ROWS) {
     $self->{pages} .= ($i == $PG) ? "<b>$i</b>" : $self->button($i, "$argument&pg=$i") . '';
   }
 
@@ -729,17 +748,22 @@ sub pages {
 #**********************************************************
 =head2 date_fld2($base_name, $attr) - Make data field
 
+  Arguments:
+    $base_name
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub date_fld2 {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
+  my ($self, $base_name, $attr) = @_;
 
-  my ($mon, $curyear) = (localtime(time))[4,5];
+  my ($mon, $curyear) = (localtime(time))[4, 5];
 
-  my $day   = sprintf("%.2d", $FORM{ $base_name . 'D' } || 1);
+  my $day = sprintf("%.2d", $FORM{ $base_name . 'D' } || 1);
   my $month = sprintf("%.2d", $FORM{ $base_name . 'M' } || $mon);
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
+  my $year = $FORM{ $base_name . 'Y' } || $curyear + 1900;
   my $result = "<$base_name Y=\"$year\" M=\"$month\" D=\"$day\" />";
   my $mday;
 
@@ -748,11 +772,11 @@ sub date_fld2 {
     $self->{$base_name} = $date;
   }
   elsif (!$attr->{NO_DEFAULT_DATE}) {
-    ($mday, $mon, $curyear) = (localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0)))[3,4,5];
+    ($mday, $mon, $curyear) = (localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0)))[3, 4, 5];
 
     $month = $mon + 1;
-    $year  = $curyear + 1900;
-    $day   = $mday;
+    $year = $curyear + 1900;
+    $day = $mday;
 
     if ($base_name =~ /to/i) {
       $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
@@ -768,21 +792,29 @@ sub date_fld2 {
 }
 
 #**********************************************************
-# log_print()
+=head2 log_print($level, $text)
+
+  Arguments:
+    $level
+    $text
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub log_print {
-  my $self = shift;
-  my ($level, $text) = @_;
+  my (undef, $level, $text) = @_;
 
   if ($debug < $log_levels{$level}) {
     return 0;
   }
 
-  print << "[END]";
+  print <<"[END]";
 <LOG_PRINT level="$level">
 $text
 </LOG_PRINT>
 [END]
+  return 1;
 }
 
 #**********************************************************
@@ -791,8 +823,7 @@ $text
 =cut
 #**********************************************************
 sub element {
-  my $self = shift;
-  my (undef, $value, $attr) = @_;
+  my ($self, undef, $value, $attr) = @_;
 
   if ($attr->{ID}) {
     $value = "<$attr->{ID}>$value</$attr->{ID}>";
@@ -816,11 +847,13 @@ sub element {
     $variables_ref - variables_ref
     $attr          - [EX_VARIABLES]
 
+  Returns:
+    $template
+
 =cut
 #**********************************************************
 sub tpl_show {
-  my $self = shift;
-  my ($tpl, $variables_ref, $attr) = @_;
+  my ($self, $tpl, $variables_ref, $attr) = @_;
 
   if ($attr->{CONFIG_TPL}) {
     return $CONFIG_TPL_SHOW->($self, $tpl, $variables_ref, $attr);
@@ -840,7 +873,7 @@ sub tpl_show {
 
   if ($self->{new_model}) {
     foreach my $var (sort keys %$variables_ref) {
-      if($var) {
+      if ($var) {
         $xml_tpl .= "<$var>$variables_ref->{$var}</$var>\n";
       }
     }
@@ -860,7 +893,7 @@ sub tpl_show {
       else {
         $xml_tpl .= "<$var/>";
       }
-      $displayed{$var}=1;
+      $displayed{$var} = 1;
     }
   }
 
@@ -870,9 +903,7 @@ sub tpl_show {
   if ($attr->{OUTPUT2RETURN}) {
     return $xml_tpl;
   }
-
-  #  elsif (defined($attr->{notprint}) || ($self->{NO_PRINT} && $self->{NO_PRINT} == 1)) {
-  elsif ($attr->{notprint} || defined($self->{NO_PRINT})) {
+  elsif ($self->{NO_PRINT}) {
     $self->{OUTPUT} .= $xml_tpl;
     return $xml_tpl;
   }
@@ -902,11 +933,11 @@ sub test {
 }
 
 #**********************************************************
-# letters_list();
+=head2 letters_list();
+
+=cut
 #**********************************************************
 sub letters_list {
-  my ($self) = @_;
-
   return "";
 }
 
@@ -931,8 +962,7 @@ sub color_mark {
 =cut
 #**********************************************************
 sub table_header {
-  my $self = shift;
-  my ($header_arr) = @_;
+  my ($self, $header_arr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
@@ -940,8 +970,8 @@ sub table_header {
 
   my $header = '';
 
-  foreach my $element ( @{ $header_arr } ) {
-    my ($name, $url)= split(/:/, $element, 2);
+  foreach my $element (@{$header_arr}) {
+    my ($name, $url) = split(/:/, $element, 2);
     $header .= $self->button($name, $url);
   }
 
@@ -951,27 +981,34 @@ sub table_header {
 }
 
 #**********************************************************
-=head2  normalize_str($text)
+=head2  _normalize_str($text)
+
+  Arguments:
+    $text
+  Results:
+    $text
 
 =cut
 #**********************************************************
-sub normalize_str {
+sub _normalize_str {
   my ($text) = @_;
 
-  $text =~ s/\&#37/\%/g;
+  $text =~ s/\&#37/\%/xg;
 
   return $text;
 }
 #**********************************************************
 =head2  b($text)
 
+  Arguments:
+    $text
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub b {
-   my $self = shift;
-   my ($text) = @_;
-
-  return $text;
+  return @_[1];
 }
 
 #**********************************************************
@@ -985,7 +1022,7 @@ sub AUTOLOAD {
   return if ($AUTOLOAD =~ /::DESTROY$/);
   my $function = $AUTOLOAD;
 
-  if($function =~ /table_header|progress_bar|/) {
+  if ($function =~ /table_header|progress_bar|/) {
     return q{};
   }
 
@@ -994,4 +1031,4 @@ sub AUTOLOAD {
   return $data;
 }
 
-1
+1;

@@ -15,15 +15,12 @@
 =cut
 use strict;
 
-our $libpath;
+
 BEGIN {
   use FindBin '$Bin';
 
-  our $Bin;
-  use FindBin '$Bin';
-
-  $libpath = $Bin . '/../';
-  if ($Bin =~ m/\/abills(\/)/) {
+  my $libpath = $Bin . '/../';
+  if ($Bin =~ m/\/abills(\/)/x) {
     $libpath = substr($Bin, 0, $-[1]);
   }
 
@@ -51,7 +48,7 @@ if ($argv->{DEBUG}) {
   $debug = $argv->{DEBUG};
 }
 
-our $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
+my $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
 
 my $Nas = Nas->new($db, \%conf);
@@ -64,7 +61,7 @@ $Admin->info($conf{SYSTEM_ADMIN_ID}, {
 
 my $Internet = Internet->new($db, $Admin, \%conf);
 
-main();
+main($argv);
 
 #********************************************************
 =head2 main() - main function
@@ -73,33 +70,40 @@ main();
 =cut
 #********************************************************
 sub main {
-  if (!$argv->{'ACTION'}) {
+  my ($attr)=@_;
+
+  if (!$attr->{'ACTION'}) {
     print <<"[END]";
 Please select action
-    internet_static_ip.pl ACTIVE|ALERT
+    internet_static_ip.pl ACTION=[ACTIVE|ALERT]
       UID=
       POOL_ID=
 [END]
   }
-  elsif ($argv->{ACTION} eq 'ACTIVE') {
-    active();
+  elsif ($attr->{ACTION} eq 'ACTIVE') {
+    active($attr);
   }
-  elsif ($argv->{ACTION} eq 'ALERT') {
-    alert();
+  elsif ($attr->{ACTION} eq 'ALERT') {
+    alert($attr);
   }
 
   return 1;
 }
-#********************************************************
-=head2 active() - give static ip for user
 
+#********************************************************
+=head2 active($attr) - give static ip for user
+
+  Arguments:
+    $attr
+  Results:
+    TRUE OR FALSE
 
 =cut
 #********************************************************
 sub active {
   my ($attr) = @_;
-  my $pool_id = $argv->{POOL_ID} || $attr->{POOL_ID};
 
+  my $pool_id = $attr->{POOL_ID} || $attr->{POOL_ID};
   my $ip_pool = $Nas->ip_pools_info($pool_id);
   my $counts = $ip_pool->{COUNTS} || 0;
   my $next_pool_id = $ip_pool->{NEXT_POOL_ID} || 0;
@@ -111,8 +115,6 @@ sub active {
   }
 
   my $internet_list = $Internet->user_list({
-    #ONLINE_IP => '>=' . $first_ip . ';<=' . $last_ip,
-    COLS_NAME => 1,
     ID        => '_SHOW',
     IP        => '>=' . $first_ip . ';<=' . $last_ip,
     PAGE_ROWS => 100000,
@@ -120,8 +122,7 @@ sub active {
   });
 
   my $service = $Internet->user_list({
-    UID       => $argv->{UID},
-    COLS_NAME => 1,
+    UID       => $attr->{UID},
     ID        => '_SHOW',
     IP        => '_SHOW'
   });
@@ -130,19 +131,19 @@ sub active {
   my $service_id = $service->[0]->{id};
   my $cur_ip = $service->[0]->{ip_num} || 0;
 
-  if ($cur_ip && !$argv->{'FORCE_IP_ASSIGN'}) {
+  if ($cur_ip && !$attr->{'FORCE_IP_ASSIGN'}) {
     if ($debug > 0) {
       print "User has IP: " . int2ip($cur_ip) . "\n";
     }
 
-    if ($argv->{'TP_ID'} && $argv->{'UID'}){
+    if ($attr->{'TP_ID'} && $attr->{'UID'}) {
       _add_static_ip_to_abon($cur_ip);
     }
     return 0;
   }
 
-  if ($argv->{'FORCE_IP_ASSIGN'}) {
-    my $ip_exist_in_pools = _check_cur_ip_in_pools({CURRENT_IP => $cur_ip, POOL_ID =>$argv->{POOL_ID}});
+  if ($attr->{'FORCE_IP_ASSIGN'}) {
+    my $ip_exist_in_pools = _check_cur_ip_in_pools({ CURRENT_IP => $cur_ip, POOL_ID => $attr->{POOL_ID} });
     if ($ip_exist_in_pools) {
       return 0;
     }
@@ -165,16 +166,16 @@ sub active {
       $assigned_ip = int2ip($ip);
 
       if ($debug > 0) {
-        print "SET IP: " . $assigned_ip . " UID: $argv->{UID}\n";
+        print "SET IP: " . $assigned_ip . " UID: $attr->{UID}\n";
       }
 
       $Internet->user_change({
         ID  => $service_id,
-        UID => $argv->{UID},
+        UID => $attr->{UID},
         IP  => $assigned_ip,
       });
 
-      if ($argv->{'TP_ID'} && $argv->{'UID'}){
+      if ($attr->{'TP_ID'} && $attr->{'UID'}) {
         _add_static_ip_to_abon($assigned_ip);
       }
 
@@ -182,9 +183,9 @@ sub active {
     }
   }
 
-  if (!$assigned_ip && $next_pool_id){
-    $argv->{POOL_ID} = '';
-    active({POOL_ID => $next_pool_id});
+  if (!$assigned_ip && $next_pool_id) {
+    $attr->{POOL_ID} = $next_pool_id;
+    active($attr);
   }
 
   return 1;
@@ -197,21 +198,21 @@ sub active {
 =cut
 #********************************************************
 sub alert {
+  my ($attr)=@_;
 
-  if ($argv->{SKIP_ALERT}) {
+  if ($attr->{SKIP_ALERT}) {
     return 1;
   }
 
   my $list = $Internet->user_list({
-    UID       => $argv->{UID},
+    UID       => $attr->{UID},
     ID        => '_SHOW',
-    COLS_NAME => 1,
   });
 
   my $ip = int2ip(0);
   $Internet->user_change({
     ID  => $list->[0]->{id},
-    UID => $argv->{UID},
+    UID => $attr->{UID},
     IP  => $ip,
   });
 
@@ -230,6 +231,7 @@ sub alert {
 #********************************************************
 sub _check_cur_ip_in_pools {
   my ($attr) = @_;
+
   my $cur_ip = $attr->{CURRENT_IP};
   my $pool_id = $attr->{POOL_ID};
 
@@ -252,8 +254,10 @@ sub _check_cur_ip_in_pools {
   }
 
   if ($next_pool_id) {
-    _check_cur_ip_in_pools({CURRENT_IP => $cur_ip, POOL_ID =>$next_pool_id});
+    _check_cur_ip_in_pools({ CURRENT_IP => $cur_ip, POOL_ID => $next_pool_id });
   }
+
+  return 1;
 }
 
 
@@ -279,6 +283,7 @@ sub _add_static_ip_to_abon {
     COMMENTS             => $static_ip
   });
 
+  return 1;
 }
 
 1;

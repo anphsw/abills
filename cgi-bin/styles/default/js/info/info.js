@@ -47,7 +47,11 @@ if (typeof info_script_loaded === 'undefined') {
       }
 
       blocks_pagination();
-      document.getElementById("page1").click();
+      var main_page = document.getElementById("page1");
+      if (main_page) {
+        main_page.classList.add("paginator_active");
+        main_page.click();
+      }
     });
   }
 
@@ -136,7 +140,7 @@ if (typeof info_script_loaded === 'undefined') {
     bindAddBtn();
 
     function bindAttachBtns() {
-      jQuery('.commentAttachBtn').on('click', function () {
+      $(document).on('click', '.commentAttachBtn', function () {
         let id = jQuery(this).data('id');
         jQuery('#INFO_COMMENT_ID').val(id);
 
@@ -168,7 +172,6 @@ if (typeof info_script_loaded === 'undefined') {
 
     function bindDelBtns() {
       $(document).on('click', '.commentDeleteBtn', function (e) {
-        console.log('DelBtns');
         e.preventDefault();
         var $commentDiv = $(this).parent().parent().parent();
 
@@ -220,27 +223,46 @@ if (typeof info_script_loaded === 'undefined') {
           var uid = $commentsId.val() || '';
           var id = $(this).data('id');
 
-          var params = $.param({
-            get_index: 'info_edit',
-            COMMENTS: text,
-            OBJ_TYPE: type,
-            ID: id,
-            UID: uid,
-            COMMENTS_OLD: $text,
-            SAVE: 1,
-            EDIT: 1,
-            header: 2
-          });
+          var formData = new FormData();
 
-          $.post('/admin/index.cgi', params, function (data) {
-            var data = JSON.parse(data);
-            if (data.status === 0) {
+          formData.append('get_index', 'info_edit');
+          formData.append('COMMENTS', text);
+          formData.append('OBJ_TYPE', type);
+          formData.append('ID', id);
+          formData.append('UID', uid);
+          formData.append('COMMENTS_OLD', $text);
+          formData.append('SAVE', 1);
+          formData.append('EDIT', 1);
+          formData.append('header', 2);
+          formData.append('INFO_COMMENT_ID', id);
+
+          for (let i = 0; i < pastedImages.length; i++) {
+            if (pastedImages[i]) {
+              formData.append('UPLOAD_FILE_' + i, pastedImages[i]);
+            }
+          }
+
+          $.ajax({
+            url: '/admin/index.cgi',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data){
               Events.emit('info_something_changed', 'comments');
               renewDOM();
-            } else {
-              //print error
+              if (pastedImages.length > 0) {
+                location.reload();
+                return;
+              }
             }
           });
+
+          // test uploading
+          // for (let pair of formData.entries()) {
+          //   console.log(pair[0], pair[1]);
+          // }
+
         });
 
       });
@@ -258,7 +280,8 @@ if (typeof info_script_loaded === 'undefined') {
           "<div class=\"timeline-item\">" +
           "  <span class=\"time\"><i class=\"far fa-clock\"></i>" + date + "</span>" +
           "  <h3 class=\"timeline-header text-left\">" + lang_admin + "</h3>" +
-          "  <div class=\"timeline-body text-left text\"><textarea class='form-control'></textarea></div>" +
+          "  <div class=\"timeline-body text-left text info_comment\"><textarea class='form-control'></textarea></div>" +
+          "  <div class=\"image_paste_preview\"></div>" +
           "  <div class=\"timeline-footer text-right\">" +
           "<a class='commentAddSubmit m-1'>" +
           "<span class='fa fa-plus text-success'></span>" +
@@ -287,31 +310,36 @@ if (typeof info_script_loaded === 'undefined') {
           var type = $commentsType.val();
           var id = $commentsId.val();
 
-          var params = $.param({
-            get_index: 'info_comment_add',
-            TEXT: text,
-            OBJ_TYPE: type,
-            OBJ_ID: id,
-            header: 2
+          var formData = new FormData();
+          formData.append('get_index', 'info_comment_add');
+          formData.append('TEXT', text);
+          formData.append('OBJ_TYPE', type);
+          formData.append('OBJ_ID', id);
+          formData.append('header', 2);
+          for (let i = 0; i < pastedImages.length; i++) {
+            if (pastedImages[i]) {
+              formData.append('UPLOAD_FILE_' + i, pastedImages[i]);
+            }
+          }
+
+          $.ajax({
+            url: '/admin/index.cgi',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data){
+              Events.emit('info_something_changed', 'comments');
+              renewDOM();
+
+              if (pastedImages.length > 0) {
+                location.reload();
+                return;
+              }
+            }
           });
 
-          $.post('/admin/index.cgi', params, function (data) {
-            try {
-              data = JSON.parse(data);
-            } catch (e) {
-              Events.emit('info_something_changed', 'comments');
-              renewDOM();
-            }
-
-            if (data.status === 0) {
-              Events.emit('info_something_changed', 'comments');
-              renewDOM();
-            } else {
-              //print error
-            }
-          })
         });
-
 
       });
 
@@ -327,27 +355,35 @@ if (typeof info_script_loaded === 'undefined') {
         return false;
       }
 
-      var params = $.param({
-        get_index: 'info_comment_add',
-        TEXT: text,
-        OBJ_TYPE: type,
-        OBJ_ID: id,
-        header: 2
-      });
+      var formData = new FormData();
+      formData.append('get_index', 'info_comment_add');
+      formData.append('TEXT', text);
+      formData.append('OBJ_TYPE', type);
+      formData.append('OBJ_ID', id);
+      formData.append('header', 2);
 
-      console.log(params);
+      for (let i = 0; i < pastedImages.length; i++) {
+        if (pastedImages[i]) {
+          formData.append('UPLOAD_FILE', pastedImages[i]);
+        }
+      }
 
-      $.post('/admin/index.cgi', params, function (data) {
-        var tempBody = $commentsBody.html();
-        $commentsBody.html(data);
-        setTimeout(function () {
-          $commentModal.modal('hide');
-          $commentsBody.html(tempBody);
-
+      $.ajax({
+        url: '/admin/index.cgi',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data){
           Events.emit('info_something_changed', 'comments');
           renewDOM();
-        }, 2000);
-      })
+          if (pastedImages.length > 0) {
+            location.reload();
+            return;
+          }
+        }
+      });
+
     }
   }
 }
@@ -355,6 +391,7 @@ if (typeof info_script_loaded === 'undefined') {
 //Images code
 {
   var $delBtns = $('.imgDelBtn');
+  var pastedImages = [];
 
   $delBtns.on('click', function () {
     var $this = $(this);
@@ -482,10 +519,11 @@ if (typeof info_script_loaded === 'undefined') {
   blocks_pagination();
 
   var main_page = document.getElementById("page1");
-  main_page.classList.add("paginator_active");
+  if (main_page) {
+    main_page.classList.add("paginator_active");
+  }
 
-
-  function listing_pagination(event) {
+  window.listing_pagination = function(event){
     var e = event || window.event;
     var target = e.target;
     var id = target.id;
@@ -512,6 +550,87 @@ if (typeof info_script_loaded === 'undefined') {
     }
   }
 
-  main_page.click();
+  if (main_page) {
+    main_page.click();
+  }
 
 }
+
+// ===== IMAGE PASTE / DROP PREVIEW =====
+
+var pastedImages = [];
+
+function renderPreview(file, index, container) {
+
+  var reader = new FileReader();
+
+  reader.onload = function(e) {
+    var wrapper = $('<div class="image_paste_item" style="position:relative;margin:5px;">');
+    var img = $('<img>', {
+      src: e.target.result,
+      css:{
+        maxWidth:'180px',
+        border:'1px solid #ccc',
+        borderRadius:'4px'
+      }
+    });
+    var del = $('<span>',{
+      html:'&times;',
+      css:{
+        position:'absolute',
+        top:'2px',
+        right:'6px',
+        cursor:'pointer',
+        color:'red',
+        fontSize:'21px',
+        fontWeight:'bold',
+        fontFamily:'FontAwesome'
+      }
+    });
+    del.on('click', function(){
+      pastedImages[index] = null;
+      wrapper.remove();
+    });
+
+    wrapper.append(img).append(del);
+    container.append(wrapper);
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function addImage(file, container){
+  var index = pastedImages.length;
+  pastedImages.push(file);
+  renderPreview(file, index, container);
+}
+
+// ===== CTRL+V =====
+$(document).on('paste','.info_comment',function(e){
+  var container = $(this).closest('.timeline-item').find('.image_paste_preview');
+  var items = (e.originalEvent.clipboardData || e.clipboardData).items;
+
+  for (var i=0;i<items.length;i++){
+    if(items[i].type.indexOf('image') !== -1){
+      var file = items[i].getAsFile();
+      addImage(file, container);
+    }
+  }
+});
+
+// ===== DRAG & DROP =====
+$(document).on('dragover','.info_comment',function(e){
+  e.preventDefault();
+});
+
+$(document).on('drop','.info_comment',function(e){
+  e.preventDefault();
+  var container = $(this).closest('.timeline-item').find('.image_paste_preview');
+  var files = e.originalEvent.dataTransfer.files;
+
+  for(var i=0;i<files.length;i++){
+    if(files[i].type.indexOf('image') !== -1){
+      addImage(files[i], container);
+    }
+  }
+});

@@ -1,18 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
+  "title": "getCredit",
   "properties": {
     "creditChgPrice": {
-      "type": "string"
+      "type": "number"
     },
     "creditMonthChanges": {
-      "type": "string"
+      "type": "number"
     },
     "creditSum": {
-      "type": "string"
+      "type": "number"
     },
     "creditDays": {
-      "type": "string"
+      "type": "number"
     }
   },
   "required": ["creditChgPrice", "creditMonthChanges", "creditSum", "creditDays"]

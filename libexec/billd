@@ -91,7 +91,9 @@ if (!$argv->{SKIPPID} && make_pid($log_dir . '/' . $pid_name . '.pid') == 1) {
 }
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+  {
+    %conf,
+    CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
     db_engine => 'dbcore'
   });
 
@@ -325,7 +327,10 @@ sub run_plugins {
 sub check_lines {
   my ($attr) = @_;
 
-  $Sessions->{debug} = 1 if ($debug > 4);
+  if ($debug > 6) {
+    $Sessions->{debug} = 1;
+    $Nas->{debug}=1;
+  }
 
   $Sessions->online_del({
     STATUS => 11,
@@ -383,7 +388,18 @@ sub check_lines {
 
   print "==> check_lines\n" if ($debug > 1);
   my $online_session = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, COLS_UPPER => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({
+    %LIST_PARAMS,
+    COLS_UPPER       => 1,
+    NAS_TYPE         => '_SHOW',
+    NAS_IP           => '_SHOW',
+    DISABLE          => '_SHOW',
+    ALIVE            => '_SHOW',
+    MNG_HOST_PORT    => '_SHOW',
+    MNG_USER         => '_SHOW',
+    MNG_PASSWORD     => '_SHOW',
+    PAGE_ROWS        => 50000
+  });
   my $dub_ips = $Sessions->{dub_ips};
 
   my $Billing = Billing->new($db, \%conf);
@@ -392,11 +408,12 @@ sub check_lines {
 
   foreach my $nas (@{$nas_list}) {
     #if don't have online users skip it
-    my $l = $online_session->{ $nas->{NAS_ID} };
+    my $error_alive_time = $nas->{ALIVE} * $error_alive_count;
+    my $l = $online_session->{ $nas->{ID} };
     next if ($#{$l} < 0);
 
     if ($debug > 0) {
-      print "NAS: ($nas->{NAS_ID}) $nas->{NAS_IP} NAS_TYPE: $nas->{NAS_TYPE} STATUS: $nas->{NAS_DISABLE} Alive: $nas->{NAS_ALIVE} Online: " . ($#{$l} + 1) . "\n";
+      print "NAS: ($nas->{ID}) $nas->{IP} NAS_TYPE: $nas->{NAS_TYPE} STATUS: $nas->{DISABLE} Alive: $nas->{ALIVE} Online: " . ($#{$l} + 1) . "\n";
     }
 
     foreach my $online (@{$l}) {
@@ -440,14 +457,14 @@ sub check_lines {
         session_hangup($nas, $online,
           "CHANGE_TP $online->{online_tp_id} -> $online->{tp_id} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum}",
           { COA_ACTION => 'CHANGE_TP' });
-        next if ($nas->{NAS_ALIVE} > 0 && ($online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count));
+        next if ($nas->{ALIVE} > 0 && ($online->{last_alive} < $error_alive_time));
       }
       elsif ($state && !$online->{guest}) {
         session_hangup($nas, $online, "CHANGE_STATE DEPOSIT: $deposit CREDIT: $credit DISABLE: $state",
           { COA_ACTION => 'DISABLE' });
         next;
       }
-      elsif ($online->{status} == 9 && $online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count * 2) {
+      elsif ($online->{status} == 9 && $online->{last_alive} > $error_alive_time * 2) {
         session_hangup($nas, $online,
           "LOST_SESSION ($online->{status}) DEPOSIT: $online->{deposit} CREDIT: $credit SESSION_SUM: $online->{session_sum}");
         next;
@@ -463,20 +480,20 @@ sub check_lines {
           "CHANGE_IP: $online->{client_ip} -> $online->{ip} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum}"
           , { COA_ACTION => 'CHANGE_IP' });
       }
-      elsif ($dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}}
-        && $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} > 1
+      elsif ($dub_ips->{$nas->{ID}}{$online->{client_ip}}
+        && $dub_ips->{$nas->{ID}}{$online->{client_ip}} > 1
         && !$conf{BILLD_SKIP_DUB_HANGUP}) {
 
         session_hangup($nas, $online,
           "DUBLICATE_IP: $online->{client_ip} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum}"
           , { ACTION => 'DUB_IP' });
-        delete $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}};
+        delete $dub_ips->{$nas->{ID}}{$online->{client_ip}};
       }
 
       #Get stats from nas servers which don't support rad Alive
       my $external_stats = $Nas_cmd->get_stats($nas, $online->{nas_port_id});
-      if ($nas->{NAS_ALIVE} > 0
-        && ($online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count)) {
+      if ($nas->{ALIVE} > 0
+        && ($online->{last_alive} > $error_alive_time)) {
         if (close_zap_sessions($nas, $online)) {
           $lost_alive_count++;
           next;
@@ -484,7 +501,7 @@ sub check_lines {
       }
       elsif (ref $external_stats eq 'HASH') {
         if ($external_stats->{error}) {
-          print "Error:  Login: $online->{user_name}, NAS-IP: $nas->{NAS_IP}, Port: $online->{nas_port_id}, SESSION_ID: $online->{acct_session_id}\n" if ($debug == 1);
+          print "Error:  Login: $online->{user_name}, NAS-IP: $nas->{IP}, Port: $online->{nas_port_id}, SESSION_ID: $online->{acct_session_id}\n" if ($debug == 1);
           $external_stats->{STATUS} = 5;
         }
 
@@ -498,10 +515,6 @@ sub check_lines {
       if (!$uid) {
         next;
       }
-      # elsif ( $conf{coa_send} && hascoa( $nas ) ){
-      #   coa_send($online, $nas);
-      # }
-
       # periodic check deposit, stats and status
       my %RAD = (
         'User-Name'             => $online->{user_name},
@@ -625,7 +638,7 @@ sub close_zap_sessions {
     session_hangup($nas, $online, '');
     return 1;
   }
-  elsif ($online->{last_alive} > ($nas->{NAS_ALIVE} * $error_alive_count * 2)) {
+  elsif ($online->{last_alive} > ($nas->{ALIVE} * $error_alive_count * 2)) {
     my $ACCT_INFO = $Sessions->online_info({
       NAS_ID          => $online->{nas_id},
       NAS_PORT        => $online->{nas_port_id},
@@ -647,6 +660,7 @@ sub close_zap_sessions {
     $ACCT_INFO->{'Connect-Info'} = $ACCT_INFO->{CONNECT_INFO} || q{};
     $ACCT_INFO->{'Framed-IP-Address'} = $online->{client_ip};
     $ACCT_INFO->{'Calling-Station-Id'} = $ACCT_INFO->{CALLING_STATION_ID} || q{};
+    $nas->{NAS_ID}=$online->{nas_id};
 
     $Acct->accounting($ACCT_INFO, $nas, { ACCT_STATUS_TYPE => 2 });
     my $info = '';
@@ -676,7 +690,7 @@ sub close_zap_sessions {
     $Log->log_print('LOG_WARNING', $online->{user_name},
       "LAST_ALIVE: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
       { ACTION => $attr->{ACTION} || 'LOST_ALIVE', NAS => $nas });
-    $Sessions->zap($nas->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id});
+    $Sessions->zap($nas->{ID}, $online->{nas_port_id}, $online->{acct_session_id});
   }
 
   return 0;
@@ -807,18 +821,6 @@ sub billd_plugins {
   return 1;
 }
 
-
-#**********************************************************
-=head2 coa_former($coa_marker, $online, $nas_info)
-
-  Arguments:
-    $coa_marker
-    $online
-
-  Return:
-    $radius_request_pairs
-
-=cut
 #**********************************************************
 =head2 coa_former($coa_marker, $online, $nas_info)
 
@@ -985,11 +987,6 @@ sub session_hangup {
 
     #ZAP unknown sessions Session-Context-Not-Found
     if ($Nas_cmd->{RESULT} && $Nas_cmd->{RESULT} =~ m/Session-Context-Not-Found|No valid Session/x) {
-      # $Log->log_print( 'LOG_WARNING', $online->{user_name},
-      #   "UNKNOWN_HANGUP_SESSION: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
-      #   { ACTION => 'UNKNOWN_SESSION', NAS => $nas_info } );
-
-      #$Sessions->zap( $nas_info->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
       close_zap_sessions($nas_info, $online, { ACTION => 'UNKNOWN_SESSION' });
       return 0;
     }
@@ -1337,14 +1334,14 @@ sub check_speed_linux {
   });
 
   my $online = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({ %LIST_PARAMS, NAS_TYPE => '_SHOW', PAGE_ROWS => 50000 });
   my %USER_IFACES = ();
 
   foreach my $nas_info (@{$nas_list}) {
-    next if (!$online->{ $nas_info->{nas_id} });
+    next if (!$online->{ $nas_info->{id} });
     $NAS_TYPE = $nas_info->{nas_type};
 
-    my $l = $online->{ $nas_info->{nas_id} };
+    my $l = $online->{ $nas_info->{id} };
     foreach my $line (@{$l}) {
       #IFACE : TP : SPEED  :IP
       my $tp = 0;
@@ -1843,7 +1840,7 @@ sub get_online_speeds {
   });
 
   my $online_list = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({ %LIST_PARAMS, NAS_TYPE => '_SHOW', PAGE_ROWS => 50000 });
 
   if ($Sessions->{errno}) {
     print "$Sessions->{error} $Sessions->{err_str}";
@@ -1851,9 +1848,9 @@ sub get_online_speeds {
   }
 
   foreach my $nas_info (@{$nas_list}) {
-    next if (!$online_list->{ $nas_info->{nas_id} });
+    next if (!$online_list->{ $nas_info->{id} });
     $NAS_TYPE = $nas_info->{nas_type} || '';
-    my $l = $online_list->{ $nas_info->{nas_id} };
+    my $l = $online_list->{ $nas_info->{id} };
     foreach my $online (@{$l}) {
       if ($online->{guest}) {
         $guest_ips->{$online->{client_ip}} = "$online->{user_name}:$online->{duration_sec}";
@@ -2757,18 +2754,20 @@ sub check_ifaces {
 
   my $nas_info;
   if ($LIST_PARAMS{NAS_IDS}) {
-    my $list = $Nas->list({
-      NAS_IDS    => $LIST_PARAMS{NAS_IDS},
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      PAGE_ROWS  => 50000
+    my $nas_list = $Nas->list({
+      NAS_IDS       => $LIST_PARAMS{NAS_IDS},
+      MNG_USER      => '_SHOW',
+      MNG_HOST_PORT => '_SHOW',
+      NAS_RAD_PAIRS => '_SHOW',
+      COLS_UPPER    => 1,
+      PAGE_ROWS     => 50000
     });
 
-    foreach my $_info (@{$list}) {
-      $debug_output .= "NAS ID: $_info->{NAS_ID} MNG_INFO: $_info->{NAS_MNG_USER}\@$_info->{NAS_MNG_IP_PORT} $_info->{NAS_RAD_PAIRS}\n" if ($debug > 2);
-      $nas_info = $_info;
-      if (!$_info->{NAS_MNG_USER}) {
-        $debug_output .= "Skiped Not defined control user NAS_ID: $_info->{NAS_ID}\n" if ($debug > 1);
+    foreach my $nas_info (@{$nas_list}) {
+      $debug_output .= "NAS ID: $nas_info->{ID} MNG_INFO: $nas_info->{MNG_USER}\@$nas_info->{MNG_HOST_PORT} $nas_info->{NAS_RAD_PAIRS}\n" if ($debug > 2);
+      $nas_info = $nas_info;
+      if (!$nas_info->{MNG_USER}) {
+        $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{ID}\n" if ($debug > 1);
         next;
       }
     }
@@ -2793,7 +2792,7 @@ sub check_ifaces {
           }
 
           if (!$nas_info) {
-            $nas_info = $Nas->info({ NAS_ID => });
+            $nas_info = $Nas->info({ NAS_ID => $attr->{NAS_ID} });
           }
 
           $Nas_cmd->hangup(
@@ -2811,10 +2810,10 @@ sub check_ifaces {
         }
       }
       elsif ($pid > 0) {
-        $res = `/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete down`;
+        $res = cmd("/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete down");
       }
       else {
-        $res = `/sbin/ifconfig tun$iface delete down`;
+        $res = cmd("/sbin/ifconfig tun$iface delete down");
       }
 
       print "Killed IP: $ip_address IF: $iface PID: '$pid' -- $res ($DATE $TIME)\n";
@@ -2990,15 +2989,22 @@ sub check_mikro {
     $LIST_PARAMS{NAS_TYPE} = 'mikrotik';
   }
 
-  my $list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, COLS_UPPER => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({
+    %LIST_PARAMS,
+    MNG_USER      => '_SHOW',
+    MNG_HOST_PORT => '_SHOW',
+    ALIVE         => '_SHOW',
+    COLS_UPPER    => 1,
+    PAGE_ROWS     => 50000
+  });
 
-  foreach my $nas_info (@{$list}) {
+  foreach my $nas_info (@{$nas_list}) {
     my %info_hash = ();
 
-    $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS_ALIVE}\n" if ($debug > 2);
+    $debug_output .= "NAS ID: $nas_info->{ID} MNG_INFO: $nas_info->{MNG_USER}\@$nas_info->{MNG_HOST_PORT} $nas_info->{ALIVE}\n" if ($debug > 2);
 
-    if (!$nas_info->{NAS_MNG_USER}) {
-      $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
+    if (!$nas_info->{MNG_USER}) {
+      $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{ID}\n" if ($debug > 1);
       next;
     }
 
@@ -3057,15 +3063,15 @@ sub get_mpd_info {
 
   my %info_hash = ();
 
-  my ($nas_ip, $nas_rad_port, $nas_telnet_port) = split(':', $nas_info->{NAS_MNG_IP_PORT});
+  my ($nas_ip, $nas_rad_port, $nas_telnet_port) = split(':', $nas_info->{MNG_HOST_PORT});
 
   if (!$nas_telnet_port) {
     $nas_telnet_port = $nas_rad_port;
   }
 
   my $output = telnet_cmd3("$nas_ip:$nas_telnet_port", [
-    "sername\t$nas_info->{NAS_MNG_USER}",
-    "assword\t$nas_info->{NAS_MNG_PASSWORD}",
+    "sername\t$nas_info->{MNG_USER}",
+    "assword\t$nas_info->{MNG_PASSWORD}",
     "\]\tshow sessions",
     "\]\texit"
   ], { debug => ($debug > 3) ? 1 : undef });
@@ -3125,20 +3131,23 @@ sub check_nas_ifaces {
     $LIST_PARAMS{NAS_TYPE} = $nas_type;
   }
 
-  my $list = $Nas->list({
+  my $nas_list = $Nas->list({
     %LIST_PARAMS,
-    COLS_NAME  => 1,
-    COLS_UPPER => 1,
-    PAGE_ROWS  => 50000
+    MNG_USER    => '_SHOW',
+    NAS_IP          => '_SHOW',
+    MNG_HOST_PORT => '_SHOW',
+    ALIVE           => '_SHOW',
+    COLS_UPPER      => 1,
+    PAGE_ROWS       => 50000
   });
 
   my $hanguped = 0;
-  foreach my $nas_info (@{$list}) {
-    $nas_info->{NAS_MNG_USER} //= '';
-    $nas_info->{NAS_MNG_IP_PORT} //= '';
-    $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS_ALIVE}\n" if ($debug > 2);
+  foreach my $nas_info (@{$nas_list}) {
+    $nas_info->{MNG_USER} //= '';
+    $nas_info->{MNG_HOST_PORT} //= '';
+    $debug_output .= "NAS ID: $nas_info->{ID} MNG_INFO: $nas_info->{MNG_USER}\@$nas_info->{MNG_HOST_PORT} $nas_info->{ALIVE}\n" if ($debug > 2);
 
-    # if (! $nas_info->{NAS_MNG_USER} ){
+    # if (! $nas_info->{MNG_USER} ){
     #   $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
     #   next;
     # }
@@ -3175,7 +3184,7 @@ sub check_nas_ifaces {
       }
 
       $hanguped++;
-      print "HANGUP: '$user' IP: $ip MAC: $mac SESSION_ID: $session_id NAS: $nas_info->{NAS_ID}/$nas_info->{NAS_IP}\n";
+      print "HANGUP: '$user' IP: $ip MAC: $mac SESSION_ID: $session_id NAS: $nas_info->{ID}/$nas_info->{IP}\n";
     }
   }
 
@@ -3341,7 +3350,12 @@ sub speed_expr {
 
       my $online = $Sessions->{nas_sorted};
 
-      my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 50000 });
+      my $nas_list = $Nas->list({
+        %LIST_PARAMS,
+        NAS_TYPE  => '_SHOW',
+        ALIVE     => '_SHOW',
+        PAGE_ROWS => 50000
+      });
 
       my %USER_IFACES = ();
       my %TP_HASH = ();
@@ -3359,9 +3373,9 @@ sub speed_expr {
       my $SET_SPEED = $5;
 
       foreach my $nas_info (@{$nas_list}) {
-        next if (!$online->{ $nas_info->{nas_id} });
+        next if (!$online->{ $nas_info->{id} });
         $NAS_TYPE = $nas_info->{nas_type};
-        my $l = $online->{ $nas_info->{nas_id} };
+        my $l = $online->{ $nas_info->{id} };
         foreach my $line (@{$l}) {
 
           #IFACE : TP : SPEED  :IP
@@ -3516,11 +3530,11 @@ sub check_speed2 {
     $Nas->{debug} = 1
   }
 
-  my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({ %LIST_PARAMS, PAGE_ROWS => 50000 });
   my $NAS_TYPE = '';
 
   foreach my $nas_info (@{$nas_list}) {
-    if (!$online->{ $nas_info->{nas_id} }) {
+    if (!$online->{ $nas_info->{id} }) {
       if ($debug > 3) {
         print "No active sessions\n";
       }
@@ -3590,9 +3604,9 @@ sub check_speed2 {
       my $ret = q{};
       if ($debug < 8) {
         $ret = $Nas_cmd->$set_speed_fn(
-          { NAS_TYPE         => $nas_info->{nas_type},
-            NAS_MNG_IP_PORT  => $nas_info->{nas_mng_ip_port},
-            NAS_MNG_PASSWORD => $nas_info->{nas_mng_password}
+          { NAS_TYPE      => $nas_info->{nas_type},
+            MNG_HOST_PORT => $nas_info->{mng_host_port},
+            MNG_PASSWORD  => $nas_info->{mng_password}
           },
           $line->{nas_port_id},
           $line->{user_name},
@@ -3687,10 +3701,10 @@ sub get_accel_ppp_speed_list {
   my ($nas, $attr) = @_;
 
   if ($debug > 2) {
-    print "NAS_ID: $nas->{nas_id} MNG: $nas->{nas_mng_ip_port}\n";
+    print "NAS_ID: $nas->{nas_id} MNG: $nas->{mng_host_port}\n";
   }
 
-  my ($nas_ip, undef, $nas_telnet_port) = split(':', $nas->{nas_mng_ip_port});
+  my ($nas_ip, undef, $nas_telnet_port) = split(':', $nas->{mng_host_port});
 
   if (!$nas_ip) {
     print "nas_mng_ip_port not defined\n";
@@ -3702,7 +3716,7 @@ sub get_accel_ppp_speed_list {
   }
 
   my $output = telnet_cmd3("$nas_ip:$nas_telnet_port", [
-    "assword\t$nas->{nas_mng_password}",
+    "assword\t$nas->{mng_password}",
     "#\tshow sessions",
     "#\texit"
   ], { debug => ($debug > 3) ? 1 : undef });
@@ -3857,8 +3871,10 @@ sub check_cisco_cid {
   my $online_session = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list({
     %LIST_PARAMS,
-    TYPE       => 'cisco',
-    COLS_NAME  => 1,
+    NAS_TYPE   => 'cisco',
+    IP         => '_SHOW',
+    ALIVE      => '_SHOW',
+    DISABLE    => '_SHOW',
     COLS_UPPER => 1,
     PAGE_ROWS  => 50000
   });
@@ -3867,7 +3883,7 @@ sub check_cisco_cid {
     next if ($#{$l} < 0);
 
     if ($debug > 0) {
-      print "NAS: ($nas_info->{NAS_ID}) $nas_info->{NAS_IP} NAS_TYPE: $nas_info->{NAS_TYPE} STATUS: $nas_info->{NAS_DISABLE} Alive: $nas_info->{NAS_ALIVE} Online: " . ($#{$l} + 1) . "\n";
+      print "NAS: ($nas_info->{ID}) $nas_info->{IP} NAS_TYPE: $nas_info->{NAS_TYPE} STATUS: $nas_info->{DISABLE} Alive: $nas_info->{ALIVE} Online: " . ($#{$l} + 1) . "\n";
     }
 
     foreach my $online (@{$l}) {
@@ -3936,10 +3952,10 @@ sub get_accel_ppp_info {
   my ($nas, $attr) = @_;
 
   if ($debug > 2) {
-    print "NAS_ID: $nas->{nas_id} MNG: $nas->{nas_mng_ip_port}\n";
+    print "NAS_ID: $nas->{id} MNG: $nas->{mng_host_port}\n";
   }
 
-  my ($nas_ip, undef, $nas_telnet_port) = split(':', $nas->{nas_mng_ip_port});
+  my ($nas_ip, undef, $nas_telnet_port) = split(':', $nas->{mng_host_port});
 
   if (!$nas_ip) {
     print "nas_mng_ip_port not defined\n";
@@ -3951,7 +3967,7 @@ sub get_accel_ppp_info {
   }
 
   my $output = telnet_cmd3("$nas_ip:$nas_telnet_port", [
-    "assword\t$nas->{nas_mng_password}",
+    "assword\t$nas->{mng_password}",
     "#\tshow sessions",
     "#\texit"
   ], { debug => ($debug > 3) ? 1 : undef });

@@ -84,6 +84,10 @@
 
       %PLUGINS_FIELDS%
       <hr>
+
+      %ADDRESS_SEL%
+
+      <hr>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{TASKS_SUBTASKS}_:</label>
         <div class='col-md-8'>

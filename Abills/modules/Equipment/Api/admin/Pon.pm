@@ -12,9 +12,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Control::Errors;
-
 use Equipment;
-
 my Equipment $Equipment;
 my Control::Errors $Errors;
 
@@ -53,20 +51,12 @@ sub new {
 =cut
 #**********************************************************
 sub get_equipment_pon_ports {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
-
-  my %PARAMS = (
-    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-    SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
-  );
+  my ($self, $path_params, $query_params) = @_;
 
   my $ports = $Equipment->pon_port_list({
     STATUS    => '_SHOW',
     %$query_params,
-    PAGE_ROWS => 1000,
-    COLS_NAME => 1,
+    PAGE_ROWS => 10000
   });
 
   return {

@@ -3,7 +3,7 @@
 
     <div class='card card-primary card-outline card-form' style='max-width: 600px'>
         <div class='card-header with-border'>
-            IPv6 _{CALCULATOR}_ (POOL_ID: %POOL_ID%)
+            IPv6 _{CALCULATOR}_ (POOL_ID: <a href='%SELF_URL%?index=63&chg=%POOL_ID%'>%POOL_ID%</a>)
         </div>
         <div class='card-body'>
 
@@ -18,9 +18,18 @@
                 <label class='control-label col-md-3'>_{PREFIX}_ _{LENGTH}_:</label>
 
                 <div class='col-md-9'>
+                    %PREFIX_NET_LENGTH_SELECT%
+                </div>
+            </div>
+
+            <div class='form-group row' id='prefix-length'>
+                <label class='control-label col-md-3'>_{MASK}_ _{USER}_:</label>
+
+                <div class='col-md-9'>
                     %PREFIX_LENGTH_SELECT%
                 </div>
             </div>
+
 
             <div class='form-group row'>
                 <label class='control-label col-md-3'>_{EXTENDED}_</label>
@@ -42,9 +51,19 @@
             <div class='form-group row'>
                 <label class='control-label col-md-3'>PD _{MASK}_:</label>
                 <div class='col-md-9'>
+                    %PD_NET_MASK_SELECT%
+
+                </div>
+            </div>
+
+            <div class='form-group row' id='prefix-length'>
+                <label class='control-label col-md-3'>_{MASK}_ _{USER}_:</label>
+
+                <div class='col-md-9'>
                     %PD_MASK_SELECT%
                 </div>
             </div>
+
 
         </div>
         <div class='card-footer'>

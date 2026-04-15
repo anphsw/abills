@@ -160,7 +160,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{SELL_PRICE}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='text' value='%ACTUAL_SELL_PRICE%'
+                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='number' value='%ACTUAL_SELL_PRICE%'
                            id='sell_price'/>
                   </div>
                 </div>
@@ -196,7 +196,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{SELL_PRICE}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='text' value=''/>
+                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='number' value=''/>
                   </div>
                 </div>
                 <div class='form-group row'>
@@ -231,7 +231,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{SELL_PRICE}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='text' value=''/>
+                    <input class='form-control' name='ACTUAL_SELL_PRICE' type='number' value=''/>
                   </div>
                 </div>
                 <div class='form-group row'>

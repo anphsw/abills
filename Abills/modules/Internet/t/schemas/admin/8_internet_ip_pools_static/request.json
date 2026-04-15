@@ -1,0 +1,6 @@
+{
+  "method": "GET",
+  "name": "ADMIN_INTERNET_IP_POOLS_STATIC",
+  "path": "internet/ip-pools/static/"
+}
+

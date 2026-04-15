@@ -10,7 +10,6 @@ use Abills::Filters qw(_utf8_encode);
 use Abills::Base qw(_bp);
 use Cams;
 use Cams::Init qw/init_cams_service/;
-require Control::Services;
 
 our (
   $html,

@@ -5,6 +5,11 @@ use strict;
 #**********************************************************
 =head2 build_radius_params_result_response($module)
 
+  Arguments:
+    $module
+  Results:
+    $result
+
 =cut
 #**********************************************************
 sub build_radius_params_result_response {
@@ -13,17 +18,22 @@ sub build_radius_params_result_response {
   my $errno = $module->{errno} || 0;
   my $err_str = $module->{err_str} || '';
 
-  return qq[
-    {
+  return << "[END]";
+  {
       "status": $errno,
       "message": "$err_str"
     }
-  ];
+[END]
 }
 
 
 #**********************************************************
 =head2 parse_radius_params_json($pairs_json)
+
+  Arguments:
+    $pairs_json
+  Results:
+    $radius_pairs_string
 
 =cut
 #**********************************************************
@@ -50,6 +60,10 @@ sub parse_radius_params_json {
 #**********************************************************
 =head2 parse_radius_params_string($radius_pairs_string)
 
+  Arguments:
+    $radius_pairs_string
+  Results:
+    pairs
 
 =cut
 #**********************************************************
@@ -61,9 +75,9 @@ sub parse_radius_params_string {
   }
 
   my @pairs = split(", \n", $radius_pairs_string);
-
+  my $rad_pairs_expr = q/([0-9a-zA-Z\-:!]+)([-+=<>]{1,2})([:\-_\;\(\,\)\\'\\’\"\#=\s0-9a-zA-Zа-яА-Я.]+)/;
   foreach my $pair (@pairs) {
-    my @pair_parts = $pair =~ /([0-9a-zA-Z\-:!]+)([-+=<>]{1,2})([:\-_\;\(\,\)\\'\\’\"\#= 0-9a-zA-Zа-яА-Я.]+)/;
+    my @pair_parts = $pair =~ /$rad_pairs_expr/xm;
 
     if(scalar @pair_parts != 3) {
       next;
@@ -84,6 +98,7 @@ sub parse_radius_params_string {
   }
 
   require JSON;
+  JSON->import();
   my $json = JSON->new()->utf8(0);
 
   return $json->encode(\@pairs);
@@ -92,6 +107,11 @@ sub parse_radius_params_string {
 
 #**********************************************************
 =head2 build_radius_params_string($pairs)
+
+  Arguments:
+    $pairs
+  Results:
+    $params_string
 
 =cut
 #**********************************************************

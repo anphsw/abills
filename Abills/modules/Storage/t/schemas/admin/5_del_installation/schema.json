@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "storage_installation_/:id/",
+  "items": {
+    "type": "object",
+    "properties": {
+      "count": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "count"
+    ]
+  }
+}

@@ -39,7 +39,7 @@ sub new {
       'WITH_SERIAL',
     ],
     enabled_sub_fields     => [
-      'ARTICLE_NAME', 'SERIAL', 'IDENT1', 'IDENT2', 'IDENT3',
+      'ARTICLE_NAME', 'SERIAL', 'IDENT1', 'IDENT2', 'IDENT3', 'IDENT4',
       'DATE', 'INVOICE_ID', 'ARTICLE_PRICE', 'SELL_PRICE',
       'SIA_COUNT', 'SUPPLIER_NAME', 'SN_COMMENTS', 'SI_COMMENTS',
       'INVOICE_NAME', 'SIA_ID',
@@ -86,6 +86,7 @@ sub new {
     IDENT1            => $self->{lang}{IDENT1},
     IDENT2            => $self->{lang}{IDENT2},
     IDENT3            => $self->{lang}{IDENT3},
+    IDENT4            => $self->{lang}{IDENT4},
     DATE              => $self->{lang}{DATE} || 'Date',
     INVOICE_ID        => $self->{lang}{STORAGE_INVOICE} || 'Invoice',
     SIA_COUNT         => $self->{lang}{COUNT} || 'Count',
@@ -533,8 +534,8 @@ sub _generate_actions_dropdown {
     push @buttons, $self->{html}->button($self->{lang}{INFO}, "get_index=storage_main&full=1&add_article=1&chg=$id&sn=1", { class => 'dropdown-item' });
   }
   else {
-    push @buttons, $self->{html}->button($self->{lang}{DIVIDE}, "get_index=storage_main&start_divide=$id&header=2",
-      { class => 'dropdown-item cursor-pointer', LOAD_TO_MODAL => 1, MODAL_SIZE => 'lg' });
+    push @buttons, $self->{html}->button($self->{lang}{DIVIDE}, "get_index=storage_main&start_divide=$id&full=1",
+      { class => 'dropdown-item cursor-pointer' });
     push @buttons, $self->{html}->button($self->{lang}{INFO}, "get_index=storage_main&full=1&add_article=1&chg=$id&sn=1", { class => 'dropdown-item' });
   }
 

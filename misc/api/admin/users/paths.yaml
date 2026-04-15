@@ -26,3 +26,7 @@
   $ref: "./paths/usersStatuses.yaml"
 /users/statuses/{id}:
   $ref: "./paths/usersStatuses_id.yaml"
+/users/documents/:
+  $ref: "./paths/usersDocuments.yaml"
+/users/documents/{id}:
+  $ref: "./paths/usersDocuments_id.yaml"

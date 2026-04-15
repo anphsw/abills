@@ -795,9 +795,12 @@ sub paysys_check_user {
     $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT} || 0);
 
     if (!$attr->{SKIP_FIO_HIDE}) {
-      $user->{FIO} = _hide_text($user->{FIO} || q{});
-      $user->{PHONE} = _hide_text($user->{PHONE} || q{});
-      $user->{ADDRESS_FULL} = _hide_text($user->{ADDRESS_FULL} || q{});
+      require Abills::TextFormat;
+      Abills::TextFormat->import();
+
+      $user->{FIO} = Abills::TextFormat::hide_text($user->{FIO} || q{});
+      $user->{PHONE} = Abills::TextFormat::hide_text($user->{PHONE} || q{});
+      $user->{ADDRESS_FULL} = Abills::TextFormat::hide_text($user->{ADDRESS_FULL} || q{});
     }
 
     last if (!$attr->{MULTI_USER});
@@ -1507,49 +1510,6 @@ sub _account_expression {
   }
 
   return $CHECK_FIELD;
-}
-
-#**********************************************************
-=head2 _hide_text($text) - Hide text string
-
-  Arguments:
-     $text
-
-  Returns:
-    $hidden_text
-
-=cut
-#**********************************************************
-sub _hide_text {
-  my ($text) = @_;
-
-  my $hidden_text = '';
-  if (!$text) {
-    return q{};
-  }
-
-  my @join_test = ();
-  $text =~ s/\s+$//gm;
-  $text =~ s/\'/_/g;
-  $text =~ s/&|%//g;
-  my $str_utf8 = decode("UTF-8", $text);
-
-  my @split_fio = split(/ /, $str_utf8);
-  my @split_word = ();
-  foreach my $key (@split_fio) {
-    @split_word = split(//, $key);
-    for (my $i = 0; $i < @split_word; $i++) {
-      if ($i != 0 && ($i % 2 == 0 || $i % 3 == 0)) {
-        $split_word[$i] = '*';
-      }
-    }
-    my $fio_hiden_1 = join('', @split_word);
-    push(@join_test, $fio_hiden_1);
-  }
-
-  $hidden_text = encode("UTF-8", join(' ', @join_test));
-
-  return $hidden_text;
 }
 
 #**********************************************************

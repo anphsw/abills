@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: ABillS ADMIN API
-  version: 1.59.17
+  version: 1.66.01
   description: |
-    Last modified 2025-11-25 <br>
+    Last modified 2026-04-02 <br>
     Have other version of API? 
     Specification stored in billing folder. Location /usr/abills/misc/bundle_admin.yaml.
     Copy it and upload it to your favorite OPEN API viewer.
@@ -3660,11 +3660,11 @@ paths:
         required: true
       responses:
         200:
-          description: успешное выполнение
+          description: Успешное выполнение
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UsersAddUserResponse200"
+                $ref: "#/components/schemas/UsersUser"
       security:
         - KEY: []
   /users/all:
@@ -3984,6 +3984,12 @@ paths:
               $ref: "#/components/schemas/UsersUploadFile"
         required: true
       responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersUser"
         400:
           description: Invalid ID supplied
           content: {}
@@ -4045,6 +4051,7 @@ paths:
       tags:
         - users
       summary: Получить персональную информацию о пользователе
+      deprecated: true
       description: Возвращает персональную информацию пользователя
       operationId: getUserPiByUID
       parameters:
@@ -4615,6 +4622,183 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsersDeleteStatus400"
+      security:
+        - KEY: []
+  /users/documents/:
+    get:
+      tags:
+        - users
+      summary: Получить список документов пользователей
+      parameters:
+        - name: id
+          in: query
+          description: ID документа
+          schema:
+            type: boolean
+            default: true
+        - name: uid
+          in: query
+          description: ID пользователя
+          schema:
+            type: boolean
+            default: false
+        - name: doc_type
+          in: query
+          description: Тип документа
+          schema:
+            type: boolean
+            default: false
+        - name: num
+          in: query
+          description: Номер документа
+          schema:
+            type: boolean
+            default: false
+        - name: date
+          in: query
+          description: Дата документа
+          schema:
+            type: boolean
+            default: false
+        - name: expire
+          in: query
+          description: Дата окончания срока действия
+          schema:
+            type: boolean
+            default: false
+        - name: issued_by
+          in: query
+          description: Кем выдан документ
+          schema:
+            type: boolean
+            default: false
+        - name: filename
+          in: query
+          description: Имя файла документа
+          schema:
+            type: boolean
+            default: false
+        - name: created_at
+          in: query
+          description: Дата создания записи
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/desc"
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        200:
+          description: Успішно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDocumentsList"
+      security:
+        - KEY: [ ]
+  /users/documents/{id}:
+    get:
+      tags:
+        - users
+      summary: Получить документ пользователя по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDocumentSingle"
+      security:
+        - KEY: []
+    
+    post:
+      tags:
+        - users
+      summary: Добавить новый документ пользователю
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsersAddDocumentRequest"
+      responses:
+        200:
+          description: Документ создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDocumentSingle"
+        400:
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersAddDocumentResponse400"
+      security:
+        - KEY: []
+    
+    put:
+      tags:
+        - users
+      summary: Изменить документ пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsersAddDocumentRequest"
+      responses:
+        200:
+          description: Документ изменен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDocumentSingle"
+      security:
+        - KEY: []
+    
+    delete:
+      tags:
+        - users
+      summary: Удалить документ пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Документ удален
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDeleteResponseMessage200"
+        400:
+          description: Документа нет в системе
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersDeleteDocument400"
       security:
         - KEY: []
   /version:
@@ -9700,6 +9884,27 @@ paths:
                 $ref: "#/components/schemas/InternetUserList"
       security:
         - KEY: []
+  
+  /internet/ip-pools/static/:
+    get:
+      tags:
+        - internet
+      summary: Получить список статических IP пулов
+      operationId: getInternetIpPoolsStatic
+      parameters:
+        - $ref: "#/components/parameters/pageRows"
+        - $ref: "#/components/parameters/pg"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/desc"
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternetIpPoolsList"
+      security:
+        - KEY: [ ]
   /users/{uid}/iptv:
     get:
       tags:
@@ -11177,6 +11382,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StorageInstallationList"
+      security:
+        - KEY: [ ]
+  /storage/installation/{id}:
+    delete:
+      tags:
+        - storage
+      summary: Возвращение установленного оборудования на склад
+      parameters:
+        - name: id
+          in: path
+          description: ID установки
+          required: true
+          schema:
+            type: number
+            example: 1
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageInstallationDeleteResponse200"
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageInstallationDeleteResponse400"
       security:
         - KEY: [ ]
   /storage/incoming_articles:
@@ -14750,6 +14983,10 @@ components:
         password:
           type: number
           example: 1234567
+        g2fa:
+          description: Нужно передавать когда включена опция g2fa
+          type: number
+          example: 1234567
     AdminsLoginResponse:
       type: object
       properties:
@@ -16730,6 +16967,62 @@ components:
         errstr:
           type: string
           example: "Validation failed"
+    UsersAddDocumentRequest:
+      type: object
+      properties:
+        uid:
+          type: integer
+          example: 456
+        doc_type:
+          type: integer
+          example: 1
+        num:
+          type: string
+          example: "AB123456"
+        date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        expire:
+          type: string
+          format: date
+          example: "2034-01-15"
+        issued_by:
+          type: string
+          example: "Ministry of Internal Affairs"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15"
+    UsersAddDocumentResponse400:
+      type: object
+      properties:
+        errmsg:
+          type: string
+          example: "Validation failed\nRequired parameter to be filled Num\n"
+        errno:
+          type: integer
+          example: 9
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 20
+              errstr:
+                type: string
+                example: "ERR_REQUIRED_PARAMETER"
+              param:
+                type: string
+                example: "name"
+              required:
+                type: boolean
+                example: true
+        errstr:
+          type: string
+          example: "Validation failed"
     UsersAddStatusRequest:
       type: object
       properties:
@@ -16775,27 +17068,6 @@ components:
       allOf:
         - $ref: "#/components/schemas/UsersUser"
         - $ref: "#/components/schemas/UsersPi"
-    UsersAddUserResponse200:
-      type: object
-      properties:
-        preAdd:
-          type: integer
-          example: 1
-        total:
-          type: integer
-          example: 0
-        insertId:
-          type: string
-          example: "17"
-        uid:
-          type: string
-          example: "32"
-        affected:
-          type: integer
-          example: 1
-        login:
-          type: string
-          example: testUser
     UsersContact:
       type: object
       properties:
@@ -16891,6 +17163,15 @@ components:
         errstr:
           type: string
           example: "ERROR_NOT_EXIST"
+    UsersDeleteDocument400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 2
+        errstr:
+          type: string
+          example: ERR_NOT_EXISTS
     UsersDeleteStatus400:
       type: object
       properties:
@@ -16921,6 +17202,80 @@ components:
         errstr:
           type: string
           example: User not found with uid 103399
+    UsersDocumentSingle:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        uid:
+          type: integer
+          example: 456
+        doc_type:
+          type: integer
+          example: 1
+        num:
+          type: string
+          example: "AB123456"
+        date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        expire:
+          type: string
+          format: date
+          example: "2034-01-15"
+        issued_by:
+          type: string
+          example: "Ministry of Internal Affairs"
+        filename:
+          type: string
+          example: "passport_scan.pdf"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15"
+    UsersDocumentsList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 123
+              uid:
+                type: integer
+                example: 456
+              doc_type:
+                type: integer
+                example: 1
+              num:
+                type: string
+                example: "AB123456"
+              date:
+                type: string
+                format: date
+                example: "2024-01-15"
+              expire:
+                type: string
+                format: date
+                example: "2034-01-15"
+              issued_by:
+                type: string
+                example: "Ministry of Internal Affairs"
+              filename:
+                type: string
+                example: "passport_scan.pdf"
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-01-15T10:30:00Z"
+        total:
+          type: integer
+          example: 10
     UsersList:
       type: array
       items:
@@ -17087,7 +17442,7 @@ components:
       type: object
       description: >
         Также можно добавлять все информационные поля
-        Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+        Пример: если в БД `_TEST_FIELD` то можно добавить как `__testField`
       properties:
         login:
           type: string
@@ -17174,6 +17529,197 @@ components:
           example: 1
           default: 0
           description: Установить статус удалено пользователю, но полностью не удалять
+        acceptRules:
+          type: integer
+          example: 0
+        addressBuild:
+          type: integer
+          example: 5
+        addressDistrict:
+          type: string
+          example: "Івано-Франківська"
+        addressDistrictFull:
+          type: string
+          example: "Україна / Івано-Франківська"
+        addressFlat:
+          type: string
+          example: "3132"
+        addressFlors:
+          type: integer
+          example: 0
+        addressFull:
+          type: string
+          example: "Test, 5, 3132"
+        addressFullLocation:
+          type: string
+          example: "Україна / Івано-Франківська: Test, 5, 3132"
+        addressStreet:
+          type: string
+          example: "Test"
+        addressStreet2:
+          type: string
+          example: "sınaq küçəsi"
+        addressStreetTypeName:
+          type: string
+          example: ""
+        billOwner:
+          type: integer
+          example: 103359
+        birthDate:
+          type: string
+          format: date
+          example: "0000-00-00"
+        cellPhone:
+          type: array
+          items:
+            type: string
+          example: []
+        city:
+          type: string
+          example: ""
+        comments:
+          type: string
+          example: ""
+        companyCredit:
+          type: number
+          example: 0
+        companyName:
+          type: string
+          example: ""
+        companyVat:
+          type: number
+          example: 0
+        contractDate:
+          type: string
+          format: date
+          example: "2023-01-19"
+        contractId:
+          type: integer
+          example: 1150031992
+        contractSufix:
+          type: string
+          example: ""
+        coordx:
+          type: number
+          example: 0
+        countryId:
+          type: integer
+          example: 0
+        deposit:
+          type: number
+          example: 0
+        districtId:
+          type: integer
+          example: 14
+        email:
+          type: array
+          items:
+            type: string
+            format: email
+          example:
+            - "andrusakura46@gmail.com"
+        entrance:
+          type: integer
+          example: 0
+        fio:
+          type: string
+          example: "Юра Андрусяк"
+        fio2:
+          type: string
+          example: ""
+        fio3:
+          type: string
+          example: ""
+        floor:
+          type: integer
+          example: 0
+        googlePush:
+          type: array
+          items:
+            type: string
+          example: []
+        gName:
+          type: string
+          example: ""
+        icq:
+          type: array
+          items:
+            type: string
+          example: []
+        locationId:
+          type: integer
+          example: 148
+        mobilePush:
+          type: array
+          items:
+            type: string
+          example: []
+        pasportDate:
+          type: string
+          format: date
+          example: "0000-00-00"
+        pasportGrant:
+          type: string
+          example: "First consul of Persia"
+        pasportNum:
+          type: string
+          example: "IBC821712"
+        phone:
+          type: array
+          items:
+            type: string
+        registration:
+          type: string
+          format: date
+          example: "2023-01-19"
+        regAddress:
+          type: string
+          example: ""
+        skype:
+          type: array
+          items:
+            type: string
+          example: []
+        streetId:
+          type: integer
+          example: 13
+        taxNumber:
+          type: integer
+          example: 0
+        telegram:
+          type: array
+          items:
+            type: string
+          example: []
+        total:
+          type: integer
+          example: 1
+        uid:
+          type: integer
+          example: 103359
+        viber:
+          type: array
+          items:
+            type: string
+          example: []
+        zip:
+          type: string
+          example: ""
+        apple:
+          type: string
+          example: ","
+        document:
+          type: integer
+          example: 0
+        facebook:
+          type: string
+          example: ","
+        g2fa:
+          type: string
+          example: ""
+        google:
+          type: string
+          example: ","
     UsersUsersHistory:
       type: object
       properties:
@@ -20180,6 +20726,57 @@ components:
         errstr:
           type: string
           example: No tariff plan with tpId 15
+    InternetIpPool:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 2
+        name:
+          type: string
+          example: "Test pool"
+        ip:
+          type: number
+          example: 0
+        firstIp:
+          type: string
+          example: "10.0.0.1"
+        lastIp:
+          type: string
+          example: "10.0.1.0"
+        lastIpNum:
+          type: number
+          example: 255
+        counts:
+          type: number
+          example: 255
+        netmask:
+          type: number
+          example: 4294967294
+        gateway:
+          type: number
+          example: 0
+        dns:
+          type: string
+          example: ""
+        nas:
+          type: number
+          example: 0
+        priority:
+          type: number
+          example: 0
+      
+    InternetIpPoolsList:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternetIpPool"
+        total:
+          type: number
+          example: 1
+      
     InternetTariff:
       type: object
       properties:
@@ -21625,6 +22222,30 @@ components:
         id:
           type: number
           example: 7
+    StorageInstallationDeleteResponse200:
+      type: object
+      properties:
+        toStorage:
+          type: number
+          example: 1
+        storageName:
+          type: string
+          example: 'Test street'
+        count:
+          type: number
+          example: 2
+        staName:
+          type: string
+          example: 'Test'
+    StorageInstallationDeleteResponse400:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 1180007
+        errstr:
+          type: string
+          example: ERR_STORAGE_INSTALLATION_ID_INVALID
     StorageInstallationList:
       type: array
       items:

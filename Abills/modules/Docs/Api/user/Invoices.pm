@@ -86,8 +86,8 @@ sub get_user_docs_invoices {
   });
 
   return {
-    list   => $list,
-    total  => $Docs->{TOTAL},
+    list  => $list,
+    total => $Docs->{TOTAL},
   };
 }
 
@@ -124,7 +124,7 @@ sub post_user_docs_invoices {
 
   require Docs::Api::common::Invoices;
   Docs::Api::common::Invoices->import();
-  my $Invoices = Docs::Api::common::Invoices->new($self->{db}, $self->{admin}, $self->{conf}, {Errors => $Errors});
+  my $Invoices = Docs::Api::common::Invoices->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
 
   my %add_params = ();
 
@@ -177,12 +177,11 @@ sub post_user_docs_invoices {
 =cut
 #**********************************************************
 sub get_user_docs_invoices_period {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   require Docs::Api::common::Invoices;
   Docs::Api::common::Invoices->import();
-  my $Invoices = Docs::Api::common::Invoices->new($self->{db}, $self->{admin}, $self->{conf}, {Errors => $Errors});
+  my $Invoices = Docs::Api::common::Invoices->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
 
   my $invoices = $Invoices->docs_invoices_period({
     NEXT_PERIOD   => 1,

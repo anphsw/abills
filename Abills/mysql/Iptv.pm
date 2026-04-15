@@ -56,8 +56,7 @@ sub new{
 =cut
 #**********************************************************
 sub user_info {
-  my $self = shift;
-  my ($id, $attr) = @_;
+  my ($self, $id, $attr) = @_;
 
   if ( defined( $attr->{LOGIN} ) ){
     use Users;
@@ -71,6 +70,11 @@ sub user_info {
 
     $self->{DEPOSIT} = $users->{DEPOSIT};
     # $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
+  }
+
+  my $WHERE = 'WHERE service.id = ?';
+  if ($attr->{UID}) {
+    $WHERE .= " AND service.uid = ?"
   }
 
   $self->query(
@@ -102,15 +106,16 @@ sub user_info {
    tp.fees_method AS fees_method,
    tp.describe_aid AS describe_aid,
    tp.comments AS comments,
+   service.email AS service_email,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
      LEFT JOIN iptv_services tv_services ON (tv_services.id=service.service_id)
-   WHERE service.id= ? ;",
+   $WHERE;",
     undef,
     {
       INFO => 1,
-      Bind => [ $id ]
+      Bind => $attr->{UID} ? [ $id, $attr->{UID} ] : [ $id ]
     }
   );
 
@@ -224,6 +229,7 @@ sub user_change{
   $attr->{VOD} = (!defined( $attr->{VOD} )) ? 0 : 1;
   $attr->{DISABLE} = $attr->{STATUS};
   my $old_info = $self->user_info( $attr->{ID} );
+  $attr->{UID} ||= $old_info->{UID};
   $self->{OLD_STATUS} = $old_info->{STATUS};
   $admin->{MODULE} = $MODULE;
 
@@ -326,12 +332,11 @@ sub user_change{
 =cut
 #**********************************************************
 sub user_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->iptv_monthly_active_users_change({ SUBSCRIBE_ID => $attr->{ID}, UID => $self->{UID} });
+  $self->iptv_monthly_active_users_change({ SUBSCRIBE_ID => $attr->{ID}, UID => $self->{UID} || $attr->{UID} });
 
-  $self->query_del('iptv_main', $attr, { uid => $self->{UID} } );
+  $self->query_del('iptv_main', $attr, { uid => $self->{UID} || $attr->{UID} } );
 
   $admin->{MODULE}=$MODULE;
   my @del_descr = ();
@@ -356,8 +361,7 @@ sub user_del{
 =cut
 #**********************************************************
 sub user_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -394,6 +398,12 @@ sub user_list{
     }
   }
 
+  if ($attr->{WITHOUT_SERVICE}) {
+    push @WHERE_RULES, "service.id IS NULL";
+    delete $attr->{SERVICE_ID};
+    $GROUP_BY = 'GROUP BY u.uid';
+  }
+
   if ($attr->{DISABLED_USERS}) {
     push @WHERE_RULES, "(service.disable <> 0 OR u.disable <> 0)";
   }
@@ -421,7 +431,8 @@ sub user_list{
       [ 'TV_USER_PORTAL',    'INT', 'tv_service.user_portal', 'tv_service.user_portal AS tv_user_portal'           ],
       [ 'TV_SERVICE_MODULE', 'INT', 'tv_service.module', 'tv_service.module AS tv_service_module'                  ],
       [ 'TP_CREDIT',         'INT', 'tp.credit', 'tp.credit AS tp_credit'                                          ],
-      [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                              1 ],
+      [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                               1 ],
+      [ 'TP_FILTER_ID',      'INT', 'tp.filter_id' , 'tp.filter_id AS tp_filter_id',                                                              1 ],
       [ 'TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'                     ],
       [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type',                                                           1 ],
       [ 'MONTH_PRICE',       'INT', 'ti_c.month_price',                                                          1 ],
@@ -516,7 +527,13 @@ sub user_list{
 
     $list = $self->{list};
   }
-  else{
+  else {
+    if ($attr->{WITHOUT_SERVICE}) {
+      $EXT_TABLE = "RIGHT JOIN users u ON (u.uid = service.uid)\n" . $EXT_TABLE;
+    }
+    else {
+      $EXT_TABLE = "LEFT JOIN users u ON (u.uid = service.uid)\n" . $EXT_TABLE;
+    }
     $self->query(
       "SELECT
       $self->{SEARCH_FIELDS}
@@ -525,7 +542,6 @@ sub user_list{
       u.uid,
       service.id
      FROM iptv_main service
-     LEFT JOIN users u ON (u.uid = service.uid)
      LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)
      $EXT_TABLE
      $WHERE
@@ -542,7 +558,6 @@ sub user_list{
     if ( $self->{TOTAL} >= 0 ){
       $self->query(
         "SELECT count(DISTINCT service.id) AS total FROM iptv_main service
-       LEFT JOIN users u ON (u.uid = service.uid)
        LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)
       $EXT_TABLE
       $WHERE", undef, { INFO => 1 }
@@ -1756,12 +1771,14 @@ sub users_screens_list{
     $GROUP_BY = 'GROUP BY us.service_id, us.screen_id';
 
     $EXT_TABLE .= 'FROM iptv_screens s ';
-    $EXT_TABLE .= "LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)";
-    $EXT_TABLE .= "LEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)";
+    $EXT_TABLE .= "\nLEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)";
+    $EXT_TABLE .= "\nLEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)";
   }
-  $EXT_TABLE .= 'LEFT JOIN users u ON (u.uid=service.uid)';
+  $EXT_TABLE .= "\nLEFT JOIN users u ON (u.uid=service.uid)";
 
-  $EXT_TABLE .= 'LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)' if $attr->{TP_REDUCTION_FEE};
+  if ($self->{SEARCH_FIELDS} =~ /tp\./xm) {
+    $EXT_TABLE .= "\nLEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)";
+  }
 
   $self->query("SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
     $EXT_TABLE
@@ -1911,16 +1928,17 @@ sub services_add{
 =cut
 #**********************************************************
 sub services_change{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{USER_PORTAL} //= 0;
   $attr->{DISABLE} //= 0;
+  $self->{admin}{MODULE} = 'Iptv';
 
   $self->changes({
-    CHANGE_PARAM => 'ID',
-    TABLE        => 'iptv_services',
-    DATA         => $attr
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'iptv_services',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "ID:$attr->{ID}"
   });
 
   return $self;
@@ -2058,13 +2076,14 @@ sub device_list {
     $attr,
     [
       [ 'UID',          'INT',  'd.uid',         1 ],
-      [ 'DEV_ID',       'INT',  'dev_id',        1 ],
+      [ 'DEV_ID',       'STR',  'dev_id',        1 ],
       [ 'ENABLE',       'INT',  'enable',        1 ],
       [ 'DATE_ACTIVITY','DATE', 'date_activity', 1 ],
       [ 'IP_ACTIVITY',  'STR',  'ip_activity',   1 ],
       [ 'CODE',         'STR',  'code',          1 ],
       [ 'ID',           'INT',  'd.id',            ],
       [ 'SERVICE_ID',   'INT',  'service_id',    1 ],
+      [ 'COMMENTS',     'STR',  'comments',      1 ],
     ],
     {
       WHERE => 1,
@@ -2511,6 +2530,8 @@ sub iptv_monthly_active_users_list {
   push @WHERE_RULES, "imr.service_id = '$attr->{SERVICE_ID}'" if $attr->{SERVICE_ID};
   push @WHERE_RULES, "imr.activate <> imr.expire";
   push @WHERE_RULES, "imr.expire <> $start_date";
+  my $SUB_QUERY_WHERE = join(' AND ', @WHERE_RULES);
+  $SUB_QUERY_WHERE =~ s/imr\./imr2\./gx;
 
   my $WHERE = $self->search_former($attr, [
       [ 'ID', 'INT', 'imr.id',  ],
@@ -2520,13 +2541,7 @@ sub iptv_monthly_active_users_list {
       [ 'MODULE', 'STR', 'ips.module', 1 ],
       [ 'UID', 'INT', 'u.uid', 1 ],
       [ 'TP_NAME', 'STR', 'tp.name AS tp_name', 1 ],
-      [ 'DAYS', 'INT', "SUM(DATEDIFF(
-                            IF(imr.expire <> '0000-00-00' AND imr.expire <= $last_date,
-                               imr.expire,
-                               $last_date
-                              ),
-                            IF(imr.activate < $start_date, $start_date, imr.activate)
-                          ) + 1) AS days", 1 ],
+      [ 'DAYS', 'INT', 'days_calc.days AS days', 1 ],
     ],
     {
       WHERE => 1,
@@ -2536,14 +2551,37 @@ sub iptv_monthly_active_users_list {
     }
   );
 
-  my $EXT_TABLE = $self->{EXT_TABLES};
+  my $EXT_TABLES = $self->{EXT_TABLES};
+
+  if ( $self->{SEARCH_FIELDS} =~ /tp\./xm ) {
+    $EXT_TABLES .= "\nLEFT JOIN tarif_plans tp ON (tp.tp_id = imr.tp_id)";
+  }
+  if ( $self->{SEARCH_FIELDS} =~ /ips\./xm ) {
+    $EXT_TABLES .= "\nLEFT JOIN iptv_services ips ON (ips.id = imr.service_id)";
+  }
+  if ( $self->{SEARCH_FIELDS} =~ /days_calc\./xm ) {
+    $EXT_TABLES .= "\nLEFT JOIN (
+        SELECT
+            imr2.uid,
+            SUM(DATEDIFF(
+                IF(imr2.expire <> '0000-00-00' AND imr2.expire <= $last_date,
+                   imr2.expire,
+                   $last_date
+                ),
+                IF(imr2.activate < $start_date,
+                   $start_date,
+                   imr2.activate)
+            ) + 1) AS days
+        FROM iptv_monthly_active_users_report imr2
+        WHERE $SUB_QUERY_WHERE
+        GROUP BY imr2.uid
+    ) AS days_calc ON days_calc.uid = u.uid";
+  }
 
   $self->query("SELECT $self->{SEARCH_FIELDS} imr.id
     FROM iptv_monthly_active_users_report imr
-    LEFT JOIN iptv_services ips ON (ips.id = imr.service_id)
-    LEFT JOIN tarif_plans tp ON (tp.tp_id = imr.tp_id)
-    LEFT JOIN users u ON u.uid = imr.uid
-    $EXT_TABLE
+    LEFT JOIN users u ON (u.uid = imr.uid)
+    $EXT_TABLES
     $WHERE
     GROUP BY $GROUP_BY;",
     undef,
@@ -2569,20 +2607,27 @@ sub report_tp {
   $self->{EXT_TABLES}          = '';
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
-  $attr->{DELETED}             = 0;
+  # $attr->{DELETED}             = 0;
 
   my $WHERE =  $self->search_former($attr, [
     ['DOMAIN_ID',            'INT', 'tp.domain_id',  ],
   ],
-    { WHERE       => 1,
-      USERS_FIELDS=> 1
+    {
+      WHERE        => 1,
+      USERS_FIELDS => 1
     }
   );
 
-  $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT iptv.uid) AS counts,
-      COUNT(DISTINCT CASE WHEN iptv.disable=0 AND u.disable=0 THEN iptv.uid ELSE NULL END) AS active,
-      COUNT(DISTINCT CASE WHEN iptv.disable!=0 OR u.disable!=0 THEN iptv.uid ELSE NULL END) AS disabled,
-      SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
+  $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT iptv.id) AS counts,
+      COUNT(DISTINCT CASE WHEN iptv.disable=0 AND u.disable=0 THEN iptv.id ELSE NULL END) AS active,
+      COUNT(DISTINCT CASE WHEN iptv.disable!=0 OR u.disable!=0 THEN iptv.id ELSE NULL END) AS disabled,
+      COUNT(DISTINCT
+        CASE
+          WHEN IF(u.company_id > 0, cb.deposit, b.deposit) < 0
+          THEN iptv.id
+          ELSE NULL
+        END
+      ) AS debetors,
       SUM(IF(u.reduction = 100, 1, 0)) AS users_reduction,
       ROUND(SUM(p.sum) / COUNT(DISTINCT iptv.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
@@ -2591,8 +2636,8 @@ sub report_tp {
       tg.name AS group_name,
       s.name AS service_name,
       iptv.service_id
-    FROM users u
-    INNER JOIN iptv_main iptv ON (u.uid=iptv.uid)
+    FROM iptv_main iptv
+    LEFT JOIN users u ON (u.uid=iptv.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=iptv.tp_id)
     LEFT JOIN bills b ON (u.bill_id = b.id)
     LEFT JOIN companies company ON  (u.company_id=company.id)

@@ -24,3 +24,5 @@
   $ref: "./paths/users_uid_Internet_id.yaml"
 /users/internet/all:
   $ref: "./paths/usersAll.yaml"
+/internet/ip-pools/static/:
+  $ref: "./paths/ip_pools_static.yaml"

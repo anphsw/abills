@@ -27,91 +27,105 @@ our Abills::HTML $html;
 #**********************************************************
 sub admin_profile {
 
-  if (!$permissions{8}{0}){
+  if (!$permissions{8} || !$permissions{8}{0}){
     $html->message('err', $lang{PERMISIION_DENIED}, "");
     return 1;
   }
 
-  _admin_info_change();
+  func_menu({},[
+    $lang{MAIN} . ':::',
+    $lang{BOTS} . '::tab=bots:',
+    "$lang{QUICK} $lang{REPORTS}" . '::tab=reports:',
+    "$lang{SEARCH} $lang{FIELDS}" . '::tab=search_fields:',
+    $lang{AUTH_HISTORY} . '::tab=auth_history:',
+    $lang{FUNCTIONS_LIST} . '::tab=flist:',
+  ]);
 
-  require Control::Quick_reports;
-  my $quick_reports = form_quick_reports();
+  $FORM{DEFAULT_BUTTONS_HIDDEN} = 'd-none';
+  my $admin_info = '';
 
-  if (! $quick_reports) {
-    return 1;
+  if ($FORM{tab}){
+    if ($FORM{tab} eq 'bots'){
+      $FORM{SUBSCRIBE_BLOCK} = _profile_get_admin_sender_subscribe_block($admin->{AID});
+    }
+    elsif ($FORM{tab} eq 'reports') {
+      require Control::Quick_reports;
+      $FORM{QUICK_REPORTS} = form_quick_reports();
+      $FORM{DEFAULT_BUTTONS_HIDDEN} = '';
+      return 1 if (!$FORM{QUICK_REPORTS});
+    }
+    elsif ($FORM{tab} eq 'search_fields') {
+      _form_profile_search();
+    }
+    elsif ($FORM{tab} eq 'auth_history') {
+      $FORM{AUTH_HISTORY} = _admin_auth_history_table();
+    }
+    elsif ($FORM{tab} eq 'flist') {
+      $FORM{FLIST} = flist();
+    }
+    $FORM{PROFILE_HIDDEN} = 'hidden';
   }
+  else {
+    $admin_info = _admin_info_change({ OUTPUT2RETURN => 1 });
 
-  my $SEL_LANGUAGE = $html->form_select('language', {
-    SELECTED => $html->{language},
-    SEL_HASH => \%LANG
-  });
-
-  # Events groups
-  my $events_groups_select = '';
-  my $events_groups_show = 'hidden';
-  if (in_array('Events', \@MODULES)){
-    require Events;
-    Events->import();
-
-    my $Events = Events->new($db, $admin, \%conf);
-    my $this_admin_groups = $Events->groups_for_admin($admin->{AID}) || '';
-    _error_show($Events);
-
-    my $group_link = '';
-    if (my $group_index = get_function_index('events_group')){
-      $group_link = "?index=$group_index";
-    };
-
-    $events_groups_select = _events_group_select({
-      SELECTED  => $this_admin_groups || '',
-      MULTIPLE  => 1,
-      MAIN_MENU => $group_link,
-    });
-    $events_groups_show = '';
-  }
-
-  # download avatar to DB
-  if ($FORM{UPLOAD_FILE}){
-    my $name_value = mk_unique_value(10);
-    my $file_name = 'avatar_'.$admin->{AID}.'_'.$name_value.'.png';
-
-    my $allowed_picture_size = 500000;
-
-    if ($FORM{UPLOAD_FILE} && $FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} <= $allowed_picture_size){
-      my $is_uploaded = upload_file($FORM{UPLOAD_FILE}, {
-        FILE_NAME => $file_name,
-        EXTENTIONS => 'gif, png, jpg, jpeg',
-        REWRITE   => 1
-      });
-
-      if($is_uploaded){
-        $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
+    #Make active lang list
+    if ($conf{LANGS}) {
+      $conf{LANGS} =~ s/\n//xg;
+      my (@lang_arr) = split(';', $conf{LANGS});
+      %LANG = ();
+      foreach my $l (@lang_arr) {
+        my ($lang, $lang_name) = split(':', $l);
+        $lang =~ s/^\s+//x;
+        $LANG{$lang} = $lang_name;
       }
     }
-    else {
-      $html->message('err', $lang{ERROR}, "$lang{PICTURE_SIZE_NOT_ALLOWED} 500 Kb");
+
+    $FORM{SEL_LANGUAGE} = $html->form_select('language', {
+      SELECTED => $html->{language},
+      SEL_HASH => \%LANG
+    });
+
+    # Events groups
+    $FORM{EVENTS_GROUPS_HIDDEN} = 'hidden';
+
+    if (in_array('Events', \@MODULES)){
+      load_module('Events', $html);
+      require Events;
+      Events->import();
+
+      my $Events = Events->new($db, $admin, \%conf);
+      my $this_admin_groups = $Events->groups_for_admin($admin->{AID}) || '';
+      _error_show($Events);
+
+      my $group_link = '';
+      if (my $group_index = get_function_index('events_group')){
+        $group_link = "?index=$group_index";
+      };
+
+      $FORM{EVENT_GROUPS_SELECT} = _events_group_select({
+        SELECTED  => $this_admin_groups || '',
+        MULTIPLE  => 1,
+        MAIN_MENU => $group_link,
+      });
+      $FORM{EVENTS_GROUPS_HIDDEN} = '';
     }
+    $FORM{PAGE_ROWS} = $PAGE_ROWS;
   }
 
-  my $subscribe_mng_block = _profile_get_admin_sender_subscribe_block($admin->{AID});
+  $FORM{SUBSCRIBE_BLOCK_HIDDEN} = (!$FORM{SUBSCRIBE_BLOCK}) ? 'd-none' : '';
 
-  my $auth_history = _admin_auth_history_table();
-
-  $html->tpl_show(templates('form_admin_profile'), {
-    QUICK_REPORTS        => $quick_reports,
-    SEL_LANGUAGE         => $SEL_LANGUAGE,
+  my $admin_profile = $html->tpl_show(templates('form_admin_profile'), {
     NO_EVENT             => $admin->{SETTINGS}->{NO_EVENT},
     NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
     RIGHT_MENU_HIDDEN    => $admin->{SETTINGS}->{RIGHT_MENU_HIDDEN},
-    SUBSCRIBE_BLOCK      => $subscribe_mng_block,
-    HIDE_SUBSCRIBE_BLOCK => !$subscribe_mng_block ? 'd-none' : '',
-    EVENT_GROUPS_SELECT  => $events_groups_select,
-    EVENTS_GROUPS_HIDDEN => $events_groups_show,
-    AUTH_HISTORY         => $auth_history,
-    PAGE_ROWS            => $PAGE_ROWS
-  });
+    %FORM
+  },{OUTPUT2RETURN => 1}
+  );
 
-  _form_profile_search();
+  $html->tpl_show(templates('form_admin_main'), {
+    ADMIN_INFO    => ($admin_info) ? $html->element('div', $admin_info, { class => 'col-md-6' }) : '',
+    ADMIN_PROFILE => $html->element('div', $admin_profile, { class => 'col-md-6' }),
+  });
 
   return 1;
 }
@@ -139,12 +153,12 @@ sub _admin_auth_history_table {
 
   my $logs = $admin->full_log_list({
     AID           => $admin->{AID},
-    PAGE_ROWS     => 5,
     IP            => '_SHOW',
     DATETIME      => '_SHOW',
     FUNCTION_NAME => 'ADMIN_AUTH',
     COLS_NAME     => 1,
-    DESC          => 'DESC'
+    DESC          => 'DESC',
+    PAGE_ROWS     => 25,
   });
 
   foreach my $log (@{$logs}) {
@@ -234,10 +248,10 @@ sub _form_profile_search {
   }
 
   print $html->form_main({
-    class   => 'form pb-3',
+    class   => 'form pb-3 col-md-6 mx-auto',
     CONTENT => $table->show(),
-    HIDDEN  => { index => $index },
-    SUBMIT  => { change_search => "$lang{CHANGE}" },
+    HIDDEN  => { index => $index, tab => 'search_fields' },
+    SUBMIT  => { change_search => $lang{CHANGE} },
     ID      => 'FORM_SEARCH_FIELDS'
   });
 
@@ -364,6 +378,7 @@ sub flist {
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
     HIDDEN  => {
       index        => $index,
+      tab          => 'flist',
       AWEB_OPTIONS => 1,
     },
     SUBMIT  => {
@@ -485,6 +500,7 @@ sub _profile_get_admin_sender_subscribe_block {
 =cut
 #**********************************************************
 sub _admin_info_change {
+  my ($attr) = @_;
 
   $admin->info($admin->{AID});
   if ($FORM{chg_pswd} || $FORM{newpassword}) {
@@ -560,13 +576,44 @@ sub _admin_info_change {
   });
   my $admin_email = $admin->{TOTAL} && $admin->{TOTAL} > 0 ? { EMAIL => $admin_emails->[0]{value} } : { EMAIL => '' };
 
-  $html->tpl_show(templates('form_admin_info_change'), {
+  if ($FORM{UPLOAD_FILE}){
+    my $name_value = mk_unique_value(10);
+    my $file_name = 'avatar_'.$admin->{AID}.'_'.$name_value.'.png';
+
+    my $allowed_picture_size = 500000;
+
+    if ($FORM{UPLOAD_FILE} && $FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} <= $allowed_picture_size){
+      my $is_uploaded = upload_file($FORM{UPLOAD_FILE}, {
+        FILE_NAME => $file_name,
+        EXTENTIONS => 'gif, png, jpg, jpeg',
+        REWRITE   => 1
+      });
+
+      if($is_uploaded){
+        $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "$lang{PICTURE_SIZE_NOT_ALLOWED} 500 Kb");
+    }
+  }
+
+  my $admin_info = $html->tpl_show(templates('form_admin_info_change'), {
     %$admin,
     CHG_PSW         => $passwd_btn,
     CLEAR_SETTINGS  => $clear_settings_btn,
     G2FA            => $G2FA,
-    %{$admin_email}
-  });
+    %{$admin_email},
+  },
+    { OUTPUT2RETURN  => $attr->{OUTPUT2RETURN} || '' }
+  );
+
+  if ($attr->{OUTPUT2RETURN}) {
+    return $admin_info;
+  }
+  else {
+    print $admin_info;
+  }
 
   return 1;
 }

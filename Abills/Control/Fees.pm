@@ -34,14 +34,11 @@ our Abills::HTML $html;
 #**********************************************************
 sub form_fees {
   my ($attr) = @_;
-  my $period = $FORM{period} || 0;
 
   return 0 if (!defined($permissions{2}));
 
-  my $Fees = Finance->fees($db, $admin, \%conf);
-  my %BILL_ACCOUNTS = ();
-
   my $FEES_METHODS = get_fees_types({ PARENT_ID => 0 });
+  $attr->{FEES_METHODS}=$FEES_METHODS;
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
     $FORM{METHOD} =~ s/,/;/xg if $FORM{METHOD};
@@ -59,178 +56,7 @@ sub form_fees {
   }
 
   if ($attr->{USER_INFO}) {
-    my $user = $attr->{USER_INFO};
-    require Shedule;
-    Shedule->import();
-    my $Shedule = Shedule->new($db, $admin, \%conf);
-
-    if ($conf{EXT_BILL_ACCOUNT}) {
-      $BILL_ACCOUNTS{ $attr->{USER_INFO}->{BILL_ID} } = "$lang{PRIMARY} : $attr->{USER_INFO}->{BILL_ID}" if ($attr->{USER_INFO}->{BILL_ID});
-      $BILL_ACCOUNTS{ $attr->{USER_INFO}->{EXT_BILL_ID} } = "$lang{EXTRA} : $attr->{USER_INFO}->{EXT_BILL_ID}" if ($attr->{USER_INFO}->{EXT_BILL_ID});
-    }
-
-    if (! $user->{BILL_ID} || $user->{BILL_ID} < 1) {
-      form_bills({ USER_INFO => $user });
-      return 0;
-    }
-
-    $Fees->{UID} = $user->{UID};
-    if ($FORM{take} && $FORM{SUM}) {
-      $FORM{SUM} =~ s/,/\./xg;
-      $FORM{SUM} =~ s/\s+//xg;
-
-      if ($FORM{ER} && $FORM{ER} > 0) {
-        my $er = $Fees->exchange_info($FORM{ER});
-        $FORM{ER}  = $er->{ER_RATE};
-        $FORM{SUM} = $FORM{SUM} / $FORM{ER};
-      }
-
-      # add to schedule
-      if ($period == 2) {
-        my $FEES_DATE = $FORM{DATE} || $DATE;
-        if (date_diff($DATE, $FEES_DATE) < 1) {
-          $FORM{SKIP_PRIORITY}=1;
-          $Fees->take($user, $FORM{SUM}, \%FORM);
-          if (! _error_show($Fees)) {
-            $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM} $lang{DATE}: $FEES_DATE" );
-          }
-        }
-        else {
-          my ($Y, $M, $D) = split(/-/x, $FEES_DATE);
-          $FORM{METHOD} //= 0;
-          $Shedule->add({
-            DESCRIBE => $FORM{DESCR},
-            D        => $D,
-            M        => $M,
-            Y        => $Y,
-            UID      => $user->{UID},
-            TYPE     => 'fees',
-            ACTION   => ($conf{EXT_BILL_ACCOUNT}) ? "$FORM{SUM}:$FORM{DESCRIBE}:BILL_ID=$FORM{BILL_ID}:$FORM{METHOD}" : "$FORM{SUM}:$FORM{DESCRIBE}::$FORM{METHOD}"
-          });
-
-          if(! _error_show($Shedule)) {
-            $html->message( 'info', $lang{SHEDULE}, $lang{ADDED});
-          }
-        }
-      }
-      #take now
-      else {
-        delete $FORM{DATE};
-        $FORM{DESCRIBE} = dynamic_types({FEES_METHODS_STR => $FORM{DESCRIBE}});
-        $FORM{DSC} = dynamic_types({FEES_METHODS_STR => $FORM{DSC}});
-
-        $FORM{SKIP_PRIORITY}=1;
-        $Fees->take($user, $FORM{SUM}, \%FORM);
-        if (! _error_show($Fees)) {
-          $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM}" );
-
-          #External script
-          if ($conf{external_fees}) {
-            if (!_external($conf{external_fees}, {%FORM})) {
-              return 0;
-            }
-          }
-        }
-      }
-      if ($FORM{CREATE_FEES_INVOICE} && in_array('Docs', \@MODULES)) {
-        require Docs;
-        Docs->import();
-        my $Docs = Docs->new($db, $admin, \%conf);
-        $FORM{FEES_ID} = $Fees->{INSERT_ID};
-        $Docs->invoice_add({%FORM, ORDER => $FORM{DESCRIBE}});
-        if (! _error_show($Docs)) {
-          $html->message('info', $lang{CREATED} . $lang{INVOICE} . $lang{FEES}, "$lang{CREATED}: $Docs->{DATE}  $lang{INVOICE}: $Docs->{INVOICE_NUM}");
-        }
-      }
-    }
-    elsif ($FORM{del} && $FORM{COMMENTS}) {
-      if (!defined($permissions{2}{2})) {
-        $html->message( 'err', $lang{ERROR}, "[13] $lang{ERR_ACCESS_DENY}" );
-        return 0;
-      }
-
-      if ($FORM{del} !~ /,/xm || ($FORM{UID} && $permissions{0}{42})) {
-        my @fees_ids = split(',\s?', $FORM{del});
-        foreach my $fees_id (@fees_ids) {
-          $Fees->del($user, $fees_id, { COMMENTS => $FORM{COMMENTS} });
-        }
-
-        if (!_error_show($Fees)) {
-          $html->message( 'info', $lang{FEES}, "$lang{DELETED} ID: $FORM{del}" );
-        }
-      }
-    }
-
-    my $list = $Shedule->list({
-      UID       => $user->{UID},
-      TYPE      => 'fees',
-      COLS_NAME => 1
-    });
-
-    if ($Shedule->{TOTAL} > 0) {
-      my $table2 = $html->table({
-        width       => '100%',
-        caption     => $lang{SHEDULE},
-        title_plain => [ '#', $lang{DATE}, $lang{SUM}, '-' ],
-        qs          => $pages_qs,
-        ID          => 'USER_SHEDULE'
-      });
-
-      foreach my $line (@$list) {
-        my ($sum, undef) = split(/:/x, $line->{action});
-        my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL}, "index=85&del=$line->{id}",
-          { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' } ) : '';
-
-        $table2->addrow($line->{admin_action} || $line->{comments}, "$line->{y}-$line->{m}-$line->{d}",
-          sprintf('%.2f', $sum || 0), $delete);
-      }
-
-      $Fees->{SHEDULE_FORM} = $table2->show();
-    }
-
-    $Fees->{PERIOD_FORM} = form_period($period, { TD_EXDATA => "colspan='2'" });
-
-    if ($permissions{2} && $permissions{2}{1}) {
-      #exchange rate sel
-      $Fees->{SEL_ER} = $html->form_select('ER', {
-        SELECTED   => undef,
-        SEL_LIST   => $Fees->exchange_list({ COLS_NAME => 1 }),
-        SEL_KEY    => 'id',
-        SEL_VALUE  => 'money,short_name',
-        NO_ID      => 1,
-        MAIN_MENU     => get_function_index('form_exchange_rate'),
-        MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || q{}),
-        SEL_OPTIONS=> { '' => ''}
-      });
-
-      if ($conf{EXT_BILL_ACCOUNT}) {
-        $Fees->{EXT_DATA_FORM} = $html->form_select('BILL_ID',
-          {
-            SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
-            SEL_HASH => \%BILL_ACCOUNTS,
-            NO_ID    => 1
-          }
-        );
-      }
-      if (in_array('Docs', \@MODULES) ) {
-        $Fees->{DOCS_FEES_ELEMENT} = $html->tpl_show(_include('docs_create_fees', 'Docs'), {},{ OUTPUT2RETURN => 1 });
-      }
-
-      $Fees->{SEL_METHOD} = $html->form_select('METHOD', {
-        SELECTED     => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
-        SEL_HASH     => dynamic_types({ FEES_METHODS_HASH => $FEES_METHODS }),
-        NO_ID        => 1,
-        SORT_KEY_NUM => 1,
-        EX_PARAMS    => 'data-fees-methods-select=1',
-        MAIN_MENU    => get_function_index('form_fees_types'),
-      });
-
-      if (!$attr->{REGISTRATION} && $FORM{UID}) {
-        $Fees->table_info('fees');
-
-        $html->tpl_show(templates('form_fees'), { DESCRIBE => $FORM{DESCRIBE} || '', %{$Fees} }, { ID => 'form_fees' });
-      }
-    }
+    form_fees_user($attr);
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
@@ -248,8 +74,167 @@ sub form_fees {
   form_fees_list({
     USER_INFO    => $attr->{USER_INFO},
     FEES_METHODS => $FEES_METHODS,
-    BILL_ACCOUNTS=> \%BILL_ACCOUNTS
+    BILL_ACCOUNTS=> $attr->{BILL_ACCOUNTS}
   });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_fees_user($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_fees_user {
+  my ($attr) = @_;
+
+  my $period = $FORM{period} || 0;
+  my $user = $attr->{USER_INFO};
+
+  require Shedule;
+  Shedule->import();
+  my $Shedule = Shedule->new($db, $admin, \%conf);
+  my $Fees = Finance->fees($db, $admin, \%conf);
+
+  my %BILL_ACCOUNTS = ();
+  if ($conf{EXT_BILL_ACCOUNT}) {
+    $BILL_ACCOUNTS{ $attr->{USER_INFO}->{BILL_ID} } = "$lang{PRIMARY} : $attr->{USER_INFO}->{BILL_ID}" if ($attr->{USER_INFO}->{BILL_ID});
+    $BILL_ACCOUNTS{ $attr->{USER_INFO}->{EXT_BILL_ID} } = "$lang{EXTRA} : $attr->{USER_INFO}->{EXT_BILL_ID}" if ($attr->{USER_INFO}->{EXT_BILL_ID});
+  }
+
+  $attr->{BILL_ACCOUNTS}=\%BILL_ACCOUNTS;
+
+  if (! $user->{BILL_ID} || $user->{BILL_ID} < 1) {
+    form_bills({ USER_INFO => $user });
+    return 0;
+  }
+
+  $Fees->{UID} = $user->{UID};
+  if ($FORM{take} && $FORM{SUM}) {
+    $FORM{SUM} =~ s/,/\./xg;
+    $FORM{SUM} =~ s/\s+//xg;
+
+    if ($FORM{ER} && $FORM{ER} > 0) {
+      my $er = $Fees->exchange_info($FORM{ER});
+      $FORM{ER}  = $er->{ER_RATE};
+      $FORM{SUM} = $FORM{SUM} / $FORM{ER};
+    }
+
+    # add to schedule
+    if ($period == 2) {
+      my $FEES_DATE = $FORM{DATE} || $DATE;
+      if (date_diff($DATE, $FEES_DATE) < 1) {
+        $FORM{SKIP_PRIORITY}=1;
+        $Fees->take($user, $FORM{SUM}, \%FORM);
+        if (! _error_show($Fees)) {
+          $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM} $lang{DATE}: $FEES_DATE" );
+        }
+      }
+      else {
+        my ($Y, $M, $D) = split(/-/x, $FEES_DATE);
+        $FORM{METHOD} //= 0;
+        $Shedule->add({
+          DESCRIBE => $FORM{DESCR},
+          D        => $D,
+          M        => $M,
+          Y        => $Y,
+          UID      => $user->{UID},
+          TYPE     => 'fees',
+          ACTION   => ($conf{EXT_BILL_ACCOUNT}) ? "$FORM{SUM}:$FORM{DESCRIBE}:BILL_ID=$FORM{BILL_ID}:$FORM{METHOD}" : "$FORM{SUM}:$FORM{DESCRIBE}::$FORM{METHOD}"
+        });
+
+        if(! _error_show($Shedule)) {
+          $html->message( 'info', $lang{SHEDULE}, $lang{ADDED});
+        }
+      }
+    }
+    #take now
+    else {
+      delete $FORM{DATE};
+      $FORM{DESCRIBE} = dynamic_types({FEES_METHODS_STR => $FORM{DESCRIBE}});
+      $FORM{DSC} = dynamic_types({FEES_METHODS_STR => $FORM{DSC}});
+
+      $FORM{SKIP_PRIORITY}=1;
+      $Fees->take($user, $FORM{SUM}, \%FORM);
+      if (! _error_show($Fees)) {
+        $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM}" );
+
+        #External script
+        if ($conf{external_fees}) {
+          if (!_external($conf{external_fees}, {%FORM})) {
+            return 0;
+          }
+        }
+      }
+    }
+    if ($FORM{CREATE_FEES_INVOICE} && in_array('Docs', \@MODULES)) {
+      require Docs;
+      Docs->import();
+      my $Docs = Docs->new($db, $admin, \%conf);
+      $FORM{FEES_ID} = $Fees->{INSERT_ID};
+      $Docs->invoice_add({%FORM, ORDER => $FORM{DESCRIBE}});
+      if (! _error_show($Docs)) {
+        $html->message('info', $lang{CREATED} . $lang{INVOICE} . $lang{FEES}, "$lang{CREATED}: $Docs->{DATE}  $lang{INVOICE}: $Docs->{INVOICE_NUM}");
+      }
+    }
+  }
+  elsif($FORM{COMPENSATE}) {
+    return form_fees_compensate({ %FORM, USER_INFO => $users });
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    if (!defined($permissions{2}{2})) {
+      $html->message( 'err', $lang{ERROR}, "[13] $lang{ERR_ACCESS_DENY}" );
+      return 0;
+    }
+
+    if ($FORM{del} !~ /,/xm || ($FORM{UID} && $permissions{0}{42})) {
+      my @fees_ids = split(',\s?', $FORM{del});
+      foreach my $fees_id (@fees_ids) {
+        $Fees->del($user, $fees_id, { COMMENTS => $FORM{COMMENTS} });
+      }
+
+      if (!_error_show($Fees)) {
+        $html->message( 'info', $lang{FEES}, "$lang{DELETED} ID: $FORM{del}" );
+      }
+    }
+  }
+
+  my $list = $Shedule->list({
+    UID       => $user->{UID},
+    TYPE      => 'fees',
+    COLS_NAME => 1
+  });
+
+  if ($Shedule->{TOTAL} > 0) {
+    my $table2 = $html->table({
+      width       => '100%',
+      caption     => $lang{SHEDULE},
+      title_plain => [ '#', $lang{DATE}, $lang{SUM}, '-' ],
+      qs          => $pages_qs,
+      ID          => 'USER_SHEDULE'
+    });
+
+    foreach my $line (@$list) {
+      my ($sum, undef) = split(/:/x, $line->{action});
+      my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL}, "index=85&del=$line->{id}",
+        { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' } ) : '';
+
+      $table2->addrow($line->{admin_action} || $line->{comments}, "$line->{y}-$line->{m}-$line->{d}",
+        sprintf('%.2f', $sum || 0), $delete);
+    }
+
+    $Fees->{SHEDULE_FORM} = $table2->show();
+  }
+
+  if ($permissions{2} && $permissions{2}{1}) {
+    $attr->{FEES}=$Fees;
+    form_fees_add_($attr);
+  }
 
   return 1;
 }
@@ -296,6 +281,141 @@ sub form_fees_list {
     $Docs = Docs->new($db, $admin, \%conf);
   }
 
+  my %ext_titles = (
+    id               => $lang{NUM},
+    datetime         => $lang{DATE},
+    dsc              => $lang{DESCRIBE},
+    sum              => $lang{SUM},
+    last_deposit     => $lang{OPERATION_DEPOSIT},
+    deposit          => $lang{CURRENT_DEPOSIT},
+    method           => $lang{TYPE},
+    ip               => 'IP',
+    reg_date         => "$lang{FEES} $lang{REGISTRATION}",
+    admin_name       => $lang{ADMIN},
+    a_login          => "$lang{ADMIN} $lang{LOGIN}",
+    tax              => $lang{TAX},
+    tax_sum          => "$lang{TAX} $lang{SUM}",
+    invoice_id       => $lang{INVOICE},
+    subconto         => "$lang{SUBCONTO}1",
+    after_deposit    => $lang{AFTER_OPERATION_DEPOSIT},
+    ext_bill_deposit => "$lang{EXTRA} $lang{DEPOSIT}",
+    start_date       => "$lang{START} $lang{DATE}",
+    end_date         => "$lang{END} $lang{DATE}",
+    module           => 'MODULE',
+    tp_id            => 'TARIF_PLAN',
+    count            => 'COUNT',
+    units            => 'UNITS',
+    discount         => 'DISCOUNT',
+    payment_id       => 'PAYMENTS',
+    compensation     => 'COMPENSATION',
+    bill_id          => 'BILL'
+  );
+
+  my %filter_values = (
+    deleted          => sub {
+      my $deleted = shift;
+      $deleted //= 0;
+      $deleted = $html->color_mark($bool_vals[ $deleted ], ($deleted == 1) ? $state_colors[ $deleted ] : '')
+    },
+    dsc              => sub {
+      my ($dsc, $fee) = @_;
+
+      $dsc //= '';
+      $dsc =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/xg;
+      $dsc = Abills::Base::convert($dsc, { text2html => 1 });
+      if ($dsc =~ /PAYMENT:\s+(\d+)/x) {
+        my $button = $html->button($1, "index=2&search=1&ID=$1", { BUTTON => 1 });
+        $dsc =~ s/PAYMENT:\s+(\d+)/PAYMENT: $button/x;
+      }
+      $fee->{inner_describe} = Abills::Base::convert($fee->{inner_describe}, { text2html => 1 }) if ($fee->{inner_describe});
+
+      if ($dsc =~ /\#\s+(\d+)/mx && in_array('Msgs', \@MODULES)) {
+        $dsc = $html->button($dsc, "index=" . get_function_index('msgs_admin') . "&chg=$1");
+      }
+
+      $dsc = _translate($dsc);
+      $dsc = ($dsc || q{}) . $html->b(" ($fee->{inner_describe})") if ($fee->{inner_describe});
+      return $dsc;
+    },
+    method           => sub {
+      my $method = shift;
+      $method //= 0;
+      $method = ($FORM{METHOD_NUM}) ? $method : ($FEES_METHODS->{ $method } || $method);
+    },
+    login_status     => sub {
+      my $login_status = shift;
+      $login_status //= 0;
+
+      return ($login_status > 0) ?
+        $html->color_mark($service_status[ $login_status ], $service_status_colors[ $login_status ]) :
+        $service_status[$login_status];
+    },
+    bill_id          => sub {
+      my $bill_id = shift;
+
+      return ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS->{ $bill_id } || q{--}) : $bill_id;
+    },
+    admin_name       => sub {
+      my ($admin_name, $fee) = @_;
+
+      $admin_name = _status_color_state($admin_name, $fee->{admin_disable});
+      delete $fee->{admin_disable};
+
+      return $admin_name;
+    },
+    payment_id           => sub {
+      my ($payment_id, $line) = @_;
+      $payment_id = ($payment_id) ? $html->button($payment_id, "index=2&UID=$line->{uid}&ID=$payment_id&search=1", { BUTTON => 1 }) : q{};
+
+      return $payment_id;
+    },
+    invoice_id       => sub {
+      my ($invoice_id, $fee) = @_;
+
+      $invoice_id ||= 0;
+      if (!$invoice_id || $invoice_id < 1) {
+        return $html->button('ADD',
+          'index=' . get_function_index('docs_invoices_list')
+            . '&SUM_1=' . ($fee->{sum} || '')
+            . '&ORDER_1=' . ($fee->{dsc} || '')
+            . '&UID=' . ($fee->{uid} || '')
+            . '&FEES_ID_1=' . ($fee->{id} || ''),
+          { BUTTON => 2, TITLE => "$lang{INVOICE} $lang{ADD}" });
+      }
+
+      my $payment_sum = $fee->{sum};
+      my $i2p = '';
+
+      if ($invoice_id) {
+        my $invoice = $Docs->invoice_info($invoice_id);
+        my $paid_sum = $invoice->{PAYMENT_SUM};
+        my $invoice_num = $invoice->{INVOICE_NUM};
+
+        $i2p .= sprintf("$lang{PAID}: %.2f", $paid_sum || 0) . " $lang{INVOICE} #" . $html->button($invoice_num,
+          "index=" . get_function_index('docs_invoices_list') . "&ID=$invoice_id&search=1") . $html->br();
+        $payment_sum -= $paid_sum || 0;
+      }
+
+      if ($payment_sum > 0) {
+        $i2p .= sprintf("%.2f", $payment_sum) . ' ' . $html->color_mark($lang{UNAPPLIED},
+          $_COLORS[6]) . ' (' . $html->button($lang{APPLY}, "index=2&SUM=$payment_sum"
+          . "&UNINVOICED=$invoice_id&FEES_ID=$fee->{id}&UID=$fee->{uid}&INVOICE_ID=$invoice_id") . ')';
+      }
+
+      return $i2p;
+    }
+  );
+
+  my @function_field = q{};
+
+  if($permissions{2}{5}) {
+    push @function_field, 'form_fees:COMPENSATION:id;uid;fees_compensate:&COMPENSATE=1';
+  }
+
+  if($permissions{2}{2}) {
+    push @function_field, 'del';
+  }
+
   $index = get_function_index('form_fees');
   ($table, $fees_list) = result_former({
     INPUT_DATA      => $Fees,
@@ -303,116 +423,11 @@ sub form_fees_list {
     BASE_FIELDS     => 1,
     HIDDEN_FIELDS   => 'ADMIN_DISABLE,PRIORITY',
     DEFAULT_FIELDS  => 'ID,LOGIN,DATETIME,DSC,SUM,LAST_DEPOSIT,METHOD,ADMIN_NAME',
-    FUNCTION_FIELDS => $permissions{2}{2} ? 'del' : '',
+    FUNCTION_FIELDS => join(',', @function_field),
     FUNCTION_INDEX  => $index,
     MULTISELECT     => $FORM{UID} && $permissions{0}{42} ? 'del:id:FEES' : '',
-    FILTER_VALUES   => {
-      deleted          => sub {
-        my $deleted = shift;
-        $deleted //= 0;
-        $deleted = $html->color_mark($bool_vals[ $deleted ], ($deleted == 1) ? $state_colors[ $deleted ] : '')
-      },
-      dsc              => sub {
-        my ($dsc, $fee) = @_;
-
-        $dsc //= '';
-        $dsc =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/xg;
-        $dsc = Abills::Base::convert($dsc, { text2html => 1 });
-        if ($dsc =~ /PAYMENT:\s+(\d+)/x) {
-          my $button = $html->button($1, "index=2&search=1&ID=$1", { BUTTON => 1 });
-          $dsc =~ s/PAYMENT:\s+(\d+)/PAYMENT: $button/x;
-        }
-        $fee->{inner_describe} = Abills::Base::convert($fee->{inner_describe}, { text2html => 1 }) if ($fee->{inner_describe});
-
-        if ($dsc =~ /\#\s+(\d+)/mx && in_array('Msgs', \@MODULES)) {
-          $dsc = $html->button($dsc, "index=" . get_function_index('msgs_admin') . "&chg=$1");
-        }
-
-        $dsc = _translate($dsc);
-        $dsc = ($dsc || q{}) . $html->b(" ($fee->{inner_describe})") if ($fee->{inner_describe});
-        return $dsc;
-      },
-      method           => sub {
-        my $method = shift;
-        $method //= 0;
-        $method = ($FORM{METHOD_NUM}) ? $method : ($FEES_METHODS->{ $method } || $method);
-      },
-      login_status     => sub {
-        my $login_status = shift;
-        $login_status //= 0;
-
-        return ($login_status > 0) ?
-          $html->color_mark($service_status[ $login_status ], $service_status_colors[ $login_status ]) :
-          $service_status[$login_status];
-      },
-      bill_id          => sub {
-        my $bill_id = shift;
-
-        return ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS->{ $bill_id } || q{--}) : $bill_id;
-      },
-      admin_name       => sub {
-        my ($admin_name, $fee) = @_;
-
-        $admin_name = _status_color_state($admin_name, $fee->{admin_disable});
-        delete $fee->{admin_disable};
-
-        return $admin_name;
-      },
-      invoice_id       => sub {
-        my ($invoice_id, $fee) = @_;
-
-        $invoice_id ||= 0;
-        if (!$invoice_id || $invoice_id < 1) {
-          return $html->button('ADD',
-            'index=' . get_function_index('docs_invoices_list')
-              . '&SUM_1=' . ($fee->{sum} || '')
-              . '&ORDER_1=' . ($fee->{dsc} || '')
-              . '&UID=' . ($fee->{uid} || '')
-              . '&FEES_ID_1=' . ($fee->{id} || ''),
-            { BUTTON => 2, TITLE => "$lang{INVOICE} $lang{ADD}" });
-        }
-
-        my $payment_sum = $fee->{sum};
-        my $i2p = '';
-
-        if ($invoice_id) {
-          my $invoice = $Docs->invoice_info($invoice_id);
-          my $paid_sum = $invoice->{PAYMENT_SUM};
-          my $invoice_num = $invoice->{INVOICE_NUM};
-
-          $i2p .= sprintf("$lang{PAID}: %.2f", $paid_sum || 0) . " $lang{INVOICE} #" . $html->button($invoice_num,
-            "index=" . get_function_index('docs_invoices_list') . "&ID=$invoice_id&search=1") . $html->br();
-          $payment_sum -= $paid_sum || 0;
-        }
-
-        if ($payment_sum > 0) {
-          $i2p .= sprintf("%.2f", $payment_sum) . ' ' . $html->color_mark($lang{UNAPPLIED},
-            $_COLORS[6]) . ' (' . $html->button($lang{APPLY}, "index=2&SUM=$payment_sum"
-            . "&UNINVOICED=$invoice_id&FEES_ID=$fee->{id}&UID=$fee->{uid}&INVOICE_ID=$invoice_id") . ')';
-        }
-
-        return $i2p;
-      }
-    },
-    EXT_TITLES      => {
-      id               => $lang{NUM},
-      datetime         => $lang{DATE},
-      dsc              => $lang{DESCRIBE},
-      sum              => $lang{SUM},
-      last_deposit     => $lang{OPERATION_DEPOSIT},
-      deposit          => $lang{CURRENT_DEPOSIT},
-      method           => $lang{TYPE},
-      ip               => 'IP',
-      reg_date         => "$lang{FEES} $lang{REGISTRATION}",
-      admin_name       => $lang{ADMIN},
-      a_login          => "$lang{ADMIN} $lang{LOGIN}",
-      tax              => $lang{TAX},
-      tax_sum          => "$lang{TAX} $lang{SUM}",
-      invoice_id       => $lang{INVOICE},
-      subconto         => "$lang{SUBCONTO}1",
-      after_deposit    => $lang{AFTER_OPERATION_DEPOSIT},
-      ext_bill_deposit => "$lang{EXTRA} $lang{DEPOSIT}"
-    },
+    FILTER_VALUES   => \%filter_values,
+    EXT_TITLES      => \%ext_titles,
     TABLE           => {
       width               => '100%',
       caption             => $lang{FEES},
@@ -437,7 +452,7 @@ sub form_fees_list {
         },
       ] : [],
     },
-    MAKE_ROWS       => 1,
+    MAKE_ROWS      => 1,
   });
 
   if (!$admin->{MAX_ROWS}) {
@@ -485,17 +500,160 @@ sub dynamic_types {
 
   if ($attr->{FEES_METHODS_HASH}) {
     foreach my $item (values %{$attr->{FEES_METHODS_HASH}}) {
-      $item =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
+      $item =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/xge;
     }
     return $attr->{FEES_METHODS_HASH} || q{};
   }
 
   if ($attr->{FEES_METHODS_STR}) {
-    $attr->{FEES_METHODS_STR} =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
+    $attr->{FEES_METHODS_STR} =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/xge;
     return $attr->{FEES_METHODS_STR} || q{};
   }
 
   return q{};
+}
+
+
+#**********************************************************
+=head2 form_fees_compensate($attr) - Fees direct compensate
+
+  Arguments:
+    $attr:
+
+  Returns:
+    return fees_method
+
+=cut
+#**********************************************************
+sub form_fees_compensate {
+  my ($attr)=@_;
+
+  my $user_info = $attr->{USER_INFO};
+
+  my $Fees = Finance->fees($db, $admin, \%conf);
+  my $fees_list = $Fees->list({
+    ID         => $attr->{ID},
+    SUM        => '_SHOW',
+    DSC        => '_SHOW',
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
+  });
+
+  if($Fees->{TOTAL} < 1) {
+    $html->message('err', $lang{ERROR}, "$lang{NOT_EXISTS} ID: $attr->{ID}");
+    return 0;
+  }
+
+  if ($FORM{SUM} || $FORM{PERCENT}) {
+    my $sum = sprintf("%.2f",  ($attr->{PERCENT}) ? $fees_list->[0]->{SUM} / 100 * $attr->{PERCENT} : $attr->{SUM});
+
+    if($sum > $fees_list->[0]->{SUM}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
+      return 0;
+    }
+
+    my $Payments = Finance->payments($db, $admin, \%conf);
+    $Payments->{db}->{db}{AutoCommit}=0;
+    $Payments->add($user_info, {
+      SUM         => $sum,
+      FEES_ID     => $attr->{ID},
+      DESCRIBE    => $fees_list->[0]->{DSC},
+      METHOD      => 6
+    });
+    if (! _error_show($Payments)) {
+      $html->message('info', $lang{INFO}, "$lang{COMPENSATION}: $sum\nID: $Payments->{PAYMENT_ID}");
+    }
+    return 1;
+  }
+
+  $html->tpl_show(templates('form_fees_compensate'),
+    { %$attr, %{ $fees_list->[0] } },
+    { ID => 'form_fees' });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_fees_add_($attr)
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_fees_add_ {
+  my ($attr) = @_;
+
+  my $Fees = $attr->{FEES};
+
+  $Fees->{PERIOD_FORM} = form_period($FORM{period} || 0, { TD_EXDATA => "colspan='2'" });
+
+  $Fees->{SEL_ER} = $html->form_select('ER', {
+     SELECTED   => undef,
+     SEL_LIST   => $Fees->exchange_list({ COLS_NAME => 1 }),
+     SEL_KEY    => 'id',
+     SEL_VALUE  => 'money,short_name',
+     NO_ID      => 1,
+     MAIN_MENU     => get_function_index('form_exchange_rate'),
+     MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || q{}),
+     SEL_OPTIONS=> { '' => ''}
+   });
+
+  if ($conf{EXT_BILL_ACCOUNT}) {
+    $Fees->{EXT_DATA_FORM} = $html->form_select('BILL_ID',
+      {
+        SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
+        SEL_HASH => $attr->{BILL_ACCOUNTS},
+        NO_ID    => 1
+      }
+    );
+  }
+  if (in_array('Docs', \@MODULES) ) {
+    $Fees->{DOCS_FEES_ELEMENT} = $html->tpl_show(_include('docs_create_fees', 'Docs'), {},{ OUTPUT2RETURN => 1 });
+  }
+
+  $Fees->{SEL_METHOD} = $html->form_select('METHOD', {
+    SELECTED     => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
+    SEL_HASH     => dynamic_types({ FEES_METHODS_HASH => $attr->{FEES_METHODS} }),
+    NO_ID        => 1,
+    SORT_KEY_NUM => 1,
+    EX_PARAMS    => 'data-fees-methods-select=1',
+    MAIN_MENU    => get_function_index('form_fees_types'),
+  });
+
+  if (!$attr->{REGISTRATION} && $FORM{UID}) {
+    $Fees->table_info('fees');
+
+    if ($permissions{2}{4}) {
+      $Fees->{MODULE_SEL} = $html->form_select('MODULE', {
+        SELECTED  => $FORM{MODULE} || '',
+        SEL_ARRAY => [ '', @MODULES ],
+        NO_ID     => 1,
+      });
+
+      my %UNITS = (
+        0 => $lang{UNIT},
+        1 => $lang{METERS},
+        2 => $lang{SM},
+        3 => $lang{MM},
+        4 => $lang{LITERS},
+        5 => $lang{BOXES}
+      );
+
+      $Fees->{UNITS_SEL} = $html->form_select('UNITS', {
+        SELECTED => $FORM{MODULE} || 0,
+        SEL_HASH => \%UNITS,
+        NO_ID    => 1,
+      });
+
+      $Fees->{FORM_FEES_EXTRA} = $html->tpl_show(templates('form_fees_extra', 'Docs'), $Fees, { OUTPUT2RETURN => 1 });
+    }
+    $html->tpl_show(templates('form_fees'), { DESCRIBE => $FORM{DESCRIBE} || '', %{$Fees} }, { ID => 'form_fees' });
+  }
+
+  return 1;
 }
 
 

@@ -3,8 +3,8 @@
   "method": "POST",
   "path": "user/internet/mac/discovery",
   "body": {
-    "cid": "10:fe:ed:43:8f:36",
-    "id" : ":id"
+    "cid": "{{cid}}",
+    "id" : "{{id}}"
   },
   "config" : ""
 }

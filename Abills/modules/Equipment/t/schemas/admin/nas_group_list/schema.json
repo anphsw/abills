@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "The Root Schema",
+  "title": "nasGroupList",
   "type": "array",
   "items": {
     "type": "object",
@@ -22,9 +22,7 @@
       }
     },
     "required": [
-      "comments",
       "disable",
-      "gid",
       "id",
       "name"
     ]

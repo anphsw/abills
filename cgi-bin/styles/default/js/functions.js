@@ -2239,16 +2239,30 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 async function sendRequest(url = '', data = {}, method = 'POST', headers = {}) {
+  const isFormData = data instanceof FormData;
+
+  const fetchHeaders = { ...headers };
+
+  if (!isFormData && !fetchHeaders['Content-Type']) {
+    fetchHeaders['Content-Type'] = 'application/json';
+  }
+
+  let fetchBody = undefined;
+  if (method !== 'GET' && method !== 'DELETE') {
+    fetchBody = isFormData ? data : JSON.stringify(data);
+  }
+
   const response = await fetch(url, {
     method: method,
     mode: 'cors',
     cache: 'no-cache',
     credentials: 'same-origin',
-    headers: {'Content-Type': 'application/json', ...headers},
+    headers: fetchHeaders,
     redirect: 'follow',
     referrerPolicy: 'no-referrer',
-    body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(data)
+    body: fetchBody
   });
+
   return response.json();
 }
 

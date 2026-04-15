@@ -7,16 +7,14 @@ package Service;
 =cut
 
 use strict;
-our $VERSION = 2.00;
+use warnings;
 use parent qw(dbcore);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-
-  my ($db, $admin, $CONF) = @_;
+  my ($class, $db, $admin, $CONF) = @_;
 
   my $self = {
     db    => $db,
@@ -32,11 +30,15 @@ sub new {
 #**********************************************************
 =head2 status_add($attr) - Create service status
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub status_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('service_status', $attr);
 
@@ -46,11 +48,15 @@ sub status_add {
 #**********************************************************
 =head2 status_change($attr) -  Change service status
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub status_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -64,14 +70,18 @@ sub status_change {
 #**********************************************************
 =head2 list($attr) - list service status
 
+  Arguments:
+    $attr
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub status_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : 'DESC';
 
   my $WHERE = $self->search_former( $attr, [
     [ 'ID',       'INT', 'id',        1],
@@ -83,15 +93,16 @@ sub status_list {
     { WHERE => 1, }
   );
 
-  $self->query("SELECT $self->{SEARCH_FIELDS} id
-     FROM service_status
-     $WHERE
-     GROUP BY 1
-     ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT $self->{SEARCH_FIELDS} id
+FROM service_status
+  $WHERE
+GROUP BY 1
+ORDER BY $SORT $DESC;
+SQL
 
+
+  $self->query($sql, undef,  $attr);
   return $self->{list_hash} || {} if ($attr->{LIST2HASH});
 
   return $self->{list} || [];
@@ -100,11 +111,15 @@ sub status_list {
 #**********************************************************
 =head2 status_del($attr) - Del service status
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub status_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('service_status', $attr);
 
@@ -124,8 +139,7 @@ sub status_del {
 =cut
 #**********************************************************
 sub status_info {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("SELECT * FROM service_status WHERE id= ? ;",
     undef,

@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_USERS_DOCUMENTS_DELETE",
+  "method": "DELETE",
+  "path": "users/documents/100/"
+}

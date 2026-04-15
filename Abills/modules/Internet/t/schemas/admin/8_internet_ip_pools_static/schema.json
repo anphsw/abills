@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ADMIN_INTERNET_IP_POOLS_STATIC",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "integer"
+          },
+          "firstIp": {
+            "type": "string"
+          },
+          "lastIp": {
+            "type": "string"
+          },
+          "lastIpNum": {
+            "type": "integer"
+          },
+          "counts": {
+            "type": "integer"
+          },
+          "netmask": {
+            "type": "integer"
+          },
+          "gateway": {
+            "type": "integer"
+          },
+          "dns": {
+            "type": "string"
+          },
+          "nas": {
+            "type": "integer"
+          },
+          "priority": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ip",
+          "firstIp",
+          "lastIp",
+          "lastIpNum",
+          "counts",
+          "netmask",
+          "gateway",
+          "dns",
+          "nas",
+          "priority"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}
+

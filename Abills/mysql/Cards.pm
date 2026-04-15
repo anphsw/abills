@@ -6,8 +6,8 @@ package Cards;
 
 =head1 VERSION
 
-  VERSION: 8.01;
-  REVISION: 20211122
+  VERSION: 8.03;
+  REVISION: 20260319
 
 =cut
 
@@ -17,7 +17,7 @@ use Tariffs;
 use Users;
 use Fees;
 
-our $VERSION = 8.01;
+our $VERSION = 8.02;
 my $uid;
 my $MODULE   = 'Cards';
 my ($admin, $CONF);
@@ -63,15 +63,15 @@ sub new {
 =cut
 #**********************************************************
 sub cards_service_info {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $WHERE = '';
   if ($admin->{DOMAIN_ID}) {
     $WHERE = "AND tp.domain_id='$admin->{DOMAIN_ID}'";
   }
 
-  $self->query("SELECT u.id AS login,
+  my $sql = <<"SQL";
+    SELECT u.id AS login,
     DECODE(u.password, '$CONF->{secretkey}') AS password,
     tp.name AS tp_name,
     tp.age,
@@ -82,8 +82,10 @@ sub cards_service_info {
     INNER JOIN tarif_plans tp ON (internet.tp_id=tp.id $WHERE)
     WHERE
           u.deleted=0
-      AND u.uid= ? ",
-    undef,
+      AND u.uid = ?;
+SQL
+
+  $self->query($sql, undef,
     { INFO => 1,
       Bind => [ $attr->{UID} || 0 ]
     }
@@ -98,8 +100,7 @@ sub cards_service_info {
 =cut
 #**********************************************************
 sub cards_info {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
   if ($admin->{DOMAIN_ID}) {
@@ -117,7 +118,8 @@ sub cards_info {
     }
     );
 
-  $self->query("SELECT
+  my $sql = <<"SQL";
+    SELECT
       c.serial,
       IF($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number) AS number,
       c.sum,
@@ -140,16 +142,18 @@ sub cards_info {
     FROM cards_users c
     LEFT JOIN users u ON (c.uid = u.uid)
     LEFT JOIN cards_gids cg ON (cg.serial=c.serial)
-    $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+    $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $self;
 }
 
 #**********************************************************
-#
+=head2 defaults()
+
+=cut
 #**********************************************************
 sub defaults {
   my $self = shift;
@@ -182,14 +186,18 @@ sub defaults {
 #**********************************************************
 =head2 _generate_pin($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _generate_pin {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
-  my $pin_length = $attr->{PASSWD_LENGTH} || $CONF->{CARDS_PAYMENT_PIN_LENGTH};
-  my $pin_symbols = $attr->{PASSWD_SYMBOLS} || $CONF->{CARDS_PIN_SYMBOLS};
+  my $pin_length = $attr->{PASSWD_LENGTH} || $self->{conf}->{CARDS_PAYMENT_PIN_LENGTH};
+  my $pin_symbols = $attr->{PASSWD_SYMBOLS} || $self->{conf}->{CARDS_PIN_SYMBOLS};
   my $symbols_length = length($attr->{PASSWD_SYMBOLS}) - 1;
   my @substrings = ('substring("' . $pin_symbols . '", rand(@seed:=round(rand(id)*4294967296))*' . $symbols_length . '+1, 1)');
 
@@ -203,20 +211,29 @@ sub _generate_pin {
 #**********************************************************
 =head2 cards_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub cards_add {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $total = 0;
+  my $sql = '';
+
   if ($attr->{MULTI_ADD}) {
-    $self->query("INSERT INTO cards_users (
-       serial, number, login, pin, status, expire,aid,
-       diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
-     VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),?,?,?,NOW(),?,?);",
-     undef, { MULTI_QUERY =>  $attr->{MULTI_ADD} }
-    );
+    $sql = <<"SQL";
+      INSERT INTO cards_users (
+      serial, number, login, pin, status, expire,aid,
+      diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
+      VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),?,?,?,NOW(),?,?);
+SQL
+
+    $self->query($sql, undef, { MULTI_QUERY =>  $attr->{MULTI_ADD} });
+
     return $self if $self->{errno};
     $total = $self->{TOTAL};
 
@@ -224,19 +241,24 @@ sub cards_add {
     my $last_id = $self->{LAST_ID};
     my $first_id = $last_id - scalar(@{$attr->{MULTI_ADD}}) + 1;
 
-    $self->query('UPDATE cards_users  SET pin = ' . $self->_generate_pin($attr) . '
-      WHERE id >= ' . $first_id . ' AND id <= ' . $last_id . ';', 'do', {
-      Bind => [ $CONF->{secretkey} ]
+    $self->query('UPDATE cards_users  SET pin = ? WHERE id >= ? AND id <= ? ;', 'do', {
+      Bind => [
+        $self->_generate_pin($attr),
+        $first_id,
+        $last_id
+      ]
     });
   }
   else {
-    $self->query("INSERT INTO cards_users (
-       serial, number, login, pin, status, expire,aid,
-       diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
-     VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
-       ?,?,?,NOW(),?, ?);",
-     'do',
-     {
+    $sql = <<'SQL';
+  INSERT INTO cards_users (
+    serial, number, login, pin, status, expire,aid,
+    diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
+  VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
+        ?,?,?,NOW(),?, ?);
+SQL
+
+    $self->query($sql, 'do', {
        Bind => [
         $attr->{SERIAL} || '',
         $attr->{NUMBER} || 0,
@@ -273,19 +295,19 @@ sub cards_add {
 =cut
 #**********************************************************
 sub cards_change {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my %IDS_HASH    = ();
   my $WHERE       = '';
   my $action_info = '';
+  my $sql = '';
 
   if ($attr->{IDS}) {
-    if ($attr->{IDS} =~ /:/) {
-      my @IDS = split(/, /, $attr->{IDS});
+    if ($attr->{IDS} =~ /:/xm) {
+      my @IDS = split(/,\s+/x, $attr->{IDS});
 
       foreach my $line (@IDS) {
-        my ($k, $v) = split(/:/, $line, 2);
+        my ($k, $v) = split(/:/x, $line, 2);
         push @{ $IDS_HASH{$k} }, $v;
       }
 
@@ -293,7 +315,7 @@ sub cards_change {
       while (my ($k, $v) = each %IDS_HASH) {
         my $ids = "'" . join('\', \'', @$v) . "'";
         push @where_arr, "(serial='$k' and number in ($ids))";
-        $ids =~ s/\'//g;
+        $ids =~ s/\'//xg;
         $action_info .= "$k $ids;";
       }
 
@@ -309,9 +331,13 @@ sub cards_change {
   if ($attr->{SERIAL} && $attr->{NUMBER} && $attr->{STATUS}) {
     my $status_date = ($attr->{STATUS} == 2) ? ", datetime=now()" : '';
 
-    $self->query("UPDATE cards_users SET
-      status=? $status_date
-       WHERE serial=? and number= ? ; ", 'do',
+    $sql = <<"SQL";
+    UPDATE cards_users
+    SET status=? $status_date
+    WHERE serial=? and number= ? ;
+SQL
+
+    $self->query($sql, 'do',
       { Bind => [
           $attr->{STATUS} || 0,
           $attr->{SERIAL} || '',
@@ -325,11 +351,13 @@ sub cards_change {
     return $self;
   }
   elsif ($attr->{IDS} && $attr->{SOLD}) {
-    $self->query("UPDATE cards_users SET
-        diller_sold_date=NOW(),
-        aid='$admin->{AID}'
-       WHERE diller_id='$attr->{DILLER_ID}' AND $WHERE; ", 'do'
-    );
+    $sql = <<"SQL";
+    UPDATE cards_users
+    SET diller_sold_date=NOW(), aid='$admin->{AID}'
+    WHERE diller_id='$attr->{DILLER_ID}' AND $WHERE;
+SQL
+
+    $self->query($sql, 'do');
 
     $self->{admin}->{MODULE} = 'Cards';
     $admin->action_add($attr->{UID}, "SOLD $action_info", { TYPE => 2 });
@@ -337,20 +365,16 @@ sub cards_change {
     return $self;
   }
   elsif ($attr->{IDS} && (defined($attr->{STATUS}) && $attr->{STATUS} ne '')) {
-    # Sattus 3 return cards USER ID
+    # Status 3 return cards USER ID
     if ($attr->{STATUS} == 3) {
-      $self->{CARDS_INFO} = $self->cards_list(
-        {
-          %$attr,
-          STATUS    => undef,
-          PAGE_ROWS => 100000,
-          DOMAIN_ID => $admin->{DOMAIN_ID}
-        }
-      );
+      $self->{CARDS_INFO} = $self->cards_list({
+        %$attr,
+        STATUS    => undef,
+        PAGE_ROWS => 100000,
+        DOMAIN_ID => $admin->{DOMAIN_ID}
+      });
 
-      $self->query("DELETE FROM cards_users
-          WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
-      );
+      $self->query("DELETE FROM cards_users WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do');
       $self->{admin}->{MODULE} = 'Cards';
       $admin->action_add(0, "DELETE $action_info", { TYPE => 10 });
       return $self;
@@ -358,31 +382,37 @@ sub cards_change {
 
     my $dillers = '';
     if ($attr->{DILLER_ID}) {
-      $dillers = "diller_id='$attr->{DILLER_ID}',
-                  diller_date=NOW(),";
+      $dillers = "diller_id='$attr->{DILLER_ID}', diller_date=NOW(),";
     }
 
     my $status_date = ($attr->{STATUS} == 2) ? "datetime=now()," : '';
-    $self->query("UPDATE cards_users SET
-        status='$attr->{STATUS}',
+
+    $sql = <<"SQL";
+    UPDATE cards_users
+    SET status='$attr->{STATUS}',
         $status_date
         $dillers
         aid='$admin->{AID}'
-       WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
-    );
+       WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE;
+SQL
+
+    $self->query($sql, 'do');
 
     $self->{admin}->{MODULE} = 'Cards';
-    $admin->action_add(0, "STATUS: $attr->{STATUS}, $action_info", { TYPE=>2 });
+    $admin->action_add(0, "STATUS: $attr->{STATUS}, $action_info", { TYPE => 2 });
 
     return $self;
   }
   elsif ($attr->{IDS} && $attr->{DILLER_ID}) {
-    $self->query("UPDATE cards_users SET
+    $sql = <<"SQL";
+     UPDATE cards_users SET
       diller_id='$attr->{DILLER_ID}',
       diller_date=NOW(),
       aid='$admin->{AID}'
-      WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
-    );
+      WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE;
+SQL
+
+    $self->query($sql, 'do');
 
     $self->{admin}->{MODULE} = 'Cards';
     $admin->action_add(0, "DILLER ADD $attr->{DILLER_ID} $action_info", { TYPE=>1 });
@@ -438,8 +468,7 @@ sub cards_change {
 =cut
 #**********************************************************
 sub cards_del {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my @WHERE_RULES = ("domain_id='$admin->{DOMAIN_ID}'");
 
@@ -480,8 +509,7 @@ sub cards_del {
 =cut
 #**********************************************************
 sub cards_list {
-  my $self   = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   delete($self->{COL_NAMES_ARR});
 
@@ -501,7 +529,7 @@ sub cards_list {
   }
 
   if ($admin->{DOMAIN_ID} == 0) {
-    my @domain_id = split(/;/, $attr->{DOMAIN_ID});
+    my @domain_id = split(/;/x, $attr->{DOMAIN_ID});
 
     if ($#domain_id > 1) {
       push @domain_id, 0;
@@ -510,7 +538,6 @@ sub cards_list {
     foreach my $element_id (@domain_id) {
       push @WHERE_RULES, "cu.domain_id = $element_id";
     }
-    
   }
 
   if ($attr->{PAYMENTS}) {
@@ -537,8 +564,7 @@ sub cards_list {
     ['NUMBER',           'INT',  'cu.number',    "IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number) AS number"],
     ['CARDS_COUNT',      '',     '', 'COUNT(*) AS cards_count' ],
     ['CARDS_SUM',        '',     '', 'SUM(sum) AS cards_sum'  ],
-    ['CARDS_ACTIVE',     '',     '', "SUM(IF(cu.status=0 && cu.uid=0, 1,
-                                IF (cu.uid>0 && u.activate='0000-00-00', 1, 0))) AS cards_active" ],
+    ['CARDS_ACTIVE',     '',     '', "SUM(IF(cu.status=0 && cu.uid=0, 1, IF (cu.uid>0 && u.activate='0000-00-00', 1, 0))) AS cards_active" ],
     ['CARDS_DILLERS',    '',     '', 'SUM(IF (cu.diller_id>0, 1, 0)) AS cards_dillers' ],
     ['SUM',              'INT',  'cu.sum',         1],
     ['LOGIN',            'STR',  'u.id AS login',  1],
@@ -571,10 +597,13 @@ sub cards_list {
   });
 
   my $list = [];
+  my $sql = '';
 
   if ($attr->{TYPE} && $attr->{TYPE} eq 'TP') {
     if ($attr->{TP_ID} && $attr->{TP_ID} ne '_SHOW' ) {
-      $self->query("SELECT
+
+      $sql = <<"SQL";
+    SELECT
         CONCAT(cu.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number)) AS sn,
         u.id AS login,
         DECODE(cu.pin, '$CONF->{secretkey}') AS pin,
@@ -593,15 +622,16 @@ sub cards_list {
       $WHERE
       GROUP BY 1,2
       ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-      undef,
-      $attr
-      );
+      LIMIT $PG, $PAGE_ROWS;
+SQL
+
+      $self->query($sql, undef, $attr);
 
       return $self if ($self->{errno});
       $list = $self->{list};
 
-      $self->query("SELECT COUNT(*) AS total, SUM(cu.sum) AS total_sum
+      $sql = <<"SQL";
+    SELECT COUNT(*) AS total, SUM(cu.sum) AS total_sum
       FROM `cards_users` cu
       LEFT JOIN `admins` a ON (cu.aid = a.aid)
       LEFT JOIN `groups` g ON (cu.gid = g.gid)
@@ -609,12 +639,14 @@ sub cards_list {
       LEFT JOIN `users` u ON (cu.uid = u.uid)
       LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
       LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)
-      $WHERE;",
-      undef, { INFO => 1 }
-      );
+      $WHERE;
+SQL
+
+      $self->query($sql, undef, { INFO => 1 });
     }
     else {
-      $self->query("SELECT DATE_FORMAT(cu.created, '%Y-%m-%d') AS date,
+      $sql = <<"SQL";
+    SELECT DATE_FORMAT(cu.created, '%Y-%m-%d') AS date,
          tp.name AS tp_name,
          COUNT(*) AS count,
          SUM(sum) AS sum,
@@ -629,10 +661,10 @@ sub cards_list {
       $WHERE
       GROUP BY 1,2
       ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-      undef,
-      $attr
-      );
+      LIMIT $PG, $PAGE_ROWS;
+SQL
+
+      $self->query($sql, undef, $attr);
 
       return $self if ($self->{errno});
       $list = $self->{list};
@@ -641,11 +673,14 @@ sub cards_list {
   else {
     my $EXT_TABLES = '';
     if ($attr->{TP_ID}) {
-      $EXT_TABLES = "LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
-        LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)";
+      $EXT_TABLES = << "EXT_TABLES";
+LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
+        LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)
+EXT_TABLES
     }
 
-    $self->query("SELECT cu.serial, $self->{SEARCH_FIELDS}
+    $sql = <<"SQL";
+    SELECT cu.serial, $self->{SEARCH_FIELDS}
         cu.id, cu.uid, cu.diller_id, cd.uid AS diller_uid
      FROM `cards_users` cu
      LEFT JOIN `admins` a ON (cu.aid = a.aid)
@@ -656,10 +691,10 @@ sub cards_list {
      $EXT_TABLES
      $WHERE
      $GROUP_BY
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-     undef,
-     $attr
-    );
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return [] if ($self->{errno});
     $list = $self->{list} || [];
@@ -668,7 +703,8 @@ sub cards_list {
       return $list;
     }
 
-    $self->query("SELECT
+    $sql = <<"SQL";
+    SELECT
        COUNT(*) AS total_cards,
        SUM(IF(cu.status=0, 1, 0)) AS enabled,
        SUM(IF(cu.status=1, 1, 0)) AS disabled,
@@ -695,10 +731,10 @@ sub cards_list {
      LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
      LEFT JOIN `users` u ON (cu.uid = u.uid)
      $EXT_TABLES
-     $WHERE;",
-     undef,
-     { INFO => 1 }
-    );
+     $WHERE;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   if (defined($attr->{SERIAL}) && $attr->{SERIAL} ne '_SHOW') {
@@ -717,8 +753,7 @@ sub cards_list {
 =cut
 #**********************************************************
 sub cards_report_dillers {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $active_date      = 'u.activate <> \'0000-00-00\'';
   my $diller_date      = 'c.diller_date <> \'0000-00-00\'';
@@ -734,9 +769,13 @@ sub cards_report_dillers {
     $diller_sold_date = "c.diller_sold_date = '$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
-    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))";
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
+    my $where = << "WHERE_RULES";
+((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
+    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))
+WHERE_RULES
+
+    push @WHERE_RULES, $where;
 
     $active_date = "(DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to')";
     $diller_date = "(DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to')";
@@ -748,7 +787,7 @@ sub cards_report_dillers {
   }
 
   if (defined($attr->{SERIA})) {
-    $attr->{SERIA} =~ s/\*/\%/ig;
+    $attr->{SERIA} =~ s/\*/\%/xig;
     push @WHERE_RULES, "cu.serial='$attr->{SERIA}'";
   }
 
@@ -762,43 +801,47 @@ sub cards_report_dillers {
 
   #By cards
   my $list;
-  if ($attr->{GROUP}) {
+  my $sql = '';
 
+  if ($attr->{GROUP}) {
     my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-    $self->query("SELECT $GROUP,
+    $sql = <<"SQL";
+SELECT $GROUP,
        SUM(IF(c.status=0, 1, 0)),
-        SUM(IF(c.status=0, c.sum, 0)),
+       SUM(IF(c.status=0, c.sum, 0)),
        SUM(IF(c.status=1, 1, 0)),
-        SUM(IF(c.status=1, c.sum, 0)),
+       SUM(IF(c.status=1, c.sum, 0)),
        SUM(IF(c.status=2, 1, 0)),
-        SUM(IF(c.status=2, c.sum, 0)),
+       SUM(IF(c.status=2, c.sum, 0)),
        SUM(IF($active_date, 1, 0)),
-        SUM(IF($active_date, c.sum, 0)),
+       SUM(IF($active_date, c.sum, 0)),
        SUM(IF($diller_date, 1, 0)),
-        SUM(IF($diller_date, c.sum, 0)),
+       SUM(IF($diller_date, c.sum, 0)),
        SUM(IF($diller_sold_date, 1, 0)),
-        SUM(IF($diller_sold_date, c.sum, 0)),
-         SUM(IF($diller_sold_date, c.sum / 100 * cd.percentage, 0)),
+       SUM(IF($diller_sold_date, c.sum, 0)),
+       SUM(IF($diller_sold_date, c.sum / 100 * cd.percentage, 0)),
        SUM(IF(c.status=4, 1, 0)),
-        SUM(IF(c.status=4, c.sum, 0)),
+       SUM(IF(c.status=4, c.sum, 0)),
        COUNT(*),
-        SUM(c.sum)
+       SUM(c.sum)
 
-    FROM `cards_users` c
-    LEFT JOIN `cards_dillers` cd ON (c.diller_id = cd.id)
-    LEFT JOIN `users` u ON (c.uid = u.uid)
-    LEFT JOIN `users_pi` pi ON (cd.uid = pi.uid)
-     $WHERE
-     GROUP BY $GROUP_BY
-     ORDER BY 1;",
-     undef, $attr
-    );
+FROM `cards_users` c
+       LEFT JOIN `cards_dillers` cd ON (c.diller_id = cd.id)
+       LEFT JOIN `users` u ON (c.uid = u.uid)
+       LEFT JOIN `users_pi` pi ON (cd.uid = pi.uid)
+  $WHERE
+GROUP BY $GROUP_BY
+ORDER BY 1;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return [] if ($self->{errno});
     $list = $self->{list} || [];
 
-    $self->query("SELECT
+    $sql = <<"SQL";
+      SELECT
        SUM(IF(c.status=0, 1, 0)) as enable_total,
         SUM(IF(c.status=0, c.sum, 0)) as enable_total_sum,
        SUM(IF(c.status=1, 1, 0)) as disable_total,
@@ -821,9 +864,10 @@ sub cards_report_dillers {
     LEFT JOIN `cards_dillers` cd ON (c.diller_id = cd.id)
     LEFT JOIN `users` u ON (c.uid = u.uid)
      $WHERE
-     ORDER BY 1;",
-     undef, { INFO => 1 }
-    );
+     ORDER BY 1;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   # By dillers
@@ -831,7 +875,8 @@ sub cards_report_dillers {
     my $WHERE = "WHERE c.diller_id = cd.id ";
     $WHERE .= ($#WHERE_RULES > -1) ? " and " . join(' and ', @WHERE_RULES) : '';
 
-    $self->query("SELECT $GROUP,
+    $sql = <<"SQL";
+      SELECT $GROUP,
        SUM(IF(c.status=0, 1, 0)),
         SUM(IF(c.status=0, c.sum, 0)),
        SUM(IF(c.status=1, 1, 0)),
@@ -855,14 +900,16 @@ sub cards_report_dillers {
     LEFT JOIN users_pi pi ON (cd.uid = pi.uid)
      $WHERE
      GROUP BY $GROUP_BY
-     ORDER BY 1;",
-     undef, $attr
-    );
+     ORDER BY 1;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return [] if ($self->{errno});
     $list = $self->{list} || [];
 
-    $self->query("SELECT
+    $sql = <<"SQL";
+      SELECT
        SUM(IF(c.status=0, 1, 0)) AS ENABLE_TOTAL,
         SUM(IF(c.status=0, c.sum, 0)) AS ENABLE_TOTAL_SUM,
        SUM(IF(c.status=1, 1, 0)) AS DISABLE_TOTAL,
@@ -884,9 +931,10 @@ sub cards_report_dillers {
     FROM (cards_dillers cd, cards_users c)
     LEFT JOIN users u ON (c.uid = u.uid)
      $WHERE
-     ORDER BY 1;",
-     undef, { INFO => 1 }
-    );
+     ORDER BY 1;
+SQL
+
+    $self->query($sql, undef, { INFO => 1 });
   }
 
   return $list || [];
@@ -898,18 +946,17 @@ sub cards_report_dillers {
 =cut
 #**********************************************************
 sub cards_report_days {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my %RESULT                  = ();
   my @WHERE_RULES             = ("c.domain_id='$admin->{DOMAIN_ID}'");
   my @WHERE_RULES_DILLERS     = ("c.domain_id='$admin->{DOMAIN_ID}'");
   my @WHERE_RULES_USERS       = ("c.domain_id='$admin->{DOMAIN_ID}'");
   my @WHERE_RULES_DILLER_SOLD = ("c.domain_id='$admin->{DOMAIN_ID}'");
+  my $sql = '';
 
   #Short reports for dillers
   if ($attr->{CREATED_MONTH} || $attr->{CREATED_FROM_DATE} || $attr->{CREATED_MONTH}) {
-
     if ($attr->{DILLER_ID}) {
       push @WHERE_RULES, "c.diller_id='$attr->{DILLER_ID}'";
     }
@@ -931,14 +978,17 @@ sub cards_report_days {
 
     my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-    $self->query("SELECT
+    $sql = <<"SQL";
+    SELECT
     DATE_FORMAT(c.created, '%Y-%m-%d') AS date,
     COUNT(*) AS count,
     SUM(c.sum) AS sum
    FROM cards_users c
     $WHERE
-   GROUP BY 1;", undef, $attr
-    );
+   GROUP BY 1;
+SQL
+
+    $self->query($sql, undef, $attr);
 
     return $self->{list} || [];
   }
@@ -957,7 +1007,7 @@ sub cards_report_days {
     push @WHERE_RULES_DILLER_SOLD, "c.diller_sold_date='$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
     push @WHERE_RULES,             "DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to'";
     push @WHERE_RULES_DILLERS,     "DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'";
     push @WHERE_RULES_USERS,       "DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to'";
@@ -982,8 +1032,8 @@ sub cards_report_days {
 
   # TO Diller
   #ENABLE, _DISABLE, _USED/logined, _DELETED, _RETURNED
-
-  $self->query("select
+  $sql = <<"SQL";
+select
  DATE_FORMAT(c.created, '%Y-%m-%d'),
  SUM(IF(c.status=0, 1, 0)),
   SUM(IF(c.status=0, c.sum, 0)),
@@ -997,8 +1047,10 @@ sub cards_report_days {
   SUM(IF(c.status=6, c.sum, 0))
 from cards_users c
  $WHERE
-GROUP BY 1;"
-  );
+GROUP BY 1;
+SQL
+
+  $self->query($sql);
 
   return {} if ($self->{errno});
 
@@ -1020,29 +1072,34 @@ GROUP BY 1;"
   }
 
   #TOtals
-  $self->query("select
- SUM(IF(c.status=0, 1, 0)) as enable_total,
-  SUM(IF(c.status=0, c.sum, 0)) as enable_total_sum,
- SUM(IF(c.status=1, 1, 0)) as disable_total,
-  SUM(IF(c.status=1, c.sum, 0)) as disable_total_sum,
- SUM(IF(c.status=2, 1, 0)) as used_total,
-  SUM(IF(c.status=2, c.sum, 0)) as used_total_sum,
- SUM(IF(c.status=3, 1, 0)) as returned_total,
-  SUM(IF(c.status=3, c.sum, 0)) as returned_total_sum,
- SUM(IF(c.status=6, 1, 0)) as transferred_to_production_total,
-  SUM(IF(c.status=6, c.sum, 0)) as transferred_to_production_total_sum
-from cards_users c
- $WHERE ;",
- undef,
- { INFO => 1 }
-  );
+  $sql = <<"SQL";
+    SELECT
+  SUM(IF(c.status=0, 1, 0)) AS enable_total,
+  SUM(IF(c.status=0, c.sum, 0)) AS enable_total_sum,
+  SUM(IF(c.status=1, 1, 0)) AS disable_total,
+  SUM(IF(c.status=1, c.sum, 0)) AS disable_total_sum,
+  SUM(IF(c.status=2, 1, 0)) AS used_total,
+  SUM(IF(c.status=2, c.sum, 0)) AS used_total_sum,
+  SUM(IF(c.status=3, 1, 0)) AS returned_total,
+  SUM(IF(c.status=3, c.sum, 0)) AS returned_total_sum,
+  SUM(IF(c.status=6, 1, 0)) AS transferred_to_production_total,
+  SUM(IF(c.status=6, c.sum, 0)) AS transferred_to_production_total_sum
+    FROM cards_users c
+ $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
 ##Dillers
-  $self->query("select c.diller_date, COUNT(*) AS count, SUM(c.sum) AS sum
-from cards_users c
- $WHERE_DILLERS
-GROUP BY 1;"
-  );
+
+  $sql = <<"SQL";
+    SELECT c.diller_date, COUNT(*) AS count, SUM(c.sum) AS sum
+    FROM cards_users c
+    $WHERE_DILLERS
+    GROUP BY 1;
+SQL
+
+  $self->query($sql);
 
   return {} if ($self->{errno});
 
@@ -1051,19 +1108,23 @@ GROUP BY 1;"
     $RESULT{ $line->[0] }{DILLERS_SUM} = $line->[2];
   }
 
-  #TOtals
-  $self->query("SELECT COUNT(*) AS dillers_total, SUM(c.sum) AS dillers_total_sum FROM cards_users c
- $WHERE_DILLERS;",
-   undef,
-    {INFO => 1 }
-  );
+  #Totals
+  $sql = <<"SQL";
+   SELECT COUNT(*) AS dillers_total, SUM(c.sum) AS dillers_total_sum FROM cards_users c
+   $WHERE_DILLERS;
+SQL
+
+  $self->query($sql, undef,{INFO => 1 });
 
 ##Dillers sold
-  $self->query("SELECT c.diller_sold_date, COUNT(*), SUM(c.sum)
-FROM cards_users c
- $WHERE_DILLERS_SOLD
-GROUP BY 1;"
-  );
+  $sql = <<"SQL";
+    SELECT c.diller_sold_date, COUNT(*), SUM(c.sum)
+    FROM cards_users c
+    $WHERE_DILLERS_SOLD
+    GROUP BY 1;
+SQL
+
+  $self->query($sql);
 
   return $self if ($self->{errno});
 
@@ -1072,26 +1133,29 @@ GROUP BY 1;"
     $RESULT{ $line->[0] }{DILLERS_SOLD_SUM} = $line->[2];
   }
 
-  #TOtals
-  $self->query("SELECT COUNT(*) AS dillers_sold_total, SUM(c.sum) AS dillers_sold_total_sum
+  #Totals
+  $sql = <<"SQL";
+    SELECT COUNT(*) AS dillers_sold_total, SUM(c.sum) AS dillers_sold_total_sum
     FROM cards_users c
-    $WHERE_DILLERS_SOLD;",
-    undef, { INFO => 1 }
-  );
+    $WHERE_DILLERS_SOLD;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
 ##Login
   my $WHERE_USERS = "WHERE c.uid = u.uid and " . join(' AND ', @WHERE_RULES_USERS);
 
-  $self->query("SELECT
+  $sql = <<"SQL";
+    SELECT
     u.activate,
     SUM(IF(u.activate <> '0000-00-00', 1, 0)),
     SUM(IF(u.activate <> '0000-00-00', c.sum, 0))
     FROM (cards_users c, users u)
     $WHERE_USERS
-  GROUP BY 1;",
-  undef,
-  $attr
-  );
+  GROUP BY 1;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self if ($self->{errno});
 
@@ -1101,14 +1165,15 @@ GROUP BY 1;"
   }
 
   #TOtals
-  $self->query("SELECT
+  $sql = <<"SQL";
+    SELECT
      SUM(IF(u.activate <> '0000-00-00', 1, 0)) As login_total,
      SUM(IF(u.activate <> '0000-00-00', c.sum, 0)) AS login_total_sum
     FROM (cards_users c, users u )
-   $WHERE_USERS
-    ;",
-    undef, { INFO=>1 }
-  );
+   $WHERE_USERS;
+SQL
+
+  $self->query($sql, undef, { INFO=>1 });
 
   return \%RESULT;
 }
@@ -1119,8 +1184,7 @@ GROUP BY 1;"
 =cut
 #**********************************************************
 sub cards_report_payments {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -1139,9 +1203,10 @@ sub cards_report_payments {
     push @WHERE_RULES, "DATE_FORMAT(p.date, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
   }
 
-  my $WHERE .= ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
 
-  $self->query("SELECT p.date, u.id AS login, p.sum, pi.fio,
+  my $sql = <<"SQL";
+    SELECT p.date, u.id AS login, p.sum, pi.fio,
     CONCAT(c.serial,IF($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)) AS cards_count,
     pi_d.fio AS diller, u.uid
   FROM payments p
@@ -1154,22 +1219,24 @@ sub cards_report_payments {
   LEFT JOIN users_pi pi_d ON (pi_d.uid=cd.uid)
   WHERE $WHERE
   ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
-   undef,
-   $attr
-  );
+  LIMIT $PG, $PAGE_ROWS;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS TOTAL_SUM
+  $sql = <<"SQL";
+    SELECT COUNT(p.id) AS total, SUM(p.sum) AS TOTAL_SUM
   FROM payments p
   INNER JOIN cards_users c ON (c.datetime > DATE_FORMAT(curdate(), '%Y-%m-01 00:00:00')
     AND c.datetime < DATE_FORMAT(curdate(), '%Y-%m-31 24:00:00')
     AND p.ext_id=concat(c.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)))
-  WHERE $WHERE;",
-    undef, { INFO => 1 }
-  );
+  WHERE $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -1180,8 +1247,7 @@ sub cards_report_payments {
 =cut
 #**********************************************************
 sub cards_report_seria {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $active_date = 'u.activate <> \'0000-00-00\'';
   my $diller_date = 'c.diller_date <> \'0000-00-00\'';
@@ -1193,9 +1259,13 @@ sub cards_report_seria {
     $diller_date = "c.diller_date = '$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
-    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))";
+    my ($from, $to) = split(/\//x, $attr->{INTERVAL}, 2);
+    my $where = << "WHERE_RULES";
+((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
+    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))
+WHERE_RULES
+
+    push @WHERE_RULES, $where;
 
     $active_date = "(DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to')";
     $diller_date = "(DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to')";
@@ -1212,7 +1282,7 @@ sub cards_report_seria {
   }
 
   if (defined($attr->{SERIA})) {
-    $attr->{SERIA} =~ s/\*/\%/ig;
+    $attr->{SERIA} =~ s/\*/\%/xig;
     push @WHERE_RULES, "cu.serial='$attr->{SERIA}'";
   }
 
@@ -1220,7 +1290,8 @@ sub cards_report_seria {
 
   $WHERE .= ($#WHERE_RULES > -1) ? " and " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query("SELECT cd.name,
+  my $sql = <<"SQL";
+    SELECT cd.name,
        SUM(IF{c.status=0, 1, 0)),
         SUM(IF{c.status=0, c.sum, 0)),
        SUM(IF{c.status=1, 1, 0)),
@@ -1240,15 +1311,16 @@ sub cards_report_seria {
     LEFT JOIN users u ON (c.uid = u.uid)
      $WHERE
      GROUP BY cd.id
-     ORDER BY 1;",
-     undef,
-     $attr
-  );
+     ORDER BY 1;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return [] if ($self->{errno});
   my $list = $self->{list} || [];
 
-  $self->query("SELECT
+  $sql = <<"SQL";
+    SELECT
        SUM(IF{c.status=0, 1, 0)) AS ENABLE_TOTAL,
         SUM(IF{c.status=0, c.sum, 0)) AS ENABLE_TOTAL_SUM,
        SUM(IF{c.status=1, 1, 0)) AS DISABLE_TOTAL,
@@ -1267,10 +1339,10 @@ sub cards_report_seria {
     FROM (cards_dillers cd, cards_users c)
     LEFT JOIN users u ON (c.uid = u.uid)
      $WHERE
-     ORDER BY 1;",
-    undef,
-    { INFO => 1 }
-  );
+     ORDER BY 1;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -1278,23 +1350,23 @@ sub cards_report_seria {
 #**********************************************************
 =head2 bruteforce_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub bruteforce_list {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  my $fields = "u.id,
-               SUM(IF(DATE_FORMAT(cb.datetime, '%Y-%m-%d')=CURDATE(), 1, 0)),
-               COUNT(*),
-               MAX(datetime),
-               cb.uid
-               ";
+  my $fields = << "FIELDS";
+  u.id,
+  SUM(IF(DATE_FORMAT(cb.datetime, '%Y-%m-%d')=CURDATE(), 1, 0)),
+  COUNT(*),
+  MAX(datetime),
+  cb.uid
+FIELDS
 
   my $GROUP = "GROUP BY cb.uid";
 
@@ -1303,13 +1375,11 @@ sub bruteforce_list {
   if ($attr->{UID}) {
     push @WHERE_RULES, " cb.uid='$attr->{UID}'";
 
-    $fields = "u.id,
-               cb.pin,
-               datetime";
+    $fields = "u.id, cb.pin, datetime";
     $GROUP = "";
   }
   elsif ($attr->{LOGIN}) {
-    $attr->{LOGIN} =~ s/\*/\%/ig;
+    $attr->{LOGIN} =~ s/\*/\%/xig;
     push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN}'";
   }
 
@@ -1331,52 +1401,61 @@ sub bruteforce_list {
   }
 
   if (defined($attr->{SERIA})) {
-    $attr->{SERIA} =~ s/\*/\%/ig;
+    $attr->{SERIA} =~ s/\*/\%/xig;
     push @WHERE_RULES, "cp.serial='$attr->{SERIA}'";
 
-    $fields = "
+    $fields = << "FIELDS";
     cp.serial,
-              IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cp.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cp.number),
-              cp.sum,
-              cp.status,
-              cp.datetime,
-              a.id";
+    IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cp.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cp.number),
+    cp.sum,
+    cp.status,
+    cp.datetime,
+    a.id
+FIELDS
+
     $GROUP = "cp.serial, cp.number";
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query("SELECT $fields
+  my $sql = <<"SQL";
+    SELECT $fields
          FROM cards_bruteforce cb
      LEFT JOIN users u ON (cb.uid = u.uid)
      $WHERE
      $GROUP
-     ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;",
-     undef, $attr
-  );
+SQL
+
+  $self->query_list($sql, $attr);
 
   return [] if ($self->{errno});
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
   $self->{BRUTE_COUNT} = $self->{TOTAL} || 0;
 
-  $self->query("SELECT COUNT(*) AS total FROM cards_bruteforce cb
-      LEFT JOIN users u ON (cb.uid = u.uid)
-      $WHERE",
-    undef, { INFO => 1 }
-  );
+  $sql = <<"SQL";
+SELECT COUNT(*) AS total
+FROM cards_bruteforce cb
+LEFT JOIN users u ON (cb.uid = u.uid)
+  $WHERE
+SQL
 
-  return $list || [];
+  $self->query($sql, undef, { INFO => 1 });
+
+  return $list;
 }
 
 #**********************************************************
 =head2 bruteforce_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub bruteforce_add {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   $self->query_add('cards_bruteforce', {
     %$attr,
@@ -1392,8 +1471,7 @@ sub bruteforce_add {
 =cut
 #**********************************************************
 sub bruteforce_del {
-  my $self = shift;
-  my ($attr) = @_;
+ my ($self, $attr) = @_;
 
   my $WHERE = '';
 
@@ -1407,7 +1485,11 @@ sub bruteforce_del {
     $WHERE = '';
   }
 
-  $self->query("DELETE FROM cards_bruteforce $WHERE;", 'do');
+  my $sql = <<"SQL";
+    DELETE FROM cards_bruteforce $WHERE;
+SQL
+
+  $self->query($sql, 'do');
   return $self;
 }
 
@@ -1417,16 +1499,18 @@ sub bruteforce_del {
 =cut
 #**********************************************************
 sub cards_chg_status {
-  my $self        = shift;
+  my $self = shift;
 
-  $self->query("UPDATE cards_users cu, errors_log l SET
-      cu.status=2,
-      cu.datetime=NOW()
-    WHERE cu.login<>''
-    AND cu.status=0
-    AND cu.login=l.user;",
-    'do',
-  );
+  my $sql = <<'SQL';
+UPDATE cards_users cu, errors_log l SET
+                                      cu.status=2,
+                                      cu.datetime=NOW()
+WHERE cu.login<>''
+  AND cu.status=0
+  AND cu.login=l.user;
+SQL
+
+  $self->query($sql, 'do',);
 
   return $self;
 }
@@ -1434,15 +1518,23 @@ sub cards_chg_status {
 #**********************************************************
 =head2 cards_gids_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub cards_gids_change {
-  my $self = shift;
-  my ($attr)=@_;
+  my ($self, $attr) = @_;
   my $serial = $attr->{SERIAL};
 
-  my @gids = split(/,\s?/, $attr->{GID});
-  $self->query("DELETE FROM cards_gids WHERE serial='$serial';", 'do');
+  my $sql = <<"SQL";
+    DELETE FROM cards_gids WHERE serial='$serial';
+SQL
+
+  my @gids = split(/,\s?/x, $attr->{GID});
+  $self->query($sql, 'do');
 
   foreach my $gid ( @gids ) {
     $self->query("INSERT INTO cards_gids (gid, serial) VALUES ('$gid', '$serial');", 'do');
@@ -1455,25 +1547,32 @@ sub cards_gids_change {
 }
 
 #**********************************************************
-=head2 cards_gids_change($attr)
+=head2 cards_gids_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub cards_gids_list {
-  my $self = shift;
-  my ($attr)=@_;
+  my ($self, $attr) = @_;
 
   my $JOIN_WHERE = q{};
   if ($attr->{SERIAL}) {
     $JOIN_WHERE = "AND cg.serial='$attr->{SERIAL}'";
   }
 
-  $self->query("SELECT g.gid, g.name, cg.serial, cg.gid AS assign
+  my $sql = <<"SQL";
+    SELECT g.gid, g.name, cg.serial, cg.gid AS assign
    FROM `groups` g
    LEFT JOIN `cards_gids` cg ON (g.gid=cg.gid $JOIN_WHERE)
    GROUP BY g.gid
-   ORDER BY 1;",
-    undef, $attr);
+   ORDER BY 1;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 

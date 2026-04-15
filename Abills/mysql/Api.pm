@@ -196,4 +196,60 @@ SQL
   return $self;
 }
 
+#**********************************************************
+=head2 idempotency_key_info($key) - get idempotency key data
+
+  Arguments:
+    $key - UUID string (idempotency key)
+
+  Returns:
+    $self
+
+  Examples:
+    my $data = $Api->get_idempotency_key('550e8400-e29b-41d4-a716-446655440000');
+=cut
+#**********************************************************
+sub idempotency_key_info {
+  my ($self, $key) = @_;
+
+  $self->query("SELECT `http_status`, `response`, `datetime`, `log_id` FROM `api_idempotency_keys` WHERE `key_uuid` = ?",
+    undef,
+    {
+      Bind => [$key || ''],
+      INFO => 1
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 idempotency_key_add($attr) - save idempotency key data
+
+  Arguments:
+    $attr
+      KEY         - UUID string (idempotency key), required
+      HTTP_STATUS - HTTP status code, required
+      RESPONSE    - Response body (will be serialized to JSON), required
+      LOG_ID      - Reference to api_log.id, optional
+
+  Returns:
+    self object
+
+  Examples:
+    $Api->save_idempotency_key({
+      KEY         => '550e8400-e29b-41d4-a716-446655440000',
+      HTTP_STATUS => 200,
+      LOG_ID      => 456
+    });
+=cut
+#**********************************************************
+sub idempotency_key_add {
+  my ($self, $attr) = @_;
+
+  $self->query_add('api_idempotency_keys', $attr);
+
+  return $self;
+}
+
 1;

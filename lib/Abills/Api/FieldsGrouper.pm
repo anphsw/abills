@@ -4,7 +4,12 @@ use warnings FATAL => 'all';
 use strict;
 
 #***********************************************************
-=head2 group_fields()
+=head2 group_fields($result)
+
+  Arguments:
+    $result
+  Results:
+    $result
 
 =cut
 #***********************************************************
@@ -24,7 +29,12 @@ sub group_fields {
 }
 
 #***********************************************************
-=head2 group()
+=head2 group($result)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #***********************************************************
@@ -34,6 +44,7 @@ sub group {
   my @del_fields_array = (
     '',
     'COL_NAMES_ARR',
+    'COL_TYPES_ARR',
     'db',
     'admin',
     'conf',
@@ -63,7 +74,7 @@ sub group {
 
   if (ref $result eq 'HASH') {
     foreach my $field_name (keys %$result) {
-      if ($field_name =~ m/(.*)_(\d*)$/gm) {
+      if ($field_name =~ m/(.*)_(\d*)$/xgm) {
         delete $result->{$field_name};
       }
       else {
@@ -72,9 +83,9 @@ sub group {
         }
       }
 
-      if ($field_name =~ m/(.*)_ALL$/gm) {
+      if ($field_name =~ m/(.*)_ALL$/xgm) {
         my $old_field_name = $field_name;
-        $field_name =~ s/_ALL$//gm;
+        $field_name =~ s/_ALL$//xgm;
 
         my @list = split(', ', $result->{$old_field_name});
         $result->{$field_name} = \@list;

@@ -3,7 +3,8 @@
     <span class='time'><i class='far fa-clock'></i>%DATE%</span>
     <h3 class='timeline-header text-left'>%ADMIN% %CHANGED%</h3>
 
-    <div class='timeline-body text-left text'>%TEXT%</div>
+    <div class='timeline-body text-left text info_comment' name='info_comment'>%TEXT%</div>
+    <div class='commentAttachBtn image_paste_preview' name="info_attachment"></div>
 
     <div class='timeline-footer text-right' style='background-color: rgba(0, 0, 0, .03);'>
       <div class='text-left attachments'>

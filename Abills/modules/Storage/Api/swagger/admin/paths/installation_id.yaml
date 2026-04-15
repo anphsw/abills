@@ -1,0 +1,27 @@
+delete:
+  tags:
+    - storage
+  summary: Возвращение установленного оборудования на склад
+  parameters:
+    - name: id
+      in: path
+      description: ID установки
+      required: true
+      schema:
+        type: number
+        example: 1
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/installationDeleteResponse200.yaml"
+    400:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/installationDeleteResponse400.yaml"
+  security:
+    - KEY: [ ]

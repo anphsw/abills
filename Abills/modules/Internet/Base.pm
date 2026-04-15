@@ -248,7 +248,13 @@ sub internet_payments_maked {
               localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
 
             my $Fees = Fees->new($self->{db}, $admin, $CONF);
-            $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, { DESCRIBE => $lang->{ACTIVATE_TARIF_PLAN} });
+            $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, {
+              DESCRIBE   => $lang->{ACTIVATE_TARIF_PLAN},
+              MODULE     => 'Internet',
+              TP_ID      => $Internet->{TP_ID},
+              START_DATE => $attr->{DATE} || $main::DATE,
+              END_DATE   => $params{SERVICE_EXPIRE}
+            });
             $service->{DESCRIBE} = ($Internet->{TP_NAME} || "") . " $lang->{SUM}: $Internet->{TP_CHANGE_PRICE}";
             $html->message('info', "$lang->{ACTIVATE} $lang->{INTERNET}", $service->{DESCRIBE});
           }

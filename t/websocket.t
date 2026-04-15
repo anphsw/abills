@@ -3,9 +3,8 @@ use strict;
 use warnings;
 use Test::More;
 
-
 our ($db, $admin, %conf);
-require '../libexec/config.pl'; # assunming we are in /usr/abills/t/
+do '../libexec/config.pl'; # assunming we are in /usr/abills/t/
 use lib '../lib';
 use lib '../Abills/mysql';
 use Abills::Base qw/_bp parse_arguments/;
@@ -13,7 +12,7 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
 
 use JSON qw/decode_json encode_json/;
 
-my $plans_count = 21 -1 ;
+my $plans_count = 21 - 1;
 plan tests => $plans_count;
 
 my $argv = parse_arguments(\@ARGV);
@@ -21,92 +20,146 @@ my $argv = parse_arguments(\@ARGV);
 my $test_aid = $argv->{AID} || 1;
 my $uid = $argv->{UID} || 1;
 
-my $ping_request = {"TYPE" => "PING"};
+my $ping_request = { "TYPE" => "PING" };
 #my $ping_responce = {"TYPE" => "PONG"};
 
 my $test_notification = "Test notification";
 
 # Create new Connection
-require_ok( 'AnyEvent' );
-require_ok( 'AnyEvent::Socket' );
-require_ok( 'AnyEvent::Handle' );
-require_ok( 'AnyEvent::Impl::Perl' );
+require_ok('AnyEvent');
+require_ok('AnyEvent::Socket');
+require_ok('AnyEvent::Handle');
+require_ok('AnyEvent::Impl::Perl');
 
 SKIP : {
-  skip ('No Asterisk::AMI tests required', 1) if (!$conf{EVENTS_ASTERISK});
-  require_ok( 'Asterisk::AMI' );
+  skip('No Asterisk::AMI tests required', 1) if (!$conf{EVENTS_ASTERISK});
+  require_ok('Asterisk::AMI');
 }
 
-if (require_ok( 'Abills::Sender::Browser' )){
+if (require_ok('Abills::Sender::Browser')) {
   require Abills::Sender::Browser;
   Abills::Sender::Browser->import();
 };
 
-if (require_ok( 'Abills::Backend::API' )){
+if (require_ok('Abills::Backend::API')) {
   require Abills::Backend::API;
   Abills::Backend::API->import();
 };
 
 
-my Abills::Sender::Browser $Browser = new_ok( 'Abills::Sender::Browser' => [ \%conf ] );
+my Abills::Sender::Browser $Browser = new_ok('Abills::Sender::Browser' => [ \%conf ]);
 my Abills::Backend::API $api = new_ok('Abills::Backend::API', [ \%conf ]);
 
-can_ok( $api, 'is_connected' );
-can_ok( $api, 'call' );
+can_ok($api, 'is_connected');
+can_ok($api, 'call');
 
-can_ok( $Browser, 'connected_admins' );
-can_ok( $Browser, 'has_connected_admin' );
-can_ok( $Browser, 'send_message' );
+can_ok($Browser, 'connected_admins');
+can_ok($Browser, 'has_connected_admin');
+can_ok($Browser, 'send_message');
 
-ok( $api->is_connected(), 'Browser connected to backend server' );
-ok( $Browser->connected_admins(), 'Should have clients connected to run tests' );
+ok($api->is_connected(), 'Browser connected to backend server');
+ok($Browser->connected_admins(), 'Should have clients connected to run tests');
 
 SKIP_BROWSER_CLIENT_CHECK : {
-  my $test_admin_connected = $Browser->has_connected_admin( $test_aid );
-  skip ( 'No test admin connected AID: '. $test_aid, 3 ) if (!$test_admin_connected);
-  ok( $test_admin_connected, 'Our test admin ' . $test_aid . ' should be connected' );
-  ok( $Browser->send_message( {
-    AID     => $test_aid,
-    MESSAGE => $test_notification,
-    TITLE   => "<a href='/admin/index.cgi?UID=$uid&index=15'>Test User</a>" } ), 'Should be able to send message' );
+  my $test_admin_connected = $Browser->has_connected_admin($test_aid);
+  if (!$test_admin_connected) {
+    #skip('No test admin connected AID: ' . $test_aid, 3)
+    print 'No test admin connected AID: ' . $test_aid;
+  }
+  else {
 
-#  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, NON_SAFE => 1 } ), 'Just check Instant send message' );
-  
-  my $ping_res = $api->call( $test_aid, $ping_request );
-  ok( $ping_res && $ping_res->{TYPE} && $ping_res->{TYPE} eq 'RESULT', "Responce for ping_request should be ping_responce" );
-  
-  my $command_request1 = $api->json_request( {
-    MESSAGE => {
-      TYPE    => 'COMMAND',
-      AID     => 1,
-#      PROGRAM => '/usr/bin/mysqldump --verbose=1 abills users > /tmp/abills_users.sql',
-      PROGRAM => 'ping',
-      PROGRAM_ARGS => [ '-c 3', '-q', '192.168.1.1' ],
-      ARGS => {
-        timeout => 10
+    ok($test_admin_connected, 'Our test admin ' . $test_aid . ' should be connected');
+    ok($Browser->send_message({
+      AID     => $test_aid,
+      MESSAGE => $test_notification,
+      TITLE   => "<a href='/admin/index.cgi?UID=$uid&index=15'>Test User</a>" }), 'Should be able to send message');
+
+    #  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, NON_SAFE => 1 } ), 'Just check Instant send message' );
+
+    my $ping_res = $api->call($test_aid, $ping_request);
+    ok($ping_res && $ping_res->{TYPE} && $ping_res->{TYPE} eq 'RESULT', "Responce for ping_request should be ping_responce");
+
+    my $command_request1 = $api->json_request({
+      MESSAGE => {
+        TYPE         => 'COMMAND',
+        AID          => $test_aid,
+        #      PROGRAM => '/usr/bin/mysqldump --verbose=1 abills users > /tmp/abills_users.sql',
+        PROGRAM      => 'ping',
+        PROGRAM_ARGS => [ '-c 3', '-q', '192.168.1.1' ],
+        ARGS         => {
+          timeout => 10
+        }
       }
-    }
-  });
+    });
 
-  
-  ok ($command_request1, 'Call command request' );
-  
-#  my $message_callback = sub {
-#    ok( 1, 'Should be able to send ASYNC message' );
-#  };
-#  $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, ASYNC => $message_callback });
-  
+    ok($command_request1, 'Call command request');
+  }
+
+  #  my $message_callback = sub {
+  #    ok( 1, 'Should be able to send ASYNC message' );
+  #  };
+  #  $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, ASYNC => $message_callback });
+
 
   #Extensive ping
-#  my $count = 10000;
-#  while($count--){
-#    ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
-#  };
+  #  my $count = 10000;
+  #  while($count--){
+  #    ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
+  #  };
+
+  test_connect();
 }
 
+
+
+#**********************************************************
+=head2 help()
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub test_connect {
+  require Asterisk::AMI;
+  Asterisk::AMI->import();
+
+  print "Asterisk connect\n";
+  # Create connection object
+  my $astman = Asterisk::AMI->new(
+    PeerAddr => $conf{ASTERISK_AMI_IP},       # Remote host address
+    PeerPort => $conf{ASTERISK_AMI_PORT},     # Remote host port
+    Username => $conf{ASTERISK_AMI_USERNAME}, # Username to access the AMI
+    Secret   => $conf{ASTERISK_AMI_SECRET}    # Secret used to connect to AMI
+  );
+  # Check connection status
+  if (! $astman) {
+    print "Unable to connect to asterisk";
+    return 0;
+  }
+
+  # Send an Action and print the response
+  my $actionid = $astman->send_action({
+    Action  => 'Command',
+    Command => 'sip show peers'
+  });
+
+  print "Action: $actionid\n";
+
+  my $response = $astman->get_response($actionid);
+
+  print %$response;
+
+  foreach my $key (keys %$response) {
+    print "$key: $response->{$key}\n";
+  }
+
+  return 1;
+}
 
 # TODO: check asterisk connection
 
 done_testing();
 
-1
+1;

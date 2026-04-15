@@ -8,6 +8,9 @@
 
   Script add and delete users from Huawei UNC
 
+  Params:
+    AID
+
   Output:
     0 - Error
     1 - Success
@@ -22,8 +25,8 @@ use FindBin '$Bin';
 use JSON;
 
 BEGIN {
-  our $libpath = $Bin . '/../../../../';
-  require "$libpath/libexec/config.pl";
+  my $libpath = $Bin . '/../../../../';
+  do "$libpath/libexec/config.pl";
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'lib/');
   unshift(@INC, $libpath . 'Abills/');
@@ -50,7 +53,7 @@ _activate($argv);
 #print "$result:$message";
 
 #**********************************************************
-=head2 _activate($attr) Change tp in next period
+=head2 _activate($attr) Activate services
 
   Argumnets:
     $attr
@@ -70,14 +73,18 @@ sub _activate {
   my $result = 1;
 
   my $debug = $attr->{DEBUG} || 1;
-  $attr->{CID} ||= $attr->{CPE_MAC} || '';
+  #$attr->{CID} ||= $attr->{CPE_MAC} || '';
 
   if ($debug > 0) {
     print "1:";
   }
 
-  # 401100000000195
+  if($attr->{OLD_CID} && ! $attr->{CID}) {
+    $attr->{CID} = $attr->{OLD_CID};
+    $attr->{DISABLE}=1;
+  }
 
+  # 401100000000195
   if (!$attr->{CID}) {
     if ($debug) {
       print "0:WRONG CPE_MAC: ";
@@ -89,7 +96,7 @@ sub _activate {
   }
 
   if ($attr->{CID} !~ /\d{15}/xm) {
-    print "1:WRONG CPE_MAC_FORMAT";
+    print "1:WRONG CPE_MAC_FORMAT $attr->{CID}";
     return 0;
   }
 

@@ -27,9 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
-
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
 
@@ -51,7 +48,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/admins/login/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins_login,
       credentials => [
         'PUBLIC'
@@ -61,7 +57,6 @@ sub admin_routes {
       # TODO: add validation
       method      => 'POST',
       path        => '/admins/:aid/contacts/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins_aid_contacts,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -71,7 +66,6 @@ sub admin_routes {
       # TODO: add validation
       method      => 'PUT',
       path        => '/admins/:aid/contacts/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::put_admin_aid_contacts,
       credentials => [
         'ADMIN'
@@ -80,7 +74,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/admins/:aid/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::get_admins_aid,
       credentials => [
         'ADMIN'
@@ -89,7 +82,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/admins/self/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::get_admins_self,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -98,7 +90,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/admins/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins,
       credentials => [
         'ADMIN'
@@ -107,7 +98,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/admins/:aid/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::put_admins_aid,
       credentials => [
         'ADMIN',
@@ -117,7 +107,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/admins/:aid/permissions/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins_aid_permissions,
       credentials => [
         'ADMIN'
@@ -126,7 +115,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/admins/settings/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::get_admins_settings,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -136,7 +124,6 @@ sub admin_routes {
       # TODO: add validation
       method      => 'POST',
       path        => '/admins/settings/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::post_admins_settings,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -145,7 +132,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/admins/all/',
-      controller  => 'Api::Controllers::Admin::Admins',
       endpoint    => \&Api::Controllers::Admin::Admins::get_admins_all,
       credentials => [
         'ADMIN'

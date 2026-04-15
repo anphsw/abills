@@ -397,6 +397,7 @@ sub iptv_month_report {
     $LIST_PARAMS{TP_ID} = $FORM{USERS_REPORT};
     $LIST_PARAMS{YEAR} = $FORM{YEAR};
     $LIST_PARAMS{MONTH} = $FORM{MONTH};
+    $LIST_PARAMS{TAGS} = $FORM{TAGS} if $FORM{TAGS};
     $LIST_PARAMS{GROUP_BY} = 'imr.uid';
     $LIST_PARAMS{UID} = '>0';
 

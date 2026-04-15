@@ -398,6 +398,11 @@ SQL
 #**********************************************************
 =head2 history_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub history_add {
@@ -438,43 +443,45 @@ sub history_del {
 }
 
 #**********************************************************
-# list_allow nass
+=head2 history_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub history_list {
   my ($self, $attr) = @_;
 
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  $attr->{SORT} = '1 DESC' if(! defined($attr->{DESC}));
+  delete $attr->{GROUP_BY};
 
   my $WHERE = $self->search_former( $attr, [
     [ 'AID',     'INT',  'sh.aid'    ],
     [ 'STATUS',  'INT',  'sh.status' ],
   ],
-    {
-      WHERE => 1
-    }
+    {  WHERE => 1 }
   );
 
   my $sql = <<"SQL";
 SELECT datetime, comments, id, sql_query, status
 FROM sqlcmd_history sh
   $WHERE
-ORDER BY 1 DESC
-  LIMIT $PG, $PAGE_ROWS;
 SQL
 
-  $self->query($sql, undef, { COLS_NAME => 1 });
+  $self->query_list($sql, $attr);
 
   my $list = $self->{list} || [];
 
-  $sql = <<'SQL';
+  if ($self->{TOTAL} > 0) {
+    $sql = <<'SQL';
 SELECT COUNT(*) AS total
 FROM sqlcmd_history
 WHERE aid= ?;
 SQL
 
-
-  if ($self->{TOTAL} > 0) {
     $self->query($sql,  undef,
     { INFO => 1,
       Bind      => [ $self->{admin}->{AID}  ]
@@ -500,7 +507,6 @@ FROM sqlcmd_history
 WHERE aid= ?
   AND id= ?;
 SQL
-
 
   $self->query($sql, undef,
     { INFO => 1,

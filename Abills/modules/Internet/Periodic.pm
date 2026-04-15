@@ -67,6 +67,11 @@ sub internet_periodic_logrotate {
 #**********************************************************
 =head2 internet_daily_fees($attr) - daily fees
 
+  Arguments:
+    $attr
+  Results:
+    $debug_output
+
 =cut
 #**********************************************************
 sub internet_daily_fees {
@@ -74,8 +79,6 @@ sub internet_daily_fees {
 
   my $debug        = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  # Fix daily fees: DOMAIN_ID
-  # my $DOMAIN_ID    = $attr->{DOMAIN_ID} || 0;
 
   if ($attr->{USERS_WARNINGS_TEST}) {
     return $debug_output;
@@ -88,7 +91,6 @@ sub internet_daily_fees {
   $debug_output .= "Internet: Daily periodic fees\n" if ($debug > 1);
 
   $LIST_PARAMS{TP_ID}     = $attr->{TP_ID} if ($attr->{TP_ID});
-  # $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
   my %USERS_LIST_PARAMS         = ( REGISTRATION => "<$attr->{DATE}" );
   $USERS_LIST_PARAMS{LOGIN}     = $attr->{LOGIN} if ($attr->{LOGIN});
   $USERS_LIST_PARAMS{GID}       = $attr->{GID} if ($attr->{GID});
@@ -98,7 +100,7 @@ sub internet_daily_fees {
 
   my $list = $Tariffs->list({
     %LIST_PARAMS,
-    EXT_BILL_ACCOUNT     =>'_SHOW',
+    EXT_BILL_ACCOUNT     => '_SHOW',
     EXT_BILL_FEES_METHOD => '_SHOW',
     MODULE               => 'Dv;Internet',
     COLS_NAME            => 1,
@@ -107,154 +109,151 @@ sub internet_daily_fees {
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
 
-  foreach my $TP_INFO (@$list) {
-    my %FEES_PARAMS = ();
-    if ($TP_INFO->{DAY_FEE} > 0) {
-      if ($debug > 1) {
-        $debug_output .= "TP ID: $TP_INFO->{ID} DF: $TP_INFO->{DAY_FEE} POSTPAID: $TP_INFO->{POSTPAID_DAILY_FEE} "
-          . "REDUCTION: $TP_INFO->{REDUCTION_FEE} EXT_BILL: $TP_INFO->{EXT_BILL_ACCOUNT} CREDIT: $TP_INFO->{CREDIT}\n";
-      }
+  foreach my $tp (@$list) {
+    next if ($tp->{DAY_FEE} <= 0);
 
-      $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
-      #Get active yesterdays logins
-      my %active_logins = ();
-      if ($TP_INFO->{ACTIVE_DAY_FEE} > 0) {
-        my $online_list = $Sessions->online({
-          UID          => '_SHOW',
-          LOGIN        => '_SHOW',
-          TP_ID        => $TP_INFO->{TP_ID},
-          STARTED      => "<$attr->{DATE} 00:00:00",
-          GUEST        => 0
-        });
+    if ($debug > 1) {
+      $debug_output .= "TP ID: $tp->{ID} DF: $tp->{DAY_FEE} POSTPAID: $tp->{POSTPAID_DAILY_FEE} "
+        . "REDUCTION: $tp->{REDUCTION_FEE} EXT_BILL: $tp->{EXT_BILL_ACCOUNT} CREDIT: $tp->{CREDIT}\n";
+    }
 
-        foreach my $l (@$online_list) {
-          $active_logins{ $l->{login} } = $l->{uid};
-        }
-
-        my $report_list = $Sessions->reports({
-          INTERVAL => "$attr->{YESTERDAY}/$attr->{YESTERDAY}",
-          TP_ID    => $TP_INFO->{TP_ID},
-          GUEST    => 0,
-          COLS_NAME=> 1
-        });
-
-        foreach my $l (@$report_list) {
-          $active_logins{ $l->{id} } = $l->{uid};
-        }
-      }
-
-      if($TP_INFO->{EXT_BILL_ACCOUNT}) {
-        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
-        $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
-      }
-
-      $Internet->{debug} = 1 if ($debug > 6);
-      my $ulist = $Internet->user_list({
-        LOGIN           => '_SHOW',
-        ACTIVATE        => "<=$attr->{DATE}",
-        EXPIRE          => "0000-00-00,>$attr->{DATE}",
-        INTERNET_EXPIRE => "0000-00-00,>$attr->{DATE}",
-        JOIN_SERVICE    => "<2",
-        INTERNET_STATUS => "0", # Old "0;5"
-        LOGIN_STATUS    => 0,
-        TP_ID           => $TP_INFO->{TP_ID},
-        SORT            => 1,
-        PAGE_ROWS       => 1000000,
-        TP_CREDIT       => '_SHOW',
-        REDUCTION       => '_SHOW',
-        BILL_ID         => '_SHOW',
-        DEPOSIT         => '_SHOW',
-        CREDIT          => '_SHOW',
-        DELETED         => 0,
-        COLS_NAME       => 1,
-        GROUP_BY        => 'internet.id',
-        %USERS_LIST_PARAMS
+    $USERS_LIST_PARAMS{DOMAIN_ID} = $tp->{DOMAIN_ID};
+    #Get active yesterdays logins
+    my %active_logins = ();
+    if ($tp->{ACTIVE_DAY_FEE} > 0) {
+      my $online_list = $Sessions->online({
+        UID     => '_SHOW',
+        LOGIN   => '_SHOW',
+        TP_ID   => $tp->{TP_ID},
+        STARTED => "<$attr->{DATE} 00:00:00",
+        GUEST   => 0
       });
 
-      foreach my $u (@$ulist) {
-        #Check bill id and deposit
-        my %user = (
-          LOGIN     => $u->{login},
-          UID       => $u->{uid},
-          ID        => $u->{id},
-          #Check ext deposit
-          BILL_ID   => ($TP_INFO->{EXT_BILL_ACCOUNT} > 0) ? $u->{ext_bill_id} : $u->{bill_id},
-          REDUCTION => $u->{reduction},
-          ACTIVATE  => $u->{activate},
-          DEPOSIT   => $u->{deposit},
-          #CREDIT    => ($u->{credit} > 0) ? $u->{credit} : ($conf{user_credit_change}) ? 0 : $TP_INFO->{CREDIT},
-          CREDIT    => ($u->{credit} > 0) ? $u->{credit} : $TP_INFO->{CREDIT},
-          INTERNET_STATUS => $u->{internet_status},
-          EXT_BILL_ID=> $u->{ext_bill_id}
+      foreach my $l (@$online_list) {
+        $active_logins{ $l->{login} } = $l->{uid};
+      }
+
+      my $report_list = $Sessions->reports({
+        INTERVAL  => "$attr->{YESTERDAY}/$attr->{YESTERDAY}",
+        TP_ID     => $tp->{TP_ID},
+        GUEST     => 0,
+        COLS_NAME => 1
+      });
+
+      foreach my $l (@$report_list) {
+        $active_logins{ $l->{id} } = $l->{uid};
+      }
+    }
+
+    if ($tp->{EXT_BILL_ACCOUNT}) {
+      $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+      $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
+    }
+
+    $Internet->{debug} = 1 if ($debug > 6);
+    my $ulist = $Internet->user_list({
+      LOGIN           => '_SHOW',
+      ACTIVATE        => "<=$attr->{DATE}",
+      EXPIRE          => "0000-00-00,>$attr->{DATE}",
+      INTERNET_EXPIRE => "0000-00-00,>$attr->{DATE}",
+      JOIN_SERVICE    => "<2",
+      INTERNET_STATUS => "0", # Old "0;5"
+      LOGIN_STATUS    => 0,
+      TP_ID           => $tp->{TP_ID},
+      SORT            => 1,
+      PAGE_ROWS       => 1000000,
+      TP_CREDIT       => '_SHOW',
+      REDUCTION       => '_SHOW',
+      BILL_ID         => '_SHOW',
+      DEPOSIT         => '_SHOW',
+      CREDIT          => '_SHOW',
+      DELETED         => 0,
+      COLS_NAME       => 1,
+      GROUP_BY        => 'internet.id',
+      %USERS_LIST_PARAMS
+    });
+
+    foreach my $u (@$ulist) {
+      #Check bill id and deposit
+      my %user_info = (
+        LOGIN           => $u->{login},
+        UID             => $u->{uid},
+        ID              => $u->{id},
+        #Check ext deposit
+        BILL_ID         => ($tp->{EXT_BILL_ACCOUNT} > 0) ? $u->{ext_bill_id} : $u->{bill_id},
+        REDUCTION       => $u->{reduction},
+        ACTIVATE        => $u->{activate},
+        DEPOSIT         => $u->{deposit},
+        #CREDIT    => ($u->{credit} > 0) ? $u->{credit} : ($conf{user_credit_change}) ? 0 : $TP_INFO->{CREDIT},
+        CREDIT          => ($u->{credit} > 0) ? $u->{credit} : $tp->{CREDIT},
+        INTERNET_STATUS => $u->{internet_status},
+        EXT_BILL_ID     => $u->{ext_bill_id}
+      );
+
+      if (! $user_info{BILL_ID} && defined($user_info{DEPOSIT})) {
+        print "[ $user_info{UID} ] $user_info{LOGIN} - Don't have money account (Internet)\n";
+        next;
+      }
+
+      #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
+      if ((($user_info{DEPOSIT} + $user_info{CREDIT} > 0 || $tp->{PAYMENT_TYPE} == 1 || $tp->{POSTPAID_DAILY_FEE} == 1)
+        && $tp->{ACTIVE_DAY_FEE} == 0)
+        || ($tp->{ACTIVE_DAY_FEE} == 1 && $active_logins{ $user_info{LOGIN} })) {
+        my $sum = $tp->{DAY_FEE};
+        # IF TP have PARIODIC PAYMENTS USER reduction
+        if ($tp->{REDUCTION_FEE} == 1 && $user_info{REDUCTION} > 0) {
+          if ($user_info{REDUCTION} >= 100) {
+            $debug_output .= "UID: $user_info{UID} SUM: $sum REDUCTION: $user_info{REDUCTION} next\n" if ($debug > 3);
+            next;
+          }
+          $sum = $sum * (100 - $user_info{REDUCTION}) / 100;
+        }
+
+        my %FEES_DSC = (
+          MODULE          => 'Internet',
+          TP_NUM          => $tp->{ID},
+          TP_ID           => $tp->{TP_ID},
+          TP_NAME         => $tp->{NAME},
+          FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
+          FEES_METHOD     => $FEES_METHODS{$tp->{FEES_METHOD}},
+          ID              => ($user_info{ID}) ? ' ' . $user_info{ID} : undef,
         );
 
-        if (defined($user{BILL_ID}) && $user{BILL_ID} > 0 && defined($user{DEPOSIT})) {
-          #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
-          #Active day fees
-          if ( (($user{DEPOSIT} + $user{CREDIT} > 0 || $TP_INFO->{PAYMENT_TYPE} == 1 || $TP_INFO->{POSTPAID_DAILY_FEE} == 1)
-                 && $TP_INFO->{ACTIVE_DAY_FEE} == 0)
-            || ($TP_INFO->{ACTIVE_DAY_FEE} == 1 && $active_logins{ $user{LOGIN} }))
-          {
-            my $sum = $TP_INFO->{DAY_FEE};
-            # IF TP have PARIODIC PAYMENTS USER reduction
-            if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
-              if ($user{REDUCTION} >= 100) {
-                $debug_output .= "UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} next\n" if ($debug > 3);
-                next;
-              }
-              $sum = $sum * (100 - $user{REDUCTION}) / 100;
-            }
+        my %PARAMS = (
+          DATE            => "$attr->{DATE} $TIME",
+          METHOD          => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+          EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+          DESCRIBE        => fees_dsc_former(\%FEES_DSC),
+          TP_ID           => $tp->{TP_ID}
+        );
 
-            my %FEES_DSC = (
-              MODULE          => 'Internet',
-              TP_NUM          => $TP_INFO->{ID},
-              TP_ID           => $TP_INFO->{TP_ID},
-              TP_NAME         => $TP_INFO->{NAME},
-              FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
-              FEES_METHOD     => $FEES_METHODS{$TP_INFO->{FEES_METHOD}},
-              ID              => ($user{ID}) ? ' '. $user{ID} : undef,
-            );
+        $debug_output .= _take_fee({
+          USER_INFO => \%user_info,
+          SUM       => $sum,
+          PARAMS    => \%PARAMS
+        });
+      }
 
-            my %PARAMS = (
-              DATE     => "$attr->{DATE} $TIME",
-              METHOD   => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
-              EXT_BILL_METHOD => ($TP_INFO->{EXT_BILL_FEES_METHOD}) ? $TP_INFO->{EXT_BILL_FEES_METHOD} : undef,
-              DESCRIBE => fees_dsc_former(\%FEES_DSC),
-            );
-
-            if ($debug > 4) {
-              $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
-            }
-
-            _take_fee({
-              USER_INFO => \%user,
-              SUM       => $sum,
-              PARAMS    => \%PARAMS
-            });
-          }
-
-          # If status too small deposit get fine from user
-          elsif ($TP_INFO->{FINE} > 0 && ( $user{INTERNET_STATUS} == 5 || $user{DEPOSIT} + $user{CREDIT} < 0 )) {
-            if ($conf{INTERNET_FINE_LIMIT} && $user{DEPOSIT} + $user{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
-              next;
-            }
-
-            %FEES_PARAMS = (
-              DESCRIBE => $lang{FINE},
-              METHOD   => 2,
-              DATE     => $attr->{DATE},
-            );
-            #$EXT_INFO = "FINE";
-            if($debug < 8) {
-              $Fees->take(\%user, $TP_INFO->{FINE}, { %FEES_PARAMS });
-            }
-
-            $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $TP_INFO->{FINE} REDUCTION: $user{REDUCTION} FINE\n" if ($debug > 1);
-          }
+      # If status too small deposit get fine from user
+      elsif ($tp->{FINE} > 0 && ($user_info{INTERNET_STATUS} == 5 || $user_info{DEPOSIT} + $user_info{CREDIT} < 0)) {
+        if ($conf{INTERNET_FINE_LIMIT} && $user_info{DEPOSIT} + $user_info{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
+          next;
         }
-        else {
-          print "[ $user{UID} ] $user{LOGIN} - Don't have money account (Internet)\n";
-        }
+
+        my %FEES_PARAMS = (
+          DESCRIBE => $lang{FINE},
+          METHOD   => 2,
+          DATE     => $attr->{DATE},
+          TP_ID    => $user_info{TP_ID},
+          MODULE   => 'Internet'
+        );
+
+        $debug_output .= _take_fee({
+          USER_INFO => \%user_info,
+          SUM       => $tp->{FINE},
+          PARAMS    => \%FEES_PARAMS,
+          TYPE      => 'FINE'
+        });
       }
     }
   }
@@ -295,11 +294,11 @@ sub internet_monthly_bonus {
   Billing->import();
   my $Billing = Billing->new($db, \%conf);
 
-  foreach my $tp_line (@$tp_list) {
-    my $ti_list = $Tariffs->ti_list({ TP_ID => $tp_line->{tp_id} });
+  foreach my $tp (@$tp_list) {
+    my $ti_list = $Tariffs->ti_list({ TP_ID => $tp->{tp_id} });
     next if ($Tariffs->{TOTAL} != 1);
 
-    $debug_output .= "TP_ID: $tp_line->{tp_id}\n" if ($debug > 6);
+    $debug_output .= "TP_ID: $tp->{tp_id}\n" if ($debug > 6);
     foreach my $ti (@$ti_list) {
 
       my $tt_list = $Tariffs->tt_list({
@@ -318,7 +317,7 @@ sub internet_monthly_bonus {
 
         $expression =~ s/BONUS_TRAFFIC/TRAFFIC/xg;
 
-        $debug_output .= "TP: $tp_line->{id} TI: $ti->[0] TT: $tt->{id}\n";
+        $debug_output .= "TP: $tp->{id} TI: $ti->[0] TT: $tt->{id}\n";
         $debug_output .= "  Expr: $expression\n" if ($debug > 3);
         $traffic_class = $tt->{id};
 
@@ -338,7 +337,7 @@ sub internet_monthly_bonus {
           INTERNET_EXPIRE   => "0000-00-00,>$attr->{DATE}",
           INTERNET_STATUS   => 0,
           LOGIN_STATUS      => 0,
-          TP_ID             => $tp_line->{tp_id},
+          TP_ID             => $tp->{tp_id},
           SORT              => 1,
           PAGE_ROWS         => 1000000,
           TP_CREDIT         => '_SHOW',
@@ -358,11 +357,11 @@ sub internet_monthly_bonus {
           my %user = (
             LOGIN      => $u->{login},
             UID        => $u->{uid},
-            BILL_ID    => ($tp_line->{ext_bill_account} > 0) ? $u->{bill_id} : $u->{ext_bill_id},
+            BILL_ID    => ($tp->{ext_bill_account} > 0) ? $u->{bill_id} : $u->{ext_bill_id},
             REDUCTION  => $u->{reduction},
             ACTIVATE   => $u->{internet_activate},
             DEPOSIT    => $u->{deposit},
-            CREDIT     => ($u->{credit} > 0) ? $u->{credit} : $tp_line->{credit},
+            CREDIT     => ($u->{credit} > 0) ? $u->{credit} : $tp->{credit},
             COMPANY_ID => $u->{company_id}
           );
 
@@ -479,7 +478,7 @@ sub internet_holdup_fees {
   my $ext_deposit_op = 0;
 
   foreach my $u (@$internet_list) {
-    my %user = (
+    my %user_info = (
       LOGIN           => $u->{login},
       UID             => $u->{uid},
       BILL_ID         => ($ext_deposit_op > 0) ? $u->{ext_bill_id} : $u->{bill_id},
@@ -495,36 +494,38 @@ sub internet_holdup_fees {
       LOGIN_STATUS    => $u->{login_status} || 0
     );
 
-    if(! $user{INTERNET_STATUS} && ! $user{LOGIN_STATUS}) {
+    if(! $user_info{INTERNET_STATUS} && ! $user_info{LOGIN_STATUS}) {
       next;
     }
 
-    $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: ($u->{tp_id} Fees: $holdup_fees"
-      . " REDUCTION: $user{REDUCTION} DEPOSIT: ". ($u->{deposit} || 'n/d') ." CREDIT $user{CREDIT}"
-      . " ACTIVE: $user{ACTIVATE} TP: ". ($u->{tp_num} || q{-}) ."\n" if ($debug > 3);
+    $debug_output .= " Login: $user_info{LOGIN} ($user_info{UID}) TP_ID: ($u->{tp_id} Fees: $holdup_fees"
+      . " REDUCTION: $user_info{REDUCTION} DEPOSIT: ". ($u->{deposit} || 'n/d') ." CREDIT $user_info{CREDIT}"
+      . " ACTIVE: $user_info{ACTIVATE} TP: ". ($u->{tp_num} || q{-}) ."\n" if ($debug > 3);
 
-    if (($user{BILL_ID} && $user{BILL_ID} > 0) && defined($user{DEPOSIT})) {
+    if (($user_info{BILL_ID} && $user_info{BILL_ID} > 0) && defined($user_info{DEPOSIT})) {
       if ($debug > 4) {
-        $debug_output .= " UID: $user{UID} SUM: $holdup_fees REDUCTION: $user{REDUCTION}\n";
+        $debug_output .= " UID: $user_info{UID} SUM: $holdup_fees REDUCTION: $user_info{REDUCTION}\n";
       }
 
       if( $debug < 8) {
         my %FEES_PARAMS = (
           DATE     => $attr->{DATE},
           METHOD   => 1,
-          DESCRIBE => $lang{HOLD_UP}
+          DESCRIBE => $lang{HOLD_UP},
+          MODULE   => 'Internet',
+          TP_ID    => $u->{tp_id}
         );
 
-        $Fees->take(\%user, $holdup_fees, {%FEES_PARAMS});
+        $Fees->take(\%user_info, $holdup_fees, \%FEES_PARAMS);
 
         if ($debug > 0) {
-          $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $holdup_fees REDUCTION: $user{REDUCTION}\n";
+          $debug_output .= " $user_info{LOGIN}  UID: $user_info{UID} SUM: $holdup_fees REDUCTION: $user_info{REDUCTION}\n";
         }
       }
     }
     else {
       my $ext = ($ext_deposit_op > 0) ? 'Ext bill' : '';
-      print "UID: $user{UID} LOGIN: $user{LOGIN} Don't have $ext money account\n";
+      print "UID: $user_info{UID} LOGIN: $user_info{LOGIN} Don't have $ext money account\n";
     }
   }
 
@@ -534,6 +535,11 @@ sub internet_holdup_fees {
 
 #**********************************************************
 =head2 internet_monthly_next_tp($attr) Change tp in next period
+
+  Arguments:
+    $attr
+  Results:
+    $debug_output
 
 =cut
 #**********************************************************
@@ -572,14 +578,14 @@ sub internet_monthly_next_tp {
     $tp_ages{$tp_info->{tp_id}}=$tp_info->{age};
   }
 
-  foreach my $tp_info (@$tp_list) {
+  foreach my $tp (@$tp_list) {
     $Internet->{debug} = 1 if ($debug > 6);
     my $internet_list = $Internet->user_list({
       INTERNET_ACTIVATE  => "<=$attr->{DATE}",
       INTERNET_EXPIRE    => "0000-00-00,>$attr->{DATE}",
       INTERNET_STATUS    => "0;5",
       LOGIN_STATUS       => 0,
-      TP_ID              => $tp_info->{tp_id},
+      TP_ID              => $tp->{tp_id},
       SORT               => 1,
       PAGE_ROWS          => 1000000,
       DELETED            => 0,
@@ -605,7 +611,7 @@ sub internet_monthly_next_tp {
         ACTIVATE   => $u->{internet_activate},
         EXPIRE     => $u->{internet_expire},
         DEPOSIT    => $u->{deposit},
-        CREDIT     => ($u->{credit} > 0) ? $u->{credit} :  $tp_info->{credit},
+        CREDIT     => ($u->{credit} > 0) ? $u->{credit} :  $tp->{credit},
         COMPANY_ID => $u->{company_id},
         INTERNET_STATUS => $u->{internet_status},
         INTERNET_EXPIRE => $u->{internet_expire},
@@ -614,20 +620,18 @@ sub internet_monthly_next_tp {
 
       my $expire = undef;
       if (!$CHANGED_TPS{ $user_info{UID} }
-        && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user_info{ACTIVATE} ne '0000-00-00')
-        || ($tp_info->{age} && $user_info{EXPIRE} eq $attr->{DATE}) )) {
+        && ((!$tp->{age} && ($d == $START_PERIOD_DAY) || $user_info{ACTIVATE} ne '0000-00-00')
+        || ($tp->{age} && $user_info{EXPIRE} eq $attr->{DATE}) )) {
 
         if($user_info{EXPIRE} ne '0000-00-00') {
           if($user_info{EXPIRE} eq $attr->{DATE}) {
-            # if (!$tp_ages{$tp_info->{tp_id}}) {
-            #   $expire = '0000-00-00';
-            # }
-            # els
-            if(!$tp_ages{$tp_info->{next_tp_id}}) {
+            #Remove expire if next_tp not exists
+            if(!$tp_ages{$tp->{next_tp_id}}) {
               $expire = '0000-00-00';
             }
+            #Prolong expire with next TP
             else {
-              my $next_age = $tp_ages{$tp_info->{next_tp_id}};
+              my $next_age = $tp_ages{$tp->{next_tp_id}};
               $expire = POSIX::strftime("%Y-%m-%d",
                 localtime(POSIX::mktime(0, 0, 0, $d, ($m-1), ($y - 1900), 0, 0, 0) + $next_age * 86400));
             }
@@ -644,13 +648,14 @@ sub internet_monthly_next_tp {
           }
         }
 
-        $debug_output .= " Login: $user_info{LOGIN} ($user_info{UID}) ACTIVATE $user_info{ACTIVATE} TP_ID: $tp_info->{tp_id} -> $tp_info->{next_tp_id}\n";
+        $debug_output .= " LOGIN: $user_info{LOGIN} ($user_info{UID}) ACTIVATE: $user_info{ACTIVATE} TP_ID: $tp->{tp_id} -> $tp->{next_tp_id}\n";
         $CHANGED_TPS{ $user_info{UID} } = 1;
 
         my $status = 0;
-        if($conf{INTERNET_CUSTOM_PERIOD} && $u->{deposit} < $tp_info->{change_price}) {
+        if($conf{INTERNET_CUSTOM_PERIOD} && $u->{deposit} < $tp->{change_price}) {
           $status = 5;
           $expire = $attr->{DATE};
+          $debug_output .= " NEG_DEPOSIT_BLOCK\n" if($debug > 2);
         }
 
         if($debug < 8) {
@@ -658,22 +663,34 @@ sub internet_monthly_next_tp {
             ID             => $user_info{ID},
             UID            => $user_info{UID},
             STATUS         => $status,
-            TP_ID          => $tp_info->{next_tp_id},
+            TP_ID          => $tp->{next_tp_id},
             SERVICE_EXPIRE => $expire
           });
-        }
 
-        if($tp_info->{change_price}
-          && $tp_info->{change_price} > 0
-          && $tp_info->{next_tp_id} == $tp_info->{tp_id}
-          && ! $status) {
-          $Fees->take(\%user_info, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
-          if($Fees->{errno}) {
-            print "Error: $Fees->{errno} $Fees->{errstr}\n";
+          if($Internet->{errno}) {
+            $debug_output .= "   ERROR: $Internet->{errno} $Internet->{errstr}\n";
           }
         }
+
+        if($tp->{change_price}
+          && $tp->{change_price} > 0
+          && $tp->{next_tp_id} == $tp->{tp_id}
+          && ! $status) {
+
+          $debug_output .= _take_fee({
+            USER_INFO => \%user_info,
+            SUM       => $tp->{change_price},
+            PARAMS    => {
+              DESCRIBE   => $lang{ACTIVATE_TARIF_PLAN},
+              MODULE     => 'Internet',
+              TP_ID      => $tp->{next_tp_id},
+              START_DATE => $attr->{DATE},
+              END_DATE   => $expire
+            },
+          });
+        }
         else {
-          $Tariffs->info(0, { TP_ID => $tp_info->{next_tp_id} });
+          $Tariffs->info(0, { TP_ID => $tp->{next_tp_id} });
           if ($Tariffs->{MONTH_FEE} && $Tariffs->{MONTH_FEE} > 0
              && $d > 1
              && $user_info{ACTIVATE} eq '0000-00-00'
@@ -737,7 +754,6 @@ sub internet_monthly_fees {
 
   #Change TP to next TP
   $debug_output .= internet_monthly_next_tp($attr);
-  $DEBUG .= $debug_output;
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
 
@@ -774,513 +790,516 @@ sub internet_monthly_fees {
   my $pre_month_begin = "$y-$m-01";
   my $pre_month_end   = "$y-$m-$days_in_pre_month";
 
-  foreach my $TP_INFO (@$list) {
-    my $month_fee           = $TP_INFO->{MONTH_FEE};
+  foreach my $tp (@$list) {
+    my $month_fee           = $tp->{MONTH_FEE} || 0;
+    my $tp_min_use          = $tp->{MIN_USE} || 0;
     my $activate_date       = "<=$attr->{DATE}";
-    my $postpaid            = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
-    $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
+    my $postpaid            = $tp->{POSTPAID_MONTHLY_FEE} || $tp->{PAYMENT_TYPE} || 0;
+    $USERS_LIST_PARAMS{DOMAIN_ID} = $tp->{DOMAIN_ID};
     my %used_traffic = ();
 
     #Monthfee & min use
-    if ($month_fee > 0 || $TP_INFO->{MIN_USE} > 0) {
-      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $postpaid "
-        . "REDUCTION: $TP_INFO->{REDUCTION_FEE} EXT_BILL_ID: $TP_INFO->{EXT_BILL_ACCOUNT} CREDIT: $TP_INFO->{CREDIT} "
-        . "MIN_USE: $TP_INFO->{MIN_USE} ABON_DISTR: $TP_INFO->{ABON_DISTRIBUTION}\n" if ($debug > 1);
+    if ($month_fee <= 0 && $tp_min_use <= 0) {
+      next;
+    }
 
-      #get used  traffic for min use functions
-      my %processed_users = ();
-      if ($TP_INFO->{MIN_USE} > 0 && $START_PERIOD_DAY && $conf{INTERNET_MIN_USER_FULLPERIOD}) {
-        my $interval = "$pre_month_begin/$pre_month_end";
-        if ($conf{INTERNET_MIN_USER_FULLPERIOD}) {
-          $activate_date = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime - 86400 * 30));
-          $interval      = "$activate_date/$attr->{DATE}";
-          $activate_date = "=$activate_date";
-        }
+    $debug_output .= "TP ID: $tp->{ID} MF: $month_fee POSTPAID: $postpaid "
+      . "REDUCTION: $tp->{REDUCTION_FEE} EXT_BILL_ID: $tp->{EXT_BILL_ACCOUNT} CREDIT: $tp->{CREDIT} "
+      . "MIN_USE: $tp_min_use ABON_DISTR: $tp->{ABON_DISTRIBUTION}\n" if ($debug > 1);
 
-        my $report_list = $Sessions->reports({
-          INTERVAL => $interval,
-          TP_ID    => $TP_INFO->{TP_ID},
-          COLS_NAME=> 1
-        });
-
-        foreach my $l (@$report_list) {
-          $used_traffic{ $l->{uid} } = $l->{sum};
-        }
+    #get used  traffic for min use functions
+    my %processed_users = ();
+    if ($tp_min_use > 0 && $START_PERIOD_DAY && $conf{INTERNET_MIN_USER_FULLPERIOD}) {
+      my $interval = "$pre_month_begin/$pre_month_end";
+      if ($conf{INTERNET_MIN_USER_FULLPERIOD}) {
+        $activate_date = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime - 86400 * 30));
+        $interval = "$activate_date/$attr->{DATE}";
+        $activate_date = "=$activate_date";
       }
 
-      if ($TP_INFO->{ABON_DISTRIBUTION}) {
-        $month_fee = $month_fee / $days_in_month;
-      }
-
-      if($TP_INFO->{EXT_BILL_ACCOUNT}) {
-        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
-        $USERS_LIST_PARAMS{EXT_BILL_DEPOSIT} = '_SHOW';
-      }
-
-      $Internet->{debug} = 1 if ($debug > 5);
-      my $ulist = $Internet->user_list({
-        INTERNET_ACTIVATE => "$activate_date",
-        INTERNET_EXPIRE   => "0000-00-00,>$attr->{DATE}",
-        INTERNET_STATUS   => "0;5",
-        JOIN_SERVICE => "<2",
-        LOGIN_STATUS => 0,
-        TP_ID        => $TP_INFO->{TP_ID},
-        SORT         => 1,
-        PAGE_ROWS    => 1000000,
-        TP_CREDIT    => '_SHOW',
-        DELETED      => 0,
-        LOGIN        => '_SHOW',
-        BILL_ID      => '_SHOW',
-        REDUCTION    => '_SHOW',
-        DEPOSIT      => '_SHOW',
-        CREDIT       => '_SHOW',
-        COMPANY_ID   => '_SHOW',
-        PERSONAL_TP  => '_SHOW',
-        EXT_DEPOSIT  => '_SHOW',
-        COLS_NAME    => 1,
-        GROUP_BY     => 'internet.id',
-        %USERS_LIST_PARAMS
+      my $report_list = $Sessions->reports({
+        INTERVAL  => $interval,
+        TP_ID     => $tp->{TP_ID},
+        COLS_NAME => 1
       });
 
-      foreach my $u (@$ulist) {
-        my $EXT_INFO       = '';
-        my $ext_deposit_op = $TP_INFO->{EXT_BILL_ACCOUNT};
-        my %user           = (
-          LOGIN           => $u->{login},
-          UID             => $u->{uid},
-          ID              => $u->{id},
-          BILL_ID         => ($ext_deposit_op) ? $u->{ext_bill_id} : $u->{bill_id},
-          MAIN_BILL_ID    => ($ext_deposit_op) ? $u->{bill_id} : 0,
-          REDUCTION       => $u->{reduction},
-          ACTIVATE        => $u->{internet_activate},
-          DEPOSIT         => $u->{deposit} || 0,
-          CREDIT          => ($u->{credit} > 0) ? $u->{credit} : $TP_INFO->{CREDIT},
-          COMPANY_ID      => $u->{company_id},
-          INTERNET_STATUS => $u->{internet_status},
-          #EXT_DEPOSIT     => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
-          EXT_BILL_DEPOSIT=> ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
-          EXT_BILL_ID     => $u->{ext_bill_id},
-          EXT_BILL_METHOD => $TP_INFO->{ext_bill_fees_method}
-        );
+      foreach my $l (@$report_list) {
+        $used_traffic{ $l->{uid} } = $l->{sum};
+      }
+    }
 
-        #Active month fee
-        if ($TP_INFO->{ACTIVE_MONTH_FEE}) {
-          $Sessions->{debug} = 1 if ($debug > 6);
-          $Sessions->reports({
-            INTERVAL    => "$pre_month_begin/$pre_month_end",
-            TRAFFIC_SUM => '_SHOW',
-            UID         => $u->{uid},
-            COLS_NAME   => 1
-          });
+    if ($tp->{ABON_DISTRIBUTION}) {
+      $month_fee = $month_fee / $days_in_month;
+    }
 
-          if (!$Sessions->{TOTAL}) {
+    if ($tp->{EXT_BILL_ACCOUNT}) {
+      $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+      $USERS_LIST_PARAMS{EXT_BILL_DEPOSIT} = '_SHOW';
+    }
+
+    $Internet->{debug} = 1 if ($debug > 5);
+    my $ulist = $Internet->user_list({
+      INTERNET_ACTIVATE => "$activate_date",
+      INTERNET_EXPIRE   => "0000-00-00,>$attr->{DATE}",
+      INTERNET_STATUS   => "0;5",
+      JOIN_SERVICE      => "<2",
+      LOGIN_STATUS      => 0,
+      TP_ID             => $tp->{TP_ID},
+      SORT              => 1,
+      PAGE_ROWS         => 1000000,
+      TP_CREDIT         => '_SHOW',
+      DELETED           => 0,
+      LOGIN             => '_SHOW',
+      BILL_ID           => '_SHOW',
+      REDUCTION         => '_SHOW',
+      DEPOSIT           => '_SHOW',
+      CREDIT            => '_SHOW',
+      COMPANY_ID        => '_SHOW',
+      PERSONAL_TP       => '_SHOW',
+      EXT_DEPOSIT       => '_SHOW',
+      COLS_NAME         => 1,
+      GROUP_BY          => 'internet.id',
+      %USERS_LIST_PARAMS
+    });
+
+    foreach my $u (@$ulist) {
+      my $EXT_INFO = '';
+      my $ext_deposit_op = $tp->{EXT_BILL_ACCOUNT};
+      my %user_info = (
+        LOGIN            => $u->{login},
+        UID              => $u->{uid},
+        ID               => $u->{id},
+        BILL_ID          => ($ext_deposit_op) ? $u->{ext_bill_id} : $u->{bill_id},
+        MAIN_BILL_ID     => ($ext_deposit_op) ? $u->{bill_id} : 0,
+        REDUCTION        => $u->{reduction},
+        ACTIVATE         => $u->{internet_activate},
+        DEPOSIT          => $u->{deposit} || 0,
+        CREDIT           => ($u->{credit} > 0) ? $u->{credit} : $tp->{CREDIT},
+        COMPANY_ID       => $u->{company_id},
+        INTERNET_STATUS  => $u->{internet_status},
+        #EXT_DEPOSIT     => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+        EXT_BILL_DEPOSIT => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+        EXT_BILL_ID      => $u->{ext_bill_id},
+        EXT_BILL_METHOD  => $tp->{ext_bill_fees_method}
+      );
+
+      #Active month fee
+      if ($tp->{ACTIVE_MONTH_FEE}) {
+        $Sessions->{debug} = 1 if ($debug > 6);
+        $Sessions->reports({
+          INTERVAL    => "$pre_month_begin/$pre_month_end",
+          TRAFFIC_SUM => '_SHOW',
+          UID         => $u->{uid},
+          COLS_NAME   => 1
+        });
+
+        if (!$Sessions->{TOTAL}) {
+          next;
+        }
+        elsif ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC}) {
+          if ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC} > $Sessions->{list}->[0]->{TRAFFIC_SUM}) {
             next;
           }
-          elsif ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC}) {
-            if ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC} > $Sessions->{list}->[0]->{TRAFFIC_SUM}) {
-              next;
-            }
-          }
+        }
+      }
+
+      my %FEES_DSC = (
+        MODULE            => 'Internet',
+        TP_ID             => $tp->{TP_ID},
+        TP_NAME           => $tp->{NAME},
+        FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
+        FEES_METHOD       => $FEES_METHODS{$tp->{FEES_METHOD}},
+        ID                => ($user_info{ID}) ? ' ' . $user_info{ID} : undef,
+      );
+
+      if ($debug > 3) {
+        $debug_output .= " Login: $user_info{LOGIN} ($user_info{UID}) TP_ID: $u->{tp_id} Fees: $tp->{MONTH_FEE}"
+          . "REDUCTION: $user_info{REDUCTION} DEPOSIT: $user_info{DEPOSIT} CREDIT $user_info{CREDIT} ACTIVE: $user_info{ACTIVATE} TP: $u->{tp_id}\n";
+      }
+
+      if ($fees_priority =~ /bonus/ && $tp->{SMALL_DEPOSIT_ACTION} && $user_info{EXT_BILL_DEPOSIT}) {
+        $user_info{DEPOSIT} += $user_info{EXT_BILL_DEPOSIT};
+      }
+
+      if (!$user_info{BILL_ID} && $user_info{MAIN_BILL_ID}) {
+        $user_info{BILL_ID} = $user_info{MAIN_BILL_ID};
+        $user_info{MAIN_BILL_ID} = 0;
+        $ext_deposit_op = 0;
+      }
+
+      if (!$user_info{BILL_ID} && !defined($user_info{DEPOSIT})) {
+        my $ext = ($ext_deposit_op > 0) ? 'Ext bill' : '';
+        print "UID: $user_info{UID} LOGIN: $user_info{LOGIN} Don't have $ext money account\n";
+        next;
+      }
+
+      my %FEES_PARAMS = (
+        DATE            => $attr->{DATE},
+        METHOD          => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+        EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+        MODULE          => 'Internet',
+        TP_ID           => $tp->{TP_ID}
+      );
+      my $sum = 0;
+
+      #Min use Makes only 1 of month
+      if ($tp_min_use > 0 && $d == $START_PERIOD_DAY && !$conf{INTERNET_MIN_USER_FULLPERIOD}) {
+        #Check activation date
+        my $min_use = $tp_min_use;
+
+        if ($user_info{REDUCTION} > 0) {
+          $min_use = $min_use * (100 - $user_info{REDUCTION}) / 100;
         }
 
-        my %FEES_DSC = (
-          MODULE            => 'Internet',
-          TP_ID             => $TP_INFO->{TP_ID},
-          TP_NAME           => $TP_INFO->{NAME},
-          FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-          FEES_METHOD       => $FEES_METHODS{$TP_INFO->{FEES_METHOD}},
-          ID                => ($user{ID}) ? ' '. $user{ID} : undef,
-        );
-
-        if ($debug > 3) {
-          $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: $u->{tp_id} Fees: $TP_INFO->{MONTH_FEE}"
-            . "REDUCTION: $user{REDUCTION} DEPOSIT: $user{DEPOSIT} CREDIT $user{CREDIT} ACTIVE: $user{ACTIVATE} TP: $u->{tp_id}\n";
+        #Min use Alignment
+        if (!$conf{INTERNET_MIN_USER_FULLPERIOD} && $user_info{ACTIVATE} ne '0000-00-00') {
+          $days_in_month = days_in_month({ DATE => $user_info{ACTIVATE} });
+          my (undef, $activated_d) = split('-', $user_info{ACTIVATE});
+          $min_use = sprintf("%.5f", $min_use / $days_in_month * ($days_in_month - $activated_d + $START_PERIOD_DAY));
         }
 
-        if ($fees_priority =~ /bonus/ && $TP_INFO->{SMALL_DEPOSIT_ACTION} && $user{EXT_BILL_DEPOSIT}) {
-          $user{DEPOSIT} += $user{EXT_BILL_DEPOSIT};
-        }
+        my $used = ($used_traffic{ $user_info{UID} }) ? $used_traffic{ $user_info{UID} } : 0;
+        $FEES_PARAMS{DESCRIBE} = $lang{MIN_USE};
 
-        if (!$user{BILL_ID} && $user{MAIN_BILL_ID}) {
-          $user{BILL_ID}      = $user{MAIN_BILL_ID};
-          $user{MAIN_BILL_ID} = 0;
-          $ext_deposit_op     = 0;
-        }
-
-        if (! $user{BILL_ID} && ! defined($user{DEPOSIT})) {
-          my $ext = ($ext_deposit_op > 0) ? 'Ext bill' : '';
-          print "UID: $user{UID} LOGIN: $user{LOGIN} Don't have $ext money account\n";
+        #summary for all company users with same tarif plan
+        if ($user_info{COMPANY_ID} > 0 && $processed_users{ $user_info{COMPANY_ID} }) {
           next;
         }
 
-        my %FEES_PARAMS = (
-          DATE            => $attr->{DATE},
-          METHOD          => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
-          EXT_BILL_METHOD => ($TP_INFO->{EXT_BILL_FEES_METHOD}) ? $TP_INFO->{EXT_BILL_FEES_METHOD} : undef,
-        );
-        my $sum = 0;
+        if ($user_info{COMPANY_ID} > 0) {
+          my $company_users = $Internet->user_list({
+            TP_ID      => $tp->{TP_ID},
+            LOGIN      => '_SHOW',
+            COMPANY_ID => $user_info{COMPANY_ID},
+            COLS_NAME  => 1
+          });
 
-        #***************************************************************
-        #Min use Makes only 1 of month
-        if ($TP_INFO->{MIN_USE} > 0 && $d == $START_PERIOD_DAY && !$conf{INTERNET_MIN_USER_FULLPERIOD}) {
-          #Check activation date
-          my $min_use = $TP_INFO->{MIN_USE};
-
-          if ($user{REDUCTION} > 0) {
-            $min_use = $min_use * (100 - $user{REDUCTION}) / 100;
+          my @UIDS = ();
+          foreach my $c_user (@$company_users) {
+            push @UIDS, $c_user->{login};
+            $used += $used_traffic{ $user_info{UID} } if ($used_traffic{ $user_info{UID} });
+            $processed_users{ $user_info{COMPANY_ID} }++;
           }
 
-          #Min use Alignment
-          if (!$conf{INTERNET_MIN_USER_FULLPERIOD} && $user{ACTIVATE} ne '0000-00-00') {
-            $days_in_month = days_in_month({ DATE => $user{ACTIVATE} });
-            my (undef, $activated_d)=split('-', $user{ACTIVATE});
-            $min_use = sprintf("%.5f", $min_use / $days_in_month * ($days_in_month - $activated_d + $START_PERIOD_DAY));
-          }
-
-          my $used = ($used_traffic{ $user{UID} }) ? $used_traffic{ $user{UID} } : 0;
-          $FEES_PARAMS{DESCRIBE} = $lang{MIN_USE};
-
-          #summary for all company users with same tarif plan
-          if ($user{COMPANY_ID} > 0 && $processed_users{ $user{COMPANY_ID} }) {
-            next;
-          }
-
-          if ($user{COMPANY_ID} > 0) {
-            my $company_users = $Internet->user_list({
-              TP_ID      => $TP_INFO->{TP_ID},
-              LOGIN      => '_SHOW',
-              COMPANY_ID => $user{COMPANY_ID},
-              COLS_NAME  => 1
-            });
-
-            my @UIDS = ();
-            foreach my $c_user (@$company_users) {
-              push @UIDS, $c_user->{login};
-              $used += $used_traffic{ $user{UID} } if ($used_traffic{ $user{UID} });
-              $processed_users{ $user{COMPANY_ID} }++;
-            }
-
-            $min_use = $min_use * $processed_users{ $user{COMPANY_ID} };
-            $FEES_PARAMS{DESCRIBE} .= "$lang{COMPANY} $lang{LOGINS}: " . join(', ', @UIDS);
-          }
-
-          #Get Fees sum for min_user
-          #if ($conf{MIN_USE_FEES_CONSIDE}) {
-            $Fees->list({
-              UID     => $user{UID},
-              DATE    => ($user{ACTIVATE} ne '0000-00-00') ? ">=$user{ACTIVATE}" : $DATE,
-              METHODS => $conf{MIN_USE_FEES_CONSIDE},
-            });
-            $used += $Fees->{SUM} if ($Fees->{SUM});
-          #}
-
-          $debug_output .= "  USED: $used\n" if ($debug > 3);
-
-          #Make payments
-          next if ($used >= $min_use);
-
-          $sum = $min_use - $used;
-
-          if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
-            if ($user{REDUCTION} >= 100) {
-              $debug_output .= "UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} next\n" if ($debug > 3);
-              next;
-            }
-            $sum = $sum * (100 - $user{REDUCTION}) / 100;
-          }
-
-          if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > 0) {
-            if ($d == $START_PERIOD_DAY) {
-              if ($debug > 4) {
-                $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
-              }
-
-              if ($debug < 8) {
-                if($sum > 0) {
-                  $Fees->take(\%user, $sum, {
-                    %FEES_PARAMS,
-                    DATE   => $pre_month_end,
-                    METHOD => $conf{MIN_USE_FEES_CONSIDE} || 1,
-                    USER   => $users
-                  });
-                }
-
-                $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 1);
-                if ($user{ACTIVATE} ne '0000-00-00') {
-                  $Internet->user_change({
-                    ID       => $user{ID},
-                    UID      => $user{UID},
-                    ACTIVATE => '0000-00-00'
-                  });
-                }
-              }
-            }
-          }
+          $min_use = $min_use * $processed_users{ $user_info{COMPANY_ID} };
+          $FEES_PARAMS{DESCRIBE} .= "$lang{COMPANY} $lang{LOGINS}: " . join(', ', @UIDS);
         }
 
-        #***************************************************************
-        #Month Fee
-        if ($month_fee > 0) {
-          #Make sum
-          if ($u->{personal_tp} > 0) {
-            if($TP_INFO->{ABON_DISTRIBUTION}) {
-              $sum = $u->{personal_tp} / $days_in_month;
-            }
-            else {
-              $sum = $u->{personal_tp};
-            }
+        #Get Fees sum for min_user
+        #if ($conf{MIN_USE_FEES_CONSIDE}) {
+        $Fees->list({
+          UID     => $user_info{UID},
+          DATE    => ($user_info{ACTIVATE} ne '0000-00-00') ? ">=$user_info{ACTIVATE}" : $DATE,
+          METHODS => $conf{MIN_USE_FEES_CONSIDE},
+        });
+        $used += $Fees->{SUM} if ($Fees->{SUM});
+        #}
+
+        $debug_output .= "  USED: $used\n" if ($debug > 3);
+
+        #Make payments
+        next if ($used >= $min_use);
+
+        $sum = $min_use - $used;
+
+        if ($tp->{REDUCTION_FEE} == 1 && $user_info{REDUCTION} > 0) {
+          if ($user_info{REDUCTION} >= 100) {
+            $debug_output .= "UID: $user_info{UID} SUM: $sum REDUCTION: $user_info{REDUCTION} next\n" if ($debug > 3);
+            next;
           }
-          else {
-            $sum =  $month_fee;
-          }
+          $sum = $sum * (100 - $user_info{REDUCTION}) / 100;
+        }
 
-          if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
-            $sum = $sum * (100 - $user{REDUCTION}) / 100;
-          }
-
-          my ($activate_y, $activate_m, $activate_d);
-          my $active_unixtime = 0;
-          if ($user{ACTIVATE} ne '0000-00-00') {
-            ($activate_y, $activate_m, $activate_d) = split('-', $user{ACTIVATE}, 3);
-            $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
-          }
-
-          #Get 2 time fees from main account and ext account and from main
-          if ($conf{BONUS_EXT_FUNCTIONS} && $ext_deposit_op > 0) {
-
-            # Small deposit
-            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $user{EXT_BILL_DEPOSIT} + $user{DEPOSIT} + $user{CREDIT} < $sum) {
-              if (($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
-                || $TP_INFO->{ABON_DISTRIBUTION}
-                || ($user{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime < 30 * 86400)) {
-                $debug_output .= internet_service_deactivate({
-                  TP_INFO   => $TP_INFO,
-                  USER_INFO => \%user,
-                  DEBUG     => $debug
-                });
-                next;
-              }
-            }
-            elsif ($sum > $user{EXT_BILL_DEPOSIT} && $user{EXT_BILL_DEPOSIT} > 0) {
-              # Take some sum from ext deposit other from main
-              if ((($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $TP_INFO->{ABON_DISTRIBUTION})
-                || $user{ACTIVATE} ne '0000-00-00') {
-
-                if ($date_unixtime - $active_unixtime < 30 * 86400) {
-                }
-                else {
-                  my $ext_deposit_sum = $user{EXT_BILL_DEPOSIT};
-
-                  $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
-                  $FEES_PARAMS{DESCRIBE} .= " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')' if (!$TP_INFO->{ABON_DISTRIBUTION});
-                  $FEES_PARAMS{PERIOD_START} = $attr->{DATE};
-                  $FEES_PARAMS{PERIOD_STOP}  = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
-
-
-                  if($ext_deposit_sum > 0) {
-                    $Fees->take(\%user, $ext_deposit_sum, {
-                      %FEES_PARAMS,
-                      METHOD => ($TP_INFO->{EXT_BILL_FEES_METHOD}) ? $TP_INFO->{EXT_BILL_FEES_METHOD} : undef,
-                    });
-                  }
-                  $sum = $sum - $user{EXT_BILL_DEPOSIT};
-                  $user{BILL_ID} = $user{MAIN_BILL_ID};
-                }
-
-                #and after take rest from main DEPOSIT
-                #
-              }
-            }
-            elsif ($user{EXT_BILL_DEPOSIT} <= 0) {
-              $user{BILL_ID} = $user{MAIN_BILL_ID};
-            }
-            else {
-              $user{DEPOSIT} = $user{EXT_BILL_DEPOSIT};
-            }
-          }
-
-          #Prepaid period credit
-          if ($conf{INTERNET_PREPAID_PERIOD_CREDIT}
-            && ($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
-            && $user{CREDIT} == 0
-            && ($user{DEPOSIT} < $sum && $user{DEPOSIT} > 0)) {
-            my $credit_period = int($user{DEPOSIT} /  ($sum / $days_in_month));
-            if ($credit_period > 0) {
-              $users->change($user{UID}, {
-                ID          => $user{ID},
-                UID         => $user{UID},
-                CREDIT_DATE => sprintf("%04d-%02d-%02d", (($m < 12) ? $y : $y+1), (($m < 12) ? $m+1 : 1),  $credit_period),
-                CREDIT      => $sum
-              });
-              $user{CREDIT}  = $sum;
-            }
-            $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum change credit\n";
-          }
-
-
-          #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
-          if ($postpaid || $user{DEPOSIT} + $user{CREDIT} > 0) {
-            #Unblock Small deposit status
-            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum < $user{DEPOSIT} + $user{CREDIT}) {
-              if ($user{INTERNET_STATUS}
-                && $TP_INFO->{ABON_DISTRIBUTION}
-                && $conf{INTERNET_FULL_MONTH}
-                && $sum * $days_in_month > $user{DEPOSIT}) {
-                next;
-              }
-
-              if ($debug < 8) {
-                internet_service_activate({
-                  TP_INFO   => $TP_INFO,
-                  USER_INFO => \%user,
-                  DEBUG     => $debug
-                });
-                $user{INTERNET_STATUS} = 0;
-              }
-            }
-
-            #take fees in first day of month
-            $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
-            $FEES_PARAMS{DESCRIBE} .= " - $lang{ABON_DISTRIBUTION}" if ($TP_INFO->{ABON_DISTRIBUTION});
-
-            if ($user{INTERNET_STATUS} == 5 && $TP_INFO->{FINE} > 0) {
-              if ($conf{INTERNET_FINE_LIMIT} && $user{DEPOSIT} + $user{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
-                next;
-              }
-              $FEES_PARAMS{DESCRIBE} = $lang{FINE};
-              $FEES_PARAMS{METHOD}   = 2;
-              $sum                   = $TP_INFO->{FINE};
-              $EXT_INFO              = "FINE";
-            }
-            # If activation set to monthly fees taken throught 30 days
-            elsif ($user{ACTIVATE} ne '0000-00-00') {
-              #Block small deposit
-              if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum > $user{DEPOSIT} + $user{CREDIT}
-                && (($TP_INFO->{FIXED_FEES_DAY} && (($m == $activate_m && $d == $activate_d) || ($d == $START_PERIOD_DAY && $activate_d > 28)))
-                || ($date_unixtime - $active_unixtime > 30 * 86400) || $TP_INFO->{ABON_DISTRIBUTION} )
-              ) {
-                $debug_output .= internet_service_deactivate({
-                  TP_INFO   => $TP_INFO,
-                  USER_INFO => \%user,
-                  DEBUG     => $debug
-                });
-
-                next;
-              }
-              #Static day
-              if( (($TP_INFO->{FIXED_FEES_DAY} && $m == $activate_m ) && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
-                || ($date_unixtime - $active_unixtime > 30 * 86400) ) {
-
-                if ($debug > 4) {
-                  $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
-                }
-
-                if ($debug < 8) {
-                  if (!$TP_INFO->{ABON_DISTRIBUTION}) {
-                    $FEES_PARAMS{DESCRIBE} .= " ($attr->{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')';
-                    $FEES_PARAMS{PERIOD_START} = $attr->{DATE};
-                    $FEES_PARAMS{PERIOD_STOP} = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
-                  }
-
-
-                  if( $sum > 0 ) {
-                    $Fees->take(\%user, $sum, \%FEES_PARAMS);
-                  }
-                  $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($debug > 1);
-                  if ($Fees->{errno}) {
-                    print "Internet Error: [ $user{UID} ] $user{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr} ";
-                    if ($Fees->{errno} == 14) {
-                      print "UID: $user{UID} LOGIN: $user{LOGIN} - Don't have money account";
-                    }
-                    print "\n";
-                  }
-                  else {
-                    $Internet->user_change({
-                      UID      => $user{UID},
-                      ACTIVATE => $attr->{DATE},
-                      ID       => $user{ID}
-                    });
-                  }
-                  next;
-                }
-              }
-              elsif ($TP_INFO->{ABON_DISTRIBUTION}) {
-                $EXT_INFO .= "CHANGE ACTIVATE\n" if ($debug > 1);
-              }
-              else {
-                next;
-              }
-            }
-            elsif (($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $TP_INFO->{ABON_DISTRIBUTION}) {
-              #Block small deposit
-              if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum > $user{DEPOSIT} + $user{CREDIT}) {
-                $debug_output .= internet_service_deactivate({
-                  TP_INFO   => $TP_INFO,
-                  USER_INFO => \%user,
-                  DEBUG     => $debug
-                });
-                next;
-              }
-              #Skip fees for small deposit actions
-              elsif ($user{INTERNET_STATUS} == 5) {
-                $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 2);
-                next;
-              }
-            }
-            else {
-              next;
-            }
-
-            # get fees
+        if ($postpaid == 1 || $user_info{DEPOSIT} + $user_info{CREDIT} > 0) {
+          if ($d == $START_PERIOD_DAY) {
             if ($debug > 4) {
-              $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
+              $debug_output .= " UID: $user_info{UID} SUM: $sum REDUCTION: $user_info{REDUCTION}\n";
             }
 
             if ($debug < 8) {
-              $FEES_PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)" if (!$TP_INFO->{ABON_DISTRIBUTION});
-              if($sum > 0) {
-                $Fees->take(\%user, $sum, { %FEES_PARAMS });
-              }
-              $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} $EXT_INFO\n" if ($debug > 1);
-            }
-          }
-          else {
-            # Get Fine
-            if ($TP_INFO->{FINE} > 0) {
-              if ($conf{INTERNET_FINE_LIMIT} && $user{DEPOSIT} + $user{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
-                next;
-              }
-              %FEES_PARAMS = (
-                DESCRIBE => "$lang{FINE}",
-                METHOD   => 1,
-                DATE     => $attr->{DATE},
-              );
-
-              $sum      = $TP_INFO->{FINE};
-              $EXT_INFO = "FINE";
-
-              $Fees->take(\%user, $sum, {%FEES_PARAMS});
-
-              $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} FINE\n" if ($debug > 1);
-            }
-
-            #Block small deposit
-            if (! $user{INTERNET_STATUS}
-              && (($user{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime > 30 * 86400)
-                ||
-                ($user{ACTIVATE} eq '0000-00-00' && ($d == $START_PERIOD_DAY || $TP_INFO->{ABON_DISTRIBUTION}))
-              )
-            ) {
-              $debug_output .= internet_service_deactivate({
-                TP_INFO   => $TP_INFO,
-                USER_INFO => \%user,
-                DEBUG     => $debug
+              $debug_output .= _take_fee({
+                USER_INFO => \%user_info,
+                SUM       => $sum,
+                PARAMS    => {
+                  DATE   => $pre_month_end,
+                  METHOD => $conf{MIN_USE_FEES_CONSIDE} || 1,
+                  USER   => $users,
+                  MODULE => 'Internet',
+                  TP_ID  => $tp->{TP_ID}
+                },
               });
+
+              if ($user_info{ACTIVATE} ne '0000-00-00') {
+                $Internet->user_change({
+                  ID       => $user_info{ID},
+                  UID      => $user_info{UID},
+                  ACTIVATE => '0000-00-00'
+                });
+              }
             }
           }
         }
       }
+
+      #Month Fee
+      if ($month_fee <= 0) {
+        next
+      }
+
+      #Make sum
+      if ($u->{personal_tp} > 0) {
+        if ($tp->{ABON_DISTRIBUTION}) {
+          $sum = $u->{personal_tp} / $days_in_month;
+        }
+        else {
+          $sum = $u->{personal_tp};
+        }
+      }
+      else {
+        $sum = $month_fee;
+      }
+
+      if ($tp->{REDUCTION_FEE} == 1 && $user_info{REDUCTION} > 0) {
+        $sum = $sum * (100 - $user_info{REDUCTION}) / 100;
+      }
+
+      my ($activate_y, $activate_m, $activate_d);
+      my $active_unixtime = 0;
+      if ($user_info{ACTIVATE} ne '0000-00-00') {
+        ($activate_y, $activate_m, $activate_d) = split('-', $user_info{ACTIVATE}, 3);
+        $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
+      }
+
+      #Get 2 time fees from main account and ext account and from main
+      if ($conf{BONUS_EXT_FUNCTIONS} && $ext_deposit_op > 0) {
+
+        # Small deposit
+        if ($tp->{SMALL_DEPOSIT_ACTION} && $user_info{EXT_BILL_DEPOSIT} + $user_info{DEPOSIT} + $user_info{CREDIT} < $sum) {
+          if (($user_info{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
+            || $tp->{ABON_DISTRIBUTION}
+            || ($user_info{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime < 30 * 86400)) {
+            $debug_output .= internet_service_deactivate({
+              TP_INFO   => $tp,
+              USER_INFO => \%user_info,
+              DEBUG     => $debug
+            });
+            next;
+          }
+        }
+        elsif ($sum > $user_info{EXT_BILL_DEPOSIT} && $user_info{EXT_BILL_DEPOSIT} > 0) {
+          # Take some sum from ext deposit other from main
+          if ((($user_info{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $tp->{ABON_DISTRIBUTION})
+            || $user_info{ACTIVATE} ne '0000-00-00') {
+
+            if ($date_unixtime - $active_unixtime < 30 * 86400) {
+            }
+            else {
+              my $ext_deposit_sum = $user_info{EXT_BILL_DEPOSIT};
+
+              $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
+              if (!$tp->{ABON_DISTRIBUTION}) {
+                $FEES_PARAMS{START_DATE} = $attr->{DATE};
+                $FEES_PARAMS{END_DATE} = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
+                $FEES_PARAMS{DESCRIBE} .= " ($FEES_PARAMS{START_DATE}-$FEES_PARAMS{END_DATE})";
+              }
+
+              if ($ext_deposit_sum > 0) {
+                $Fees->take(\%user_info, $ext_deposit_sum, {
+                  %FEES_PARAMS,
+                  METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+                });
+              }
+              $sum = $sum - $user_info{EXT_BILL_DEPOSIT};
+              $user_info{BILL_ID} = $user_info{MAIN_BILL_ID};
+            }
+
+            #and after take rest from main DEPOSIT
+            #
+          }
+        }
+        elsif ($user_info{EXT_BILL_DEPOSIT} <= 0) {
+          $user_info{BILL_ID} = $user_info{MAIN_BILL_ID};
+        }
+        else {
+          $user_info{DEPOSIT} = $user_info{EXT_BILL_DEPOSIT};
+        }
+      }
+
+      #Prepaid period credit
+      if ($conf{INTERNET_PREPAID_PERIOD_CREDIT}
+        && ($user_info{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
+        && $user_info{CREDIT} == 0
+        && ($user_info{DEPOSIT} < $sum && $user_info{DEPOSIT} > 0)) {
+        my $credit_period = int($user_info{DEPOSIT} / ($sum / $days_in_month));
+        if ($credit_period > 0) {
+          $users->change($user_info{UID}, {
+            ID          => $user_info{ID},
+            UID         => $user_info{UID},
+            CREDIT_DATE => sprintf("%04d-%02d-%02d", (($m < 12) ? $y : $y + 1), (($m < 12) ? $m + 1 : 1), $credit_period),
+            CREDIT      => $sum
+          });
+          $user_info{CREDIT} = $sum;
+        }
+        $debug_output .= " $user_info{LOGIN} UID: $user_info{UID} SUM: $sum change credit\n";
+      }
+
+
+      #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
+      if ($postpaid || $user_info{DEPOSIT} + $user_info{CREDIT} > 0) {
+        #Unblock Small deposit status
+        if ($tp->{SMALL_DEPOSIT_ACTION} && $sum < $user_info{DEPOSIT} + $user_info{CREDIT}) {
+          if ($user_info{INTERNET_STATUS}
+            && $tp->{ABON_DISTRIBUTION}
+            && $conf{INTERNET_FULL_MONTH}
+            && $sum * $days_in_month > $user_info{DEPOSIT}) {
+            next;
+          }
+
+          if ($debug < 8) {
+            internet_service_activate({
+              TP_INFO   => $tp,
+              USER_INFO => \%user_info,
+              DEBUG     => $debug
+            });
+            $user_info{INTERNET_STATUS} = 0;
+          }
+        }
+
+        #take fees in first day of month
+        $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
+        $FEES_PARAMS{DESCRIBE} .= " - $lang{ABON_DISTRIBUTION}" if ($tp->{ABON_DISTRIBUTION});
+
+        if ($user_info{INTERNET_STATUS} == 5 && $tp->{FINE} > 0) {
+          if ($conf{INTERNET_FINE_LIMIT} && $user_info{DEPOSIT} + $user_info{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
+            next;
+          }
+          $FEES_PARAMS{DESCRIBE} = $lang{FINE};
+          $FEES_PARAMS{METHOD} = 2;
+          $sum = $tp->{FINE};
+        }
+        # If activation set to monthly fees taken throught 30 days
+        elsif ($user_info{ACTIVATE} ne '0000-00-00') {
+          #Block small deposit
+          if ($tp->{SMALL_DEPOSIT_ACTION} && $sum > $user_info{DEPOSIT} + $user_info{CREDIT}
+            && (($tp->{FIXED_FEES_DAY} && (($m == $activate_m && $d == $activate_d) || ($d == $START_PERIOD_DAY && $activate_d > 28)))
+            || ($date_unixtime - $active_unixtime > 30 * 86400) || $tp->{ABON_DISTRIBUTION})
+          ) {
+            $debug_output .= internet_service_deactivate({
+              TP_INFO   => $tp,
+              USER_INFO => \%user_info,
+              DEBUG     => $debug
+            });
+
+            next;
+          }
+          #Static day
+          if ((($tp->{FIXED_FEES_DAY} && $m == $activate_m) && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
+            || ($date_unixtime - $active_unixtime > 30 * 86400)) {
+
+            if ($debug > 4) {
+              $debug_output .= " $user_info{LOGIN} UID: $user_info{UID} SUM: $sum REDUCTION: $user_info{REDUCTION}\n";
+            }
+
+            if ($debug < 8) {
+              if (!$tp->{ABON_DISTRIBUTION}) {
+                $FEES_PARAMS{START_DATE} = $attr->{DATE};
+                $FEES_PARAMS{END_DATE} = POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30));
+                $FEES_PARAMS{DESCRIBE} .= " ($FEES_PARAMS{START_DATE}-$FEES_PARAMS{END_DATE})";
+              }
+
+              $debug_output .= _take_fee({
+                USER_INFO => \%user_info,
+                SUM       => $sum,
+                PARAMS    => \%FEES_PARAMS,
+              });
+
+              if (!$Fees->{errno}) {
+                $Internet->user_change({
+                  UID      => $user_info{UID},
+                  ACTIVATE => $attr->{DATE},
+                  ID       => $user_info{ID}
+                });
+              }
+              next;
+            }
+          }
+          elsif ($tp->{ABON_DISTRIBUTION}) {
+            $EXT_INFO .= "CHANGE ACTIVATE\n" if ($debug > 1);
+          }
+          else {
+            next;
+          }
+        }
+        elsif (($user_info{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $tp->{ABON_DISTRIBUTION}) {
+          #Block small deposit
+          if ($tp->{SMALL_DEPOSIT_ACTION} && $sum > $user_info{DEPOSIT} + $user_info{CREDIT}) {
+            $debug_output .= internet_service_deactivate({
+              TP_INFO   => $tp,
+              USER_INFO => \%user_info,
+              DEBUG     => $debug
+            });
+            next;
+          }
+          #Skip fees for small deposit actions
+          elsif ($user_info{INTERNET_STATUS} == 5) {
+            $debug_output .= " UID: $user_info{UID} SUM: $sum REDUCTION: $user_info{REDUCTION}\n" if ($debug > 2);
+            next;
+          }
+        }
+        else {
+          next;
+        }
+
+        if (!$tp->{ABON_DISTRIBUTION}) {
+          $FEES_PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)";
+          $FEES_PARAMS{START_DATE} = $cure_month_begin;
+          $FEES_PARAMS{END_DATE} = $cure_month_end;
+        }
+
+        $debug_output .= _take_fee({
+          USER_INFO => \%user_info,
+          SUM       => $sum,
+          PARAMS    => \%FEES_PARAMS,
+        });
+      }
+      else {
+        # Get Fine
+        if ($tp->{FINE} > 0) {
+          if ($conf{INTERNET_FINE_LIMIT} && $user_info{DEPOSIT} + $user_info{CREDIT} < $conf{INTERNET_FINE_LIMIT}) {
+            next;
+          }
+          %FEES_PARAMS = (
+            DESCRIBE => $lang{FINE},
+            METHOD   => 1,
+            DATE     => $attr->{DATE},
+            MODULE   => 'Internet'
+          );
+
+          $debug_output .= _take_fee({
+            USER_INFO => \%user_info,
+            SUM       => $tp->{FINE},
+            PARAMS    => \%FEES_PARAMS,
+            TYPE      => 'FINE'
+          });
+        }
+
+        #Block small deposit
+        if (!$user_info{INTERNET_STATUS}
+          && (($user_info{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime > 30 * 86400)
+          ||
+          ($user_info{ACTIVATE} eq '0000-00-00' && ($d == $START_PERIOD_DAY || $tp->{ABON_DISTRIBUTION}))
+        )
+        ) {
+          $debug_output .= internet_service_deactivate({
+            TP_INFO   => $tp,
+            USER_INFO => \%user_info,
+            DEBUG     => $debug
+          });
+        }
+      }
+
     }
+
   }
 
   if ($d == 1) {
@@ -1576,6 +1595,7 @@ sub internet_sheduler {
           {
             DESCRIBE => $lang{HOLD_UP},
             DATE     => "$attr->{DATE} $TIME",
+            MODULE   => 'Internet'
           }
         );
 
@@ -1888,7 +1908,8 @@ sub internet_traffic_recalculation {
         }
 
         if ($sum > 0) {
-          $Fees->take(\%user, $sum, { %FEES_PARAMS });
+          $FEES_PARAMS{MODULE}='Internet';
+          $Fees->take(\%user, $sum, \%FEES_PARAMS);
         }
       }
     }
@@ -1905,6 +1926,7 @@ sub internet_traffic_recalculation {
       USER_INFO
       SUM
       PARAMS
+      TYPE
 
   Results:
     $debug_output
@@ -1929,6 +1951,10 @@ sub _take_fee {
     return $debug_output;
   }
 
+  if(! $params->{MODULE}) {
+    $params->{MODULE}='Internet';
+  }
+
   $Fees->take($user_info, $sum, $params);
   if ($Fees->{errno}) {
     print "Internet Error: [ $user_info->{UID} ] $user_info->{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr} ";
@@ -1938,7 +1964,8 @@ sub _take_fee {
     print "\n";
   }
   elsif ($debug > 1) {
-    $debug_output .= " $user_info->{LOGIN}  UID: $user_info->{UID} SUM: $sum REDUCTION: $user_info->{REDUCTION}\n";
+    my $fee_type = $attr->{TYPE} || q{};
+    $debug_output .= " $user_info->{LOGIN}  UID: $user_info->{UID} SUM: $sum REDUCTION: $user_info->{REDUCTION} $fee_type\n";
   }
 
   return $debug_output;

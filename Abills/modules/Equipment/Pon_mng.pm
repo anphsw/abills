@@ -2303,10 +2303,10 @@ sub pon_onu_state {
       NAS_ID       => $nas_id,
       ($mac_log_search_by_port_name
         ? (PORT_NAME =>
-        (($mac_log_search_by_port_name eq 'no_pon_type') ? '' : uc $pon_type)
+        (($mac_log_search_by_port_name eq 'no_pon_type') ? '-' : uc $pon_type)
           . ($onu_info->{BRANCH} || q{--}). ':' . ($onu_info->{ONU_ID} || q{--})
       )
-        : (PORT => $id)),
+        : (PORT => $id || '-1')),
       MAC          => '_SHOW',
       VLAN         => '_SHOW',
       ONLY_CURRENT => $conf{EQUIPMENT_SHOW_OLD_MAC_BEHIND_ONU} ? 0 : 1,
@@ -2716,9 +2716,18 @@ sub _olt_manage {
     if ($get_onu_config_function && defined(&{$get_onu_config_function})) {
       my @onu_config_arr = &{\&$get_onu_config_function}({ %$attr, %$onu_info, PON_TYPE => $pon_type });
       foreach my $line (@onu_config_arr) {
+
+        my $mac = '';
+        if ($line->[0] =~ /mac/){
+          # mac xxxx.xxxx.xxxx || xx:xx:xx:xx:xx:xx
+          if ($line->[1] =~ /([0-9A-Za-z]{4}\.[0-9A-Za-z]{4}\.[0-9A-Za-z]{4})/xg || $line->[1] =~ /([0-9A-Za-z]{2}:){5}[0-9A-Za-z]{2}/xg){
+            $mac = $html->element('code', $1, { OUTPUT2RETURN => 1 });
+          }
+        }
         $line->[1] =~ s/>/&gt;/xg;
         $line->[1] =~ s/</&lt;/xg;
-        push @info, [ $line->[0], $html->element('pre', $line->[1], { class => "table" }) ];
+
+        push @info, [ $line->[0], $mac.$html->element('pre', $line->[1], { class => "table" }) ];
       }
     }
   }
@@ -3259,8 +3268,6 @@ sub equipment_pon_onu_graph {
   my @onu_graph_types = split(',', $onu_info->{ONU_GRAPH} || q{});
   my $snmp_info = $attr->{snmp};
   my %graph_hash = ();
-  my $date_picker = '';
-  my $result = '';
 
   my $start_time = time() - 24 * 3600;
   my $end_time = time();
@@ -3273,19 +3280,11 @@ sub equipment_pon_onu_graph {
   }
 
   my $daterangepicker_default = strftime("%F %T", localtime($start_time)) . '/' . strftime("%F %T", localtime($end_time));
-  $date_picker = $html->form_daterangepicker({
+  my $date_picker = $html->form_daterangepicker({
     NAME      => 'FROM_DATE/TO_DATE',
     FORM_NAME => 'TIMERANGE',
     WITH_TIME => 1,
     VALUE     => $daterangepicker_default
-  });
-
-  $result .= $html->element('div', "$lang{PERIOD} $lang{FOR_GRAPH}", { class => 'card-header card-title' });
-  $result .= $html->element('div', $date_picker, { class => 'card-body' });
-  $result .= $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', FORM_ID => 'period_panel' });
-
-  my $report_form = $html->element('div', $result, {
-    class => 'card card-primary card-outline card-form',
   });
 
   require Equipment::Graph;
@@ -3294,7 +3293,14 @@ sub equipment_pon_onu_graph {
     my @onu_ds_names = ();
     if ($graph_type eq 'SIGNAL' && $snmp_info && ($snmp_info->{ONU_RX_POWER}->{OIDS} || $snmp_info->{OLT_RX_POWER}->{OIDS})) {
       push @onu_ds_names, $snmp_info->{ONU_RX_POWER}->{NAME} || q{};
-      push @onu_ds_names, $snmp_info->{OLT_RX_POWER}->{NAME} || q{};
+      if($snmp_info->{OLT_RX_POWER}->{NAME}) {
+        push @onu_ds_names, $snmp_info->{OLT_RX_POWER}->{NAME} || q{};
+      }
+      if($snmp_info->{ONU_TX_POWER}->{NAME}) {
+        push @onu_ds_names, $snmp_info->{ONU_TX_POWER}->{NAME} || q{};
+        print @onu_ds_names;
+      }
+
       $graph_hash{SIGNAL} = get_graph_data({
         NAS_ID     => $nas_id,
         PORT       => $onu_info->{ONU_SNMP_ID},
@@ -3316,7 +3322,7 @@ sub equipment_pon_onu_graph {
         START_TIME => $start_time,
         END_TIME   => $end_time
       });
-      $graph_hash{TEMPERATURE}{DIMENSION} = '?C' if $graph_hash{TEMPERATURE};
+      $graph_hash{TEMPERATURE}{DIMENSION} = '?C' if ($graph_hash{TEMPERATURE});
     }
     elsif ($graph_type eq 'SPEED' && ($snmp_info->{ONU_IN_BYTE}->{OIDS} || $snmp_info->{ONU_OUT_BYTE}->{OIDS})) {
       push @onu_ds_names, $snmp_info->{ONU_IN_BYTE}->{NAME};
@@ -3363,7 +3369,7 @@ sub equipment_pon_onu_graph {
         GRAPH_ID      => lc($graph_type),
         DIMENSION     => $graph->{DIMENSION},
         TITLE         => $chart_title,
-        TRANSITION    => 1,
+        #TRANSITION    => 1,
         X_TEXT        => \@time_arr,
         DATA          => \%graph_data,
         OUTPUT2RETURN => 1
@@ -3371,28 +3377,23 @@ sub equipment_pon_onu_graph {
     }
   }
 
-  print $html->form_main({
-    CONTENT => $report_form,
-    HIDDEN  => {
-      index        => $index,
-      visual       => $FORM{visual},
-      NAS_ID       => $nas_id,
-      #graph_onu => $snmp_id,
-      PON_TYPE     => $pon_type,
-      info_pon_onu => $FORM{info_pon_onu},
-      ONU          => $FORM{ONU}
-    },
-    NAME    => 'period_panel',
-    ID      => 'period_panel',
-    class   => 'card-body',
-  });
-
-  $result = '';
+  my $result = '';
   foreach my $graph (@graphs) {
     Encode::_utf8_off($graph);
     $result .= $html->element('div', ($graph || q{}), { class => 'col-md-' . (12 / ($#graphs + 1)) });
   }
-  print $html->element('div', $result, { class => 'row' });
+
+  my %parameters = (
+    DATE_RANGE   => $date_picker,
+    visual       => $FORM{visual},
+    NAS_ID       => $nas_id,
+    PON_TYPE     => $pon_type,
+    INFO_PON_ONU => $FORM{info_pon_onu},
+    ONU          => $FORM{ONU},
+    GRAPHS       => $result
+  );
+
+  print $html->tpl_show(_include('equipment_pon_graph', 'Equipment'), { %{$Equipment}, %FORM, %parameters });
 
   return 1;
 }
@@ -3434,16 +3435,15 @@ sub pon_onu_convert_state {
 #**********************************************************
 sub equipment_pon_form {
 
-  $Equipment->{OLT_SEL} = $html->form_select(
-    'NAS_ID',
-    {
-      SEL_OPTIONS => { '' => '--' },
-      SEL_LIST    => $Equipment->list({ NAS_NAME => '_SHOW', COLS_NAME => 1, PAGE_ROWS => 10000, TYPE_NAME => 4 }),
-      SEL_KEY     => 'nas_id',
-      SEL_VALUE   => 'nas_id,nas_name',
-      NO_ID       => 1,
-    }
-  );
+  _equipment_onu_btn_statuses();
+
+  $Equipment->{OLT_SEL} = $html->form_select('NAS_ID',{
+    SEL_OPTIONS => { '' => '--' },
+    SEL_LIST    => $Equipment->list({ NAS_NAME => '_SHOW', COLS_NAME => 1, PAGE_ROWS => 10000, TYPE_NAME => 4 }),
+    SEL_KEY     => 'nas_id',
+    SEL_VALUE   => 'nas_id,nas_name',
+    NO_ID       => 1,
+  });
   $FORM{INDEX} = get_function_index('equipment_info');
   $html->tpl_show(_include('equipment_pon', 'Equipment'), { %{$Equipment}, %FORM });
 
@@ -3798,14 +3798,23 @@ sub _equipment_panel_branch_onu_status {
     PON_TYPE    => $attr->{PON_TYPE} || '_SHOW',
     BRANCH      => '_SHOW',
     GROUP_BY    => 'branch',
-    SORT        => 'snmp_id',
     PAGE_ROWS   => 10000,
   });
 
-  foreach my $branch (@$onu_branch_list) {
+  my %branch_hash = ();
+  my %branch_hash_for_sort = ();
+
+  foreach my $port (@$onu_branch_list) {
+    $branch_hash{$port->{branch}} = $port;
+    $branch_hash_for_sort{$port->{branch}} = $port->{branch};
+  }
+
+  my @branch_list_sorted = _equipment_branch_sort(\%branch_hash_for_sort);
+
+  foreach my $branch (@branch_list_sorted) {
     my $onu_status = $Equipment->onu_list({
       NAS_ID    => $attr->{NAS_ID},
-      OLT_PORT  => $branch->{port_id},
+      OLT_PORT  => $branch_hash{$branch}{port_id},
       STATUS    => '_SHOW',
       PAGE_ROWS => 10000,
     });
@@ -3814,7 +3823,7 @@ sub _equipment_panel_branch_onu_status {
 
     my ($onu_online, $onu_offline) = (0, 0);
     my $onu_badge = '';
-    my $ports_total = ($branch->{pon_type} eq 'epon') ? 64 : 128;
+    my $ports_total = ($branch_hash{$branch}{pon_type} eq 'epon') ? 64 : 128;
 
     for my $line (@$onu_status) {
       if (in_array($line->{status}, [1, 2, 3, 5, 18])) {
@@ -3835,13 +3844,13 @@ sub _equipment_panel_branch_onu_status {
 
     $onu_badge .= $html->badge($onu_online, { TYPE => 'badge badge-success', STYLE => "TITLE='$lang{ONLINE}'" });
     $onu_badge .= $html->badge($onu_offline, { TYPE => 'badge badge-danger', STYLE => "TITLE='$lang{OFFLINE}'" });
-    my $alert = ($branch->{port_id} && $FORM{OLT_PORT} && $branch->{port_id} == $FORM{OLT_PORT}) ? 'alert-info' : 'alert-secondary';
+    my $alert = ($branch_hash{$branch}{port_id} && $FORM{OLT_PORT} && $branch_hash{$branch}{port_id} == $FORM{OLT_PORT}) ? 'alert-info' : 'alert-secondary';
 
     $result .= $html->message(
       'light p-1 mb-1',
-      $html->button("$branch->{pon_type} $branch->{branch}", "index=$index&visual=4&NAS_ID=$attr->{NAS_ID}&OLT_PORT=" .($branch->{port_id} || 0),
+      $html->button("$branch_hash{$branch}{pon_type} $branch_hash{$branch}{branch}", "index=$index&visual=4&NAS_ID=$attr->{NAS_ID}&OLT_PORT=" .($branch_hash{$branch}{port_id} || 0),
         { class => "btn btn-info btn-xs $alert" }) .
-      $html->element('span', ($branch->{branch_desc} || ''), { class => 'small p-1', style => 'font-size:14px;'}),
+      $html->element('span', ($branch_hash{$branch}{branch_desc} || ''), { class => 'small p-1', style => 'font-size:14px;'}),
       "$progress_bar $onu_badge",
       { OUTPUT2RETURN => 1 }
     );
@@ -3943,5 +3952,94 @@ sub pon_olt_rx_alerts {
 
   return $rx;
 }
+
+#********************************************************
+=head2 _equipment_branch_sort($attr) - sort PON branch
+
+=cut
+#********************************************************
+sub _equipment_branch_sort {
+  my ($hash_for_sort) = @_;
+
+  my @branch_list_sorted = sort {
+    my @a = split '/', $a;
+    my @b = split '/', $b;
+
+    for my $i (0 .. $#a) {
+      my $cmp = $a[$i] <=> $b[$i];
+      return $cmp if $cmp;
+    }
+    0;
+  } keys %$hash_for_sort;
+
+  return @branch_list_sorted;
+}
+
+
+#********************************************************
+=head2 _equipment_onu_btn_statuses($attr) -
+
+=cut
+#********************************************************
+sub _equipment_onu_btn_statuses {
+
+  my $onu_info = $Equipment->pon_onus_report({
+    ONU_ONLINE_STATUS => join(';', @ONU_ONLINE_STATUSES),
+    STATUS            => '0;3', #enable, error
+    DELETED           => 0,
+    COLS_NAME         => 1
+  });
+
+  my $active_onu_count = $onu_info->{active_onu_count};
+  my $inactive_onu_count = $onu_info->{onu_count} - $onu_info->{active_onu_count};
+  my $worth_onu_count = $onu_info->{worth_onu_count} || 0;
+  my $bad_onu_count = $onu_info->{bad_onu_count} || 0;
+  my $total_worth_bad_count = $worth_onu_count + $bad_onu_count;
+
+  my @info_panels = (
+    {
+      ID            => mk_unique_value(10),
+      NUMBER        => $active_onu_count || ' 0',
+      NUMBER_SIZE   => '40px',
+      ICON          => 'plane',
+      TEXT          => "$lang{ENABLE}",
+      EXT_TEXT      => "$lang{TOTAL}: ".($onu_info->{onu_count} || ''),
+      COLOR         => 'green',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index",
+      MENU_BUTTONS  => 1
+    },
+    {
+      ID            => mk_unique_value(10),
+      NUMBER        => $inactive_onu_count || ' 0',
+      NUMBER_SIZE   => '40px',
+      ICON          => 'times',
+      TEXT          => $lang{DISABLE},
+      EXT_TEXT      => "$lang{UNREGISTER}: ".($onu_info->{unactivated} || 0),
+      COLOR         => 'red',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index"
+    },
+    {
+      ID            => mk_unique_value(10),
+      NUMBER        => $total_worth_bad_count,
+      NUMBER_SIZE   => '40px',
+      ICON          => 'exclamation',
+      TEXT          => $lang{BAD_ONU_COUNT},
+      EXT_TEXT      => "$lang{BAD_SIGNAL}: $bad_onu_count, $lang{WORTH_SIGNAL}: $worth_onu_count",
+      COLOR         => 'orange',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index",
+    },
+  );
+
+  $html->short_info_panels_row(\@info_panels);
+
+  return 1;
+}
+
 
 1;

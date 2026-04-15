@@ -37,7 +37,6 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Triplay_base = Triplay::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-require Control::Services;
 require Control::Selects;
 
 #**********************************************************
@@ -199,11 +198,15 @@ sub triplay_user_info_ {
 
     my $user_services = $Triplay_services->{user_services};
 
+    require Control::Services;
+    Control::Services->import();
+    my $Services = Control::Services->new($db, $admin, \%conf);
 
     my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    my $services = ::get_services($user_info, {
+    my $services = $Services->get_services($user_info, {
       IPTV_SHOW_FREE_TPS     => 1,
-      IPTV_SHOW_ALL_SERVICES => 1
+      IPTV_SHOW_ALL_SERVICES => 1,
+      FORM                   => \%FORM
     });
 
     my %real_service = ();

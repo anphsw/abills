@@ -7,14 +7,11 @@ use strict;
 use warnings;
 
 use Test::More;
-
 use FindBin '$Bin';
-use FindBin qw($RealBin);
-use JSON;
 
 BEGIN {
-  our $libpath = $Bin . '/../../../../';
-  require "$libpath/libexec/config.pl";
+  my $libpath = $Bin . '/../../../../';
+  do "$libpath/libexec/config.pl";
   my $sql_type = 'mysql';
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
@@ -24,9 +21,7 @@ BEGIN {
   unshift(@INC, $libpath . 'Abills/modules/');
 }
 
-use Abills::Defs;
-use Abills::Api::Tests::Init qw(test_runner folder_list help);
-use Abills::Base qw(parse_arguments);
+use Abills::Api::Tests::Init qw(test_runner folder_list db_connect help);
 use Internet;
 use Shedule;
 use Control::Service_control;
@@ -35,29 +30,21 @@ our (
   %conf,
 );
 
-my $db = Abills::SQL->connect(
-  $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  {
-    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
-    dbdebug => $conf{dbdebug}
-  }
-);
+my ($db, $admin) = db_connect();
+my $argv = parse_arguments(\@ARGV);
 
-my $ARGS = parse_arguments(\@ARGV);
-
-if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
+if (defined($argv->{help})) {
   help();
   exit 0;
 }
 
-my $admin = Admins->new($db, \%conf);
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 my $Shedule  = Shedule->new($db, $admin, \%conf);
 my $Service_control  = Control::Service_control->new($db, $admin, \%conf);
 
-my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
-my $debug = $ARGS->{DEBUG} || 0;
+my $apiKey = $argv->{KEY} || q{};
+my $debug = $argv->{DEBUG} || 0;
 
 if ($debug > 6)  {
   $Users->{debug}=1;
@@ -67,6 +54,8 @@ if ($debug > 6)  {
 my $test_user = $conf{API_TEST_USER_LOGIN} || 'test';
 my $user = $Users->list({
   LOGIN     => $test_user,
+  DEPOSIT   => '_SHOW',
+  CREDIT    => '_SHOW',
   COLS_NAME => 1,
 });
 
@@ -79,25 +68,21 @@ my $service_list = $Internet->user_list({
   UID       => $uid || '---',
   TP_ID     => '_SHOW',
   ID        => '_SHOW',
-  COLS_NAME => 1,
   PAGE_ROWS => 1,
   GROUP_BY  => 'internet.id',
   SORT      => 'internet.id',
   DESC      => 'DESC'
 });
 
-# my $active_tariffs = $Service_control->services_info({
-#   UID             => $user->[0]->{uid},
-#   SERVICE_INFO    => $Internet,
-#   FUNCTION_PARAMS => {
-#     GROUP_BY        => 'internet.id',
-#     INTERNET_STATUS => '_SHOW',
-#   },
-# });
+if($service_list && ! $service_list->[0]->{tp_id} && $user->[0]->{credit} + $user->[0]->{deposit} < 0 ) {
+  _log("$test_user Too small deposit for tarif activation");
+  exit;
+}
 
 my $available_tariffs = $Service_control->available_tariffs({
-  UID    => $uid,
-  MODULE => 'Internet'
+  UID               => $uid,
+  MODULE            => 'Internet',
+  ADD_FIRST_SERVICE => ($service_list->[0]->{tp_id}) ? undef : 1
 });
 
 if ($Service_control->{error}) {
@@ -110,14 +95,18 @@ my $hold_up_min_period = 1;
 ($hold_up_min_period) = split(':', $conf{HOLDUP_ALL}) if ($conf{HOLDUP_ALL});
 
 my %params = (
-  id        => $service_list->[0]->{id},
   serviceId => $service_list->[0]->{id},
   uid       => $uid,
-  sheduleId => $Shedule->{SHEDULE_ID} || 0,
   fromDate  => POSIX::strftime('%Y-%m-%d', localtime(time + 86400)),
-  toDate    => POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * ($hold_up_min_period + 1)))
+  toDate    => POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * ($hold_up_min_period + 1))),
+  NextTpId  => $argv->{NEXT_TP_ID} || 4,
+  cid       => $argv->{CID} || '10:fe:ed:43:8f:37',
 );
 
+if($argv->{EXECUTABLE_TESTS}) {
+  $params{id}        = $service_list->[0]->{id};
+  $params{sheduleId} = $Shedule->{SHEDULE_ID} || 0;
+}
 
 if (! $available_tariffs || ref $available_tariffs ne 'ARRAY') {
   _log("No available tarifs for change UID: $uid");
@@ -128,11 +117,12 @@ else {
   $params{nextTpId} = $available_tariffs->[1]->{tp_id};
 }
 
-my @available_tests = folder_list($ARGS, $RealBin);
+my @available_tests = folder_list($argv, $Bin);
 my $run_tests = test_preprocess(\@available_tests, \%params, \%conf, { DEBUG => 2 });
 
 test_runner({
   apiKey => $apiKey,
+  argv   => $argv,
   debug  => $debug
 }, $run_tests);
 

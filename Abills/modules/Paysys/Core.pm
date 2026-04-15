@@ -459,9 +459,11 @@ sub _paysys_pay_payment_process {
     ::cross_modules('pre_payment', {
       USER_INFO    => $user,
       SKIP_MODULES => 'Sqlcmd, Cards',
-      SILENT       => 1,
+      SILENT       => ($debug > 5) ? 0 : 1,
       QUITE        => 1,
-      SUM          => $PAYMENT_SUM || $amount,
+      DEBUG        => ($debug > 5) ? 1 : 0,
+      # adds payment sum twice, in Controls/Payments such option do not exists in pre_payment
+      # SUM          => $PAYMENT_SUM || $amount,
       AMOUNT       => $amount || $PAYMENT_SUM,
       EXT_ID       => "$payment_system:$ext_id",
       METHOD       => $method || 2,
@@ -792,7 +794,7 @@ sub paysys_check_user {
   my $CHECK_FIELD = $attr->{CHECK_FIELD} || 'UID';
   my $user_account = $attr->{USER_ID} || q{};
 
-  $user_account =~ s/\*//x;
+  $user_account =~ s/\*//xg;
 
   $user_account = _expr($user_account, $self->{conf}->{PAYSYS_ACCOUNT_EXPR});
 
@@ -845,6 +847,9 @@ sub paysys_check_user {
   foreach my $user (@{$list}) {
     if ($attr->{RECOMENDED_PAY}) {
       $user->{RECOMENDED_PAY} = main::recomended_pay($list->[0]);
+      if ($attr->{REVERSE_RECOMMENDED_PAY} && $user->{RECOMENDED_PAY}) {
+        $user->{RECOMENDED_PAY} = -$user->{RECOMENDED_PAY};
+      }
     }
 
     if ($user->{FIO}) {
@@ -856,9 +861,12 @@ sub paysys_check_user {
     $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT} || 0);
 
     if (!$attr->{SKIP_FIO_HIDE}) {
-      $user->{FIO} = $self->_hide_text($user->{FIO} || q{});
-      $user->{PHONE} = $self->_hide_text($user->{PHONE} || q{});
-      $user->{ADDRESS_FULL} = $self->_hide_text($user->{ADDRESS_FULL} || q{});
+      require Abills::TextFormat;
+      Abills::TextFormat->import();
+
+      $user->{FIO} = Abills::TextFormat::hide_text($user->{FIO} || q{});
+      $user->{PHONE} = Abills::TextFormat::hide_text($user->{PHONE} || q{});
+      $user->{ADDRESS_FULL} = Abills::TextFormat::hide_text($user->{ADDRESS_FULL} || q{});
     }
 
     last if (!$attr->{MULTI_USER});
@@ -1368,49 +1376,6 @@ sub _check_max_payments {
   push @{$attr->{MERCHANTS}}, $attr->{MERCHANT_ID};
 
   return $self->_check_max_payments($attr);
-}
-
-#**********************************************************
-=head2 _hide_text($text) - Hide text string
-
-  Arguments:
-     $text
-
-  Returns:
-    $hidden_text
-
-=cut
-#**********************************************************
-sub _hide_text {
-  my (undef, $text) = @_;
-
-  my $hidden_text = '';
-  if (!$text) {
-    return q{};
-  }
-
-  my @join_test = ();
-  $text =~ s/\s+$//xgm;
-  $text =~ s/\'/_/xg;
-  $text =~ s/&|%//xg;
-  my $str_utf8 = decode('UTF-8', $text);
-
-  my @split_fio = split(/ /, $str_utf8);
-  my @split_word = ();
-  foreach my $key (@split_fio) {
-    @split_word = split(//, $key);
-    for (my $i = 0; $i < @split_word; $i++) {
-      if ($i != 0 && ($i % 2 == 0 || $i % 3 == 0)) {
-        $split_word[$i] = '*';
-      }
-    }
-    my $hidden = join('', @split_word);
-    push(@join_test, $hidden);
-  }
-
-  $hidden_text = encode('UTF-8', join(' ', @join_test));
-
-  return $hidden_text;
 }
 
 #**********************************************************

@@ -3,8 +3,10 @@ package Abills::Api::Router;
 use strict;
 use warnings FATAL => 'all';
 
+use Sub::Util qw(subname);
 use JSON;
 
+use Abills::Filters qw(uuid_valid);
 use Abills::Base qw(escape_for_sql in_array decamelize);
 use Abills::Api::Validator;
 use Abills::Api::Paths;
@@ -264,6 +266,12 @@ sub handle {
     return;
   }
 
+  #@experimental
+  # validate idempotency_key if enabled option and it's required
+  if (!$self->_validate_idempotency_key($route)) {
+    return 0;
+  }
+
   # validate request body or query params
   if (defined $route->{params}) {
     my $Validator = Abills::Api::Validator->new($self->{db}, $self->{admin}, $self->{conf});
@@ -306,14 +314,17 @@ sub handle {
 
   my $result = '';
 
-  return $self if (!$self->_load_module($route->{controller}));
+  my $func = $route->{endpoint};
+  my $full = subname($func);
+  my ($package, undef) = $full =~ /^(.*)::([^:]+)$/x;
+
+  return $self if (!$self->_load_module($package));
 
   my $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
     { lang => $self->{lang}, module => $self->{current_package}
   });
 
-  my $func = $route->{endpoint};
-  my $controller = $route->{controller}->new($self->{db}, $self->{admin}, $self->{conf}, {
+  my $controller = $package->new($self->{db}, $self->{admin}, $self->{conf}, {
     lang    => $self->{lang},
     html    => $self->{html},
     Errors  => $Errors,
@@ -355,6 +366,8 @@ sub handle {
   }
   else {
     $self->{result} = $result;
+    $self->{COL_NAMES_ARR} = $controller->{COL_NAMES_ARR};
+    $self->{COL_TYPES_ARR} = $controller->{COL_TYPES_ARR};
 
     if (!defined($self->{result})) {
       $self->{result} = {};
@@ -398,6 +411,7 @@ sub _load_module {
   my $module_path = $module . '.pm';
   $module_path =~ s{::}{/}xg;
   eval { require $module_path };
+
   if ($@ || !$module->can('new')) {
     $self->{status} = 502;
     $self->{result} = {
@@ -407,6 +421,64 @@ sub _load_module {
     if ($self->{conf}->{API_DEBUG} && $@) {
       $self->{result}->{debuginfo} = $@;
     }
+    return 0;
+  }
+
+  return 1;
+}
+
+#***********************************************************
+=head2 _validate_idempotency_key($route) - validate idempotency key if enabled and required
+
+  ARGS:
+    $route: hashref - route information
+
+  Return:
+    status: bool -
+      1 - validation passed or not required
+      0 - validation failed
+
+=cut
+#***********************************************************
+sub _validate_idempotency_key {
+  my ($self, $route) = @_;
+
+  if (!$self->{conf}->{API_IDEMPOTENCY_KEY} || !$route->{idempotency_key}) {
+    return 1;
+  }
+
+  my $idempotency_key = $ENV{HTTP_IDEMPOTENCY_KEY} || '';
+
+  if (!$idempotency_key || $idempotency_key eq '') {
+    $self->{status} = 400;
+    $self->{result} = {
+      errno  => 22,
+      errstr => 'Idempotency-Key header is required',
+    };
+    return 0;
+  }
+
+  if (!uuid_valid($idempotency_key)) {
+    $self->{status} = 400;
+    $self->{result} = {
+      errno  => 23,
+      errstr => 'Idempotency-Key must be a valid UUID',
+    };
+    return 0;
+  }
+
+  require Api;
+  Api->import();
+  my $Api = Api->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Api->idempotency_key_info($idempotency_key);
+
+  if ($Api->{HTTP_STATUS}) {
+    $self->{status} = 409;
+    $self->{result} = {
+      errno  => 24,
+      errstr => 'Api request already exists with such Idempotency-Key',
+    };
     return 0;
   }
 
@@ -439,7 +511,7 @@ sub parse_request {
   foreach my $route (@{$self->{resource_own}}) {
     next if (!$self->{request_method} || $route->{method} ne $self->{request_method});
 
-    next if (!$route->{endpoint} || !$route->{controller});
+    next if (!$route->{endpoint});
 
     my $route_path_template = $route->{path};
 

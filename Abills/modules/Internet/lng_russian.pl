@@ -62,5 +62,6 @@ $lang{INTERNET_NO_STREETS_IN_THIS_AREA} = 'В этом районе нет ул�
 $lang{INTERNET_NO_BUILDINGS_ON_THIS_STREET} = 'На этой улице нет зданий';
 
 $lang{ERR_NO_WRONG_PORT_SELECTED} = 'Выбран неправильный порт';
+$lang{UNKNOWN_USERS} = 'Неизвестные пользователи';
 
 1;

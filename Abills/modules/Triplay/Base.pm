@@ -313,10 +313,9 @@ sub triplay_user_del {
 sub triplay_service_activate {
   my ($self, $attr) = @_;
 
-  delete $INC{'Control/Services.pm'};
-  eval {
-    do 'Control/Services.pm';
-  };
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $user_info = $attr->{USER_INFO};
   my $uid = $attr->{UID} || $user_info->{UID} || 0;
@@ -329,7 +328,7 @@ sub triplay_service_activate {
   my $get_services = $attr->{ACTIVATE_SERVICE} || $self->{conf}->{TRIPLAY_REWRITE_SERVICE} || 0;
 
   if ($get_services) {
-    my $services = get_services($user_info, {
+    my $services = $Services->get_services($user_info, {
       IPTV_SHOW_FREE_TPS     => 1,
       IPTV_SHOW_ALL_SERVICES => 1,
       SKIP_MODULES           => 'Triplay'
@@ -408,7 +407,8 @@ sub triplay_service_activate {
     if (!$service_id) {
       require Iptv::Services;
       Iptv::Services->import();
-      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
+      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf},
+        { lang => \%lang, SYSTEM_ADMIN => $self->{conf}->{SYSTEM_ADMIN_ID} || 1 });
 
       my $result = $Iptv_services->user_add({
         %$attr,
@@ -424,7 +424,8 @@ sub triplay_service_activate {
     elsif ($service_id) {
       require Iptv::Services;
       Iptv::Services->import();
-      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf}, { lang => \%lang });
+      my $Iptv_services = Iptv::Services->new($db, $admin, $self->{conf},
+        { lang => \%lang, SYSTEM_ADMIN => $self->{conf}->{SYSTEM_ADMIN_ID} || 1 });
 
       $Iptv_services->user_change({
         %$attr,
@@ -532,10 +533,12 @@ sub triplay_user_services {
     UPDATE_SERVICE_INFO => sub {
       my ($service_info, $tariff) = @_;
 
-      ::load_module('Control::Services', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Control/Services.pm'}));
+      require Control::Services;
+      Control::Services->import();
+      my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
 
       # a little bit strange logic if we want to get all service info of such tps
-      my $user_services = ::get_user_services({
+      my $user_services = $Services->get_user_services({
         uid           => $user->{UID},
         skip_services => 'Triplay',
       });

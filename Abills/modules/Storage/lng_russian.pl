@@ -211,10 +211,12 @@ $lang{STORAGE_WITHOUT_SERIAL_NUMBERS} = 'Без серийных номеров'
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'Количество товаров указано неверно';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'Отсутствие прав на управление складом';
 $lang{ERR_STORAGE_SERIAL_DUPLICATE} = 'Серийный номер дублируется';
-$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'Некорректная входящая позиция';
+$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'Свободный товар не найден на складе';
 $lang{ERR_STORAGE_INSTALLATION} = 'Не указан объект установки';
 $lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Не указан получатель установки';
 $lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Установленное оборудование не найдено';
+$lang{ERR_STORAGE_INVALID_QUANTITY_FOR_DIVISION} = 'Неверное количество товара для разделения';
+$lang{ERR_STORAGE_TARGET_STORAGE_IS_SAME_AS_SOURCE} = 'Целевой склад совпадает с исходным складом';
 
 $lang{RETURN} = 'Возврат';
 $lang{QUANTITY} = 'Количество';
@@ -239,5 +241,9 @@ $lang{STORAGE_INCOMING_ARTICLE_SPLIT} = 'Разделение товара';
 $lang{STORAGE_INCOMING_ARTICLE_MERGE} = 'Объединение товара';
 $lang{STORAGE_RESERVED_BY_USER} = 'Зарезервировано пользователем';
 $lang{STORAGE_OPERATION_DETAILS} = 'Детали операции';
+$lang{STORAGE_HOW_MANY_UNITS_TO_DIVIDE} = 'Сколько единиц разделить?';
+$lang{STORAGE_ITEM_FROM_WHICH_DIVISION_OCCURRED} = 'Товар, с которого произошло разделение';
+$lang{STORAGE_DIVIDED_ITEMS} = 'Разделённые товары';
+$lang{STORAGE_EQUIPMENT_ALREADY_INSTALLED_FOR_ANOTHER_USER} = 'Оборудование уже установлено у другого пользователя';
 
 1;

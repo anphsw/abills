@@ -19,7 +19,7 @@ our (
   @WEEKDAYS,
   @MONTHES,
   %FORM,
-  @status,
+  #@status,
   $pages_qs,
   $base_dir
 );
@@ -32,18 +32,6 @@ our Abills::HTML $html;
 =cut
 #**********************************************************
 sub form_admins {
-
-  my $base_fields = 4;
-  my $Employees;
-
-  if (in_array('Employees', \@MODULES)) {
-    require Employees;
-    Employees->import();
-    $Employees = Employees->new($db, $admin, \%conf);
-
-    # if enabled Employees enabled it's showing extra 2 columns
-    $base_fields = 6;
-  }
 
   my $admin_form = Admins->new($db, \%conf);
   $admin_form->{ACTION} = 'add';
@@ -113,7 +101,6 @@ sub form_admins {
       push @admin_menu, "$lang{MESSAGES}:" . get_function_index('msgs_admin') . ":AID=$admin_form->{AID}:msgs";
     }
 
-
     func_menu(
       {
         $lang{NAME} => $A_LOGIN
@@ -177,6 +164,10 @@ sub form_admins {
   });
 
   if (in_array('Employees', \@MODULES)) {
+    require Employees;
+    Employees->import();
+    my $Employees = Employees->new($db, $admin, \%conf);
+
     $admin_form->{POSITIONS} = $html->form_select('POSITION', {
       SELECTED    => $FORM{POSITION} || $admin_form->{POSITION},
       SEL_LIST    => translate_list($Employees->position_list({ COLS_NAME => 1 }), 'position'),
@@ -239,7 +230,6 @@ sub form_admins {
 
   $admin_form->{INDEX} = 50;
   $admin_form->{HEADER_NAME} = $lang{ADMINS};
-
   $admin_form->{G2FA_CHECKED} = $admin_form->{G2FA} ? "checked" : '';
   $admin_form->{G2FA} = $admin_form->{G2FA} || $FORM{G2FA} || uc(Abills::Base::mk_unique_value(32));
   $admin_form->{PATTERN} = ($conf{ADMINNAMEREGEXP}) ? ($conf{ADMINNAMEREGEXP}) : '^\S{1,}$';
@@ -256,14 +246,6 @@ sub form_admins {
     })
   }
 
-  if($FORM{search}){
-    %LIST_PARAMS = %FORM;
-    $LIST_PARAMS{PHONE} = "*$LIST_PARAMS{PHONE}*" if $LIST_PARAMS{PHONE};
-    $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
-    $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
-    $LIST_PARAMS{LOGIN} = $FORM{ID};
-  }
-
   if($FORM{DISABLE} && $FORM{DISABLE} != 0){
     my $admins_online_list = $admin->online_list();
     foreach my $line (@$admins_online_list) {
@@ -273,16 +255,46 @@ sub form_admins {
     }
   }
 
-  my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 , SORT=>$FORM{sort}});
+  form_admins_list();
+
+  system_info();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_admins() - Admins list
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_admins_list {
+
+  if($FORM{search}){
+    %LIST_PARAMS = %FORM;
+    $LIST_PARAMS{PHONE} = "*$LIST_PARAMS{PHONE}*" if ($LIST_PARAMS{PHONE});
+    $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
+    $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
+    $LIST_PARAMS{LOGIN} = $FORM{ID};
+  }
+
+  my $base_fields = 4;
+  my $list = $admin->admins_groups_list({ ALL => 1, COLS_NAME => 1 , SORT=>$FORM{sort}});
   my %admin_groups = ();
   foreach my $line (@$list) {
     $admin_groups{ $line->{aid} } .= ", $line->{gid}:$line->{name}";
   }
 
   delete($LIST_PARAMS{AID});
-  delete $admin_form->{COL_NAMES_ARR};
+  delete $admin->{COL_NAMES_ARR};
 
   if (in_array('Employees', \@MODULES)) {
+    # if enabled Employees enabled it's showing extra 2 columns
+    $base_fields = 6;
     $admin->{SHOW_EMPLOYEES} = 1;
   }
 
@@ -371,7 +383,7 @@ sub form_admins {
 
   foreach my $line (@$admins_list) {
     my @fields_array = ();
-    
+
     if (!exists $admins_modules->{$line->{aid}}) {
       $Admin_->{AID} = $line->{aid};
       $Admin_->get_permissions();
@@ -399,7 +411,7 @@ sub form_admins {
         $line->{disable} = $html->color_mark($value, $color);
       }
       elsif ($field_name eq 'gname') {
-        $line->{gname} .= $admin_groups{ $line->{aid} },
+        $line->{gname} .= $admin_groups{ $line->{aid} };
       }
       elsif ($field_name eq 'position'){
         $line->{position} = _translate($line->{position});
@@ -441,8 +453,6 @@ sub form_admins {
   });
 
   print $table->show();
-
-  system_info();
 
   return 1;
 }
@@ -546,7 +556,7 @@ sub form_admins_groups {
   if ($admin_->{TOTAL}){
     foreach my $k (sort keys(%group_type_permits)) {
       my $group_type_url = $k;
-      $group_type_url =~ s/\+/%2B/g;
+      $group_type_url =~ s/\+/%2B/xg;
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_GROUP_TYPE=$group_type_url";
       my $btn_css_style = ($FORM{ADMIN_GROUP_TYPE} && $k && $FORM{ADMIN_GROUP_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
       my $button = $html->button($group_type_url, $url_btn, { class => $btn_css_style }) . '  ';
@@ -604,17 +614,15 @@ sub form_admins_groups {
     },{ OUTPUT2RETURN => 1 }
   );
 
-  print $html->form_main(
-    {
-      CONTENT => $form_add_group_templates . $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index => $index,
-        AID   => $FORM{AID},
-        subf  => $FORM{subf}
-      },
-      SUBMIT  => { change => "$lang{CHANGE}" }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $form_add_group_templates . $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+      AID   => $FORM{AID},
+      subf  => $FORM{subf}
+    },
+    SUBMIT  => { change => "$lang{CHANGE}" }
+  });
 
   return 1;
 }
@@ -761,7 +769,6 @@ sub form_admins_full_log_analyze {
     NAME => 'FROM_DATE/TO_DATE'
   });
 
-  # TODO: #3944 rereview
   my $A_LOGIN = $html->form_main({
     CONTENT => $date_picker . sel_admins(),
     HIDDEN  => { index => $index },
@@ -781,6 +788,9 @@ sub form_admins_full_log_analyze {
   $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
   $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE};
   $LIST_PARAMS{SHOW_ACTION} = '_SHOW';
+  if($FORM{ACTION}) {
+    $LIST_PARAMS{PARAMS} = "*$FORM{ACTION}=*";
+  }
 
   if ($FORM{details}) {
     $LIST_PARAMS{FUNCTION_NAME} = $FORM{details};
@@ -792,95 +802,11 @@ sub form_admins_full_log_analyze {
   my $index_for_search = $saved_subf || $index;
 
   if ($FORM{search_form}) {
-    # Result former may not normal working with AID, and it creates duplicates of AID
-    my ($splitted_aid, undef) = split(/,\s?/, $FORM{AID} || '0', 2);
-
-    if ($FORM{FROM_DATE} && !$FORM{TO_DATE}) {
-      my ($y, $m) = split('-', $DATE);
-      $FORM{TO_DATE} = "$y-$m-" . days_in_month();
-    }
-
-    my %paranoid_form = ();
-    $paranoid_form{FROM_DATE} = $html->date_fld2('FROM_DATE', {
-      FORM_NAME       => 'admin_form_paranoid',
-      NO_DEFAULT_DATE => 1
-    });
-
-    $paranoid_form{TO_DATE} = $html->date_fld2('TO_DATE', {
-      FORM_NAME       => 'admin_form_paranoid',
-      NO_DEFAULT_DATE => 1
-    });
-
-    form_search({
-      TPL => $html->tpl_show(templates('form_admins_paranoid_search'), {
-        %FORM,
-        %paranoid_form,
-        AID   => $splitted_aid,
-        INDEX => $index_for_search,
-      }, { OUTPUT2RETURN => 1 }),
-    });
+    form_admins_full_log_search({ INDEX => $index_for_search });
   }
 
   if ($FORM{list} || $FORM{search_form}) {
-    result_former({
-      INPUT_DATA     => $admin_,
-      FUNCTION       => 'full_log_list',
-      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP,FUNCTION_INDEX,SID,SHOW_ACTION',
-      EXT_TITLES => {
-        datetime       => $lang{DATE},
-        function_name  => 'function_name',
-        function_index => 'function_index',
-        ip             => 'IP',
-        sid            => 'SID',
-        show_action    => $lang{ACTION},
-      },
-      FILTER_COLS    => {
-        function_name => '_paranoid_log_function_filter',
-        params        => '_paranoid_log_params_filter'
-      },
-      FILTER_VALUES => {
-        show_action => sub {
-          my (undef, $line) = @_;
-          my $badge_name = '';
-          my $badge_type = '';
-
-          if ($line->{params} =~ /info/ || $line->{params} =~ /chg/) {
-            $badge_name = $lang{INFO};
-            $badge_type = 'badge-info';
-          }
-          if ($line->{params} =~ /add/) {
-            $badge_name = $lang{ADDED};
-            $badge_type = 'badge-success';
-          }
-          if ($line->{params} =~ /change/) {
-            $badge_name = $lang{CHANGED};
-            $badge_type = 'badge-warning';
-          }
-          if ($line->{params} =~ /del/) {
-            $badge_name = $lang{DELETED};
-            $badge_type = 'badge-danger';
-          }
-          if ($line->{params} =~ /search/) {
-            $badge_name = $lang{SEARCH};
-            $badge_type = 'badge-light';
-          }
-
-          return $html->badge($badge_name, { TYPE => $badge_type });
-        },
-      },
-      SKIP_USER_TITLE   => 1,
-      TABLE          => {
-        width   => '100%',
-        caption => 'Paranoid log',
-        qs      => "$pages_qs&AID=$FORM{AID}&list=1",
-        ID      => 'ADMIN_PARANOID_LOG_LIST',
-        MENU    => "$lang{STATS}:index=$index&AID=$FORM{AID}:btn bg-olive margin;$lang{SEARCH}:index=$index_for_search&search_form=1&AID=$FORM{AID}:search;",
-      },
-      MAKE_ROWS      => 1,
-      SKIP_TOTAL     => 1,
-      TOTAL          => 1,
-    });
-    return 1;
+    form_admins_full_log_list({ INDEX => $index_for_search });
   }
 
   my (undef, $list) = result_former({
@@ -889,8 +815,8 @@ sub form_admins_full_log_analyze {
     DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,COUNT',
     SKIP_PAGES     => 1,
     FILTER_COLS    => {
-      function_name => '_paranoid_log_function_filter',
-      params        => '_paranoid_log_params_filter'
+      function_name => 'paranoid_log_function_filter',
+      params        => 'paranoid_log_params_filter'
     },
     TABLE          => {
       width   => '100%',
@@ -910,7 +836,7 @@ sub form_admins_full_log_analyze {
     push @{$chartdata{count}}, $_->{count};
     if ($FORM{details}) {
       $_->{params} //= '';
-      $_->{params} =~ s/\n/&/g;
+      $_->{params} =~ s/\n/&/xg;
       push @xtext, $_->{params};
     }
     else {
@@ -929,7 +855,145 @@ sub form_admins_full_log_analyze {
 }
 
 #**********************************************************
+=head2 form_admins_full_log_search($attr);
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_admins_full_log_search {
+  my ($attr)=@_;
+
+  my $index_for_search = $attr->{INDEX};
+
+  # Result former may not normal working with AID, and it creates duplicates of AID
+  my ($splitted_aid, undef) = split(/,\s?/x, $FORM{AID} || '0', 2);
+
+  if ($FORM{FROM_DATE} && !$FORM{TO_DATE}) {
+    my ($y, $m) = split('-', $DATE);
+    $FORM{TO_DATE} = "$y-$m-" . days_in_month();
+  }
+
+  my %paranoid_form = ();
+
+  $paranoid_form{ACTION_SEL} = $html->form_select('ACTION', {
+    SELECTED  => $FORM{ACTION} || q{},
+    SEL_ARRAY => [
+      'info',
+      'chg',
+      'add',
+      'change',
+      'del',
+      'search',
+      'EXPORT_CONTENT'
+    ]
+  });
+
+  form_search({
+    TPL => $html->tpl_show(templates('form_admins_paranoid_search'), {
+      %FORM,
+      %paranoid_form,
+      AID   => $splitted_aid,
+      INDEX => $index_for_search,
+    }, { OUTPUT2RETURN => 1 }),
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_admins_full_log_list($attr);
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub form_admins_full_log_list {
+  my ($attr) = @_;
+
+  my $index_for_search = $attr->{INDEX};
+
+  my %filter_values = (
+    show_action => sub {
+      my (undef, $line) = @_;
+      my $badge_name = '';
+      my $badge_type = '';
+
+      if ($line->{params} =~ /info=/xm || $line->{params} =~ /chg=/xm) {
+        $badge_name = $lang{INFO};
+        $badge_type = 'badge-info';
+      }
+      if ($line->{params} =~ /add=/xm) {
+        $badge_name = $lang{ADDED};
+        $badge_type = 'badge-success';
+      }
+      if ($line->{params} =~ /change=/xm) {
+        $badge_name = $lang{CHANGED};
+        $badge_type = 'badge-warning';
+      }
+      if ($line->{params} =~ /del=/xm) {
+        $badge_name = $lang{DELETED};
+        $badge_type = 'badge-danger';
+      }
+      if ($line->{params} =~ /search=/xm) {
+        $badge_name = $lang{SEARCH};
+        $badge_type = 'badge-light';
+      }
+      if ($line->{params} =~ /EXPORT_CONTENT=/xm) {
+        $badge_name = $lang{EXPORT};
+        $badge_type = 'badge-danger';
+      }
+
+      return $html->badge($badge_name, { TYPE => $badge_type });
+    }
+  );
+
+  result_former({
+    INPUT_DATA     => $admin,
+    FUNCTION       => 'full_log_list',
+    DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP,FUNCTION_INDEX,SID,SHOW_ACTION',
+    EXT_TITLES => {
+      datetime       => $lang{DATE},
+      function_name  => 'function_name',
+      function_index => 'function_index',
+      ip             => 'IP',
+      sid            => 'SID',
+      show_action    => $lang{ACTION},
+    },
+    FILTER_COLS    => {
+      function_name => 'paranoid_log_function_filter',
+      params        => 'paranoid_log_params_filter'
+    },
+    FILTER_VALUES => \%filter_values,
+    SKIP_USER_TITLE   => 1,
+    TABLE          => {
+      width   => '100%',
+      caption => 'Paranoid log',
+      qs      => "$pages_qs&AID=$FORM{AID}&list=1",
+      ID      => 'ADMIN_PARANOID_LOG_LIST',
+      MENU    => "$lang{STATS}:index=$index&AID=$FORM{AID}:btn bg-olive margin;$lang{SEARCH}:index=$index_for_search&search_form=1&AID=$FORM{AID}:search;",
+    },
+    MAKE_ROWS      => 1,
+    SKIP_TOTAL     => 1,
+    TOTAL          => 1,
+  });
+
+  return 1;
+}
+
+#**********************************************************
 =head2 form_admins_access($attr);
+
+  Arguments:
+    $attr
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1057,7 +1121,7 @@ sub form_admin_permissions {
   elsif ($FORM{add_permits} && $FORM{TYPE}) {
     while (my ($k, $v) = each(%FORM)) {
       if ($v eq '1') {
-        my ($section_index, $action_index) = split(/_/, $k, 2);
+        my ($section_index, $action_index) = split(/_/x, $k, 2);
         $permits{$section_index}{$action_index} = 1 if (defined($section_index) && defined($action_index));
       }
     }
@@ -1075,7 +1139,7 @@ sub form_admin_permissions {
   elsif ($FORM{set}) {
     while (my ($k, $v) = each(%FORM)) {
       if ($v && $v eq '1') {
-        my ($section_index, $action_index) = split(/_/, $k, 2);
+        my ($section_index, $action_index) = split(/_/x, $k, 2);
         $permits{$section_index}{$action_index} = 1 if (defined($section_index) && defined($action_index));
         #if ($section_index =~ /^\d+$/ && $section_index >= 0);
       }
@@ -1130,7 +1194,7 @@ sub form_admin_permissions {
 
     foreach my $k (sort keys(%ADMIN_TYPES)) {
       my $admin_type_url = $k;
-      $admin_type_url =~ s/\+/%2B/g;
+      $admin_type_url =~ s/\+/%2B/xg;
 
       my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$admin_type_url";
@@ -1149,7 +1213,7 @@ sub form_admin_permissions {
   else {
     foreach my $k (sort keys(%ADMIN_TYPES)) {
       my $admin_type_url = $k;
-      $admin_type_url =~ s/\+/%2B/g;
+      $admin_type_url =~ s/\+/%2B/xg;
 
       my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$admin_type_url";
@@ -1176,7 +1240,7 @@ sub form_admin_permissions {
   if ($content) {
     foreach (@$content) {
       chomp;
-      if ((my ($perm1, $perm2, $desc) = split(/:/)) == 3) {;
+      if ((my ($perm1, $perm2, $desc) = split(/:/x)) == 3) {;
         $describe{$perm1}{$perm2} = $desc;
       }
     };
@@ -1196,7 +1260,7 @@ sub form_admin_permissions {
 
       my $actions_list = $actions[$k];
       my $action_index = 0;
-      $table->{rowcolor} = undef;
+      delete $table->{rowcolor};
       foreach my $action (@$actions_list) {
         my $action_describe = $describe{$k}{$action_index} || '';
         $table->addrow(
@@ -1227,7 +1291,7 @@ sub form_admin_permissions {
     );
     my $actions_list = $actions[9];
     my $action_index = 0;
-    $table->{rowcolor} = undef;
+    delete $table->{rowcolor};
     foreach my $action (@$actions_list) {
       $table->addrow(
         "$action_index",
@@ -1299,6 +1363,7 @@ sub form_admin_permissions {
 #**********************************************************
 sub form_admin_payment_types {
   my ($attr) = @_;
+
   require Payments;
   Payments->import();
   my $Payments = Payments->new($db, $admin, \%conf);
@@ -1460,13 +1525,12 @@ sub form_admins_domains {
     }
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{DOMAINS},
-      title   => [ 'ID', $lang{NAME} ],
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{DOMAINS},
+    title   => [ 'ID', $lang{NAME} ],
+    ID      => 'DOMAINS'
+  });
 
   my $list = $Domains->admins_list({ AID => $LIST_PARAMS{AID}, COLS_NAME => 1 });
   my %admins_domain_hash = ();
@@ -1481,27 +1545,25 @@ sub form_admins_domains {
       $line->{name});
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index => $index,
-        AID   => $FORM{AID},
-        subf  => $FORM{subf}
-      },
-      SUBMIT  => { change => $lang{CHANGE} }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+      AID   => $FORM{AID},
+      subf  => $FORM{subf}
+    },
+    SUBMIT  => { change => $lang{CHANGE} }
+  });
 
   return 1;
 }
 
 #**********************************************************
-=head2 _paranoid_log_function_filter;
+=head2 paranoid_log_function_filter;
 
 =cut
 #**********************************************************
-sub _paranoid_log_function_filter {
+sub paranoid_log_function_filter {
   my ($function_name) = @_;
 
   return 'undef' if !($function_name);
@@ -1515,21 +1577,21 @@ sub _paranoid_log_function_filter {
 }
 
 #**********************************************************
-=head2 _paranoid_log_params_filter;
+=head2 paranoid_log_params_filter;
 
 =cut
 #**********************************************************
-sub _paranoid_log_params_filter {
+sub paranoid_log_params_filter {
   my ($params) = @_;
 
   if ($params) {
-    $params =~ s/\n/<br>/g;
+    $params =~ s/\n/<br>/xg;
   }
 
   return $params;
 }
 
-
+#**********************************************************
 =head2 _admins_get_file_version($filename)
 
   Arguments:
@@ -1555,19 +1617,20 @@ sub _admins_get_file_version {
 
   if (open(my $fh, '<', $filepath)){
     while (my $line = <$fh>) {
-      if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/) {
+      if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/xm) {
         $content = $1;
         return $content;
       }
-      elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/) {
+      elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/xm) {
         $content = $1;
         return $content;
       }
-      elsif ($line =~ /VERSION\:\s+([0-9.]+)/) {
+      elsif ($line =~ /VERSION\:\s+([0-9.]+)/xm) {
         $content = $1;
         return $content;
       }
     }
+    close($fh);
   }
 
   return $content || '';
@@ -1627,10 +1690,11 @@ sub _admin_permissions {
       $lang{MASS_DELETION_PAYMENT}, # 41
       $lang{MASS_DELETION_FEES}, # 42
       $lang{MANAGING_EXTERNAL_SERVICES}, # 43
+      $lang{MANAGING_PASSPORT_DATA}, # 44
     ],
     # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
-    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                             # Fees
+    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL}, $lang{EXTRA}, $lang{COMPENSATION} ],  # Fees
     [
       $lang{LIST},
       $lang{DEL},
@@ -1688,4 +1752,4 @@ sub _admin_permissions {
 }
 
 
-1
+1;

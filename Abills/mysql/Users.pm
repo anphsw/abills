@@ -448,7 +448,9 @@ SQL
 
   $self->query($sql, undef,
     { INFO => 1,
-      Bind => [ $uid ] }
+      Bind => [ $uid ],
+      GET_COL_TYPES => $attr->{GET_COL_TYPES}
+    }
   );
 
   if ($self->{TOTAL} < 1) {
@@ -966,19 +968,19 @@ ORDER BY $SORT $DESC
 LIMIT $PG, $PAGE_ROWS;
 SQL
 
-
   $self->query($sql,  undef, $attr);
 
   return [ ] if ($self->{errno});
   my $list = $self->{list};
 
-  if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST}) {
+  if (! $attr->{_SKIP_TOTAL} && ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST})) {
     $sql = <<"SQL";
 $pre_query
-SELECT COUNT(DISTINCT u.uid) AS total,
-       SUM(IF(u.expire<CURDATE() AND u.expire>'0000-00-00', 1, 0)) AS total_expired,
-       COUNT( DISTINCT IF(u.disable=1, u.uid, 0)) - 1 AS total_disabled,
-       COUNT( DISTINCT IF(u.deleted=1, u.uid, 0)) - 1 AS total_deleted
+SELECT
+  COUNT(DISTINCT u.uid) AS total,
+  SUM(u.expire < CURDATE() AND u.expire > '0000-00-00') AS total_expired,
+  SUM(u.disable = 1) AS total_disabled,
+  SUM(u.deleted = 1) AS total_deleted
 FROM users u
   $EXT_TABLES
   $WHERE
@@ -2687,6 +2689,138 @@ sub registration_pin_add {
   }
 
   $self->query_add('users_registration_pin', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 pi_docs_add($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+=cut
+#**********************************************************
+sub pi_docs_add {
+  my ($self, $attr) = @_;
+
+  $self->query_add('users_pi_docs', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 pi_docs_list($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+    $list
+
+=cut
+#*******************************************************************
+sub pi_docs_list {
+  my ($self, $attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $search_columns = [
+    [ 'ID',         'INT',  'upd.id',         1 ],
+    [ 'UID',        'INT',  'upd.uid',        1 ],
+    [ 'DOC_TYPE',   'INT',  'upd.doc_type',   1 ],
+    [ 'NUM',        'STR',  'upd.num',        1 ],
+    [ 'DATE',       'DATE', 'upd.date',       1 ],
+    [ 'EXPIRE',     'DATE', 'upd.expire',     1 ],
+    [ 'ISSUED_BY',  'STR',  'upd.issued_by',  1 ],
+    [ 'FILENAME',   'STR',  'upd.filename',   1 ],
+    [ 'CREATED_AT', 'DATE', 'upd.created_at', 1 ],
+  ];
+
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $EXT_TABLE = $self->{EXT_TABLES};
+
+  my $sql = <<"SQL";
+    SELECT $self->{SEARCH_FIELDS} upd.id
+    FROM users_pi_docs upd
+    $EXT_TABLE
+    $WHERE
+SQL
+
+  $self->query_list($sql, $attr);
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM users_pi_docs upd $EXT_TABLE $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+=head2 pi_docs_info($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+=cut
+#*******************************************************************
+sub pi_docs_info {
+  my ($self, $attr) = @_;
+
+  my $sql = <<"SQL";
+SELECT * FROM users_pi_docs
+WHERE id = ?;
+SQL
+
+  $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{ID} ] });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 pi_docs_change($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+=cut
+#*******************************************************************
+sub pi_docs_change {
+  my ($self, $attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'users_pi_docs',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 pi_docs_del($attr)
+
+=cut
+#*******************************************************************
+sub pi_docs_del {
+  my ($self, $attr) = @_;
+
+  $self->query_del('users_pi_docs', $attr);
 
   return $self;
 }

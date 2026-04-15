@@ -19,7 +19,7 @@ our Users $users;
 our Admins $admin;
 
 #**********************************************************
-=head2 _group_add($attr) - Create groups
+=head2 reg_group_add($attr) - Create groups
 
   Arguments:
     add_values
@@ -29,7 +29,7 @@ our Admins $admin;
 
 =cut
 #**********************************************************
-sub _group_add {
+sub reg_group_add {
   my ($add_values) = @_;
 
   if (!$add_values->{1}{GID_NAME}) {
@@ -70,7 +70,7 @@ sub _group_add {
 }
 
 #**********************************************************
-=head2 _company_add($attr) - Create user and services
+=head2 reg_company_add($attr) - Create user and services
 
   Arguments:
     $attr
@@ -80,7 +80,7 @@ sub _group_add {
 
 =cut
 #**********************************************************
-sub _company_add {
+sub reg_company_add {
   my ($add_values) = @_;
 
   if (!$add_values->{1}{COMPANY_NAME}) {
@@ -141,7 +141,7 @@ sub _company_add {
 }
 
 #**********************************************************
-=head2 _extbill_add($add_values) - Create user and services
+=head2 reg_extbill_add($add_values) - Create user and services
 
   Arguments:
     $add_values
@@ -151,7 +151,7 @@ sub _company_add {
 
 =cut
 #**********************************************************
-sub _extbill_add {
+sub reg_extbill_add {
   my ($add_values) = @_;
 
   if (! $add_values->{5} || !$add_values->{5}->{'EXT_BILL_DEPOSIT'}) {

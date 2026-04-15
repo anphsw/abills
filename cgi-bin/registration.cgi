@@ -49,12 +49,12 @@ our (
 do "../libexec/config.pl";
 
 our $sid = '';
-our Abills::HTML $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
-our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+our Abills::HTML $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, USER_PORTAL => 1 });
+our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
 if ($conf{LANGS}) {
   $conf{LANGS} =~ s/\n//xg;
-  my (@lang_arr) = split(/;/, $conf{LANGS});
+  my (@lang_arr) = split(/;/x, $conf{LANGS});
   %LANG = ();
   foreach my $l (@lang_arr) {
     my ($lang, $lang_name) = split(/:/x, $l);

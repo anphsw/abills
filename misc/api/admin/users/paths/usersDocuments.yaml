@@ -1,0 +1,72 @@
+get:
+  tags:
+    - users
+  summary: Получить список документов пользователей
+  parameters:
+    - name: id
+      in: query
+      description: ID документа
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: ID пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: doc_type
+      in: query
+      description: Тип документа
+      schema:
+        type: boolean
+        default: false
+    - name: num
+      in: query
+      description: Номер документа
+      schema:
+        type: boolean
+        default: false
+    - name: date
+      in: query
+      description: Дата документа
+      schema:
+        type: boolean
+        default: false
+    - name: expire
+      in: query
+      description: Дата окончания срока действия
+      schema:
+        type: boolean
+        default: false
+    - name: issued_by
+      in: query
+      description: Кем выдан документ
+      schema:
+        type: boolean
+        default: false
+    - name: filename
+      in: query
+      description: Имя файла документа
+      schema:
+        type: boolean
+        default: false
+    - name: created_at
+      in: query
+      description: Дата создания записи
+      schema:
+        type: boolean
+        default: false
+    - $ref: "#/components/parameters/desc"
+    - $ref: "#/components/parameters/pageRows"
+    - $ref: "#/components/parameters/pg"
+    - $ref: "#/components/parameters/sort"
+  responses:
+    200:
+      description: Успішно
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/DocumentsList.yaml"
+  security:
+    - KEY: [ ]

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "doc_type": {
+      "type": "integer",
+      "description": "Document type (passport, ID card, driver license, etc.)"
+    },
+    "num": {
+      "type": "string",
+      "description": "Document number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Document issue date (YYYY-MM-DD)"
+    },
+    "expire": {
+      "type": "string",
+      "format": "date",
+      "description": "Document expiration date (YYYY-MM-DD)"
+    },
+    "issued_by": {
+      "type": "string",
+      "description": "Authority that issued the document"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Attached file name"
+    }
+  }
+}

@@ -118,7 +118,8 @@
         '%BUILD_FLATS%',
         '%BUILD_SCHEMA%',
         '%NUMBERING_DIRECTION%',
-        '%START_NUMBERING_FLAT%'
+        '%START_NUMBERING_FLAT%',
+        '%START_NUMBERING_FLOOR%'
       );
     }
 

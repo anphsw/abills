@@ -19,7 +19,7 @@
               "daysToFee": { "type": "integer" },
               "sum": { "type": "integer" }
             },
-            "required": ["abonDate", "activateDate", "daysToFee", "sum"]
+            "required": ["abonDate", "daysToFee", "sum"]
           },
           "holdup": {
             "type": "object",
@@ -39,7 +39,7 @@
               "date": { "type": "string", "format": "date" },
               "dateFrom": { "type": "string", "format": "date" },
               "dayFee": { "type": "integer" },
-              "monthFee": { "type": "integer" },
+              "monthFee": { "type": "number" },
               "tpAge": { "type": "integer" },
               "sheduleId": { "type": "integer" },
               "tpId": { "type": "integer" },
@@ -58,7 +58,7 @@
           "serviceLink": { "type": "string" },
           "startDate": { "type": "string", "format": "date" },
           "tpReductionFee": { "type": "integer" },
-          "monthFee": { "type": "integer" },
+          "monthFee": { "type": "number" },
           "statusName": { "type": "string" },
           "originalPrice": { "type": "integer" }
         },
@@ -107,7 +107,7 @@
               "date": { "type": "string", "format": "date" },
               "dateFrom": { "type": "string", "format": "date" },
               "dayFee": { "type": "integer" },
-              "monthFee": { "type": "integer" },
+              "monthFee": { "type": "number" },
               "tpAge": { "type": "integer" },
               "sheduleId": { "type": "integer" },
               "tpId": { "type": "integer" },
@@ -116,7 +116,7 @@
             "required": ["canCancel", "date", "dateFrom", "dayFee", "monthFee", "tpAge", "sheduleId", "tpId", "tpName"]
           },
           "canChangeTp": { "type": "boolean" },
-          "monthFee": { "type": "integer" },
+          "monthFee": { "type": "number" },
           "serviceId": { "type": "integer" },
           "serviceStatus": { "type": "integer" },
           "statusName": { "type": "string" }
@@ -161,7 +161,7 @@
               "date": { "type": "string", "format": "date" },
               "dateFrom": { "type": "string", "format": "date" },
               "dayFee": { "type": "integer" },
-              "monthFee": { "type": "integer" },
+              "monthFee": { "type": "number" },
               "tpAge": { "type": "integer" },
               "sheduleId": { "type": "integer" },
               "tpId": { "type": "integer" },
@@ -183,7 +183,7 @@
           "ip": { "type": "string" },
           "loginStatus": { "type": "integer" },
           "macDiscovery": { "type": "boolean" },
-          "monthFee": { "type": "integer" },
+          "monthFee": { "type": "number" },
           "outSpeed": { "type": "integer" },
           "statusName": { "type": "string" },
           "tpAge": { "type": "integer" },
@@ -371,7 +371,7 @@
           "extraNumbersMonthFee": { "type": "integer" },
           "ip": { "type": "string" },
           "monthFee": { "type": "integer" },
-          "number": { "type": "string" },
+          "number": { "type": "integer" },
           "phoneAliases": {
             "type": "array",
             "items": { "type": "string" }

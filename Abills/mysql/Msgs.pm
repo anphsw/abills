@@ -200,6 +200,7 @@ SLQ
     [ 'MSGS_AID',               'INT',    'm.aid', 'm.aid AS msgs_aid',                                                1 ],
     [ 'A_NAME',                 'INT',    'a.name', 'a.name AS admin_name',                                            1 ],
     [ 'REPLIES_COUNTS',         '',       '', 'IF(r.id IS NULL, 0, COUNT(r.id)) AS replies_counts'                       ],
+    [ 'STATUS_CHANGE_HISTORY',  '',       '', 'm.id AS status_change_history'                                            ],
     [ 'RATING',                 'INT',    'm.rating',                                                                  1 ],
     [ 'LOCATION_ID',            'INT',    'builds.id AS location_id',                                                             1 ],
     [ 'LOCATION_ID_MSG',        'INT',    'm.location_id as location_id_msg',                                          1 ],
@@ -534,6 +535,10 @@ sub message_change {
   }
   $attr->{SURVEY_ID} ||= $old_info->{SURVEY_ID};
 
+  if ($attr->{CLOSED_DATE} && $attr->{STATE} && $old_info->{CLOSED_DATE} && $attr->{CLOSED_DATE} && $attr->{STATE} eq $old_info->{STATE}) {
+    delete $attr->{CLOSED_DATE};
+  }
+
   $self->changes({
     CHANGE_PARAM    => 'ID',
     TABLE           => 'msgs_messages',
@@ -632,11 +637,15 @@ sub chapter_add {
 #**********************************************************
 =head2 chapter_del($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub chapter_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('msgs_chapters', $attr);
 
@@ -646,15 +655,17 @@ sub chapter_del {
 #**********************************************************
 =head2 chapter_info($id, $attr)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub chapter_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
-  $self->query('SELECT *
-    FROM msgs_chapters
-    WHERE id= ? ',
+  $self->query('SELECT * FROM msgs_chapters WHERE id= ? ',
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -666,11 +677,15 @@ sub chapter_info {
 #**********************************************************
 =head2 chapter_change($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub chapter_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
 
@@ -1724,7 +1739,6 @@ sub survey_subjects_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   # delete $self->{COL_NAMES_ARR};
-
   my @search_params = (
     [ 'ID',          'INT', 'ms.id',                         ],
     [ 'NAME',        'STR', 'ms.name'                        ],
@@ -2091,8 +2105,7 @@ sub survey_answer_del {
 =cut
 #**********************************************************
 sub pb_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -2105,14 +2118,15 @@ sub pb_list {
     [ 'CHAPTER_ID', 'STR', 'pb.chapter_id' ]
   ], { WHERE => 1 });
 
-  $self->query("SELECT pb.step_num, pb.step_name, pb.step_tip, pb.id
-    FROM msgs_proggress_bar pb
-    $WHERE
-    GROUP BY pb.id
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT pb.step_num, pb.step_name, pb.step_tip, pb.id
+FROM msgs_proggress_bar pb
+  $WHERE
+GROUP BY pb.id
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -2120,11 +2134,15 @@ sub pb_list {
 #**********************************************************
 =head2 pb_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pb_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('msgs_proggress_bar', $attr);
 
@@ -2135,11 +2153,15 @@ sub pb_add {
 #**********************************************************
 =head2 pb_del($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pb_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('msgs_proggress_bar', $attr);
 
@@ -2149,11 +2171,15 @@ sub pb_del {
 #**********************************************************
 =head2 pb_info($id)
 
+  Arguments:
+    $id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub pb_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query("SELECT * FROM msgs_proggress_bar WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
@@ -2166,8 +2192,7 @@ sub pb_info {
 =cut
 #**********************************************************
 sub pb_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $admin->{MODULE} = $MODULE;
   $self->changes({
@@ -2186,13 +2211,12 @@ sub pb_change {
 =cut
 #**********************************************************
 sub pb_msg_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'MSG_ID',             'INT', 'pb_m.msg_id'           ],
     [ 'STEP_NUM',           'INT', 'pb.step_num'           ],
     [ 'STEP_NAME',          'STR', 'pb.step_name'          ],
@@ -2201,18 +2225,21 @@ sub pb_msg_list {
     [ 'RESPONSIBLE_NOTICE', 'STR', 'pb.responsible_notice' ],
     [ 'FOLLOWER_NOTICE',    'STR', 'pb.follower_notice'    ],
     [ 'MAIN_MSG',           'INT', 'mpb.main_msg'          ],
-  ], { WHERE => 1 });
-
-  $self->query("SELECT pb.step_num, pb.step_name, mpb.step_date, pb.step_tip,
-    mpb.coordx, mpb.coordy, pb.id, pb.user_notice, pb.responsible_notice, pb.follower_notice, mpb.main_msg
-    FROM msgs_proggress_bar pb
-    LEFT JOIN msgs_message_pb mpb ON (mpb.main_msg='$attr->{MAIN_MSG}' AND mpb.step_num=pb.step_num)
-    $WHERE
-    GROUP BY pb.id
-    ORDER BY pb.step_num;",
-    undef,
-    $attr
   );
+
+  my $WHERE = $self->search_former($attr, \@search_params, { WHERE => 1 });
+
+  my $sql = <<"SQL";
+SELECT pb.step_num, pb.step_name, mpb.step_date, pb.step_tip,
+       mpb.coordx, mpb.coordy, pb.id, pb.user_notice, pb.responsible_notice, pb.follower_notice, mpb.main_msg
+FROM msgs_proggress_bar pb
+       LEFT JOIN msgs_message_pb mpb ON (mpb.main_msg='$attr->{MAIN_MSG}' AND mpb.step_num=pb.step_num)
+  $WHERE
+GROUP BY pb.id
+ORDER BY pb.step_num;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -2223,8 +2250,7 @@ sub pb_msg_list {
 =cut
 #**********************************************************
 sub pb_msg_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query("DELETE FROM `msgs_message_pb` WHERE step_num>='$attr->{STEP_NUM}' AND main_msg='$attr->{ID}'");
 
@@ -2241,11 +2267,15 @@ sub pb_msg_change {
 #**********************************************************
 =head2 msg_watch_info($msg_id)
 
+  Arguments:
+    $msg_id
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub msg_watch_info {
-  my $self = shift;
-  my ($msg_id) = @_;
+  my ($self, $msg_id) = @_;
 
   $self->query('SELECT * FROM msgs_watch WHERE main_msg = ?', undef, { INFO => 1, Bind => [ $msg_id ] });
 
@@ -2266,8 +2296,7 @@ sub msg_watch_info {
 =cut
 #**********************************************************
 sub msg_watch {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('msgs_watch', {
     %$attr,
@@ -2291,8 +2320,7 @@ sub msg_watch {
 =cut
 #**********************************************************
 sub msg_watch_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $del_params = { MAIN_MSG => $attr->{ID} };
   $del_params->{AID} = $attr->{AID} if $attr->{AID};
@@ -2305,11 +2333,15 @@ sub msg_watch_del {
 #**********************************************************
 =head2 msg_watch_list($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $$list
+
 =cut
 #**********************************************************
 sub msg_watch_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -2320,13 +2352,14 @@ sub msg_watch_list {
     [ 'ADD_DATE', 'INT', 'add_date' ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT main_msg, add_date, aid
-    FROM msgs_watch
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT main_msg, add_date, aid
+FROM msgs_watch
+$WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -2339,13 +2372,10 @@ sub msg_watch_list {
 
   Returns:
 
-  Examples:
-
 =cut
 #**********************************************************
 sub status_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_add('msgs_status', $attr);
 
@@ -2364,8 +2394,7 @@ sub status_add {
 =cut
 #**********************************************************
 sub status_list {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $SORT = $attr->{SORT} // 'id';
 
@@ -2378,12 +2407,13 @@ sub status_list {
     [ 'ICON',        'STR', 'icon',        1 ],
   ], { WHERE => 1 });
 
-  $self->query("SELECT * FROM msgs_status
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT * FROM msgs_status
+$WHERE
+ORDER BY $SORT $DESC;
+SQL
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
@@ -2408,28 +2438,25 @@ sub status_list {
 =cut
 #**********************************************************
 sub status_del {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del('msgs_status', $attr);
 
   return $self;
 }
 
-
 #**********************************************************
-=head2 status_info() -
+=head2 status_info($id) -
 
   Arguments:
-urns:
-
-  Examples:
+    $id
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub status_info {
-  my $self = shift;
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   $self->query("SELECT * FROM msgs_status WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
@@ -2448,8 +2475,7 @@ sub status_info {
 =cut
 #**********************************************************
 sub status_change {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -4336,6 +4362,50 @@ sub msgs_team_messages_info {
 }
 
 #**********************************************************
+=head2 get_status_change_logs($attr)
+
+=cut
+#**********************************************************
+sub get_status_change_logs {
+  my ($self, $attr) = @_;
+
+  return [] if !$attr->{MSG_IDS};
+
+  my @msg_ids = ref $attr->{MSG_IDS} eq 'ARRAY' ? @{$attr->{MSG_IDS}} : split(/,\s?/, $attr->{MSG_IDS});
+  return [] if @msg_ids == 0;
+
+  $self->query("CREATE TEMPORARY TABLE temp_msg_ids (msg_id INT, PRIMARY KEY (msg_id))");
+  return [] if $self->{errno};
+
+  $self->query("INSERT INTO temp_msg_ids (msg_id) VALUES (?)", undef, { MULTI_QUERY => \@msg_ids });
+
+  if ($self->{errno}) {
+    $self->query("DROP TEMPORARY TABLE IF EXISTS temp_msg_ids");
+    return [];
+  }
+
+  my $sql = <<"SQL";
+    SELECT a.*
+     FROM admin_actions a
+     WHERE a.module = 'Msgs'
+       AND a.action_type = 2
+       AND a.actions LIKE '%MSG_ID:%'
+       AND a.actions LIKE '%STATE:%'
+       AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(a.actions, 'MSG_ID:', -1), ' ', 1) AS UNSIGNED)
+         IN (SELECT msg_id FROM temp_msg_ids)
+     ORDER BY a.id DESC;
+SQL
+
+  $self->query($sql, undef, { COLS_NAME => 1 });
+
+  my $list = $self->{list} || [];
+
+  $self->query("DROP TEMPORARY TABLE IF EXISTS temp_msg_ids;");
+
+  return $list;
+}
+
+#**********************************************************
 =head2 msgs_workflow_actions_list()
 
 =cut
@@ -4780,6 +4850,20 @@ sub external_chats_change {
     TABLE        => 'msgs_external_chats',
     DATA         => $attr
   });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_ai_assist_feedback_add($attr)
+
+=cut
+#**********************************************************
+sub msgs_ai_assist_feedback_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('msgs_ai_assist_feedback', { %{$attr}, AID => $self->{admin}{AID}, CREATED => 'NOW()' });
 
   return $self;
 }

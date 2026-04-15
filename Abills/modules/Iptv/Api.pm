@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv,
       credentials => [
         'USER', 'USERBOT'
@@ -64,7 +61,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/services/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_services,
       credentials => [
         'USER', 'USERBOT'
@@ -73,7 +69,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/:id/tariffs/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_id_tariffs,
       credentials => [
         'USER', 'USERBOT'
@@ -82,7 +77,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/:id/warnings/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_id_warnings,
       credentials => [
         'USER', 'USERBOT'
@@ -91,7 +85,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/tariffs/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_tariffs,
       credentials => [
         'USER', 'USERBOT'
@@ -100,7 +93,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/tariffs/:service_id/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_tariffs_service_id,
       credentials => [
         'USER', 'USERBOT'
@@ -109,7 +101,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/promotion/tariffs/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_promotion_tariffs,
       credentials => [
         'USER', 'USERBOT'
@@ -118,7 +109,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/:id/holdup/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_id_holdup,
       credentials => [
         'USER', 'USERBOT'
@@ -127,7 +117,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/iptv/:id/holdup/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::post_user_iptv_id_holdup,
       credentials => [
         'USER', 'USERBOT'
@@ -136,7 +125,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/iptv/:id/holdup/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::delete_user_iptv_id_holdup,
       credentials => [
         'USER', 'USERBOT'
@@ -145,7 +133,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/iptv/tariff/add/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::post_user_iptv_tariff_add,
       credentials => [
         'USER', 'USERBOT'
@@ -154,7 +141,6 @@ sub user_routes {
     {
       method      => 'PUT',
       path        => '/user/iptv/:id/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::put_user_iptv_id,
       credentials => [
         'USER', 'USERBOT'
@@ -163,7 +149,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/iptv/:id/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::delete_user_iptv_id,
       credentials => [
         'USER', 'USERBOT'
@@ -172,7 +157,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/iptv/:id/activate/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::post_user_iptv_id_activate,
       credentials => [
         'USER', 'USERBOT'
@@ -181,7 +165,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/:id/playlist/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_id_playlist,
       credentials => [
         'USER', 'USERBOT'
@@ -190,7 +173,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/iptv/:id/url/',
-      controller  => 'Iptv::Api::user::Root',
       endpoint    => \&Iptv::Api::user::Root::get_user_iptv_id_url,
       credentials => [
         'USER', 'USERBOT'

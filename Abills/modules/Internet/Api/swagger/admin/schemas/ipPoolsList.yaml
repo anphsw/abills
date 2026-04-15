@@ -1,0 +1,10 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      $ref: "./ipPool.yaml"
+  total:
+    type: number
+    example: 1
+

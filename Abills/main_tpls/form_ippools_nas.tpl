@@ -1,5 +1,5 @@
 <form name='IP_POOLS_CHECKBOXES_FORM' id='IP_POOLS_CHECKBOXES_FORM' method='get'>
-  <input type='hidden' name='ids' id='ids_not_save' value='$FORM{ids}'/>
+  <input type='hidden' name='ids' id='ids_not_save' value='%IDS%'/>
   <input type='hidden' name='ids_remove' id='ids_remove'/>
   %TABLE_IPPOOLS%
 </form>

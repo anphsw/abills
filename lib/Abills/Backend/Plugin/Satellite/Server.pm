@@ -235,7 +235,7 @@ sub get_server_info {
     SHOW_ALL_COLUMNS => 1
   });
   
-  if ( $Sysinfo->{errno} || !$servers || !ref $servers eq 'ARRAY' || !(scalar @{$servers}) ) {
+  if ( $Sysinfo->{errno} || !$servers || ref $servers ne 'ARRAY' || !(scalar @{$servers}) ) {
     $Log->alert("Request from unknown server $client_ip");
     return 0;
   }

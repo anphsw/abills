@@ -15,7 +15,8 @@ our (
   %lang,
   $html,
   $base_dir,
-  %msgs_permissions
+  %msgs_permissions,
+  $libpath
 );
 
 my $modules_dir = ($base_dir || '/usr/abills/') . 'Abills/modules/';
@@ -117,8 +118,7 @@ sub msgs_plugin_priority {
     return 0;
   }
 
-  my $json_plugin = $FORM{PLUGINS};
-  my $error_message = _plugin_priority_change($json_plugin);
+  my $error_message = _plugin_priority_change($FORM{PLUGINS});
 
   my %success = (
     "status"  => 0,
@@ -131,22 +131,25 @@ sub msgs_plugin_priority {
 }
 
 #**********************************************************
-=head2 _plugin_priority_change($attr)
+=head2 _plugin_priority_change($json_plugin)
 
   Arguments:
+    $json_plugin
 
   Return:
+   $error_change
 
 =cut
 #**********************************************************
 sub _plugin_priority_change {
   my ($json_plugin) = @_;
+  my $error_change = 'Success';
 
-  $json_plugin =~ s/\\//g;
+  if(! $json_plugin || ref $json_plugin eq 'ARRAY') {
+    return $error_change;
+  }
 
   my $plugin_scalar = JSON->new->utf8->decode($json_plugin);
-
-  my $error_change = 'Success';
 
   foreach my $plugin (@{$plugin_scalar}) {
     $Msgs->msgs_plugin_change({
@@ -178,7 +181,7 @@ sub _plugins_to_json {
 
   foreach my $plugin (@{$plugins}) {
     my $name = $plugin->{PLUGIN};
-    $name =~ s/$plugin->{MODULE}::Plugins:://g;
+    $name =~ s/$plugin->{MODULE}::Plugins:://xg;
 
     for (my $i = 0; $i <= $#{$plugins_enabled}; $i++) {
       next if (!$plugins_enabled->[$i]->{plugin_name} || $plugins_enabled->[$i]->{plugin_name} ne $name);
@@ -241,7 +244,7 @@ sub _msgs_get_plugins {
   my $plugin_files = _get_files_in($plugin_dir, { FILTER => '\.pm' });
 
   foreach my $plugin (sort @{$plugin_files}) {
-    $plugin =~ s/\.pm//g;
+    $plugin =~ s/\.pm//xg;
     my $plugin_name = $module . '::Plugins::' . $plugin;
 
     my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
@@ -338,7 +341,7 @@ sub _msgs_plugins_table {
 
   foreach my $plugin (@{$plugins_list}) {
     my $name = $plugin->{PLUGIN};
-    $name =~ s/$plugin->{MODULE}::Plugins:://g;
+    $name =~ s/$plugin->{MODULE}::Plugins:://xg;
 
     $table->addrow(
       $html->form_input($name, '1', {
@@ -415,7 +418,7 @@ sub _msgs_get_save_plugin {
 =cut
 #**********************************************************
 sub _msgs_show_right_plugins {
-  my ($Msgs, $attr) = @_;
+  my ($Msgs_, $attr) = @_;
 
   my $plugins_info = '';
 
@@ -426,8 +429,9 @@ sub _msgs_show_right_plugins {
     my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, {
       HTML             => $html,
       LANG             => \%lang,
-      MSGS             => $Msgs,
-      MSGS_PERMISSIONS => \%msgs_permissions
+      MSGS             => $Msgs_,
+      MSGS_PERMISSIONS => \%msgs_permissions,
+      libpath          => $libpath
     });
 
     $plugins_info .= $plugin_api->plugin_show($attr);
@@ -446,7 +450,7 @@ sub _msgs_show_right_plugins {
 =cut
 #**********************************************************
 sub _msgs_show_bottom_plugins {
-  my ($Msgs, $attr) = @_;
+  my ($Msgs_, $attr) = @_;
 
   my $plugins_info = '';
 
@@ -457,7 +461,7 @@ sub _msgs_show_bottom_plugins {
     my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, {
       HTML             => $html,
       LANG             => \%lang,
-      MSGS             => $Msgs,
+      MSGS             => $Msgs_,
       MSGS_PERMISSIONS => \%msgs_permissions
     });
 
@@ -471,6 +475,7 @@ sub _msgs_show_bottom_plugins {
 =head2 msgs_get_plugin_by_name($attr)
 
   Arguments:
+    $plugin
 
   Return:
 
@@ -483,8 +488,9 @@ sub msgs_get_plugin_by_name {
 
   my $module = 'Msgs';
   my $plugin_dir = $modules_dir . $module . '/Plugins';
-  next unless (-d $plugin_dir);
-  next unless (-e $plugin_dir . '/' . $plugin . '.pm');
+  my $plugin_file = $plugin_dir . '/' . $plugin . '.pm';
+  return 0 unless (-d $plugin_dir);
+  return 0 unless (-e $plugin_file);
 
   my $plugin_name = $module . '::Plugins::' . $plugin;
   my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
@@ -501,16 +507,18 @@ sub msgs_get_plugin_by_name {
     LANG             => \%lang,
     MSGS_PERMISSIONS => \%msgs_permissions
   });
-
-  return 0;
 }
 
 #**********************************************************
 =head2 _plugin_enabled($attr)
 
   Arguments:
+    $plugins_list
+    $enabled_plugins
+    $attr
 
   Return:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -521,7 +529,7 @@ sub _plugin_enabled {
 
   foreach my $plugin (@{$plugins_list}) {
     my $name = $plugin->{PLUGIN};
-    $name =~ s/Msgs::Plugins:://g;
+    $name =~ s/Msgs::Plugins:://xg;
 
     next if !$attr->{$name};
     $Msgs->msgs_plugin_add({
@@ -532,6 +540,7 @@ sub _plugin_enabled {
     });
   }
 
+  return 1;
 }
 
 1;

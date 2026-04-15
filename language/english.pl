@@ -308,6 +308,7 @@ $lang{ERR_SOCIAL_REGISTER} = 'Sorry user already present in system try login wit
 
 $lang{ERR_IP_ADDRESS_CONFLICT} = 'IP Address Conflict.';
 $lang{ERR_HOST_REGISTRED} = 'Host already registered.';
+$lang{ERR_BUILD_ALREADY_EXISTS} = 'Building already exists';
 $lang{RENEW_IP} = 'Please renew IP. If error not gone please contact administrator';
 
 $lang{UNKNOWN} = 'Unknown';
@@ -1211,6 +1212,7 @@ $lang{REWRITE} = 'Rewrite';
 $lang{PARENT_ELEMENT} = 'Parent element';
 $lang{PARENT_ELEMENT_VALUE} = 'Parent element value';
 $lang{MANAGING_EXTERNAL_SERVICES} = 'Managing external services';
+$lang{MANAGING_PASSPORT_DATA} = 'Managing passport data';
 $lang{APPLICATION_TERMINATION_CONTRACT} = 'Application for termination of contract';
 $lang{FORBIDDEN_PASSWORDS} = 'Forbidden passwords';
 $lang{ADMIN_LOGIN_ATTEMPT_LIMIT} = 'Number of allowed failed login attempts';
@@ -1221,5 +1223,21 @@ $lang{SUBCONTO} = 'Code of Cubconto';
 $lang{IN_TERMINATION_PROCESS} = 'In the process of terminating';
 $lang{TERMINATED_CONTRACT} = 'Contract is terminated';
 $lang{EXTERNAL_CMD} = 'External command';
+$lang{CODEFICATION} = 'codefication';
+$lang{CONNECTION_TO_THE_BOT} = 'Connection to the bot';
+
+$lang{MAIN_DOCUMENT} = 'Main document';
+$lang{ID_CARD} = 'ID card';
+$lang{DRIVER_LICENSE} = 'Driver license';
+$lang{SAVING} = 'Saving';
+$lang{NO_DOCUMENTS} = 'No documents';
+$lang{DOCUMENT_EXPIRED} = 'Document expired';
+$lang{EXPIRES_IN} = 'Expires in';
+$lang{ERROR_LOADING_LIST} = 'Error loading list';
+$lang{CONNECTION_ERROR} = 'Connection error';
+$lang{ERROR_LOADING_DOCUMENT} = 'Error loading document';
+$lang{DELETING_DOCUMENT} = 'Deleting document';
+$lang{CONFIRM_DELETE_DOCUMENT} = 'Are you sure you want to delete this document?';
+$lang{DOCUMENT_DELETED} = 'Document deleted';
 
 1;

@@ -141,7 +141,23 @@ $lang{TICKET_END_CONFIRM} = 'Add a photo of your task completion.';
 
 $lang{TELEGRAM_REPORT_ON_REQUESTS} = 'Report on requests';
 $lang{TELEGRAM_OPEN} = 'Open';
+$lang{TELEGRAM_TASKS} = 'Tasks';
 $lang{TELEGRAM_THIS_WEEK} = 'This week';
 $lang{TELEGRAM_LAST_WEEK} = 'Last week';
+$lang{TELEGRAM_WITHOUT_TYPE} = 'Without type';
+$lang{TELEGRAM_TASKS_REPORT} = 'Tasks report';
+$lang{TELEGRAM_NEW_TASK} = 'New task';
+$lang{TELEGRAM_OVERDUE_TASKS} = 'Overdue tasks';
+$lang{TELEGRAM_TASKS_MENU} = 'Tasks menu';
+$lang{TELEGRAM_ENTER_TASK_NAME} = 'Enter task name';
+$lang{TELEGRAM_ENTER_TASK_DESCRIPTION} = 'Enter task description';
+$lang{TELEGRAM_TASK_CREATED} = 'Task has been created';
+$lang{TELEGRAM_CLOSE_TASK} = 'Close task';
+$lang{TELEGRAM_DELEGATE_TASK} = 'Delegate task';
+$lang{TELEGRAM_OVERDUE_TASKS_TITLE} = 'Overdue tasks';
+$lang{TELEGRAM_OVERDUE} = 'Overdue';
+$lang{TELEGRAM_TASK_SUCCESSFULLY_CLOSED} = 'Task successfully closed';
+$lang{TELEGRAM_TASK_SUCCESSFULLY_DELEGATED} = 'Task successfully delegated';
+$lang{TELEGRAM_TASKS_LIST_FOR} = 'Tasks list for';
 
 1;

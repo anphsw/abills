@@ -12,24 +12,16 @@ package Equipment::Api::admin::Nas;
 
 use strict;
 use warnings FATAL => 'all';
+use parent qw(Nas);
 
 use Abills::Base qw(cmd in_array);
-
 use Control::Errors;
 
 use Equipment;
-use Nas;
+
 
 my Equipment $Equipment;
-my Nas $Nas;
 my Control::Errors $Errors;
-
-# TODO: remove crutch, marked at this file below
-our (
-  $db,
-  $admin,
-  %conf
-);
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -37,29 +29,21 @@ our (
 =cut
 #**********************************************************
 sub new {
-  my ($class, $Db, $Admin, $conf, $attr) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
-    db    => $Db,
-    admin => $Admin,
+    db    => $db,
+    admin => $admin,
     conf  => $conf,
     attr  => $attr,
     html  => $attr->{html},
     lang  => $attr->{lang}
   };
 
-  # TODO: remove crutch, marked
-  $db = $self->{db};
-  $admin = $self->{admin};
-  %conf = %{$self->{conf}};
-
   bless($self, $class);
 
   $Equipment = Equipment->new($db, $admin, $conf);
   $Equipment->{debug} = $self->{debug};
-  $Nas = Nas->new($self->{db}, $self->{conf}, $self->{admin});
-  $Nas->{debug} = $self->{debug} || 0;
-
   $Errors = $self->{attr}->{Errors};
 
   return $self;
@@ -73,8 +57,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_equipment_nas_types {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  #my ($self, $path_params, $query_params) = @_;
 
   # TODO: remove crutch, marked
   require Control::Nas_mng;
@@ -99,8 +82,7 @@ sub get_equipment_nas_types {
 =cut
 #**********************************************************
 sub get_equipment_nas_list_extra {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %PARAMS = (
     COLS_NAME => 1,
@@ -151,17 +133,32 @@ sub get_equipment_nas_list_extra {
 
   Endpoint GET /equipment/nas/list/
 
+  Arguments:
+    $path_params
+    $query_params
+
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub get_equipment_nas_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %PARAMS = (
-    COLS_NAME => 1,
-    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-    SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
+    GET_COL_TYPES    => 1,
+    DESCR            => '_SHOW',
+    ID               => '_SHOW',
+    MAC              => '_SHOW',
+    ALIVE            => '_SHOW',
+    DISABLE          => '_SHOW',
+    NAS_GROUP_NAME   => '_SHOW',
+    NAS_IP           => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
+    NAS_MNG_PASSWORD => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
+    NAS_NAME         => '_SHOW',
+    NAS_TYPE         => '_SHOW',
   );
 
   foreach my $param (keys %{$query_params}) {
@@ -170,9 +167,7 @@ sub get_equipment_nas_list {
 
   $PARAMS{MNG_HOST_PORT} = $PARAMS{NAS_MNG_IP_PORT} if (defined $PARAMS{MNG_HOST_PORT});
 
-  $Nas->list({
-    %PARAMS
-  });
+  return $self->list(\%PARAMS);
 }
 
 #**********************************************************
@@ -183,28 +178,27 @@ sub get_equipment_nas_list {
 =cut
 #**********************************************************
 sub post_equipment_nas {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 200201,
     errstr => 'No field ip'
-  } if !$query_params->{IP};
+  } if (!$query_params->{IP});
 
   return {
     errno  => 200202,
     errstr => 'No field nasName'
-  } if !$query_params->{NAS_NAME};
+  } if (!$query_params->{NAS_NAME});
 
   return {
     errno  => 200203,
     errstr => 'No field nas_type'
-  } if !defined $query_params->{NAS_TYPE};
+  } if (!defined $query_params->{NAS_TYPE});
 
-  my $result = $Nas->add($query_params);
+  my $result = $self->add($query_params);
 
-  if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
-    cmd($conf{RESTART_RADIUS});
+  if ($self->{conf}->{RESTART_RADIUS} && $self->{conf}->{RESTART_RADIUS_API}) {
+    cmd($self->{conf}->{RESTART_RADIUS});
   }
 
   return $result;
@@ -218,16 +212,15 @@ sub post_equipment_nas {
 =cut
 #**********************************************************
 sub delete_equipment_nas {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
-  my $result = $Nas->del($path_params->{id});
+  my $result = $self->del($path_params->{id});
 
-  if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
-    cmd($conf{RESTART_RADIUS});
+  if ($self->{conf}->{RESTART_RADIUS} && $self->{conf}->{RESTART_RADIUS_API}) {
+    cmd($self->{conf}->{RESTART_RADIUS});
   }
 
-  return ($result->{nas_deleted} eq 1) ? 1 : 0;
+  return ($result->{nas_deleted} == 1) ? 1 : 0;
 }
 
 #**********************************************************
@@ -238,8 +231,7 @@ sub delete_equipment_nas {
 =cut
 #**********************************************************
 sub put_equipment_nas {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 200204,
@@ -261,10 +253,10 @@ sub put_equipment_nas {
     errstr => 'No field nasType'
   } if !defined $query_params->{NAS_TYPE};
 
-  my $result = $Nas->change({ NAS_ID => $path_params->{id}, %$query_params });
+  my $result = $self->change({ NAS_ID => $path_params->{id}, %$query_params });
 
-  if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API} && !$Nas->{errno}) {
-    cmd($conf{RESTART_RADIUS});
+  if ($self->{conf}->{RESTART_RADIUS} && $self->{conf}->{RESTART_RADIUS_API} && !$self->{errno}) {
+    cmd($self->{conf}->{RESTART_RADIUS});
   }
 
   return $result;
@@ -278,19 +270,14 @@ sub put_equipment_nas {
 =cut
 #**********************************************************
 sub get_equipment_nas_groups_list {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %PARAMS = (
     COLS_NAME => 1,
-    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
     SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
   );
 
-  $Nas->nas_group_list({
-    %PARAMS
-  });
+  return $self->nas_group_list(\%PARAMS);
 }
 
 #**********************************************************
@@ -301,16 +288,13 @@ sub get_equipment_nas_groups_list {
 =cut
 #**********************************************************
 sub post_equipment_nas_groups_add {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $validation_result = $self->_validate_nas_group_add($query_params);
   return $validation_result if ($validation_result->{errno});
 
-  $Nas->nas_group_add({
-    NAME     => $query_params->{NAME} || '',
-    COMMENTS => $query_params->{COMMENTS} || '',
-    DISABLE  => $query_params->{DISABLE} ? 1 : undef,
+  return $self->nas_group_add({
+    %$query_params
   });
 }
 
@@ -322,21 +306,21 @@ sub post_equipment_nas_groups_add {
 =cut
 #**********************************************************
 sub put_equipment_nas_groups_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $validation_result = $self->_validate_nas_group_add($query_params);
   return $validation_result if ($validation_result->{errno});
 
-  $Nas->nas_group_change({
+  $self->nas_group_change({
     ID       => $path_params->{id} || '--',
     NAME     => $query_params->{NAME} || '',
     COMMENTS => $query_params->{COMMENTS} || '',
     DISABLE  => $query_params->{DISABLE} ? 1 : undef,
   });
 
-  delete @{$Nas}{qw/AFFECTED TOTAL list/};
-  return $Nas;
+  delete @{$self}{qw/AFFECTED TOTAL list/};
+
+  return $self;
 }
 
 #**********************************************************
@@ -347,13 +331,12 @@ sub put_equipment_nas_groups_id {
 =cut
 #**********************************************************
 sub delete_equipment_nas_groups_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
-  $Nas->nas_group_del($path_params->{id});
+  $self->nas_group_del($path_params->{id});
 
-  if (!$Nas->{errno}) {
-    if ($Nas->{AFFECTED} && $Nas->{AFFECTED} =~ /^[0-9]$/) {
+  if (!$self->{errno}) {
+    if ($self->{AFFECTED} && $self->{AFFECTED} =~ /^[0-9]$/xm) {
       return {
         result => 'Successfully deleted',
       };
@@ -366,7 +349,7 @@ sub delete_equipment_nas_groups_id {
     }
   }
 
-  return $Nas;
+  return $self;
 }
 
 #**********************************************************
@@ -377,8 +360,7 @@ sub delete_equipment_nas_groups_id {
 =cut
 #**********************************************************
 sub get_equipment_nas_ip_pools {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my %PARAMS = (
     COLS_NAME => 1,
@@ -391,9 +373,7 @@ sub get_equipment_nas_ip_pools {
     $PARAMS{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
-  $Nas->nas_ip_pools_list({
-    %PARAMS
-  });
+  return $self->nas_ip_pools_list(\%PARAMS);
 }
 
 #**********************************************************
@@ -404,8 +384,7 @@ sub get_equipment_nas_ip_pools {
 =cut
 #**********************************************************
 sub post_equipment_nas_ip_pools {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 200208,
@@ -417,7 +396,7 @@ sub post_equipment_nas_ip_pools {
     errstr => 'No field nasId'
   } if !$query_params->{NAS_ID};
 
-  $Nas->nas_ip_pools_add({
+  return $self->nas_ip_pools_add({
     NAS_ID  => $query_params->{NAS_ID},
     POOL_ID => $query_params->{POOL_ID},
   });
@@ -431,16 +410,15 @@ sub post_equipment_nas_ip_pools {
 =cut
 #**********************************************************
 sub delete_equipment_nas_ip_pools_nasId_poolId {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
-  $Nas->nas_ip_pools_del({
+  $self->nas_ip_pools_del({
     NAS_ID  => $path_params->{nasId},
     POOL_ID => $path_params->{poolId}
   });
 
-  if (!$Nas->{errno}) {
-    if ($Nas->{AFFECTED} && $Nas->{AFFECTED} =~ /^[0-9]$/) {
+  if (!$self->{errno}) {
+    if ($self->{AFFECTED} && $self->{AFFECTED} =~ /^[0-9]$/xm) {
       return {
         result => 'Successfully deleted',
       };
@@ -453,7 +431,7 @@ sub delete_equipment_nas_ip_pools_nasId_poolId {
     }
   }
 
-  return $Nas;
+  return $self;
 }
 
 #**********************************************************
@@ -464,8 +442,7 @@ sub delete_equipment_nas_ip_pools_nasId_poolId {
 =cut
 #**********************************************************
 sub get_equipment_used_ports {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 200212,
@@ -507,18 +484,18 @@ sub get_equipment_used_ports {
 =cut
 #**********************************************************
 sub post_equipment_nas_details {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $nas_id = $path_params->{id};
 
-  $Nas->info({ NAS_ID => $nas_id });
+  $self->info({ NAS_ID => $nas_id });
 
-  if (!$Nas->{TOTAL} || $Nas->{TOTAL} < 1) {
+  if (!$self->{TOTAL} || $self->{TOTAL} < 1) {
     return $Errors->throw_error(1040001);
   }
 
   my $result = $Equipment->add({ %{$query_params}, NAS_ID => $nas_id });
+
   return $result;
 }
 
@@ -530,29 +507,34 @@ sub post_equipment_nas_details {
 =cut
 #**********************************************************
 sub post_equipment_nas_netmap_positions {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $result = $Equipment->equipment_netmap_position_add($query_params);
+
   return $result;
 }
 
 #**********************************************************
-=head2 _validate_nas_group_add()
+=head2 _validate_nas_group_add($attr)
+
+  Arguments:
+    $attr
+  Results:
+    result
 
 =cut
 #**********************************************************
 sub _validate_nas_group_add {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($attr->{NAME}) {
-    my $groups = $Nas->nas_group_list({
+    my $groups = $self->nas_group_list({
       NAME      => $attr->{NAME} || '--',
       COLS_NAME => 1
     });
 
     return {
+      insert_id => $groups->[0]->{id},
       errno  => 9,
       errstr => 'Validation failed',
       errors => [ {

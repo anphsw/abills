@@ -249,6 +249,7 @@ sub add {
 
   if (!$self->{errno}) {
     $self->{admin}->{MODULE} = $attr->{MODULE};
+    $self->{SHEDULE_ID} = $self->{INSERT_ID};
     if ($attr->{UID}) {
       $self->{admin}->action_add($attr->{UID},
         "SHEDULE:$self->{INSERT_ID} $attr->{TYPE}:$attr->{ACTION}:$attr->{MODULE}:$attr->{COMMENTS}", { TYPE => 27 });

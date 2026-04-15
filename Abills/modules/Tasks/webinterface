@@ -16,6 +16,7 @@ use Abills::Base qw/in_array _bp json_former/;
 
 require Tasks::Plugins;
 use Tasks::Reports;
+use Tasks::Tasks_manager;
 
 our(
   %lang,
@@ -30,6 +31,8 @@ our(
 Time::Piece::mon_list(@MON);
 
 my $Tasks = Tasks->new($db, $admin, \%conf);
+
+my $Tasks_manager = Tasks::Tasks_manager->new($db, $admin, \%conf, { lang => \%lang });
 
 my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
   html    => $html,
@@ -119,6 +122,7 @@ sub tasks_table {
     title_plain => \@columns,
     ID          => $attr->{TABLE_ID},
     pages       => ($Tasks->{TOTAL} - 1),
+    MENU        => "$lang{ADD}:get_index=task_web_add&add_form=1&$pages_qs&full=1:add",
     DATA_TABLE  => 1,
   });
 
@@ -325,45 +329,25 @@ sub task_web_add {
   $params->{BOX_TITLE} = $lang{ADD_TASK};
 
   if ($FORM{done}) {
-    my ($res) = $Api->api_call({
-      METHOD => 'PUT',
-      PATH   => "/tasks/$FORM{ID}/",
-      PARAMS => { STATE => 1, COMMENTS => $FORM{COMMENTS} }
-    });
-
-    _error_show($res);
+    my $result = $Tasks_manager->tasks_change({ %FORM, STATE => 1, COMMENTS => $FORM{COMMENTS} });
+    _error_show($result);
     $html->redirect('?index=' . get_function_index('tasks_list'));
   }
   elsif ($FORM{undone}) {
-    my ($res) = $Api->api_call({
-      METHOD => 'PUT',
-      PATH   => "/tasks/$FORM{ID}/",
-      PARAMS => { STATE => 2, COMMENTS => $FORM{COMMENTS} }
-    });
-
-    _error_show($res);
+    my $result = $Tasks_manager->tasks_change({ %FORM, STATE => 2, COMMENTS => $FORM{COMMENTS} });
+    _error_show($result);
     $html->redirect('?index=' . get_function_index('tasks_list'));
   }
   elsif ($FORM{add}) {
-    my ($res) = $Api->api_call({
-      METHOD => 'POST',
-      PATH   => '/tasks/',
-      PARAMS => \%FORM
-    });
+    my $result = $Tasks_manager->tasks_add(\%FORM);
 
-    _error_show($res);
+    _error_show($result);
     $html->redirect('?index=' . get_function_index('tasks_list')) if !$FORM{MSG_ID};
     return 1;
   }
   elsif ($FORM{chg} && $FORM{ID}) {
-    my ($res) = $Api->api_call({
-      METHOD => 'PUT',
-      PATH   => "/tasks/$FORM{ID}/",
-      PARAMS => { %FORM, STATE => 0 }
-    });
-
-    # $Tasks->change({ %FORM, STATE => 0 });
-    if (!_error_show($res) && $FORM{PARTICIPANTS_LIST}) {
+    my $result = $Tasks_manager->tasks_change(\%FORM);
+    if (!_error_show($result) && $FORM{PARTICIPANTS_LIST}) {
       $Tasks->p_del({ ID => $FORM{ID} });
       foreach (split(',', $FORM{PARTICIPANTS_LIST})) {
         $Tasks->p_add({ ID => $FORM{ID}, AID => $_ });
@@ -392,6 +376,7 @@ sub task_web_add {
     $date += 86400 * 7;
     $task_info->{CONTROL_DATE} = $date->ymd;
   }
+  $params->{ADDRESS_SEL} = form_address_select({ %FORM, %{$task_info}, HIDE_FLAT => 1 });
 
   if ($FORM{SHORT_FORM}) {
     $html->tpl_show('', { %{$params}, %{$task_info}, %FORM }, { TPL => 'task_add_short_form', MODULE => 'Tasks' });
@@ -472,34 +457,6 @@ sub _get_parent_task_line {
   return $html->element('div', join('', ($label, $col_8)), { class => 'form-group row' });
 }
 
-#**********************************************************
-=head2 _task_add($attr)
-
-=cut
-#**********************************************************
-sub _task_add {
-  my ($attr) = @_;
-
-  my $type_info = $Tasks->type_info({ ID => $FORM{TASK_TYPE} });
-  my $add_values = ();
-  if ($type_info->{ADDITIONAL_FIELDS} && $type_info->{ADDITIONAL_FIELDS} ne "{}") {
-    my $arr = decode_json($type_info->{ADDITIONAL_FIELDS});
-    foreach (@$arr) {
-      $add_values->{$_->{NAME}} = $FORM{$_->{NAME}} || '';
-    }
-  }
-  $attr->{ADDITIONAL_VALUES} = JSON->new->utf8(0)->encode($add_values) if ($add_values);
-
-  $Tasks->add({ AID => $admin->{AID}, %$attr });
-
-  if (!$Tasks->{errno} && $Tasks->{INSERT_ID} && $attr->{PARTCIPIANTS_LIST}) {
-    foreach (split(',', $attr->{PARTCIPIANTS_LIST})) {
-      $Tasks->p_add({ ID => $Tasks->{INSERT_ID}, AID => $_ });
-    }
-  }
-
-  return 1;
-}
 
 #**********************************************************
 =head2 _task_change_state($attr) 

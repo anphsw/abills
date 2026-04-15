@@ -353,7 +353,6 @@ sub list {
   $WHERE
 SQL
 
-
   $self->query_list($sql, $attr);
 
   return [ ] if ($self->{errno});

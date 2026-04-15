@@ -23,7 +23,6 @@ my $info = $html->badge($Crm->{TOTAL}, { TYPE => 'bg-primary' });
   "19:15:$lang{LOG}:crm_log:"                                     => 1,
   "27:15:$lang{IMPORT}:crm_leads_import:"                         => 1,
   "18:16:$lang{INFO}:crm_lead_info:LEAD_ID"                       => 1,
-  "23:16:Short Lead Info:crm_short_info:PHONE"                    => 1,
   "25:16:Lead Convert:crm_lead_convert:FROM_LEAD_ID"              => 1,
   "20:1:$lang{SOURCE} $lang{ADD}:crm_source_types:"               => 5,
 

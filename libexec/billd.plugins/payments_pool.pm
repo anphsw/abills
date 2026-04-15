@@ -96,7 +96,8 @@ sub payments_pool {
         USER_INFO    => $user,
         SKIP_MODULES => 'Sqlcmd, Cards',
         #SILENT       => 1,
-        SUM          => $payments_pool->{sum},
+        # adds payment sum twice, in Controls/Payments such option do not exists in pre_payment
+        # SUM          => $payments_pool->{sum},
         AMOUNT       => $payments_pool->{sum},
         EXT_ID       => $payments_pool->{ext_id},
         METHOD       => $payments_pool->{method},

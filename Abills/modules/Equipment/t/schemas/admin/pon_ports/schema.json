@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "title" : "ponPorts",
   "type": "object",
   "properties": {
     "list": {
@@ -8,7 +9,7 @@
         "type": "object",
         "properties": {
           "branch": {
-            "type": "string"
+
           },
           "branchDesc": {
             "type": "string"
@@ -26,7 +27,7 @@
             "type": "integer"
           },
           "status": {
-            "type": "string"
+            "type": "integer"
           },
           "vlanId": {
             "type": "integer"

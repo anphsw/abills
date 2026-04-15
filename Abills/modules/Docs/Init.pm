@@ -41,6 +41,7 @@ sub init_esign_service {
 
   my %esign_services = (
     DOCS_DIIA_ACQUIRER_TOKEN => 'Diia',
+    VCHASNO_TOKEN            => 'Vchasno'
   );
 
   my $ESign_Service = {};
@@ -60,6 +61,7 @@ sub init_esign_service {
     });
 
     next if (!$ESign_Service || (ref $ESign_Service eq 'HASH' && $ESign_Service->{errno}));
+    next if (!$ESign_Service->can('init'));
 
     $ESign_Service->init();
 

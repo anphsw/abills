@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/referral/',
-      controller  => 'Referral::Api::user::Root',
       endpoint    => \&Referral::Api::user::Root::get_user_referral,
       credentials => [
         'USER', 'USERBOT'
@@ -64,7 +61,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/referral/bonus/',
-      controller  => 'Referral::Api::user::Root',
       endpoint    => \&Referral::Api::user::Root::post_user_referral_bonus,
       credentials => [
         'USER', 'USERBOT'
@@ -73,7 +69,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/referral/bonus/',
-      controller  => 'Referral::Api::user::Root',
       endpoint    => \&Referral::Api::user::Root::get_user_referral_bonus,
       credentials => [
         'USER', 'USERBOT'
@@ -82,7 +77,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/referral/friend/',
-      controller  => 'Referral::Api::user::Root',
       endpoint    => \&Referral::Api::user::Root::post_user_referral_friend,
       credentials => [
         'USER', 'USERBOT'
@@ -91,7 +85,6 @@ sub user_routes {
     {
       method      => 'PUT',
       path        => '/user/referral/friend/:id/',
-      controller  => 'Referral::Api::user::Root',
       endpoint    => \&Referral::Api::user::Root::put_user_referral_friend_id,
       credentials => [
         'USER', 'USERBOT'

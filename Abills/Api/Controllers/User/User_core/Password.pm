@@ -50,8 +50,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_user_password_send {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 1000001,
@@ -117,8 +116,7 @@ sub post_user_password_send {
 =cut
 #**********************************************************
 sub post_user_password_recovery {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   require Control::Registration_mng;
   my $Registration_mng = Control::Registration_mng->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $self->{html}, LANG => $self->{lang} });
@@ -134,8 +132,7 @@ sub post_user_password_recovery {
 =cut
 #**********************************************************
 sub post_user_reset_password {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10032,
@@ -193,8 +190,7 @@ sub post_user_reset_password {
 =cut
 #**********************************************************
 sub post_user_password_reset {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   require Control::Registration_mng;
   my $Registration_mng = Control::Registration_mng->new($self->{db}, $self->{admin}, $self->{conf},

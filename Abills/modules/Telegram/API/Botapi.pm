@@ -3,6 +3,7 @@ package Telegram::API::Botapi;
 use strict;
 use warnings FATAL => 'all';
 
+use Abills::Base qw(cmd);
 use Abills::Fetcher qw/web_request/;
 
 my $debug = 0;
@@ -13,16 +14,15 @@ my $JSON_FORMER_PRESET = {
   BOOL_VALUES        => 1,
 };
 
-my @headers = ( 'Content-Type: application/json' );
+my @headers = ('Content-Type: application/json');
 
 #**********************************************************
-=head2 new($token)
+=head2 new($token, $chat_id, $parse_mode)
 
 =cut
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($token, $chat_id, $parse_mode) = @_;
+  my ($class, $token, $chat_id, $parse_mode) = @_;
 
   $chat_id //= "";
 
@@ -32,9 +32,9 @@ sub new {
     chat_id    => $chat_id,
     parse_mode => $parse_mode || 'HTML'
   };
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -44,13 +44,12 @@ sub new {
 =cut
 #**********************************************************
 sub send_message {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
   $attr->{parse_mode} ||= $self->{parse_mode};
 
-  my $url      = $self->{api_url} . 'sendMessage';
+  my $url = $self->{api_url} . 'sendMessage';
 
   my $result = web_request($url, {
     HEADERS     => \@headers,
@@ -59,9 +58,7 @@ sub send_message {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
-  }
+  $self->_mk_log($result);
 
   return 1;
 }
@@ -72,13 +69,12 @@ sub send_message {
 =cut
 #**********************************************************
 sub edit_message_text {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
   $attr->{parse_mode} ||= $self->{parse_mode};
 
-  my $url      = $self->{api_url} . 'editMessageText';
+  my $url = $self->{api_url} . 'editMessageText';
 
   my $result = web_request($url, {
     HEADERS     => \@headers,
@@ -87,9 +83,7 @@ sub edit_message_text {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
-  }
+  $self->_mk_log($result);
 
   return 1;
 }
@@ -100,12 +94,11 @@ sub edit_message_text {
 =cut
 #**********************************************************
 sub send_contact {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
 
-  my $url      = $self->{api_url} . 'sendContact';
+  my $url = $self->{api_url} . 'sendContact';
 
   my $result = web_request($url, {
     HEADERS     => \@headers,
@@ -114,10 +107,8 @@ sub send_contact {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
-  }
-  
+  $self->_mk_log($result);
+
   return 1;
 }
 
@@ -127,11 +118,10 @@ sub send_contact {
 =cut
 #**********************************************************
 sub get_file {
-  my $self = shift;
-  my ($file_id) = @_;
+  my ($self, $file_id) = @_;
 
   my $body = { file_id => $file_id };
-  my $url      = $self->{api_url} . 'getFile';
+  my $url = $self->{api_url} . 'getFile';
 
   my $file_res = web_request($url, {
     HEADERS     => \@headers,
@@ -141,9 +131,7 @@ sub get_file {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $file_res' >> /tmp/telegram.log`;
-  }
+  $self->_mk_log($file_res);
 
   return '' unless ($file_res && ref $file_res eq 'HASH' && $file_res->{result});
   my $file_path = $file_res->{result}{file_path};
@@ -164,13 +152,12 @@ sub get_file {
 =cut
 #**********************************************************
 sub send_photo {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $attr->{chat_id} ||= $self->{chat_id};
   $attr->{parse_mode} ||= $self->{parse_mode};
 
-  my $url      = $self->{api_url} . 'sendPhoto';
+  my $url = $self->{api_url} . 'sendPhoto';
 
   my $result = web_request($url, {
     HEADERS     => \@headers,
@@ -179,9 +166,7 @@ sub send_photo {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
-  }
+  $self->_mk_log($result);
 
   return 1;
 }
@@ -192,10 +177,9 @@ sub send_photo {
 =cut
 #**********************************************************
 sub answer_callback_query {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $url      = $self->{api_url} . 'answerCallbackQuery';
+  my $url = $self->{api_url} . 'answerCallbackQuery';
 
   my $result = web_request($url, {
     HEADERS     => \@headers,
@@ -204,8 +188,26 @@ sub answer_callback_query {
     METHOD      => 'POST',
   });
 
-  if ($debug > 0) {
-    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+  $self->_mk_log($result);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 answer_callback_query($result)
+
+=cut
+#**********************************************************
+sub _mk_log {
+  my ($self, $result) = @_;
+
+  if ($debug > 2) {
+    $self->send_message({
+      text => $result,
+    });
+  }
+  elsif ($debug > 0) {
+    cmd("echo 'RESULT: $result' >> /tmp/telegram.log");
   }
 
   return 1;

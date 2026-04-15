@@ -1,0 +1,5 @@
+{
+  "name": "STORAGE_DELETE_INSTALLATION",
+  "method": "DELETE",
+  "path": "storage/installation/:id/"
+}

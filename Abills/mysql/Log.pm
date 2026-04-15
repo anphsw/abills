@@ -208,14 +208,14 @@ sub log_print {
         ACTION    => $action,
         USER_NAME => $USER_NAME || $self->{USER_NAME},
         MESSAGE   => $MESSAGE,
-        NAS_ID    => $Nas->{NAS_ID} || 0
+        NAS_ID    => $Nas->{ID} || 0
       });
     }
     else {
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
-      my $nas  = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
+      my $nas  = ($Nas->{ID}) ? "NAS: $Nas->{ID} ($Nas->{IP}) " : '';
       my $logfile = $self->{LOG_FILE};
 
       if (open(my $fh, '>>', "$logfile")) {
@@ -232,7 +232,7 @@ sub log_print {
     if ($self->{PRINT} || $attr->{PRINT}) {
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
-      my $nas = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
+      my $nas = ($Nas->{ID}) ? "NAS: $Nas->{ID} ($Nas->{IP}) " : '';
       print "$DATE $TIME $LOG_TYPE: $action [". ($USER_NAME || '') . "] $nas$MESSAGE\n";
     }
   }

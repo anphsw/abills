@@ -73,7 +73,20 @@
   <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
-  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+<!--  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>-->
+  <script>window.CONTENT_LANGUAGE = "%CONTENT_LANGUAGE%";</script>
+  <script>
+    (function() {
+      const lang = (window.CONTENT_LANGUAGE || 'en').toLowerCase().trim();
+
+      if (!lang || lang === 'en') return;
+
+      const script = document.createElement('script');
+      script.src = `/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.${encodeURIComponent(lang)}.js`;
+
+      document.head.appendChild(script);
+    })();
+  </script>
   <script src='/styles/%HTML_STYLE%/js/select2.min.js'></script>
 
   <!-- functions.js -->
@@ -90,13 +103,13 @@
       BASE_URL = BASE_URL.match(/(https|http):\/\/.+?(?=\/)/)[0];
     }
     var SID = '%sid%';
-    var NO_DESIGN = '$FORM{NO_DESIGN}';
+    var NO_DESIGN = '%NO_DESIGN%';
 
     var _COMMENTS_PLEASE = '_{COMMENTS_PLEASE}_' || 'Comment please';
     var EVENT_PARAMS = {
       portal  : 'client',
       link    : '/index.cgi?qindex=100002',
-      disabled: ('$conf{USER_PORTAL_EVENTS_DISABLED}' === '1'),
+      disabled: ('%USER_PORTAL_EVENTS_DISABLED%' === '1'),
       interval: 30000
     };
 
@@ -119,5 +132,5 @@
     };
   </script>
 
-  $conf{HOTJAR_SCRIPT_CLIENT}
+  %HOTJAR_SCRIPT_CLIENT%
 </head>

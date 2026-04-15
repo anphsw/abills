@@ -213,6 +213,7 @@ sub iptv_docs {
     ABON_DISTRIBUTION => '_SHOW'
   });
 
+  my $service_ids = [];
   foreach my $service_info (@{$user_list}) {
     $info{tp_name} = $service_info->{tp_name};
     $info{tp_id}   = $service_info->{tp_id};
@@ -229,6 +230,7 @@ sub iptv_docs {
     if ($daily_fee_info) {
       push @services, $daily_fee_info;
     }
+    push @$service_ids, $service_info->{id};
   }
 
   #Channels
@@ -246,7 +248,7 @@ sub iptv_docs {
     }
   }
 
-  %services_info = (UID => $uid);
+  %services_info = (UID => $uid, USERS_SERVICE_ID => join(';', @$service_ids));
   $self->iptv_screen_fees(\%services_info);
 
   if ($services_info{USERS_SERVICES} && $uid) {

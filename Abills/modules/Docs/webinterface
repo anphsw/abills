@@ -620,6 +620,10 @@ sub docs_print {
   Docs::Misc::Documents->import();
   my $Documents = Docs::Misc::Documents->new($db, $admin, \%conf, { html => $html });
 
+  if ($attr->{RETURN_DOC_INFO}) {
+    return $Documents->document_info($attr);
+  }
+
   my $doc_info = $Documents->document_info({ %{$attr}, CHECK_IS_EXISTS => 1 });
 
   if($attr->{TAKE_PARAMS}) {
@@ -1123,28 +1127,8 @@ sub docs_statement_of_account {
     $Company->{COMPANY_ID} = $FORM{COMPANY_ID};
   }
 
-  $Fees->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
-  my $fees_list = $Fees->list({
-    DATETIME     => '_SHOW',
-    REG_DATE     => '_SHOW',
-    MONTH        => '_SHOW',
-    DSC          => '_SHOW',
-    SUM          => '_SHOW',
-    LAST_DEPOSIT => '_SHOW',
-    BILL_ID      => '_SHOW',
-    LOGIN        => '_SHOW',
-    %LIST_PARAMS,
-    COLS_NAME    => 1,
-    COLS_UPPER   => 1
-  });
-
   my %operations = ();
   my %operations_month = ();
-
-  foreach my $line (@$fees_list) {
-    push @{$operations{$line->{reg_date}}}, { %$line, FEES => 1 };
-    $operations_month{$line->{month}}{$line->{reg_date}} = $operations{$line->{reg_date}};
-  }
 
   $Payments->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $payments_list = $Payments->list({
@@ -1167,6 +1151,26 @@ sub docs_statement_of_account {
 
   foreach my $line (@$payments_list) {
     push @{$operations{$line->{reg_date}}}, $line;
+    $operations_month{$line->{month}}{$line->{reg_date}} = $operations{$line->{reg_date}};
+  }
+
+  $Fees->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
+  my $fees_list = $Fees->list({
+    DATETIME     => '_SHOW',
+    REG_DATE     => '_SHOW',
+    MONTH        => '_SHOW',
+    DSC          => '_SHOW',
+    SUM          => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    BILL_ID      => '_SHOW',
+    LOGIN        => '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1
+  });
+
+  foreach my $line (@$fees_list) {
+    push @{$operations{$line->{reg_date}}}, { %$line, FEES => 1 };
     $operations_month{$line->{month}}{$line->{reg_date}} = $operations{$line->{reg_date}};
   }
 

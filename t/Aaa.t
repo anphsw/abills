@@ -251,7 +251,8 @@ sub _rad {
     }
   }
   elsif ($rad_file) {
-    my $load_file = (-f $rad_file . '.auth') ? $rad_file . '.auth' : $rad_file;
+    my $rad_file_rad = $rad_file . '.auth';
+    my $load_file = (-f $rad_file_rad) ? $rad_file_rad : $rad_file;
     %RAD_REQUEST = %{load_rad_pairs($load_file)};
   }
   else {
@@ -336,6 +337,11 @@ sub _rad {
 #**********************************************************
 =head2 aaa_base($attr); - Load file from file
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub aaa_base {
@@ -371,11 +377,11 @@ sub aaa_base {
   print "  authorize: $ret\n";
   ok($ret);
 
-  show_reply(\%RAD_REPLY, 'RAd:REPLY:');
+  show_reply(\%RAD_REPLY, 'RAD:REPLY:');
 
   %RAD_REPLY = ();
-
-  if ($rad_file && -f $rad_file . '.acct_start') {
+  my $rad_file_rad =  $rad_file . '.acct_start';
+  if ($rad_file && -f $rad_file_rad) {
     %RAD_REQUEST = %{load_rad_pairs($rad_file . '.acct_start')};
   }
   else {
@@ -431,6 +437,11 @@ sub aaa_base {
 
 #**********************************************************
 =head2 load_rad_pairs($filename); - Load file from file
+
+  Arguments:
+    $filename
+  Results:
+    \%rad_pairs
 
 =cut
 #**********************************************************
@@ -583,6 +594,7 @@ help     - help
 
 [END]
 
+  return 1;
 }
 
 1

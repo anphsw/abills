@@ -12,8 +12,11 @@ package Api::Controllers::Common::Users;
 use strict;
 use warnings FATAL => 'all';
 
+use Control::Services;
+
 my Control::Errors $Errors;
 my Users $Users;
+my Control::Services $Services;
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -34,6 +37,7 @@ sub new {
 
   bless($self, $class);
 
+  $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
   $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Errors = $self->{attr}->{Errors};
 
@@ -59,11 +63,11 @@ sub get_user_recommendedPay {
     $min_sum = $sum;
   }
 
-  my $all_services_fee = ::recomended_pay($Users, { SKIP_DEPOSIT_CHECK => 1 });
+  my $service_info = $Services->get_services($Users, { SKIP_MODULES => 'Sqlcmd' });
 
   return {
     sum              => $sum,
-    all_services_sum => $all_services_fee,
+    all_services_sum => $service_info->{total_sum} || 0,
     max_sum          => $self->{conf}->{PAYSYS_MAX_SUM} || 0,
     min_sum          => $min_sum,
   };

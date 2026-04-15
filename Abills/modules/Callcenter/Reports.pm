@@ -13,8 +13,8 @@ our (
   $admin,
   %conf,
   %lang,
-  @MONTHES,
-  %permissions,
+  # @MONTHES,
+  # %permissions,
   %LIST_PARAMS
 );
 
@@ -24,7 +24,7 @@ my $Callcenter = Callcenter->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 my $Admins = Admins->new($db, $admin, \%conf);
 
-my ($year, $month, $day) = split(/-/, $DATE, 3);
+my ($year, $month, undef) = split(/-/x, $DATE, 3);
 my $date_from = "$year-$month-01";
 
 #**********************************************************
@@ -42,7 +42,7 @@ sub callcenter_calls_handler {
 
   # from dashbord
   if($FORM{sip_chg}){
-    print "Content-Type: text/html\n\n";
+    print $html->header();
     $html->tpl_show(_include('callcenter_calls_sip_change', 'Callcenter'), {
       SIP_NUMBER => $FORM{OPERATOR_PHONE} || q{},
       AID        => $admin->{AID},
@@ -51,14 +51,6 @@ sub callcenter_calls_handler {
   }
 
   my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED}, $lang{PROCESSED}.' in');
-
-  my @status_bar = (
-    "$lang{ALL}:index=$index&STATUS=0",
-    "$lang{RINGING}:index=$index&STATUS=1",
-    "$lang{IN_PROCESSING}:index=$index&STATUS=2",
-    "$lang{PROCESSED}:index=$index&STATUS=3",
-    "$lang{NOT_PROCESSED}:index=$index&STATUS=4",
-  );
 
   my $STATUS_SELECT = $html->form_select('STATUS', {
     SELECTED     => $FORM{STATUS} || q{},
@@ -69,7 +61,7 @@ sub callcenter_calls_handler {
 
   my $ADMINS_SELECT = $html->form_select('OPERATOR_PHONE', {
     SELECTED     => $FORM{OPERATOR_PHONE} || q{},
-    SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
+    SEL_LIST     => $Admins->list({ COLS_NAME => 1, SIP_NUMBER => '!' }),
     SEL_KEY      => 'sip_number',
     SEL_VALUE    => 'login',
     ARRAY_NUM_ID => 1,
@@ -125,13 +117,13 @@ sub callcenter_calls_handler {
     my $result_cmd = Abills::Base::cmd("ls /usr/abills/Abills/templates/asterisk/");
 
     my $audio_date = $info_calls->{DATE} || '';
-    $audio_date =~ s/[-\s:]//g;
+    $audio_date =~ s/[-\s:]//xg;
     $audio_date = substr($audio_date, 0, -2);
     my $user_phone = $info_calls->{USER_PHONE} || '';
     my $operator_phone = $info_calls->{OPERATOR_PHONE} || '';
     my $file = "$audio_date-$user_phone-$operator_phone.wav";
 
-    if ($result_cmd =~ /$file/i) {
+    if ($result_cmd =~ /$file/xi) {
       $info_calls->{FILE_PATH} = "/images/asterisk/$file";
     }
 
@@ -175,7 +167,7 @@ sub callcenter_calls_handler {
     foreach my $unrecognized_user (@$unrecognized_users_list) {
       my $unrecognized_user_phone = $unrecognized_user->{user_phone};
       if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-        $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+        $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//x;
       }
 
       my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
@@ -217,13 +209,76 @@ sub callcenter_calls_handler {
     });
   }
 
-  $Callcenter->{debug} = 1 if $FORM{DEBUG};
+  callcenter_calls_list();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 callcenter_admins_report() - graphic admin report
+
+  Arguments:
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub callcenter_calls_list {
+
+  my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED}, $lang{PROCESSED}.' in');
+
+  $Callcenter->{debug} = 1 if ($FORM{DEBUG});
 
   $LIST_PARAMS{STATUS} = $FORM{STATUS} if $FORM{STATUS};
   $LIST_PARAMS{SORT} = ($FORM{sort}) ? $FORM{sort} : 'date';
   $LIST_PARAMS{DESC} = $FORM{desc} if $FORM{desc};
   $LIST_PARAMS{CALL_PHONE} = $FORM{CALL_PHONE} if $FORM{CALL_PHONE};
   $LIST_PARAMS{OPERATOR_PHONE} = $FORM{OPERATOR_PHONE} if $FORM{OPERATOR_PHONE};
+
+  my @status_bar = (
+    "$lang{ALL}:index=$index&STATUS=0",
+    "$lang{RINGING}:index=$index&STATUS=1",
+    "$lang{IN_PROCESSING}:index=$index&STATUS=2",
+    "$lang{PROCESSED}:index=$index&STATUS=3",
+    "$lang{NOT_PROCESSED}:index=$index&STATUS=4",
+  );
+
+  my %ext_titles = (
+    id             => "ID",
+    user_phone     => $lang{CALL_FROM},
+    admin          => $lang{ADMIN},
+    status         => $lang{STATUS},
+    date           => $lang{DATE},
+    operator_phone => $lang{CALL_TO},
+    fio            => $lang{FIO},
+    login          => $lang{USER},
+    address_full   => $lang{ADDRESS},
+    city           => $lang{CITY},
+    stop           => $lang{END},
+    duration       => $lang{DURATION}
+  );
+
+  my $admin_list = $Admins->list({
+    SIP_NUMBER => '!',
+    COLS_NAME  => 1,
+    PAGE_ROWS  => 1000
+  });
+  my %admins_sip = ();
+  foreach my $admin_ (@$admin_list) {
+    $admins_sip{$admin_->{sip_number}} = $admin_->{aid};
+  }
+
+  my %filter_values = (
+    user_phone     => sub {
+      my $phone = shift;
+      return ($admins_sip{$phone}) ? $phone . $html->br() . 'AID:' . $admins_sip{$phone} : $phone;
+    },
+    operator_phone => sub {
+      my $phone = shift;
+      return ($admins_sip{$phone}) ? $phone . $html->br() . 'AID:' . $admins_sip{$phone} : $phone;
+    }
+  );
 
   result_former({
     INPUT_DATA      => $Callcenter,
@@ -232,25 +287,13 @@ sub callcenter_calls_handler {
     DEFAULT_FIELDS  => "ID, UID, USER_PHONE, ADMIN, OPERATOR_PHONE, STATUS, DATE, LOGIN",
     FUNCTION_FIELDS => 'change, del',
     STATUS_VALS     => \@STATUSES,
-    EXT_TITLES      => {
-      id             => "ID",
-      user_phone     => $lang{CALL_FROM},
-      admin          => $lang{ADMIN},
-      status         => $lang{STATUS},
-      date           => $lang{DATE},
-      operator_phone => $lang{CALL_TO},
-      fio            => $lang{FIO},
-      login          => $lang{USER},
-      address_full   => $lang{ADDRESS},
-      city           => $lang{CITY},
-      stop           => $lang{END},
-      duration       => $lang{DURATION}
-    },
+    EXT_TITLES      => \%ext_titles,
+    FILTER_VALUES   => \%filter_values,
     TABLE           => {
       width   => '100%',
       caption => $lang{CALL_CENTER},
       qs      => $pages_qs,
-      ID      => 'CALLCENTER_CALLS_HANDLER',
+      ID      => 'CALLCENTER_CALLS_LIST',
       MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
       header  => $html->table_header(\@status_bar),
       EXPORT  => 1,
@@ -278,7 +321,7 @@ sub callcenter_admins_report {
 
   my $ADMINS_SELECT = $html->form_select('ADMIN_SELECT', {
     SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
+    SEL_LIST     => $Admins->list({ COLS_NAME => 1, SIP_NUMBER => '!' }),
     SEL_KEY      => 'sip_number',
     SEL_VALUE    => 'login',
     ARRAY_NUM_ID => 1,
@@ -300,9 +343,9 @@ sub callcenter_admins_report {
   }, { OUTPUT2RETURN => 1 })
   });
 
-  $FORM{ADMIN_SELECT} =~ s/,/;/g if $FORM{ADMIN_SELECT};
-  $FORM{ADMIN_SELECT} =~ s/ //g  if $FORM{ADMIN_SELECT};
-  $Callcenter->{debug} = 1 if $FORM{DEBUG};
+  $FORM{ADMIN_SELECT} =~ s/,/;/xg if ($FORM{ADMIN_SELECT});
+  $FORM{ADMIN_SELECT} =~ s/\s+//xg  if ($FORM{ADMIN_SELECT});
+  $Callcenter->{debug} = 1 if ($FORM{DEBUG});
 
   my $calls_list = $Callcenter->callcenter_list_calls({
     DATE_START     => $FORM{DATE_START},
@@ -486,7 +529,7 @@ sub callcenter_calls_handler_statistic {
 
   my $ADMINS_SELECT = $html->form_select('ADMIN_SELECT', {
     SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
+    SEL_LIST     => $Admins->list({ COLS_NAME => 1, SIP_NUMBER => '!' }),
     SEL_KEY      => 'sip_number',
     SEL_VALUE    => 'login',
     ARRAY_NUM_ID => 1,
@@ -507,8 +550,8 @@ sub callcenter_calls_handler_statistic {
   }, { OUTPUT2RETURN => 1 })
   });
 
-  $FORM{ADMIN_SELECT} =~ s/,/;/g if $FORM{ADMIN_SELECT};
-  $FORM{ADMIN_SELECT} =~ s/ //g  if $FORM{ADMIN_SELECT};
+  $FORM{ADMIN_SELECT} =~ s/,/;/xg if ($FORM{ADMIN_SELECT});
+  $FORM{ADMIN_SELECT} =~ s/\s+//xg  if ($FORM{ADMIN_SELECT});
 
   $Callcenter->{debug} = 1 if $FORM{DEBUG};
 
@@ -539,8 +582,8 @@ sub callcenter_calls_handler_statistic {
         $line->{operator_phone},
         $line->{incoming},
         $line->{outcoming},
-        $line->{incoming_duration} =~ /(\d{2}:\d{2}:\d{2})/,
-        $line->{outcoming_duration} =~ /(\d{2}:\d{2}:\d{2})/,
+        $line->{incoming_duration} =~ /(\d{2}:\d{2}:\d{2})/xm,
+        $line->{outcoming_duration} =~ /(\d{2}:\d{2}:\d{2})/xm,
       );
     }
   }

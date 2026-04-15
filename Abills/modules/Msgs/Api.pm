@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -49,7 +47,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/msgs/chapters/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::get_user_msgs_chapters,
       credentials => [
         'USER', 'USERBOT'
@@ -58,7 +55,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/msgs/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::get_user_msgs,
       credentials => [
         'USER', 'USERBOT'
@@ -67,7 +63,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/msgs/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::post_user_msgs,
       credentials => [
         'USER', 'USERBOT'
@@ -76,7 +71,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/msgs/:id/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::get_user_msgs_id,
       credentials => [
         'USER', 'USERBOT'
@@ -85,7 +79,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/msgs/:id/reply/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::get_user_msgs_id_reply,
       credentials => [
         'USER', 'USERBOT'
@@ -94,7 +87,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/msgs/:id/reply/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::post_user_msgs_id_reply,
       credentials => [
         'USER', 'USERBOT'
@@ -103,7 +95,6 @@ sub user_routes {
     {
       method       => 'GET',
       path         => '/user/msgs/attachments/:id/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::get_user_msgs_attachments_id,
       credentials  => [
         'USER', 'USERBOT'
@@ -113,7 +104,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/msgs/search/',
-      controller  => 'Msgs::Api::user::Root',
       endpoint    => \&Msgs::Api::user::Root::post_user_msgs_search,
       credentials => [
         'USER'
@@ -141,8 +131,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -163,7 +151,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/msgs/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::post_msgs,
       credentials => [
         'ADMIN'
@@ -172,7 +159,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/statuses/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_statuses,
       credentials => [
         'ADMIN', 'ADMINBOT', 'ADMINSID'
@@ -181,7 +167,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/:id/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_id,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -190,7 +175,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/msgs/:id/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::put_msgs_id,
       credentials => [
         'ADMIN', 'ADMINSID', 'ADMINBOT'
@@ -200,7 +184,6 @@ sub admin_routes {
     # {
     #   method      => 'POST',
     #   path        => '/msgs/list/',
-    #   controller  => 'Msgs::Api::admin::Root',
     #   endpoint    => \&Msgs::Api::admin::Root::post_msgs_list,
     #   credentials => [
     #     'ADMIN'
@@ -209,7 +192,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/list/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_list,
       credentials => [
         'ADMIN', 'ADMINSID', 'ADMINBOT'
@@ -218,7 +200,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/msgs/workflow/',
-      controller  => 'Msgs::Api::admin::Workflow',
       endpoint    => \&Msgs::Api::admin::Workflow::post_msgs_workflow,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -227,7 +208,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/msgs/workflow/:id/',
-      controller  => 'Msgs::Api::admin::Workflow',
       endpoint    => \&Msgs::Api::admin::Workflow::post_msgs_workflow_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -236,7 +216,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/msgs/:id/reply/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::post_msgs_id_reply,
       credentials => [
         'ADMIN', 'ADMINBOT'
@@ -246,7 +225,6 @@ sub admin_routes {
       #TODO: add validations. closed STATE allowed only when present permission
       method      => 'GET',
       path        => '/msgs/:id/reply/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_id_reply,
       credentials => [
         'ADMIN'
@@ -256,7 +234,6 @@ sub admin_routes {
       #TODO: we can save attachment with wrong filesize. fix it?
       method      => 'POST',
       path        => '/msgs/reply/:reply_id/attachment/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::post_msgs_reply_reply_id_attachment,
       credentials => [
         'ADMIN'
@@ -265,7 +242,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/chapters/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_chapters,
       credentials => [
         'ADMIN'
@@ -274,7 +250,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/report/dynamics/',
-      controller  => 'Msgs::Api::admin::Reports',
       endpoint    => \&Msgs::Api::admin::Reports::get_msgs_report_dynamics,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -283,7 +258,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/msgs/survey/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_survey,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -292,12 +266,38 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/msgs/search/',
-      controller  => 'Msgs::Api::admin::Root',
       endpoint    => \&Msgs::Api::admin::Root::get_msgs_search,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
-    }
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/:id/ai_suggest/',
+      controller  => 'Msgs::Api::admin::AI',
+      endpoint    => \&Msgs::Api::admin::AI::post_msgs_id_ai_suggest,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/:id/ai_feedback/',
+      controller  => 'Msgs::Api::admin::AI',
+      endpoint    => \&Msgs::Api::admin::AI::post_msgs_id_ai_feedback,
+      credentials => [
+        'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/ai_translate/',
+      controller  => 'Msgs::Api::admin::AI',
+      endpoint    => \&Msgs::Api::admin::AI::post_msgs_ai_translate,
+      credentials => [
+        'ADMINSID'
+      ]
+    },
   ];
 }
 

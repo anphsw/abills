@@ -2,6 +2,7 @@ get:
   tags:
     - users
   summary: Получить персональную информацию о пользователе
+  deprecated: true
   description: Возвращает персональную информацию пользователя
   operationId: getUserPiByUID
   parameters:

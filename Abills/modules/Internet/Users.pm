@@ -576,13 +576,13 @@ sub internet_user_params {
     COLS_NAME => 1,
     SORT      => 'id',
     DESC      => 'desc',
-    ACTIONS   => "*ID:$Internet_->{ID} *",
+    ACTIONS   => "*ID:$Internet_->{ID}*",
     SKIP_TOTAL=> 1
   });
 
   if ($admin->{TOTAL} && $admin->{TOTAL} > 0) {
     my ($status_date) = $list->[0]->{datetime} =~ m/(\d{4}-\d{2}-\d{2})/x;
-
+    #$list->[0]->{datetime} =~ /ID:$Internet_->{ID}\s?|$/mx;
     my $days = ($status_date eq '0000-00-00') ? 0 : date_diff($status_date, $DATE);
 
     $Internet_->{STATUS_INFO} = "$lang{FROM}: $status_date ($lang{DAYS}: $days)";
@@ -878,7 +878,8 @@ sub internet_user_online {
     SWITCH_MAC              => '_SHOW',
     CONNECT_INFO            => '_SHOW',
     NAS_TYPE                => '_SHOW',
-    INTERNET_SKIP_SHOW_DHCP => $conf{DHCP_LEASES_NAS}
+    INTERNET_SKIP_SHOW_DHCP => $conf{DHCP_LEASES_NAS},
+    SKIP_SORT               => 1
   );
 
   if ($conf{IPV6}) {
@@ -2381,7 +2382,7 @@ sub internet_user_wizard {
     my $sub_tpl = $html->tpl_show($tpls{"$key"}, $wizard, { OUTPUT2RETURN => 1, ID => "$descr" });
     $sub_tpl =~ s/(<input\s+.*?UID.*?>)//xgi;
     $sub_tpl =~ s/(<input\s+.*?index.*?>)//xgi;
-    $sub_tpl =~ s/name=[\'\"]?([A-Z_0-9]+)[\'\"]? /name=$n.$1 /ig;
+    $sub_tpl =~ s/name=[\'\"]?([A-Z_0-9]+)[\'\"]?\s+/name=$n.$1 /xig;
     $template .= $sub_tpl;
   }
 
@@ -2444,8 +2445,8 @@ sub internet_wizard_add {
     $add_values{1}{COMMENTS} =~ s/\\n/\n/xg;
   }
 
-  $add_values{1}{GID} = _group_add(\%add_values);
-  $add_values{1}{COMPANY_ID} = _company_add(\%add_values);
+  $add_values{1}{GID} = reg_group_add(\%add_values);
+  $add_values{1}{COMPANY_ID} = reg_company_add(\%add_values);
 
   if ($add_values{1}{LOGIN} && $add_values{1}{LOGIN} =~ m/^autocreate/x) {
     delete $add_values{1}{LOGIN};
@@ -2619,7 +2620,8 @@ sub internet_wizard_add {
       %FORM = %{$add_values{9}};
       $FORM{UID} = $uid;
       $FORM{change} = $uid;
-      abon_user({
+      #abon_user({
+      abon_user_change({
         QUITE    => 1,
         TP_NAMES => $FORM{TP_NAMES},
         CHECK_TP => $FORM{TP_NAMES},
@@ -2660,17 +2662,15 @@ sub internet_wizard_add {
           #Shedule
           my ($Y, $M, $D) = split(/-/x, $FORM{CHANGE_TP_DATE}, 3);
 
-          $Shedule->add(
-            {
-              UID    => $uid,
-              TYPE   => 'tp',
-              ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
-              D      => $D,
-              M      => $M,
-              Y      => $Y,
-              MODULE => 'Iptv'
-            }
-          );
+          $Shedule->add({
+            UID    => $uid,
+            TYPE   => 'tp',
+            ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
+            D      => $D,
+            M      => $M,
+            Y      => $Y,
+            MODULE => 'Iptv'
+          });
         }
         else {
           $html->message('err', $lang{ERROR}, "NO TP_ID FOR SHDEULE\nLOGIN: $login UID: $FORM{UID} DATE: $FORM{CHANGE_TP_DATE} TP_NAME: ". ( $FORM{CHANGE_TP_NAME} || q{}));
@@ -2691,7 +2691,7 @@ sub internet_wizard_add {
     }
 
     #Rwizard
-    if (scalar keys %{$add_values{14}} > 0) {
+    if (scalar keys %{$add_values{14}} > 0 && in_array('Triplay', \@MODULES)) {
       load_module('Triplay', $html);
       %FORM = %{$add_values{14}};
       $FORM{UID} = $uid;
@@ -2828,7 +2828,7 @@ sub internet_wizard_fin {
 }
 
 #*******************************************************************
-=head2 _check_tp($params)
+=head2 internet_service_add($params)
 
   Arguments:
     $params
@@ -2878,6 +2878,7 @@ sub internet_service_add {
       MODULES => \@MODULES,
     });
 
+
   my $service_id = $Internet_services->user_add({
     %{$params},
     SKIP_MONTH_FEE             => $FORM{SERIAL},
@@ -2887,6 +2888,9 @@ sub internet_service_add {
   });
 
   if (!$service_id) {
+    if($Internet_services->{errno}) {
+      print "$Internet_services->{errno} / $Internet_services->{errstr}";
+    }
     return 0;
   }
 
@@ -2901,16 +2905,15 @@ sub internet_service_add {
 
     my ($Y, $M, $D) = split(/-/x, $FORM{CHANGE_TP_DATE}, 3);
     if ($FORM{TP_ID}) {
-      $Shedule->add(
-        {
-          UID    => $params->{UID},
-          TYPE   => 'tp',
-          ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
-          D      => $D,
-          M      => $M,
-          Y      => $Y,
-          MODULE => 'Internet'
-        });
+      $Shedule->add({
+        UID    => $params->{UID},
+        TYPE   => 'tp',
+        ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
+        D      => $D,
+        M      => $M,
+        Y      => $Y,
+        MODULE => 'Internet'
+      });
     }
     else {
       print "UID: $params->{UID} / $FORM{CHANGE_TP_DATE} / " . ($FORM{CHANGE_TP_NAME} || q{}) . "//\n";

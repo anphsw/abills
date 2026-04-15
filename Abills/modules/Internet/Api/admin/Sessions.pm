@@ -84,6 +84,10 @@ sub _sessions_list {
     errstr => 'Access denied'
   } if ($self->{admin}->{MODULES} && !$self->{admin}->{MODULES}->{Internet}) || !$self->{admin}->{permissions}{0}{33};
 
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+
   my $sessions = $Sessions->online({
     %$query_params,
     UID           => $path_params->{uid} || $query_params->{UID} || '_SHOW',

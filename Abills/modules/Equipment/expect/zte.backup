@@ -1,0 +1,42 @@
+#!/usr/bin/expect
+
+if { $argc < 3 } {
+  puts "Usage: zte.backup <ip> <login> <password>"
+  exit 1
+}
+
+set timeout 60
+set ip [lindex $argv 0]
+set login [lindex $argv 1]
+set password [lindex $argv 2]
+set port [lindex $argv 3]
+set enablepassword [lindex $argv 4]
+
+set prompt "#"
+
+if { $port ne "" } {
+  spawn telnet $ip:$port
+} else {
+  spawn telnet $ip
+}
+
+
+expect "sername:"
+send "$login\r"
+
+expect "ssword:"
+send "$password\r"
+
+expect "$prompt"
+send "terminal length 0\r"
+
+expect "$prompt"
+send "show run\r"
+
+expect "$prompt"
+send "exit\r"
+
+expect "yes/no"
+send "yes\r"
+
+expect eof

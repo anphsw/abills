@@ -201,6 +201,9 @@ sub abon_user {
 
   Arguments:
     $attr
+      SKIP_FEE
+      QUITE
+      CHECK_TP
   Results:
     TRUE or FALSE
 
@@ -262,7 +265,6 @@ sub abon_user_change {
         my @compare = (
           'COMMENTS_:comments',
           'SERVICE_COUNT_:service_count',
-
           'DISCOUNT_:discount',
           'CREATE_DOCS_:create_docs',
           'SEND_DOCS_:send_docs',
@@ -323,8 +325,7 @@ sub abon_user_change {
   if (scalar(@new_arr) > 0) {
     my $sorted_tp_list = $Abon->tariff_list({
       ABON_ID   => join(';', @new_arr),
-      SORT      => 'ats.sub_tp_id',
-      COLS_NAME => 1
+      SORT      => 'ats.sub_tp_id'
     });
 
     @new_arr = map { $_->{id} } @{$sorted_tp_list};
@@ -383,7 +384,7 @@ sub abon_user_change {
       return 0;
     };
 
-    if ($result_activate && $result_activate->{MESSAGES} && ref $result_activate->{MESSAGES} eq 'ARRAY') {
+    if (!$attr->{QUITE} && $result_activate && $result_activate->{MESSAGES} && ref $result_activate->{MESSAGES} eq 'ARRAY') {
       my $message = join("\n", @{$result_activate->{MESSAGES}});
       $html->message('info', $lang{ABON}, $message) if ($message);
     }
@@ -644,7 +645,7 @@ sub abon_client {
 
   my $is_card_design = (defined($FORM{CARD_FORM})) ? $FORM{CARD_FORM} : 0;
 
-  if (!defined($FORM{CARD_FORM}) && $conf{ABON_CARDS}) {
+  if (!defined($FORM{CARD_FORM})) {
     $is_card_design = 1;
   }
 

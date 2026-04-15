@@ -168,16 +168,16 @@ sub _hangup {
   }
 
   my $online_list = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 60000 });
+  my $nas_list = $Nas->list({ NAS_IP => '_SHOW', PAGE_ROWS => 60000 });
 
-  foreach my $nas_row (@$nas_list) {
-    next if (!defined($online_list->{ $nas_row->{nas_id} }));
-    $Nas->info({ NAS_ID => $nas_row->{nas_id} });
-    foreach my $online (@{$online_list->{ $nas_row->{nas_id} }}) {
+  foreach my $nas (@$nas_list) {
+    next if (!defined($online_list->{ $nas->{id} }));
+    $Nas->info({ NAS_ID => $nas->{id} });
+    foreach my $online (@{$online_list->{ $nas->{id} }}) {
       my %ACCT_INFO = (
         ACCT_SESSION_ID    => $online->{acct_session_id} || q{},
         NAS_PORT           => $online->{nas_port_id},
-        NAS_IP_ADDRESS     => $nas_row->{nas_ip},
+        NAS_IP_ADDRESS     => $nas->{ip},
         FRAMED_IP_ADDRESS  => $online->{client_ip},
         CONNECT_INFO       => $online->{connection_info},
         CALLING_STATION_ID => $online->{cid} || q{},

@@ -9,7 +9,6 @@ package Abills::EXCEL;
 use strict;
 our (
   %FORM,
-  #%LIST_PARAMS,
   %COOKIES,
   $index,
   $pages_qs,
@@ -25,7 +24,6 @@ use Encode qw(decode decode_utf8);
 our $VERSION = 2.02;
 my $CONF;
 my $workbook;
-#my $IMG_PATH = '';
 
 use Spreadsheet::WriteExcel;
 my Spreadsheet::WriteExcel $worksheet;
@@ -107,25 +105,19 @@ sub new {
 #**********************************************************
 =head2 form_input($name, $value, $attr)
 
+  Arguments:
+    $name
+    $value
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_input {
-  my $self = shift;
-  my (undef, $value) = @_;
+  my (undef, undef, $value) = @_;
 
   return $value;
-
-  # my $type  = (defined($attr->{TYPE}))  ? $attr->{TYPE}             : 'text';
-  # my $state = (defined($attr->{STATE})) ? ' checked="1"'            : '';
-  # my $size  = (defined($attr->{SIZE}))  ? " SIZE=\"$attr->{SIZE}\"" : '';
-  # $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size/>";
-  #
-  # if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
-  #   $self->{OUTPUT} .= $self->{FORM_INPUT};
-  #   $self->{FORM_INPUT} = '';
-  # }
-  #
-  # return $self->{FORM_INPUT};
 }
 
 #**********************************************************
@@ -134,8 +126,7 @@ sub form_input {
 =cut
 #**********************************************************
 sub form_main {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
     return '';
@@ -156,13 +147,16 @@ sub form_main {
 #**********************************************************
 =head2 form_select($name, $attr)
 
+  Arguments:
+    $name
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub form_select {
-  my $self = shift;
-  my ($name, $attr) = @_;
-
-  #my $ex_params = (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
+  my ($self, undef, $attr) = @_;
 
   $self->{SELECT} = '';
 
@@ -205,7 +199,7 @@ sub form_select {
       $self->{SELECT} .= "$k:";
 
       if ($attr->{EXT_PARAMS}) {
-        while (my ($ext_k, $ext_v) = each %{ $attr->{EXT_PARAMS} }) {
+        while (my ($ext_k, undef) = each %{ $attr->{EXT_PARAMS} }) {
           $self->{SELECT} .= " $ext_k='";
           $self->{SELECT} .= $attr->{EXT_PARAMS}->{$ext_k}->{$k} if ($attr->{EXT_PARAMS}->{$ext_k}->{$k});
           $self->{SELECT} .= "'";
@@ -221,24 +215,20 @@ sub form_select {
 }
 
 #**********************************************************
-=head2 menu2($menu_items, $menu_args, $permissions, $attr)
-
-=cut
-#**********************************************************
-sub menu2 {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
-  $self->menu($menu_items, $menu_args, $permissions, $attr);
-}
-
-#**********************************************************
 =head2 menu($menu_items, $menu_args, $permissions, $attr)
+
+  Arguments:
+    $menu_items
+    $menu_args
+    $permissions
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub menu {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  my ($self, $menu_items, undef, $permissions, $attr) = @_;
 
   return 0 if ($FORM{index} > 0);
 
@@ -330,7 +320,6 @@ sub chart {
 #**********************************************************
 sub header {
   my $self       = shift;
-  #my ($attr)     = @_;
 
   if ($FORM{DEBUG}) {
     print "Content-Type: text/plain\n\n";
@@ -346,28 +335,30 @@ sub header {
 
 
 #**********************************************************
-=head2 table()
+=head2 table($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
 sub table {
-  my $proto  = shift;
+  my ($proto, $attr)  = @_;
   my $class  = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
-  my $self = {};
+
+  my $self = {
+    MAX_ROWS  => $parent->{MAX_ROWS},
+    HTML      => $parent,
+    prototype => $proto,
+    NO_PRINT  => $proto->{NO_PRINT},
+    rowcolor  => $attr->{rowcolor},
+    ID        => $attr->{ID}
+  };
 
   bless($self, $class);
-
-  $self->{prototype} = $proto;
-  $self->{NO_PRINT}  = $proto->{NO_PRINT};
-
-  my ($attr) = @_;
-
-  if (defined($attr->{rowcolor})) {
-    $self->{rowcolor} = $attr->{rowcolor};
-  }
-
-  $self->{ID}=$attr->{ID};
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return $self;
@@ -393,8 +384,8 @@ sub table {
   $worksheet->add_write_handler(qr/.+/, \&_store_string_widths);
 
   if ($attr->{title} || $attr->{title_plain}) {
-    $self->{title} = $attr->{title};
-    $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
+    $self->{title} = $attr->{title} || $attr->{title_plain};
+    $self->table_title($SORT, $DESC, $PG, $self->{title}, $attr->{qs});
   }
 
   if ($attr->{rows}) {
@@ -409,13 +400,15 @@ sub table {
 #**********************************************************
 =head2 addrows(@row)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub addrow {
-  my $self = shift;
-  my (@row) = @_;
-
-  # $self->{row_number}++;
+  my ($self, @row) = @_;
 
   if (! $worksheet) {
     return $self;
@@ -449,16 +442,16 @@ sub addrow {
     }
 
 
-    $val =~ s/\&quot;/"/g;
-    $val =~ s/&amp;/&/g;
-    $val =~ s/&gt;/>/g;
-    $val =~ s/&lt;/</g;
+    $val =~ s/\&quot;/"/xg;
+    $val =~ s/&amp;/&/xg;
+    $val =~ s/&gt;/>/xg;
+    $val =~ s/&lt;/</xg;
     #Link parse
-    if ($val =~ /\[(.+)\|(.{0,200})\]/) {
+    if ($val =~ /\[(.+)\|(.{0,200})\]/xm) {
       my $text_to_check = $2;
 
-      if ($text_to_check =~ /^=/) {
-        $text_to_check =~ s/^=//;
+      if ($text_to_check =~ /^=/xm) {
+        $text_to_check =~ s/^=//x;
       }
 
       my $skip_link = defined $self->{SKIP_LINK} ? $self->{SKIP_LINK} : 1;
@@ -466,7 +459,7 @@ sub addrow {
 
       $worksheet->write_url( $self->{row_number}, $self->{col_num}, $url, decode_utf8($text_to_check), $format);
     }
-    elsif($val =~ /(.+):#([0-9a-f]{6})$/i) {
+    elsif($val =~ /(.+):\#([0-9a-f]{6})$/xmi) {
       my $color  = '#'.$2;
       my $text   = $1;
 
@@ -475,20 +468,20 @@ sub addrow {
       my $color_format = $workbook->add_format(
         color     => $color,
         #bg_color  => ($self->{rowcolor}) ? $self->get_color($self->{rowcolor}) : undef,
-        bg_color  => ($text =~ /_COLOR/) ? $self->_get_color($color) : undef,
+        bg_color  => ($text =~ /_COLOR/xm) ? $self->_get_color($color) : undef,
         size      => 10,
         text_wrap => 1,
         #bold => 1
       );
 
-      if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+      if ($text =~ /^=/xm) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
         $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
       else {
         $worksheet->write( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
     }
-    elsif($val =~ /_COLOR:([a-zA-Z\-0-9]+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/ || $val =~ /_COLOR:(.+):(.{0,100}+)/) {
+    elsif($val =~ /_COLOR:([a-zA-Z\-0-9]+):(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/xm || $val =~ /_COLOR:(.+):(.{0,100}+)/xm) {
       my $color  = $1;
       my $text   = $2;
 
@@ -515,7 +508,7 @@ sub addrow {
         );
       }
 
-      if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+      if ($text =~ /^=/xm) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
         $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
       else {
@@ -523,8 +516,8 @@ sub addrow {
       }
     }
     else {
-      if($val =~ /^0(?!\.\d)/  ||
-         $val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+      if($val =~ /^0(?!\.\d)/xm  ||
+         $val =~ /^=/xm) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
         $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $val ), $format || undef );
       }
       else {
@@ -553,8 +546,7 @@ sub addrow {
 =cut
 #**********************************************************
 sub td {
-  my $self = shift;
-  my ($value, $attr) = @_;
+  my (undef, $value, $attr) = @_;
 
   my $td = { value => $value, format => {} };
 
@@ -578,8 +570,7 @@ sub td {
 =cut
 #**********************************************************
 sub addtd {
-  my $self  = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
@@ -602,7 +593,7 @@ sub addtd {
       next if !$self->{skip_empty_col};
     }
 
-    if ($val =~ /\[(.+)\|(.{0,100})\]/) {
+    if ($val =~ /\[(.+)\|(.{0,100})\]/xm) {
       $worksheet->write_url($self->{row_number}, $self->{col_num}, $SELF_URL . '?' . $1, decode('utf8', $2));
     }
     elsif ($val =~ /_COLOR:([a-z0-9\-#]+):(.+)/i) {
@@ -610,7 +601,7 @@ sub addtd {
       my $text = $2;
 
       my $color_format = $workbook->add_format(
-        color     => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
+        color     => ($color =~ /^\#(\d+)/xm) ? $1 :$text_colors{$color},
         size      => 10,
         text_wrap => 1
       );
@@ -648,11 +639,15 @@ sub addtd {
 #**********************************************************
 =head2 _merge_range($td)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub _merge_range {
-  my $self = shift;
-  my ($td) = @_;
+  my ($self, $td) = @_;
 
   my $format = $workbook->add_format( color => 'black', %{ $td->{format} // {} });
 
@@ -670,6 +665,8 @@ sub _merge_range {
     $self->{closest_col_num} = $self->{col_num};
     $self->{most_merge_rows} = $self->{row_number} + $td->{merge_rows};
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -678,8 +675,7 @@ sub _merge_range {
 =cut
 #**********************************************************
 sub table_title {
-  my $self = shift;
-  my (undef, undef, undef, $caption, undef) = @_;
+  my ($self, undef, undef, undef, $caption, undef) = @_;
 
   my $title_format = $workbook->add_format(
     color   => 'black',
@@ -691,7 +687,7 @@ sub table_title {
   my $i = 0;
 
   foreach my $line (@$caption) {
-    if ($line =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+    if ($line =~ /^=/xm) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
       $worksheet->write_string(0, $i, decode('utf8', $line), $title_format);
     }
     else {
@@ -709,13 +705,7 @@ sub table_title {
 =cut
 #**********************************************************
 sub img {
-  my $self = shift;
-  my ($img, $name) = @_;
-
   return "";
-
-  # my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
-  # return "<img alt='$name' src='$img_path$img' border='0'>";
 }
 
 #**********************************************************
@@ -724,8 +714,7 @@ sub img {
 =cut
 #**********************************************************
 sub show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   _autofit_columns() if $self->{AUTOFIT_COLUMNS};
   $workbook->close() if ($workbook);
@@ -768,10 +757,10 @@ sub _store_string_widths {
   return if !defined $token;          # Ignore undefs.
   return if $token eq '';             # Ignore blank cells.
   return if ref $token eq 'ARRAY';    # Ignore array refs.
-  return if $token =~ /^=/;           # Ignore formula
+  return if $token =~ /^=/xm;           # Ignore formula
 
   # Ignore numbers
-  return if $token =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+  return if $token =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/xm;
 
   return if $token =~ m{^[fh]tt?ps?://};
   return if $token =~ m{^mailto:};
@@ -813,8 +802,7 @@ sub _string_width {
 =cut
 #**********************************************************
 sub button {
-  my $self = shift;
-  my ($name, $params, $attr) = @_;
+  my ($self, $name, $params, $attr) = @_;
 
   if ($attr->{ONLY_IN_HTML}) {
     return '';
@@ -847,8 +835,7 @@ sub message {
 =cut
 #**********************************************************
 sub pages {
-  my $self = shift;
-  my ($count, $argument, $attr) = @_;
+  my ($self, $count, undef, $attr) = @_;
 
   if (defined($attr->{recs_on_page})) {
     $PAGE_ROWS = $attr->{recs_on_page};
@@ -871,11 +858,16 @@ sub pages {
 #**********************************************************
 =head2 date_fld2($base_name, $attr)
 
+  Arguments:
+    $base_name
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub date_fld2 {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
+  my ($self, $base_name, $attr) = @_;
 
   my ($mday, $mon, $curyear) = (localtime(time))[3..5];
 
@@ -896,10 +888,10 @@ sub date_fld2 {
     $year  = $curyear + 1900;
     $day   = $mday;
 
-    if ($base_name =~ /to/i) {
+    if ($base_name =~ /to/ixm) {
       $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
     }
-    elsif ($base_name =~ /from/i && !$attr->{NEXT_DAY}) {
+    elsif ($base_name =~ /from/xmi && !$attr->{NEXT_DAY}) {
       $day = 1;
     }
     my $date = sprintf("%d-%.2d-%.2d", $year, $month, $day);
@@ -912,48 +904,46 @@ sub date_fld2 {
 #**********************************************************
 =head2 tpl_show($tpl, $variables_ref, $attr);
 
+  Arguments:
+    $tpl
+    $variables_ref
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub tpl_show {
-  my $self = shift;
-  my ($tpl, $variables_ref, $attr) = @_;
+  my ($self, $tpl, $variables_ref, $attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
     return '';
   }
 
   if (!$attr->{SOURCE}) {
-    while ($tpl =~ /\%(\w+)(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
+    while ($tpl =~ /\%(\w+)(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/gxm) {
       my $var       = $1;
       my $delimiter = $2;
       my $default   = $3;
-
-      #    if ($var =~ /$\{exec:.+\}$/) {
-      #      my $exec = $1;
-      #      if ($exec !~ /$\/usr/abills\/\misc\/ /);
-      #      my $exec_content = system("$1");
-      #      $tpl =~ s/\%$var\%/$exec_content/g;
-      #     }
-      #    els
 
       if ($attr->{SKIP_VARS} && $attr->{SKIP_VARS} =~ /$var/) {
       }
       elsif ($default && $default =~ /expr:(.*)/) {
         my @expr_arr = split(/\//, $1, 2);
         $variables_ref->{$var} =~ s/$expr_arr[0]/$expr_arr[1]/g;
-        $default               =~ s/\//\\\//g;
-        $default               =~ s/\[/\\\[/g;
-        $default               =~ s/\]/\\\]/g;
-        $tpl                   =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
+        $default               =~ s/\//\\\//gx;
+        $default               =~ s/\[/\\\[/gx;
+        $default               =~ s/\]/\\\]/gx;
+        $tpl                   =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/xg;
       }
       elsif (defined($variables_ref->{$var})) {
         if ($variables_ref->{$var} !~ /\=\'|\' | \'/ && !$attr->{SKIP_QUOTE}) {
-          $variables_ref->{$var} =~ s/\'/&rsquo;/g;
+          $variables_ref->{$var} =~ s/\'/&rsquo;/xg;
         }
-        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
+        $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/xg;
       }
       else {
-        $tpl =~ s/\%$var$delimiter$default\%/$default/g;
+        $tpl =~ s/\%$var$delimiter$default\%/$default/xg;
       }
     }
   }
@@ -1021,8 +1011,7 @@ sub letters_list {
 =cut
 #**********************************************************
 sub _get_color {
-  my $self = shift;
-  my ($color) = @_;
+  my ($self, $color) = @_;
 
   my $color_id = 40;
 
@@ -1045,8 +1034,7 @@ sub _get_color {
 =cut
 #**********************************************************
 sub color_mark {
-  my $self = shift;
-  my ($message, $color, $attr) = @_;
+  my ($self, $message, $color, $attr) = @_;
 
   return $message if ($attr->{SKIP_XML});
   return $message if ($color eq 'code');
@@ -1061,19 +1049,23 @@ sub color_mark {
 =cut
 #**********************************************************
 sub br {
-  my $self = shift;
-
   return "\n";
 }
 
 #**********************************************************
 =head2 element($name, $value, $attr)
 
+  Arguments:
+    $name
+    $value
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub element {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my ($self, undef, $value, $attr) = @_;
 
   $self->{FORM_INPUT} = $value;
   if ($self->{NO_PRINT} && ! $attr->{OUTPUT2RETURN}) {
@@ -1091,7 +1083,6 @@ sub element {
 #**********************************************************
 sub fetch  {
   my $self = shift;
-
   return $self;
 }
 

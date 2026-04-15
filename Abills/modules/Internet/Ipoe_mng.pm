@@ -224,7 +224,7 @@ sub internet_ipoe_session_start {
       });
     }
 
-    ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT}) = split(/:/x, $Nas->{NAS_MNG_IP_PORT} || q{});
+    ($Nas->{MNG_IP}, undef, $Nas->{MNG_PORT}) = split(/:/x, $Nas->{MNG_HOST_PORT} || q{});
 
     my %REQUEST = (
       ACCT_STATUS_TYPE   => 1,
@@ -236,11 +236,11 @@ sub internet_ipoe_session_start {
       NAS_ID             => $nas_id,
       NAS_TYPE           => $Nas->{NAS_TYPE},
       NAS_IP_ADDRESS     => $Nas->{NAS_IP},
-      NAS_MNG_USER       => $Nas->{NAS_MNG_USER},
-      NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
-      NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
-      NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
-      NAS_MNG_PASSWORD   => $Nas->{NAS_MNG_PASSWORD} || q{},
+      NAS_MNG_USER       => $Nas->{MNG_USER},
+      NAS_MNG_IP_PORT    => $Nas->{MNG_HOST_PORT},
+      NAS_MNG_IP         => $Nas->{MNG_IP},
+      NAS_MNG_PORT       => $Nas->{MNG_PORT} || 22,
+      NAS_MNG_PASSWORD   => $Nas->{MNG_PASSWORD} || q{},
       TP_ID              => $Internet->{TP_ID},
       CALLING_STATION_ID => $Internet->{CID} || $ip,
       NAS_PORT           => $Internet->{PORT},

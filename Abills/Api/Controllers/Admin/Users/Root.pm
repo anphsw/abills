@@ -48,15 +48,16 @@ sub new {
 =cut
 #**********************************************************
 sub get_users_uid_history {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  return {
-    errno  => 10,
-    errstr => 'Access denied'
-  } if (!$self->{admin}->{permissions}{0}{30});
+  if (!$self->{admin}->{permissions}{0}{30}) {
+    $self->{errno} = 10;
+    $self->{errstr} = 'Access denied';
+    return $self;
+  }
 
-  my $history = $self->{admin}->action_list({
+  my Admins $admin = $self->{admin};
+  my $action_list = $admin->action_list({
     UID           => $path_params->{uid},
     LOGIN         => '_SHOW',
     DATETIME      => '_SHOW',
@@ -66,17 +67,13 @@ sub get_users_uid_history {
     MODULE        => '_SHOW',
     TYPE          => '_SHOW',
     ADMIN_DISABLE => '_SHOW',
-    COLS_NAME     => 1,
-    PAGE_ROWS     => $query_params->{PAGE_ROWS} || 25,
-    SORT          => $query_params->{SORT} || 1,
-    DESC          => $query_params->{DESC} || '',
-    PG            => $query_params->{PG} || 0
+    %$query_params
   });
 
   return {
-    list  => $history,
-    total => $self->{admin}->{TOTAL},
-  };
+    list => $action_list,
+    total => $admin->{TOTAL}
+  }
 }
 
 1;

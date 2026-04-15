@@ -117,9 +117,17 @@ sub add {
       REG_DATE     => 'NOW()',
     });
 
+    $self->{PAYMENT_ID} = $self->{INSERT_ID};
+
+    if($attr->{FEES_ID} && $self->{PAYMENT_ID} && $attr->{METHOD} && $attr->{METHOD} == 6) {
+      $self->query_add('fees2payments', {
+        FEES_ID      => $attr->{FEES_ID},
+        PAYMENT_ID   => $self->{PAYMENT_ID}
+      });
+    }
+
     if (!$self->{errno}) {
       $self->{SUM} = $attr->{SUM};
-
       if (! $self->{db}->{TRANSACTION} && !$attr->{TRANSACTION}) {
         $db_->commit() if(! $db_->{AutoCommit});
       }
@@ -127,8 +135,6 @@ sub add {
     else {
       $db_->rollback();
     }
-
-    $self->{PAYMENT_ID} = $self->{INSERT_ID};
   }
   else {
     $self->{errno}  = 14;
@@ -178,6 +184,7 @@ sub del {
     $self->query("DELETE FROM docs_receipt_orders WHERE receipt_id=(SELECT id FROM docs_receipts WHERE payment_id= ? );",
       'do', { Bind => [ $id ] });
     $self->query_del('docs_receipts', undef, { payment_id => $id });
+    $self->query_del('fees2payments', undef, { payment_id => $id });
     $self->query_del('payments', undef, { id => $id });
 
     if (! $self->{errno}) {
@@ -292,8 +299,9 @@ FIELDS
     ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                                      ],
     ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'                    ],
     ['UID',            'INT', 'p.uid',                                                 1 ],
-    ['AFTER_DEPOSIT',  'INT', '(p.sum+p.last_deposit) as after_deposit',               1 ],
-    ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ]
+    ['AFTER_DEPOSIT',  'INT', '(p.sum+p.last_deposit) AS after_deposit',               1 ],
+    ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',                 ],
+    ['FEES_ID',        'INT', 'p2f.fees_id',                                           1 ]
   );
 
   my $WHERE =  $self->search_former($attr, \@search_params,
@@ -311,6 +319,12 @@ FIELDS
     $EXT_TABLES = << "EXT_TABLES";
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
+EXT_TABLES
+  }
+
+  if ($attr->{FEES_ID}) {
+    $EXT_TABLES .= << "EXT_TABLES";
+    LEFT JOIN fees2payments p2f ON (p2f.payment_id=p.id)
 EXT_TABLES
   }
 
@@ -346,7 +360,8 @@ SQL
     $list = $self->{list};
   }
 
-  my $sql = <<"SQL";
+  if (!$attr->{_SKIP_TOTAL}) {
+    my $sql = <<"SQL";
 SELECT COUNT(tt.id) AS total, SUM(tt.sum) AS sum, COUNT(DISTINCT tt.uid) AS total_users,
        SUM(IF(tt.method = 8, tt.sum, 0)) AS total_recalculation_sum, COUNT(IF(tt.method = 8, tt.id, NULL)) AS total_recalculation_count
 FROM (SELECT p.id, p.sum, p.uid, p.method
@@ -356,7 +371,8 @@ FROM (SELECT p.id, p.sum, p.uid, p.method
       GROUP BY p.id) tt
 SQL
 
-  $self->query($sql,undef, { INFO => 1 });
+    $self->query($sql, undef, { INFO => 1 });
+  }
 
   return $list || [];
 }
@@ -739,7 +755,7 @@ SQL
 }
 
 #**********************************************************
-=head2 add_payment_type($attr)
+=head2 payment_type_add($attr)
 
   Arguments:
     $attr
@@ -757,7 +773,7 @@ sub payment_type_add {
 }
 
 #**********************************************************
-=head2 del_payment_type($attr)
+=head2 payment_type_del ($attr)
 
   Arguments:
     $attr

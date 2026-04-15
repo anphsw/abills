@@ -186,15 +186,13 @@
         </div>
 
         <div class='form-group row'>
-          <label class='control-label col-md-3' for='ATTACHMENT'>_{ATTACHMENT}_:</label>
+          <label class='col-form-label text-md-right col-md-3'>_{ATTACHMENT}_:</label>
           <div class='col-md-9'>
             <div class='input-group'>
-              <div class='custom-file' id='file_upload_holder'>
-                <input name='FILE_UPLOAD' class='custom-file-input' type='file' data-number='0'>
-                <label class='custom-file-label' for='exampleInputFile'>_{ATTACHMENT}_</label>
-              </div>
-              <div class='input-group-append'>
-                <span class='input-group-text'>_{FILE}_</span>
+              <div id='file_upload_holder' class='border rounded w-100'>
+                <div class='form-group  m-1'>
+                  <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
+                </div>
               </div>
             </div>
           </div>
@@ -379,6 +377,9 @@
 <script src='/styles/default/js/draganddropfile.js'></script>
 
 <script>
+  var MAX_FILES_COUNT = 3;
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT, 'MESSAGE');
+
   jQuery(function () {
     var survey_select = jQuery('select#SURVEY_ID');
     survey_select.on('change', function () {

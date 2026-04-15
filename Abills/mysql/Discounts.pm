@@ -315,6 +315,7 @@ sub user_add {
 
   $self->query_add('discounts_main', { %$attr, AID => $self->{admin}->{AID} });
 
+  $self->{admin}->{MODULE} = 'Discounts';
   $self->{admin}->action_add( $attr->{UID},
     "ID:$self->{INSERT_ID}, SUM:$attr->{SUM}, PERCENT:$attr->{PERCENT}, FROM DATE:$attr->{FROM_DATE}, TO DATE:$attr->{TO_DATE}, TYPE:$attr->{TYPE}",
     { TYPE => 1 } );
@@ -386,6 +387,7 @@ sub user_del {
   my ($self, $attr) = @_;
 
   $self->query_del('discounts_main', $attr);
+  $self->{admin}->{MODULE} = 'Discounts';
   $self->{admin}->action_add( $attr->{UID}, "DELETED: $attr->{ID}", { TYPE => 10 } );
 
   return $self;

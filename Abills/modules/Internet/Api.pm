@@ -65,8 +65,6 @@ sub new {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -88,7 +86,6 @@ sub admin_routes {
       method      => 'POST',
       params      => POST_INTERNET_USER,
       path        => '/internet/:uid/activate/',
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::post_internet_uid_activate,
       credentials => [
         'ADMIN'
@@ -98,7 +95,6 @@ sub admin_routes {
       method      => 'PUT',
       params      => PUT_INTERNET_USER,
       path        => '/internet/:uid/activate/',
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::put_internet_uid_activate,
       credentials => [
         'ADMIN'
@@ -107,7 +103,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/internet/:uid/:id/warnings/',
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::get_internet_uid_id_warnings,
       credentials => [
         'ADMIN'
@@ -117,7 +112,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/internet/:uid/session/hangup/',
       params      => POST_INTERNET_HANGUP,
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::post_internet_uid_session_hangup,
       credentials => [
         'ADMIN'
@@ -126,7 +120,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/internet/tariffs/',
-      controller  => 'Internet::Api::admin::Tariffs',
       endpoint    => \&Internet::Api::admin::Tariffs::get_internet_tariffs,
       credentials => [
         'ADMIN'
@@ -136,7 +129,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/internet/tariff/',
       params      => POST_INTERNET_TARIFF,
-      controller  => 'Internet::Api::admin::Tariffs',
       endpoint    => \&Internet::Api::admin::Tariffs::post_internet_tariff,
       credentials => [
         'ADMIN'
@@ -145,7 +137,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/internet/tariff/:tpId/',
-      controller  => 'Internet::Api::admin::Tariffs',
       endpoint    => \&Internet::Api::admin::Tariffs::get_internet_tariff_tp_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -155,7 +146,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/internet/tariff/:tpId/',
       params      => PUT_INTERNET_TARIFF,
-      controller  => 'Internet::Api::admin::Tariffs',
       endpoint    => \&Internet::Api::admin::Tariffs::put_internet_tariff_tpId,
       credentials => [
         'ADMIN'
@@ -164,7 +154,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/internet/tariff/:tpId/',
-      controller  => 'Internet::Api::admin::Tariffs',
       endpoint    => \&Internet::Api::admin::Tariffs::delete_internet_tariff_tpId,
       credentials => [
         'ADMIN'
@@ -173,7 +162,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/internet/:uid/',
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::put_internet_uid,
       credentials => [
         'ADMIN'
@@ -182,7 +170,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/internet/users/:uid/services/:id/',
-      controller  => 'Internet::Api::admin::Users',
       endpoint    => \&Internet::Api::admin::Users::delete_internet_users_uid_services_id,
       credentials => [
         'ADMIN'
@@ -191,7 +178,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/internet/sessions/:uid/',
-      controller  => 'Internet::Api::admin::Sessions',
       endpoint    => \&Internet::Api::admin::Sessions::get_internet_sessions_uid,
       credentials => [
         'ADMIN'
@@ -200,10 +186,17 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/internet/sessions/',
-      controller  => 'Internet::Api::admin::Sessions',
       endpoint    => \&Internet::Api::admin::Sessions::get_internet_sessions,
       credentials => [
         'ADMIN'
+      ],
+    },
+    {
+      method      => 'GET',
+      path        => '/internet/ip-pools/static/',
+      endpoint    => \&Internet::Api::admin::IpPools::get_internet_ip_pools_static,
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ],
     },
   ];
@@ -228,8 +221,6 @@ sub admin_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -250,7 +241,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/internet/:id/activate/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::post_user_internet_id_activate,
       credentials => [
         'USER', 'USERBOT'
@@ -259,7 +249,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::get_user_internet,
       credentials => [
         'USER', 'USERBOT'
@@ -268,7 +257,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/session/active/',
-      controller  => 'Internet::Api::user::Sessions',
       endpoint    => \&Internet::Api::user::Sessions::get_user_internet_session_active,
       credentials => [
         'USER', 'USERBOT'
@@ -277,7 +265,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/sessions/',
-      controller  => 'Internet::Api::user::Sessions',
       endpoint    => \&Internet::Api::user::Sessions::get_user_internet_sessions,
       credentials => [
         'USER', 'USERBOT'
@@ -287,7 +274,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/internet/registration/',
-      controller  => 'Internet::Api::user::Registration',
       endpoint    => \&Internet::Api::user::Registration::post_user_internet_registration,
       credentials => [
         'PUBLIC'
@@ -296,7 +282,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/tariffs/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::get_user_internet_tariffs,
       credentials => [
         'USER', 'USERBOT'
@@ -305,7 +290,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/tariffs/all/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::get_user_internet_tariffs_all,
       credentials => [
         'USER', 'USERBOT'
@@ -314,7 +298,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/internet/:id/warnings/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::get_user_internet_id_warnings,
       credentials => [
         'USER', 'USERBOT'
@@ -323,7 +306,6 @@ sub user_routes {
     {
       method      => 'PUT',
       path        => '/user/internet/:id/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::put_user_internet_id,
       credentials => [
         'USER', 'USERBOT'
@@ -332,7 +314,6 @@ sub user_routes {
     {
       method      => 'DELETE',
       path        => '/user/internet/:id/',
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::delete_user_internet_id,
       credentials => [
         'USER', 'USERBOT'
@@ -342,7 +323,6 @@ sub user_routes {
       method      => 'POST',
       path        => '/user/internet/mac/discovery/',
       params      => POST_INTERNET_MAC_DISCOVERY,
-      controller  => 'Internet::Api::user::Root',
       endpoint    => \&Internet::Api::user::Root::post_user_internet_mac_discovery,
       credentials => [
         'USER', 'USERBOT'

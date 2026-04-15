@@ -13,6 +13,8 @@ package Redmine;
   VERSION: 0.3
   REVISION: 20231004
 
+   API: https://www.redmine.org/projects/redmine/wiki/Rest_api
+
 =head2 SYNOPSIS
 
 =cut

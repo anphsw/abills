@@ -637,7 +637,7 @@ sub paysys_user_log {
   }
 
   if ($FORM{info}) {
-    $Paysys->info({ ID => $FORM{info} });
+    $Paysys->info({ ID => $FORM{info}, UID => $user->{UID} });
 
     my @info_arr = split('\n', $Paysys->{INFO});
     my $table = $html->table({ width => '100%' });

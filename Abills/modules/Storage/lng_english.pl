@@ -210,10 +210,12 @@ $lang{STORAGE_WITHOUT_SERIAL_NUMBERS} = 'Without Serial Numbers';
 $lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'The quantity of goods is incorrect';
 $lang{ERR_STORAGE_NO_PERMISSIONS_TO_MANAGE_STORAGE} = 'No permissions to manage storage';
 $lang{ERR_STORAGE_SERIAL_DUPLICATE} = 'The serial number is duplicated';
-$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'Invalid incoming article';
+$lang{ERR_STORAGE_INCOMING_ARTICLE_INVALID} = 'No available item was found in the storage';
 $lang{ERR_STORAGE_INSTALLATION} = 'Installation object is not defined';
 $lang{ERR_STORAGE_INSTALLATION_RECIPIENT_NOT_SET} = 'Installation recipient is not defined';
 $lang{ERR_STORAGE_INSTALLATION_ID_INVALID} = 'Installed equipment not found';
+$lang{ERR_STORAGE_INVALID_QUANTITY_FOR_DIVISION} = 'Invalid item quantity for division';
+$lang{ERR_STORAGE_TARGET_STORAGE_IS_SAME_AS_SOURCE} = 'Target storage must be different from source storage';
 
 $lang{RETURN} = 'Return';
 $lang{QUANTITY} = 'Quantity';
@@ -238,5 +240,9 @@ $lang{STORAGE_INCOMING_ARTICLE_SPLIT} = 'Product split';
 $lang{STORAGE_INCOMING_ARTICLE_MERGE} = 'Product merge';
 $lang{STORAGE_RESERVED_BY_USER} = 'Reserved by user';
 $lang{STORAGE_OPERATION_DETAILS} = 'Operation details';
+$lang{STORAGE_HOW_MANY_UNITS_TO_DIVIDE} = 'How many units to divide?';
+$lang{STORAGE_ITEM_FROM_WHICH_DIVISION_OCCURRED} = 'Item from which division occurred';
+$lang{STORAGE_DIVIDED_ITEMS} = 'Divided items';
+$lang{STORAGE_EQUIPMENT_ALREADY_INSTALLED_FOR_ANOTHER_USER} = 'Equipment is already installed for another user';
 
 1;

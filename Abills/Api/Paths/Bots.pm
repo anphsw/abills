@@ -28,8 +28,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/bots/subscribe/phone/',
-      controller  => 'Api::Controllers::Common::Bots',
       endpoint    => \&Api::Controllers::Common::Bots::post_bots_subscribe_phone,
       credentials => [
         'BOT_UNREG'
@@ -61,7 +58,6 @@ sub user_routes {
     {
       method      => 'POST',
       path        => '/user/bots/subscribe/',
-      controller  => 'Api::Controllers::Common::Bots',
       endpoint    => \&Api::Controllers::Common::Bots::post_bots_subscribe,
       credentials => [
         'BOT_UNREG'
@@ -71,7 +67,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/bots/subscribe/link/:string_bot/',
-      controller  => 'Api::Controllers::User::Bots',
       endpoint    => \&Api::Controllers::User::Bots::get_user_bots_subscribe_link_bot,
       credentials => [
         'USER'
@@ -80,7 +75,6 @@ sub user_routes {
     {
       method       => 'GET',
       path         => '/user/bots/subscribe/qrcode/:string_bot/',
-      controller  => 'Api::Controllers::User::Bots',
       endpoint    => \&Api::Controllers::User::Bots::get_user_bots_subscribe_qrcode_bot,
       content_type => 'Content-Type: image/jpeg',
       credentials  => [
@@ -109,8 +103,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -131,7 +123,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/bots/subscribe/phone/',
-      controller  => 'Api::Controllers::Common::Bots',
       endpoint    => \&Api::Controllers::Common::Bots::post_bots_subscribe_phone,
       credentials => [
         'BOT_UNREG'
@@ -140,7 +131,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/bots/subscribe/',
-      controller  => 'Api::Controllers::Common::Bots',
       endpoint    => \&Api::Controllers::Common::Bots::post_bots_subscribe,
       credentials => [
         'BOT_UNREG'
@@ -150,7 +140,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/bots/subscribe/link/:string_bot/',
-      controller  => 'Api::Controllers::Admin::Bots',
       endpoint    => \&Api::Controllers::Admin::Bots::get_bots_subscribe_link_bot,
       credentials => [
         'ADMIN'
@@ -159,7 +148,6 @@ sub admin_routes {
     {
       method       => 'GET',
       path         => '/bots/subscribe/qrcode/:string_bot/',
-      controller  => 'Api::Controllers::Admin::Bots',
       endpoint    => \&Api::Controllers::Admin::Bots::get_bots_subscribe_qrcode_bot,
       content_type => 'Content-Type: image/jpeg',
       credentials  => [

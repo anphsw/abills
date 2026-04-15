@@ -56,8 +56,7 @@ sub new {
 =cut
 #**********************************************************
 sub post_user_internet_id_activate {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   require Users;
   Users->import();
@@ -69,13 +68,15 @@ sub post_user_internet_id_activate {
     DOMAIN_ID => $user_info->{DOMAIN_ID}
   });
 
-  return {
-    result => 'Already active'
-  } if (defined $Internet->{STATUS} && $Internet->{STATUS} == 0);
+  if (defined $Internet->{STATUS} && $Internet->{STATUS} == 0) {
+    return {
+      result => 'Already active'
+    }
+  }
 
   return {
     errno  => 200,
-    errstr => 'Can\'t activate, not allowed'
+    errstr => 'Can\'t activate, not allowed.'
   } unless (
     $Internet->{STATUS} &&
       ($Internet->{STATUS} == 2 || $Internet->{STATUS} == 5 ||
@@ -123,11 +124,13 @@ sub post_user_internet_id_activate {
 =cut
 #**********************************************************
 sub get_user_internet {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
-  return ::get_user_services({
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
+
+  return $Services->get_user_services({
     uid     => $path_params->{uid},
     service => 'Internet',
   });
@@ -141,8 +144,7 @@ sub get_user_internet {
 =cut
 #**********************************************************
 sub get_user_internet_tariffs {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my $result = $Service_control->available_tariffs({
     SKIP_NOT_AVAILABLE_TARIFFS => 1,
@@ -166,8 +168,7 @@ sub get_user_internet_tariffs {
 =cut
 #**********************************************************
 sub get_user_internet_tariffs_all {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my $result = $Service_control->available_tariffs({
     skip_check_deposit => 1,
@@ -191,8 +192,7 @@ sub get_user_internet_tariffs_all {
 =cut
 #**********************************************************
 sub get_user_internet_id_warnings {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Service_control->service_warning({
     UID    => $path_params->{uid},
@@ -209,8 +209,7 @@ sub get_user_internet_id_warnings {
 =cut
 #**********************************************************
 sub put_user_internet_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   my $result = $Service_control->user_chg_tp({
     %$query_params,
@@ -238,8 +237,7 @@ sub put_user_internet_id {
 =cut
 #**********************************************************
 sub delete_user_internet_id {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   my $result = $Service_control->del_user_chg_shedule({
     UID        => $path_params->{uid},
@@ -256,22 +254,21 @@ sub delete_user_internet_id {
 
 
 #**********************************************************
-=head2 delete_user_internet_id($path_params, $query_params)
+=head2 post_user_internet_mac_discovery($path_params, $query_params)
 
   Endpoint DELETE /user/internet/mac/discovery/
 
 =cut
 #**********************************************************
 sub post_user_internet_mac_discovery {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10124,
     errstr => 'Service not available',
   } if (!$self->{conf}->{INTERNET_MAC_DICOVERY});
 
-  $Internet->user_list({ UID => $path_params->{uid}, ID => $query_params->{ID}, COLS_NAME => 1 });
+  $Internet->user_list({ UID => $path_params->{uid}, ID => $query_params->{ID} });
 
   return {
     errno  => 10125,

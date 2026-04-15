@@ -390,16 +390,13 @@ sub put_companies_id_admins {
 =cut
 #**********************************************************
 sub get_companies_id_users {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   $Companies->info($path_params->{id});
   delete @{$Companies}{qw/TOTAL list AFFECTED/};
   if ($Companies->{errno}) {
     return $Companies;
   }
-
-  ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
 
   require Users;
   Users->import();
@@ -420,13 +417,17 @@ sub get_companies_id_users {
   my $services_count = 0;
   my $sum_total = 0;
 
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($self->{db}, $self->{admin}, $self->{conf});
+
   foreach my $user (@$users_list) {
-    $user->{deposit} = sprintf("%.2f", $user->{deposit}),
-      my $service_info = ::get_services({
-        UID          => $user->{uid},
-        REDUCTION    => $user->{reduction},
-        PAYMENT_TYPE => 0
-      });
+    $user->{deposit} = sprintf("%.2f", $user->{deposit});
+    my $service_info = $Services->get_services({
+      UID          => $user->{uid},
+      REDUCTION    => $user->{reduction},
+      PAYMENT_TYPE => 0
+    });
 
     foreach my $service (@{$service_info->{list}}) {
       $sum_total += $service->{SUM} || 0;

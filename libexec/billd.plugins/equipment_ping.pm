@@ -26,10 +26,11 @@ our (
   $base_dir,
   $debug,
   $html,
+  @MODULES
 );
 
-my $Equipment = Equipment->new( $db, $Admin, \%conf );
-my $Events = Events::API->new( $db, $Admin, \%conf );
+my $Equipment = Equipment->new($db, $Admin, \%conf);
+my $Events = Events::API->new($db, $Admin, \%conf);
 
 local $ENV{PATH} = "$ENV{PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin";
 
@@ -53,39 +54,39 @@ sub equipment_ping {
 
   my $timeout = $attr->{TIMEOUT} || '4';
 
-  if($attr->{NAS_IPS}) {
-    $LIST_PARAMS{NAS_IP}=$attr->{NAS_IPS};
+  if ($attr->{NAS_IPS}) {
+    $LIST_PARAMS{NAS_IP} = $attr->{NAS_IPS};
   }
 
-  my $ping = Net::Ping->new( 'syn' ) or die "Can't create new ping object: $!\n";
+  my $ping = Net::Ping->new('syn') or die "Can't create new ping object: $!\n";
 
   if (in_array('Accident', \@main::MODULES)) {
-    do 'Abills/Misc.pm';
-    our $admin = $Admin;
-    do $base_dir . "/language/$conf{default_language}.pl";
-    load_module('Accident', $html);
-    unshift( @INC, '/usr/abills/Abills/modules/' );
+    # do 'Abills/Misc.pm';
+    # our $admin = $Admin;
+    # do $base_dir . "/language/$conf{default_language}.pl";
+    # load_module('Accident', $html);
+    # unshift(@INC, '/usr/abills/Abills/modules/');
+    require Accident::Errors_gen;
   }
 
-  if($debug > 6) {
-    $Equipment->{debug}=1;
+  if ($debug > 6) {
+    $Equipment->{debug} = 1;
   }
 
-  my $equipment = $Equipment->list( {
+  my $equipment = $Equipment->list({
     NAS_IP    => '_SHOW',
     %LIST_PARAMS,
-    COLS_NAME => 1,
     PAGE_ROWS => 100000,
     STATUS    => '0;3',
     NAS_NAME  => '_SHOW',
-  } );
+  });
 
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+  my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime();
   my $datetime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year + 1900, $mon + 1, $mday, $hour, $min, $sec);
 
   my %ips = ();
   foreach my $host (@$equipment) {
-    if(! $host->{nas_ip}) {
+    if (!$host->{nas_ip}) {
       next;
     }
 
@@ -99,11 +100,11 @@ sub equipment_ping {
   my %syn;
   my %ret_time;
   foreach my $host_ip (keys %ips) {
-    if($debug > 5) {
+    if ($debug > 5) {
       print "SYN ping: trying to ping $host_ip\n";
     }
 
-    my ($ret, $duration, $ip) = $ping->ping( $host_ip, $timeout );
+    my ($ret, $duration, $ip) = $ping->ping($host_ip, $timeout);
     if ($ret) {
       $syn{$host_ip} = $ip;
       $ret_time{$host_ip} = $duration;
@@ -116,7 +117,7 @@ sub equipment_ping {
   my $message = '';
   while (my ($host_ip, undef, undef) = $ping->ack) {
     if ($ips{$host_ip}{STATUS} == 3) {
-      print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
+      print "Updating host $host_ip STATUS to AVAILABLE\n" if ($debug > 1);
       $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
     }
     $Equipment->change({
@@ -138,23 +139,27 @@ sub equipment_ping {
       accident_equipment_error($ips{$host_ip});
     }
 
-    print "SYN ping: $host_ip is reachable\n" if ( $debug > 1 );
+    print "SYN ping: $host_ip is reachable\n" if ($debug > 1);
     delete $syn{$host_ip};
   }
 
   $ping->close();
 
   my $fping_installed = qx/which fping/;
-  if ( $fping_installed ne "" ) {
+  if ($fping_installed ne "") {
     foreach my $host_ip (keys %syn) {
-      print "fping: trying to ping $host_ip\n" if ( $debug > 1 );
+      print "fping: trying to ping $host_ip\n" if ($debug > 1);
       my $fping = system "fping -C 2 -q $host_ip";
-      print "fping: returned status $fping for host $host_ip\n" if ( $debug > 1 );
-      if ( $fping != 0 ) {
-        print "fping: $host_ip is unreachable\n" if ( $debug > 1 );
+      print "fping: returned status $fping for host $host_ip\n" if ($debug > 1);
+      if ($fping != 0) {
+        print "fping: $host_ip is unreachable\n" if ($debug > 1);
         if ($ips{$host_ip}{STATUS} == 0) {
-          print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
-          $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
+          print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ($debug > 1);
+          $Equipment->change({
+            NAS_ID   => $ips{$host_ip}{NAS_ID},
+            STATUS   => 3,
+            SKIP_LOG => 1
+          });
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
 
           if (in_array('Accident', \@main::MODULES)) {
@@ -170,11 +175,16 @@ sub equipment_ping {
         # });
       }
       else {
-        print "fping: $host_ip is reachable\n" if ( $debug > 1 );
-        $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
+        print "fping: $host_ip is reachable\n" if ($debug > 1);
+        $Equipment->change({
+          NAS_ID        => $ips{$host_ip}{NAS_ID},
+          STATUS        => 0,
+          SKIP_LOG      => 1,
+          LAST_ACTIVITY => $datetime
+        });
 
         if ($ips{$host_ip}{STATUS} == 3) {
-          print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
+          print "Updating host $host_ip STATUS to AVAILABLE\n" if ($debug > 1);
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
 
           if (in_array('Accident', \@main::MODULES)) {
@@ -196,10 +206,10 @@ sub equipment_ping {
     foreach my $host_ip (keys %syn) {
       my $ping_icmp = Net::Ping->new("icmp");
       if (!$ping_icmp->ping($host_ip, 2)) {
-        print "ICMP ping: $host_ip is unreachable\n" if ( $debug > 1);
+        print "ICMP ping: $host_ip is unreachable\n" if ($debug > 1);
         if ($ips{$host_ip}{STATUS} == 0) {
-          print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
-          $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
+          print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ($debug > 1);
+          $Equipment->change({ NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 });
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
 
           if (in_array('Accident', \@main::MODULES)) {
@@ -210,10 +220,10 @@ sub equipment_ping {
         #TODO: ping_log_add STATUS => 0 if ping_log_add will be used
       }
       else {
-        $Equipment->change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime } );
-        print "ICMP ping: $host_ip is reachable\n" if ( $debug > 1);
+        $Equipment->change({ NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 0, SKIP_LOG => 1, LAST_ACTIVITY => $datetime });
+        print "ICMP ping: $host_ip is reachable\n" if ($debug > 1);
         if ($ips{$host_ip}{STATUS} == 3) {
-          print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
+          print "Updating host $host_ip STATUS to AVAILABLE\n" if ($debug > 1);
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
         }
 
@@ -228,10 +238,10 @@ sub equipment_ping {
   }
 
   if ($message) {
-    ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime();
     my $datestr = sprintf("%02d:%02d:%02d %02d.%02d.%04d", $hour, $min, $sec, $mday, $mon + 1, $year + 1900);
     $message = $datestr . "\n$message";
-    generate_new_event( "$message" );
+    generate_new_event("$message");
   }
 
   return 1;
@@ -247,7 +257,7 @@ sub equipment_ping {
 
 =cut
 #**********************************************************
-sub generate_new_event{
+sub generate_new_event {
   my ($comments) = @_;
 
   return 0 if (!in_array('Events', \@MODULES));
@@ -265,4 +275,4 @@ sub generate_new_event{
   return 1;
 }
 
-1
+1;

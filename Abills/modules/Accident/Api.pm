@@ -32,8 +32,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -54,7 +52,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/accident/',
-      controller  => 'Accident::Api::user::Root',
       endpoint    => \&Accident::Api::user::Root::get_user_accidents,
       credentials => [
         'USER', 'USERSID'

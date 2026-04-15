@@ -45,6 +45,9 @@ sub new {
       METHOD
       SUM
 
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub bonus_payments_maked {
@@ -52,21 +55,20 @@ sub bonus_payments_maked {
 
   # add this row if makes multiple time bonus
   # return 0 if ($attr->{_EXECUTION_COUNT} && $attr->{_EXECUTION_COUNT} > 1);
-
   return '' if (!$CONF->{BONUS_PAYMENTS} || !$attr->{SUM});
   my $form = $attr->{FORM} || {};
   my $score = 0;
   my $bonus_id = 0;
   my %RESULT = ();
-  my $user;
-  $user = $attr->{USER_INFO} if $attr->{USER_INFO};
+  my $user_info;
+  $user_info = $attr->{USER_INFO} if $attr->{USER_INFO};
 
   $form->{METHOD} = 2 if (!defined($form->{METHOD}));
 
   my $payment_method = $attr->{METHOD} || $form->{METHOD};
 
-  my $registration_days = date_diff($user->{REGISTRATION}, $main::DATE);
-  $Bonus->user_info($user->{UID});
+  my $registration_days = date_diff($user_info->{REGISTRATION}, $main::DATE);
+  $Bonus->user_info($user_info->{UID});
 
   return '' if (!$Bonus->{STATE} || !$Bonus->{ACCEPT_RULES});
 
@@ -75,7 +77,9 @@ sub bonus_payments_maked {
     PAGE_ROWS         => 20,
     NAME              => '_SHOW',
     SORT              => "registration_days DESC, 1 DESC, 2 DESC, pay_method DESC",
-    COLS_NAME         => 1
+    GID               => ($user_info->{GID}) ? "$user_info->{GID};0" : undef,
+    START_DATE        => "<=$main::DATE",
+    END_DATE          => "0000-00-00,>$main::DATE",
   });
 
   if ($Bonus->{TOTAL} > 0) {
@@ -102,12 +106,12 @@ sub bonus_payments_maked {
   }
 
   if ($score > 0) {
-    if (!$attr->{QUITE} && $attr->{SUM} > 0) {
+    if (!$attr->{QUITE1} && $attr->{SUM} > 0) {
       $html->message('info', $lang->{BONUS}, "$lang->{ADD} $lang->{BONUS} " . sprintf('%.2f', $score) ."BONUS_ID: $bonus_id");
     }
 
     $Bonus->accomulation_scores_add({
-      UID      => $user->{UID},
+      UID      => $user_info->{UID},
       SCORE    => $score,
       BONUS_ID => $bonus_id
     });
@@ -130,7 +134,7 @@ sub bonus_pre_payment {
 
   my $form = $attr->{FORM} || {};
   my $REPORT = '';
-  my $sum = $form->{PAYMENT_SUM} || $attr->{SUM} || 0;
+  my $sum = $form->{PAYMENT_SUM} || $attr->{AMOUNT} || $attr->{SUM} || 0;
 
   if ($CONF->{BONUS_SERVICE_EXCLUDE_USERS_COMPANY} && $attr->{USER_INFO} && $attr->{USER_INFO}->{COMPANY_ID}) {
     return;
@@ -243,13 +247,18 @@ sub bonus_service_discount_mk {
   $Bonus->{debug} = 1 if ($CONF->{BONUS_DEBUG} && $CONF->{BONUS_DEBUG} > 6);
 
   my %RULES = ();
-  my $list = $Bonus->service_discount_list({
+  my $discount_list = $Bonus->service_discount_list({
     PAGE_ROWS           => 1000,
     ONETIME_PAYMENT_SUM => '_SHOW',
-    COLS_NAME           => 1
+    GID                 => '_SHOW',
+    START_DATE          => "<=$main::DATE",
+    END_DATE            => "0000-00-00,>$main::DATE",
   });
 
-  foreach my $line (@{$list}) {
+  foreach my $line (@{$discount_list}) {
+    if($line->{gid} &&  $line->{gid} != $user_info->{GID}) {
+      next;
+    }
     if ($line->{registration_days} > 0) {
       $RULES{PERIOD} = 1;
     }
@@ -303,27 +312,43 @@ sub bonus_service_discount_mk {
     my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
     $registration_days = int((time() - $seltime) / 86400);
 
-    $list = $Bonus->service_discount_list({
+    $discount_list = $Bonus->service_discount_list({
       REGISTRATION_DAYS   => "<=$registration_days,>=0",
       PERIODS             => "<=$periods",
       PAGE_ROWS           => 1,
-      COLS_NAME           => 100,
       SORT                => ($periods) ? 'service_period DESC' : "1 DESC, 2 DESC",
       TP_ID               => '_SHOW',
-      ONETIME_PAYMENT_SUM => '_SHOW'
+      ONETIME_PAYMENT_SUM => '_SHOW',
+      PAY_METHOD          => '_SHOW',
+      GID                 => '_SHOW',
+      START_DATE          => "<=$main::DATE",
+      END_DATE            => "0000-00-00,>$main::DATE",
     });
 
     for (my $i=0; $i < $Bonus->{TOTAL}; $i++) {
-      if (!$list->[$i]->{tp_id}
-        || ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[$i]->{tp_id}) ]))
+      if($discount_list->[$i]->{gid} && $discount_list->[$i]->{gid} != $user_info->{GID}) {
+        next;
+      }
+
+      if (!$discount_list->[$i]->{tp_id}
+        || ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $discount_list->[$i]->{tp_id}) ]))
       ) {
-        $RESULT{DISCOUNT} = $list->[$i]->{discount};
-        $RESULT{DISCOUNT_PERIOD} = $list->[$i]->{discount_days};
-        $RESULT{BONUS_SUM} = $list->[$i]->{bonus_sum};
-        $RESULT{BONUS_PERCENT} = $list->[$i]->{bonus_percent};
-        $RESULT{BONUS_EXT_ACCOUNT} = $list->[$i]->{ext_account};
-        $RESULT{ID} = $list->[$i]->{id};
-        $RESULT{ONETIME_PAYMENT_SUM} = $list->[$i]->{onetime_payment_sum};
+        $RESULT{DISCOUNT} = $discount_list->[$i]->{discount};
+        $RESULT{DISCOUNT_PERIOD} = $discount_list->[$i]->{discount_days};
+        $RESULT{BONUS_SUM} = $discount_list->[$i]->{bonus_sum};
+        $RESULT{BONUS_PERCENT} = $discount_list->[$i]->{bonus_percent};
+        $RESULT{BONUS_EXT_ACCOUNT} = $discount_list->[$i]->{ext_account};
+        $RESULT{ID} = $discount_list->[$i]->{id};
+        $RESULT{ONETIME_PAYMENT_SUM} = $discount_list->[$i]->{onetime_payment_sum};
+        my @pay_methods = ();
+
+        if (defined($discount_list->[$i]->{pay_method}) && $discount_list->[$i]->{pay_method} ne '-1') {
+          @pay_methods = split(/,\s?/x, $discount_list->[$i]->{pay_method});
+        }
+
+        if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
+          return 0;
+        }
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
           $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
@@ -341,14 +366,16 @@ sub bonus_service_discount_mk {
       TP_ID     => '_SHOW',
       NAME      => '_SHOW',
       SORT      => "service_period DESC, registration_days DESC, onetime_payment_sum DESC",
-      COLS_NAME => 1
+      GID       => '_SHOW',
+      START_DATE=> "<=$main::DATE",
+      END_DATE  => "0000-00-00,>$main::DATE"
     );
 
     if ($RULES{ONETIME_PAYMENT_SUM}) {
       $get_bonus{ONETIME_PAYMENT_SUM} = "<=$payment_sum,>=0";
     }
     else {
-      $list = $Payments->list({
+      $discount_list = $Payments->list({
         UID        => $user_info->{UID},
         TOTAL_ONLY => 1,
         METHOD     => $CONF->{BONUS_SERVICE_EXCLUDE} || '!4,!6'
@@ -367,6 +394,11 @@ sub bonus_service_discount_mk {
     if ($Bonus->{TOTAL} > 0) {
       my $fill_bonus = 0;
       foreach my $discount (@$discount_list) {
+        if($discount->{gid} && $discount->{gid} != $user_info->{GID}) {
+          #print "Next\n\n";
+          next;
+        }
+
         my @pay_methods = ();
 
         if (defined($discount->{pay_method}) && $discount->{pay_method} ne '-1') {

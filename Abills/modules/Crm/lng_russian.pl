@@ -205,5 +205,6 @@ $lang{CRM_CONNECTED_NUMBERS} = 'Подключённые номера';
 $lang{CRM_CONNECT_PHONE_NUMBER} = 'Подключить номер телефона';
 $lang{CRM_API_KEY} = 'API ключ';
 $lang{CRM_PHONE_NUMBER} = 'Номер телефона';
+$lang{CRM_AUTO_CLOSE_AFTER_DAYS} = 'Автозакрытие через, дней';
 
 1

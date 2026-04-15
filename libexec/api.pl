@@ -84,6 +84,7 @@ require Control::Auth;
 require Abills::Misc;
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, {
+  %conf,
   CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
   dbdebug => $conf{dbdebug}
 });

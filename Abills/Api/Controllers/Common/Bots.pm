@@ -43,6 +43,11 @@ sub new {
 
   $Errors = $self->{attr}->{Errors};
 
+  $self->{bot_type} = {
+    5 => 'Viber',
+    6 => 'Telegram'
+  };
+
   return $self;
 }
 
@@ -190,6 +195,9 @@ sub post_bots_subscribe {
         return $result;
       }
 
+      $self->{admin}{MODULE} = $self->{bot_type}{$path_params->{bot}};
+      $self->{admin}->action_add($Users->{UID}, "ID: $path_params->{user_id}", { TYPE => 62 });
+
       return {
         result => 'Successfully added',
         code   => 2,
@@ -230,6 +238,9 @@ sub post_bots_subscribe {
       if ($result->{errno}) {
         return $result;
       }
+
+      $admin->{MODULE} = $self->{bot_type}{6};
+      $admin->action_add(undef, "ID: $bot_id", { TYPE => 62 });
 
       return {
         result => 'Successfully added',

@@ -53,10 +53,9 @@ sub new {
 =cut
 #**********************************************************
 sub post_user_credit {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
-  $Service_control->user_set_credit({
+  return $Service_control->user_set_credit({
     UID           => $path_params->{uid},
     change_credit => 1,
   });
@@ -70,10 +69,9 @@ sub post_user_credit {
 =cut
 #**********************************************************
 sub get_user_credit {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
-  $Service_control->user_set_credit({
+  return $Service_control->user_set_credit({
     UID => $path_params->{uid}
   });
 }

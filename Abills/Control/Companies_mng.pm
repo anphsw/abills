@@ -10,10 +10,12 @@ use Abills::Base qw(in_array);
 use Abills::Defs;
 use Abills::Fetcher qw/web_request/;
 
-our ($db,
+our (
+  $db,
   %lang,
   $admin,
-  %permissions,
+  %conf,
+  %permissions
 );
 
 our Abills::HTML $html;
@@ -88,6 +90,7 @@ sub form_company_info {
   }
 
   push @menu_functions, "$lang{SERVICES}:" . get_function_index('form_company_services') . ":COMPANY_ID=$company_id";
+  push @menu_functions, "$lang{LOG}:" . get_function_index('form_changes') . ":COMPANY_ID=$company_id&MODULE=Companies&&search_form=1";
 
   my $company_sel = '';
   $html->form_main({
@@ -538,6 +541,7 @@ sub form_company_list {
   }
 
   my %companies_ext_fields = (
+    'id'              => 'ID',
     'name'            => $lang{NAME},
     'users_count'     => $lang{USERS},
     'status'          => $lang{STATUS},
@@ -820,7 +824,6 @@ sub form_company_services {
   return if !$FORM{COMPANY_ID};
 
   my $users = Users->new($db, $admin, \%conf);
-  require Control::Services;
 
   my $users_list = $users->list({
     COMPANY_ID => $FORM{COMPANY_ID},
@@ -837,30 +840,39 @@ sub form_company_services {
   }
 
   my ($sum_total, $sum_for_pay_total, $service_quantity) = (0, 0, 0);
+  my $service_status = sel_status({ HASH_RESULT => 1 });
 
   my $table = $html->table({
     width       => '100%',
     caption     => "$lang{USERS} $lang{SERVICES}",
-    title_plain => [ $lang{LOGIN}, $lang{USER}, $lang{SERVICES}, $lang{SUM}, $lang{DEBT}, $lang{MODULE} ],
+    title_plain => [ $lang{LOGIN}, $lang{USER}, $lang{SERVICES}, $lang{STATUS}, $lang{SUM}, $lang{DEBT}, $lang{MODULE} ],
     ID          => 'COMPANY_SERVICES_USERS'
   });
 
   foreach my $user_ (@$users_list) {
 
-    my $service_info = get_services({ UID => $user_->{uid}, REDUCTION => $user_->{reduction} });
+    require Control::Services;
+    Control::Services->import();
+    my $Services = Control::Services->new($db, $admin, \%conf);
+
+    my $service_info = $Services->get_services({
+      UID       => $user_->{uid},
+      REDUCTION => $user_->{reduction},
+    }, { FORM => \%FORM });
     $service_info->{total_sum} = ($service_info->{total_sum} && $service_info->{total_sum} > 0) ? sprintf("%.2f", $service_info->{total_sum}) : 0;
     $user_->{fio} =~ s/^\s+//xg;
 
     $table->addrow(
       $html->b($html->button($user_->{login}, "index=11&UID=$user_->{uid}")),
       ($user_->{fio} || '') . ", $lang{SUM}: $service_info->{total_sum}",
-      '','','',''
+      '','','','',''
     );
 
     foreach my $service (@{$service_info->{list}}) {
       $sum_total += $service->{SUM} if $service->{SUM};
       $service_quantity += 1;
       my $sum_for_pay = 0;
+      my ($status_name, $status_color) = split(/:/x, $service_status->{$service->{STATUS}}, 2);
 
       if ($service->{STATUS} && $service->{STATUS} eq '5') {
         $sum_for_pay = $service->{SUM};
@@ -872,6 +884,7 @@ sub form_company_services {
 
       $table->addrow('','',
         $service->{SERVICE_NAME},
+        $html->color_mark($status_name, $status_color),
         sprintf("%.2f", $service->{SUM}),
         sprintf("%.2f", $sum_for_pay),
         $service->{MODULE_NAME},
@@ -879,7 +892,7 @@ sub form_company_services {
     }
   }
 
-  $table->addfooter("$lang{TOTAL}:", $users->{TOTAL}, $service_quantity, sprintf("%.2f", $sum_total), sprintf("%.2f", $sum_for_pay_total), '');
+  $table->addfooter("$lang{TOTAL}:", $users->{TOTAL}, $service_quantity, '', sprintf("%.2f", $sum_total), sprintf("%.2f", $sum_for_pay_total), '');
   print $table->show();
 
   return;

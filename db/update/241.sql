@@ -1,0 +1,2 @@
+ALTER TABLE `iptv_devices` ADD COLUMN `comments` TEXT NOT NULL;
+ALTER TABLE `sms_log` MODIFY COLUMN `ext_id` VARCHAR(40) DEFAULT '' NOT NULL;

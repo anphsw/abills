@@ -198,5 +198,6 @@ $lang{CRM_CONNECTED_NUMBERS} = 'Connected numbers';
 $lang{CRM_CONNECT_PHONE_NUMBER} = 'Connect phone number';
 $lang{CRM_API_KEY} = 'API key';
 $lang{CRM_PHONE_NUMBER} = 'Phone number';
+$lang{CRM_AUTO_CLOSE_AFTER_DAYS} = 'Auto-close after, days';
 
 1

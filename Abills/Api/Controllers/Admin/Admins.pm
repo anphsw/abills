@@ -51,25 +51,26 @@ sub new {
 =cut
 #**********************************************************
 sub post_admins_login {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 1000002,
     errstr => 'ERR_AUTH_PASSWORD_LOGIN_DISABLED',
-  } if !$self->{conf}->{API_ADMIN_AUTH_LOGIN} || !$self->{conf}->{AUTH_METHOD};
+  } if (!$self->{conf}->{API_ADMIN_AUTH_LOGIN} || !$self->{conf}->{AUTH_METHOD});
 
   return {
     errno  => 1000003,
     errstr => 'ERR_NO_LOGIN',
-  } if !$query_params->{LOGIN};
+  } if (!$query_params->{LOGIN});
 
   return {
     errno  => 1000004,
     errstr => 'ERR_NO_PASSWORD'
-  } if !$query_params->{PASSWORD};
+  } if (!$query_params->{PASSWORD});
 
-  %main::FORM = ();
+  %main::FORM = (
+    g2fa => $query_params->{G2FA} || '',
+  );
 
   my $status = ::check_permissions($query_params->{LOGIN}, $query_params->{PASSWORD}, 'plug', {
     API       => 1,
@@ -86,13 +87,20 @@ sub post_admins_login {
 
     return \%params;
   }
-  else {
+  # G2FA fails
+  elsif ($status == 7) {
     return {
-      errno  => 10,
-      errstr => 'ACCESS_DENIED',
+      errno  => 1000021,
+      errstr => 'ERR_G2FA_INVALID',
       status => $status
     };
   }
+
+  return {
+    errno  => 10,
+    errstr => 'ACCESS_DENIED',
+    status => $status
+  };
 }
 
 #**********************************************************
@@ -103,8 +111,7 @@ sub post_admins_login {
 =cut
 #**********************************************************
 sub post_admins_aid_contacts {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -137,8 +144,7 @@ sub post_admins_aid_contacts {
 =cut
 #**********************************************************
 sub put_admin_aid_contacts {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -167,8 +173,7 @@ sub put_admin_aid_contacts {
 =cut
 #**********************************************************
 sub get_admins_aid {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,
@@ -188,8 +193,7 @@ sub get_admins_aid {
 =cut
 #**********************************************************
 sub post_admins {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10,

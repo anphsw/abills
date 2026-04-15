@@ -555,10 +555,10 @@ SELECT
   $SESSION_START AS session_start
 FROM users u
        INNER JOIN internet_main i ON (i.uid=u.uid)
-WHERE i.id='$attr->{SERVICE_ID}';
+WHERE i.id= ? ;
 SQL
 
-    $self->query($sql, undef,  { INFO => 1 });
+    $self->query($sql, undef,  { INFO => 1, Bind => [ $attr->{SERVICE_ID} ] });
 
     if ($self->{errno}) {
       if ($self->{errno} == 2) {
@@ -622,10 +622,10 @@ SELECT
   u.credit,
   u.ext_bill_id
 FROM users u
-WHERE u.uid='$attr->{UID}';
+WHERE u.uid= ? ;
 SQL
 
-    $self->query($sql, undef, { INFO => 1 });
+    $self->query($sql, undef, { INFO => 1, Bind => [ $attr->{UID} ] });
 
     if ($self->{errno}) {
     	if ($self->{errno} == 2) {
@@ -706,11 +706,11 @@ SELECT
 FROM users u
        INNER JOIN internet_main i ON (i.uid=u.uid)
        LEFT JOIN tarif_plans tp ON (i.tp_id=tp.tp_id)
-WHERE u.domain_id='$attr->{DOMAIN_ID}'
-  AND u.id='$USER_NAME';
+WHERE u.domain_id= ?
+  AND u.id= ? ;
 SQL
 
-    $self->query($sql, undef, { INFO => 1 });
+    $self->query($sql, undef, { INFO => 1, Bind => [$attr->{DOMAIN_ID}, $USER_NAME ] });
 
     if ($self->{errno}) {
       #user not found
@@ -731,7 +731,7 @@ SQL
   }
 
   if ($self->{NEG_DEPOSIT_FILTER}) {
-    $self->query("SELECT deposit FROM bills WHERE id='$self->{BILL_ID}';");
+    $self->query("SELECT deposit FROM bills WHERE id= ? ;", undef, { Bind => [ $self->{BILL_ID} ] });
     if ($self->{TOTAL} > 0) {
       $self->{CREDIT} = ($self->{CREDIT}>0) ? $self->{CREDIT} : $self->{TP_CREDIT};
       ($self->{DEPOSIT}) = @{ $self->{list}->[0] };
@@ -827,7 +827,8 @@ SQL
   }
 
   if ($CONF->{BONUS_EXT_FUNCTIONS} && $self->{EXT_BILL_ID} && $sum > 0 && $self->{BILLS_PRIORITY}) {
-    $self->query("SELECT deposit AS ext_deposit FROM bills WHERE id='$self->{EXT_BILL_ID}';", undef, {INFO => 1 });
+    $self->query("SELECT deposit AS ext_deposit FROM bills WHERE id= ? ;",
+      undef, { INFO => 1, Bind => [ $self->{EXT_BILL_ID} ] });
     if ($self->{EXT_DEPOSIT} > $sum || $self->{BILLS_PRIORITY} == 2) {
       $self->{BILL_ID} = $self->{EXT_BILL_ID};
     }
@@ -863,7 +864,7 @@ WHERE i.tp_id= ?
 GROUP BY i.id;
 SQL
 
-  $self->query("$sql",  undef, { Bind => [$TP_ID]});
+  $self->query($sql,  undef, { Bind => [$TP_ID]});
 
   if ($self->{TOTAL} < 1) {
     return 0;

@@ -20,6 +20,7 @@ use Socket qw(inet_pton inet_aton AF_INET6 AF_INET);
 use Abills::Filters;
 use Abills::Base qw(int2ip ip2int in_array);
 use Abills::Experimental;
+use Netlist::Tools;
 
 our (
   $db,
@@ -665,7 +666,18 @@ sub netlist_ipv6_calc {
     {
       SELECTED => $FORM{MASK_BITS} || $FORM{MASK} || $ipv6_prefixes{63},
       SEL_HASH => \%ipv6_prefixes,
-      NO_ID    => 1
+      NO_ID    => 1,
+      SORT_KEY_NUM => 1
+    }
+  );
+
+  $Netlist->{PREFIX_NET_LENGTH_SELECT} = $html->form_select(
+    'NET_MASK_BITS',
+    {
+      SELECTED => $FORM{NET_MASK_BITS} || $FORM{NET_MASK} || $ipv6_prefixes{63},
+      SEL_HASH => \%ipv6_prefixes,
+      NO_ID    => 1,
+      SORT_KEY_NUM => 1
     }
   );
 
@@ -678,92 +690,40 @@ sub netlist_ipv6_calc {
     }
   );
 
+  $Netlist->{PD_NET_MASK_SELECT} = $html->form_select(
+    'PD_NET_MASK',
+    {
+      SELECTED => $FORM{PD_NET_MASK} || $ipv6_prefixes{63},
+      SEL_HASH => \%ipv6_prefixes,
+      NO_ID    => 1
+    }
+  );
+
 
   $html->tpl_show(_include('netlist_ipv6_calc', 'Netlist'), { %FORM,  %$Netlist });
 
   if ($FORM{IP}) {
     if (netlist_validate_v6($FORM{IP})) {
-      $html->message('info', '',  "Expanded: " . netlist_get_expanded_v6($FORM{IP}) . "\n"
-         . "Shortened: " . netlist_get_short_v6($FORM{IP}));
+      $html->message('info', '',  "Expanded: " . get_expanded_v6($FORM{IP}) . "\n"
+         . "Shortened: " . ipv6_short($FORM{IP}));
     }
     else {
-      print $html->message('danger', 'Invalid IP');
+      print $html->message('danger', 'Invalid IP '. $FORM{IP});
     }
 
-    my ($ips, $wan_ips) = netlist_ipv6_pools({
-      IP       => $FORM{IP},
-      MASK     => $FORM{MASK},
-      PD       => $FORM{PD},
-      PD_MASK  => $FORM{PD_MASK}
+    my ($ips, $wan_ips) = ipv6_pools({
+      IP          => $FORM{IP},
+      NET_MASK    => $FORM{NET_MASK_BITS} || $FORM{NET_MASK},
+      MASK        => $FORM{MASK_BITS} || $FORM{MASK},
+      PD          => $FORM{PD},
+      PD_NET_MASK => $FORM{PD_NET_MASK},
+      PD_MASK     => $FORM{PD_MASK}
     });
 
     netlist_ipv6_pools_list($ips, { WAN_IPS => $wan_ips });
   }
 
   return 1;
-}
-
-#***************************************************************
-=head2 netlist_get_short_v6 ($ip)
-
-  ARGUMENTS
-    $ip - string representation of IPv6 in any form
-
-  RESULT
-    $shortened - string represantation of IPv6 in shortened form
-
-  SYNOPSIS
-    Shortening is defined by 2 rules
-
-  1. All trailing zeros in each hextet can be dropped
-
-    000A:0200:0000:0000:0000:0100:00f0:0001
-      -> 1:200:::100:f0:1
-
-  2. First group of 0-valued hextets(..:::::...) can be replaced by :: (...::...)
-
-    A:200:::100:f0:1
-      -> 1:200::100:f0:1
-
-=cut
-#***************************************************************
-sub netlist_get_short_v6 {
-  my ($ip) = @_;
-
-  #Normalize $ip
-  $ip = netlist_get_expanded_v6($ip);
-
-  my $short;
-
-  #1-st rule
-  my @hextets = split(':', $ip);
-  for ( my $i = 0; $i < 8; $i++ ) {
-    $hextets[$i] =~ s/^0*//xg;
-  }
-  $short = join(":", @hextets);
-
-  #2-nd rule
-  $short =~ s/:{2,}/::/x;
-
-  return $short;
-}
-
-#***************************************************************
-=head2 netlist_get_expanded_v6 ($ip) - Get extended form for ipv6 address
-
-  Get extended form for ipv6 address
-
-  Arguments:
-    $addr - Any type of annotation for IPv6 address
-
-  Returns:
-    string - full representation of IPv6 address
-
-=cut
-#***************************************************************
-sub netlist_get_expanded_v6 {
-  my ($addr) = @_;
-  return join(":", unpack("H4H4H4H4H4H4H4H4", inet_pton(AF_INET6, $addr)));
 }
 
 #***************************************************************
@@ -1373,59 +1333,12 @@ sub _get_ips_info_for_internet {
   };
 }
 
+
 #**********************************************************
-=head2 netlist_ipv6_pools($first_ip_num, $last_ip_num)
+=head2 netlist_ipv6_pools_list($pool_ips, $attr)
 
   Arguments:
-    $attr
-      IP
-      MASK
-      PD
-      PD_MASK
-
-  Results:
-    \@ipv6_pool
-
-=cut
-#**********************************************************
-sub netlist_ipv6_pools {
-  my ($attr)=@_;
-
-  my $count    = 1000;
-  my $pd_base  = $attr->{PD} || q{};  # /40 base для PD
-  my $pd_mask  = $attr->{PD_MASK} || '56';
-  my $wan_base = $attr->{IP} || "2001:db8:200"; # /48 base для WAN
-  my $wan_mask = $attr->{MASK} || '128';
-  my $start    = $attr->{START} || 1;
-  $count = $start + $count;
-
-  my %ips = ();
-  my @wan_ips = ();
-
-  for my $i ($start .. $count) {
-    my $wan_hex = sprintf("%x", $i - 1);  # 0,1,2,...
-
-    # my $pd = "$pd_base:". $pd_hex ."::/56";
-    # my $wan = "$wan_base:". $wan_hex ."::/128";
-
-    my $wan_ip = "$wan_base:". $wan_hex .'::';
-    $ips{$wan_ip}{IPV6_MASK}=$wan_mask;
-    if($pd_base) {
-      my $pd_hex = sprintf("%x00", $i - 1); # 0x000, 0x100, 0x200 ...
-      $ips{$wan_ip}{PD} = "$pd_base:" . $pd_hex . '::';
-      $ips{$wan_ip}{PD_MASK} = $pd_mask;
-    }
-    push @wan_ips, $wan_ip;
-  }
-
-  return \%ips, \@wan_ips;
-}
-
-
-#**********************************************************
-=head2 netlist_ipv6_pools($first_ip_num, $last_ip_num)
-
-  Arguments:
+    $pool_ips
     $attr
 
   Results:
@@ -1468,6 +1381,8 @@ sub netlist_ipv6_pools_list {
 
     $i++;
   }
+
+  $table->addtd(@row) if ($#row > -1);
 
   print $table->show();
 

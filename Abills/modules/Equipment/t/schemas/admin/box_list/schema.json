@@ -9,7 +9,7 @@
         "type": "string"
       },
       "serial": {
-        "type": "number"
+
       },
       "datetime": {
         "type": "string"

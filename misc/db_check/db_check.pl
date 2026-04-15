@@ -39,15 +39,14 @@ use warnings FATAL => 'all';
 
 =cut
 
-
 our $libpath;
 our ($Bin, %conf, $base_dir, @MODULES);
+
 BEGIN {
   use FindBin '$Bin';
-  # Assuming we are in '/usr/abills/misc/db_check/'
-  # Should point to abills root dir
   $libpath = $Bin . '/../../';
 }
+
 use lib $Bin;
 use lib $libpath;
 use lib $libpath . 'lib';
@@ -62,6 +61,7 @@ $| = 1;
 use Pod::Usage qw/&pod2usage/;
 
 eval {require Carp::Always};
+
 
 use Abills::Base qw/_bp parse_arguments in_array/;
 use Abills::Misc;
@@ -118,7 +118,6 @@ if (!$argv->{SKIP_CONFIG_UPDATE}) {
   update_config_variables()
 }
 
-exit 0;
 
 #**********************************************************
 =head2 db_check()
@@ -146,7 +145,7 @@ sub db_check {
     debug_dump_table(\%dump_info);
   }
 
-  print "Found " . scalar(keys %dump_info) . " tables\n" if ($debug);
+  print "Found " . scalar(keys %dump_info) . " tables\n" if ($debug > 0);
 
   # Get info for tables from DB
   my $scheme_parser = Parser::Scheme->new($db, $Admin, \%conf);
@@ -160,7 +159,7 @@ sub db_check {
   my @existing_tables = sort keys %scheme_info;
   foreach my $table (@existing_tables) {
     # Filter tables with module name but not enabled
-    if ($argv->{SKIP_DISABLED_MODULES} && $table =~ /^([a-z]+)\_/) {
+    if ($argv->{SKIP_DISABLED_MODULES} && $table =~ /^([a-z]+)\_/xm) {
       my $name = ucfirst $1;
       # Skip if it is module name and not enabled module
       next if (is_disabled_module_name($name, $all_modules));
@@ -169,7 +168,7 @@ sub db_check {
     if (exists $dump_info{$table}) {
       # Compare columns and types
       compare_tables($table, $dump_info{$table}, $scheme_info{$table});
-      check_table_keys($table, $scheme_info{$table}) if $debug;
+      check_table_keys($table, $scheme_info{$table}) if ($debug > 0);
     }
   }
 
@@ -210,11 +209,11 @@ sub parse_schema_files {
 
     if (exists $cached{$dir_path}) {
       if (-e $cache_path) {
-        print " Using cache for $dir_path\n" if $debug;
+        print " Using cache for $dir_path\n" if ($debug);
         %dump_info = (%dump_info, %{Parser::Dump::read_from_file($cache_path)});
       }
       else {
-        print " No cache found for $dir_path\n" if $debug;
+        print " No cache found for $dir_path\n" if ($debug);
         Parser::Dump::parse_accumulate($dir_path, {
           SAVE_TO     => $cache_path,
           MODULE_DB   => $base_dir . 'Abills/modules/',
@@ -254,6 +253,8 @@ sub debug_dump_table {
   if ($argv->{D_FIELD} && exists $dump_info->{$argv->{D_TABLE}}->{columns}->{$argv->{D_FIELD}}) {
     _bp($argv->{D_FIELD}, $dump_info->{$argv->{D_TABLE}}->{columns}->{$argv->{D_FIELD}});
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -289,7 +290,11 @@ sub compare_tables {
   for (@dump_cols) {
     if (!in_array($_, \@sql_cols)) {
       my $col_definition = get_column_definition($dump_cols_ref->{$_});
-      show_tip("ALTER TABLE `$table_name` ADD COLUMN `$_` " . "$col_definition;");
+      my $tips = << "TEXT";
+ALTER TABLE `$table_name` ADD COLUMN `$_` $col_definition;
+TEXT
+
+      show_tip($tips);
     }
   }
 
@@ -338,8 +343,8 @@ sub compare_column_definitions {
   my $dump_type = lc $dump_col->{Type};
   my $sql_type = lc $sql_col->{Type};
 
-  my ($dump_size) = $dump_type =~ /\((\d+)\)/;
-  my ($sql_size) = $sql_type =~ /\((\d+)\)/;
+  my ($dump_size) = $dump_type =~ /\((\d+)\)/xm;
+  my ($sql_size) = $sql_type =~ /\((\d+)\)/xm;
 
   my $dump_nullable = is_nullable($dump_col);
   my $sql_nullable = is_nullable($sql_col);
@@ -370,24 +375,30 @@ sub compare_column_definitions {
     return;
   }
 
-  print "  Found incorrect column definition for $table_name.$col\n" if $debug;
+  print "  Found incorrect column definition for $table_name.$col\n" if ($debug);
 
   # Check if data will be truncated by this modification
   if ($dump_size && $sql_size && $sql_size > $dump_size && !$argv->{ALLOW_DATA_STRIP}) {
-    print "  Will truncate data if applied ($sql_size -> $dump_size). Skipping. Use ALLOW_DATA_STRIP=1 to override.\n" if $debug;
+    print "  Will truncate data if applied ($sql_size -> $dump_size). Skipping. Use ALLOW_DATA_STRIP=1 to override.\n" if ($debug);
     return;
   }
 
-  print "  Expected: '$col_definition', Current: '$current_def'\n" if $debug;
+  print "  Expected: '$col_definition', Current: '$current_def'\n" if ($debug);
 
   # Remove PRIMARY KEY attribute for MODIFY statement
-  $col_definition =~ s/PRIMARY KEY//g;
+  $col_definition =~ s/PRIMARY\s+KEY//xg;
 
   # Generate ALTER statement
-  show_tip("ALTER TABLE `$table_name` MODIFY COLUMN `$col` $col_definition;", {
+  my $sql = <<"SQL";
+  ALTER TABLE `$table_name` MODIFY COLUMN `$col` $col_definition;
+SQL
+
+  show_tip($sql, {
     PREV => uc($current_def),
     NEW  => uc($col_definition)
   });
+
+  return 1;
 }
 
 #**********************************************************
@@ -468,7 +479,7 @@ sub is_nullable {
   my ($col_def) = @_;
 
   my $null_defined = exists $col_def->{Null} && defined $col_def->{Null};
-  my $nullable = $null_defined && $col_def->{Null} && lc($col_def->{Null}) !~ /no/i;
+  my $nullable = $null_defined && $col_def->{Null} && lc($col_def->{Null}) !~ /no/xmi;
 
   return $nullable
     ? 1
@@ -511,7 +522,7 @@ sub show_tip {
     $argv->{APPLY_ALL} = 1;
   }
 
-  if ($response !~ /y/i) {
+  if ($response !~ /y/xmi) {
     print " Skipped \n";
     return 1;
   };
@@ -542,6 +553,7 @@ sub execute_sql {
   }
 
   print "Applied successfully\n" if ($debug > 0);
+
   return 1;
 }
 
@@ -575,35 +587,42 @@ sub existing_modules_list {
 sub is_disabled_module_name {
   my ($name, $existing_modules) = @_;
 
-  $name = 'Equipment' if ($name eq 'Pon');
-  $name = 'Crm' if ($name eq 'Cashbox');
+  # $name = 'Equipment' if ($name eq 'Pon');
+  # $name = 'Crm' if ($name eq 'Cashbox');
 
   return (in_array($name, $existing_modules) && !in_array($name, \@MODULES));
 }
 
 #**********************************************************
-=head2 _get_create_commands()
+=head2 _get_create_commands($module_sql_name, $module_sql_name_add)
+
+  Arguments:
+    $module_sql_name
+    $module_sql_name_add
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub _get_create_commands {
-  my $module_sql_name = shift;
-  my $module_sql_name_add = shift;
+  my ($module_sql_name, $module_sql_name_add) = @_;
 
   $module_sql_name = $module_sql_name_add if ($module_sql_name_add && !(-e $module_sql_name));
   if (-e $module_sql_name) {
     my $content = Parser::Dump::get_file_content($module_sql_name);
-    my @tables = $content =~ /((^|[^- ])CREATE TABLE [^;]*;)/sg;
+    my @tables = $content =~ /((^|[^-\s])CREATE\s+TABLE\s+[^;]*;)/xsg;
 
     foreach my $table (@tables) {
       my $table_name = "";
-      if ($table =~ /((EXISTS|TABLE).+`.+`)/) {
+      if ($table =~ /((EXISTS|TABLE).+`.+`)/xm) {
         (undef, $table_name, undef) = split('`', $1);
         next if $table_name eq "id";
         $create_defined{$table_name} = $table;
       }
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -613,7 +632,7 @@ sub _get_create_commands {
 #**********************************************************
 sub create_not_exist_tables {
 
-  print "Creating missing tables...\n" if $debug;
+  print "Creating missing tables...\n" if ($debug);
 
   my $scheme_parser = Parser::Scheme->new($db, $Admin, \%conf);
   my %scheme_info = %{$scheme_parser->parse()};
@@ -635,7 +654,6 @@ sub create_not_exist_tables {
   }
 
   return 1;
-
 }
 
 #**********************************************************
@@ -649,10 +667,11 @@ sub get_table_keys_from_files {
     $tables_keys{$table_name} = [];
     $tables_unique_keys{$table_name} = [];
 
-    my @table_keys = $create_defined{$table_name} =~ /(`.+UNIQUE.+|`.+PRIMARY KEY|.+KEY.+\)|.+INDEX.+\)|.+UNIQUE.+\))/g;
+    my $expr_ = qw{(`.+UNIQUE.+|`.+PRIMARY\s+KEY|.+KEY.+\)|.+INDEX.+\)|.+UNIQUE.+\))};
+    my @table_keys = $create_defined{$table_name} =~ /$expr_/xmg;
 
     foreach my $key (@table_keys) {
-      $key =~ s/^\s+//;
+      $key =~ s/^\s+//x;
       push @{$tables_keys{$table_name}}, $key;
     }
   }
@@ -760,6 +779,8 @@ sub update_config_variables {
   else {
     print "Skipped\n";
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -799,16 +820,18 @@ sub load_table_creates_from_file {
 
   if (-e $file_path) {
     my $content = Parser::Dump::get_file_content($file_path);
-    my @tables = $content =~ /((^|[^- ])CREATE TABLE [^;]*;)/sg;
+    my @tables = $content =~ /((^|[^- ])CREATE\s+TABLE\s+[^;]*;)/xsg;
 
     foreach my $table (@tables) {
-      if ($table =~ /((EXISTS|TABLE).+`.+`)/) {
+      if ($table =~ /((EXISTS|TABLE).+`.+`)/xm) {
         my (undef, $table_name, undef) = split('`', $1);
         next if $table_name eq "id";
         $create_defined{$table_name} = $table;
       }
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -856,17 +879,17 @@ sub add_indexes_from_schema {
 
     foreach my $key_def (@{$tables_keys{$table_name}}) {
       my ($key_type, $key_name, $columns);
-      if ($key_def =~ /^KEY/) {
-        ($key_name, $columns) = $key_def =~ /KEY\s+`?(\w+)`?\s+\(([^)]+)\)/i;
+      if ($key_def =~ /^KEY/xm) {
+        ($key_name, $columns) = $key_def =~ /KEY\s+`?(\w+)`?\s+\(([^)]+)\)/xmi;
       }
       else {
-        ($key_type, $key_name, $columns) = $key_def =~ /([\S]+) KEY\s+`?(\w+)`?\s+\(([^)]+)\)/i;
+        ($key_type, $key_name, $columns) = $key_def =~ /([\S]+) KEY\s+`?(\w+)`?\s+\(([^)]+)\)/xmi;
       }
 
       next if !$key_name;
 
       if ($key_type && $key_type eq 'PRIMARY') {
-        my $expected_primary = join(',', sort map { s/`//g; $_ } split(/\s*,\s*/, $columns));
+        my $expected_primary = join(',', sort map { s/`//xg; $_ } split(/\s*,\s*/x, $columns));
 
         if ($existing_primary ne $expected_primary) {
           print "Mismatch PRIMARY KEY in `$table_name`: Expected ($expected_primary), Found ($existing_primary)\n";
@@ -876,7 +899,9 @@ sub add_indexes_from_schema {
 
       if (!exists $db_index_names{$key_name}) {
         $missing_count++;
-        my $add_statement = "ALTER TABLE `$table_name` ADD $key_def;";
+        my $add_statement = << "SQL";
+ALTER TABLE `$table_name` ADD $key_def;
+SQL
         print "Found new index: `$table_name` $key_def\n";
         show_tip($add_statement);
       }
@@ -884,10 +909,10 @@ sub add_indexes_from_schema {
   }
 
   if ($missing_count == 0) {
-    print "No missing indexes found.\n" if $debug;
+    print "No missing indexes found.\n" if ($debug > 0);
   }
   else {
-    print "Found $missing_count missing indexes.\n" if $debug;
+    print "Found $missing_count missing indexes.\n" if ($debug > 0);
   }
 
   return 1;

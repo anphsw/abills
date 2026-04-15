@@ -148,7 +148,6 @@
   let object_value = jQuery('#OBJECT_VALUE').val();
 
   function adjustBar() {
-    console.log(jQuery('.step-container').length);
     let items = jQuery('.steps:not(.steps-info)').length;
     let elHeight = jQuery('.steps:not(.steps-info)').height() / 2;
     let skewOffset = Math.tan(45 * (Math.PI / 180)) * elHeight;

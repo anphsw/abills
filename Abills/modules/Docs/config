@@ -24,6 +24,7 @@ our %FUNCTIONS_LIST = (
   "19:15:$lang{ACTS}:docs_acts_list:"                        => 8,
   "20:15:$lang{USERS}:docs_users_list:"                      => 8,
   "29:15:$lang{DOCUMENT_CUSTOMERS_LOG}:docs_customers:"      => 8,
+  "30:15:$lang{ESIGN}:docs_esign_documents:"                 => 8,
 
   "21:0:$lang{DOCS}:docs_reports:"                           => 4,
   "22:21:$lang{TAX_INVOICE}:docs_tax_invoice_list:"          => 4,

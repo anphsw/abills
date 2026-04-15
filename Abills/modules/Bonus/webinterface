@@ -891,10 +891,6 @@ sub bonus_service_discount {
   );
 
   if (in_array('Internet', \@MODULES)) {
-    if (!exists($INC{"Control/Services.pm"})) {
-      require Control::Services;
-    }
-
     $Bonus->{SEL_TP} = sel_tp({
       SELECT    => 'TP_ID',
       EX_PARAMS => 'multiple="multiple"',
@@ -903,9 +899,33 @@ sub bonus_service_discount {
     });
   }
 
+  $Bonus->{SEL_GID} = sel_groups({
+    SELECT    => 'GID',
+    GID     => ($Bonus->{GID}) ? $Bonus->{GID} : undef,
+  });
+
   if ($FORM{add_form} || $FORM{chg}) {
     $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
   }
+
+  my %ext_titles = (
+    name                => $lang{NAME},
+    service_period      => "$lang{SERVICE} $lang{PERIOD} ($lang{MONTH})",
+    registration_days   => "$lang{REGISTRATION} $lang{DAYS}",
+    total_payments_sum  => "$lang{TOTAL} $lang{PAYMENTS} ($lang{SUM})",
+    discount            => "$lang{REDUCTION} %",
+    discount_days       => "$lang{REDUCTION} $lang{DAYS}",
+    bonus_sum           => "$lang{BONUS} $lang{SUM}",
+    bonus_percent       => $lang{BONUS_PERCENT},
+    ext_account         => "$lang{EXTRA} $lang{ACCOUNT}",
+    pay_method          => "$lang{PAYMENTS} $lang{TYPE}",
+    id                  => "#",
+    onetime_payment_sum => $lang{ONETIME_PAYMENT_SUM},
+    tp_id               => $lang{TARIF_PLANS},
+    gid                 => 'GROUP',
+    start_date          => 'START',
+    end_date            => 'END'
+  );
 
   result_former({
     INPUT_DATA      => $Bonus,
@@ -915,21 +935,7 @@ sub bonus_service_discount {
     BASE_FIELDS     => 10,
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      name                => $lang{NAME},
-      service_period      => "$lang{SERVICE} $lang{PERIOD} ($lang{MONTH})",
-      registration_days   => "$lang{REGISTRATION} $lang{DAYS}",
-      total_payments_sum  => "$lang{TOTAL} $lang{PAYMENTS} ($lang{SUM})",
-      discount            => "$lang{REDUCTION} %",
-      discount_days       => "$lang{REDUCTION} $lang{DAYS}",
-      bonus_sum           => "$lang{BONUS} $lang{SUM}",
-      bonus_percent       => $lang{BONUS_PERCENT},
-      ext_account         => "$lang{EXTRA} $lang{ACCOUNT}",
-      pay_method          => "$lang{PAYMENTS} $lang{TYPE}",
-      id                  => "#",
-      onetime_payment_sum => $lang{ONETIME_PAYMENT_SUM},
-      tp_id               => $lang{TARIF_PLANS}
-    },
+    EXT_TITLES      => \%ext_titles,
     TABLE           => {
       width   => '100%',
       caption => "$lang{BONUS} $lang{SERVICE}",

@@ -26,8 +26,8 @@ our (
   $admin,
   %conf,
   %lang,
-  @MONTHES,
-  %permissions
+  #@MONTHES,
+  #%permissions
 );
 
 our Abills::HTML $html;
@@ -36,7 +36,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.36,
+    REQUIRE_VERSION => 8.37,
   })
 ) {
   exit;
@@ -63,12 +63,11 @@ my %ADDRESS_TYPE = (
   4 => 'build_id'
 );
 
-my @STATUSES_COLORS = ('text-primary', 'text-warning', '#2D9F31');
+my @STATUSES_COLORS = ('text-primary', 'text-warning', '#2D9F31', 'text-danger');
 
 my $Accident = Accident->new($db, $admin, \%conf);
 my $Address = Address->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
-my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Equipment;
 
 if ($conf{EQUIPMENT_LOG} && in_array('Equipment', \@MODULES)) {
@@ -161,29 +160,9 @@ sub accident_log {
       SEL_OPTIONS    => { '' => '' },
     });
 
-    my $port_list = '';
-    my $type_id = '';
-
     if ($FORM{NAS_ID} || $Accident->{NAS_ID}){
-      my $equipment_info = $Equipment->list({ NAS_ID => ($FORM{NAS_ID} || $Accident->{NAS_ID}), TYPE_ID   => '_SHOW', COLS_NAME => 1 });
-      $type_id = $equipment_info->[0]->{type_id} || '';
-
-      if ($type_id && $type_id eq '4') {
-        $port_list = $Equipment->onu_list({ NAS_ID => $FORM{NAS_ID} || $Accident->{NAS_ID}, COLS_NAME => 1, PAGE_ROWS => 10000 });
-      }
-      else{
-        $port_list = $Equipment->port_list({ NAS_ID  => $FORM{NAS_ID} || $Accident->{NAS_ID}, COLS_NAME => 1, PAGE_ROWS => 10000 });
-      }
+      $Accident->{PORT_SEL} = _accident_equipment_port_sel();
     }
-
-    $Accident->{PORT_SEL} = $html->form_select('PORT', {
-      SELECTED       => $FORM{PORT} || $Accident->{PORT} || '',
-      SEL_LIST       => $port_list,
-      NO_ID          =>  1,
-      SEL_KEY        => ($type_id && $type_id eq '4') ? 'dhcp_port' : 'port',
-      SEL_VALUE      => ($type_id && $type_id eq '4') ? 'dhcp_port' : 'port',
-      SEL_OPTIONS    => { '' => '' },
-    });
 
     my $current_time_in_sec = time2sec($TIME) + 3600;
     my $default_time = sec2time($current_time_in_sec, { format => 1 });
@@ -434,7 +413,7 @@ sub accident_dashboard_mess {
       PORT_ID      => '_SHOW',
       DATE         => '_SHOW',
       END_DATE     => '_SHOW',
-      NAS_ID       => '_SHOW',
+      NAS_ID       => '>0',
       STATUS       => '0',
       UID          => $user->{UID},
       EXT_TABLE    => 1,
@@ -473,6 +452,9 @@ sub accident_dashboard_mess {
 =cut
 #**********************************************************
 sub accident_equipment_log {
+  my ($attr) = @_;
+
+  $status{3} = $lang{ERR_NOT_RESPONSE};
 
   if ($FORM{del} && $FORM{COMMENTS}) {
     $Accident->accident_equipment_del({ ID => $FORM{del} });
@@ -504,13 +486,19 @@ sub accident_equipment_log {
     PORT_ID      => '_SHOW',
     DATE         => '_SHOW',
     END_DATE     => '_SHOW',
-    STATUS       => '_SHOW',
+    STATUS       => (defined($attr->{STATUS})) ? $attr->{STATUS} : '_SHOW',
     AID          => '_SHOW',
+    UID          => ($attr->{UID}) ? $attr->{UID} : '_SHOW',
+    EXT_TABLE    => 1,
     TYPE         => '_SHOW',
     SORT         => $FORM{sort} || 2,
     DESC         => $FORM{desc} || '',
     COLS_NAME    => 1,
   });
+
+  if ($attr->{UID} && !$Accident->{TOTAL}){
+    return 0;
+  }
 
   my $equipment_list = $Equipment->list({
     NAS_ID    => '_SHOW',
@@ -634,6 +622,7 @@ sub _equipment_error {
 #**********************************************************
 sub _show_equipment_error {
   my ($attr) = @_;
+  $status{3} = $lang{ERR_NOT_RESPONSE};
 
   my $admins_list = sel_admins({ SELECTED => $attr->{AID} });
   my $accident_types = $Accident->type_list({ HASH_RETURN => 1, COLS_NAME => 1 });
@@ -918,13 +907,20 @@ sub _search_address {
 sub accident_user {
   my ($attr) = @_;
 
+  my $user_accident_equipment = 0;
+  if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
+    $user_accident_equipment = accident_equipment_log({ UID => $attr->{USER_INFO}->{UID}, STATUS => 0 });
+  }
+
   my $user_accident_list = $Accident->user_accident_list({
     UID       => $attr->{USER_INFO}->{UID},
     COLS_NAME => 1
   });
 
-  if ($Accident->{TOTAL} < 1) {
+  if ($Accident->{TOTAL} < 1 && $user_accident_equipment == 0) {
     $html->message('info', $lang{ACCIDENT_LOG}, $lang{USER_ACCIDENT_EMPTY});
+  }
+  if ($Accident->{TOTAL} < 1) {
     return;
   }
 
@@ -940,7 +936,7 @@ sub accident_user {
       { class => 'change' });
 
     $table->addrow(
-      $user_accident->{name},
+      $html->button( $user_accident->{name}, "&chg=$user_accident->{id}&index=" . get_function_index('accident_log')),
       $user_accident->{descr},
       $user_accident->{admin_name},
       $status{ $user_accident->{status} },
@@ -988,74 +984,6 @@ sub accident_auto_close {
   }
 
   return 1;
-}
-
-#**********************************************************
-=head2 accident_equipment_error($attr)
-
-  Attr:
-    NAS_ID
-    NAS_NAME
-    PORT_ID
-    STATUS: 0 - open, 1 - in process, 2 - closed
-
-=cut
-#**********************************************************
-sub accident_equipment_error {
-  my ($attr) = @_;
-
-  return if (!$attr->{NAS_ID});
-
-  my $list_equipment_error = $Accident->accident_equipment_list({
-    ID_EQUIPMENT => $attr->{NAS_ID},
-    PORT_ID      => ($attr->{PORT_ID}) ? $attr->{PORT_ID} : '_SHOW',
-    DATE         => '_SHOW',
-    END_DATE     => '_SHOW',
-    STATUS       => 0,
-    AID          => '_SHOW',
-    EXT_TABLE    => 1,
-    COLS_NAME    => 1,
-  });
-
-  if ($Accident->{TOTAL} > 0){
-    if ($attr->{STATUS} && $attr->{STATUS} == 2){
-      $Accident->accident_equipment_chg({
-        ID       => $list_equipment_error->[0]->{id},
-        STATUS   => $attr->{STATUS},
-        END_DATE => "$DATE $TIME",
-      });
-    }
-    return;
-  }
-
-  return if ($attr->{STATUS} && $attr->{STATUS} == 2);
-
-  $Accident->accident_equipment_add({
-    ID_EQUIPMENT => $attr->{NAS_ID},
-    PORT_ID      => $attr->{PORT_ID} ? $attr->{PORT_ID} : '',
-    DATE         => "$DATE $TIME",
-    AID          => $admin->{AID},
-    STATUS       => 0,
-    TYPE         => $conf{EQUIPMENT_TYPE_ACCIDENT} || 0,
-  });
-
-  if ($Accident->{INSERT_ID} && $conf{EQUIPMENT_TYPE_ACCIDENT}){
-    my $admins_equipment = $Accident->admin_info({ ACCIDENT_TYPE => $conf{EQUIPMENT_TYPE_ACCIDENT} });
-    return if (!$admins_equipment->{ADMINS});
-
-    my @arr_admins = split(',', $admins_equipment->{ADMINS});
-
-    foreach my $aid (@arr_admins) {
-      $Sender->send_message({
-        AID     => $aid,
-        TITLE   => "$lang{ACCIDENT_FOR_EQUIPMENT} $attr->{NAS_NAME}",
-        MESSAGE => "$attr->{NAS_NAME}, ID: $attr->{NAS_ID}",
-        SOURCE  => 'Accident'
-      });
-    }
-  }
-
-  return;
 }
 
 #**********************************************************
@@ -1228,6 +1156,71 @@ sub accident_admins {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 _accident_equipment_port_sel() - show equipment port for NAS
+
+=cut
+#**********************************************************
+sub _accident_equipment_port_sel {
+  my $port_list = '';
+  my $equipment_info = $Equipment->list({
+    NAS_ID => ($FORM{NAS_ID} || $Accident->{NAS_ID}),
+    TYPE_ID   => '_SHOW',
+    COLS_NAME => 1 });
+
+  my $type_id = $equipment_info->[0]->{type_id} || '';
+
+  if ($type_id && $type_id eq '4') {
+    $port_list = $Equipment->pon_port_list({
+      NAS_ID    => $FORM{NAS_ID} || $Accident->{NAS_ID},
+      BRANCH    => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+    });
+
+    my %branch_list = ();
+
+    foreach my $port (@$port_list) {
+      $branch_list{$port->{branch}} = $port->{branch} if ($port->{branch});
+    }
+
+    my @branch_list_sorted = sort {
+      my @a = split '/', $a;
+      my @b = split '/', $b;
+
+      for my $i (0 .. $#a) {
+        my $cmp = $a[$i] <=> $b[$i];
+        return $cmp if $cmp;
+      }
+      0;
+    } keys %branch_list;
+
+    return $html->form_select('PORT', {
+      SELECTED       => $FORM{PORT} || $Accident->{PORT} || '',
+      SEL_ARRAY      => \@branch_list_sorted,
+      NO_ID          =>  1,
+      SEL_OPTIONS    => {'' => ''},
+    });
+  }
+  else {
+    $port_list = $Equipment->port_list({
+      NAS_ID  => $FORM{NAS_ID} || $Accident->{NAS_ID},
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000
+    });
+
+    return $html->form_select('PORT', {
+      SELECTED       => $FORM{PORT} || $Accident->{PORT} || '',
+      SEL_LIST       => $port_list,
+      NO_ID          =>  1,
+      SEL_KEY        => 'port',
+      SEL_VALUE      => 'port',
+      SEL_OPTIONS    => { '' => '' },
+    });
+  }
+
 }
 
 

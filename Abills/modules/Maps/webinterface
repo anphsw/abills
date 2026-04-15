@@ -650,4 +650,13 @@ sub maps_without_edits {
   });
 }
 
+#**********************************************************
+=head2 maps_import($attr)
+
+=cut
+#**********************************************************
+sub maps_import {
+  $html->tpl_show(_include('maps_import', 'Maps'));
+}
+
 1;

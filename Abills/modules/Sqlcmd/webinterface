@@ -34,6 +34,10 @@ my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
 my $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
 our Abills::HTML $html;
 
+if($conf{REDIS_DB}) {
+  require Sqlcmd::Redis;
+}
+
 #**********************************************************
 =head2 sqlcmd()
 
@@ -123,7 +127,7 @@ sub sqlcmd {
   my $table = $html->table({
     width       => '100%',
     caption     => $FORM{TABLE_INFO},
-    title_plain => [ $lang{DATE}, $lang{COMMENTS}, '', '' ],
+    title_plain => [ $lang{DATE}, $lang{COMMENTS}, '' ],
     qs          => $pages_qs,
     pages       => $Sqlcmd_main->{TOTAL},
     ID          => 'SQLCMD_SAVED_QUERIES'
@@ -133,8 +137,8 @@ sub sqlcmd {
     $table->addrow(
       $line->{datetime},
       convert($line->{comments}, { text2html => 1 }),
-      $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' }),
-      $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' })
+      $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' })
+      . $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' })
     );
   }
 
@@ -143,7 +147,7 @@ sub sqlcmd {
   # Last queries
   $LIST_PARAMS{PAGE_ROWS} = 10;
   $LIST_PARAMS{STATUS} = 1;
-  my $list_history = $Sqlcmd_main->history_list({ %LIST_PARAMS });
+  my $history_list = $Sqlcmd_main->history_list({ %LIST_PARAMS });
 
   $table = $html->table({
     width       => '100%',
@@ -154,7 +158,7 @@ sub sqlcmd {
     ID          => 'SQLCMD_LAST_QUERIES'
   });
 
-  foreach my $line (@$list_history) {
+  foreach my $line (@$history_list) {
     $table->addrow(
       $line->{datetime},
       $html->button(convert($line->{sql_query}, { text2html => 1 }), "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
@@ -202,7 +206,9 @@ sub sqlcmd {
       $Sqlcmd_main->history_add(\%FORM2);
     }
 
-    sqlcmd_query_table($list);
+    #print "INSERT_ID: $Sqlcmd_main->{INSERT_ID} \n";
+
+    sqlcmd_query_table($list, { QUERY_ID => $Sqlcmd_main->{INSERT_ID} || $FORM{QUERY_ID} });
   }
 
   if ($FORM{TABLE_INFO}) {
@@ -240,10 +246,12 @@ sub sqlcmd_query_info {
 }
 
 #**********************************************************
-=head2 _query_format($query)
+=head2 sqlcmd_query_table($query_list, $attr)
 
   Arguments:
-    $query
+    $query_list
+    $attr
+      QUERY_ID=
 
   Results:
     TRUE or FALSE
@@ -251,7 +259,7 @@ sub sqlcmd_query_info {
 =cut
 #**********************************************************
 sub sqlcmd_query_table {
-  my ($query_list) =@_;
+  my ($query_list, $attr) = @_;
 
   if ($Sqlcmd->{errno}) {
     $html->message('err', $lang{ERROR}, "[$Sqlcmd->{errno}] $Sqlcmd->{errno}\n"
@@ -260,7 +268,7 @@ sub sqlcmd_query_table {
     return 0;
   }
 
-  $pages_qs .= "&QUERY=" . urlencode($FORM{QUERY});
+  $pages_qs .= ($attr->{QUERY_ID}) ? "&QUERY_ID=$attr->{QUERY_ID}" : "&QUERY=" . urlencode($FORM{QUERY});
 
   my @CAPTION = ();
 
@@ -315,8 +323,8 @@ sub sqlcmd_query_table {
   $table = $html->table({
     width => '100%',
     rows  => [ [
-      "$lang{TOTAL}: " . $html->b($Sqlcmd->{TOTAL}),
-      "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
+      "$lang{TOTAL}: " . $html->b($Sqlcmd->{TOTAL} || 0),
+      "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED} || 0),
       "STATE: " . $db_->state()
     ] ]
   });
@@ -732,7 +740,7 @@ sub sqlcmd_tables {
       push @table_rows, $l;
     }
 
-    $table->addrow(@table_rows, $html->button($lang{SHOW}, "index=" . ($index - 1) . "&TABLE_INFO=$table_name&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { class => 'show' }));
+    $table->addrow(@table_rows, $html->button($lang{SHOW}, "index=" . ($index - 1) . "&TABLE_INFO=$table_name&QUERY=SELECT * FROM $table_name LIMIT $PAGE_ROWS", { class => 'show' }));
 
     $tables_total++;
     $tables_size += ($line->{'Index_length'} || 0) + ($line->{'Data_length'} || 0);
@@ -1488,17 +1496,19 @@ sub sqlcmd_collation_change {
     my $changed_fields = 0;
     my @fields_list = @{ $list };
     foreach my $field ( @fields_list ){
-      if ( $field->{Collation} ) {
+      if ($field->{Collation}) {
         $table_fields++;
-        if($FORM{COLLATION} && $FORM{COLLATION} ne $field->{Collation} ){
-          my $null = ($field->{Null} eq 'NO') ? 'NOT NULL' : '';
-          my $query = << "SQL";
+        $field->{Default} //= q{};
+
+        if ($FORM{COLLATION} && $FORM{COLLATION} ne $field->{Collation}) {
+          my $null = ($field->{Null} && $field->{Null} eq 'NO') ? 'NOT NULL' : '';
+          my $query = <<"SQL";
 ALTER TABLE `$db_table` CHANGE COLUMN `$field->{Field}` `$field->{Field}` $field->{Type} COLLATE $FORM{COLLATION} $null DEFAULT '$field->{Default}';
 SQL
 
-          print "$field->{Collation}: ". $query . $html->br();
+          print "$field->{Collation}: " . $query . $html->br();
           $Sqlcmd->list({ QUERY => $query });
-          if($Sqlcmd->{errno}) {
+          if ($Sqlcmd->{errno}) {
             $html->message('err', $lang{ERROR}, "$query\n$Sqlcmd->{errno} $Sqlcmd->{sql_errstr}");
             last;
           }
@@ -1507,8 +1517,10 @@ SQL
       }
     }
 
+    my $collation = $FORM{COLLATION} || q{};
+
     my $query = << "SQL";
-ALTER TABLE $db_table DEFAULT  CHARACTER SET $conf{dbcharset} COLLATE $FORM{COLLATION};
+ALTER TABLE $db_table DEFAULT  CHARACTER SET $conf{dbcharset} COLLATE $collation;
 SQL
 
     $Sqlcmd->list({ QUERY => $query });
@@ -1524,8 +1536,7 @@ SQL
     },
     METHOD  => 'POST',
     SUBMIT  => { 'change' => $lang{CHANGE} },
-  }
-  );
+  });
 
   return 1;
 }

@@ -127,8 +127,9 @@ my $result = 0;
 if ($request_ =~ /DHCP\-/xm) {
   $result = post_auth();
 }
-if ($request_ =~ /Acct\-Status\-Type/xm) {
+if ($RAD_REQUEST{'Acct-Status-Type'}) {
   $result = accounting();
+  print "Accounting: $RAD_REQUEST{'Acct-Status-Type'}\n";
 }
 else {
   $result = authenticate();

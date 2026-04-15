@@ -452,7 +452,7 @@ sub docs_invoices_list {
     BASE_FIELDS     => (!$user->{UID}) ? 4 : 3,
     DEFAULT_FIELDS  =>
       ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,PAYMENT_SUM',
-    HIDDEN_FIELDS   => 'CURRENCY',
+    HIDDEN_FIELDS   => 'CURRENCY,EDOCS_EXT_ID',
     FUNCTION_FIELDS =>
       (!$user->{UID}) ? (($conf{DOCS_INVOICE_ALT_TPL}) ? 'print,' : '') . 'print,payment,show,send,del' : 'print',
     MULTISELECT     => (!$user->{UID} && $FORM{UID}) ? 'UID:uid' : '',
@@ -582,7 +582,7 @@ sub docs_invoices_list {
         $val = $invoice->{$field_name};
       }
 
-      unless ( $field_name eq 'currency'){
+      if (!in_array($field_name, [ 'currency', 'edocs_ext_id' ])) {
         push @fields_array, $val;
       }
     }
@@ -615,22 +615,23 @@ sub docs_invoices_list {
       $send_invoice_class = 'text-success' if ($invoice->{receive_date} && $invoice->{receive_date} ne '0000-00-00');
 
       push @function_fields,
-        $html->button( $lang{PAYMENTS}, "index=2&INVOICE_ID=$invoice->{id}&UID=$invoice->{uid}$payments_info",
-          { class => 'payments' } )
-        , $html->button( $lang{INFO}, "index=$index&SHOW_ORDERS=$invoice->{id}&UID=$invoice->{uid}", {
+        _docs_get_esign_button($invoice),
+        $html->button($lang{PAYMENTS}, "index=2&INVOICE_ID=$invoice->{id}&UID=$invoice->{uid}$payments_info",
+          { class => 'payments' })
+        , $html->button($lang{INFO}, "index=$index&SHOW_ORDERS=$invoice->{id}&UID=$invoice->{uid}", {
           class           => 'show',
           NEW_WINDOW      => "$SELF_URL?qindex=$index&SHOW_ORDERS=$invoice->{id}&UID=$invoice->{uid}&header=1",
           NEW_WINDOW_SIZE => "640:600"
-        } )
-        , $html->button( $lang{SEND_MAIL},
-          "qindex=" . get_function_index( 'docs_invoices_list' ) . "&sendmail=$invoice->{id}&UID=$invoice->{uid}",
-          { ex_params => 'target=_new', class => 'sendmail' } )
-        , $html->button( "$lang{DOCS_SEND_INVOICE}/$lang{DOCS_RECEIVE_INVOICE}",
-          "qindex=" . get_function_index( 'docs_invoices_list' ) . "&change=$invoice->{id}&UID=$invoice->{uid}",
-          { LOAD_TO_MODAL => 1, class => $send_invoice_class, ICON => 'fa fa-truck' } )
-        , (($permissions{1} && $permissions{1}{2})  ? $html->button( $lang{DEL},
+        })
+        , $html->button($lang{SEND_MAIL},
+          "qindex=" . get_function_index('docs_invoices_list') . "&sendmail=$invoice->{id}&UID=$invoice->{uid}",
+          { ex_params => 'target=_new', class => 'sendmail' })
+        , $html->button("$lang{DOCS_SEND_INVOICE}/$lang{DOCS_RECEIVE_INVOICE}",
+          "qindex=" . get_function_index('docs_invoices_list') . "&change=$invoice->{id}&UID=$invoice->{uid}",
+          { LOAD_TO_MODAL => 1, class => $send_invoice_class, ICON => 'fa fa-truck' })
+        , (($permissions{1} && $permissions{1}{2}) ? $html->button($lang{DEL},
           "index=$index&del=$invoice->{id}&UID=$invoice->{uid}",
-          { MESSAGE => "$lang{DEL} ID $invoice->{id} ?", class => 'del' } ) : '')
+          { MESSAGE => "$lang{DEL} ID $invoice->{id} ?", class => 'del' }) : '')
       ;
 
       if ( $FORM{xml} ){
@@ -678,6 +679,10 @@ sub docs_invoices_list {
       NAME    => 'DOCS_INVOICES_LIST',
       ID      => 'DOCS_INVOICES_LIST',
     });
+
+    if ($conf{DOCS_ESIGN}) {
+      print $html->element('script', '', { src => '/styles/default/js/docs/edocs_upload.js' });
+    }
   }
 
   if ($FORM{pg}) {
@@ -2037,6 +2042,74 @@ sub docs_invoice_list_print {
   );
 
   return 0;
+}
+
+#**********************************************************
+=head2 _docs_get_esign_button($invoice)
+
+=cut
+#**********************************************************
+sub _docs_get_esign_button {
+  my ($invoice) = @_;
+
+  return '' if (!$conf{DOCS_ESIGN} || !$invoice || ref($invoice) ne 'HASH');
+
+  if ($invoice->{edocs_ext_id}) {
+    return $html->button($lang{SIGN}, "get_index=docs_esign_documents&EXT_ID=$invoice->{edocs_ext_id}&full=1", {
+      class => 'text-primary', ICON => 'fa fa-file-signature'
+    });
+  }
+
+  return $html->button($lang{DOCS_DOWNLOAD_FOR_E_SIGN}, '', {
+    class          => 'text-primary cursor-pointer edocs_upload_button',
+    ICON           => 'fa fa-cloud-upload-alt',
+    NO_LINK_FORMER => 1,
+    JAVASCRIPT     => 1,
+    SKIP_HREF      => 1,
+    ex_params      => "value='$invoice->{id}'",
+  });
+}
+
+#**********************************************************
+=head2 docs_esign_documents()
+
+=cut
+#**********************************************************
+sub docs_esign_documents {
+
+  require Docs::Init;
+  Docs::Init->import('init_esign_service');
+
+  my $ESignService = init_esign_service($db, $admin, \%conf, { lang => \%lang, html => $html });
+
+  if (!%{$ESignService} || $ESignService->{errno} || !$ESignService->can('documents_list')) {
+    return;
+  }
+
+  my $result = $ESignService->documents_list(\%FORM);
+
+  if ($result->{tables} && ref($result->{tables}) eq 'ARRAY') {
+    foreach my $table_info (@{$result->{tables}}) {
+      for my $row_idx (0 .. $#{$table_info->{buttons} || []}) {
+        my $row_buttons = $table_info->{buttons}[$row_idx] || [];
+
+        for my $btn_idx (0 .. $#{$row_buttons}) {
+          my $button = $row_buttons->[$btn_idx];
+          my $button_key = "zbutton$btn_idx";
+
+          $table_info->{data_hash}[$row_idx]{$button_key} = $html->button($button->{title}, $button->{url}, $button);
+          $table_info->{titles}{$button_key} = '-';
+        }
+      }
+
+      result_former({
+        TABLE           => $table_info->{table},
+        EXT_TITLES      => $table_info->{titles},
+        DATAHASH        => $table_info->{data_hash},
+        TOTAL           => 1
+      });
+    }
+  }
 }
 
 1;

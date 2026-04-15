@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_ABON_TARIF_DELETE",
+  "method": "DELETE",
+  "path": "abon/tariffs/:id/users/:uid/",
+  "params": {}
+}

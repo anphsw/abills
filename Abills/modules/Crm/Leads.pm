@@ -33,6 +33,9 @@ my $Address = Address->new($db, $admin, \%conf);
 require Abills::Template;
 my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
+use Crm::Leads_service;
+my $Leads_service = Crm::Leads_service->new($db, $admin, \%conf);
+
 #**********************************************************
 =head2 crm_lead_search()
 
@@ -44,17 +47,6 @@ my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang
 =cut
 #**********************************************************
 sub crm_lead_search {
-
-  # Add new lead and redirect to profile page
-  if ($FORM{add}) {
-    $Crm->crm_lead_add({ %FORM });
-    if (!_error_show($Crm)) {
-      my $leads_index = get_function_index('crm_lead_info') || 0;
-      $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button($lang{GO},
-        "index=" . $leads_index . "&LEAD_ID=$Crm->{INSERT_ID}"));
-    }
-    return 1;
-  }
 
   my $submit_button_name = $lang{SEARCH};
   my $submit_button_action = 'search';
@@ -121,109 +113,6 @@ sub crm_lead_search {
   }, { OUTPUT2RETURN => 1 });
 
   form_search({ TPL => $tpl });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 crm_lead_search_old() - search leads
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-  Examples:
-=cut
-#**********************************************************
-sub crm_lead_search_old {
-
-  my $submit_button_name = $lang{SEARCH};
-  my $submit_button_action = 'search';
-  my $id_disabled = '';
-  my $id_hidden = '';
-  my $source_list = translate_list($Crm->leads_source_list({
-    NAME      => '_SHOW',
-    COLS_NAME => 1
-  }));
-
-  my $lead_source_select = $html->form_select('SOURCE', {
-    SELECTED    => $FORM{SOURCE} || q{},
-    SEL_LIST    => $source_list,
-    SEL_KEY     => 'id',
-    SEL_VALUE   => 'name',
-    NO_ID       => 1,
-    SEL_OPTIONS => { "" => "" },
-    MAIN_MENU   => get_function_index('crm_source_types')
-  });
-
-  if ($FORM{search}) {
-    my $leads_list = $Crm->crm_lead_list({
-      FIO         => $FORM{FIO} || '_SHOW',
-      ID          => $FORM{LEAD_ID} || '_SHOW',
-      PHONE       => $FORM{PHONE} || '_SHOW',
-      EMAIL       => $FORM{EMAIL} || '_SHOW',
-      COMPANY     => $FORM{COMPANY} || '_SHOW',
-      COMMENTS    => $FORM{COMMENTS} || '_SHOW',
-      SOURCE      => $FORM{SOURCE} || '_SHOW',
-      DATE        => $FORM{DATE} || '_SHOW',
-      RESPONSIBLE => $FORM{RESPONSIBLE} || '_SHOW',
-      ADDRESS     => $FORM{ADDRESS} || '_SHOW',
-      #        CITY        => $FORM{CITY} || '_SHOW',
-      BUILD       => $FORM{ADDRESS_BUILD} || '_SHOW',
-      FLAT        => $FORM{ADDRESS_FLAT} || '_SHOW',
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1
-    });
-
-    _error_show($Crm);
-
-    # если нашло одного лида, кидает на страницу информации
-    if ($leads_list && ref $leads_list eq 'ARRAY' && scalar @{$leads_list} == 1) {
-      $html->message("info", $lang{SUCCESS}, "1 $lang{LEAD}");
-      # crm_lead_info($leads_list->[0]->{ID});
-      $html->redirect('?index=' . get_function_index('crm_lead_info') . "&LEAD_ID=$leads_list->[0]->{ID}",
-        { WAIT => 1 });
-      return 1;
-    }
-
-    # если нашло больше чем одного лида, показывает панели лидов с ссылкой на их профиль
-    elsif ($leads_list && ref $leads_list eq 'ARRAY' && scalar @{$leads_list} > 1) {
-      crm_lead_panels(@$leads_list);
-      return 1;
-    }
-
-    # если не нашло ни одного лида, то дает возможность добавить нового с параметрами поискаы
-    $html->message('info', "$lang{LEAD_NOT_FOUND}", "$lang{INPUT_DATA_TO_ADD_LEAD}");
-
-    $submit_button_name = "$lang{ADD}";
-    $submit_button_action = 'add';
-    $id_disabled = 'disabled';
-    $id_hidden = 'hidden';
-  }
-
-  if ($FORM{add}) {
-    $Crm->crm_lead_add({ %FORM });
-
-    _error_show($Crm);
-
-    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button("тут",
-      "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
-
-    return 1;
-  }
-
-  my $responsible_admin = sel_admins({ NAME => 'RESPONSIBLE' });
-
-  $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
-    SUBMIT_BTN_NAME   => $submit_button_name,
-    SUBMIT_BTN_ACTION => $submit_button_action,
-    DISABLE_ID        => $id_disabled,
-    HIDE_ID           => $id_hidden,
-    LEAD_SOURCE       => $lead_source_select,
-    RESPONSIBLE_ADMIN => $responsible_admin,
-    %FORM
-  });
 
   return 1;
 }
@@ -400,10 +289,10 @@ sub crm_leads {
     return 1 if ($FORM{TEMPLATE_ONLY});
   }
   elsif ($FORM{add}) {
-    $Crm->crm_lead_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0), CURRENT_STEP => 1 });
-    if (!_error_show($Crm)) {
+    my $add_result = $Leads_service->crm_lead_add({ %FORM });
+    if (!_error_show($add_result)) {
       $html->message('info', $lang{ADDED});
-      $html->redirect("?get_index=crm_lead_info&full=1&LEAD_ID=$Crm->{INSERT_ID}", { WAIT => 1 });
+      $html->redirect("?get_index=crm_lead_info&full=1&LEAD_ID=" . ($add_result->{INSERT_ID} || ''), { WAIT => 1 });
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
@@ -412,9 +301,9 @@ sub crm_leads {
     $html->message('info', $lang{DELETED}) if (!_error_show($Crm));
   }
   elsif ($FORM{change}) {
-    $Crm->crm_lead_change({ %FORM });
+    my $result = $Leads_service->crm_lead_change({ %FORM });
     if ($FORM{RETURN_JSON}) {
-      print 'error' if $Crm->{error};
+      print 'error' if $result->{error};
       return 1;
     }
 
@@ -426,7 +315,7 @@ sub crm_leads {
     foreach my $lead (@leads) {
       $FORM{TAG_IDS} = $FORM{TAGS} if defined $FORM{TAGS};
 
-      $Crm->crm_lead_change({ %FORM, ID => $lead });
+      $Leads_service->crm_lead_change({ %FORM, ID => $lead });
     }
   }
   elsif ($FORM{CRM_MULTIMERGE} && $FORM{ID}) {
@@ -685,7 +574,7 @@ sub _crm_merge_leads {
     $Crm->crm_lead_delete({ ID => $lead->{LEAD_ID} });
   }
 
-  $Crm->crm_lead_change($main_lead);
+  $Leads_service->crm_lead_change($main_lead);
 
   $html->message('success', $lang{SUCCESS}, "$lang{LEADS_ARE_UNITED}: " . $html->button($main_lead->{FIO},
     "get_index=crm_lead_info&header=2&full=1&LEAD_ID=$main_lead->{LEAD_ID}"));
@@ -759,14 +648,14 @@ sub crm_lead_info {
   }
 
   if ($FORM{delete_uid}) {
-    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => 0 });
-    $html->message('info', $lang{SUCCESS}, $lang{DELETED}) if !_error_show($Crm);
+    my $result = $Leads_service->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => 0 });
+    $html->message('info', $lang{SUCCESS}, $lang{DELETED}) if !_error_show($result);
   }
 
   $Crm->crm_section_fields(\%FORM) if $FORM{save_fields};
 
   if ($FORM{SAVE}) {
-    $Crm->crm_lead_change({
+    $Leads_service->crm_lead_change({
       PHONE         => $FORM{phone_2},
       SOURCE        => $FORM{source_2},
       EMAIL         => $FORM{email_2},
@@ -791,15 +680,15 @@ sub crm_lead_info {
   $lead_id = $FORM{LEAD_ID} if $FORM{LEAD_ID};
 
   if (defined $FORM{CUR_STEP}) {
-    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, CURRENT_STEP => $FORM{CUR_STEP} || '1' });
+    $Leads_service->crm_lead_change({ ID => $FORM{LEAD_ID}, CURRENT_STEP => $FORM{CUR_STEP} || '1' });
     return 1;
   }
 
   if ($FORM{add_uid}) {
-    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => $FORM{add_uid} });
+    my $result = $Leads_service->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => $FORM{add_uid} });
 
     if ($FORM{RETURN_JSON}) {
-      print json_former({ error => $Crm->{errno} || 0 });
+      print json_former({ error => $result->{errno} || 0 });
       return;
     }
 
@@ -810,8 +699,8 @@ sub crm_lead_info {
   }
 
   if ($FORM{change}) {
-    $Crm->crm_lead_change(\%FORM);
-    $html->message('info', $lang{CHANGED}) if !_error_show($Crm);
+    my $result = $Leads_service->crm_lead_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($result);
   }
 
   require Control::Users_mng;
@@ -1274,135 +1163,6 @@ sub _crm_leads_filter {
 }
 
 #**********************************************************
-=head2 crm_short_info() -
-
-  Arguments:
-    $attr -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub crm_short_info {
-
-  my $lead_phone;
-  if ($FORM{PHONE}) {
-    $lead_phone = $FORM{PHONE};
-  }
-  else {
-    print qq{ { "ERROR": 1, "DESCRIPTION": "NO PHONE"} };
-    return 1;
-  }
-
-  # if module Callcenter turn on - add this call to calls handler
-  if (in_array('Callcenter', \@MODULES)) {
-    require Callcenter::db::Callcenter;
-    Callcenter->import();
-    my $Callcenter = Callcenter->new($db, $admin, \%conf);
-    my $admin_info = $admin->info($admin->{AID});
-
-    $Callcenter->callcenter_add_calls({
-      USER_PHONE     => $lead_phone,
-      OPERATOR_PHONE => $admin_info->{PHONE} || 0,
-      STATUS         => 3,
-      UID            => $FORM{uid} || 0,
-      ID             => "AE:" . mk_unique_value(10, { SYMBOLS => '1234567890' })
-    });
-  }
-
-  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-
-  # at first search user
-  my $users = Users->new($db, $admin, \%conf);
-
-  my $user_info = $users->list({
-    PHONE     => $FORM{PHONE},
-    FIO       => '_SHOW',
-    COLS_NAME => 1,
-    PAGE_ROWS => 1,
-  });
-
-  if ($users->{TOTAL} == 1) {
-    my $json_user_info = JSON::to_json($user_info->[0], { utf8 => 0 });
-
-    my $user_link = $html->button(($user_info->[0]->{fio} || "$lang{NO} $lang{FIO}"),
-      "index=" . get_function_index('crm_user_service') . "&UID=$user_info->[0]->{uid}");
-
-    $Sender->send_message({
-      AID         => $admin->{AID},
-      SENDER_TYPE => 'Browser',
-      TITLE       => "$lang{INCOMING_CALL}",
-      MESSAGE     => "$lang{FIO}: $user_link",
-    });
-
-    print $json_user_info;
-    return 1;
-  }
-
-  my $lead_info = $Crm->crm_lead_list({
-    PHONE_SEARCH => $lead_phone,
-    CURRENT_STEP => '_SHOW',
-    FIO          => '_SHOW',
-    EMAIL        => '_SHOW',
-    COMPANY      => '_SHOW',
-    COMMENTS     => '_SHOW',
-    COLS_NAME    => 1,
-    PAGE_ROWS    => 1,
-  });
-
-  if (defined $Crm->{TOTAL} && $Crm->{TOTAL} == 1) {
-    my $json_lead_info = JSON::to_json($lead_info->[0], { utf8 => 0 });
-
-    $Crm->progressbar_comment_add({
-      STEP_ID => $lead_info->[0]{current_step} || 1,
-      MESSAGE => "Aengine call",
-      LEAD_ID => $lead_info->[0]{id},
-      DATE => "$DATE $TIME",
-      DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)
-    });
-
-    my $lead_link = $html->button(($lead_info->[0]->{fio} || "$lang{NO} $lang{FIO}"),
-      "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$lead_info->[0]->{id}");
-
-    $Sender->send_message({
-      AID         => $admin->{AID},
-      SENDER_TYPE => 'Browser',
-      TITLE       => "$lang{INCOMING_CALL}",
-      MESSAGE     => "$lang{FIO}: $lead_link",
-    });
-
-    print $json_lead_info;
-  }
-  elsif (defined $Crm->{TOTAL} && $Crm->{TOTAL} < 1) {
-    $FORM{COMMENTS} = "$DATE $TIME - lead called through AEngineer";
-    $Crm->crm_lead_add({ %FORM, DATE => $DATE, RESPONSIBLE => $admin->{AID} });
-
-    if (!$Crm->{errno}) {
-      my $lead_link = $html->button(($lead_info->[0]->{fio} || "$lang{NO} $lang{FIO}"),
-        "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}");
-
-      $Sender->send_message({
-        AID         => $admin->{AID},
-        SENDER_TYPE => 'Browser',
-        TITLE       => "$lang{INCOMING_CALL}",
-        MESSAGE     => "$lang{LEAD} $lang{ADDED}\n$lang{FIO}: $lead_link",
-      });
-
-      print qq{ { "ERROR" : 0, "DESCRIPTION" : "NEW LEAD ADDED" } };
-    }
-    else {
-      print qq{ { "ERROR" : 2, "CANT ADD NEW LEAD" } };
-    }
-  }
-  elsif (defined $Crm->{TOTAL} && $Crm->{TOTAL} > 1) {
-    print qq{ { "ERROR" : 3, "DESCRIPTION" : "MORE THEN 1 LEAD FOUND" } };
-  }
-
-  return 1;
-}
-
-#**********************************************************
 =head2 crm_lead_progress_report() -
 
   Arguments:
@@ -1825,12 +1585,12 @@ sub _actions_sel {
 sub crm_lead_add_user {
 
   if ($FORM{add_uid}) {
-    $Crm->crm_lead_change({
+    my $chane_result = $Leads_service->crm_lead_change({
       ID  => $FORM{LEAD_ID},
       UID => $FORM{UID},
     });
 
-    if(!_error_show($Crm)){
+    if(!_error_show($chane_result)){
       my $lead_button = $html->button($lang{LEAD}, "index=" . get_function_index("crm_lead_info") . "&LEAD_ID=$FORM{LEAD_ID}");
       $html->message('info', $lang{SUCCESS}, "$lang{GO2PAGE} $lead_button");
     }
@@ -1985,7 +1745,7 @@ sub _crm_send_lead_mess {
         $no_email_leade .= "$iter->{fio}, ";
       }
 
-      $Crm->progressbar_comment_add({
+      $Leads_service->crm_progressbar_comment_add({
         LEAD_ID      => $iter->{lead_id},
         MESSAGE      => $attr->{MSGS},
         DATE         => "$DATE $TIME",
@@ -2082,9 +1842,9 @@ sub _crm_lead_to_client {
 sub _crm_create_client {
   my ($uid, $lead_id) = @_;
 
-  $Crm->crm_lead_change({ ID => $lead_id, UID => $uid });
+  my $change_result = $Leads_service->crm_lead_change({ ID => $lead_id, UID => $uid });
 
-  $html->message('err', $lang{ERROR}, '') if _error_show($Crm);
+  $html->message('err', $lang{ERROR}, '') if _error_show($change_result);
 
   return 1;
 }

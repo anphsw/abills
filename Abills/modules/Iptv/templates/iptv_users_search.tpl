@@ -74,6 +74,15 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='WITHOUT_SERVICE'>_{WITHOUT_SERVICE}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='WITHOUT_SERVICE' name='WITHOUT_SERVICE' %WITHOUT_SERVICE% value='1'>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

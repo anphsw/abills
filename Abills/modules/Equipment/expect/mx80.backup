@@ -10,7 +10,7 @@ set login [lindex $argv 1]
 set password [lindex $argv 2]
 set port [lindex $argv 3]
 
-set timeout -1
+set timeout 60
 
 if { $port ne "" } {
   spawn ssh $login@$ip -p $port
@@ -18,13 +18,18 @@ if { $port ne "" } {
   spawn ssh $login@$ip
 }
 
-expect "password:"
+expect "assword:"
 send "$password\r"
 
-expect "$login@"
-send "ls -l /\r"
+expect "$login>"
 
-expect "$login@"
+#log_file -a "backup_$ip.txt"
+send "show configuration | no-more\r"
 
+expect "$login>"
+#log_file
 send "exit\r"
 expect eof
+
+#expect "*%"
+#send "exit\r"

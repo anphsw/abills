@@ -2,7 +2,7 @@ package Abills::Base;
 
 =head1 NAME
 
-Abills::Base - Base functions
+  Abills::Base - Base functions
 
 =head1 SYNOPSIS
 
@@ -270,6 +270,10 @@ sub in_array {
 sub indexof {
   my ($value, $array) = @_;
 
+  if (ref $array ne 'ARRAY') {
+    return -1;
+  }
+
   for (my $i = 1 ; $i <= $#{ $array } ; $i++) {
     if ($array->[$i] eq $value) { return $i - 1; }
   }
@@ -403,6 +407,11 @@ tr/\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F\x90\x91\x92\
 #**********************************************************
 =head2 txt2translit($text) - convert to translit
 
+  Arguments:
+    $text
+  Results:
+    $text_translit
+
 =cut
 #**********************************************************
 sub txt2translit {
@@ -410,14 +419,16 @@ sub txt2translit {
 
   $text =~ y/����������������������������/abvgdeezijklmnoprstufh'y'eie/;
   $text =~ y/�����Ũ������������������ݲ��/ABVGDEEZIJKLMNOPRSTUFH'Y'EI/;
-
   #TODO: add raw if nothing will be broken
   # require Encode;
-
   my $is_utf = Encode::is_utf8($text);
 
   if ($is_utf) {
     $text = Encode::decode("UTF-8", $text);
+  }
+  #D0 xx D0 XX  to utf
+  else {
+    Encode::_utf8_on($text);
   }
 
   $text =~ y/абвгдеёзийклмнопрстуфхъыьэ/abvgdeezijklmnoprstufh'y'e/;
@@ -2555,8 +2566,7 @@ sub json_former {
   elsif (ref $request eq 'HASH') {
     foreach my $key (sort keys %{$request}) {
       next if ($attr->{UNIQUE_KEYS} && !is_number($key) && $request->{lc $key} && $request->{uc $key} && $key eq uc $key);
-
-      if ($attr->{STRING_KEYS} && in_array($key, $attr->{STRING_KEYS}) && ! $attr->{FORCE_STRING}) {
+      if ($attr->{STRING_KEYS} && in_array(lc($key), $attr->{STRING_KEYS}) && ! $attr->{FORCE_STRING}) {
           $attr->{FORCE_STRING} = 1;
         }
         else {
@@ -2604,7 +2614,7 @@ sub json_former {
     }eg;
 
     if ($request =~ '<str_>' || (!$request && $request !~ '[0]')) {
-      $request =~ s/<str_>//;
+      $request =~ s/<str_>//x;
       $attr->{ESCAPE_DQ} ?
         return qq{\\"$request\\"} :
         return qq{\"$request\"};
@@ -2983,6 +2993,7 @@ sub check_ip {
       ACCOUNT_ACTIVATE
       PERIOD_ALIGNMENT
       END_DATE
+      MULTI_VALUE
 
   Returns:
     Return string of period
@@ -3015,6 +3026,10 @@ sub get_period_dates {
       if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
         $end_date = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
       }
+    }
+
+    if($attr->{MULTI_VALUE}) {
+      return $start_date, $end_date;
     }
 
     return " ($start_date-$end_date)";

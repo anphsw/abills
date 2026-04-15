@@ -5,17 +5,19 @@ CREATE TABLE IF NOT EXISTS `sms_log` (
   `message` CHAR(255) DEFAULT '' NOT NULL,
   `phone` CHAR(16) DEFAULT '' NOT NULL,
   `datetime` DATETIME NOT NULL,
-  `status` TINYINT(3) UNSIGNED DEFAULT 0 NOT NULL,
-  `ext_id` VARCHAR(20) DEFAULT '' NOT NULL,
+  `status` TINYINT(3) UNSIGNED DEFAULT 0 NOT NULL COMMENT '0 ok other error',
+  `ext_id` VARCHAR(40) DEFAULT '' NOT NULL,
   `status_date` DATETIME NOT NULL,
   `ext_status` VARCHAR(20) DEFAULT '' NOT NULL,
   `id` INT(10) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `datetime` (`datetime`),
+  KEY `status` (`status`)
 )
-  ENGINE = InnoDB DEFAULT CHARSET = utf8 COMMENT = 'Sms log';
+  DEFAULT CHARSET = utf8 COMMENT = 'Sms log';
 
 CREATE TABLE IF NOT EXISTS `sms_services` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL DEFAULT '',
   `plugin` VARCHAR(32) NOT NULL DEFAULT '',
   `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
@@ -30,10 +32,10 @@ CREATE TABLE IF NOT EXISTS `sms_services` (
   DEFAULT CHARSET = utf8 COMMENT = 'Sms Services';
 
 CREATE TABLE IF NOT EXISTS `sms_service_params`(
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `param` VARCHAR(50) NOT NULL DEFAULT '',
   `value` VARCHAR(400) NOT NULL DEFAULT '',
-  `service_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `service_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY `id` (`id`),
   FOREIGN KEY (`service_id`) REFERENCES `sms_services` (`id`) ON DELETE CASCADE
 )

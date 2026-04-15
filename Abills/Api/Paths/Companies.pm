@@ -29,8 +29,6 @@ use Api::Validations::Companies qw(POST_COMPANY PUT_COMPANY PUT_COMPANY_ADMINS);
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -53,7 +51,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/companies/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::get_companies,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -62,7 +59,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/companies/:id/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::get_companies_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -71,7 +67,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/companies/:id/users/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::get_companies_id_users,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -81,7 +76,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/companies/',
       params      => POST_COMPANY,
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::post_companies,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -91,7 +85,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/companies/:id/',
       params      => PUT_COMPANY,
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::put_companies_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -100,7 +93,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/companies/:id/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::delete_companies_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -109,7 +101,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/companies/public-records/:edrpou/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::get_companies_public_records_edrpou,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -118,7 +109,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/companies/admins/',
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::get_companies_admins,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -128,7 +118,6 @@ sub admin_routes {
       method      => 'PUT',
       path        => '/companies/:id/admins/',
       params      => PUT_COMPANY_ADMINS,
-      controller  => 'Api::Controllers::Admin::Companies',
       endpoint    => \&Api::Controllers::Admin::Companies::put_companies_id_admins,
       credentials => [
         'ADMIN', 'ADMINSID'

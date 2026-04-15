@@ -46,7 +46,9 @@ require $Bin . '/config.pl';
 my $function_start = $begin_time;
 our $html = Abills::HTML->new({ CONF => \%conf });
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+  {
+    %conf,
+    CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
     db_engine => 'dbcore'
   });
 
@@ -277,7 +279,11 @@ if ($ARGV[0] && $ADMIN_REPORT{GT}) {
 sub _exec_log {
   my ($attr)=@_;
 
-  $admin->system_action_add("PERIODIC $attr->{TYPE} $attr->{GT}", { TYPE => 99, MODULE => '' });
+  my $argv_str = '';
+  my @keys = grep { $_ ne 'monthly' && $_ ne 'daily'} keys %$argv;
+  $argv_str = join ' ', map { "$_:$argv->{$_}" } @keys;
+
+  $admin->system_action_add("PERIODIC $attr->{TYPE} $argv_str $attr->{GT}", { TYPE => 99, MODULE => '' });
 
   return 1;
 }
@@ -639,7 +645,11 @@ sub service_status_actions {
   my $comments = $schedule->{comments} || q{};
   my $action = $schedule->{action} || q{};
 
-  my $ret = service_status_change({ UID => $schedule->{uid}, BILL_ID => $schedule->{bill_id} },
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
+  my $ret = $Services->service_status_change({ UID => $schedule->{uid}, BILL_ID => $schedule->{bill_id} },
     $action,
     { DEBUG     => $debug,
       DATE      => $ADMIN_REPORT{DATE},
@@ -1384,6 +1394,10 @@ sub credit_full_set {
     $db->{db}->{AutoCommit} = 0;
   }
 
+  require Control::Services;
+  Control::Services->import();
+  my $Services = Control::Services->new($db, $admin, \%conf);
+
   if (!$attr->{COMPANY_ID}) {
     #set credit for individual users
     $users->{debug} = 1 if ($debug > 6);
@@ -1410,7 +1424,7 @@ sub credit_full_set {
 
       $DEBUG .= "$u->{login} UID: $uid\n" if ($debug > 0);
 
-      my $services = ::get_services(\%user_info, {
+      my $services = $Services->get_services(\%user_info, {
         IPTV_SHOW_FREE_TPS     => 1,
         IPTV_SHOW_ALL_SERVICES => 1,
         SKIP_MODULES           => 'Docs,Sqlcmd,Multidoms,Bsr1000,Paysys'
@@ -1476,7 +1490,7 @@ sub credit_full_set {
         REDUCTION => $u->{reduction}
       );
 
-      my $services = ::get_services(\%user_info, {
+      my $services = $Services->get_services(\%user_info, {
         IPTV_SHOW_FREE_TPS     => 1,
         IPTV_SHOW_ALL_SERVICES => 1,
         SKIP_MODULES           => 'Docs,Sqlcmd,Multidoms,Bsr1000,Paysys'

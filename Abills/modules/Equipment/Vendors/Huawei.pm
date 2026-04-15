@@ -825,12 +825,12 @@ sub _huawei_get_service_ports {
 
   if (_huawei_telnet_open($attr)) {
     my $data = _huawei_telnet_cmd("display service-port port $branch ont $onu_id sort-by vlan", { DEBUG => $debug });
-
+    my $service_port_expr = q{(\d+)\s+(\d+)\s+common\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+(\d+)\s+vlan\s+(\d+)};
     my @list = split('\n', $data || q{});
     my @service_ports = ();
     foreach my $line (@list) {
       if ($pon_type eq 'gpon') {
-        if ($line =~ /(\d+)\s+(\d+)\s+common\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+(\d+)\s+vlan\s+(\d+)/xm) {
+        if ($line =~ /$service_port_expr/xm) {
           push @service_ports, [ 'Service port', "service-port $1 vlan $2 $pon_type $branch ont $onu_id "
             . "gemport $3 multi-service user-vlan $4" ];
         }
@@ -1025,21 +1025,31 @@ sub _huawei_convert_duplex {
 }
 
 #**********************************************************
-=head2 _huawei_convert_speed();
+=head2 huawei_convert_speed($data);
+
+  Arguments:
+    $data
+  Results:
+    $port, $speed
 
 =cut
 #**********************************************************
-sub _huawei_convert_speed {
+sub huawei_convert_speed {
   my ($data) = @_;
 
   my ($oid, $index) = split(/:/x, $data, 2);
   my $port = "$oid";
   my $speed = 'Unknown';
   my %speed_hash = (
-    4 => 'Auto',
-    5 => '10Mb/s',
-    6 => '100Mb/s',
-    7 => '1Gb/s'
+    4  => 'Auto',
+    5  => '10Mb/s',
+    6  => '100Mb/s',
+    7  => '1Gb/s',
+    8  => '10Gb/s',
+    9  => '10Gb/s',
+    10 => '2500M',
+    11 => '2500M',
+    12 => 'invalid'
   );
 
   if ($speed_hash{ $index }) {
@@ -1489,9 +1499,12 @@ sub _huawei_get_onu_config {
       if ($cmd_ =~ /enter/xm) {
         $Telnet->print(" ");
       }
+      elsif ($cmd_ =~ /enable/xm){
+        $Telnet->print("enable");
+        $Telnet->waitfor('/#/i');
+      }
       else {
         $Telnet->print("$cmd_");
-        $Telnet->print(" ");
       }
     }
     my @cmd_result = $Telnet->waitfor('/\(config\)#/');

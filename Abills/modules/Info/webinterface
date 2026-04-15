@@ -171,21 +171,8 @@ sub info_attachment {
 sub info_comments_make {
   my ($comments_list) = @_;
 
-  if ($FORM{UPLOAD_FILE} && $FORM{INFO_COMMENT_ID}) {
-    my $upload_file = $FORM{UPLOAD_FILE};
-
-    $Info->info_documents_list({ FILENAME => $upload_file->{filename}, COMMENT_ID => $FORM{INFO_COMMENT_ID} });
-
-    if (!$Info->{TOTAL} || $Info->{TOTAL} < 1) {
-      $Info->info_document_add({
-        FILE         => $upload_file->{Contents},
-        CONTENT_SIZE => $upload_file->{Size},
-        FILENAME     => $upload_file->{filename},
-        CONTENT_TYPE => $upload_file->{'Content-Type'},
-        COMMENT_ID   => $FORM{INFO_COMMENT_ID}
-      });
-      $html->message('info', $lang{SUCCESS}, $lang{ADDED}) if !_error_show($Info);
-    }
+  if ($FORM{INFO_COMMENT_ID} && grep { /^UPLOAD_FILE/ } keys %FORM) {
+    _info_comment_upload_file(\%FORM);
   }
 
   my @filled_templates = ();
@@ -341,12 +328,22 @@ sub info_comment_del {
 =cut
 #**********************************************************
 sub info_comment_add {
-  if ($FORM{TEXT} eq '') {
+
+  if ($FORM{TEXT} eq '' && !grep { /^UPLOAD_FILE/ } keys %FORM) {
     $html->message('danger', $lang{COMMENTS_PLEASE});
     return 0;
   }
+  if ($FORM{TEXT} eq '' && grep { /^UPLOAD_FILE/ } keys %FORM) {
+    $FORM{TEXT} = ' ';
+  }
 
   $Info->comment_add(\%FORM);
+
+  $FORM{INFO_COMMENT_ID} = $Info->{INSERT_ID} || '';
+
+  if ($FORM{INFO_COMMENT_ID} && grep { /^UPLOAD_FILE/ } keys %FORM) {
+    _info_comment_upload_file(\%FORM);
+  }
 
   if (!$Info->{errno}) {
     print qq/ {"status" : 0} /;
@@ -1109,6 +1106,10 @@ sub info_uni_result_former {
 #**********************************************************
 sub info_edit {
 
+  if ($FORM{INFO_COMMENT_ID} && grep { /^UPLOAD_FILE/ } keys %FORM) {
+    _info_comment_upload_file(\%FORM);
+  }
+
   if ($FORM{chg} || $FORM{SAVE}) {
     if ($FORM{COMMENTS}) {
       $Info->comments_change({
@@ -1222,6 +1223,57 @@ sub info_search {
   }
 
   return \@info;
+}
+
+#**********************************************************
+=head2 _info_comment_upload_file()
+
+  Argument:
+    %FORM
+
+  Return:
+
+=cut
+#**********************************************************
+sub _info_comment_upload_file {
+  my ($attr) = @_;
+  my @files = ();
+
+  return 0 if (!$attr->{INFO_COMMENT_ID});
+
+  if ($attr->{UPLOAD_FILE} && ref  $attr->{UPLOAD_FILE} eq 'HASH') {
+    push @files, $attr->{UPLOAD_FILE};
+  }
+
+  foreach my $key (keys %FORM) {
+    if ($key =~ /^UPLOAD_FILE_\d+$/) {
+      my $file = $attr->{$key};
+      next if (!$file || ref $file ne 'HASH');
+      push @files, $file;
+    }
+  }
+
+  foreach my $file (@files) {
+    next if (!$file->{filename});
+
+    $Info->info_documents_list({
+      FILENAME   => $file->{filename},
+      COMMENT_ID => $attr->{INFO_COMMENT_ID}
+    });
+
+    if (!$Info->{TOTAL} || $Info->{TOTAL} < 1) {
+      $Info->info_document_add({
+        FILE         => $file->{Contents},
+        CONTENT_SIZE => $file->{Size},
+        FILENAME     => $file->{filename},
+        CONTENT_TYPE => $file->{'Content-Type'},
+        COMMENT_ID   => $attr->{INFO_COMMENT_ID}
+      });
+      $html->message('info', $lang{SUCCESS}, "$lang{ATTACHMENT} $lang{ADDED}: $file->{filename}") if !_error_show($Info);
+    }
+  }
+
+  return 1;
 }
 
 1;

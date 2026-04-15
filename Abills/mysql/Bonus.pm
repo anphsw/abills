@@ -719,6 +719,11 @@ SQL
 #**********************************************************
 =head2 service_discount_info($id)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub service_discount_info {
@@ -737,6 +742,11 @@ SQL
 #**********************************************************
 =head2 service_discount_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub service_discount_add {
@@ -749,6 +759,11 @@ sub service_discount_add {
 
 #**********************************************************
 =head2 service_discount_change($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -772,6 +787,11 @@ sub service_discount_change {
 #**********************************************************
 =head2 service_discount_del(attr);
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub service_discount_del {
@@ -784,6 +804,11 @@ sub service_discount_del {
 
 #**********************************************************
 =head2 service_discount_list($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -804,6 +829,9 @@ sub service_discount_list {
     ['COMMENTS',            'STR',    'comments',              1 ],
     ['TP_ID',               'STR',    'tp_id',                 1 ],
     ['ONETIME_PAYMENT_SUM', 'INT',    'onetime_payment_sum',   1 ],
+    ['GID',                 'INT',    'gid',                   1 ],
+    ['START_DATE',          'DATE',   'start_date',            1 ],
+    ['END_DATE',            'DATE',   'end_date',              1 ],
   );
 
   my $WHERE =  $self->search_former($attr, \@search_fields, { WHERE => 1 });

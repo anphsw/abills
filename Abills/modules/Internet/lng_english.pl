@@ -64,5 +64,6 @@ $lang{ERR_CHANGE_TP} = 'Failed to change tp';
 $lang{ERR_NO_TARIFF} = 'No tariff with such id';
 
 $lang{ERR_NO_WRONG_PORT_SELECTED} = 'The wrong port is selected';
+$lang{UNKNOWN_USERS} = 'Unknown users';
 
 1;

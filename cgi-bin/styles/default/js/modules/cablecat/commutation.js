@@ -821,6 +821,9 @@ Link.prototype = {
   },
   render          : function (skip_unnormalize) {
 
+    this.startFiber.color = this.startFiber.color.length === 8 ? this.startFiber.color.slice(0, 7) : this.startFiber.color;
+    this.endFiber.color = this.endFiber.color.length === 8 ? this.endFiber.color.slice(0, 7) : this.endFiber.color;
+
     var color = this.startFiber.color;
 
     var path_attr = {
@@ -1232,8 +1235,8 @@ Drawable.prototype = {
 
     if (this.type === "SPLITTER") {
       if (fiber.marked) {
-          fiber.x = fiber.x + 4;
-          drawLine(fiber.edge, fiber, fiber.color.substring(0, 7));
+          // fiber.x = fiber.x + 4;
+          // drawLine(fiber.edge, fiber, fiber.color.substring(0, 7));
       }
       $(fiber_rect.node)
         .data('fiber-id', this.type + '_' + this.id + '_' + index)
@@ -2441,7 +2444,6 @@ Cross.prototype = $.extend(Cross.prototype, {
         let display_num = fiber_offset + i + 1;
         let actual_fiber_num = fiber_offset + i;
 
-        console.log(this.type + '_' + this.id + '_' + actual_fiber_num)
         this.fibers[i] = $.extend(this.fibers[i] || {}, {
           num: display_num,
           x: fiber_x,

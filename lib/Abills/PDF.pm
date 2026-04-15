@@ -23,7 +23,7 @@ our (
 our $VERSION = 2.00;
 
 my $debug;
-my $IMG_PATH='';
+my $IMG_PATH = '';
 my $CONF;
 
 #my $row_number = 0;
@@ -32,32 +32,29 @@ my $CONF;
 #**********************************************************
 # Create Object
 #**********************************************************
-sub new{
-  my $class = shift;
-  my ($attr) = @_;
+sub new {
+  my ($class, $attr) = @_;
 
   require Abills::HTML;
   Abills::HTML->import();
 
-  $CONF = $attr->{CONF} if (defined( $attr->{CONF} ));
+  $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
-  my $self = { };
-  bless( $self, $class );
+  my $self = {
+    NO_PRINT => $attr->{NO_PRINT},
+    OUTPUT   => q{},
+    CHARSET  => $attr->{CHARSET} || 'windows-1251'
+  };
 
-  if ( $attr->{NO_PRINT} ){
-    $self->{NO_PRINT} = 1;
-  }
+  bless($self, $class);
 
-  $self->{OUTPUT} = '';
-  $self->{CHARSET} = (defined( $attr->{CHARSET} )) ? $attr->{CHARSET} : 'windows-1251';
-
-  if ( $attr->{language} ){
+  if ($attr->{language}) {
     $self->{language} = $attr->{language};
   }
-  elsif ( $COOKIES{language} ){
+  elsif ($COOKIES{language}) {
     $self->{language} = $COOKIES{language};
   }
-  else{
+  else {
     $self->{language} = $CONF->{default_language} || 'english';
   }
 
@@ -69,20 +66,20 @@ sub new{
 
   require PDF::API2;
 
-  if ( defined( $FORM{xml} ) ){
+  if (defined($FORM{xml})) {
     require Abills::XML;
     $self = Abills::XML->new(
       {
         IMG_PATH => $IMG_PATH,
-        NO_PRINT => defined( $attr->{'NO_PRINT'} ) ? $attr->{'NO_PRINT'} : 1
+        NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1
       }
     );
   }
-  else{
+  else {
     $self->{pdf_output} = 1;
   }
 
-  $self->{TYPE}='pdf' if(! $self->{TYPE});
+  $self->{TYPE} = 'pdf' if (!$self->{TYPE});
 
   return $self;
 }
@@ -90,31 +87,23 @@ sub new{
 #**********************************************************
 # form_input
 #**********************************************************
-sub form_input{
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+sub form_input {
+  my ($self, $name, $value, $attr) = @_;
 
   my $type = 'text';
   my $class = '';
   my $ex_params = '';
 
-  if ( $attr->{EX_PARAMS} ){
+  if ($attr->{EX_PARAMS}) {
     $ex_params = $attr->{EX_PARAMS};
   }
 
-  if ( defined( $attr->{TYPE} ) ){
-    $type = $attr->{TYPE};
-    if ( $type =~ /submit/i ){
-      $class = ' class="button"';
-    }
-  }
-
-  my $state = (defined( $attr->{STATE} )) ? ' checked ' : '';
-  my $size = (defined( $attr->{SIZE} )) ? " SIZE=\"$attr->{SIZE}\"" : '';
+  my $state = (defined($attr->{STATE})) ? ' checked ' : '';
+  my $size = (defined($attr->{SIZE})) ? " SIZE=\"$attr->{SIZE}\"" : '';
 
   $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params/>";
 
-  if ( defined( $self->{NO_PRINT} ) && (!defined( $attr->{OUTPUT2RETURN} )) ){
+  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
     $self->{FORM_INPUT} = '';
   }
@@ -125,29 +114,28 @@ sub form_input{
 #**********************************************************
 # form_main
 #**********************************************************
-sub form_main{
-  my $self = shift;
-  my ($attr) = @_;
+sub form_main {
+  my ($self, $attr) = @_;
 
   my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
   $self->{FORM} = "<FORM ";
   $self->{FORM} .= "name=\"$attr->{NAME}\" " if ($attr->{NAME});
   $self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
 
-  if ( defined( $attr->{HIDDEN} ) ){
+  if (defined($attr->{HIDDEN})) {
     my $H = $attr->{HIDDEN};
-    while (my ($k, $v) = each( %{$H} )) {
+    while (my ($k, $v) = each(%{$H})) {
       $self->{FORM} .= "<input type=\"hidden\" name=\"$k\" value=\"$v\">\n";
     }
   }
 
-  if ( defined( $attr->{CONTENT} ) ){
+  if (defined($attr->{CONTENT})) {
     $self->{FORM} .= $attr->{CONTENT};
   }
 
-  if ( defined( $attr->{SUBMIT} ) ){
+  if (defined($attr->{SUBMIT})) {
     my $H = $attr->{SUBMIT};
-    while (my ($k, $v) = each( %{$H} )) {
+    while (my ($k, $v) = each(%{$H})) {
       $self->{FORM} .= "<input type=\"submit\" name=\"$k\" value=\"$v\" class=\"button\">\n";
     }
   }
@@ -157,7 +145,7 @@ sub form_main{
   if ($attr->{OUTPUT2RETURN}) {
     return $self->{FORM};
   }
-  elsif ( defined( $self->{NO_PRINT} ) ){
+  elsif (defined($self->{NO_PRINT})) {
     $self->{OUTPUT} .= $self->{FORM};
     $self->{FORM} = '';
   }
@@ -168,61 +156,59 @@ sub form_main{
 #**********************************************************
 #
 #**********************************************************
-sub form_select{
-  my $self = shift;
-  my ($name, $attr) = @_;
+sub form_select {
+  my ($self, $name, $attr) = @_;
 
-  my $ex_params = (defined( $attr->{EX_PARAMS} )) ? $attr->{EX_PARAMS} : '';
+  my $ex_params = (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
 
   $self->{SELECT} = "<select name=\"$name\" $ex_params>\n";
 
-  if ( defined( $attr->{SEL_OPTIONS} ) ){
+  if (defined($attr->{SEL_OPTIONS})) {
     my $H = $attr->{SEL_OPTIONS};
     while (my ($k, $v) = each %{$H}) {
       $self->{SELECT} .= "<option value='$k'";
-      $self->{SELECT} .= ' selected' if (defined( $attr->{SELECTED} ) && $k eq $attr->{SELECTED});
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
       $self->{SELECT} .= ">$v\n";
     }
   }
 
-  if ( defined( $attr->{SEL_ARRAY} ) ){
+  if (defined($attr->{SEL_ARRAY})) {
     my $H = $attr->{SEL_ARRAY};
     my $i = 0;
-    foreach my $v ( @{$H} ){
-      my $id = (defined( $attr->{ARRAY_NUM_ID} )) ? $i : $v;
+    foreach my $v (@{$H}) {
+      my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
       $self->{SELECT} .= ' selected' if ($attr->{SELECTED} && (($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED})));
       $self->{SELECT} .= ">$v\n";
       $i++;
     }
   }
-  elsif ( defined( $attr->{SEL_MULTI_ARRAY} ) ){
+  elsif (defined($attr->{SEL_MULTI_ARRAY})) {
     my $key = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
     my $H = $attr->{SEL_MULTI_ARRAY};
 
-    foreach my $v ( @{$H} ){
+    foreach my $v (@{$H}) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
-      $self->{SELECT} .= ' selected' if (defined( $attr->{SELECTED} ) && $v->[$key] eq $attr->{SELECTED});
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $v->[$key] eq $attr->{SELECTED});
       $self->{SELECT} .= '>';
       $self->{SELECT} .= "$v->[$key]:" if (!$attr->{NO_ID});
       $self->{SELECT} .= "$v->[$value]\n";
     }
   }
-  elsif ( defined( $attr->{SEL_HASH} ) ){
+  elsif (defined($attr->{SEL_HASH})) {
     my @H = ();
 
-    if ( $attr->{SORT_KEY} ){
-      @H = sort keys %{ $attr->{SEL_HASH} };
+    if ($attr->{SORT_KEY}) {
+      @H = sort keys %{$attr->{SEL_HASH}};
     }
-    else{
-      @H = keys %{ $attr->{SEL_HASH} };
+    else {
+      @H = keys %{$attr->{SEL_HASH}};
     }
 
-    foreach my $k ( @H ){
+    foreach my $k (@H) {
       $self->{SELECT} .= "<option value='$k'";
-      $self->{SELECT} .= ' selected' if (defined( $attr->{SELECTED} ) && $k eq $attr->{SELECTED});
-
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
       $self->{SELECT} .= ">";
       $self->{SELECT} .= "$k:" if (!$attr->{NO_ID});
       $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";
@@ -239,28 +225,27 @@ sub form_select{
 #
 #**********************************************************
 sub menu {
-  my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  my ($self, $menu_items, $menu_args, $permissions, $attr) = @_;
 
   my $menu_navigator = '';
   my $root_index = 0;
   my %tree = ();
   my %menu = ();
   my $sub_menu_array;
-  my $EX_ARGS = (defined( $attr->{EX_ARGS} )) ? $attr->{EX_ARGS} : '';
+  my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
 
   # make navigate line
-  if ( $index > 0 ){
+  if ($index > 0) {
     $root_index = $index;
     my $h = $menu_items->{$root_index};
 
-    while (my ($par_key, $name) = each( %{$h} )) {
+    while (my ($par_key, $name) = each(%{$h})) {
 
-      my $ex_params = (defined( $menu_args->{$root_index} ) && defined( $FORM{ $menu_args->{$root_index} } )) ? '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
+      my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{ $menu_args->{$root_index} })) ? '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
 
-      $menu_navigator = " " . $self->button( $name, "index=$root_index$ex_params" ) . '/' . $menu_navigator;
+      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
       $tree{$root_index} = 1;
-      if ( $par_key > 0 ){
+      if ($par_key > 0) {
         $root_index = $par_key;
         $h = $menu_items->{$par_key};
       }
@@ -268,28 +253,27 @@ sub menu {
   }
 
   $FORM{root_index} = $root_index;
-  if ( $root_index > 0 ){
+  if ($root_index > 0) {
     my $ri = $root_index - 1;
-    if ( defined( $permissions ) && (!defined( $permissions->{$ri} )) ){
+    if (defined($permissions) && (!defined($permissions->{$ri}))) {
       $self->{ERROR} = "Access deny";
       return '', '';
     }
   }
 
   my @s =
-    sort { length( $a ) <=> length( $b ) || $a cmp $b } keys %{$menu_items};
+    sort {length($a) <=> length($b) || $a cmp $b} keys %{$menu_items};
 
-  foreach my $ID ( @s ){
+  foreach my $ID (@s) {
     my $VALUE_HASH = $menu_items->{$ID};
-    foreach my $parent ( keys %{$VALUE_HASH} ){
-      push( @{ $menu{$parent} }, "$ID:$VALUE_HASH->{$parent}" );
+    foreach my $parent (keys %{$VALUE_HASH}) {
+      push(@{$menu{$parent}}, "$ID:$VALUE_HASH->{$parent}");
     }
   }
 
   my @last_array = ();
 
-  my $menu_text = "<div class='menu'>
- <table border='0' width='100%'>\n";
+  my $menu_text = "[START_MENU]";
 
   my $level = 0;
   my $prefix = '';
@@ -297,124 +281,51 @@ sub menu {
   my $parent = 0;
 
   label:
-  $sub_menu_array = \@{ $menu{$parent} };
+  $sub_menu_array = \@{$menu{$parent}};
 
   while (my $sm_item = pop @{$sub_menu_array}) {
-    my ($ID, $name) = split( /:/, $sm_item, 2 );
-    next if ((!defined( $attr->{ALL_PERMISSIONS} )) && (!$permissions->{ $ID - 1 }) && $parent == 0);
+    my ($ID, $name) = split(/:/x, $sm_item, 2);
+    next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $ID - 1 }) && $parent == 0);
 
-    $name = (defined( $tree{$ID} )) ? "<b>$name</b>" : "$name";
-    if ( !defined( $menu_args->{$ID} ) || (defined( $menu_args->{$ID} ) && defined( $FORM{ $menu_args->{$ID} } )) ){
+    $name = (defined($tree{$ID})) ? "<b>$name</b>" : "$name";
+    if (!defined($menu_args->{$ID}) || (defined($menu_args->{$ID}) && defined($FORM{ $menu_args->{$ID} }))) {
       my $ext_args = "$EX_ARGS";
-      if ( defined( $menu_args->{$ID} ) ){
+      if (defined($menu_args->{$ID})) {
         $ext_args = "&$menu_args->{$ID}=$FORM{$menu_args->{$ID}}";
-        $name = "<b>$name</b>" if ($name !~ /<b>/);
+        $name = "<b>$name</b>" if ($name !~ /<b>/xm);
       }
 
-      my $link = $self->button( $name, "index=$ID$ext_args" );
-      if ( $parent == 0 ){
+      my $link = $self->button($name, "index=$ID$ext_args");
+      if ($parent == 0) {
         $menu_text .= "<tr><td bgcolor=\"$_COLORS[3]\" align=left>$prefix$link</td></tr>\n";
       }
-      elsif ( defined( $tree{$ID} ) ){
+      elsif (defined($tree{$ID})) {
         $menu_text .= "<tr><td bgcolor=\"$_COLORS[2]\" align=left>$prefix>$link</td></tr>\n";
       }
-      else{
+      else {
         $menu_text .= "<tr><td bgcolor=\"$_COLORS[1]\">$prefix$link</td></tr>\n";
       }
     }
-    else{
 
-      #next;
-      #$link = "<a href='$SELF_URL?index=$ID&$menu_args->{$ID}'>$name</a>";
-    }
-
-    if ( defined( $tree{$ID} ) ){
+    if (defined($tree{$ID})) {
       $level++;
       $prefix .= "&nbsp;&nbsp;&nbsp;";
       push @last_array, $parent;
       $parent = $ID;
-      $sub_menu_array = \@{ $menu{$parent} };
+      $sub_menu_array = \@{$menu{$parent}};
     }
   }
 
-  if ( $#last_array > -1 ){
+  if ($#last_array > -1) {
     $parent = pop @last_array;
-
-    #print "POP/$#last_array/$parent/<br>\n";
     $level--;
-    $prefix = substr( $prefix, 0, $level * 6 * 3 );
+    $prefix = substr($prefix, 0, $level * 6 * 3);
     goto label;
   }
 
-  #  }
-
-  $menu_text .= "</table>\n</div>\n";
+  $menu_text .= "[END_MENU]\n";
 
   return ($menu_navigator, $menu_text);
-}
-
-#**********************************************************
-# menu($type, $main_para,_name, $ex_params, \%menu_hash_ref);
-#
-# $type
-#   0 - horizontal
-#   1 - vertical
-# $ex_params - extended params
-# $mp_name - Menu parameter name
-# $params - hash of menu items
-# menu($type, $mp_name, $ex_params, $menu, $sub_menu, $attr);
-#**********************************************************
-sub menu2{
-  my $self = shift;
-  my ($type, $mp_name, $ex_params, $menu) = @_;
-  my @menu_captions = sort keys %{$menu};
-
-  $self->{menu} = "<TABLE width=\"100%\">\n";
-
-  if ( $type == 1 ){
-
-    foreach my $line ( @menu_captions ){
-      my (undef, $file, $k) = split( /:/, $line );
-      my $link = ($file eq '') ? $SELF_URL : $file;
-      $link .= '?';
-      $link .= "$mp_name=$k&" if ($k ne '');
-
-      #    if ((defined($FORM{$mp_name}) && $FORM{$mp_name} eq $k) && $file eq '') {
-      if ( (defined( $FORM{root_index} ) && $FORM{root_index} eq $k) && $file eq '' ){
-        $self->{menu} .= "$menu->{$line} [$link$ex_params]\n";
-        #while (my ($k, $v) = each %{$sub_menu}) {
-          #$self->{menu} .= "<tr><td bgcolor=\"$lang{COLORS}[1]\">&nbsp;&nbsp;&nbsp;<a href='$SELF_URL?index=$k'>$v</a></td></TR>\n";
-        #}
-      }
-      else{
-        $self->{menu} .= "<tr><td><a href='$link'>" . $menu->{"$line"} . "</a></td></TR>\n";
-      }
-    }
-  }
-  else{
-    $self->{menu} .= "<tr bgcolor=\"$_COLORS[0]\">\n";
-
-    foreach my $line ( @menu_captions ){
-      my (undef, $file, $k) = split( /:/, $line );
-      my $link = ($file eq '') ? "$SELF_URL" : "$file";
-      $link .= '?';
-      $link .= "$mp_name=$k&" if ($k ne '');
-
-      $self->{menu} .= "<th";
-      if ( $FORM{$mp_name} eq $k && $file eq '' ){
-        $self->{menu} .= " bgcolor=\"$_COLORS[3]\"><a href='$link$ex_params'>" . $menu->{"$line"} . "</a></th>";
-      }
-      else{
-        $self->{menu} .= "><a href='$link'>" . $menu->{"$line"} . "</a></th>\n";
-      }
-
-    }
-    $self->{menu} .= "</TR>\n";
-  }
-
-  $self->{menu} .= "</TABLE>\n";
-
-  return $self->{menu};
 }
 
 #**********************************************************
@@ -425,30 +336,30 @@ sub menu2{
       NAME - Filename
 
   Returns:
+    $self->{header}
 
 =cut
 #**********************************************************
-sub pdf_header{
-  my $self = shift;
-  my ($attr) = @_;
+sub pdf_header {
+  my ($self, $attr) = @_;
 
   my $filename = 'file_name';
 
-  if ( $attr->{NAME} ){
-    if ( $attr->{NAME} =~ /\/([a-z0-9\_\.]+)$/i ){
+  if ($attr->{NAME}) {
+    if ($attr->{NAME} =~ /\/([a-z0-9\_\.]+)$/xmi) {
       $filename = $1;
     }
-    else{
+    else {
       $filename = $attr->{NAME} . '.pdf';
     }
   }
-  else{
-    $filename = int( rand( 32768 ) ) . '.pdf';
+  else {
+    $filename = int(rand(32768)) . '.pdf';
   }
 
   $self->{header} = '';
 
-  if ( $FORM{DEBUG} ){
+  if ($FORM{DEBUG}) {
     $self->{header} = "Content-Type: text/plain\n\n";
     $self->{debug} = 1;
   }
@@ -463,18 +374,21 @@ sub pdf_header{
 #**********************************************************
 =head2 header($attr) - header off main page
 
+  Arguments:
+    $attr
+  Results:
+    $self->{header}
+
 =cut
 #**********************************************************
-sub header{
+sub header {
   my $self = shift;
-  #my ($attr) = @_;
 
   $self->{header} = '';
 
-  if ( $FORM{DEBUG} ){
+  if ($FORM{DEBUG}) {
     $self->{header} = "Content-Type: text/plain\n\n";
     $self->{debug} = 1;
-
     return $self->{header};
   }
 
@@ -486,43 +400,42 @@ sub header{
 
 =cut
 #**********************************************************
-sub table{
-  my $proto = shift;
-  my $class = ref( $proto ) || $proto;
-  my $parent = ref( $proto ) && $proto;
+sub table {
+  my ($proto, $attr) = @_;
+  my $class = ref($proto) || $proto;
+  my $parent = ref($proto) && $proto;
   my $self;
 
-  $self = { };
+  $self = {
+    PDF       => $parent,
+    prototype => $proto,
+    NO_PRINT  => $proto->{NO_PRINT},
+    rows      => q{}
+  };
+
   bless($self, $class);
 
-  $self->{PDF}      = $parent;
-  $self->{prototype}= $proto;
-  $self->{NO_PRINT} = $proto->{NO_PRINT};
-
-  my ($attr) = @_;
-  $self->{rows} = '';
-
-  my $width = (defined( $attr->{width} )) ? "width=\"$attr->{width}\"" : '';
+  my $width = (defined($attr->{width})) ? "width=\"$attr->{width}\"" : '';
   #my $border = (defined( $attr->{border} )) ? "border=\"$attr->{border}\"" : '';
-  my $table_class = (defined( $attr->{class} )) ? "class=\"$attr->{class}\"" : '';
+  my $table_class = (defined($attr->{class})) ? "class=\"$attr->{class}\"" : '';
 
-  if ( defined( $attr->{rowcolor} ) ){
+  if (defined($attr->{rowcolor})) {
     $self->{rowcolor} = $attr->{rowcolor};
   }
-  else{
+  else {
     $self->{rowcolor} = undef;
   }
 
-  if ( defined( $attr->{rows} ) ){
+  if (defined($attr->{rows})) {
     my $rows = $attr->{rows};
-    foreach my $line ( @{$rows} ){
-      $self->addrow( @{$line} );
+    foreach my $line (@{$rows}) {
+      $self->addrow(@{$line});
     }
   }
 
   $self->{table} = "<TABLE $width cellspacing=\"0\" cellpadding=\"0\" border=\"0\"$table_class>\n";
 
-  if ( defined( $attr->{caption} ) ){
+  if (defined($attr->{caption})) {
     $self->{table} .= "$attr->{caption}\n";
   }
 
@@ -531,42 +444,25 @@ sub table{
   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[4]\">
                <TABLE width=\"100%\" cellspacing=\"1\" cellpadding=\"0\" border=\"0\">\n";
 
-  if ( defined( $attr->{title} ) ){
+  if (defined($attr->{title})) {
     $SORT = $LIST_PARAMS{SORT};
-    $self->{table} .= $self->table_title( $SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs} );
+    $self->{table} .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
   }
-  elsif ( defined( $attr->{title_plain} ) ){
-    $self->{table} .= $self->table_title_plain( $attr->{title_plain} );
+  elsif (defined($attr->{title_plain})) {
+    $self->{table} .= $self->table_title_plain($attr->{title_plain});
   }
 
-#  if ( defined( $attr->{cols_align} ) ){
-#    $self->{table} .= "<COLGROUP>";
-#    my $cols_align = $attr->{cols_align};
-#    my $i = 0;
-#    foreach my $line ( @{$cols_align} ){
-#      $class = '';
-#      if ( $line =~ /:/ ){
-#        ($line, $class) = split( /:/, $line, 2 );
-#        $class = " class=\"$class\"";
-#      }
-#      $width = (defined( $attr->{cols_width} ) && defined( @{ $attr->{cols_width} }[$i] )) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
-#      $self->{table} .= " <COL align=\"$line\"$class$width>\n";
-#      $i++;
-#    }
-#    $self->{table} .= "</COLGROUP>\n";
-#  }
-
-  if ( $attr->{pages} ){
+  if ($attr->{pages}) {
     my $op;
-    if ( $FORM{index} ){
+    if ($FORM{index}) {
       $op = "index=$FORM{index}";
     }
 
     my %ATTR = ();
-    if ( defined( $attr->{recs_on_page} ) ){
+    if (defined($attr->{recs_on_page})) {
       $ATTR{recs_on_page} = $attr->{recs_on_page};
     }
-    $self->{pages} = $self->pages( $attr->{pages}, "$op$attr->{qs}", { %ATTR } );
+    $self->{pages} = $self->pages($attr->{pages}, "$op$attr->{qs}", { %ATTR });
   }
 
   return $self;
@@ -575,12 +471,8 @@ sub table{
 #**********************************************************
 # addrows()
 #**********************************************************
-sub addrow{
+sub addrow {
   my $self = shift;
-  #my (@row) = @_;
-
-  #foreach my $val ( @row ){
-  #}
 
   return $self->{rows};
 }
@@ -588,12 +480,11 @@ sub addrow{
 #**********************************************************
 # addrows()
 #**********************************************************
-sub addtd{
-  my $self = shift;
-  my (@row) = @_;
+sub addtd {
+  my ($self, @row) = @_;
 
   $self->{rows} .= "<tr>";
-  foreach my $val ( @row ){
+  foreach my $val (@row) {
     $self->{rows} .= "$val";
   }
 
@@ -606,9 +497,7 @@ sub addtd{
 # Extendet add rows
 # th()
 #**********************************************************
-sub th{
-  #my $self = shift;
-  #my ($value, $attr) = @_;
+sub th {
 
   return '';
 }
@@ -617,7 +506,7 @@ sub th{
 # Extendet add rows
 # td()
 #**********************************************************
-sub td{
+sub td {
   #my $self = shift;
   #my ($value, $attr) = @_;
 
@@ -629,7 +518,7 @@ sub td{
 
 =cut
 #**********************************************************
-sub table_title_plain{
+sub table_title_plain {
   #my $self = shift;
   #my ($caption) = @_;
 
@@ -637,54 +526,28 @@ sub table_title_plain{
 }
 
 #**********************************************************
-# Show table column  titles with wort derectives
-# Arguments
-# table_title($sort, $desc, $pg, $get_op, $caption, $qs);
-# $sort - sort column
-# $desc - DESC / ASC
-# $pg - page id
-# $caption - array off caption
+=head2 table_title($sort, $desc, $pg, $caption, $qs) - Show table column  titles with wort derectives
+
+   Arguments
+     $sort - sort column
+     $desc - DESC / ASC
+     $pg - page id
+     $caption - array off caption
+
+   Returns:
+     $table_title
+
+=cut
 #**********************************************************
-sub table_title{
-  my $self = shift;
-  my ($sort, $desc, $pg, $caption, $qs) = @_;
-  my ($op);
-  my $img = '';
+sub table_title {
+  my ($self, $sort, $desc, $pg, $caption, $qs) = @_;
 
   $self->{table_title} = "<tr>";
 
   my $i = 1;
-  foreach my $line ( @{$caption} ){
+  foreach my $line (@{$caption}) {
     $self->{table_title} .= "<th class='table_title'>$line ";
-    if ( $line ne '-' ){
-      if ( $sort != $i ){
-        $img = '';
-      }
-      elsif ( $desc eq 'DESC' ){
-        $img = '';
-        $desc = '';
-      }
-      elsif ( $sort > 0 ){
-        $img = '';
-        $desc = 'DESC';
-      }
-
-      if ( $FORM{index} ){
-        $op = "index=$FORM{index}";
-      }
-
-      if ( $FORM{index} ){
-        $op = "index=$FORM{index}";
-      }
-
-      $self->{table_title} .= $self->button(
-        "<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"d-print-none\">"
-        , "$op$qs&pg=$pg&sort=$i&desc=$desc" );
-    }
-    else{
-      $self->{table_title} .= "$line";
-    }
-
+    $self->{table_title} .= "$line";
     $self->{table_title} .= "</th>\n";
     $i++;
   }
@@ -696,20 +559,24 @@ sub table_title{
 #**********************************************************
 =head2 show($attr) - Table show
 
+  Arguments:
+    $attr
+  Results:
+    $self->{show}
+
 =cut
 #**********************************************************
-sub show{
-  my $self = shift;
-  my ($attr) = shift;
+sub show {
+  my ($self, $attr) = shift;
 
   $self->{show} = $self->{table};
   $self->{show} .= $self->{rows};
 
-  if ( defined( $self->{pages} ) ){
+  if (defined($self->{pages})) {
     $self->{show} = $self->{pages} . $self->{show} . $self->{pages};
   }
 
-  if ( (defined( $self->{NO_PRINT} )) && (!defined( $attr->{OUTPUT2RETURN} )) ){
+  if ((defined($self->{NO_PRINT})) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{prototype}->{OUTPUT} .= $self->{show};
     $self->{show} = '';
   }
@@ -720,30 +587,37 @@ sub show{
 #**********************************************************
 =head2 link_former($params)
 
+  Arguments:
+    params
+  Results:
+    $self
+
 =cut
 #**********************************************************
-sub link_former{
-  my ($self) = shift;
-  my ($params) = @_;
-
-  return $params;
+sub link_former {
+  return @_[1];
 }
 
 #**********************************************************
-#
-# del_button($op, $del, $message, $attr)
+=head2 del_button($op, $del, $message, $attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self->{button}
+
+=cut
 #**********************************************************
-sub button{
-  my $self = shift;
-  my ($name, $params, $attr) = @_;
+sub button {
+  my ($self, $name, $params, $attr) = @_;
 
   my $ex_attr = ($attr->{ex_params}) ? $attr->{ex_params} : '';
 
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
-  $params = $attr->{JAVASCRIPT} if (defined( $attr->{JAVASCRIPT} ));
-  $params = $self->link_former( $params );
+  $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
+  $params = $self->link_former($params);
 
-  $ex_attr = " TITLE='$attr->{TITLE}'" if (defined( $attr->{TITLE} ));
+  $ex_attr = " TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   my $button = "$name [$params]";
 
   return $button;
@@ -751,23 +625,20 @@ sub button{
 
 #**********************************************************
 =head2 message($self, $type, $caption, $message) - Show message box
+
    $type - info, err
 
 =cut
 #**********************************************************
-sub message{
-  #my $self = shift;
-  #my ($type, $caption, $message, $head, $attr) = @_;
-
+sub message {
   return '';
 }
 
 #**********************************************************
 # Preformated test
 #**********************************************************
-sub pre{
-  my $self = shift;
-  my ($message) = @_;
+sub pre {
+  my ($self, $message) = @_;
 
   return $message;
 }
@@ -777,9 +648,8 @@ sub pre{
 
 =cut
 #**********************************************************
-sub b{
-  my $self = shift;
-  my ($text) = @_;
+sub b {
+  my ($self, $text) = @_;
 
   return $text;
 }
@@ -789,7 +659,7 @@ sub b{
 
 =cut
 #**********************************************************
-sub color_mark{
+sub color_mark {
   #my $self = shift;
   my ($message) = @_;
 
@@ -800,11 +670,10 @@ sub color_mark{
 # Make pages and count total records
 # pages($count, $argument)
 #**********************************************************
-sub pages{
-  my $self = shift;
-  my ($count, $argument, $attr) = @_;
+sub pages {
+  my ($self, $count, $argument, $attr) = @_;
 
-  if ( defined( $attr->{recs_on_page} ) ){
+  if (defined($attr->{recs_on_page})) {
     $PAGE_ROWS = $attr->{recs_on_page};
   }
 
@@ -815,8 +684,8 @@ sub pages{
 
   return $self->{pages} if ($count < $PAGE_ROWS);
 
-  for ( my $i = $begin; ($i <= $count && $i < $PG + $PAGE_ROWS * 10); $i += $PAGE_ROWS ){
-    $self->{pages} .= ($i == $PG) ? "<b>$i</b>:: " : $self->button( $i, "$argument&pg=$i" ) . ':: ';
+  for (my $i = $begin; ($i <= $count && $i < $PG + $PAGE_ROWS * 10); $i += $PAGE_ROWS) {
+    $self->{pages} .= ($i == $PG) ? "<b>$i</b>:: " : $self->button($i, "$argument&pg=$i") . ':: ';
   }
 
   return $self->{pages};
@@ -827,7 +696,7 @@ sub pages{
 
 =cut
 #**********************************************************
-sub date_fld2{
+sub date_fld2 {
   my $self = shift;
 
   return q{};
@@ -836,19 +705,19 @@ sub date_fld2{
 #**********************************************************
 =head2 get_pdf($filename)
 
- template
- variables_ref
- atrr [EX_VARIABLES]
+  Arguments:
+    $filename
+  Results:
+    $pdf_object
 
 =cut
 #**********************************************************
-sub get_pdf{
-  my $self = shift;
-  my ($filename) = @_;
+sub get_pdf {
+  my ($self, $filename) = @_;
 
   $filename = $filename . '.pdf';
   $self->{FILENAME} = $filename;
-  my $pdf = PDF::API2->open( $filename );
+  my $pdf = PDF::API2->open($filename);
 
   return $pdf;
 }
@@ -871,14 +740,13 @@ sub get_pdf{
 =cut
 #**********************************************************
 sub tpl_show {
-  my $self = shift;
-  my ($filename, $variables_ref, $attr) = @_;
+  my ($self, $filename, $variables_ref, $attr) = @_;
 
   if ($attr->{TPL} && $attr->{MODULE}) {
     $filename = $self->get_tpl($attr->{TPL}, $attr->{MODULE}, { pdf => 1 });
   }
 
-  $filename =~ s/\.[a-z]{3}$//;
+  $filename =~ s/\.[a-z]{3}$//xm;
   my $tpl_describe = tpl_describe($filename, { debug => $self->{debug}, SIG_NAME => ($attr->{SIG_NAME} || 'sig') });
   $filename = $filename . '.pdf';
 
@@ -895,7 +763,7 @@ sub tpl_show {
 
   print "Tpl File: $filename\n" if ($self->{debug});
 
-  my $moddate .= '';
+  my $moddate = '';
   $attr->{DOCS_IN_FILE} = 0 if (!$attr->{DOCS_IN_FILE});
 
   $pdf->info(
@@ -916,7 +784,7 @@ sub tpl_show {
   my $font;
   my $multi_recs = 0;
 
-  if ($encode =~ /utf-8/) {
+  if ($encode =~ /utf\-8/xm) {
     $font_name = $CONF->{TPL_DIR} . '/fonts/FreeSerif.ttf';
 
     eval {$font = $pdf->ttfont($font_name, -encode => "$encode")};
@@ -939,8 +807,8 @@ sub tpl_show {
   for my $key (sort keys %{$tpl_describe}) {
     my @patterns = ();
 
-    if ($tpl_describe->{$key}{PARAMS} =~ /\((.+)\)/) {
-      @patterns = split(/,/, $1);
+    if ($tpl_describe->{$key}{PARAMS} =~ /\((.+)\)/xm) {
+      @patterns = split(/\,/x, $1);
     }
     else {
       push @patterns, $tpl_describe->{$key}{PARAMS};
@@ -957,12 +825,12 @@ sub tpl_show {
     for (my $i = $start_position_num; $i <= $#patterns; $i++) {
       my $pattern = $patterns[$i];
 
-      $x = $1 if ($pattern =~ /x=(\d+)/);
-      $y = $1 if ($pattern =~ /y=(\d+)/);
+      $x = $1 if ($pattern =~ /x=(\d+)/xm);
+      $y = $1 if ($pattern =~ /y=(\d+)/xm);
       next if ($x == 0 && $y == 0);
 
       my $text = '';
-      $doc_page = ($pattern =~ /page=(\d+)/) ? $1 : 1;
+      $doc_page = ($pattern =~ /page=(\d+)/xm) ? $1 : 1;
       my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * int($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int(($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + (($multi_doc_count) ? $page_count * $multi_doc_count - $page_count : 0);
       my $page = $pdf->openpage($work_page);
       if (!$page) {
@@ -971,7 +839,7 @@ sub tpl_show {
       }
 
       # Make img_insertion
-      if ($pattern =~ /img=([0-9a-zA-Z_\.\/]+)/) {
+      if ($pattern =~ /img=([0-9a-zA-Z_\.\/]+)/xm) {
         my $img_file = $1;
         if (!-f "$CONF->{TPL_DIR}/$img_file") {
           $text = "Img file not exists '$CONF->{TPL_DIR}/$img_file'\n";
@@ -979,12 +847,12 @@ sub tpl_show {
         }
         else {
           print "make image '$CONF->{TPL_DIR}/$img_file'\n" if ($debug > 0);
-          my $img_height = ($pattern =~ /img_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-          my $img_width = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
+          my $img_height = ($pattern =~ /img_height=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
+          my $img_width = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
 
           my $gfx = $page->gfx;
           my $img;
-          if ($pattern =~ /img_type=png/) {
+          if ($pattern =~ /img_type=png/xm) {
             $img = $pdf->image_png("$CONF->{TPL_DIR}/$img_file");
           }
           else {
@@ -998,16 +866,16 @@ sub tpl_show {
       }
 
       $align = '';
-      $text_file = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/);
-      $font_size = $1 if ($pattern =~ /font_size=(\d+)/);
-      $font_color = $1 if ($pattern =~ /font_color=(\S+)/);
-      $encode = $1 if ($pattern =~ /encode=(\S+)/);
-      $align = $1 if ($pattern =~ /align=([a-z]+)/i);
+      $text_file = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/xm);
+      $font_size = $1 if ($pattern =~ /font_size=(\d+)/xm);
+      $font_color = $1 if ($pattern =~ /font_color=(\S+)/xm);
+      $encode = $1 if ($pattern =~ /encode=(\S+)/xm);
+      $align = $1 if ($pattern =~ /align=([a-z]+)/xmi);
 
-      if ($pattern =~ /font_name=(\S+)/) {
+      if ($pattern =~ /font_name=(\S+)/xm) {
         $font_name = $1;
-        if ($font_name =~ /\.ttf$/) {
-          if ($font_name =~ /^\// && !-f $font_name) {
+        if ($font_name =~ /\.ttf$/xm) {
+          if ($font_name =~ /^\//xm && !-f $font_name) {
             print "Content-Type: text/plain\n\n";
             print "Font '$font_name' not found\n";
           }
@@ -1032,15 +900,15 @@ sub tpl_show {
       if (defined($variables_ref->{$key})) {
         $text = $variables_ref->{$key};
         if ($tpl_describe->{$key}->{EXPR}) {
-          my @expr_arr = split(/\//, $tpl_describe->{$key}->{EXPR}, 2);
+          my @expr_arr = split(/\//x, $tpl_describe->{$key}->{EXPR}, 2);
           print "Expration: $key >> $text=~s/$expr_arr[0]/$expr_arr[1]/;\n" if ($attr->{debug});
-          $text =~ s/$expr_arr[0]/$expr_arr[1]/g;
+          $text =~ s/$expr_arr[0]/$expr_arr[1]/xg;
         }
       }
 
       if ($text_file ne '') {
-        my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-        my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
+        my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
+        my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
 
         if (!-f "$CONF->{TPL_DIR}/$text_file") {
           $text = "Text file not exists '$CONF->{TPL_DIR}/$text_file'\n";
@@ -1053,7 +921,7 @@ sub tpl_show {
           }
           close($fh);
 
-          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
+          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/xm) ? $1 : 15;
           $txt->lead($string_height);
           $txt->paragraph(
             $content, $text_width, $text_height,
@@ -1064,7 +932,7 @@ sub tpl_show {
         }
       }
 
-      if ($pattern =~ /step=(\S+)/) {
+      if ($pattern =~ /step=(\S+)/xm) {
         my $step = $1;
         my $len = length($pattern);
         for (my $c = 0; $c <= $len; $c++) {
@@ -1075,9 +943,9 @@ sub tpl_show {
       }
       else {
         if ($align) {
-          my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-          my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
+          my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
+          my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/xm) ? $1 : 100;
+          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/xm) ? $1 : 15;
           $txt->lead($string_height);
           #my ($idt, $y2) =
           $txt->paragraph(
@@ -1103,7 +971,7 @@ sub tpl_show {
       my $outfile = $attr->{SAVE_AS};
       my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
 
-      $outfile =~ s/\.pdf/$filenum\.pdf/;
+      $outfile =~ s/\.pdf/$filenum\.pdf/x;
 
       print "Save to: $outfile\n" if ($self->{debug});
 
@@ -1112,12 +980,12 @@ sub tpl_show {
 
       $pdf = PDF::API2->open($filename);
 
-      if ($encode =~ /utf-8/) {
+      if ($encode =~ /utf\-8/xm) {
         $font_name = '/usr/abills/Abills/templates/fonts/FreeSerif.ttf';
         $font = $pdf->ttfont($font_name, -encode => "$encode");
       }
       else {
-         $font = $pdf->corefont($font_name, -encode => "$encode");
+        $font = $pdf->corefont($font_name, -encode => "$encode");
       }
     }
 
@@ -1177,16 +1045,18 @@ sub tpl_show {
 #  %ENV      - Enviropment
 #
 #**********************************************************
-sub test{
+sub test {
   my $output = '';
   while (my ($k, $v) = each %FORM) {
     $output .= "$k | $v\n" if ($k ne '__BUFFER');
-
   }
   $output .= "\n";
+
   while (my ($k, $v) = each %COOKIES) {
     $output .= "$k | $v\n";
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -1198,7 +1068,7 @@ sub test{
 
 =cut
 #**********************************************************
-sub tpl_describe{
+sub tpl_describe {
   my ($tpl_name, $attr) = @_;
 
   my $filename = $tpl_name . '.dsc';
@@ -1207,25 +1077,25 @@ sub tpl_describe{
   #print $tpl_name.'.dsc';
   my %TPL_DESCRIBE = ();
 
-  if ( !-f $filename ){
+  if (!-f $filename) {
     return \%TPL_DESCRIBE;
   }
 
-  open( my $fh, '<', $filename ) or die "Can't open file '$filename' $!\n";
+  open(my $fh, '<', $filename) or die "Can't open file '$filename' $!\n";
   while (<$fh>) {
     $content .= $_;
   }
-  close( $fh );
+  close($fh);
 
-  my @rows = split( /[\r]{0,1}\n/, $content );
+  my @rows = split(/[\r]{0,1}\n/xm, $content);
 
-  foreach my $line ( @rows ){
-    if ( $line =~ /^#/ ){
+  foreach my $line (@rows) {
+    if ($line =~ /^\#/xm) {
       next;
     }
-    else{
-      my ($name, $describe, $lang, $params, $default, $expr) = split( /:/, $line );
-      $params =~ s/sig/$attr->{SIG_NAME}/g;
+    else {
+      my ($name, $describe, $lang, $params, $default, $expr) = split(/:/x, $line);
+      $params =~ s/sig/$attr->{SIG_NAME}/xg;
       next if ($attr->{LANG} && $attr->{LANG} ne $lang);
       next if (!$name);
       $TPL_DESCRIBE{$name}{DESCRIBE} = $describe;
@@ -1243,19 +1113,18 @@ sub tpl_describe{
 #**********************************************************
 # list item
 #**********************************************************
-sub li{
-  my $self = shift;
-  #my ($item, $attr) = @_;
-
-  return "item";
-}
+# sub li {
+#   my $self = shift;
+#   #my ($item, $attr) = @_;
+#
+#   return "item";
+# }
 
 #***********************************************************
 #
 #***********************************************************
-sub badge{
-  my $self = shift;
-  my ($text) = @_;
+sub badge {
+  my ($self, $text) = @_;
 
   return $text || q{};
 }
@@ -1263,14 +1132,23 @@ sub badge{
 #**********************************************************
 #
 #**********************************************************
-sub tree_menu{
+sub tree_menu {
   shift;
   require HTML_Tree;
   HTML_Tree->import();
 
   my $tree_builder = HTML_Tree->new();
 
-  return $tree_builder->tree_menu( @_ );
+  return $tree_builder->tree_menu(@_);
+}
+
+#**********************************************************
+=head2 br()
+
+=cut
+#**********************************************************
+sub br {
+  return '';
 }
 
 #**********************************************************
@@ -1278,11 +1156,11 @@ sub tree_menu{
 
 =cut
 #**********************************************************
-sub fetch{
-  my $self = shift;
-
-  return $self;
-}
+# sub fetch {
+#   my $self = shift;
+#
+#   return $self;
+# }
 
 #**********************************************************
 =head2  AUTOLOAD Autoload secondary funtions
@@ -1292,10 +1170,10 @@ sub fetch{
 sub AUTOLOAD {
   our $AUTOLOAD;
 
-  return if ($AUTOLOAD =~ /::DESTROY$/);
+  return if ($AUTOLOAD =~ /::DESTROY$/xm);
   my $function = $AUTOLOAD;
 
-  if($function =~ /table_header|progress_bar|/) {
+  if ($function =~ /table_header|progress_bar|li|fetch/xm) {
     return q{};
   }
 
@@ -1304,5 +1182,4 @@ sub AUTOLOAD {
   return $data;
 }
 
-
-1
+1;

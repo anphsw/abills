@@ -30,8 +30,6 @@ use Portal::Validations qw(POST_PORTAL_NEWSLETTER POST_PORTAL_ARTICLES POST_PORT
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -52,7 +50,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/menu/',
-      controller  => 'Portal::Api::user::News',
       endpoint    => \&Portal::Api::user::News::get_user_portal_menu,
       credentials => [
         'USER', 'USERBOT', 'PUBLIC'
@@ -61,7 +58,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/news/',
-      controller  => 'Portal::Api::user::News',
       endpoint    => \&Portal::Api::user::News::get_user_portal_news,
       credentials => [
         'USER', 'USERBOT', 'PUBLIC'
@@ -70,7 +66,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/news/:string_id/',
-      controller  => 'Portal::Api::user::News',
       endpoint    => \&Portal::Api::user::News::get_user_portal_news_id,
       credentials => [
         'USER', 'USERBOT', 'PUBLIC'
@@ -98,8 +93,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -120,7 +113,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/attachment/',
-      controller  => 'Portal::Api::admin::Attachment',
       endpoint    => \&Portal::Api::admin::Attachment::get_portal_attachment,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -129,7 +121,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/portal/attachment/',
-      controller  => 'Portal::Api::admin::Attachment',
       endpoint    => \&Portal::Api::admin::Attachment::post_portal_attachment,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -138,7 +129,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/attachment/:id/',
-      controller  => 'Portal::Api::admin::Attachment',
       endpoint    => \&Portal::Api::admin::Attachment::get_portal_attachment_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -147,7 +137,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/attachment/:id/',
-      controller  => 'Portal::Api::admin::Attachment',
       endpoint    => \&Portal::Api::admin::Attachment::delete_portal_attachment_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -156,7 +145,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/newsletter/',
-      controller  => 'Portal::Api::admin::Newsletter',
       endpoint    => \&Portal::Api::admin::Newsletter::get_portal_newsletter,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -166,7 +154,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/newsletter/',
       params      => POST_PORTAL_NEWSLETTER,
-      controller  => 'Portal::Api::admin::Newsletter',
       endpoint    => \&Portal::Api::admin::Newsletter::post_portal_newsletter,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -175,7 +162,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/newsletter/:id/',
-      controller  => 'Portal::Api::admin::Newsletter',
       endpoint    => \&Portal::Api::admin::Newsletter::get_portal_newsletter_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -184,7 +170,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/newsletter/:id/',
-      controller  => 'Portal::Api::admin::Newsletter',
       endpoint    => \&Portal::Api::admin::Newsletter::delete_portal_newsletter_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -193,7 +178,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/articles/',
-      controller  => 'Portal::Api::admin::Articles',
       endpoint    => \&Portal::Api::admin::Articles::get_portal_articles,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -203,7 +187,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/articles/',
       params      => POST_PORTAL_ARTICLES,
-      controller  => 'Portal::Api::admin::Articles',
       endpoint    => \&Portal::Api::admin::Articles::post_portal_articles,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -212,7 +195,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/articles/:id/',
-      controller  => 'Portal::Api::admin::Articles',
       endpoint    => \&Portal::Api::admin::Articles::get_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -221,7 +203,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/portal/articles/:id/',
-      controller  => 'Portal::Api::admin::Articles',
       endpoint    => \&Portal::Api::admin::Articles::put_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -230,7 +211,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/articles/:id/',
-      controller  => 'Portal::Api::admin::Articles',
       endpoint    => \&Portal::Api::admin::Articles::delete_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -239,7 +219,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/menus/',
-      controller  => 'Portal::Api::admin::Menus',
       endpoint    => \&Portal::Api::admin::Menus::get_portal_menus,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -249,7 +228,6 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/menus/',
       params      => POST_PORTAL_MENUS,
-      controller  => 'Portal::Api::admin::Menus',
       endpoint    => \&Portal::Api::admin::Menus::post_portal_menus,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -258,7 +236,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/menus/:id/',
-      controller  => 'Portal::Api::admin::Menus',
       endpoint    => \&Portal::Api::admin::Menus::get_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -267,7 +244,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/portal/menus/:id/',
-      controller  => 'Portal::Api::admin::Menus',
       endpoint    => \&Portal::Api::admin::Menus::put_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -276,7 +252,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/menus/:id/',
-      controller  => 'Portal::Api::admin::Menus',
       endpoint    => \&Portal::Api::admin::Menus::delete_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'

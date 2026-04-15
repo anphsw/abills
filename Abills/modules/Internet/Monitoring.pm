@@ -77,6 +77,8 @@ sub internet_online {
     $cure = 'Online';
   }
 
+  $LIST_PARAMS{UNKNOWN} = '0' if ($FORM{FILTER_FIELD} && $FORM{FILTER_FIELD} eq 'UNKNOWN');
+
   _internet_info_panels($Sessions);
 
   if (in_array('Maps', \@MODULES) && $FORM{MAP}) {
@@ -88,7 +90,7 @@ sub internet_online {
     $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID};
   }
   elsif ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && !$FORM{show_columns}) {
-    if (!($FORM{ZAPED} || $FORM{FILTER})) {
+    if (!($FORM{ZAPED} || (defined($FORM{FILTER}) && $FORM{FILTER} ne q{} ))) {
       print _internet_online_search(\%FORM);
       my $table = $html->table({
         width   => '100%',
@@ -98,6 +100,10 @@ sub internet_online {
         ID      => 'ONLINE',
         DATA_TABLE => ($conf{DATA_TABLE_ENABLE}) ? $conf{DATA_TABLE_ENABLE} : ''
       });
+
+      my $ext_filter = '';
+      $ext_filter .= "&FILTER=$FORM{FILTER}" if ($FORM{FILTER});
+      $ext_filter .= "&FILTER_FIELD=$FORM{FILTER_FIELD}" if ($FORM{FILTER_FIELD});
 
       foreach my $line (@$list) {
         my $nas_id = $line->{nas_id};
@@ -113,7 +119,7 @@ sub internet_online {
           ($line->{nas_zaped} > 0) ? $html->button($line->{nas_zaped}, "index=$index&NAS_ID=$nas_id&ZAPED=1") : 0,
           $html->button($line->{nas_error_sessions}, "index=$index&NAS_ID=$nas_id&NAS_ERROR_SESSIONS=1"),
           $html->button($line->{guest}, "index=$index&NAS_ID=$nas_id&FILTER=1&FILTER_FIELD=GUEST"),
-          $html->button($lang{SHOW}, "index=$index&NAS_ID=$nas_id", { class => 'show' })
+          $html->button($lang{SHOW}, "index=$index&NAS_ID=$nas_id".$ext_filter, { class => 'show' })
         );
       }
 
@@ -554,6 +560,28 @@ sub _internet_info_panels {
       SIZE          => 12,
       LIKE_BUTTON   => 1,
       BUTTON_PARAMS => "index=$index&ZAPED=1"
+    },
+    {
+      ID            => mk_unique_value(10),
+      NUMBER        => $Sessions_->{GUEST} || ' 0',
+      NUMBER_SIZE   => '40px',
+      ICON          => 'users',
+      TEXT          => $lang{GUEST},
+      COLOR         => 'gray',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index&FILTER=1&FILTER_FIELD=GUEST"
+    },
+    {
+      ID            => mk_unique_value(10),
+      NUMBER        => $Sessions_->{UNKNOWN} || ' 0',
+      NUMBER_SIZE   => '40px',
+      ICON          => 'question',
+      TEXT          => $lang{UNKNOWN},
+      COLOR         => 'red',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index&FILTER=0&FILTER_FIELD=UNKNOWN"
     }
   );
 
@@ -821,6 +849,11 @@ sub _internet_monitoring_2log {
 #**********************************************************
 =head2 _internet_online_search($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $filter_form
+
 =cut
 #**********************************************************
 sub _internet_online_search {
@@ -838,6 +871,7 @@ sub _internet_online_search {
     TP_NUM          => $lang{TARIF_PLAN},
     CONNECT_INFO    => 'CONNECT_INFO',
     GUEST           => $lang{GUEST},
+    UNKNOWN         => $lang{UNKNOWN_USERS},
     TURBO_MODE      => 'TURBO_MODE',
     JOIN_SERVICE    => $lang{JOIN_SERVICE},
     ADDRESS_FULL    => $lang{ADDRESS},
@@ -1069,8 +1103,6 @@ sub _internet_map_menu {
   my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   $html->tpl_show(_include('internet_online_map', 'Internet'), {
-    # FILTERS                      => $attr->{FILTERS},
-    # TABLE                        => $attr->{TABLE},
     MAPS                         => $Maps_view->show_map(\%FORM, { DATA => [], DONE_DATA => 1, QUICK => 1 }),
     ONLINE_USERS_UPDATE_INTERVAL => $conf{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 300
   });

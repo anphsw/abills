@@ -16,7 +16,8 @@ use warnings FATAL => 'all';
 #**********************************************************
 sub errors {
   return {
-    1580001 => 'ERR_TASKS_ACTIVE_SUBTASKS'
+    1580001 => 'ERR_TASKS_ACTIVE_SUBTASKS',
+    1580002 => 'ERR_TASK_NOT_FOUND'
   };
 }
 

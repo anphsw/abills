@@ -51,14 +51,24 @@ sub new {
 =cut
 #**********************************************************
 sub crm_search {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
+  my @search_fields = ();
   my @default_search = ('FIO', 'PHONE', 'EMAIL', 'COMPANY', 'LEAD_CITY', 'ADDRESS', '_MULTI_HIT');
   my %LIST_PARAMS = (
     SKIP_HOLDUP     => 1,
     SKIP_RESPOSIBLE => 1
   );
+
+  my $fields = $Crm->fields_list();
+
+  foreach my $field (@{$fields}) {
+    push @search_fields, [ uc $field->{SQL_FIELD}, 'STR', "cl.$field->{SQL_FIELD}", 1 ];
+    push @default_search, uc $field->{SQL_FIELD};
+  }
+
+  $LIST_PARAMS{SEARCH_COLUMNS} = \@search_fields;
+
   my @qs = ();
   my @info = ();
 

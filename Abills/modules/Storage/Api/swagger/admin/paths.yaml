@@ -1,5 +1,7 @@
 /storage/installation:
   $ref: "./paths/installation.yaml"
+/storage/installation/{id}:
+  $ref: "./paths/installation_id.yaml"
 /storage/incoming_articles:
   $ref: "./paths/incoming_articles.yaml"
 /storage/invoices:

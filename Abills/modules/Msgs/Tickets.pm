@@ -19,8 +19,8 @@ our (
   %lang,
   $admin,
   %permissions,
-  @WEEKDAYS,
-  @MONTHES,
+  # @WEEKDAYS,
+  # @MONTHES,
   @MONTHES_LIT,
   %msgs_permissions,
   @priority,
@@ -28,7 +28,6 @@ our (
 );
 
 our Abills::HTML $html;
-#my $Address = Address->new($db, $admin, \%conf);
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Notify = Msgs::Notify->new($db, $admin, \%conf, { LANG => \%lang, HTML=>$html });
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
@@ -182,7 +181,10 @@ sub msgs_admin {
 
     if ($plugin->can('plugin_show')) {
       $Msgs->message_info($FORM{chg} || $FORM{ID});
-      my $result = $plugin->plugin_show({ %{$Msgs}, %FORM,
+      my $result = $plugin->plugin_show({
+        %{$Msgs},
+        %FORM,
+        SUBJECT             => $Msgs->{SUBJECT},
         PRIORITY_COLORS     => \@priority_colors,
         PRIORITY_ARRAY      => \@priority
       });
@@ -370,7 +372,7 @@ sub msgs_ticket_change {
 
   if (defined $FORM{WATCHERS} && $msgs_permissions{1} && $msgs_permissions{1}{17}) {
     $Msgs->msg_watch_del({ ID => $FORM{ID} });
-    map $Msgs->msg_watch({ AID => $_, ID => $FORM{ID} }), split(',\s?', $FORM{WATCHERS}) if $FORM{WATCHERS};
+    map { $Msgs->msg_watch({ AID => $_, ID => $FORM{ID} }) } split(',\s?', $FORM{WATCHERS}) if ($FORM{WATCHERS});
   }
 
   $FORM{chg} = $FORM{ID} if $FORM{ID};
@@ -381,19 +383,24 @@ sub msgs_ticket_change {
 #**********************************************************
 =head2 msgs_admin_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    2 or 1
+
 =cut
 #**********************************************************
 sub msgs_admin_add {
   my ($attr) = @_;
 
-  return 1 if !$msgs_permissions{1}{0} && !$attr->{REGISTRATION};
+  return 1 if (!$msgs_permissions{1}{0} && !$attr->{REGISTRATION});
   return 1 if (!$FORM{SUBJECT} || (!$FORM{MESSAGE} && !$FORM{QUICK})) && defined $FORM{SUBJECT} && $attr->{REGISTRATION};
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   $FORM{send_message} = 1 if ($FORM{add} && $FORM{next});
 
   my $return_value = _msgs_admin_send_message($attr, $msgs_status);
-  return $return_value if defined($return_value);
+  return $return_value if (defined($return_value));
 
   print msgs_admin_add_form({ %{($attr) ? $attr : {}}, MSGS_STATUS => $msgs_status });
 
@@ -444,10 +451,10 @@ sub _msgs_admin_send_message {
 
   my %query_data = ();
   my @skip_keys = ('LOCATION_ID', 'STREET_ID');
-  map $query_data{$_} = $FORM{$_} ? $FORM{$_} : in_array($_, \@skip_keys) ? undef : '_SHOW', keys %FORM;
+  map { $query_data{$_} = $FORM{$_} ? $FORM{$_} : in_array($_, \@skip_keys) ? undef : '_SHOW' } keys %FORM;
 
   my @skip_query_params = ('PHONE');
-  map delete($query_data{$_}), @skip_query_params;
+  map { delete($query_data{$_}) } @skip_query_params;
 
   my $users_list = $users->list({
     LOGIN     => '_SHOW',
@@ -495,11 +502,11 @@ sub _msgs_admin_send_message {
       USER_READ  => '0000-00-00 00:00:00',
       IP         => $admin->{SESSION_IP}
     });
-    $Msgs->quick_replys_tags_add({ IDS => $FORM{TAGS_IDS}, MSG_ID => $Msgs->{MSG_ID} }) if $FORM{TAGS_IDS} && !_error_show($Msgs);
+    $Msgs->quick_replys_tags_add({ IDS => $FORM{TAGS_IDS}, MSG_ID => $Msgs->{MSG_ID} }) if ($FORM{TAGS_IDS} && !_error_show($Msgs));
   }
   else {
     my $result = _msgs_make_delivery(\@uids, \%NUMBERS, \@msgs_ids, \%msg_for_uid, $users_list, $attr);
-    return $result if $result;
+    return $result if ($result);
     $html->message('err', $lang{ERROR}, $lang{NO_CONTACTS_FOR_TYPE}, { ID => 781 }) if ($#msgs_ids < 0);
   }
 
@@ -541,7 +548,7 @@ sub _msgs_admin_send_message {
       });
     }
   }
-  return $att_result if $att_result;
+  return $att_result if ($att_result);
 
   if ($FORM{RESPOSIBLE} && $FORM{INNER_MSG}) {
     $Notify->notify_admins({
@@ -628,6 +635,8 @@ sub _msgs_make_delivery {
     push @{$msgs_ids}, $Msgs->{MSG_ID};
     $msg_for_uid->{$user_info->{uid}} = { MSG_ID => $Msgs->{MSG_ID} };
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -664,6 +673,8 @@ sub _msgs_show_preview {
   $index = $FORM{index} if $FORM{index} && $index != $FORM{index};
 
   $FORM{PREVIEW_FORM} = $table->show();
+
+  return $FORM{PREVIEW_FORM};
 }
 
 #**********************************************************
@@ -781,9 +792,30 @@ sub msgs_admin_add_form {
   }
 
   if ($msgs_permissions{3}{0} && $msgs_permissions{3}{2}) {
+    my $dispatches = $Msgs->dispatch_list({
+      ID            => '_SHOW',
+      COMMENTS      => '_SHOW',
+      PLAN_DATE     => '_SHOW',
+      MESSAGE_COUNT => '_SHOW',
+      SORT          => 'd.plan_date',
+      DESC          => 'DESC',
+      STATE         => 0,
+      COLS_NAME     => 1
+    });
+
+    my $dispatches_list = [];
+
+    foreach my $dispatch (@$dispatches) {
+      push @$dispatches_list, {
+        id        => $dispatch->{id},
+        plan_date => $dispatch->{plan_date},
+        comments  => ($dispatch->{comments} || '') . ($dispatch->{message_count} ? " ($lang{MSGS_MESSAGES}: $dispatch->{message_count})" : '')
+      };
+    }
+
     $Msgs->{DISPATCH_SEL} = $html->form_select('DISPATCH_ID', {
       SELECTED    => $Msgs->{DISPATCH_ID} || '',
-      SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1, PAGE_ROWS => 10000 }),
+      SEL_LIST    => $dispatches_list,
       SEL_OPTIONS => { '' => '--' },
       SEL_KEY     => 'id',
       SEL_VALUE   => 'plan_date,comments'
@@ -807,7 +839,7 @@ sub msgs_admin_add_form {
   $tpl_info{INNER_MSG_HIDE} = 'd-none' if !$msgs_permissions{1}{7};
   $tpl_info{DISPATCH_ADD_HIDE} = 'd-none' if !$msgs_permissions{3}{1};
 
-  if ((!$FORM{UID} || $FORM{UID} =~ /;/) && !$FORM{TASK}) {
+  if ((!$FORM{UID} || $FORM{UID} =~ /;/xm) && !$FORM{TASK}) {
     $tpl_info{GROUP_SEL} = sel_groups({ MULTISELECT => 1 });
     $tpl_info{ADDRESS_FORM} = form_address({
       LOCATION_ID      => $FORM{LOCATION_ID} || '',
@@ -931,7 +963,7 @@ sub msgs_admin_add_form {
 
   if ($FORM{MESSAGE}) {
     $Msgs->{TPL_MESSAGE} = $FORM{MESSAGE} || '';
-    $Msgs->{TPL_MESSAGE} =~ s/\%/&#37/g;
+    $Msgs->{TPL_MESSAGE} =~ s/\%/&#37/xg;
   }
 
   $Msgs->{REQUIRED_MESSAGE} = 'required' if !$attr->{REGISTRATION};
@@ -956,7 +988,7 @@ sub msgs_admin_add_form {
 sub _msgs_recent_user_messages {
   my $uid = shift;
 
-  return '' if !$uid;
+  return '' if (!$uid);
 
   my $last_user_messages = $Msgs->messages_list({
     UID                    => $uid,
@@ -984,7 +1016,7 @@ sub _msgs_recent_user_messages {
   my $msgs_info_index = get_function_index('msgs_admin');
 
   foreach my $message (@{$last_user_messages}) {
-    my $state = _msgs_list_state_form($message->{state}, $message, $msgs_status);
+    my $state = msgs_list_state_form($message->{state}, $message, $msgs_status);
     my $subject = $msgs_info_index ? $html->button($message->{subject}, "index=$msgs_info_index&UID=$uid&chg=$message->{id}") : $message->{subject};
 
     $messages_table->addrow($message->{id}, $subject, $message->{chapter_name}, $message->{date},
@@ -1228,10 +1260,6 @@ sub msgs_ticket_show {
 
   $Msgs->{ID} = $Msgs->{MAIN_ID};
 
-  # while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-  #   my $msg_button = $html->button($1, "&index=$index&chg=$1", { class => 'badge bg-blue' });
-  #   $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
-  # }
   $Msgs->{MESSAGE} = msgs_text_formatting($Msgs->{MESSAGE}, 1);
 
   # return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
@@ -1285,7 +1313,12 @@ sub msgs_ticket_show {
 }
 
 #**********************************************************
-=head2 msgs_ticket_reply
+=head2 msgs_ticket_reply($message_id)
+
+  Arguments:
+    $message_id
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1593,7 +1626,7 @@ sub _msgs_edit_reply {
 sub _msgs_reply_admin {
 
   if ($FORM{RUN_TIME}) {
-    my ($h, $min, $sec) = split(/:/, $FORM{RUN_TIME}, 3);
+    my ($h, $min, $sec) = split(/:/x, $FORM{RUN_TIME}, 3);
     $FORM{RUN_TIME} = ($h || 0) * 60 * 60 + ($min || 0) * 60 + ($sec || 0);
   }
   my $reply_id;
@@ -1848,17 +1881,19 @@ sub msgs_repeat_ticket {
 }
 
 #**********************************************************
-=head2 _msgs_call_action_plugin($attr)
+=head2 _msgs_call_action_plugin($action, $attr, $extra_params)
 
   Arguments:
+    $action
+    $attr
+    $extra_params
 
   Return:
 
 =cut
 #**********************************************************
 sub _msgs_call_action_plugin {
-  my $action = shift;
-  my ($attr, $extra_params) = @_;
+  my ($action, $attr, $extra_params) = @_;
 
   my $users_list = $attr->{USERS_LIST} || ();
   my $plugins_before_create_message = _msgs_get_plugins({ ACTION => $action });
@@ -1900,8 +1935,8 @@ sub _msgs_action_callback {
   return if !$attr->{CALLBACK} || ref $attr->{CALLBACK} ne 'HASH';
   my $callback = $attr->{CALLBACK};
 
-  return if !$callback->{FUNCTION} || !$callback->{PARAMS} || ref $callback->{PARAMS} ne 'HASH';
-  return if !defined(&{$callback->{FUNCTION}});
+  return if (!$callback->{FUNCTION} || !$callback->{PARAMS} || ref $callback->{PARAMS} ne 'HASH');
+  return if (!defined(&{$callback->{FUNCTION}}));
 
   my $function_ref = \&{$callback->{FUNCTION}};
   my $result = &{$function_ref}($callback->{PARAMS});
@@ -1986,4 +2021,4 @@ sub _msgs_check_admin_privileges {
   return 0 ;
 }
 
-1
+1;

@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db, $msgs_permissions);
-my $json;
 my Abills::HTML $html;
 my $lang;
 my $Msgs;
@@ -74,8 +73,7 @@ sub plugin_info {
 =cut
 #**********************************************************
 sub plugin_show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   return '' if !$msgs_permissions->{1}{22};
   return '' if !$attr->{UID};

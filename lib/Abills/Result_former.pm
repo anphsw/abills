@@ -231,6 +231,10 @@ sub result_former {
   my $search_fields_count = $data->{SEARCH_FIELDS_COUNT} || 0;
   my %ACTIVE_TITLES = ();
 
+  if (in_array('tags', \@EX_TITLE_ARR) && $html && $html->{TYPE} && $html->{TYPE} eq 'html') {
+    $search_fields_count += 2;
+  }
+
   for (my $i = 0; $i < $base_fields + $search_fields_count; $i++) {
     if ($EX_TITLE_ARR[$i] && !$FORM{json} && in_array(uc($EX_TITLE_ARR[$i]), \@hidden_fields)) {
       # TODO: check storage_incoming_articles_list2 table
@@ -282,7 +286,7 @@ sub result_former {
     }
   }
   elsif (!$data->{COL_NAMES_ARR}) {
-    @cols = (split(/,/, $attr->{BASE_PREFIX}), @cols) if ($attr->{BASE_PREFIX});
+    @cols = (split(/,/x, $attr->{BASE_PREFIX}), @cols) if ($attr->{BASE_PREFIX});
 
     my $i = 0;
     for ($i = 0; $i <= $#cols + $base_fields; $i++) {
@@ -304,7 +308,7 @@ sub result_former {
     $data->{COL_NAMES_ARR} = \@cols if (!$data->{COL_NAMES_ARR});
   }
 
-  my @function_fields = split(/,\s?/, $attr->{FUNCTION_FIELDS} || '');
+  my @function_fields = split(/,\s?/x, $attr->{FUNCTION_FIELDS} || '');
 
   $title[$#title + 1] = '' if ($#function_fields > -1);
 
@@ -316,9 +320,9 @@ sub result_former {
   my ($multisel_id, $multisel_value, $multisel_form, $obj_info);
   my @multiselect_arr = ();
   if ($attr->{MULTISELECT}) {
-    ($multisel_id, $multisel_value, $multisel_form, $obj_info) = split(/:/, $attr->{MULTISELECT});
+    ($multisel_id, $multisel_value, $multisel_form, $obj_info) = split(/:/x, $attr->{MULTISELECT});
 
-    @multiselect_arr = split(/,\s?|;\s?/, $FORM{$multisel_id}) if ($FORM{$multisel_id});
+    @multiselect_arr = split(/,\s?|;\s?/x, $FORM{$multisel_id}) if ($FORM{$multisel_id});
 
     # First and last values are simply ignored
     $attr->{TABLE}{SELECT_ALL} //= ($multisel_form || q{}) . ":" . ($multisel_id || q{}) . ":" . ($obj_info || q{});
@@ -332,8 +336,7 @@ sub result_former {
 
   if ($attr->{TABLE}{DATA_TABLE} && $LIST_PARAMS{SORT}) {
     $attr->{TABLE}{DATA_TABLE} = {} if ref $attr->{TABLE}{DATA_TABLE} ne 'HASH';
-
-    $attr->{TABLE}{DATA_TABLE}{order} = [ [ $LIST_PARAMS{SORT} - 1, lc($LIST_PARAMS{DESC}) || 'asc' ] ];
+    $attr->{TABLE}{DATA_TABLE}{order} = [ [ $LIST_PARAMS{SORT} - 1, (($LIST_PARAMS{DESC}) ? lc($LIST_PARAMS{DESC}) : 'asc' ) ] ];
   }
 
   my Abills::HTML $table = $html->table({
@@ -439,13 +442,13 @@ sub _datahash2table {
       my $col_data = $line->{$field_name};
 
       if ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$field_name}) {
-        my ($filter_fn, @arr) = split(/:/, $attr->{FILTER_COLS}->{$field_name});
+        my ($filter_fn, @arr) = split(/:/x, $attr->{FILTER_COLS}->{$field_name});
         Encode::_utf8_off($col_data);
         push @row, &{\&$filter_fn}($col_data, { PARAMS => \@arr });
       }
       elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
         if (defined $col_data && $attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
-          my ($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
+          my ($value, $color) = split(/:/x, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
           push @row, ($color) ? $html->color_mark($value, $color) : $value;
         }
         else {
@@ -579,7 +582,7 @@ sub table_function_fields {
   my @fields_array = ();
   my $query_string = ($attr->{TABLE} && $attr->{TABLE}{qs}) ? $attr->{TABLE}{qs} : q{};
 
-  if ($line->{uid} && $query_string !~ /UID=/) {
+  if ($line->{uid} && $query_string !~ /UID=/xm) {
     $query_string .= "&UID=$line->{uid}";
     $index = $attr->{FUNCTION_INDEX} || 15;
   }
@@ -593,7 +596,7 @@ sub table_function_fields {
       next if (!$line->{uid});
       push @fields_array, ($permissions{1}) ? $html->button($function_fields->[$i], "UID=$line->{uid}&index=2", { class => 'payments' }) : '-';
     }
-    elsif ($function_fields->[$i] =~ /stats/) {
+    elsif ($function_fields->[$i] =~ /stats/xm) {
       push @fields_array, $html->button($function_fields->[$i],
         "&index=" . get_function_index($function_fields->[$i]) . $query_string, { class => 'stats' });
     }
@@ -653,9 +656,9 @@ sub table_function_fields {
       my $ex_param = '';
 
       my %button_params = ();
-
       # 0-0 in first capture group
-      if ($function_fields->[$i] =~ /([a-z0-0\_\-]{0,25}):([a-zA-Z\_0-9\{\}\$]+):([a-z0-9\-\_\;]+):?(\S{0,100})/) {
+      my $custom_field = q{([a-z0-0\_\-]{0,25}):([a-zA-Z\_0-9\{\}\$]+):([a-z0-9\-\_\;]+):?(\S{0,100})};
+      if ($function_fields->[$i] =~ /$custom_field/xm) {
         $functiom_name = $1;
         my $name = $2;
         $param = $3;
@@ -689,7 +692,7 @@ sub table_function_fields {
         $qs .= 'index=' . (($functiom_name) ? get_function_index($functiom_name) : $index);
         $qs .= $ex_param;
       }
-      elsif ($function_fields->[$i] =~ /^FUNCTION_NAME=([a-z0-9\_\-]+)$/) {
+      elsif ($function_fields->[$i] =~ /^FUNCTION_NAME=([a-z0-9\_\-]+)$/xm) {
         my $function = $1;
 
         if (defined(&{$function})) {
@@ -703,9 +706,8 @@ sub table_function_fields {
       }
 
       if ($param) {
-        foreach my $l (split(/;/, $param)) {
+        foreach my $l (split(/;/x, $param)) {
           if ($line->{$l}) {
-            #Fixme Uncoment for omega
             my $is_utf = Encode::is_utf8($line->{$l});
             if (!$is_utf) {
               Encode::_utf8_off($line->{$l});
@@ -788,12 +790,12 @@ sub _result_former_columns {
   if ($FORM{del_cols}) {
     $admin->settings_del($attr->{TABLE}->{ID});
     if ($attr->{DEFAULT_FIELDS}) {
-      $attr->{DEFAULT_FIELDS} =~ s/[\n ]+//g;
-      @cols = split(/,/, $attr->{DEFAULT_FIELDS});
+      $attr->{DEFAULT_FIELDS} =~ s/[\n\s]+//xg;
+      @cols = split(/,/x, $attr->{DEFAULT_FIELDS});
     }
   }
   elsif ($FORM{show_columns}) {
-    @cols = split(/,\s?/, $FORM{show_columns});
+    @cols = split(/,\s?/x, $FORM{show_columns});
     if ($FORM{show_cols}) {
       $admin->settings_add({
         SETTING    => $FORM{show_columns},
@@ -805,18 +807,18 @@ sub _result_former_columns {
   else {
     if (ref $admin eq 'Admins' && $admin->can('settings_info')) {
       if ($admin->{TOTAL} == 0 && $attr->{DEFAULT_FIELDS}) {
-        $attr->{DEFAULT_FIELDS} =~ s/[\n ]+//g;
-        @cols = split(/,/, $attr->{DEFAULT_FIELDS});
+        $attr->{DEFAULT_FIELDS} =~ s/[\n\s]+//xg;
+        @cols = split(/,/x, $attr->{DEFAULT_FIELDS});
       }
       else {
         if ($admin->{SETTING}) {
-          @cols = split(/, /, $admin->{SETTING});
+          @cols = split(/,\s+/x, $admin->{SETTING});
         }
       }
     }
     elsif ($attr->{DEFAULT_FIELDS}) {
-      $attr->{DEFAULT_FIELDS} =~ s/[\n ]+//g;
-      @cols = split(/,/, $attr->{DEFAULT_FIELDS});
+      $attr->{DEFAULT_FIELDS} =~ s/[\n\s]+//xg;
+      @cols = split(/,/x, $attr->{DEFAULT_FIELDS});
     }
   }
 
@@ -840,7 +842,7 @@ sub _result_former_hidden_fields {
   my @hidden_fields = ();
 
   if ($attr->{HIDDEN_FIELDS}) {
-    @hidden_fields = split(/,/, $attr->{HIDDEN_FIELDS});
+    @hidden_fields = split(/,/x, $attr->{HIDDEN_FIELDS});
     for (my $i = 0; $i <= $#hidden_fields; $i++) {
       my $fld = $hidden_fields[$i];
       if (!in_array($fld, $cols)) {
@@ -878,7 +880,7 @@ sub _result_former_append_fields {
 
   return 0 unless $attr->{APPEND_FIELDS};
 
-  my @arr = split(/,/, $attr->{APPEND_FIELDS});
+  my @arr = split(/,/x, $attr->{APPEND_FIELDS});
 
   foreach my $line (@arr) {
     if (!in_array($line, $cols)) {
@@ -955,10 +957,10 @@ sub _result_former_data_extra_fields {
       next if (!defined $field_id);
 
       if ($field->{company}) {
-        $SEARCH_TITLES->{company}{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
+        $SEARCH_TITLES->{company}{ $field_id } = ($name =~ /\$/xm) ? _translate($name) : $name;
       }
       else {
-        $SEARCH_TITLES->{info_fields}{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
+        $SEARCH_TITLES->{info_fields}{ $field_id } = ($name =~ /\$/xm) ? _translate($name) : $name;
       }
     }
   }
@@ -1021,7 +1023,7 @@ sub _get_search_titles {
       reduction      => $lang{REDUCTION},
       reduction_date => "$lang{REDUCTION} $lang{DATE}",
 
-      payment_sum 	=>  "$lang{PAYMENTS} $lang{SUM}",
+      payment_sum   =>  "$lang{PAYMENTS} $lang{SUM}",
       fees_sum      =>  "$lang{FEES} $lang{SUM}",
       start_deposit =>  "$lang{START} $lang{DEPOSIT}",
       end_deposit   =>  "$lang{END} $lang{DEPOSIT}"
@@ -1059,7 +1061,7 @@ sub _get_search_titles {
     $SEARCH_TITLES{address}{build_id} = $lang{LOCATION};
   }
 
-  if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
+  if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/xm)) {
     $SEARCH_TITLES{personal_info}{domain_id} = 'DOMAIN ID';
     $SEARCH_TITLES{personal_info}{domain_name} = $lang{DOMAIN};
   }
@@ -1074,7 +1076,7 @@ sub _get_search_titles {
   my $ext_titles_key = $attr->{TABLE}{EXT_TITLES_LABEL} || $attr->{TABLE}{caption} || 'service';
 
   if ($attr->{EXT_TITLES} && ref $attr->{EXT_TITLES} eq 'HASH') {
-    map $attr->{EXT_TITLES}{$_} = _translate($attr->{EXT_TITLES}{$_}), keys %{$attr->{EXT_TITLES}};
+    map { $attr->{EXT_TITLES}{$_} = _translate($attr->{EXT_TITLES}{$_}) } keys %{$attr->{EXT_TITLES}};
   }
 
   if ($attr->{SKIP_USER_TITLE}) {
@@ -1107,10 +1109,10 @@ sub _result_former_get_total_table {
 
   my @rows = ();
 
-  if ($attr->{TOTAL} =~ /;/) {
-    my @total_vals = split(/;/, $attr->{TOTAL});
+  if ($attr->{TOTAL} =~ /;/xm) {
+    my @total_vals = split(/;/x, $attr->{TOTAL});
     foreach my $line (@total_vals) {
-      my ($val_id, $name) = split(/:/, $line);
+      my ($val_id, $name) = split(/:/x, $line);
       push @rows, [ $name ? ($lang{$name} || $name) : $val_id, $html->b(($val_id) ? $data->{$val_id} : q{}) ];
     }
   }
@@ -1211,7 +1213,7 @@ sub _get_login_value {
   if (!$FORM{EXPORT_CONTENT}) {
     my $login_status_color = undef;
     if (defined($line->{login_status}) && $attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{login_status}) {
-      (undef, $login_status_color) = split(/:/, $attr->{SELECT_VALUE}->{login_status}->{ $line->{login_status} } || '');
+      (undef, $login_status_color) = split(/:/x, $attr->{SELECT_VALUE}->{login_status}->{ $line->{login_status} } || '');
     }
     $val = user_ext_menu($line->{uid}, $line->{login}, { NO_CHANGE => 1, EXT_PARAMS => ($attr->{MODULE} ?
       "MODULE=$attr->{MODULE}" : undef), dv_status_color => $login_status_color });
@@ -1308,8 +1310,8 @@ sub _get_tags_value {
   return $line->{$col_name} if (!$line->{tags} || $line->{tags} eq '');
 
   my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
-  my @tags_name = split(/,/, $line->{tags});
-  my @tags_priority = split(/,/, $line->{priority});
+  my @tags_name = split(/,/x, $line->{tags});
+  my @tags_priority = split(/,/x, $line->{priority});
   $line->{$col_name} = q{};
 
   for (my $tags_count = 0; $tags_count < scalar @tags_name; $tags_count++) {
@@ -1360,11 +1362,11 @@ sub _result_former_map {
 
   if ($attr->{EXTRA_TABS}) {
     foreach my $name (keys %{$attr->{EXTRA_TABS}}) {
-      my ($title, $function_name) = split(/:/, $name);
+      my ($title, $function_name) = split(/:/x, $name);
       push @header_arr, "$title:$attr->{EXTRA_TABS}->{$name}";
 
       my $qs = $ENV{QUERY_STRING};
-      $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1)) /eg;
+      $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1)) /xeg;
       $exec_function = $function_name if ($ENV{QUERY_STRING} eq $attr->{EXTRA_TABS}->{$name});
     }
   }
@@ -1444,7 +1446,7 @@ sub _result_former_make_rows {
   my $total = $data->{TOTAL} || 0;
   my $search_color_mark = q{};
   if ($FORM{_MULTI_HIT}) {
-    $FORM{_MULTI_HIT} =~ s/\*//g;
+    $FORM{_MULTI_HIT} =~ s/\*//xg;
     $search_color_mark = $html->color_mark($FORM{_MULTI_HIT}, 'text-danger');
   }
 
@@ -1468,7 +1470,7 @@ sub _result_former_make_rows {
         STATE   => in_array($line->{$attr->{EXT_ATTR}{MULTISEL_VALUE}}, $attr->{EXT_ATTR}{MULTISELECT_ARR})
       })) if ($i == 0 && $attr->{MULTISELECT});
 
-      $val =~ s/(.*)$FORM{_MULTI_HIT}(.*)/$1$search_color_mark$2/g if ($search_color_mark && $val);
+      $val =~ s/(.*)$FORM{_MULTI_HIT}(.*)/$1$search_color_mark$2/xg if ($search_color_mark && $val);
 
       push @fields_array, $val;
     }
@@ -1512,9 +1514,9 @@ sub _column_no_permitss {
 
   # _info_fields_hide();
 
-  my (undef, $name_var, $fields_data) = split(/(SEARCH_FIELDS=)(.+[A-Z][0-9])/, $admin->{WEB_OPTIONS} || q{});
+  my (undef, $name_var, $fields_data) = split(/(SEARCH_FIELDS=)(.+[A-Z][0-9])/x, $admin->{WEB_OPTIONS} || q{});
   my @web_options_admin = ();
-  @web_options_admin = split(/, /, $fields_data) if ($fields_data);
+  @web_options_admin = split(/,\s+/x, $fields_data) if ($fields_data);
 
   my %hash_fields_options = map { $_ => 1 } @web_options_admin;
 
@@ -1550,6 +1552,7 @@ sub _column_no_permitss {
   Arguments:
     $name_table -
     $sort       - is sort
+    $cols
 
   Return:
     -
@@ -1569,15 +1572,16 @@ sub _sort_table {
     });
   }
   else {
-    my ($sort, $desc) = split('\|', $admin->{SORT_TABLE}) if ($admin->{SORT_TABLE});
-    if ($sort && $sort =~ /^\d+$/ && ($sort - 1) > $#{ $cols }) {
+    my ($sort_, $desc)=(q{}, q{});
+    ($sort_, $desc) = split('\|', $admin->{SORT_TABLE}) if ($admin->{SORT_TABLE});
+    if ($sort_ && $sort_ =~ /^\d+$/xm && ($sort_ - 1) > $#{ $cols }) {
       $LIST_PARAMS{SORT} = '1';
     }
     else {
-      $LIST_PARAMS{SORT} = ($sort || $LIST_PARAMS{SORT}) || '1';
+      $LIST_PARAMS{SORT} = ($sort_ || $LIST_PARAMS{SORT}) || '1';
     }
 
-    $desc = $sort ? $desc : $LIST_PARAMS{DESC};
+    $desc = ($sort_) ? $desc : $LIST_PARAMS{DESC};
 
     $LIST_PARAMS{DESC} = $desc || '';
   }

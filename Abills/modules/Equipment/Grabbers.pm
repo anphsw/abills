@@ -181,7 +181,7 @@ sub equipment_test {
         }
         if ($type eq 'PORT_STATUS') {
           if (in_array('Accident', \@main::MODULES) && $ports_info && $ports_info > 0) {
-            load_module('Accident', $html);
+            require Accident::Errors_gen;
 
             # snmp port status: 1-up, 2-down
             my $port_status = ($ports_info && $ports_info == 1) ? 2 : 0;
@@ -201,7 +201,7 @@ sub equipment_test {
       if ($attr->{AUTO_PORT_SHIFT} && $type eq 'PORT_INDEX') {
         foreach my $port (@{$ports_info}) {
           next if (!defined($port));
-          my ($port_index, $port_id) = split(/:/, $port, 2);
+          my ($port_index, $port_id) = split(/:/x, $port, 2);
 
           $ports_info{$port_id}{$type} = $port_index;
         }
@@ -687,6 +687,7 @@ sub get_vlans{
     %{$attr},
     OID   => $oid,
     WALK  => 1,
+    DONT_USE_GETBULK => $FORM{NO_BULK},
     DEBUG => $FORM{DEBUG}
   });
 
@@ -972,7 +973,7 @@ sub default_get_fdb {
       $port_name = $ports_name{ $port } || '';
     }
     else { #XXX probably never gets here, as default.snmp have FDB_EXPR
-      ($oid, $mac_port_list) = split( /:/, $line, 2 );
+      ($oid, $mac_port_list) = split(/:/x, $line, 2 );
 
       $oid =~ /(\d+)\.(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})$/xm;
       my $record_type = $1;
@@ -1305,7 +1306,7 @@ sub equipment_model_detect {
   });
 
   foreach my $model (@$models_list) {
-    if ($model->{model_name} && $equipment_info =~ /$model->{model_name}/) {
+    if ($model->{model_name} && $equipment_info =~ /$model->{model_name}/xm) {
       push @detected_models, {
         VENDOR => $model->{vendor_name},
         NAME   => $model->{model_name},

@@ -27,8 +27,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -51,7 +49,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/districts/',
-      controller  => 'Api::Controllers::Common::Addresses',
       endpoint    => \&Api::Controllers::Common::Addresses::get_districts,
       credentials => [
         'ADMIN', 'ADMINSID'
@@ -60,7 +57,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/districts/',
-      controller  => 'Api::Controllers::Admin::Districts',
       endpoint    => \&Api::Controllers::Admin::Districts::post_districts,
       credentials => [
         'ADMIN'
@@ -69,7 +65,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/districts/:id/',
-      controller  => 'Api::Controllers::Admin::Districts',
       endpoint    => \&Api::Controllers::Admin::Districts::get_districts_id,
       credentials => [
         'ADMIN'
@@ -78,7 +73,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/districts/:id/',
-      controller  => 'Api::Controllers::Admin::Districts',
       endpoint    => \&Api::Controllers::Admin::Districts::put_districts_id,
       credentials => [
         'ADMIN'
@@ -87,7 +81,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/districts/territorial_units/',
-      controller  => 'Api::Controllers::Admin::Districts',
       endpoint    => \&Api::Controllers::Admin::Districts::get_territorial_units,
       credentials => [
         'ADMIN', 'ADMINSID'

@@ -57,8 +57,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_storage_installation {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   foreach my $param (keys %{$query_params}) {
     $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
@@ -78,9 +77,23 @@ sub get_storage_installation {
 =cut
 #**********************************************************
 sub post_storage_installation {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return $Installation->storage_add_installation($query_params);
 }
+
+#**********************************************************
+=head2 del_storage_installation($path_params, $query_params)
+
+  Endpoint DELETE /storage/installation/:id/
+
+=cut
+#**********************************************************
+sub del_storage_installation {
+  my ($self, $path_params, $query_params) = @_;
+
+  my $installation_id = $path_params->{id};
+  return $Installation->storage_del_installation({ INSTALLATION_ID => $installation_id });
+}
+
 1;

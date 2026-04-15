@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 1180007
+  errstr:
+    type: string
+    example: ERR_STORAGE_INSTALLATION_ID_INVALID

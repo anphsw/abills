@@ -6,6 +6,8 @@ use warnings FATAL => 'all';
 use Abills::Api::Router;
 use Abills::Api::FieldsGrouper;
 use Abills::Base qw(json_former xml_former gen_time in_array check_ip);
+use Abills::Api::Helpers qw(password_converter);
+
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -83,6 +85,7 @@ sub api_call {
   my ($status, $router, $response, $content_type) = (200, {}, q{}, q{});
 
   my $request_body = $attr->{PARAMS}->{__BUFFER} || '';
+  my @string_value = ('login', 'password', 'user_name', 'address_flat', 'ext_service_id', 'comments');
 
   if (!$self->{conf}->{API_ENABLE} && !$self->{direct} && !$self->{cookies}->{admin_sid}) {
     $status = 400;
@@ -113,6 +116,26 @@ sub api_call {
       $self->add_credentials($router);
       $router->handle();
 
+      if($router && ref $router->{result} eq 'HASH' && $router->{result}->{COL_NAMES_ARR}) {
+        @string_value = () if ($router->{result}->{COL_TYPES_ARR});
+        for(my $i=0; $i<=$#{ $router->{result}->{COL_TYPES_ARR} }; $i++) {
+          #print "$i $router->{result}->{COL_NAMES_ARR}->[$i] -> $router->{result}->{COL_TYPES_ARR}[$i]\n ";
+          if($router->{result}->{COL_TYPES_ARR}[$i] eq 'varchar') {
+            push @string_value, $router->{result}->{COL_NAMES_ARR}->[$i];
+          }
+        }
+      }
+      elsif(ref $router->{result} eq 'ARRAY' && $router->{COL_TYPES_ARR} ) {
+        @string_value = () if ($router->{COL_TYPES_ARR});
+        for(my $i=0; $i<=$#{ $router->{COL_TYPES_ARR} }; $i++) {
+          #print "$i $router->{COL_NAMES_ARR}->[$i] -> $router->{COL_TYPES_ARR}[$i]\n ";
+           if($router->{COL_TYPES_ARR}[$i] eq 'varchar') {
+             push @string_value, 'nas_name'; #$router->{COL_NAMES_ARR}->[$i];
+             #print "-- $router->{COL_NAMES_ARR}->[$i] --\n"
+           }
+        }
+      }
+
       if ($router->{allowed}) {
         $router->transform(\&Abills::Api::FieldsGrouper::group_fields);
         $router->{status} = 400 if !$router->{status} && $router->{errno};
@@ -124,10 +147,11 @@ sub api_call {
 
       if (!$router->{status} && ref $router->{result} eq 'HASH' && (exists $router->{result}->{errno} || exists $router->{result}->{error})) {
         $router->{status} = 400;
-        $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} eq 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
+        $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} == 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
       }
 
       $response = $router->{result};
+
       $status = $router->{status} || 200;
       $content_type = q{};
 
@@ -149,22 +173,33 @@ sub api_call {
     }
   }
 
+  #TODO: add support of arrays if will be needed
+  if ($self->{conf}->{API_PASSWORD_ENCODE} && ref $response eq 'HASH') {
+    my @pass_keys = ('PASSWORD');
+    my $encode_type = uc($self->{conf}->{API_PASSWORD_ENCODE} || 'BASE64');
+    my $encode_key = uc($self->{conf}->{API_PASSWORD_ENCODE_KEY} || '42');
+
+    foreach my $key (@pass_keys) {
+      next if (!$response->{$key});
+      $response->{$key} = password_converter($response->{$key}, $encode_type, $encode_key);
+    }
+  }
+
   if ($self->{return_type} && $self->{return_type} eq 'json' && !$content_type) {
     my $use_camelize = ($router->{query_params}->{snakeCase} || (defined $self->{conf}{API_FILDS_CAMELIZE} && !$self->{conf}{API_FILDS_CAMELIZE})) ? 0 : 1;
-
     $response = json_former($response, {
       USE_CAMELIZE       => $use_camelize,
       CONTROL_CHARACTERS => 1,
       BOOL_VALUES        => 1,
       UNIQUE_KEYS        => 1,
-      STRING_KEYS        => [ 'login', 'password', 'user_name' ]
+      STRING_KEYS        => \@string_value
     });
   }
   elsif ($self->{return_type} && $self->{return_type} eq 'xml' && !$content_type) {
     $response = xml_former($response, { ROOT_NAME => 'response', PRETTY => 1, ENCODING => 'UTF-8' });
   }
 
-  if ($self->{conf}->{API_LOG}) {
+  if ($self->{conf}->{API_LOG} || $self->{conf}->{API_IDEMPOTENCY_KEY}) {
     $self->api_add_log(
       $router,
       ($self->{return_type} ? $request_body : json_former($request_body || '')),
@@ -213,20 +248,31 @@ sub api_add_log {
     $response_time = gen_time($self->{begin_time}, { TIME_ONLY => 1 });
   }
 
-  $Api->add({
-    UID             => ($router->{handler}->{path_params}->{uid} || q{}),
-    SID             => ($router->{handler}->{query_params}->{REQUEST_USERSID} || q{}),
-    AID             => ($router->{admin}->{AID} || q{}),
-    REQUEST_URL     => $path,
-    REQUEST_BODY    => $request_body,
-    REQUEST_HEADERS => json_former(\%headers),
-    RESPONSE_TIME   => $response_time,
-    RESPONSE        => $response,
-    IP              => $ENV{REMOTE_ADDR},
-    HTTP_STATUS     => ($status || 200),
-    HTTP_METHOD     => $request_method || 'GET',
-    ERROR_MSG       => $router->{error_msg} || q{}
-  });
+  if ($self->{conf}->{API_LOG}) {
+    $Api->add({
+      UID             => ($router->{handler}->{path_params}->{uid} || q{}),
+      SID             => ($router->{handler}->{query_params}->{REQUEST_USERSID} || q{}),
+      AID             => ($router->{admin}->{AID} || q{}),
+      REQUEST_URL     => $path,
+      REQUEST_BODY    => $request_body,
+      REQUEST_HEADERS => json_former(\%headers),
+      RESPONSE_TIME   => $response_time,
+      RESPONSE        => $response,
+      IP              => $ENV{REMOTE_ADDR},
+      HTTP_STATUS     => ($status || 200),
+      HTTP_METHOD     => $request_method || 'GET',
+      ERROR_MSG       => $router->{error_msg} || q{}
+    });
+  }
+
+  if ($self->{conf}->{API_IDEMPOTENCY_KEY} && $ENV{HTTP_IDEMPOTENCY_KEY}) {
+    $Api->idempotency_key_add({
+      KEY_UUID    => $ENV{HTTP_IDEMPOTENCY_KEY},
+      LOG_ID      => $Api->{INSERT_ID} || 0,
+      RESPONSE    => $response,
+      HTTP_STATUS => ($status || 200),
+    });
+  }
 
   return 1;
 }
@@ -252,7 +298,14 @@ sub add_credentials {
 
     my $API_KEY = $ENV{HTTP_KEY} || '';
 
-    my $status = ::check_permissions('', '', '', { API_KEY => $API_KEY });
+    my $status;
+    if(defined(&::check_permissions)) {
+      $status = ::check_permissions('', '', '', { API_KEY => $API_KEY });
+    }
+    else {
+      # why we passing API object to Control::Auth::Admin package
+      $status = $self->Control::Auth::Admin::check_permissions('', '', '', { API_KEY => $API_KEY });
+    }
 
     if ($status == 0) {
       return 1;
@@ -274,7 +327,13 @@ sub add_credentials {
 
     $request->{query_params}{REQUEST_ADMINSID} = $admin_sid;
 
-    return ::check_permissions('', '', $admin_sid, {}) == 0;
+    #Old way
+    if(defined(&::check_permissions)) {
+      return ::check_permissions('', '', $admin_sid, {}) == 0;
+    }
+
+    # why we passing API object to Control::Auth::Admin package
+    return $self->Control::Auth::Admin::check_permissions('', '', $admin_sid, {}) == 0;
   });
 
   $router->add_credential('USER', sub {

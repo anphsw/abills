@@ -56,10 +56,22 @@ sub accident_quick_info {
 
   my $form = $attr->{FORM} || {};
   my $uid = $form->{UID} || '-1';
+  my $total = 0;
 
   $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
+  $total += $Accident->{TOTAL} if ($Accident->{TOTAL});
 
-  return ($Accident->{TOTAL} && $Accident->{TOTAL} > 0) ? $Accident->{TOTAL} : '';
+  $Accident->accident_equipment_list({
+    ID_EQUIPMENT => '_SHOW',
+    PORT_ID      => '_SHOW',
+    STATUS       => 0,
+    UID          => $uid,
+    EXT_TABLE    => 1,
+    COLS_NAME    => 1,
+  });
+  $total += $Accident->{TOTAL} if ($Accident->{TOTAL});
+
+  return ($total > 0) ? $total : '';
 }
 
 1;

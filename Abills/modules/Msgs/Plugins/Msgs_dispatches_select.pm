@@ -64,20 +64,34 @@ sub plugin_info {
 =cut
 #**********************************************************
 sub plugin_show {
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  return '' if !$msgs_permissions->{1} || !$msgs_permissions->{1}{26};
+  return '' if (!$msgs_permissions->{1} || !$msgs_permissions->{1}{26});
+
+  my $dispatches = $Msgs->dispatch_list({
+    ID            => '_SHOW',
+    COMMENTS      => '_SHOW',
+    PLAN_DATE     => '_SHOW',
+    MESSAGE_COUNT => '_SHOW',
+    SORT          => 'd.plan_date',
+    DESC          => 'DESC',
+    STATE         => 0,
+    COLS_NAME     => 1
+  });
+
+  my $dispatches_list = [];
+
+  foreach my $dispatch (@$dispatches) {
+    push @$dispatches_list, {
+      id        => $dispatch->{id},
+      plan_date => $dispatch->{plan_date},
+      comments  => ($dispatch->{comments} || '') . ($dispatch->{message_count} ? " ($lang->{MSGS_MESSAGES}: $dispatch->{message_count})" : '')
+    };
+  }
 
   my $dispatches_sel = $html->form_select('DISPATCH_ID', {
     SELECTED    => $Msgs->{DISPATCH_ID} || '',
-    SEL_LIST    => $Msgs->dispatch_list({
-      ID        => '_SHOW',
-      COMMENTS  => '_SHOW',
-      PLAN_DATE => '_SHOW',
-      STATE     => 0,
-      COLS_NAME => 1
-    }),
+    SEL_LIST    => $dispatches_list,
     SEL_OPTIONS => { '' => '--' },
     SEL_KEY     => 'id',
     SEL_VALUE   => 'plan_date,comments'
@@ -86,7 +100,7 @@ sub plugin_show {
   my $col_div = $html->element('div', $dispatches_sel, { class => 'col-md-12' });
   my $label = $html->element('label', "$lang->{DISPATCH}:", { class => 'col-md-12' });
 
-  return $html->element('div', $label . $col_div, { class => 'form-group' });;
+  return $html->element('div', $label . $col_div, { class => 'form-group' });
 }
 
 1;

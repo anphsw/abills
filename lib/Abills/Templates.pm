@@ -182,14 +182,28 @@ sub tpl_content {
       if (my($marker)=/\$FORM\{(\S+)\}/xm) {
         $res =~ s/\$FORM\{$marker\}/$_form->{$marker}/sgx;
         $tpl_content .= $res;
-        #print "aaa $marker / $_form->{$marker} / $FORM{$marker}<br>";
+      }
+      elsif (my($marker2)=/\$conf\{(\S+)\}/xm) {
+        $res =~ s/\$conf\{$marker2\}/$conf{$marker2}/sgx;
+        $tpl_content .= $res;
       }
       elsif (/\$/xm) {
         if($res) {
           $res =~ s/\_\{(\w+)\}\_/$lang->{$1}/xsg;
           $res =~ s/\{secretkey\}//xg;
           $res =~ s/\{dbpasswd\}//xg;
-          $res = eval " \"$res\" " if($res !~ /\`/xm);
+
+          if($res !~ /\`/xm) {
+            # if($^T != 0) {
+            #   if ($res =~ /^([\s+&:#-\@\w.]+)$/xm) {
+            #     $res = $1;
+            #   }
+            #   else {
+            #     print "$filename Bad: $res\n";
+            #   }
+            # }
+            $res = eval " \"$res\" ";
+          }
           $tpl_content .= $res || q{};
         }
       }

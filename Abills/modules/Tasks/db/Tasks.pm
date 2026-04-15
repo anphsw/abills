@@ -95,13 +95,13 @@ sub add {
   $self->query_add('tasks_main', $attr);
   return $self if ($self->{errno});
 
-  if ($attr->{LEAD_ID} && Abills::Base::in_array('Crm', \@main::MODULES)) {
-    require Crm::db::Crm;
-    Crm->import();
-    my $Crm = Crm->new($self->{db}, $admin, $CONF);
-
-    $Crm->_crm_workflow('newTask', $attr->{LEAD_ID}, $attr) if !$self->{errno};
-  }
+  # if ($attr->{LEAD_ID} && Abills::Base::in_array('Crm', \@main::MODULES)) {
+  #   require Crm::db::Crm;
+  #   Crm->import();
+  #   my $Crm = Crm->new($self->{db}, $admin, $CONF);
+  #
+  #   $Crm->_crm_workflow('newTask', $attr->{LEAD_ID}, $attr) if !$self->{errno};
+  # }
 
   return $self;
 }
@@ -129,13 +129,13 @@ sub change {
     DATA         => $attr,
   });
 
-  if (!$self->{errno} && $attr->{STATE} && $attr->{STATE} eq '1' && $old_info->{STATE} ne '1' && $old_info->{LEAD_ID}) {
-    require Crm::db::Crm;
-    Crm->import();
-    my $Crm = Crm->new($self->{db}, $admin, $CONF);
-
-    $Crm->_crm_workflow('closedTask', $old_info->{LEAD_ID}, { %{$attr}, TASK_TYPE => $old_info->{TASK_TYPE} });
-  }
+  # if (!$self->{errno} && $attr->{STATE} && $attr->{STATE} eq '1' && $old_info->{STATE} ne '1' && $old_info->{LEAD_ID}) {
+  #   require Crm::db::Crm;
+  #   Crm->import();
+  #   my $Crm = Crm->new($self->{db}, $admin, $CONF);
+  #
+  #   $Crm->_crm_workflow('closedTask', $old_info->{LEAD_ID}, { %{$attr}, TASK_TYPE => $old_info->{TASK_TYPE} });
+  # }
 
   return $self;
 }
@@ -171,6 +171,7 @@ sub list {
     [ 'PLAN_DATE', 'DATE', 'tm.plan_date', 1 ],
     [ 'CLOSED_DATE', 'DATE', 'tm.closed_date', 1 ],
     [ 'CONTROL_DATE', 'DATE', 'tm.control_date', 1 ],
+    [ 'CONTROL_FROM_DATE|CONTROL_TO_DATE',   'DATE',   "DATE_FORMAT(tm.control_date, '%Y-%m-%d')"                         ],
     [ 'MSG_ID', 'INT', 'tm.msg_id', 1 ],
     [ 'STEP_ID', 'INT', 'tm.step_id', 1 ],
     [ 'LEAD_ID', 'INT', 'tm.lead_id', 1 ],

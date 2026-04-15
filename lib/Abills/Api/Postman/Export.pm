@@ -502,9 +502,6 @@ sub _get_schemas {
     return 0;
   }
 
-
-  # Abills::Base::_bp('', $request_schema, {TO_CONSOLE => 1});
-
   if (!$request_schema->{path}) {
     print "Error. No field path in request schema skip. Possible reason - confused with naming of request.json and schema.json\n";
     $self->{errors}++;

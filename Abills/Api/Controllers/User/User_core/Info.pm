@@ -57,8 +57,7 @@ sub new {
 =cut
 #**********************************************************
 sub get_user {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   $Users->info($path_params->{uid});
 
@@ -87,8 +86,7 @@ sub get_user {
 =cut
 #**********************************************************
 sub get_user_pi {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params) = @_;
 
   require Info_fields;
   Info_fields->import();
@@ -112,10 +110,13 @@ sub get_user_pi {
     push @delete_params, uc($info_field->{sql_field});
   }
 
-  $Users->pi({ UID => $path_params->{uid} });
+  $Users->pi({
+    UID           => $path_params->{uid},
+    GET_COL_TYPES => 1
+  });
 
-  $Users->{ADDRESS_FULL} =~ s/,\s?$// if ($Users->{ADDRESS_FULL});
-  $Users->{ADDRESS_FULL_LOCATION} =~ s/,\s?$// if ($Users->{ADDRESS_FULL_LOCATION});
+  $Users->{ADDRESS_FULL} =~ s/,\s?$//x if ($Users->{ADDRESS_FULL});
+  $Users->{ADDRESS_FULL_LOCATION} =~ s/,\s?$//x if ($Users->{ADDRESS_FULL_LOCATION});
 
   delete @{$Users}{@delete_params};
 
@@ -130,8 +131,7 @@ sub get_user_pi {
 =cut
 #**********************************************************
 sub put_user_pi {
-  my $self = shift;
-  my ($path_params, $query_params) = @_;
+  my ($self, $path_params, $query_params) = @_;
 
   return {
     errno  => 10066,
@@ -161,7 +161,7 @@ sub put_user_pi {
     my @allowed_params = split(',\s?', $self->{conf}->{CHECK_CHANGE_PI});
     foreach my $param (@allowed_params) {
       $allowed_params{$param} = uc $param;
-      $allowed_params{$param} =~ s/^_//;
+      $allowed_params{$param} =~ s/^_//x;
     }
   }
   else {
@@ -179,7 +179,7 @@ sub put_user_pi {
 
       foreach my $info_field (@{$info_fields}) {
         $allowed_params{uc($info_field->{sql_field})} = uc($info_field->{sql_field});
-        $allowed_params{uc($info_field->{sql_field})} =~ s/^_//;
+        $allowed_params{uc($info_field->{sql_field})} =~ s/^_//x;
       }
     }
   }
@@ -273,7 +273,7 @@ sub put_user_pi {
     %PARAMS,
   });
 
-  $result{result} = 'Successfully changed ' . join(', ', map($_ = camelize($_), keys %PARAMS));
+  $result{result} = 'Successfully changed ' . join(', ', map{$_ = camelize($_)} keys %PARAMS);
 
   return \%result;
 }

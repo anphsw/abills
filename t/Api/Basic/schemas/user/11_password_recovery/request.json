@@ -8,6 +8,7 @@
     "contractId": "11112345",
     "phone": "380959212921",
     "email": "test@gmail.com",
+    "_multi_hit": 1,
     "sendSms": 1
   }
 }

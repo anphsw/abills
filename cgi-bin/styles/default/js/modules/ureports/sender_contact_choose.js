@@ -83,7 +83,7 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
     }
 
     type_id.forEach(function (type) {
-      let contact_type = type === '14' ? 1 : type; //Viber (14) use 1 type (phone)
+      let contact_type = type;
       self.display = new ContactValueView(self.contacts_by_type[contact_type], type);
       wrapper_content.push(self.display.getInsertView(self.type_names[type]));
     });

@@ -33,8 +33,6 @@ use warnings FATAL => 'all';
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -55,7 +53,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/voip/',
-      controller  => 'Voip::Api::user::Root',
       endpoint    => \&Voip::Api::user::Root::get_user_voip,
       credentials => [
         'USER'
@@ -64,7 +61,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/voip/sessions/',
-      controller  => 'Voip::Api::user::Root',
       endpoint    => \&Voip::Api::user::Root::get_user_voip_sessions,
       credentials => [
         'USER'
@@ -73,7 +69,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/voip/routes/',
-      controller  => 'Voip::Api::user::Root',
       endpoint    => \&Voip::Api::user::Root::get_user_voip_routes,
       credentials => [
         'USER'
@@ -82,7 +77,6 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/voip/tariffs/',
-      controller  => 'Voip::Api::user::Root',
       endpoint    => \&Voip::Api::user::Root::get_user_voip_tariffs,
       credentials => [
         'USER'
@@ -110,8 +104,6 @@ sub user_routes {
                                        # Can be used as hashref, but we use constant for clear
                                        # visual differences.
 
-        controller  => 'Api::Controllers::Admin::Users::Info',
-                                       # Name of loadable controller.
 
         endpoint    => \&Api::Controllers::Admin::Users::Info::get_users_uid,
                                        # Path to handler function, must be coderef.
@@ -134,7 +126,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/users/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::get_voip_users,
       credentials => [
         'ADMIN'
@@ -143,7 +134,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/:uid/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::post_voip_uid,
       credentials => [
         'ADMIN'
@@ -152,7 +142,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/:uid/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::put_voip_uid,
       credentials => [
         'ADMIN'
@@ -161,7 +150,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/:uid/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::get_voip_uid,
       credentials => [
         'ADMIN'
@@ -170,7 +158,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/:uid/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::delete_voip_uid,
       credentials => [
         'ADMIN'
@@ -179,7 +166,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/:uid/tariff/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::put_voip_uid_tariff,
       credentials => [
         'ADMIN'
@@ -188,7 +174,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/:uid/tariff/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::delete_voip_uid_tariff,
       credentials => [
         'ADMIN'
@@ -197,7 +182,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/phone/aliases/',
-      controller  => 'Voip::Api::admin::Phones',
       endpoint    => \&Voip::Api::admin::Phones::get_voip_phone_aliases,
       credentials => [
         'ADMIN'
@@ -206,7 +190,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/:uid/phone/aliases/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::get_voip_uid_phone_aliases,
       credentials => [
         'ADMIN'
@@ -215,7 +198,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/:uid/phone/aliases/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::post_voip_uid_phone_aliases,
       credentials => [
         'ADMIN'
@@ -224,7 +206,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/:uid/phone/alias/:id/',
-      controller  => 'Voip::Api::admin::Users',
       endpoint    => \&Voip::Api::admin::Users::delete_voip_uid_phone_aliases,
       credentials => [
         'ADMIN'
@@ -233,7 +214,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/tariffs/',
-      controller  => 'Voip::Api::admin::Tariffs',
       endpoint    => \&Voip::Api::admin::Tariffs::get_voip_tariffs,
       credentials => [
         'ADMIN'
@@ -242,7 +222,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/tariff/:tpId/',
-      controller  => 'Voip::Api::admin::Tariffs',
       endpoint    => \&Voip::Api::admin::Tariffs::get_voip_tariff_tpId,
       credentials => [
         'ADMIN'
@@ -251,7 +230,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/tariff/',
-      controller  => 'Voip::Api::admin::Tariffs',
       endpoint    => \&Voip::Api::admin::Tariffs::post_voip_tariff,
       credentials => [
         'ADMIN'
@@ -260,7 +238,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/tariff/:tpId/',
-      controller  => 'Voip::Api::admin::Tariffs',
       endpoint    => \&Voip::Api::admin::Tariffs::put_voip_tariff_tpId,
       credentials => [
         'ADMIN'
@@ -269,7 +246,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/tariff/:tpId/',
-      controller  => 'Voip::Api::admin::Tariffs',
       endpoint    => \&Voip::Api::admin::Tariffs::delete_voip_tariff_tpId,
       credentials => [
         'ADMIN'
@@ -278,7 +254,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/routes/',
-      controller  => 'Voip::Api::admin::Routes',
       endpoint    => \&Voip::Api::admin::Routes::get_voip_routes,
       credentials => [
         'ADMIN'
@@ -287,7 +262,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/route/:id/',
-      controller  => 'Voip::Api::admin::Routes',
       endpoint    => \&Voip::Api::admin::Routes::get_voip_route_id,
       credentials => [
         'ADMIN'
@@ -296,7 +270,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/route/',
-      controller  => 'Voip::Api::admin::Routes',
       endpoint    => \&Voip::Api::admin::Routes::post_voip_route,
       credentials => [
         'ADMIN'
@@ -305,7 +278,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/route/:id/',
-      controller  => 'Voip::Api::admin::Routes',
       endpoint    => \&Voip::Api::admin::Routes::put_voip_route_id,
       credentials => [
         'ADMIN'
@@ -314,7 +286,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/route/:id/',
-      controller  => 'Voip::Api::admin::Routes',
       endpoint    => \&Voip::Api::admin::Routes::delete_voip_route_id,
       credentials => [
         'ADMIN'
@@ -323,7 +294,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/extra/tarifications/',
-      controller  => 'Voip::Api::admin::Extra',
       endpoint    => \&Voip::Api::admin::Extra::get_voip_extra_tarifications,
       credentials => [
         'ADMIN'
@@ -332,7 +302,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/extra/tarification/:id/',
-      controller  => 'Voip::Api::admin::Extra',
       endpoint    => \&Voip::Api::admin::Extra::get_voip_extra_tarifications_id,
       credentials => [
         'ADMIN'
@@ -341,7 +310,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/extra/tarification/',
-      controller  => 'Voip::Api::admin::Extra',
       endpoint    => \&Voip::Api::admin::Extra::post_voip_extra_tarification,
       credentials => [
         'ADMIN'
@@ -350,7 +318,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/extra/tarification/:id/',
-      controller  => 'Voip::Api::admin::Extra',
       endpoint    => \&Voip::Api::admin::Extra::put_voip_extra_tarification_id,
       credentials => [
         'ADMIN'
@@ -359,7 +326,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/extra/tarification/:id/',
-      controller  => 'Voip::Api::admin::Extra',
       endpoint    => \&Voip::Api::admin::Extra::delete_voip_extra_tarification_id,
       credentials => [
         'ADMIN'
@@ -368,7 +334,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/trunk/protocols/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::get_voip_trunk_protocols,
       credentials => [
         'ADMIN'
@@ -377,7 +342,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/trunks/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::get_voip_trunks,
       credentials => [
         'ADMIN'
@@ -386,7 +350,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/trunk/:id/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::get_voip_trunk_id,
       credentials => [
         'ADMIN'
@@ -395,7 +358,6 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/voip/trunk/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::post_voip_trunk,
       credentials => [
         'ADMIN'
@@ -404,7 +366,6 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/voip/trunk/:id/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::delete_voip_trunk_id,
       credentials => [
         'ADMIN'
@@ -413,7 +374,6 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/voip/trunk/:id/',
-      controller  => 'Voip::Api::admin::Trunks',
       endpoint    => \&Voip::Api::admin::Trunks::put_voip_trunk_id,
       credentials => [
         'ADMIN'
@@ -422,7 +382,6 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/voip/sessions/',
-      controller  => 'Voip::Api::admin::Sessions',
       endpoint    => \&Voip::Api::admin::Sessions::get_voip_sessions,
       credentials => [
         'ADMIN'

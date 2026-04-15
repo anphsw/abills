@@ -94,6 +94,7 @@ sub sms_status {
         SMS_STATUS => 0,
         COLS_NAME  => 1,
         SKIP_DEL_CHECK=>1,
+        UID        => ($attr->{UID}) ? $attr->{UID} : '',
         PAGE_ROWS  => 100000
       });
 

@@ -220,22 +220,15 @@ sub new {
   elsif (defined($FORM{xml})) {
     require Abills::XML;
     $self = Abills::XML->new({
-      IMG_PATH        => $IMG_PATH,
-      NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-      CONF            => $CONF,
-      CHARSET         => $attr->{CHARSET},
-      CONFIG_TPL_SHOW => \&tpl_show,
-      TYPE            => 'xml'
+      %$attr,
+      TYPE  => 'xml'
     });
   }
   elsif ($FORM{csv} || $attr->{csv}) {
     require Abills::CONSOLE;
     $self = Abills::CONSOLE->new({
-      IMG_PATH => $IMG_PATH,
-      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-      CONF     => $CONF,
-      CHARSET  => $attr->{CHARSET},
-      TYPE     => 'csv'
+      %$attr,
+      TYPE => 'csv'
     });
   }
   elsif ($FORM{xls} || $attr->{xls}) {
@@ -248,11 +241,8 @@ sub new {
 
     require Abills::EXCEL;
     $self = Abills::EXCEL->new({
-      IMG_PATH => $IMG_PATH,
-      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-      CONF     => $CONF,
-      CHARSET  => $attr->{CHARSET},
-      TYPE     => 'xls'
+      %$attr,
+      TYPE => 'xls'
     });
   }
   elsif ($FORM{json}) {
@@ -1299,7 +1289,7 @@ HTML
 sub set_cookies {
   my ($self, $name, $value, $expiration, $path, $attr) = @_;
 
-  if ($name eq 'DOMAIN_ID' && $path =~ m/^\/admin\/$/x) {
+  if ($name eq 'DOMAIN_ID' && $path && $path =~ m/^\/admin\/$/x) {
     chop($path);
   }
 
@@ -1693,9 +1683,11 @@ HTML
 sub header {
   my ($self, $attr) = @_;
 
-  $self->{header} = "Content-Type: text/html\n";
-  $self->{header} .= "Access-Control-Allow-Origin: *"
-    . "\n\n";
+  if(!$ENV{PLACK_ENV}) {
+    $self->{header} = "Content-Type: text/html\n";
+    $self->{header} .= "Access-Control-Allow-Origin: *"
+      . "\n\n";
+  }
 
   $self->{HEADERS_SENT} = 1;
 
@@ -1704,8 +1696,18 @@ sub header {
   }
 
   my %info = (
-    JAVASCRIPT => 'functions.js',
-    PRINTCSS   => 'print.css',
+    JAVASCRIPT       => 'functions.js',
+    PRINTCSS         => 'print.css',
+    TITLE            => $self->{WEB_TITLE} || $CONF->{WEB_TITLE} || "~AsmodeuS~ Billing System",
+    HTML_STYLE       => $self->{HTML_STYLE},
+    CHARSET          => $self->{CHARSET},
+    CONTENT_LANGUAGE => $attr->{CONTENT_LANGUAGE} || $self->{content_language} || 'ru',
+    CALLCENTER_MENU  => $self->{CALLCENTER_MENU},
+    CURRENCY_ICON    => $CONF->{CURRENCY_ICON},
+    WEBSOCKET_URL    => '',
+    BREADCRUMB       => ($self->{BREADCRUMB}) ? '| ' . $self->{BREADCRUMB} : '',
+    PERM_CLASES      => _make_perm_clases($self->{admin}{permissions}),
+    SIDEBAR_HIDDEN   => (exists $COOKIES{menuHidden}) ? ($COOKIES{menuHidden} eq 'true') ? 'sidebar-collapse' : '' : ''
   );
 
   if ($self->{PATH}) {
@@ -1713,10 +1715,9 @@ sub header {
     $info{PRINTCSS} = "$self->{PATH}$info{PRINTCSS}";
   }
 
-  $CONF->{WEB_TITLE} = $self->{WEB_TITLE} if ($self->{WEB_TITLE});
-
-  $info{TITLE} = $CONF->{WEB_TITLE} || "~AsmodeuS~ Billing System";
-  $info{HTML_STYLE} = $self->{HTML_STYLE};
+  if ($attr && $attr->{SETTINGS}) {
+    %info = ( %info, %{$attr->{SETTINGS}} );
+  }
 
   if ($FORM{REFRESH}) {
     my $text = $ENV{REQUEST_URI};
@@ -1724,12 +1725,6 @@ sub header {
     $info{REFRESH} = "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$text\"/>\n";
   }
 
-  $info{CHARSET} = $self->{CHARSET};
-  $info{CONTENT_LANGUAGE} = $attr->{CONTENT_LANGUAGE} || $self->{content_language} || 'ru';
-  $info{CALLCENTER_MENU} = $self->{CALLCENTER_MENU};
-  $info{CURRENCY_ICON} = $CONF->{CURRENCY_ICON};
-
-  $info{WEBSOCKET_URL} = '';
   if ($CONF->{WEBSOCKET_URL} || $CONF->{WEBSOCKET_ENABLED}) {
     if (!$CONF->{WEBSOCKET_URL}) {
       $info{WEBSOCKET_URL} = ($ENV{HTTP_HOST} || '') . "/admin/wss/";
@@ -1738,13 +1733,6 @@ sub header {
       $info{WEBSOCKET_URL} = $CONF->{WEBSOCKET_URL};
     }
   }
-
-  $info{SIDEBAR_HIDDEN} = (exists $COOKIES{menuHidden})
-    ? ($COOKIES{menuHidden} eq 'true') ? 'sidebar-collapse' : ''
-    : '';
-
-  $info{BREADCRUMB} = ($self->{BREADCRUMB}) ? '| ' . $self->{BREADCRUMB} : '';
-  $info{PERM_CLASES} = _make_perm_clases($self->{admin}{permissions});
 
   if ($CONF->{AUTOSIZE_JS}) {
     $info{AUTOSIZE_INCLUDE} = "<script src='/styles/default/js/autosize.min.js'></script>";
@@ -2180,8 +2168,8 @@ DOM
   my $data_table_attr = '';
 
   if ($attr) {
-    require JSON;
-    $data_table_attr = JSON->new->indent->encode({ %{$attr->{DATA_TABLE}}, colReorder => 'true' });
+    use Abills::Base qw/json_former/;
+    $data_table_attr = json_former({ %{$attr->{DATA_TABLE}}, colReorder => 'true' }, { BOOL_VALUES => 1 });
   };
 
   if ($attr->{DT_CLICK}) {
@@ -2453,9 +2441,9 @@ sub _form_table_ext_cols {
     $attr->{ID} //= q{};
     $form_buttons .= qq{
       <script>
-        let modal = jQuery('#$attr->{ID}_cols_modal');
-        if (modal.parent().hasClass('modal-content')) {
-          modal.detach().appendTo(jQuery('body'));
+        let modal_$attr->{ID} = jQuery('#$attr->{ID}_cols_modal');
+        if (modal_$attr->{ID}.parent().hasClass('modal-content')) {
+          modal_$attr->{ID}.detach().appendTo(jQuery('body'));
           resultFormerFillCheckboxes();
           resultFormerCheckboxSearch();
         }
@@ -3141,7 +3129,7 @@ sub table_actions_panel {
 sub show {
   my ($self, $attr) = @_;
 
-  return '' if $FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID};
+  return '' if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID});
 
   $self->{show} = $self->{table} . $self->{rows} . $self->{footer} . "</TABLE>\n";
 
@@ -4464,7 +4452,7 @@ sub make_charts_simple {
     }
     my $values_text = join(', ', @{$series_values});
     my $chart_type = ($chart_types->{$series_name}) ? lc $chart_types->{$series_name} : 'line';
-    push @series_arr, "{ name: \"$series_name\", type: \"$chart_type\", data: [$values_text] }";
+    push @series_arr, "{ name: \"$series_name\", type: \"$chart_type\", data: [$values_text], connectNulls: true }";
   }
   my $series_vars = join(",\n", @series_arr);
   $result .= qq{<div id='$graph_id' style='width: 100%; height: 100%; margin-bottom: 10px'></div>};
@@ -4848,6 +4836,7 @@ ARGUMENTS:
     * ID     - unique value, used to apply CSS rules (can not start from a number)
     * NUMBER - number
     * TEXT   - text that describes number (Can be a link)
+    * EXT_TEXT- additional text with small font below main TEXT
     * ICON   - an identifying part of fa name (e.g for 'fa fa-plus' it will be 'plus')
 
   OPTIONAL
@@ -4921,6 +4910,7 @@ sub short_info_panels_row {
     my $number = ($panel->{NUMBER} && $panel->{NUMBER} ne '') ? $panel->{NUMBER} : '';
     my $number_size = $panel->{NUMBER_SIZE} || '28px';
     my $text = $panel->{TEXT} || '';
+    my $ext_text = $panel->{EXT_TEXT} || '';
 
     my $icon = $panel->{ICON} || '';
     my $link = $panel->{LINK} || '';
@@ -4992,6 +4982,7 @@ HTML
           <div class='info-box-content'>
               <span class='info-box-text'>$number</span>
               <span class='info-box-number'>$text</span>
+              <span class='info-box-text' style="font-size:10px;">$ext_text</span>
           </div>
         </div>
       </div>

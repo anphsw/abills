@@ -64,28 +64,23 @@ sub defaults{
 # list()
 #**********************************************************
 sub customers_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100000;
 
   $self->{SEARCH_FIELDS} = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
   my @WHERE_RULES = ();
 
-  if ( $attr->{INFO_FIELDS} ){
-    my @info_arr = split( /, /, $attr->{INFO_FIELDS} );
-    $self->{SEARCH_FIELDS} .= ', pi.' . join( ', pi.', @info_arr );
+  if ($attr->{INFO_FIELDS}) {
+    my @info_arr = split(/,\s+/x, $attr->{INFO_FIELDS});
+    $self->{SEARCH_FIELDS} .= ', pi.' . join(', pi.', @info_arr);
     $self->{SEARCH_FIELDS_COUNT} += $#info_arr;
   }
 
-  if ( $attr->{INFO_FIELDS_COMPANIES} ){
-    my @info_arr = split( /, /, $attr->{INFO_FIELDS_COMPANIES} );
-    $self->{SEARCH_FIELDS} .= ', company.' . join( ', company.', @info_arr );
+  if ($attr->{INFO_FIELDS_COMPANIES}) {
+    my @info_arr = split(/,\s+/x, $attr->{INFO_FIELDS_COMPANIES});
+    $self->{SEARCH_FIELDS} .= ', company.' . join(', company.', @info_arr);
     $self->{SEARCH_FIELDS_COUNT} += $#info_arr;
   }
 
@@ -106,76 +101,70 @@ sub customers_list{
     push @WHERE_RULES, ($attr->{USER_TYPE} == 1) ? "u.company_id>'0'" : "u.company_id='0'";
   }
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'DISABLE', 'INT', 'u.disable', 1 ],
-      [ 'ACTIVATE', 'DATE', 'u.activate', 1 ],
-      [ 'EXPIRE', 'STR', 'u.expire', 1 ],
-      [ 'COMPANY_ID', 'INT', 'u.company_id' ],
-      [ 'LOGIN', 'STR', 'u.id' ],
-      [ 'PHONE', 'STR', 'pi.phone', 1 ],
-      [ 'ADDRESS_STREET', 'STR', 'pi.address_street', 1 ],
-      [ 'ADDRESS_BUILD', 'STR', 'pi.address_build', 1 ],
-      [ 'ADDRESS_FLAT', 'STR', 'pi.address_flat', 1 ],
-      [ 'CONTRACT_ID', 'STR', 'pi.contract_id', 1 ],
-      [ 'REGISTRATION', 'INT', 'u.registration', 1 ],
-      [ 'DEPOSIT', 'INT', 'b.deposit' ],
-      [ 'CREDIT', 'STR', 'u.credit' ],
-      [ 'COMMENTS', 'STR', 'pi.comments', 1 ],
-    ],
+  my @search_values = (
+    [ 'DISABLE', 'INT', 'u.disable', 1 ],
+    [ 'ACTIVATE', 'DATE', 'u.activate', 1 ],
+    [ 'EXPIRE', 'STR', 'u.expire', 1 ],
+    [ 'COMPANY_ID', 'INT', 'u.company_id' ],
+    [ 'LOGIN', 'STR', 'u.id' ],
+    [ 'PHONE', 'STR', 'pi.phone', 1 ],
+    [ 'ADDRESS_STREET', 'STR', 'pi.address_street', 1 ],
+    [ 'ADDRESS_BUILD', 'STR', 'pi.address_build', 1 ],
+    [ 'ADDRESS_FLAT', 'STR', 'pi.address_flat', 1 ],
+    [ 'CONTRACT_ID', 'STR', 'pi.contract_id', 1 ],
+    [ 'REGISTRATION', 'INT', 'u.registration', 1 ],
+    [ 'DEPOSIT', 'INT', 'b.deposit' ],
+    [ 'CREDIT', 'STR', 'u.credit' ],
+    [ 'COMMENTS', 'STR', 'pi.comments', 1 ],
+  );
+
+  my $WHERE = $self->search_former( $attr, \@search_values,
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  #Show last paymenst
-  # Group, Kod, ������������, ��� �����������, ������ ������������, ����������� �����, �������� �����,
-  # ����� ��������, ���, �������� �������, �������� ����,
-  #$conf{ADDRESS_REGISTER}=1;
-
-  # my $ADDRESS_FULL = ($CONF->{ADDRESS_REGISTER}) ? "if(u.company_id > 0, company.address, concat(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number, '$CONF->{BUILD_DELIMITER}', pi.address_flat)) AS ADDRESS" : "if(u.company_id > 0, company.address, concat(pi.address_street, '$CONF->{BUILD_DELIMITER}', pi.address_build, '$CONF->{BUILD_DELIMITER}', pi.address_flat)) AS ADDRESS";
   my $ADDRESS_FULL = "if(u.company_id > 0, company.address, concat(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number, '$CONF->{BUILD_DELIMITER}', pi.address_flat)) AS ADDRESS";
 
-  $self->query( "SELECT
-                         u.uid, 
-                         if(u.company_id > 0, company.name, 
-                            if(pi.fio<>'', pi.fio, u.id)) AS login,
-                         if(u.company_id > 0, company.name, 
-                            if(pi.fio<>'', pi.fio, u.id)) AS name,
-                         u.gid,
-                         g.name,
-                         if(company.id IS NULL, 0, company.id) AS company_id,
-                         $ADDRESS_FULL,
-                         if(u.company_id > 0, company.phone, pi.phone),
-                         if(u.company_id > 0, company.contract_sufix, pi.contract_sufix) AS contract_sufix,
-                         if(u.company_id > 0, company.contract_id, pi.contract_id) AS contract_id,
-                         if(u.company_id > 0, company.contract_date, pi.contract_date) AS contract_date,
-                         if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
-                         if(u.company_id > 0, company.bank_account, '') AS bank_account,
-                         if(u.company_id > 0, company.bank_name, '') AS bank_name,
-                         if(u.company_id > 0, company.cor_bank_account, '') AS cor_bank_account,
-                         u.uid
-                       $self->{SEARCH_FIELDS}
+  my $sql = <<"SQL";
+SELECT
+  u.uid,
+  if(u.company_id > 0, company.name,
+     if(pi.fio<>'', pi.fio, u.id)) AS login,
+  if(u.company_id > 0, company.name,
+     if(pi.fio<>'', pi.fio, u.id)) AS name,
+  u.gid,
+  g.name,
+  if(company.id IS NULL, 0, company.id) AS company_id,
+  $ADDRESS_FULL,
+  if(u.company_id > 0, company.phone, pi.phone),
+  if(u.company_id > 0, company.contract_sufix, pi.contract_sufix) AS contract_sufix,
+  if(u.company_id > 0, company.contract_id, pi.contract_id) AS contract_id,
+  if(u.company_id > 0, company.contract_date, pi.contract_date) AS contract_date,
+  if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+  if(u.company_id > 0, company.bank_account, '') AS bank_account,
+  if(u.company_id > 0, company.bank_name, '') AS bank_name,
+  if(u.company_id > 0, company.cor_bank_account, '') AS cor_bank_account,
+  u.uid
+    $self->{SEARCH_FIELDS}
 
-     FROM `users` u
-     LEFT JOIN `users_pi` pi ON (u.uid = pi.uid)
-     LEFT JOIN `companies` company ON  (u.company_id=company.id)
-     LEFT JOIN `bills` b ON (u.bill_id = b.id)
-     LEFT JOIN `bills` cb ON  (company.bill_id=cb.id)
-     LEFT JOIN `groups` g ON  (u.gid=g.gid)
+FROM `users` u
+  LEFT JOIN `users_pi` pi ON (u.uid = pi.uid)
+  LEFT JOIN `companies` company ON  (u.company_id=company.id)
+  LEFT JOIN `bills` b ON (u.bill_id = b.id)
+  LEFT JOIN `bills` cb ON  (company.bill_id=cb.id)
+  LEFT JOIN `groups` g ON  (u.gid=g.gid)
 
-     LEFT JOIN `builds` ON (builds.id=pi.location_id)
-     LEFT JOIN `streets` ON (streets.id=builds.street_id)
+  LEFT JOIN `builds` ON (builds.id=pi.location_id)
+  LEFT JOIN `streets` ON (streets.id=builds.street_id)
 
-     $WHERE
-     GROUP BY 12
-     ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+  $WHERE
+GROUP BY 12
+SQL
 
-  return [ ] if ($self->{errno});
-  my $list = $self->{list};
+  $self->query_list($sql, $attr);
+
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -186,8 +175,7 @@ sub customers_list{
 =cut
 #**********************************************************
 sub payment_deed{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my %PAYMENT_DEED = ();
   my @WHERE_RULES_DV = ();
@@ -283,7 +271,7 @@ sub payment_deed{
     }
   }
 
-  #Get Dv use
+  #Get Internet use
   $self->query( "SELECT
    IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
    SUM(internet.sum) AS sum,
@@ -334,12 +322,9 @@ sub payment_deed{
 =cut
 #**********************************************************
 sub summary_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query_add( 'extfin_reports', { %{$attr},
-      AID => $admin->{AID}
-    } );
+  $self->query_add('extfin_reports', { %{$attr}, AID => $admin->{AID} });
 
   return $self;
 }
@@ -347,19 +332,26 @@ sub summary_add{
 #**********************************************************
 =head2 balances_add($attr)
 
+  Arguments:
+    $attr
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub balances_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   if ($CONF->{DAILE_PERIOD}) {
     $self->query_add('extfin_balance_reports', $attr);
   }
   else {
-    $self->query( "INSERT INTO extfin_balance_reports (period, bill_id, sum, date, aid)
-    SELECT '$attr->{PERIOD}', id, deposit, now(), $admin->{AID} FROM bills;", 'do'
-    );
+    my $sql = <<'SQL';
+INSERT INTO extfin_balance_reports (period, bill_id, sum, date, aid)
+SELECT ?, id, deposit, now(), ? FROM bills;
+SQL
+
+    $self->query($sql, 'do', { Bind => [ $attr->{PERIOD}, $admin->{AID} ] });
   }
 
   return $self;
@@ -371,13 +363,10 @@ sub balances_add{
 =cut
 #**********************************************************
 sub extfin_report_balances{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ("u.id IS NOT NULL");
   my @FEES_WHERE_RULES = ();
@@ -415,51 +404,60 @@ sub extfin_report_balances{
   my $FEES_WHERE = ($#FEES_WHERE_RULES > -1) ? "AND " . join( ' AND ', @FEES_WHERE_RULES ) : '';
   my $PAYMENTS_WHERE = ($#PAYMENTS_WHERE_RULES > -1) ? "AND " . join( ' AND ', @PAYMENTS_WHERE_RULES ) : '';
 
-  $self->query( "SELECT report.id,
-   u.id,
-   IF(company.name is not null, company.name, IF(pi.fio<>'', pi.fio, u.id)) AS user_name,
-   \@a := if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum) AS payment_sum,
-   \@b := (SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE) AS fees_sum,
-   \@a,
-   u.uid
-  FROM extfin_balance_reports report
-  INNER JOIN bills b ON (report.bill_id = b.id)
-  LEFT JOIN users u ON (b.id = u.bill_id)
-  LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-  LEFT JOIN companies company ON (b.id=company.bill_id)
+  my $sql = <<"SQL";
+SELECT report.id,
+       u.id,
+       IF(company.name is not null, company.name, IF(pi.fio<>'', pi.fio, u.id)) AS user_name,
+  \@a := if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum) AS payment_sum,
+  \@b := (SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE) AS fees_sum,
+  \@a,
+       u.uid
+FROM extfin_balance_reports report
+       INNER JOIN bills b ON (report.bill_id = b.id)
+       LEFT JOIN users u ON (b.id = u.bill_id)
+       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
+       LEFT JOIN companies company ON (b.id=company.bill_id)
   $WHERE
-  GROUP BY $GROUP
-  ORDER BY $SORT $DESC 
-   ;",
-    undef,
-    $attr
-  );
+GROUP BY $GROUP
+ORDER BY $SORT $DESC
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list} || [];
 
-  $self->query( "SELECT
-    \@a := SUM(if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum)) AS total_debit,
-    SUM((SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE)) AS total_credit,
-    \@a - SUM($report_sum) AS total_saldo
+  $sql = <<"SQL";
+SELECT
+  \@a := SUM(if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum)) AS total_debit,
+   SUM((SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE)) AS total_credit,
+  \@a - SUM($report_sum) AS total_saldo
 
-  FROM extfin_balance_reports report
-  INNER JOIN bills b ON (report.bill_id = b.id)
-  LEFT JOIN users u ON (b.id = u.bill_id)
-  LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-  LEFT JOIN companies company ON (b.id=company.bill_id)
-  $WHERE;",
-    undef, { INFO => 1 }
-  );
+FROM extfin_balance_reports report
+       INNER JOIN bills b ON (report.bill_id = b.id)
+       LEFT JOIN users u ON (b.id = u.bill_id)
+       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
+       LEFT JOIN companies company ON (b.id=company.bill_id)
+  $WHERE;
+SQL
+
+  $self->query($sql, undef, { INFO => 1 });
 
   return $list;
 }
 
 #**********************************************************
-# del
+=head1 summary_del($attr)
+
+  Arguments:
+    $attr
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub summary_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $self->query_del( 'extfin_reports', $attr );
 
@@ -470,8 +468,7 @@ sub summary_del{
 # Show full reports
 #**********************************************************
 sub extfin_report_deeds{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -501,29 +498,29 @@ sub extfin_report_deeds{
     }
   );
 
-  $self->query( "SELECT report.id,
-   report.period,
-   report.bill_id,
-   IF(company.name is not null, company.name,
-    IF(pi.fio<>'', pi.fio, u.id)),
-   IF(company.name is not null, 1, 0),
-   $report_sum,
-   IF(company.name is not null, company.vat, 0),
-   report.date,
-   report.aid, 
-   u.uid
-  FROM extfin_reports report
-  INNER JOIN bills b ON (report.bill_id = b.id)
-  LEFT JOIN users u ON (b.id = u.bill_id)
-  LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-  LEFT JOIN companies company ON (b.id=company.bill_id)
+  my $sql = <<"SQL";
+SELECT report.id,
+       report.period,
+       report.bill_id,
+       IF(company.name is not null, company.name,
+          IF(pi.fio<>'', pi.fio, u.id)),
+       IF(company.name is not null, 1, 0),
+       $report_sum,
+       IF(company.name is not null, company.vat, 0),
+       report.date,
+       report.aid,
+       u.uid
+FROM extfin_reports report
+       INNER JOIN bills b ON (report.bill_id = b.id)
+       LEFT JOIN users u ON (b.id = u.bill_id)
+       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
+       LEFT JOIN companies company ON (b.id=company.bill_id)
   $WHERE
-   GROUP BY $GROUP
-  ORDER BY $SORT $DESC 
-   ;",
-    undef,
-    $attr
-  );
+GROUP BY $GROUP
+ORDER BY $SORT $DESC
+SQL
+
+  $self->query($sql, undef, $attr);
 
   return $self->{list} || [];
 }
@@ -534,8 +531,7 @@ sub extfin_report_deeds{
 =cut
 #**********************************************************
 sub paid_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $status_date = ($attr->{STATUS} && $attr->{STATUS} > 0) ? 'NOW()' : '0000-00-00';
 
@@ -556,28 +552,30 @@ sub paid_add{
 =cut
 #**********************************************************
 sub paid_periodic_add{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   $admin->{MODULE} = $MODULE;
 
-  my @ids_arr = split( /, /, $attr->{IDS} );
+  my @ids_arr = split( /,\s+/x, $attr->{IDS} );
 
   $self->paid_periodic_del( { UID => $attr->{UID} } );
+  my $sql = <<'SQL';
+INSERT INTO extfin_paids_periodic
+(uid,
+ type_id,
+ comments,
+ sum,
+ date,
+ activate,
+ expire,
+ aid,
+ maccount_id)
+VALUES
+  (?, ?, ?, ?, NOW(), ?, ?, ?, ?);
+SQL
 
   foreach my $id (@ids_arr) {
-    $self->query( "INSERT INTO extfin_paids_periodic
-     (uid,
-      type_id,
-      comments,
-      sum,
-      date,
-      activate,
-      expire,
-      aid,
-      maccount_id)
-    VALUES
-     (?, ?, ?, ?, NOW(), ?, ?, ?, ?);",
+    $self->query( $sql,
       undef,
       {
         Bind => [
@@ -596,7 +594,6 @@ sub paid_periodic_add{
     $admin->action_add($attr->{UID}, "ADDED_PERIODIC_ACCRUAL: " .  $id . ": ". "->". ($attr->{'SUM_'.$id} || q{}), { TYPE => 1 });
   }
 
-
   return $self;
 }
 
@@ -606,8 +603,8 @@ sub paid_periodic_add{
 =cut
 #**********************************************************
 sub paid_periodic_del{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
+
   my %where = ();
   if (defined($attr->{UID})) {
     $where{UID} = $attr->{UID};
@@ -616,8 +613,8 @@ sub paid_periodic_del{
   if (defined($attr->{ID})) {
     $where{ID} = $attr->{ID};
   }
-  $self->query_del( 'extfin_paids_periodic', undef,
-    \%where );
+
+  $self->query_del( 'extfin_paids_periodic', undef, \%where );
 
   return $self;
 }
@@ -747,13 +744,17 @@ sub paid_del{
 =cut
 #**********************************************************
 sub paid_info{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query( "SELECT date, sum, `comments` AS `describe`, uid, aid,
-  status, status_date, type_id AS type, ext_id, maccount_id
-   FROM extfin_paids
-   WHERE id= ? ;",
+  my $sql = <<'SQL';
+SELECT date, sum, `comments` AS `describe`, uid, aid,
+       status, status_date, type_id AS type, ext_id, maccount_id
+FROM extfin_paids
+WHERE id= ? ;
+SQL
+
+
+  $self->query($sql,
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ] }
@@ -768,8 +769,7 @@ sub paid_info{
 =cut
 #**********************************************************
 sub paids_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -990,11 +990,9 @@ sub paid_type_del{
 # fees
 #**********************************************************
 sub paid_type_info{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
-  $self->query( "SELECT id, name, sum, periodic, month_alignment
-   FROM extfin_paids_types WHERE id=  ? ;",
+  $self->query( "SELECT id, name, sum, periodic, month_alignment FROM extfin_paids_types WHERE id=  ? ;",
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ] }
@@ -1009,19 +1007,19 @@ sub paid_type_info{
 =cut
 #**********************************************************
 sub paid_types_list{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $WHERE = ($attr->{PERIODIC}) ? "WHERE periodic='$attr->{PERIODIC}'" : '';
   if (defined($attr->{ID})) {
     $WHERE = "WHERE id='$attr->{ID}'"
   }
-  $self->query(
-    "SELECT id, name, sum, periodic, month_alignment FROM extfin_paids_types
-   $WHERE",
-    undef,
-    $attr
-  );
+
+  my $sql = <<"SQL";
+  SELECT id, name, sum, periodic, month_alignment FROM extfin_paids_types $WHERE
+SQL
+
+
+  $self->query($sql, undef, $attr);
 
   my $list = $self->{list};
 
@@ -1031,69 +1029,139 @@ sub paid_types_list{
 #**********************************************************
 =head2 extfin_debetors($attr)
 
+  Arguments:
+    $attr
+      DATE
+      MODULE
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub extfin_debetors{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my @WHERE_RULES = ();
+  my $EXT_TABLE  = q{LEFT JOIN internet_main service ON  (u.uid=service.uid)};
 
   my $ext_field = '';
   my %deposits = ();
 
-  if ( $attr->{DATE} ){
-    push @WHERE_RULES, "DATE_FORMAT(f.date, '%Y-%m-%d')<='$attr->{DATE}'";
+  if ($attr->{DATE}) {
+    push @WHERE_RULES, "f.date<='$attr->{DATE} 00:00:00'";
     push @WHERE_RULES, "(f.last_deposit-f.sum<0) ";
     $attr->{DATE} = "'$attr->{DATE}'";
-    $ext_field = "\@A:=(SELECT f.last_deposit-f.sum FROM fees f WHERE f.uid=\@uid and f.date<'2009-03-31' ORDER BY f.id DESC limit 1) AS debet,";
+    $ext_field = "\@A:=(SELECT f.last_deposit-f.sum FROM fees f WHERE f.uid=\@uid and f.date<$attr->{DATE} ORDER BY f.id DESC limit 1) AS debet,";
     $self->{DEPOSITS} = \%deposits;
   }
-  else{
-    push @WHERE_RULES, "( b.deposit < 0 or cb.deposit < 0 ) ";    # and (f.last_deposit >=0 and f.last_deposit-sum<0)";
+  else {
+    push @WHERE_RULES, "( b.deposit < 0 or cb.deposit < 0 ) "; # and (f.last_deposit >=0 and f.last_deposit-sum<0)";
     $ext_field = "\@A:=if(company.id IS NULL,b.deposit,cb.deposit) AS debet,";
     $attr->{DATE} = 'CURDATE()';
   }
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'STATUS', 'INT', 'u.disable' ],
-    ],
-    { WHERE        => 1,
+  if ($attr->{MODULE}) {
+    $EXT_TABLE  = q{LEFT JOIN triplay_main service ON  (u.uid=service.uid)};
+  }
+
+  my @search_params = (
+    [ 'STATUS', 'INT', 'u.disable' ],
+    [ 'GID',    'INT', 'u.gid'     ]
+  );
+
+  my $WHERE = $self->search_former($attr, \@search_params,
+    {
+      WHERE        => 1,
       WHERE_RULES  => \@WHERE_RULES,
       USERS_FIELDS => 1
     }
   );
 
-  $self->query( "SELECT \@uid:=u.uid, u.id, pi.contract_id,
-   pi.fio,
-   IF(pi.contract_date = '0000-00-00', u.registration, pi.contract_date) AS start_date,
-   u.disable,
-   internet.tp_id,
-   $ext_field
-   IF(DATEDIFF($attr->{DATE}, f.date) < 32, \@A, ''),
-   IF(DATEDIFF($attr->{DATE}, f.date) > 33 AND DATEDIFF($attr->{DATE}, f.date) < 54 , \@A, ''),
-   IF(DATEDIFF($attr->{DATE}, f.date) > 65 AND DATEDIFF($attr->{DATE}, f.date) < 96 , \@A, ''),
-   IF(DATEDIFF($attr->{DATE}, f.date) > 97 AND DATEDIFF($attr->{DATE}, f.date) < 183 , \@A, ''),
-   IF(DATEDIFF($attr->{DATE}, f.date) > 184 AND DATEDIFF($attr->{DATE}, f.date) < 365 , \@A, ''),
-   IF(DATEDIFF($attr->{DATE}, f.date) > 365 , \@A, ''),
+#   my $sql = <<"SQL";
+#   SELECT \@uid:=u.uid,
+#    u.id AS login,
+#    pi.contract_id,
+#    pi.fio,
+#    IF(pi.contract_date = '0000-00-00', u.registration, pi.contract_date) AS start_date,
+#    u.disable,
+#    service.tp_id,
+#    $ext_field
+#    IF(DATEDIFF($attr->{DATE}, f.date) < 32, \@A, '') AS _32,
+#    IF(DATEDIFF($attr->{DATE}, f.date) > 33 AND DATEDIFF($attr->{DATE}, f.date) < 54 , \@A, '') AS _33,
+#    IF(DATEDIFF($attr->{DATE}, f.date) > 65 AND DATEDIFF($attr->{DATE}, f.date) < 96 , \@A, '') AS _65,
+#    IF(DATEDIFF($attr->{DATE}, f.date) > 97 AND DATEDIFF($attr->{DATE}, f.date) < 183 , \@A, '') AS _97,
+#    IF(DATEDIFF($attr->{DATE}, f.date) > 184 AND DATEDIFF($attr->{DATE}, f.date) < 365 , \@A, '') AS _184,
+#    IF(DATEDIFF($attr->{DATE}, f.date) > 365 , \@A, '') AS _365,
+#
+#    u.uid
+#   FROM users u
+#      INNER JOIN fees f ON (u.uid = f.uid)
+#      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
+#      LEFT JOIN bills b ON (u.bill_id = b.id)
+#      LEFT JOIN companies company ON  (u.company_id=company.id)
+#      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+#      $EXT_TABLE
+# $WHERE
+# GROUP BY f.uid
+# HAVING debet < 0
+# ORDER BY f.date DESC;
+# SQL
 
-   u.uid
-  FROM users u
-     INNER JOIN fees f ON (u.uid = f.uid)
-     LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-     LEFT JOIN bills b ON (u.bill_id = b.id)
-     LEFT JOIN companies company ON  (u.company_id=company.id)
-     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
-     LEFT JOIN internet_main internet ON  (u.uid=internet.uid)
-$WHERE
-GROUP BY f.uid
-HAVING debet < 0
-ORDER BY f.date DESC;",
-    undef,
-    $attr
-  );
+  my $sql = <<"SQL";
+SELECT
+  u.uid,
+  u.id AS login,
+  pi.contract_id,
+  pi.fio,
 
-  my $list = $self->{list};
+  CASE
+    WHEN pi.contract_date = '0000-00-00' THEN u.registration
+    ELSE pi.contract_date
+    END AS start_date,
+
+  u.disable,
+  service.tp_id,
+
+  f.last_deposit - f.sum AS debet,
+
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) < 32 THEN f.last_deposit - f.sum END AS _32,
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) BETWEEN 33 AND 65 THEN f.last_deposit - f.sum END AS _33,
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) BETWEEN 66 AND 95 THEN f.last_deposit - f.sum END AS _66,
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) BETWEEN 96 AND 182 THEN f.last_deposit - f.sum END AS _96,
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) BETWEEN 183 AND 364 THEN f.last_deposit - f.sum END AS _183,
+  CASE WHEN DATEDIFF($attr->{DATE}, f.date) > 365 THEN f.last_deposit - f.sum END AS _365
+
+FROM users u
+
+       JOIN (
+  -- Берем последнюю запись fees по каждому uid ДО даты
+  SELECT f1.*
+  FROM fees f1
+         JOIN (
+    SELECT uid, MAX(id) AS max_id
+    FROM fees
+    WHERE date < $attr->{DATE}
+    GROUP BY uid
+  ) f2 ON f1.id = f2.max_id
+) f ON f.uid = u.uid
+
+       LEFT JOIN users_pi pi ON pi.uid = u.uid
+       LEFT JOIN bills b ON u.bill_id = b.id
+       LEFT JOIN companies company ON u.company_id = company.id
+       LEFT JOIN bills cb ON company.bill_id = cb.id
+       LEFT JOIN internet_main service ON service.uid = u.uid
+
+WHERE
+  u.disable = '0'
+  AND (f.last_deposit - f.sum) < 0
+
+ORDER BY f.date DESC;
+SQL
+
+
+  $self->query($sql, undef, $attr);
+
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -1104,13 +1172,11 @@ ORDER BY f.date DESC;",
 =cut
 #**********************************************************
 sub report_payments_fees{
-  my $self = shift;
-  my ($attr) = @_;
+  my ($self, $attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $date = '';
   my @WHERE_RULES = ();
