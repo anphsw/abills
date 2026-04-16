@@ -518,7 +518,9 @@ sub accounting {
             $RAD->{'User-Name'} || '',
             $NAS->{NAS_ID}
           ]   });
-
+      if ($self->{AFFECTED} eq '0E0') {
+	$self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
+      }
       return $self;
     }
     elsif ($NAS->{NAS_TYPE} eq 'ipn') {
@@ -571,6 +573,9 @@ sub accounting {
           $NAS->{'NAS_ID'} || 0
         ]}
     );
+    if ($self->{AFFECTED} eq '0E0') {
+	$self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
+    }
   }
   elsif($acct_status_type == '7' || $acct_status_type == '8') {
     $self->query("UPDATE internet_online SET status = 2
