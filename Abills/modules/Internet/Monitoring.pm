@@ -1188,6 +1188,10 @@ sub _internet_hangup {
     $message = "$Nas->{NAS_TYPE} NAS NOT supported yet";
   }
 
+  if ($Nas_cmd->{RESULT}) {
+    $message .= "\n $lang{RESULT}: $Nas_cmd->{RESULT}";
+  }
+
   return {
     %params,
     result  => 'OK',

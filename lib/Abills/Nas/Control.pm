@@ -211,7 +211,7 @@ sub hangup {
   }
   # http://sourceforge.net/projects/radcoad/
   elsif ($nas_type eq 'pppd_coa') {
-    hangup_pppd_coa($Nas, $PORT, \%params);
+    $self->hangup_pppd_coa($Nas, $PORT, \%params);
   }
   elsif ($nas_type eq 'accel_ppp' || $nas_type eq 'accel_ipoe') {
     $USER =~ s/^!\s?//x;
@@ -1220,7 +1220,7 @@ sub hangup_pppd {
 =cut
 #***********************************************************
 sub hangup_pppd_coa {
-  my ($NAS, $PORT, $attr) = @_;
+  my ($self, $NAS, $PORT, $attr) = @_;
 
   my ($ip, $mng_port) = split(':', $NAS->{NAS_MNG_IP_PORT}, 3);
   $Log->log_print('LOG_DEBUG', '', " HANGUP: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}'", { ACTION => 'CMD' });
@@ -1245,11 +1245,10 @@ sub hangup_pppd_coa {
     # No responce from POD server
     $result = 1;
     $Log->log_print('LOG_DEBUG', '', "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}' ", { ACTION => '' });
-  }
-
-  my $nas_type = $attr->{NAS_TYPE};
-  if (defined($nas_type) && ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp')) {
-    return 1;
+  } elsif ($type eq DISCONNECT_REJECT) {
+    $self->{RESULT} = 'Session-Context-Not-Found';
+  } elsif ($type eq DISCONNECT_ACCEPT) {
+    $self->{RESULT} = 'OK';
   }
 
   return $result;
