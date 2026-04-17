@@ -394,11 +394,10 @@ sub check_permissions {
 
   $login    = '' if (!defined($login));
   $password = '' if (!defined($password));
-  # It's CVE IP spoofing, we trust to users IP, not which recieved from web server
-  my $REMOTE_ADDR = $ENV{HTTP_X_REAL_IP} || $ENV{REMOTE_ADDR} || '0.0.0.0';
+  my $REMOTE_ADDR = $ENV{REMOTE_ADDR} || '0.0.0.0';
 
   if ($self->{conf}{AUTH_X_FORWARDED} && $self->{conf}{AUTH_X_DOMAIN} && in_array($ENV{HTTP_HOST}, [ split(',\s?', $self->{conf}{AUTH_X_DOMAIN}) ])) {
-    $REMOTE_ADDR = $ENV{$self->{conf}{AUTH_X_FORWARDED}} if ($ENV{$self->{conf}{AUTH_X_FORWARDED}});
+    $REMOTE_ADDR = $ENV{$self->{conf}{AUTH_X_FORWARDED}} || q{}; #if ($ENV{$self->{conf}{AUTH_X_FORWARDED}});
   }
 
   if ($self->{conf}{ADMINS_ALLOW_IP}) {
@@ -419,14 +418,13 @@ sub check_permissions {
   }
 
   my %PARAMS = (
-    IP    => $REMOTE_ADDR || '0.0.0.0',
+    IP    => ($REMOTE_ADDR eq '::1') ? '0.0.0.1' : $REMOTE_ADDR,
     SHORT => $attr->{FULL_INFO} ? 0 : 1
   );
 
-  if($PARAMS{IP} eq '::1') {
-    $PARAMS{IP} = '0.0.0.1';
-  }
-
+  # if($PARAMS{IP} eq '::1') {
+  #   $PARAMS{IP} = '0.0.0.1';
+  # }
   #Rudements
   #$login    =~ s/"/\\"/xg;
   #$login    =~ s/'/\\'/xg;
@@ -667,7 +665,7 @@ sub check_permissions {
 sub admin_access {
   my ($self) = @_;
 
-  my $REMOTE_ADDR = $self->{admin}->{IP};
+  my $REMOTE_ADDR = $self->{admin}->{SESSION_IP};
   my $access_list = $admin->access_list({
     AID       => $self->{admin}->{AID},
     DISABLE   => 0,

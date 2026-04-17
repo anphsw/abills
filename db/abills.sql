@@ -2168,6 +2168,7 @@ CREATE TABLE IF NOT EXISTS `web_online` (
   `aid`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `sip_number` VARCHAR(15)          NOT NULL DEFAULT '',
   KEY (`aid`),
+  KEY (`ip`),
   UNIQUE KEY `sid` (`sid`)
 )
   DEFAULT CHARSET = utf8

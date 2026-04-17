@@ -322,7 +322,7 @@ sub user_preproccess {
     Internet::User_ips->import();
 
     ($attr->{IPV6}, $attr->{IPV6_MASK},
-     $attr->{IPV6_PD}, $attr->{IPV6_PREFIX_MASK}) = $self->Internet::User_ips::get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
+     $attr->{IPV6_PREFIX}, $attr->{IPV6_PREFIX_MASK}) = $self->Internet::User_ips::get_static_ip($attr->{STATIC_IPV6_POOL}, { IPV6 => 1 });
 
     # if ($uid > 65000) {
     #   $Errors->throw_error(1360019);

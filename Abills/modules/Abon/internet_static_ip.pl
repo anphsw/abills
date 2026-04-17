@@ -257,7 +257,7 @@ sub _check_cur_ip_in_pools {
     _check_cur_ip_in_pools({ CURRENT_IP => $cur_ip, POOL_ID => $next_pool_id });
   }
 
-  return 1;
+  return 0;
 }
 
 

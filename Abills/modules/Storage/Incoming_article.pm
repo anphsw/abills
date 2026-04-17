@@ -258,7 +258,26 @@ sub storage_incoming_articles_move {
     return $Errors->throw_error(1180009);
   }
 
-  if (!$new_incoming_article->{COUNT} || $new_incoming_article->{COUNT} > $incoming_article->{COUNT}) {
+  my $stock_balance = $incoming_article->{COUNT} || 0;
+
+  my $accountability_items = $Storage->storage_accountability_list({
+    STORAGE_INCOMING_ARTICLES_ID => $incoming_article_id,
+    COUNT                        => '!',
+    COLS_NAME                    => 1,
+    COLS_UPPER                   => 1
+  });
+  my $reserve = $Storage->storage_reserve_list({
+    STORAGE_INCOMING_ARTICLES_ID => $incoming_article_id,
+    COUNT                        => '!',
+    COLS_NAME                    => 1,
+    COLS_UPPER                   => 1
+  });
+
+  for my $item (@$accountability_items, @$reserve) {
+    $stock_balance -= $item->{COUNT} if ($item->{COUNT} && $item->{COUNT} > 0);
+  }
+
+  if (!$new_incoming_article->{COUNT} || $new_incoming_article->{COUNT} > $stock_balance) {
     return $Errors->throw_error(1180001);
   }
 

@@ -3,10 +3,12 @@ SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE IF NOT EXISTS `employees_positions`
 (
     `id`            SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `position`      CHAR(40) UNIQUE                  NOT NULL DEFAULT '',
+    `position`      VARCHAR(40) UNIQUE               NOT NULL DEFAULT '',
     `subordination` SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
     `vacancy`       TINYINT(2) UNSIGNED              NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY position (`position`),
+    KEY vacancy (`vacancy`)
 )
     COMMENT = 'Employees positions';
 
@@ -37,7 +39,8 @@ CREATE TABLE IF NOT EXISTS `employees_profile`
     `phone`         VARCHAR(188) UNIQUE              NOT NULL DEFAULT '',
     `position_id`   SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
     `rating`        SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `position_id` (`position_id`)
 )
     COMMENT = 'Employees profile';
 
@@ -154,10 +157,11 @@ CREATE TABLE IF NOT EXISTS `employees_mobile_reports`
 CREATE TABLE IF NOT EXISTS `employees_cashboxes`
 (
     `id`       SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`     CHAR(80)                         NOT NULL,
+    `name`     VARCHAR(80)                      NOT NULL,
     `aid`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     `comments` TEXT,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `aid` (`aid`)
 )
     DEFAULT CHARSET = utf8
     COMMENT = 'Employees cashboxes';

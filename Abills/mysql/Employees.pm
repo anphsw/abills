@@ -1934,7 +1934,7 @@ sub employees_payments_cashbox {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
   my @WHERE_RULES = ();
 
-  $admin->info($self->{admin}->{AID});
+  $admin->info($self->{admin}->{AID}, { SHORT => 1 });
   if ($admin->{DEPARTMENT}) {
     push @WHERE_RULES, "eca.department = $admin->{DEPARTMENT}";
   }

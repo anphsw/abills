@@ -123,12 +123,7 @@ sub post_payments_users_uid {
   }
   else {
     if ($query_params->{SKIP_BILL_ID_CHECK}) {
-      my $bills = $Bills->list({
-        UID       => $path_params->{uid},
-        COLS_NAME => 1,
-      });
-
-      $query_params->{BILL_ID} = $bills->[0]->{id} if ($Bills->{TOTAL} && $bills && $bills->[0] && $bills->[0]->{id});
+      $query_params->{BILL_ID} = $Users->{BILL_ID};
     }
     else {
       $Bills->list({
